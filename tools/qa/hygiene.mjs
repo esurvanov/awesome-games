@@ -75,7 +75,11 @@ export function machineLoad({ excludePids = [] } = {}) {
   const mine = new Set([process.pid, ...excludePids]);
   let grew = true; while (grew) { grew = false; for (const p of P) if (!mine.has(p.pid) && mine.has(p.ppid)) { mine.add(p.pid); grew = true; } }
   const isChromeMain = (p) => /Google Chrome( for Testing)?(\.app\/Contents\/MacOS\/Google Chrome)?( |$)|chrome-headless-shell|Chromium( |$)/.test(p.args) && !/Helper/.test(p.args) && !/--type=/.test(p.args);
-  const headless = P.filter((p) => !mine.has(p.pid) && isChromeMain(p) && /--headless|--enable-automation|--remote-debugging/.test(p.args));
+  const headless0 = P.filter((p) => !mine.has(p.pid) && isChromeMain(p) && /--headless|--enable-automation|--remote-debugging/.test(p.args));
+  // an idle automation browser (its whole process tree < 8 % of one core) does not disturb a benchmark: noted, not busy
+  const treeCpu = (root) => { const ids = new Set([root.pid]); let g = true; while (g) { g = false; for (const p of P) if (!ids.has(p.pid) && ids.has(p.ppid)) { ids.add(p.pid); g = true; } } let c = 0; for (const p of P) if (ids.has(p.pid)) c += p.cpu; return c; };
+  const headless = headless0.filter((p) => (p.treeCpu = treeCpu(p)) >= 8);
+  const idleHeadless = headless0.filter((p) => p.treeCpu < 8);
   // CPU of the other headless browsers' whole trees (their GPU/renderer helpers)
   const cores = os.cpus().length;
   let cpu = 0; for (const p of P) if (!mine.has(p.pid) && !/^ps /.test(p.args)) cpu += p.cpu;
@@ -85,7 +89,9 @@ export function machineLoad({ excludePids = [] } = {}) {
   const cpuPct = cpu / cores;   // % of the whole machine
   if (cpuPct > 50) reasons.push(`other processes use ${cpuPct.toFixed(0)} % of ${cores} cores`);
   if (load1 > cores * 1.0) reasons.push(`load average ${load1.toFixed(1)} on ${cores} cores`);
-  return { otherHeadless: headless.length, otherHeadlessPids: headless.map((p) => p.pid), cpuPct: +cpuPct.toFixed(1), cpuCores: cores, load1: +load1.toFixed(2), busy: reasons.length > 0, reasons };
+  const top = P.filter((p) => !mine.has(p.pid) && p.cpu >= 50).sort((a, b) => b.cpu - a.cpu).slice(0, 4).map((p) => `${p.args.split(' ')[0].split('/').pop()} ${Math.round(p.cpu)} %`);
+  if (reasons.length && top.length) reasons.push('top: ' + top.join(', '));
+  return { otherHeadless: headless.length, otherHeadlessPids: headless.map((p) => p.pid), idleHeadless: idleHeadless.length, cpuPct: +cpuPct.toFixed(1), cpuCores: cores, load1: +load1.toFixed(2), busy: reasons.length > 0, reasons, top };
 }
 
 export function quietCheck(opts) { const m = machineLoad(opts); return Object.assign(m, { quiet: !m.busy }); }
