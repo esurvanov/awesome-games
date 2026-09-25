@@ -750,7 +750,7 @@ let composer = null, gradePass = null, bloomPass = null;
         col += vec3(1., .1, .3) * uHurt * (1. - v) * .55;
         col += vec3(.3, .9, 1.) * uScan * .07;
         col += (rnd(vUv * 900. + fract(uTime)) - .5) * .018 * smoothstep(.0, .06, dot(col, vec3(.3, .55, .15)));   // grain fades out in the blacks (no clipped-to-zero speckle)
-        gl_FragColor = vec4(col, 1.);
+        gl_FragColor = vec4(max(col, vec3(1.2 / 255.)), 1.);   // black level 1/255: shadowed dark props never quantise to exact 0 (exact 0 = the NaN signature the guard above already removes)
       }`,
   });
   composer.addPass(gradePass);
@@ -2648,12 +2648,14 @@ function updateBoss(dt) {
       if (boss.atk <= 0) { boss.st = Math.random() < 0.5 ? 'rise' : 'charge'; boss.t = boss.st === 'rise' ? 0.9 : 0.7; }
       break;
     }
-    case 'rise': targetY = floorY + 7; if (boss.t <= 0) { boss.st = 'drop'; boss.t = 0.22; } break;
+    case 'rise': targetY = floorY + 7; if (boss.t <= 0) { boss.st = 'drop'; boss.t = 0.45; } break;
     case 'drop': targetY = floorY - 0.5; if (boss.t <= 0) { spawnWave(boss.x, boss.z, RIFT_FLOOR); if (boss.phase > 1) setTimeout(() => boss.active && !boss.dead && spawnWave(boss.x, boss.z, RIFT_FLOOR), 450); Sound.slam(); shake = 1; burst(boss.x, RIFT_FLOOR + 0.5, boss.z, 0xc49bff, 60, 16, 0.8, 0.8); boss.st = 'recover'; boss.t = 0.9; } break;
     case 'charge': boss.core.scale.setScalar(4.5 + Math.sin(T * 40) * 1.5); if (boss.t <= 0) { volley(); boss.st = 'recover'; boss.t = 0.7; } break;
     case 'recover': if (boss.t <= 0) { boss.st = 'idle'; boss.atk = rand(1.8, 3) / boss.phase; boss.core.scale.setScalar(4.5); } break;
   }
-  if (boss.st === 'rise' || boss.st === 'drop') boss.y = damp(boss.y, targetY, boss.st === 'drop' ? 30 : 4, dt); else boss.y = damp(boss.y, targetY, 3, dt);
+  if (boss.st === 'rise') boss.y = damp(boss.y, targetY, 4, dt);
+  else if (boss.st === 'drop') boss.y = Math.max(targetY, boss.y - 18 * dt);   // slam: a hard fall, not a teleport (≤ 18 m/s)
+  else boss.y = damp(boss.y, targetY, 3, dt);
   const rd = Math.hypot(boss.x - rp.x, (boss.z - rp.z) * 1.25); if (rd > 38) { boss.x = rp.x + (boss.x - rp.x) * 38 / rd; boss.z = rp.z + (boss.z - rp.z) * 38 / rd; }
   boss.g.position.set(boss.x, boss.y, boss.z); boss.g.rotation.y = damp(boss.g.rotation.y, Math.atan2(-dx, -dz), 3, dt);
   boss.armL.rotation.x = Math.sin(T * 1.3) * 0.3 + (boss.st === 'rise' ? -2.2 : 0); boss.armR.rotation.x = Math.cos(T * 1.3) * 0.3 + (boss.st === 'rise' ? -2.2 : 0);
@@ -2810,9 +2812,16 @@ function camCover(c, look) {
   for (const sx of [-0.8, -0.4, 0, 0.4, 0.8]) for (const sy of [-0.65, 0, 0.65]) {
     _cd.copy(_cf).addScaledVector(_cr, sx * th).addScaledVector(_cu, sy * tv).normalize();
     let d = 3; if (PH.ok) { const h = PH.P.raycast(c, _cd, 3, { groups: PH.P.groups.STATIC | PH.P.groups.TRUNK }); if (h) d = h.distance; }
-    d = Math.min(d, crownRay(c, _cd.x, _cd.y, _cd.z, d)); if (d < 1.2) n1++; if (d < 3) n3++;
+    d = Math.min(d, crownRay(c, _cd.x, _cd.y, _cd.z, d), pilotRay(c, _cd, d)); if (d < 1.2) n1++; if (d < 3) n3++;
   }
   return Math.max(n1 / 15 / 0.2, n3 / 15 / 0.3);
+}
+function pilotRay(o, d, len) {   // the pilot's own body (vertical capsule r 0.35, 1.9 m) along a view ray
+  if (G.riding) return len;
+  const px = player.x - o.x, pz = player.z - o.z, hl = d.x * d.x + d.z * d.z; if (hl < 1e-6) return len;
+  const t = (px * d.x + pz * d.z) / hl; if (t < 0 || t > len) return len;
+  const cx = px - d.x * t, cz = pz - d.z * t, y = o.y + d.y * t - player.y;
+  return cx * cx + cz * cz < 0.35 * 0.35 && y > 0 && y < 1.9 ? t : len;
 }
 function camAt(yaw, pitch, side, dist, out) {   // un-smoothed camera for a framing (look point = the damped one, shoulder moved)
   const cp = Math.cos(pitch), bx = Math.sin(yaw) * cp, by = Math.sin(pitch), bz = Math.cos(yaw) * cp, sh = 0.75 * side;
@@ -2829,13 +2838,16 @@ function camFrame(dt, dist) {   // periodic framing search (on foot only)
   if (CAMX.side !== 1 && pen0 < 0.5) { const lk = camAt(cam.yaw, cam.pitch, 1, dist, c); if (camCover(c, lk) < 0.6) CAMX.side = 1; }   // back to the right shoulder when it is clear
   if (pen0 < 0.7 || Math.abs(CAMX.yawGoal) > 0.05) return;
   let best = null;
-  for (const side of [CAMX.side, -CAMX.side]) for (const dy of [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.2, -1.2]) {
+  const dys = [0];   // the yaw is the player's (it steers the walk); the camera only changes shoulder, pitch and boom
+  for (const side of [CAMX.side, -CAMX.side]) for (const dy of dys) {
     if (dy === 0 && side === CAMX.side) continue;
     const lk = camAt(cam.yaw + dy, cam.pitch, side, dist, c), p = camCover(c, lk) + Math.abs(dy) * 0.25 + (side !== CAMX.side ? 0.15 : 0);
     if (!best || p < best.p) best = { p, dy, side };
     if (best.p < 0.5) break;
   }
-  if (best && best.p < pen0 - 0.2) { CAMX.yawGoal = best.dy; CAMX.side = best.side; }
+  // the yaw only swings while the pilot stands still (moving, the camera is the steering frame: W must keep going where it
+  // pointed); moving, only the shoulder changes
+  if (best && best.p < pen0 - 0.2) { const still = Math.hypot(player.vx, player.vz) < 0.5; if (still || best.dy === 0) { CAMX.yawGoal = best.dy; CAMX.side = best.side; } }
 }
 function updateCamera(dt) {
   if (window.DBG && DBG.camOv) { const o = DBG.camOv; camera.position.set(o.pos[0], o.pos[1], o.pos[2]); camera.lookAt(o.look[0], o.look[1], o.look[2]); cam.heading = -cam.yaw; return; }

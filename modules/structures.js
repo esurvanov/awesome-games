@@ -542,6 +542,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
 
   /* ============================ boss: crystal golem ============================ */
   const GOLEM = { A: null, root: null, dieT: -1, prevX: 0, prevZ: 0, hurtCd: 0, lastSummon: false, lastSt: '', emBase: null };
+  ST.golem = GOLEM;   // debug / QA probes
   function buildGolem() {
     need('boss_crystal_golem', (gl) => {
       const boss = C.boss, root = gl.scene;
@@ -572,17 +573,22 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     const st = boss.st, enter = st !== GOLEM.lastSt; GOLEM.lastSt = st;
     GOLEM.hurtCd -= dt;
     if (st === 'intro') {   // rises out of the rift floor instead of growing from a point
+      // rises out of the floor; the clip stands it up, slowed (0.55) so the 8 m golem's hips move at a giant's pace
       boss.g.scale.setScalar(1); GOLEM.wrap.position.y = -1.2 - Math.max(0, boss.t) / 2 * 8.5;
-      if (enter) { A.lock = 0; A.once('wake', 2.5, 0.3); }
-    } else GOLEM.wrap.position.y = damp(GOLEM.wrap.position.y, -1.2, 10, dt);
+      if (enter) { A.lock = 0; const wd = A.acts.wake ? A.acts.wake.getClip().duration : 2; A.once('wake', Math.min(4.5, wd / 0.55), 0.4); A.speed('wake', 0.55); }
+    } else {
+      GOLEM.wrap.position.y = damp(GOLEM.wrap.position.y, -1.2, 10, dt);
+      if (A.cur === 'wake' && Math.abs(GOLEM.vAlong || 0) > 0.3) A.lock = 0;   // it starts walking: the gait takes over from the stand-up clip
+    }
     if (boss.summoned && !GOLEM.lastSummon) { A.lock = 0; A.speed('summon', 2.2); A.once('summon', 7.5 / 2.2, 0.35); GOLEM.showRock = 1.2; }
     GOLEM.lastSummon = boss.summoned;
-    if (enter && st === 'rise') { A.lock = 0; A.speed('slam', 1.5); A.once('slam', 3.54 / 1.5, 0.35); }
-    if (enter && st === 'charge') { A.lock = 0; const k = Math.random() < 0.5 ? 'swing' : 'throw'; const ts = k === 'swing' ? 1.7 : 2.4; A.speed(k, ts); A.once(k, (k === 'swing' ? 3.54 : 5.42) / ts, 0.35); if (k === 'throw') GOLEM.showRock = 1.6; }
+    if (enter && st === 'rise') { A.lock = 0; A.speed('slam', 1.15); A.once('slam', 3.54 / 1.15, 0.35); }
+    if (enter && st === 'charge') { A.lock = 0; const k = Math.random() < 0.5 ? 'swing' : 'throw'; const ts = k === 'swing' ? 1.2 : 1.7; /* an 8 m golem: hips at a giant's pace */ A.speed(k, ts); A.once(k, (k === 'swing' ? 3.54 : 5.42) / ts, 0.35); if (k === 'throw') GOLEM.showRock = 1.6; }
     if (boss.flash > 0.05 && GOLEM.hurtCd <= 0 && A.lock <= 0 && st !== 'intro') { GOLEM.hurtCd = 2.2; const k = 'hurt' + (1 + ((Math.random() * 3) | 0)); A.speed(k, 1.6); A.once(k, 1.6 / 1.6, 0.25); }
     // locomotion: walk ↔ run as one phase-synced gait (interaction module), rate = signed speed along the facing ÷
     // measured stride — backing off plays the walk backwards; the golem's top speed is the gait's (boss.vMax)
-    const ry = boss.g.rotation.y; GOLEM.vAlong = dt > 0 ? ((boss.x - GOLEM.px2) * -Math.sin(ry) + (boss.z - GOLEM.pz2) * -Math.cos(ry)) / dt : 0; GOLEM.px2 = boss.x; GOLEM.pz2 = boss.z;
+    const ry = boss.g.rotation.y, vA = dt > 0 && GOLEM.px2 !== undefined ? ((boss.x - GOLEM.px2) * -Math.sin(ry) + (boss.z - GOLEM.pz2) * -Math.cos(ry)) / dt : 0; GOLEM.px2 = boss.x; GOLEM.pz2 = boss.z;
+    GOLEM.vAlong = damp(GOLEM.vAlong || 0, clamp(vA, -12, 12), 6, dt);   // smoothed: pushed back at the arena edge it would flicker between 0 and full speed
     if (!GOLEM.gaitTried && window.INTERACTION && INTERACTION.makeGait && A.acts.walk) {
       GOLEM.gaitTried = true;
       try {

@@ -326,12 +326,16 @@
       // down where it plants: footPress = the share of the loose snow a boot compresses (stamped by plantStamp below)
       L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowSurfaceAt === 'function';
       let gy = L.g.y;
-      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const v = C.snowSurfaceAt(sx, sz, C.footPress ? C.footPress(sx, sz) * 0.72 : 0); /* ×0.72: the pad's press as the blurred map shows it at its centre */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
+      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const stamped = L.st && Math.hypot(sx - L.st.x, sz - L.st.z) < 0.12, v = C.snowSurfaceAt(sx, sz, stamped || !C.footPress ? 0 : C.footPress(sx, sz) * 0.72); /* stamped: the logged pad (as the map shows it); not yet: its blurred centre value (×0.72) */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
       else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat;
       L.gy = gy;
       L.tgt.set(L.anim.x, gy + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
       minD = Math.min(minD, L.tgt.y - L.anim.y);
     }
+    // a deck with gaps (pier planks, grating): one foot's ray found the solid, the other fell through to the terrain below
+    { const [a, b] = B.legs; if (a && b && a.g.tag && b.g.tag) for (const [s1, s2] of [[a, b], [b, a]]) if (s1.g.tag.kind === 'solid' && s2.g.tag.kind === 'terrain' && s2.gy < s1.g.y - 0.12 && Math.abs(s1.g.y - P.y) < 0.15) {
+      const ny = clamp(s1.g.ny, 0.6, 1); s2.gy = s1.g.y; s2.tgt.y = s1.g.y + Math.max(s2.h, 0) / ny; s2.onSnow = false; } }
+    minD = Math.min(...B.legs.map((L) => L.tgt.y - L.anim.y));
     B.sink = 0;   // snow sink is the snow float above (terrain draws loose snow over the hard ground)
     // ---- pelvis offset: the lower foot must reach its ground; the other bends its knee
     const pel = grounded ? clamp(minD - B.sink, K.pelvisMin, K.pelvisMax) : 0;
@@ -707,7 +711,7 @@
       let gap = 1e9; const fit = [0, 0, 0, 0, 0, 0, 0, 0, 0], sv = C.snowSurfaceAt, fp = C.footPress, gx = s.g.position.x, gz = s.g.position.z;
       for (let i = 0; i < 4; i++) {
         const b = S.feet[i]; if (!b) continue; const p = wpos(b, _p[9]), sole = p.y - ST.sole[i];
-        let g; if (typeof sv === 'function') { g = sv(p.x, p.z, S.up[i] ? 0 : fp ? fp(p.x, p.z) * 0.6 : 0); if (!isFinite(g)) g = C.groundH(p.x, p.z); } else g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
+        let g; if (typeof sv === 'function') { g = sv(p.x, p.z, 0); /* the logged hoof pads, as the map shows them */ if (!isFinite(g)) g = C.groundH(p.x, p.z); } else g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
         const e = sole - g; gap = Math.min(gap, e);
         if (standing) { const a = (p.x - gx) * fx + (p.z - gz) * fz, bb = (p.x - gx) * rx + (p.z - gz) * rz; fit[0] += 1; fit[1] += a; fit[2] += bb; fit[3] += a * a; fit[4] += a * bb; fit[5] += bb * bb; fit[6] += e; fit[7] += e * a; fit[8] += e * bb; }
         if (typeof sv === 'function' && !S.up[i] && hasStamp() && K.footStamp && (!S.st || !S.st[i] || Math.hypot(p.x - S.st[i][0], p.z - S.st[i][1]) > 0.1)) {   // planted hoof presses the snow
@@ -734,7 +738,7 @@
           S.pf = clamp((S.pf || 0) - Math.atan(c1) * k, -0.35, 0.35); S.rf = clamp((S.rf || 0) - Math.atan(c2) * k, -0.35, 0.35);
         }
       }
-      if (gap < 1e8) { S.off = damp(S.off, clamp(offT, -1.2, 1.2), 12, dt); S.wrap.position.y = S.off; }
+      if (gap < 1e8) { const w = damp(S.off, clamp(offT, -1.2, 1.2), 12, dt); S.off += clamp(w - S.off, -3 * dt, 3 * dt); S.wrap.position.y = S.off; }   // ≤ 1.5 m/s: no body snap when standing ↔ running switches the fit
     }
     // keep each stag's skinned bounds honest for tools that read bounding boxes (world validator): one per 0.4 s
     ST.bbT -= dt;
