@@ -38,11 +38,11 @@ def find_marker(arr):
     if len(xs) == 0:
         return None
     # квадрат — самая плотная область; берём рамку всех магентовых пикселей близ левого верха
-    x0, y0, x1, y1 = xs.min(), ys.min(), xs.max(), ys.max()
+    x0, x1 = xs.min(), xs.max()
     # два маркера: (100,100) и (1180,700) — разделим по x
     left = xs < (x0 + x1) / 2
-    lx0, ly0, lx1, ly1 = xs[left].min(), ys[left].min(), xs[left].max(), ys[left].max()
-    rx0, ry0 = xs[~left].min(), ys[~left].min()
+    lx0, ly0, lx1 = xs[left].min(), ys[left].min(), xs[left].max()
+    rx0 = xs[~left].min()
     scale = (rx0 - lx0) / (1180 - 100)
     return int(lx0), int(ly0), float(scale), int(lx1 - lx0 + 1)
 

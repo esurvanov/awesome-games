@@ -95,6 +95,80 @@ def clear_field(w, cx, cy, r):
             w.animals.remove(a)
 
 
+def cursor_checks(g, w, tc, vils, fx, fy):
+    """docs/research/08_cursor.md: остриё = точка прицела у каждого файла; состояние — по тому, что под мышью."""
+    import json
+    from PIL import Image
+    from game import uiskin
+    cur_dir = os.path.join(os.path.dirname(uiskin.__file__), '..', 'assets', 'ui', 'cursors')
+    hot = json.load(open(os.path.join(cur_dir, 'hotspots.json')))
+    bad = []
+    for kind, fn in uiskin.CURSOR_FILES.items():
+        im = Image.open(os.path.join(cur_dir, fn + '.png')).convert('RGBA')
+        a = im.getchannel('A').load()
+        pts = [(x, y) for y in range(im.height) for x in range(im.width) if a[x, y] > 64]
+        hx, hy = hot.get(fn, [1, 1])
+        if kind in ('no', 'aground'):
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            tip = ((min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2)
+        else:
+            tip = min(pts, key=lambda p: (p[0] + p[1], p[1]))
+        if max(abs(tip[0] - hx), abs(tip[1] - hy)) > 1 or im.size != (32, 32):
+            bad.append((kind, fn, tip, (hx, hy), im.size))
+    check('L1', not bad, f'остриё = точка прицела (±1 px), 32×32 у всех {len(uiskin.CURSOR_FILES)} курсоров'
+          + (f' — {bad}' if bad else ''))
+    vil = vils[0]
+    g.selected = [vil]
+    g.order_mode = None
+    g.placing = None
+    g.center_on(fx, fy)
+    g.draw()
+    tree = min((n for n in w.nodes if n.kind == 'tree' and n.alive),
+               key=lambda n: (n.tx * TILE - fx) ** 2 + (n.ty * TILE - fy) ** 2)
+    g.center_on(*tree.center())
+    g.draw()
+    tp = g.w2s(*tree.center())
+    tp = (int(tp[0]), int(tp[1] - 20))
+    check('L2', g.cursor_kind(tp) == 'tree', 'житель над деревом — топор')
+    g.center_on(*tc.center())
+    g.draw()
+    cp = g.w2s(*tc.center())
+    cp = (int(cp[0]), int(cp[1]))
+    vil.carry = 0
+    check('L3', g.cursor_kind(cp) == 'garrison', 'житель без ноши над центром — гарнизон (без Alt, DE)')
+    vil.carry = 5
+    check('L3', g.cursor_kind(cp) == 'drop', 'житель с ношей над центром — сдать ресурс')
+    vil.carry = 0
+    g.order_mode = 'flare'
+    check('L4', g.cursor_kind(cp) == 'flare', 'режим сигнала — рог')
+    for mode in ('patrol', 'guard', 'follow', 'amove', 'aground'):
+        g.order_mode = mode
+        check('L4', g.cursor_kind(cp) == mode, f'режим приказа {mode} — свой курсор')
+    g.order_mode = None
+    g.selected = [tc]
+    check('L5', g.cursor_kind(cp) == 'rally', 'выбран центр — флаг точки сбора')
+    g.selected = [vil]
+    g.placing = 'house'
+    check('L6', g.cursor_kind(cp) == 'no', 'закладка на занятом месте — «нельзя»')
+    g.placing = None
+    g.selected = []
+    check('L7', g.cursor_kind((10, 5)) == 'arrow', 'над панелью — стрелка')
+    # программный курсор: рисуется в точке мыши минус прицел (проверка на поверхности)
+    cur = g.cursors
+    cur.set_soft(True)
+    cur.set('tree')
+    surf = pygame.Surface((64, 64), pygame.SRCALPHA)
+    ok_soft = True
+    try:
+        rec = cur.load('tree')
+        ok_soft = rec is not None and rec[1:] == (1, 1)
+    except Exception:
+        ok_soft = False
+    check('L8', ok_soft, 'программный курсор: картинка 32 px, прицел (1, 1)')
+    cur.set_soft(False)
+    del surf
+
+
 def zoom_checks(g, w, fx, fy):
     """D1: колесо — масштаб вокруг курсора; выбор, рамка, закладка, мини-карта — верны при любом масштабе."""
     from game.data import HW, HH
@@ -605,6 +679,9 @@ def main():
     lclick(g, mm.center, pygame.KMOD_ALT)
     check('E3', g.flares and any(e[0] == 'flare' for e in w.events), 'Alt+ЛКМ по мини-карте — сигнал + звук')
     g.draw()
+
+    print('L · курсор')
+    cursor_checks(g, w, tc, vils, fx, fy)
 
     print('D · масштаб колесом')
     zoom_checks(g, w, fx, fy)

@@ -218,6 +218,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.wheel_acc = 0.0
         self._cv = False                    # идёт отрисовка мира на холст (w2s/s2w — в координатах холста)
         self._canvas = None
+        self.drawn_u = []                   # (rect холста, юнит/зверь, кадр) — щелчок по пикселям тела
+        self._urect = {}                    # id(юнита) → rect кадра на холсте (последний кадр)
+        self._bbc = {}                      # id(кадра) → рамка непрозрачных пикселей (полоска здоровья, эллипс)
         self.apply_startup_settings()       # screens.py: курсоры, полный экран (settings.json)
 
     # ============================================================ спрайты
@@ -543,24 +546,26 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
     # Высота (game/terrain.py): точка мира поднимается на h = world.z_at(x, y) пикселей (или на явное h —
     # здания стоят на средней высоте основания). Это единственный путь «мир → экран» (как data.to_iso(…, z)).
     def w2c(self, x, y, h=None):
-        """Мир → холст (масштаб 1.0; верх мира — на TOP_H), с подъёмом на высоту земли."""
+        """Мир → холст (масштаб 1.0; верх мира — на TOP_H), с подъёмом на высоту земли.
+        Камера — целая (как у земли, blit с int(cam)): объекты и земля в одной сетке."""
         if h is None:
             h = self.world.z_at(x, y)
-        return x - y + self.iso_ox - self.cam_x, (x + y) * 0.5 - h - self.cam_y + TOP_H
+        return x - y + self.iso_ox - int(self.cam_x), (x + y) * 0.5 - h - int(self.cam_y) + TOP_H
 
     def w2s(self, x, y, h=None):
         if h is None:
             h = self.world.z_at(x, y)
         z = self.zoom
+        cx, cy = int(self.cam_x), int(self.cam_y)
         if z == 1.0 or self._cv:
-            return x - y + self.iso_ox - self.cam_x, (x + y) * 0.5 - h - self.cam_y + TOP_H
-        return (x - y + self.iso_ox - self.cam_x) * z, ((x + y) * 0.5 - h - self.cam_y) * z + TOP_H
+            return x - y + self.iso_ox - cx, (x + y) * 0.5 - h - cy + TOP_H
+        return (x - y + self.iso_ox - cx) * z, ((x + y) * 0.5 - h - cy) * z + TOP_H
 
     def s2w(self, sx, sy):
         """Экран → точка земли под курсором (с учётом рельефа)."""
         if not self._cv:
             sx, sy = self.to_canvas((sx, sy))
-        return terrain.ground_at(self.world, sx + self.cam_x, sy - TOP_H + self.cam_y, self.iso_ox)
+        return terrain.ground_at(self.world, sx + int(self.cam_x), sy - TOP_H + int(self.cam_y), self.iso_ox)
 
     def b2s(self, b):
         """Верхний угол основания здания на экране — на средней высоте основания."""
@@ -643,6 +648,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.update_cursor()
             self.audio.update(self, dt)
             self.audio.draw_popup(self.screen)
+            self.cursors.draw(self.screen)      # программный курсор — последним, по текущему положению мыши
             pygame.display.flip()
         pygame.quit()
 
@@ -852,19 +858,43 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         w = self.world
         spos = pos
         pos = self.to_canvas(pos)       # сравнение с фигурками и спрайтами — в координатах холста (масштаб 1)
+        # юниты и звери — по непрозрачным пикселям нарисованного кадра (DE: щелчок по телу), спереди назад;
+        # свой в наложении важнее чужого (09 · №41–45)
+        px, py = int(pos[0]), int(pos[1])
+        enemy = None
+        for rect, u, surf in reversed(self.drawn_u):
+            if rect.collidepoint(pos):
+                try:
+                    a = surf.get_at((px - rect.x, py - rect.y))[3]
+                except IndexError:
+                    continue
+                if a > 120:
+                    if u.owner == 0:
+                        return u
+                    if enemy is None:
+                        enemy = u
+        if enemy is not None:
+            return enemy
         best, bd = None, 1e9
         arow = w.amat[0]
+        urect = self._urect
         for u in w.units + w.animals:
             if not arow[u.owner] and not w.visible_px(u.x, u.y):
                 continue
             sx, sy = self.w2c(u.x, u.y)
             us = None if isinstance(u, Animal) else _uset(u, self.civ_of(u.owner))
             if us is not None:
-                # фигурка ростом us.bh (до макушки, без копий и знамён): щелчок по «столбику» от ног до головы
+                # запас: столбик «радиус × рост» вокруг ног, но не дальше ±4 px от нарисованного кадра
+                fr = urect.get(id(u))
+                if fr is not None:
+                    fr = pygame.Rect(sx + fr[0], sy + fr[1], fr[2], fr[3])
+                    if not fr.inflate(8, 8).collidepoint(pos):
+                        continue
+                    sx = fr.centerx
                 h = us.bh + 4
                 up = sy - pos[1]
                 hw = max(u.radius * 1.1 + 4, h * 0.28)
-                if -8 <= up <= h + 4 and abs(pos[0] - sx) <= hw:
+                if fr is not None or (-8 <= up <= h + 4 and abs(pos[0] - sx) <= hw):
                     d = abs(pos[0] - sx) + abs(up - h * 0.5) * 0.3
                     if u.owner != 0:
                         d += 1e5        # DE: свой юнит в наложении всегда важнее чужого
@@ -1233,8 +1263,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if z == 1.0:
             self._draw_world_at(self.screen, SCREEN_W, SCREEN_H - TOP_H, mp)
         else:
-            cw = int(math.ceil(SCREEN_W / z))
-            ch = int(math.ceil((SCREEN_H - TOP_H) / z))
+            cw = max(1, int(round(SCREEN_W / z)))
+            ch = max(1, int(round((SCREEN_H - TOP_H) / z)))
             cv = self._canvas
             if cv is None or cv.get_size() != (cw, TOP_H + ch):
                 cv = self._canvas = pygame.Surface((cw, TOP_H + ch)).convert(self.screen)
@@ -1247,8 +1277,14 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             finally:
                 self.screen, self._cv = real, False
             dst = real.subsurface((0, TOP_H, SCREEN_W, SCREEN_H - TOP_H))
-            # отдаление — сглаживая (иначе рябит); приближение — тоже сглаживая, это дёшево (холст меньше экрана)
-            pygame.transform.smoothscale(cv.subsurface((0, TOP_H, cw, ch)), dst.get_size(), dst)
+            # отдаление — сглаживая (иначе рябит); приближение — тоже сглаживая, это дёшево (холст меньше экрана).
+            # Растягиваем ровно в z раз (иначе у края экрана объекты уезжают на ≤1.2 px от w2s)
+            sw, sh = int(round(cw * z)), int(round(ch * z))
+            if (sw, sh) == dst.get_size():
+                pygame.transform.smoothscale(cv.subsurface((0, TOP_H, cw, ch)), dst.get_size(), dst)
+            else:
+                dst.fill((0, 0, 0))
+                dst.blit(pygame.transform.smoothscale(cv.subsurface((0, TOP_H, cw, ch)), (sw, sh)), (0, 0))
         # рамка выделения — в экранных координатах, поверх растянутого мира
         if self.drag:
             r = pygame.Rect(min(self.drag[0], mp[0]), min(self.drag[1], mp[1]),
@@ -1269,6 +1305,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         exp = w.explored
         vx0, vy0, vx1, vy1 = -80, TOP_H - 140, vw + 80, TOP_H + wh + 60
         self.drawn = []
+        self.drawn_u = []
+        self._urect = {}
 
         def onscr(sx, sy):
             return vx0 < sx < vx1 and vy0 < sy < vy1
@@ -1399,13 +1437,12 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 col = self.pcolor(e.owner) if e.owner >= 0 else None
                 us = sprites3d.unit_set('animal_' + e.kind, None)
                 if us is not None:
-                    d8 = sprites3d.face_dir(fx, fy)
                     dd = us.face(fx, fy)
                     if e.dead:
                         a = us.anims.get('death')
                         if a is not None:
                             k = min(a['n'] - 1, int((w.time - e.dead_t) / (a['dur'] or 1.0) * a['n']))
-                            if k >= a['n'] - 1 and self.draw_carcass(e, d8, sx, sy):
+                            if k >= a['n'] - 1 and self.draw_carcass(e, fx, fy, sx, sy):
                                 continue
                             spr, ax, ay = us.frame(us.index('death', dd, max(0, k)), None)
                             scr.blit(spr, (int(sx) - ax, int(sy) - ay))
@@ -1414,8 +1451,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                         name, k = unit_pose(e, us, w.time, e.state == 'move' and bool(e.path or e.dest))
                         spr, ax, ay = us.frame(us.index(name, dd, k), col)
                         scr.blit(spr, (int(sx) - ax, int(sy) - ay))
+                        self.note_unit(e, spr, int(sx) - ax, int(sy) - ay, sx, sy)
                         continue
-                if e.dead and self.draw_carcass(e, sprites3d.face_dir(fx, fy), sx, sy):
+                if e.dead and self.draw_carcass(e, fx, fy, sx, sy):
                     continue
                 r3 = None if e.dead else (sprites3d.animal(e.kind, id(e) >> 4, e.face, col) or
                                           map_assets.animal(e.kind, id(e) >> 4, e.face))
@@ -1469,10 +1507,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             if (id(u) in sel or u.hp < u.max_hp) and (arow[u.owner] or w.visible_px(u.x, u.y)):
                 sx, sy = self.w2s(u.x, u.y)
                 if onscr(sx, sy):
-                    us = _uset(u, self.civ_of(u.owner))
-                    top = us.bh + 7 if us is not None else \
-                        u.d.get('bar') or u.d.get('bar_h') or (36 if u.cls == 'cav' else 30)
-                    self.hpbar(sx - 12, sy - top, 24, u.hp / u.max_hp, u.owner)
+                    self.hpbar(sx - 12, sy - self.unit_top(u), 24, u.hp / u.max_hp, u.owner)
         for b in w.buildings:
             if b.walk or not ((id(b) in sel or b.hp < b.max_hp) and b.seen and b.complete):
                 continue
@@ -1748,14 +1783,54 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             sprites_extra.blit(scr, sprites_extra.flame(t, ph, a), x, y)
         return True
 
-    def draw_carcass(self, e, d8, sx, sy):
+    def draw_carcass(self, e, fx, fy, sx, sy):
         """Туша убитого зверя: целая → разделанная → остов по мере того, как с неё берут мясо."""
         full = ANIMALS.get(e.kind, {}).get('food') or 1
-        fr = sprites_extra.carcass(e.kind, e.amount / full, d8)
+        fr = sprites_extra.carcass(e.kind, e.amount / full, fx, fy)
         if fr is None:
             return False
         sprites_extra.blit(self.screen, fr, sx, sy)
         return True
+
+    # ---- кадр юнита: рамка, высота, список щелчка
+    def note_unit(self, u, spr, x, y, sx, sy):
+        """Запомнить нарисованный кадр юнита (щелчок по пикселям тела, запас ±4 px): rect на холсте и его
+        сдвиг от точки ног (юнит мог сдвинуться между кадром и щелчком)."""
+        r = pygame.Rect(x, y, spr.get_width(), spr.get_height())
+        self.drawn_u.append((r, u, spr))
+        self._urect[id(u)] = (x - sx, y - sy, r.w, r.h)
+
+    def frame_bbox(self, spr):
+        """Рамка непрозрачных пикселей кадра (кэш по поверхности — кадры наборов живут в кэше USet)."""
+        k = id(spr)
+        bb = self._bbc.get(k)
+        if bb is None:
+            if len(self._bbc) > 4096:
+                self._bbc.clear()
+            bb = self._bbc[k] = spr.get_bounding_rect(min_alpha=128)
+        return bb
+
+    def unit_frame(self, u):
+        """(кадр, ax, ay) юнита в текущей позе или None (нет 3D-набора)."""
+        us = _uset(u, self.civ_of(u.owner))
+        if us is None:
+            return None
+        moving = u.state == 'move' or bool(u.path)
+        moving = moving if u.naval else (u.x != u._px or u.y != u._py)
+        name, k = unit_pose(u, us, self.world.time, moving)
+        return us.frame(us.index(name, us.face(*u.face), k), self.pcolor(u.owner))
+
+    def unit_top(self, u, pad=6):
+        """Высота макушки над точкой ног в текущем кадре (полоска здоровья, номер группы): по рамке кадра
+        этого направления, а не по максимуму набора (09 · №24–25: требушет +30, рыболов в парусе)."""
+        fr = self.unit_frame(u)
+        if fr is None:
+            return u.d.get('bar') or u.d.get('bar_h') or (36 if u.cls == 'cav' else 30)
+        spr, ax, ay = fr
+        bb = self.frame_bbox(spr)
+        if bb.w == 0:
+            return ay + pad
+        return ay - bb.top + pad
 
     def draw_projectile(self, pr, shape, x, y, prog, total, tx, ty):
         """Снаряд-спрайт: стрела/болт/дротик повёрнуты по касательной к дуге полёта, камни и ядра кувыркаются."""
@@ -1869,10 +1944,6 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
 
     def draw_unit_w(self, u, sx, sy, selected):
         scr = self.screen
-        if selected:
-            c = (120, 255, 120) if u.owner == 0 else self.REL_SEL[self.relation(u.owner)]
-            rw = u.radius * 2.4 + 8
-            pygame.draw.ellipse(scr, c, (sx - rw / 2, sy - rw / 4, rw, rw / 2), 1)
         moving = u.state == 'move' or bool(u.path)
         col = self.pcolor(u.owner)
         if u.hit_t > 0 and self.world.time - u.hit_t < 0.1:
@@ -1883,14 +1954,29 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             moving = moving if u.naval else (u.x != u._px or u.y != u._py)
             name, k = unit_pose(u, us, self.world.time, moving)
             fx, fy = u.face
+            spr, ax, ay = us.frame(us.index(name, us.face(fx, fy), k), col)
+            x, y = int(sx) - ax, int(sy) - ay
+            if selected:
+                # эллипс выбора: у машин и кораблей начало модели 0 A.D. не в центре тела — по центру кадра
+                ex = sx
+                if u.naval or u.cls == 'siege':
+                    bb = self.frame_bbox(spr)
+                    ex = x + (bb.left + bb.right) / 2
+                c = (120, 255, 120) if u.owner == 0 else self.REL_SEL[self.relation(u.owner)]
+                rw = u.radius * 2.4 + 8
+                pygame.draw.ellipse(scr, c, (ex - rw / 2, sy - rw / 4, rw, rw / 2), 1)
             if u.naval and moving:
                 self.ship_wake(u, us, sx, sy)
-            spr, ax, ay = us.frame(us.index(name, us.face(fx, fy), k), col)
-            scr.blit(spr, (int(sx) - ax, int(sy) - ay))
-            self._ublit = (spr, int(sx) - ax, int(sy) - ay)
+            scr.blit(spr, (x, y))
+            self._ublit = (spr, x, y)
+            self.note_unit(u, spr, x, y, sx, sy)
             if u.swing > 0:
                 self.shot_fx(u, us, sx, sy)
             return
+        if selected:
+            c = (120, 255, 120) if u.owner == 0 else self.REL_SEL[self.relation(u.owner)]
+            rw = u.radius * 2.4 + 8
+            pygame.draw.ellipse(scr, c, (sx - rw / 2, sy - rw / 4, rw, rw / 2), 1)
         fx, fy = u.face
         face = (fx - fy, (fx + fy) / 2)
         carry = u.carry_res if u.carry >= 1 else None

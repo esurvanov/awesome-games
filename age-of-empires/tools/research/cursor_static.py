@@ -25,10 +25,14 @@ STATES = [('arrow', 'стрелка'), ('attack', 'атака'), ('build', 'ст
           ('garrison', 'гарнизон'), ('heal', 'лечить'), ('tree', 'дерево'), ('gold', 'золото'),
           ('stone', 'камень'), ('berries', 'ягоды'), ('farm', 'ферма'), ('meat', 'охота'), ('fish', 'рыба'),
           ('drop', 'сдать ресурс'), ('rally', 'сбор'), ('no', 'нельзя'),
-          ('trade', 'торговля'), ('board', 'на борт/выгрузить'), ('flare', 'сигнал'),
-          ('omode', 'режим приказа (патруль/охрана/…)')]
-# Чем эти состояния показываются у нас на деле (hud.cursor_kind):
-STATE_TO_KIND = {'trade': None, 'board': None, 'flare': 'arrow', 'omode': 'attack'}
+          ('trade', 'торговля'), ('board', 'на борт'), ('unload', 'выгрузить'), ('flare', 'сигнал'),
+          ('patrol', 'патруль'), ('guard', 'охрана'), ('follow', 'следовать'), ('amove', 'атака в движении'),
+          ('aground', 'по земле')]
+# Чем эти состояния показываются у нас на деле (hud.cursor_kind): все — своим файлом
+STATE_TO_KIND = {}
+# у этих прицел — в центре рисунка (крест «нельзя», мишень «по земле»), у остальных — остриё ↖
+CENTER_HOT = {'no', 'aground'}
+TOL = 1
 
 
 def alpha(im):
@@ -108,7 +112,13 @@ def main():
         rec['hot_eff'] = [hx, hy]
         a = alpha(eff)
         rec['metrics'] = tip_metrics(a)
-        rec['arrow_tip'] = arrow_tip(a)
+        if state in CENTER_HOT:
+            bb = rec['metrics']['bbox']
+            rec['arrow_tip'] = ((bb[0] + bb[2]) // 2, (bb[1] + bb[3]) // 2)
+        else:
+            rec['arrow_tip'] = arrow_tip(a)
+        rec['delta'] = max(abs(rec['arrow_tip'][0] - hx), abs(rec['arrow_tip'][1] - hy))
+        rec['ok'] = rec['delta'] <= TOL
         # оригинал 0 A.D. (для de_* — стрелка 0 A.D. как база)
         base = fn if not fn.startswith('de_') else 'arrow-default-down'
         op = os.path.join(ORIG, base + '.png')
@@ -118,7 +128,6 @@ def main():
             ot = os.path.join(ORIG, base + '.txt')
             rec['orig']['hot'] = [int(v) for v in open(ot).read().split()[:2]] if os.path.exists(ot) else None
             if not fn.startswith('de_'):
-                oa = alpha(o)
                 ia = alpha(im)
                 rec['vs_orig'] = {k: diff(alpha(v), ia) for k, v in flips(o).items()}
         out[state] = rec
@@ -147,10 +156,16 @@ def main():
         d.text((6, y + ch - 14), f'{state} {fn} hot={rec["hot_eff"]} tip={rec["arrow_tip"]}', fill=(255, 255, 0, 255))
     sh.convert('RGB').save(args.preview)
     print('записано', args.json, args.preview)
+    bad = []
     for state, rec in out.items():
         m = rec.get('metrics')
-        print(f"{state:8} {str(rec.get('file')):22} size={rec.get('size')} hot={rec.get('hot_eff')} "
-              f"tip={rec.get('arrow_tip')} bbox={m and m['bbox']} vs_orig={rec.get('vs_orig')}")
+        ok = rec.get('ok')
+        if ok is False or rec.get('file') is None:
+            bad.append(state)
+        print(f"{'ok  ' if ok else 'FAIL'} {state:8} {str(rec.get('file')):26} size={rec.get('size')} "
+              f"hot={rec.get('hot_eff')} tip={rec.get('arrow_tip')} Δ={rec.get('delta')} bbox={m and m['bbox']}")
+    print(f'остриё = прицел (±{TOL} px): {len(out) - len(bad)}/{len(out)}' + (f'  FAIL: {bad}' if bad else ''))
+    sys.exit(1 if bad else 0)
 
 
 if __name__ == '__main__':

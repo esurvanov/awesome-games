@@ -579,10 +579,8 @@ class ControlsUI:
 
 
 def unit_top_px(g, u):
-    """Высота фигурки над ногами (для значков над юнитом)."""
-    from .ui import _uset
-    us = _uset(u, g.civ_of(u.owner))
-    if us is not None:
-        return us.bh + 10
+    """Высота фигурки над ногами (для значков над юнитом) — по рамке текущего кадра."""
+    if hasattr(g, 'unit_top'):
+        return g.unit_top(u, 9)
     return u.d.get('bar') or u.d.get('bar_h') or (36 if u.cls == 'cav' else 30)
 

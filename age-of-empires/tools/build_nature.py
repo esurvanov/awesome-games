@@ -54,6 +54,28 @@ def _sig(parts):
     return tuple(sorted((p.mesh, p.textures.get('baseTex') or '') for p in parts))
 
 
+def trunk_base(parts):
+    """Точка модели (x, y) у основания ствола: центр самых нижних вершин (у ели ствол не в начале
+    координат модели — дерево стояло на 9–11 px левее клетки, 09 · №28)."""
+    vs = []
+    for p in parts:
+        if p.is_decal:
+            continue
+        m = p.geom if p.geom is not None else assets.mesh(p.mesh)
+        if m is None:
+            continue
+        v = (np.c_[m['pos'], np.ones(len(m['pos']))] @ p.matrix.T)[:, :3]
+        vs.append(v)
+    if not vs:
+        return (0.0, 0.0)
+    v = np.concatenate(vs)
+    z0, z1 = v[:, 2].min(), v[:, 2].max()
+    low = v[v[:, 2] <= z0 + max(0.25, 0.015 * (z1 - z0))]       # тонкий слой у земли — сам ствол, не ветви
+    if len(low) < 3:
+        return (0.0, 0.0)
+    return (float(low[:, 0].mean()), float(low[:, 1].mean()))
+
+
 def render_tree(r, actor, seed, hmax, k):
     parts = resolve(actor, seed=seed, prefer=frozenset({'alive', 'idle', 'base'}))
     lo, hi = parts_bounds(parts)
@@ -62,17 +84,23 @@ def render_tree(r, actor, seed, hmax, k):
         s = hmax / (hi[2] - max(lo[2], 0))
     wide = max(hi[0] - lo[0], hi[1] - lo[1], 1e-3)
     s = min(s, TREE_WMAX / wide)
-    place = camera.placement(s, 0.0, center=(0.5, 0.5))
+    place = camera.placement(s, 0.0, center=(0.5, 0.5), model_center=trunk_base(parts))
     items = Renderer.build_items(parts, place)
     spr = r.render(items, footprint=(1, 1), decal_clip=(-0.15, -0.15, 1.15, 1.15))
     return parts, spr
 
 
-def build(r, atlas, out):
-    nat = atlas['nature'] = {}
+def build(r, atlas, out, only=None):
+    """only — множество групп ('trees', 'nodes', 'animals'); None — всё."""
+    if only:
+        nat = atlas.setdefault('nature', {})
+    else:
+        nat = atlas['nature'] = {}
     # ---- деревья
-    trees = nat['trees'] = {}
+    trees = nat.setdefault('trees', {})
     for sp, (actor, n, hmax, k) in TREES.items():
+        if only and 'trees' not in only:
+            break
         if not actor_exists(actor):
             continue
         seen, recs = set(), []
@@ -90,6 +118,8 @@ def build(r, atlas, out):
         print(f'  + деревья {sp}: {len(recs)}')
     # ---- ресурсы
     for kind, lst in NODES.items():
+        if only and 'nodes' not in only:
+            break
         recs = []
         for i, (actor, seed) in enumerate(lst):
             if not actor_exists(actor):
@@ -108,8 +138,10 @@ def build(r, atlas, out):
         nat[kind] = recs
         print(f'  + {kind}: {len(recs)}')
     # ---- животные: 8 направлений (индекс d: угол d·45° в координатах мира, 0 — вдоль +X)
-    an = nat['animals'] = {}
+    an = nat.setdefault('animals', {})
     for kind, actors in ANIMALS.items():
+        if only and 'animals' not in only:
+            break
         variants = []
         for vi, actor in enumerate(actors):
             if not actor_exists(actor):

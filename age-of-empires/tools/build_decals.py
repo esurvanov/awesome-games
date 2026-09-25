@@ -378,8 +378,8 @@ def build_carcass():
         length = max(hi[0] - lo[0], hi[1] - lo[1])
         frames = []
         for stage in range(3):
-            for d in range(8):
-                yaw = d * 45.0 + FWD
+            for d in range(16):
+                yaw = d * 22.5 + FWD
                 place = camera.placement(S_ANIMAL, yaw, center=(0.0, 0.0), mirror=MIRROR)
                 items = []
                 bs = 0.62 if stage == 0 else 0.55 if stage == 1 else 0.45
@@ -413,8 +413,8 @@ def build_carcass():
                                                                              center=(mx, my)))
                 spr = r.render(items, footprint=(0, 0), shadow_scale=0.85, pad=1, decal_clip=(-2, -2, 2, 2))
                 frames.append(_neutral(spr))
-        out['carcass_' + kind] = dict(frames=frames, stages=3, dirs=8)
-        print(f'  + туша {kind}: 3×8')
+        out['carcass_' + kind] = dict(frames=frames, stages=3, dirs=16)
+        print(f'  + туша {kind}: 3×16')
     return out
 
 

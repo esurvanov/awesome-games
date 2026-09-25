@@ -275,14 +275,14 @@ class DefenseUI:
 
     # ---- приказ «в гарнизон»
     def garrison_command(self, units, target, wx, wy):
-        """ПКМ по своему зданию с гарнизоном. К центру жители идут внутрь только с Alt
-        (без Alt — несут ресурсы, как в оригинале). True — приказ отдан."""
+        """ПКМ по своему зданию с гарнизоном. DE: житель с ношей несёт её на склад (внутрь — с Alt),
+        житель с пустыми руками заходит внутрь и без Alt. True — приказ отдан."""
         w = self.world
         if not isinstance(target, Building) or target.owner != 0 or defense.capacity(target) <= 0:
             return False
         alt = self.mods() & pygame.KMOD_ALT
         vils = [u for u in units if u.kind == 'villager']
-        if target.d.get('drop') and vils and not alt:
+        if target.d.get('drop') and vils and not alt and any(u.carry > 0 for u in vils):
             return False
         allowed = target.d.get('garrison_cls', ('vil', 'inf', 'arch'))
         cands = [u for u in units if u.cls in allowed]

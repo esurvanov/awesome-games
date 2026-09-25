@@ -32,6 +32,7 @@ DEFAULTS = {
     'show_score': True,         # счёт игроков над мини-картой (F4)
     'global_queue': True,       # общая очередь производства (панель над командами)
     'tooltip_scale': 100,       # размер подсказок, %
+    'cursor_soft': None,        # программный курсор (чёткий на Retina): None — авто (Retina → вкл.)
     'hp_bars': 'selected',      # полоски здоровья: 'selected' | 'always'
     'team_colors': False,       # цвета «свой / союзник / враг» вместо цветов игроков
     'player_name': 'Игрок',

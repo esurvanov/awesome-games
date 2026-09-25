@@ -30,7 +30,8 @@ ROWS = {
                   ('toggle', 'show_score', 'Счёт игроков (F4)', None),
                   ('toggle', 'global_queue', 'Общая очередь производства', None),
                   ('choice', 'tooltip_scale', 'Размер подсказок', [(50, '50%'), (75, '75%'), (100, '100%')]),
-                  ('toggle', 'cursor', 'Курсоры 0 A.D.', None)],
+                  ('toggle', 'cursor', 'Курсоры 0 A.D.', None),
+                  ('toggle', 'cursor_soft', 'Программный курсор (чёткий на Retina)', None)],
     'audio': [('toggle', 'music', 'Музыка', None), ('toggle', 'sfx', 'Звуки', None),
               ('slider', 'music_vol', 'Громкость музыки', (0.0, 1.0)),
               ('slider', 'sfx_vol', 'Громкость эффектов', (0.0, 1.0)),
@@ -71,6 +72,8 @@ class SettingsUI:
             return (getattr(a, 'settings', None) or {}).get(key, 0.8 if key.endswith('vol') else True)
         if key == 'cursor':
             return bool(getattr(getattr(self, 'cursors', None), 'enabled', False))
+        if key == 'cursor_soft':
+            return bool(getattr(getattr(self, 'cursors', None), 'soft', False))
         return gsettings.get(key)
 
     def put_value(self, key, v):
@@ -93,6 +96,12 @@ class SettingsUI:
                 cur.enabled = bool(v)
                 cur.cur = '?'
             gsettings.put('cursor', bool(v))
+            return
+        if key == 'cursor_soft':
+            cur = getattr(self, 'cursors', None)
+            if cur is not None:
+                cur.set_soft(bool(v))
+            gsettings.put('cursor_soft', bool(v))
             return
         gsettings.put(key, v)
         if key == 'fullscreen':

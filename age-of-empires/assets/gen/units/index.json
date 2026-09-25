@@ -7684,7 +7684,7 @@
    },
    "h": 52,
    "scale": 0.0649,
-   "bh": 18,
+   "bh": 52,
    "dirs": 16,
    "actor": "structures/byzantines/fishing_boat.xml"
   },
@@ -7709,7 +7709,7 @@
    },
    "h": 17,
    "scale": 0.071,
-   "bh": 15,
+   "bh": 17,
    "dirs": 16,
    "actor": "structures/han/fishing_ship.xml"
   },
@@ -7752,7 +7752,7 @@
    },
    "h": 70,
    "scale": 0.0914,
-   "bh": 28,
+   "bh": 70,
    "dirs": 16,
    "actor": "structures/han/merchant_ship.xml"
   },

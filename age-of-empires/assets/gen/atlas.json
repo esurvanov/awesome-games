@@ -616,37 +616,34 @@
    "monastery": {
     "actor": "structures/anglo/temple.xml",
     "file": "buildings/anglo/monastery.png",
-    "h": 205,
-    "mask": "buildings/anglo/monastery.m.png",
-    "ox": 93,
-    "oy": 117,
+    "h": 173,
+    "ox": 117,
+    "oy": 75,
     "size": 3,
     "stages": [
      {
       "file": "buildings/anglo/monastery.c0.png",
-      "h": 103,
-      "ox": 114,
-      "oy": 4,
-      "w": 218
+      "h": 114,
+      "ox": 134,
+      "oy": 9,
+      "w": 248
      },
      {
       "file": "buildings/anglo/monastery.c1.png",
-      "h": 136,
-      "mask": "buildings/anglo/monastery.c1.m.png",
-      "ox": 114,
-      "oy": 37,
-      "w": 218
+      "h": 130,
+      "ox": 134,
+      "oy": 25,
+      "w": 248
      },
      {
       "file": "buildings/anglo/monastery.c2.png",
-      "h": 147,
-      "mask": "buildings/anglo/monastery.c2.m.png",
-      "ox": 114,
-      "oy": 48,
-      "w": 218
+      "h": 162,
+      "ox": 134,
+      "oy": 57,
+      "w": 248
      }
     ],
-    "w": 179
+    "w": 224
    },
    "siege_workshop": {
     "actor": "structures/germans/workshop.xml",
@@ -790,38 +787,38 @@
    },
    "university": {
     "actor": "structures/carolingian/lorsch_abbey.xml",
-    "file": "buildings/caro/university.png",
-    "h": 194,
-    "mask": "buildings/caro/university.m.png",
-    "ox": 138,
-    "oy": 77,
+    "file": "buildings/anglo/university.png",
+    "h": 246,
+    "mask": "buildings/anglo/university.m.png",
+    "ox": 156,
+    "oy": 124,
     "size": 4,
     "stages": [
      {
-      "file": "buildings/caro/university.c0.png",
-      "h": 124,
-      "ox": 118,
-      "oy": 3,
-      "w": 234
+      "file": "buildings/anglo/university.c0.png",
+      "h": 146,
+      "ox": 146,
+      "oy": 9,
+      "w": 300
      },
      {
-      "file": "buildings/caro/university.c1.png",
-      "h": 160,
-      "mask": "buildings/caro/university.c1.m.png",
-      "ox": 136,
-      "oy": 39,
-      "w": 252
+      "file": "buildings/anglo/university.c1.png",
+      "h": 194,
+      "mask": "buildings/anglo/university.c1.m.png",
+      "ox": 146,
+      "oy": 57,
+      "w": 300
      },
      {
-      "file": "buildings/caro/university.c2.png",
-      "h": 177,
-      "mask": "buildings/caro/university.c2.m.png",
-      "ox": 138,
-      "oy": 56,
-      "w": 254
+      "file": "buildings/anglo/university.c2.png",
+      "h": 207,
+      "mask": "buildings/anglo/university.c2.m.png",
+      "ox": 156,
+      "oy": 70,
+      "w": 310
      }
     ],
-    "w": 242
+    "w": 277
    }
   },
   "byz": {
@@ -2257,37 +2254,37 @@
    "monastery": {
     "actor": "structures/carolingian/church.xml",
     "file": "buildings/caro/monastery.png",
-    "h": 135,
+    "h": 169,
     "mask": "buildings/caro/monastery.m.png",
-    "ox": 89,
-    "oy": 55,
+    "ox": 116,
+    "oy": 81,
     "size": 3,
     "stages": [
      {
       "file": "buildings/caro/monastery.c0.png",
-      "h": 102,
-      "ox": 98,
-      "oy": 7,
-      "w": 191
+      "h": 96,
+      "ox": 99,
+      "oy": 0,
+      "w": 197
      },
      {
       "file": "buildings/caro/monastery.c1.png",
-      "h": 121,
+      "h": 139,
       "mask": "buildings/caro/monastery.c1.m.png",
-      "ox": 98,
-      "oy": 26,
-      "w": 191
+      "ox": 115,
+      "oy": 43,
+      "w": 213
      },
      {
       "file": "buildings/caro/monastery.c2.png",
-      "h": 150,
+      "h": 145,
       "mask": "buildings/caro/monastery.c2.m.png",
-      "ox": 98,
-      "oy": 55,
-      "w": 191
+      "ox": 115,
+      "oy": 49,
+      "w": 213
      }
     ],
-    "w": 161
+    "w": 201
    },
    "siege_workshop": {
     "actor": "structures/germans/workshop.xml",
@@ -2427,38 +2424,38 @@
    },
    "university": {
     "actor": "structures/carolingian/lorsch_abbey.xml",
-    "file": "buildings/caro/university.png",
-    "h": 194,
-    "mask": "buildings/caro/university.m.png",
-    "ox": 138,
-    "oy": 77,
+    "file": "buildings/anglo/university.png",
+    "h": 246,
+    "mask": "buildings/anglo/university.m.png",
+    "ox": 156,
+    "oy": 124,
     "size": 4,
     "stages": [
      {
-      "file": "buildings/caro/university.c0.png",
-      "h": 124,
-      "ox": 118,
-      "oy": 3,
-      "w": 234
+      "file": "buildings/anglo/university.c0.png",
+      "h": 146,
+      "ox": 146,
+      "oy": 9,
+      "w": 300
      },
      {
-      "file": "buildings/caro/university.c1.png",
-      "h": 160,
-      "mask": "buildings/caro/university.c1.m.png",
-      "ox": 136,
-      "oy": 39,
-      "w": 252
+      "file": "buildings/anglo/university.c1.png",
+      "h": 194,
+      "mask": "buildings/anglo/university.c1.m.png",
+      "ox": 146,
+      "oy": 57,
+      "w": 300
      },
      {
-      "file": "buildings/caro/university.c2.png",
-      "h": 177,
-      "mask": "buildings/caro/university.c2.m.png",
-      "ox": 138,
-      "oy": 56,
-      "w": 254
+      "file": "buildings/anglo/university.c2.png",
+      "h": 207,
+      "mask": "buildings/anglo/university.c2.m.png",
+      "ox": 156,
+      "oy": 70,
+      "w": 310
      }
     ],
-    "w": 242
+    "w": 277
    }
   },
   "celt": {
@@ -3076,37 +3073,34 @@
    "monastery": {
     "actor": "structures/anglo/temple.xml",
     "file": "buildings/anglo/monastery.png",
-    "h": 205,
-    "mask": "buildings/anglo/monastery.m.png",
-    "ox": 93,
-    "oy": 117,
+    "h": 173,
+    "ox": 117,
+    "oy": 75,
     "size": 3,
     "stages": [
      {
       "file": "buildings/anglo/monastery.c0.png",
-      "h": 103,
-      "ox": 114,
-      "oy": 4,
-      "w": 218
+      "h": 114,
+      "ox": 134,
+      "oy": 9,
+      "w": 248
      },
      {
       "file": "buildings/anglo/monastery.c1.png",
-      "h": 136,
-      "mask": "buildings/anglo/monastery.c1.m.png",
-      "ox": 114,
-      "oy": 37,
-      "w": 218
+      "h": 130,
+      "ox": 134,
+      "oy": 25,
+      "w": 248
      },
      {
       "file": "buildings/anglo/monastery.c2.png",
-      "h": 147,
-      "mask": "buildings/anglo/monastery.c2.m.png",
-      "ox": 114,
-      "oy": 48,
-      "w": 218
+      "h": 162,
+      "ox": 134,
+      "oy": 57,
+      "w": 248
      }
     ],
-    "w": 179
+    "w": 224
    },
    "siege_workshop": {
     "actor": "structures/germans/workshop.xml",
@@ -3250,32 +3244,32 @@
    },
    "university": {
     "actor": "structures/germans/great_hall.xml",
-    "file": "buildings/celt/university.png",
+    "file": "buildings/norse/university.png",
     "h": 273,
-    "mask": "buildings/celt/university.m.png",
+    "mask": "buildings/norse/university.m.png",
     "ox": 152,
     "oy": 144,
     "size": 4,
     "stages": [
      {
-      "file": "buildings/celt/university.c0.png",
+      "file": "buildings/norse/university.c0.png",
       "h": 133,
       "ox": 147,
       "oy": 3,
       "w": 284
      },
      {
-      "file": "buildings/celt/university.c1.png",
+      "file": "buildings/norse/university.c1.png",
       "h": 187,
-      "mask": "buildings/celt/university.c1.m.png",
+      "mask": "buildings/norse/university.c1.m.png",
       "ox": 152,
       "oy": 57,
       "w": 289
      },
      {
-      "file": "buildings/celt/university.c2.png",
+      "file": "buildings/norse/university.c2.png",
       "h": 235,
-      "mask": "buildings/celt/university.c2.m.png",
+      "mask": "buildings/norse/university.c2.m.png",
       "ox": 152,
       "oy": 105,
       "w": 289
@@ -4693,37 +4687,37 @@
    "monastery": {
     "actor": "structures/carolingian/church.xml",
     "file": "buildings/caro/monastery.png",
-    "h": 135,
+    "h": 169,
     "mask": "buildings/caro/monastery.m.png",
-    "ox": 89,
-    "oy": 55,
+    "ox": 116,
+    "oy": 81,
     "size": 3,
     "stages": [
      {
       "file": "buildings/caro/monastery.c0.png",
-      "h": 102,
-      "ox": 98,
-      "oy": 7,
-      "w": 191
+      "h": 96,
+      "ox": 99,
+      "oy": 0,
+      "w": 197
      },
      {
       "file": "buildings/caro/monastery.c1.png",
-      "h": 121,
+      "h": 139,
       "mask": "buildings/caro/monastery.c1.m.png",
-      "ox": 98,
-      "oy": 26,
-      "w": 191
+      "ox": 115,
+      "oy": 43,
+      "w": 213
      },
      {
       "file": "buildings/caro/monastery.c2.png",
-      "h": 150,
+      "h": 145,
       "mask": "buildings/caro/monastery.c2.m.png",
-      "ox": 98,
-      "oy": 55,
-      "w": 191
+      "ox": 115,
+      "oy": 49,
+      "w": 213
      }
     ],
-    "w": 161
+    "w": 201
    },
    "siege_workshop": {
     "actor": "structures/byzantines/armory.xml",
@@ -4830,32 +4824,32 @@
    },
    "town_center": {
     "actor": "structures/byzantines/civic_center.xml",
-    "file": "buildings/byz/town_center.png",
+    "file": "buildings/hisp/town_center.png",
     "h": 228,
-    "mask": "buildings/byz/town_center.m.png",
+    "mask": "buildings/hisp/town_center.m.png",
     "ox": 179,
     "oy": 99,
     "size": 4,
     "stages": [
      {
-      "file": "buildings/byz/town_center.c0.png",
+      "file": "buildings/hisp/town_center.c0.png",
       "h": 144,
       "ox": 140,
       "oy": 12,
       "w": 275
      },
      {
-      "file": "buildings/byz/town_center.c1.png",
+      "file": "buildings/hisp/town_center.c1.png",
       "h": 170,
-      "mask": "buildings/byz/town_center.c1.m.png",
+      "mask": "buildings/hisp/town_center.c1.m.png",
       "ox": 155,
       "oy": 38,
       "w": 290
      },
      {
-      "file": "buildings/byz/town_center.c2.png",
+      "file": "buildings/hisp/town_center.c2.png",
       "h": 207,
-      "mask": "buildings/byz/town_center.c2.m.png",
+      "mask": "buildings/hisp/town_center.c2.m.png",
       "ox": 179,
       "oy": 75,
       "w": 314
@@ -4865,32 +4859,32 @@
    },
    "university": {
     "actor": "structures/byzantines/library.xml",
-    "file": "buildings/byz/university.png",
+    "file": "buildings/hisp/university.png",
     "h": 289,
-    "mask": "buildings/byz/university.m.png",
+    "mask": "buildings/hisp/university.m.png",
     "ox": 184,
     "oy": 159,
     "size": 4,
     "stages": [
      {
-      "file": "buildings/byz/university.c0.png",
+      "file": "buildings/hisp/university.c0.png",
       "h": 117,
       "ox": 116,
       "oy": -6,
       "w": 237
      },
      {
-      "file": "buildings/byz/university.c1.png",
+      "file": "buildings/hisp/university.c1.png",
       "h": 192,
-      "mask": "buildings/byz/university.c1.m.png",
+      "mask": "buildings/hisp/university.c1.m.png",
       "ox": 176,
       "oy": 62,
       "w": 310
      },
      {
-      "file": "buildings/byz/university.c2.png",
+      "file": "buildings/hisp/university.c2.png",
       "h": 228,
-      "mask": "buildings/byz/university.c2.m.png",
+      "mask": "buildings/hisp/university.c2.m.png",
       "ox": 184,
       "oy": 98,
       "w": 318
@@ -5651,66 +5645,66 @@
    "town_center": {
     "actor": "structures/norse/jarls_hold.xml",
     "file": "buildings/norse/town_center.png",
-    "h": 170,
+    "h": 204,
     "mask": "buildings/norse/town_center.m.png",
-    "ox": 135,
-    "oy": 53,
+    "ox": 163,
+    "oy": 73,
     "size": 4,
     "stages": [
      {
       "file": "buildings/norse/town_center.c0.png",
-      "h": 133,
-      "ox": 125,
-      "oy": 8,
-      "w": 249
+      "h": 146,
+      "ox": 146,
+      "oy": 9,
+      "w": 304
      },
      {
       "file": "buildings/norse/town_center.c1.png",
-      "h": 170,
+      "h": 163,
       "mask": "buildings/norse/town_center.c1.m.png",
-      "ox": 144,
-      "oy": 45,
-      "w": 268
+      "ox": 146,
+      "oy": 26,
+      "w": 304
      },
      {
       "file": "buildings/norse/town_center.c2.png",
-      "h": 178,
+      "h": 183,
       "mask": "buildings/norse/town_center.c2.m.png",
-      "ox": 145,
-      "oy": 53,
-      "w": 269
+      "ox": 163,
+      "oy": 46,
+      "w": 321
      }
     ],
-    "w": 221
+    "w": 271
    },
    "university": {
     "actor": "structures/germans/great_hall.xml",
-    "file": "buildings/celt/university.png",
+    "file": "buildings/norse/university.png",
     "h": 273,
-    "mask": "buildings/celt/university.m.png",
+    "mask": "buildings/norse/university.m.png",
     "ox": 152,
     "oy": 144,
     "size": 4,
     "stages": [
      {
-      "file": "buildings/celt/university.c0.png",
+      "file": "buildings/norse/university.c0.png",
       "h": 133,
       "ox": 147,
       "oy": 3,
       "w": 284
      },
      {
-      "file": "buildings/celt/university.c1.png",
+      "file": "buildings/norse/university.c1.png",
       "h": 187,
-      "mask": "buildings/celt/university.c1.m.png",
+      "mask": "buildings/norse/university.c1.m.png",
       "ox": 152,
       "oy": 57,
       "w": 289
      },
      {
-      "file": "buildings/celt/university.c2.png",
+      "file": "buildings/norse/university.c2.png",
       "h": 235,
-      "mask": "buildings/celt/university.c2.m.png",
+      "mask": "buildings/norse/university.c2.m.png",
       "ox": 152,
       "oy": 105,
       "w": 289
@@ -7133,37 +7127,37 @@
    "monastery": {
     "actor": "structures/carolingian/lorsch_abbey.xml",
     "file": "buildings/teut/monastery.png",
-    "h": 146,
+    "h": 181,
     "mask": "buildings/teut/monastery.m.png",
-    "ox": 103,
-    "oy": 58,
+    "ox": 113,
+    "oy": 89,
     "size": 3,
     "stages": [
      {
       "file": "buildings/teut/monastery.c0.png",
-      "h": 94,
-      "ox": 88,
-      "oy": 3,
-      "w": 175
+      "h": 110,
+      "ox": 111,
+      "oy": 7,
+      "w": 224
      },
      {
       "file": "buildings/teut/monastery.c1.png",
-      "h": 121,
+      "h": 144,
       "mask": "buildings/teut/monastery.c1.m.png",
-      "ox": 102,
-      "oy": 30,
-      "w": 189
+      "ox": 119,
+      "oy": 41,
+      "w": 232
      },
      {
       "file": "buildings/teut/monastery.c2.png",
-      "h": 133,
+      "h": 161,
       "mask": "buildings/teut/monastery.c2.m.png",
-      "ox": 103,
-      "oy": 42,
-      "w": 190
+      "ox": 119,
+      "oy": 58,
+      "w": 232
      }
     ],
-    "w": 181
+    "w": 210
    },
    "siege_workshop": {
     "actor": "structures/germans/workshop.xml",
@@ -7304,37 +7298,37 @@
    "university": {
     "actor": "structures/carolingian/church.xml",
     "file": "buildings/teut/university.png",
-    "h": 175,
+    "h": 231,
     "mask": "buildings/teut/university.m.png",
-    "ox": 119,
-    "oy": 68,
+    "ox": 160,
+    "oy": 113,
     "size": 4,
     "stages": [
      {
       "file": "buildings/teut/university.c0.png",
-      "h": 135,
-      "ox": 130,
-      "oy": 9,
-      "w": 253
+      "h": 132,
+      "ox": 136,
+      "oy": 2,
+      "w": 271
      },
      {
       "file": "buildings/teut/university.c1.png",
-      "h": 161,
+      "h": 191,
       "mask": "buildings/teut/university.c1.m.png",
-      "ox": 130,
-      "oy": 35,
-      "w": 253
+      "ox": 153,
+      "oy": 61,
+      "w": 288
      },
      {
       "file": "buildings/teut/university.c2.png",
-      "h": 192,
+      "h": 200,
       "mask": "buildings/teut/university.c2.m.png",
-      "ox": 130,
-      "oy": 66,
-      "w": 253
+      "ox": 153,
+      "oy": 70,
+      "w": 288
      }
     ],
-    "w": 215
+    "w": 276
    }
   },
   "umay": {
@@ -8651,16 +8645,16 @@
      "h": 122,
      "ox": 71,
      "oy": 88,
-     "w": 101
+     "w": 102
     }
    ],
    "birch": [
     {
      "file": "nature/tree_birch_0.png",
      "h": 120,
-     "ox": 78,
-     "oy": 84,
-     "w": 114
+     "ox": 79,
+     "oy": 85,
+     "w": 115
     },
     {
      "file": "nature/tree_birch_1.png",
@@ -8671,7 +8665,7 @@
     },
     {
      "file": "nature/tree_birch_2.png",
-     "h": 98,
+     "h": 99,
      "ox": 63,
      "oy": 62,
      "w": 100
@@ -8683,11 +8677,11 @@
      "h": 108,
      "ox": 67,
      "oy": 76,
-     "w": 92
+     "w": 91
     },
     {
      "file": "nature/tree_deci_1.png",
-     "h": 116,
+     "h": 115,
      "ox": 72,
      "oy": 80,
      "w": 108
@@ -8704,23 +8698,23 @@
     {
      "file": "nature/tree_fir_0.png",
      "h": 101,
-     "ox": 54,
-     "oy": 68,
+     "ox": 48,
+     "oy": 70,
      "w": 84
     },
     {
      "file": "nature/tree_fir_1.png",
      "h": 81,
-     "ox": 40,
-     "oy": 55,
-     "w": 60
+     "ox": 41,
+     "oy": 56,
+     "w": 61
     },
     {
      "file": "nature/tree_fir_2.png",
      "h": 57,
-     "ox": 29,
+     "ox": 28,
      "oy": 31,
-     "w": 49
+     "w": 48
     },
     {
      "file": "nature/tree_fir_3.png",
@@ -8740,10 +8734,10 @@
     },
     {
      "file": "nature/tree_oak_1.png",
-     "h": 88,
-     "ox": 65,
-     "oy": 56,
-     "w": 91
+     "h": 87,
+     "ox": 64,
+     "oy": 55,
+     "w": 90
     },
     {
      "file": "nature/tree_oak_2.png",
@@ -8754,10 +8748,10 @@
     },
     {
      "file": "nature/tree_oak_3.png",
-     "h": 88,
-     "ox": 65,
-     "oy": 56,
-     "w": 91
+     "h": 87,
+     "ox": 64,
+     "oy": 55,
+     "w": 90
     }
    ],
    "pine": [
@@ -8770,22 +8764,22 @@
     },
     {
      "file": "nature/tree_pine_1.png",
-     "h": 90,
-     "ox": 46,
+     "h": 91,
+     "ox": 45,
      "oy": 58,
-     "w": 73
+     "w": 72
     },
     {
      "file": "nature/tree_pine_2.png",
-     "h": 107,
-     "ox": 56,
-     "oy": 71,
+     "h": 106,
+     "ox": 57,
+     "oy": 70,
      "w": 94
     },
     {
      "file": "nature/tree_pine_3.png",
-     "h": 102,
-     "ox": 54,
+     "h": 103,
+     "ox": 55,
      "oy": 67,
      "w": 92
     }
@@ -8796,7 +8790,7 @@
      "h": 123,
      "ox": 65,
      "oy": 93,
-     "w": 101
+     "w": 100
     },
     {
      "file": "nature/tree_poplar_1.png",

@@ -10,6 +10,7 @@ tools/build_ui_assets.py. Если папки нет — всё рисуется
 """
 import json
 import os
+import sys
 
 import pygame
 
@@ -621,36 +622,108 @@ def portrait(typ, name, civ=None, size=64, upgrade_of=None):
 
 
 # ============================================================ курсоры
+# Состояния (hud.cursor_kind / controls.order_mode) → файлы assets/ui/cursors. Основа — 0 A.D.; курсоры действий
+# в стиле DE (de_*, tools/ui_icon_art.py): один предмет без стрелки, рабочий конец = точка прицела (1, 1).
 CURSOR_FILES = {
-    'arrow': 'arrow-default-down', 'attack': 'action-attack', 'build': 'action-build', 'repair': 'action-repair',
-    'garrison': 'action-garrison', 'tree': 'action-gather-tree', 'stone': 'action-gather-rock',
-    'gold': 'action-gather-ore', 'berries': 'action-gather-fruit', 'farm': 'action-gather-grain',
-    'meat': 'action-gather-meat', 'fish': 'action-gather-fish', 'drop': 'action-return-food',
-    'heal': 'action-heal', 'no': 'cursor-no', 'rally': 'cursor-rally',
+    'arrow': 'arrow-default-down', 'attack': 'action-attack', 'amove': 'action-attack-move',
+    'build': 'action-build', 'repair': 'action-repair', 'garrison': 'action-garrison',
+    'patrol': 'action-patrol', 'guard': 'action-guard', 'follow': 'action-patrol', 'aground': 'action-target',
+    'trade': 'action-setup-trade-route', 'board': 'action-garrison', 'unload': 'action-unload',
+    'flare': 'cursor-flare', 'rally': 'cursor-rally', 'no': 'cursor-no',
+    'tree': 'action-gather-tree', 'stone': 'action-gather-rock', 'gold': 'action-gather-ore',
+    'berries': 'action-gather-fruit', 'farm': 'action-gather-grain', 'meat': 'action-gather-meat',
+    'fish': 'action-gather-fish', 'drop': 'action-return-food', 'heal': 'action-heal',
 }
-# DE: курсор добычи — инструмент (топор, кирка, корзина, серп, копьё, сеть), не ресурс (tools/ui_icon_art.py)
-for _k in ('tree', 'gold', 'stone', 'berries', 'farm', 'meat', 'fish', 'drop', 'heal'):
+for _k in ('tree', 'gold', 'stone', 'berries', 'farm', 'meat', 'fish', 'drop', 'heal', 'repair', 'attack', 'amove',
+           'flare', 'rally', 'board', 'unload', 'follow'):
     if os.path.exists(os.path.join(UI_DIR, 'cursors', f'de_{_k}.png')):
         CURSOR_FILES[_k] = f'de_{_k}'
 
 
+def backing_scale():
+    """Масштаб экрана окна (Retina — 2.0): пиксели / пункты через SDL2 (ctypes); 1.0, если не узнать."""
+    try:
+        import ctypes
+        import ctypes.util
+        import glob
+        base = os.path.dirname(pygame.__file__)
+        lib = None
+        for c in (glob.glob(os.path.join(base, '.dylibs', 'libSDL2-*.dylib'))
+                  + glob.glob(os.path.join(base, '..', 'pygame.libs', 'libSDL2-*.so*'))
+                  + [ctypes.util.find_library('SDL2') or '']):
+            if not c:
+                continue
+            try:
+                lib = ctypes.CDLL(c)
+                break
+            except OSError:
+                continue
+        if lib is None:
+            return 1.0
+        ci = ctypes.c_int
+        lib.SDL_GetWindowFromID.restype = ctypes.c_void_p
+        lib.SDL_GetWindowFromID.argtypes = [ctypes.c_uint32]
+        for fn in (lib.SDL_GetWindowSize, lib.SDL_GetWindowSizeInPixels):
+            fn.argtypes = [ctypes.c_void_p, ctypes.POINTER(ci), ctypes.POINTER(ci)]
+            fn.restype = None
+        for wid in range(1, 9):
+            win = lib.SDL_GetWindowFromID(wid)
+            if not win:
+                continue
+            w, h, pw, ph = ci(), ci(), ci(), ci()
+            lib.SDL_GetWindowSize(win, ctypes.byref(w), ctypes.byref(h))
+            lib.SDL_GetWindowSizeInPixels(win, ctypes.byref(pw), ctypes.byref(ph))
+            if w.value > 0 and pw.value > 0 and pw.value != w.value:
+                return pw.value / w.value
+    except Exception:
+        pass
+    # окно без HIGHDPI (pygame SCALED на macOS): SDL видит 1280×800 и там, и там — спрашиваем экран у Cocoa
+    if sys.platform == 'darwin':
+        try:
+            import ctypes
+            objc = ctypes.CDLL('/usr/lib/libobjc.A.dylib')
+            objc.objc_getClass.restype = ctypes.c_void_p
+            objc.objc_getClass.argtypes = [ctypes.c_char_p]
+            objc.sel_registerName.restype = ctypes.c_void_p
+            objc.sel_registerName.argtypes = [ctypes.c_char_p]
+            send = objc.objc_msgSend
+            send.restype = ctypes.c_void_p
+            send.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            screen = send(objc.objc_getClass(b'NSScreen'), objc.sel_registerName(b'mainScreen'))
+            if screen:
+                sendf = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_void_p,
+                                                                        ctypes.c_void_p))
+                k = float(sendf(screen, objc.sel_registerName(b'backingScaleFactor')))
+                if 0.5 < k < 8:
+                    return k
+        except Exception:
+            pass
+    return 1.0
+
+
 class Cursors:
-    """Курсоры 0 A.D. Включаются, только если файлы на месте и система умеет цветные курсоры."""
+    """Курсоры 0 A.D./DE. Системный курсор (SDL) — 32 пункта, на Retina macOS растягивается в 64 px и мылится
+    (docs/research/08_cursor.md, корень 3); программный (soft) рисуется в конце кадра на поверхности игры —
+    в той же пиксельной сетке, что и мир, с точкой прицела под нашим контролем."""
 
     def __init__(self):
         self.enabled = True
+        self.soft = False               # программный курсор (settings 'cursor_soft'; None — авто по Retina)
         self.cur = None
-        self.cache = {}
+        self.cache = {}                 # имя → pygame.cursors.Cursor (системный)
+        self.imgs = {}                  # имя → (surface, hx, hy) (программный)
+        self._sys_visible = True
         try:
             with open(os.path.join(UI_DIR, 'cursors', 'hotspots.json')) as f:
                 self.hot = json.load(f)
         except (OSError, ValueError):
             self.hot = None
 
-    def get(self, name):
-        if name in self.cache:
-            return self.cache[name]
-        c = None
+    def load(self, name):
+        """(surface 32 px, hx, hy) курсора или None."""
+        if name in self.imgs:
+            return self.imgs[name]
+        rec = None
         fn = CURSOR_FILES.get(name)
         img = image(f'cursors/{fn}.png') if fn and self.hot is not None else None
         if img is not None:
@@ -659,6 +732,17 @@ class Cursors:
                 k = 32 / img.get_width()
                 img = pygame.transform.smoothscale(img, (32, round(img.get_height() * k)))
                 hx, hy = int(hx * k), int(hy * k)
+            rec = (img, hx, hy)
+        self.imgs[name] = rec
+        return rec
+
+    def get(self, name):
+        if name in self.cache:
+            return self.cache[name]
+        c = None
+        rec = self.load(name)
+        if rec is not None:
+            img, hx, hy = rec
             try:
                 c = pygame.cursors.Cursor((hx, hy), img)
             except (pygame.error, TypeError, ValueError):
@@ -672,6 +756,8 @@ class Cursors:
         if name == self.cur:
             return
         self.cur = name
+        if self.soft and name is not None:
+            return                      # рисуем сами (draw); системный спрятан там же
         try:
             if name is None:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
@@ -681,3 +767,35 @@ class Cursors:
                 pygame.mouse.set_cursor(c)
         except pygame.error:
             self.enabled = False
+
+    def _show_sys(self, v):
+        if v != self._sys_visible:
+            try:
+                pygame.mouse.set_visible(v)
+            except pygame.error:
+                pass
+            self._sys_visible = v
+
+    def draw(self, scr):
+        """Программный курсор: в конце кадра по текущему положению мыши минус точка прицела.
+        Вне окна (и когда режим выключен) — системный курсор."""
+        if not (self.soft and self.enabled and self.cur is not None):
+            self._show_sys(True)
+            return
+        focused = pygame.mouse.get_focused()
+        self._show_sys(not focused)
+        if not focused:
+            return
+        rec = self.load(self.cur) or self.load('arrow')
+        if rec is None:
+            self._show_sys(True)
+            return
+        img, hx, hy = rec
+        mx, my = pygame.mouse.get_pos()
+        scr.blit(img, (mx - hx, my - hy))
+
+    def set_soft(self, v):
+        """Включить/выключить программный курсор; системный переустанавливается на следующем кадре."""
+        self.soft = bool(v)
+        self.cur = '?'
+        self.imgs.clear()

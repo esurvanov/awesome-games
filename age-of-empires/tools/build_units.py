@@ -901,7 +901,8 @@ def render_set(name, spec, out=OUT, verbose=True):
                     ys = np.nonzero(spr.rgba[..., 3] > 160)[0]
                     if len(ys):
                         height = max(height, spr.oy - int(ys.min()))
-                    body = max(body, _head_top(items))
+                    if not spec.get('ship'):        # у кораблей голова гребца — не «макушка» (09 · №25)
+                        body = max(body, _head_top(items))
         anims[aname] = rec
     rects, sheet, mask = pack(frames)
     base = os.path.join(out, name)

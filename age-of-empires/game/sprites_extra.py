@@ -105,14 +105,16 @@ def ripple(t):
 
 
 # ------------------------------------------------------------------ туши
-def carcass(kind, frac, d8):
-    """Туша по доле оставшегося мяса frac: > 2/3 — целая, > 1/3 — разделанная, иначе — остов."""
+def carcass(kind, frac, fx, fy):
+    """Туша по доле оставшегося мяса frac: > 2/3 — целая, > 1/3 — разделанная, иначе — остов;
+    направление — по взгляду (fx, fy) и числу направлений группы (16, у старых сборок 8)."""
     name = 'carcass_' + kind
     g = group(name)
     if g is None:
         return None
+    from .sprites3d import face_dir
     st = 0 if frac > 0.67 else 1 if frac > 0.34 else 2
-    return frame(name, st * g['dirs'] + d8 % g['dirs'])
+    return frame(name, st * g['dirs'] + face_dir(fx, fy, g['dirs']))
 
 
 # ------------------------------------------------------------------ пни

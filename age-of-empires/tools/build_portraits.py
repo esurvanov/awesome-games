@@ -579,11 +579,12 @@ def build_units(only, groups, out, install):
 # имя → (вид юнита, анимация, доля цикла, рамка)
 # имя → (вид юнита, анимация, доля цикла, поворот): патруль — идёт боком с мечом, охрана — алебардщик
 # лицом к зрителю, атака с ходу — замах, стоять — воин анфас со щитом
+# фигуры — ¾ влево, как портреты юнитов (YAW_UNIT); 09 · №56: раньше смотрели вправо
 ORDERS = {
-    'patrol': ('long_swordsman', 'walk', 0.3, 200.0),
-    'guard': ('halberdier', 'idle', 0.0, 60.0),
-    'amove': ('long_swordsman', 'attack_melee', 0.35, 112.0),
-    'stand_ground': ('man_at_arms', 'idle', 0.0, 40.0),
+    'patrol': ('long_swordsman', 'walk', 0.3, YAW_UNIT),
+    'guard': ('halberdier', 'idle', 0.0, YAW_UNIT),
+    'amove': ('long_swordsman', 'attack_melee', 0.35, YAW_UNIT),
+    'stand_ground': ('man_at_arms', 'idle', 0.0, YAW_UNIT),
 }
 
 

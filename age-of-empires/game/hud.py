@@ -1531,21 +1531,43 @@ class HudUI:
             return
         cur.set(self.cursor_kind(pygame.mouse.get_pos()))
 
+    # режим приказа (controls.order_mode) → курсор (DE: у каждого режима свой значок)
+    ORDER_CURSORS = {'flare': 'flare', 'patrol': 'patrol', 'guard': 'guard', 'follow': 'follow',
+                     'amove': 'amove', 'aground': 'aground'}
+
     def cursor_kind(self, mp):
+        """Состояние курсора по тому, что под мышью (docs/research/08_cursor.md, DE)."""
         w = self.world
         if self.help or w.winner is not None or not self.in_view(mp):
             return 'arrow'
         if self.placing:
-            return 'build'
-        if getattr(self, 'order_mode', None):          # режим приказа (патруль, охрана, …) — ждём ЛКМ
-            return 'arrow' if self.order_mode == 'flare' else 'attack'
+            return 'build' if self.place_ok(mp) else 'no'
+        mode = getattr(self, 'order_mode', None)
+        if mode:                                        # ждём ЛКМ
+            return self.ORDER_CURSORS.get(mode, 'attack')
         units = [u for u in self.selected if isinstance(u, Unit) and u.owner == 0 and u.alive]
         if not units:
+            # выбрано здание, обучающее юнитов: ПКМ ставит точку сбора — флаг (DE)
+            if any(isinstance(s, Building) and s.owner == 0 and s.complete and s.d.get('trains')
+                   for s in self.selected):
+                return 'rally'
             return 'arrow'
         e = self.entity_at(mp)
+        ships = [u for u in units if u.naval]
+        land = [u for u in units if not u.naval]
         if e is None:
+            # транспорт с пассажирами над сушей: выгрузка
+            if ships and any(getattr(s, 'cargo', None) for s in ships) and self.land_at(mp):
+                return 'unload'
             return 'arrow'
         vils = any(u.kind == 'villager' for u in units)
+        # торговая повозка → рынок (свой или союзный, готовый)
+        if isinstance(e, Building) and e.kind == 'market' and e.complete and e.owner >= 0 and \
+                w.allied(0, e.owner) and any(u.d.get('command') for u in units):
+            return 'trade'
+        # сухопутные → свой транспорт: на борт
+        if land and isinstance(e, Unit) and e.naval and e.owner == 0 and getattr(e, 'cargo_cap', lambda: 0)() > 0:
+            return 'board'
         if isinstance(e, Animal):
             if vils and e.den is None:
                 return 'meat'
@@ -1555,6 +1577,8 @@ class HudUI:
         if isinstance(e, Node) and vils:
             if e.kind in ('tree', 'stone', 'gold', 'berries'):
                 return e.kind
+            return 'fish'
+        if isinstance(e, Node) and ships and any(s.d.get('fisher') for s in ships):
             return 'fish'
         if isinstance(e, Unit) and any(u.d.get('monk') for u in units) and w.allied(0, e.owner) \
                 and e.hp < e.max_hp:
@@ -1570,11 +1594,47 @@ class HudUI:
                 return 'drop'
             if e.hp < e.max_hp:
                 return 'repair'
+        if isinstance(e, Building) and e.owner == 0 and e.complete and e.d.get('water') and ships and \
+                any(s.carry > 0 for s in ships):
+            return 'drop'
         if isinstance(e, Building) and e.owner == 0 and e.complete and e.d.get('garrison') and \
-                (self.mods() & pygame.KMOD_ALT or not (vils and e.d.get('drop'))) and \
-                any(u.cls in e.d.get('garrison_cls', ('vil', 'inf', 'arch')) for u in units):
-            return 'garrison'       # ПКМ по своему зданию с гарнизоном (жители к центру — с Alt)
+                self.garrison_wanted(units, e):
+            # ПКМ по своему зданию с гарнизоном; DE: житель без ноши заходит в центр без Alt
+            return 'garrison' if self.garrison_room(e) > 0 else 'no'
         return 'arrow'
+
+    def place_ok(self, mp):
+        """Можно ли заложить выбранное здание под курсором (курсор «нельзя» иначе)."""
+        try:
+            tx, ty = self.place_tile(mp)
+            return bool(self.world.can_place(self.placing, tx, ty, 0))
+        except Exception:
+            return True
+
+    def land_at(self, mp):
+        wx, wy = self.s2w(*mp)
+        w = self.world
+        tx, ty = int(wx // TILE), int(wy // TILE)
+        return 0 <= tx < w.W and 0 <= ty < w.H and w.terrain[ty][tx] in (0, 2)
+
+    def garrison_wanted(self, units, b):
+        """Гарнизон по ПКМ (defense_ui.garrison_command): нужный класс и — для жителей у склада — пустые руки
+        или Alt."""
+        allowed = b.d.get('garrison_cls', ('vil', 'inf', 'arch'))
+        cands = [u for u in units if u.cls in allowed]
+        if not cands:
+            return False
+        vils = [u for u in units if u.kind == 'villager']
+        if b.d.get('drop') and vils and not (self.mods() & pygame.KMOD_ALT) and any(u.carry > 0 for u in vils):
+            return False
+        return True
+
+    def garrison_room(self, b):
+        try:
+            from . import defense
+            return defense.capacity(b) - len(b.garrison)
+        except Exception:
+            return 1
 
 
 def _relic_mm_color():

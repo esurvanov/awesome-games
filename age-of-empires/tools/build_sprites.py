@@ -159,7 +159,12 @@ SIZE = {'town_center': 4, 'house': 2, 'mill': 2, 'lumber_camp': 2, 'mining_camp'
 # (вытянутые модели 0 A.D. иначе либо мелкие, либо далеко вылезают за участок). FILL — поправка по виду.
 WFILL = 1.0
 OVER = 1.2
-FILL = {'tower': 1.0, 'guard_tower': 1.05, 'keep': 1.1, 'castle': 1.05, 'dock': 0.97}
+FILL = {'tower': 1.0, 'guard_tower': 1.05, 'keep': 1.1, 'castle': 1.05, 'dock': 0.97,
+        # модель меньше основания — пусто у переднего угла (09 · №26): университет −29 px, монастырь −21,
+        # норманнский центр −26; ключ (группа, вид) точнее вида
+        ('anglo', 'university'): 1.34, ('caro', 'university'): 1.34, ('teut', 'university'): 1.34,
+        ('caro', 'monastery'): 1.3, ('hisp', 'monastery'): 1.3, ('teut', 'monastery'): 1.3, ('anglo', 'monastery'): 1.3,
+        ('celt', 'monastery'): 1.3, ('norse', 'town_center'): 1.3}
 YAW = {}                    # (группа, вид) или вид → поворот модели, градусы
 # ящики, дрова, камни у складов: (актор, x, y (клетки основания), поворот, множитель масштаба)
 EXTRAS = {
@@ -324,10 +329,11 @@ def _body_bounds(parts, yaw):
     return parts_bounds(body, z_min=max(lo[2], 0.0) + 0.12 * (hi[2] - max(lo[2], 0.0)))
 
 
-def fill_scale(lo, hi, n, kind):
+def fill_scale(lo, hi, n, kind, group=None):
     """Масштаб модели, при котором она заполняет основание n×n (см. WFILL, OVER, FILL)."""
     dx, dy = max(hi[0] - lo[0], 1e-3), max(hi[1] - lo[1], 1e-3)
-    return FILL.get(kind, 1.0) * min(WFILL * 2 * n / (dx + dy), OVER * n / max(dx, dy))
+    f = FILL.get((group, kind), FILL.get(kind, 1.0))
+    return f * min(WFILL * 2 * n / (dx + dy), OVER * n / max(dx, dy))
 
 
 def building_items(r, group, kind, actor, pick=None, yaw=None):
@@ -347,7 +353,7 @@ def building_items(r, group, kind, actor, pick=None, yaw=None):
     if yaw is None:
         yaw = YAW.get((group, kind), YAW.get(kind, 0.0))
     bb = _body_bounds(parts, yaw)
-    place, s = fit_to_footprint(parts, n, yaw=yaw, bounds=bb, scale=fill_scale(*bb, n, kind))
+    place, s = fit_to_footprint(parts, n, yaw=yaw, bounds=bb, scale=fill_scale(*bb, n, kind, group))
     if kind in MAX_H:
         lo, hi = parts_bounds([p for p in parts if 'garrison_flag' not in p.actor])
         if (hi[2] - max(lo[2], 0)) * s > MAX_H[kind]:
@@ -456,7 +462,8 @@ def render_building(r, group, kind, actor, base, stages=True, pick=None, yaw=Non
 DOCK_YAWS = (0.0, 90.0, 180.0, 270.0)
 
 
-def build_buildings(r, groups, atlas, stages=True):
+def build_buildings(r, groups, atlas, stages=True, kinds=None):
+    """kinds — только эти виды (остальные записи группы сохраняются); None — все."""
     bl = atlas.setdefault('buildings', {})
     for g0 in [g for g in bl if g not in GROUPS]:
         del bl[g0]                      # наборы, на которые больше не ссылается ни одна цивилизация
@@ -474,9 +481,12 @@ def build_buildings(r, groups, atlas, stages=True):
         return rec
 
     for g in groups:
-        bl[g] = {}
+        if not kinds:
+            bl[g] = {}
+        else:
+            bl.setdefault(g, {})
         for kind in SIZE:
-            if kind == 'farm':
+            if kind == 'farm' or (kinds and kind not in kinds):
                 continue
             vs = building_variants(g, kind)
             if not vs:
@@ -738,6 +748,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--only', default='buildings,walls,nature,terrain,cliffs')
     ap.add_argument('--groups', default=','.join(GROUPS))
+    ap.add_argument('--kinds', default='', help='только эти виды зданий / группы природы (trees,nodes,animals)')
     ap.add_argument('--ss', type=int, default=3, help='сверхвыборка')
     ap.add_argument('--no-stages', action='store_true')
     ap.add_argument('--sheets', default='', help='папка для контактных листов')
@@ -749,23 +760,24 @@ def main():
     t0 = time.time()
     r = Renderer(ss=a.ss)
     atlas = load_atlas()
+    kinds = set(k for k in a.kinds.split(',') if k)
     if 'buildings' in only:
-        build_buildings(r, groups, atlas, not a.no_stages)
+        build_buildings(r, groups, atlas, not a.no_stages, kinds or None)
         save_atlas(atlas)
     if 'walls' in only:
         build_walls(r, groups, atlas)
         save_atlas(atlas)
-    if ('buildings' in only or 'walls' in only) and set(groups) == set(GROUPS):
+    if ('buildings' in only or 'walls' in only) and set(groups) == set(GROUPS) and not kinds:
         prune(atlas)
     if 'nature' in only:
         from tools import build_nature
-        build_nature.build(r, atlas, OUT)
+        build_nature.build(r, atlas, OUT, kinds or None)
         save_atlas(atlas)
     if 'terrain' in only:
         from tools import build_nature
         build_nature.build_terrain(atlas, OUT)
         save_atlas(atlas)
-    if 'cliffs' in only or 'nature' in only:
+    if 'cliffs' in only or ('nature' in only and not kinds):
         from tools import build_nature
         build_nature.build_cliffs(r, atlas, OUT)
         save_atlas(atlas)

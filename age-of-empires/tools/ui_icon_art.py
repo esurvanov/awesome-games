@@ -20,7 +20,7 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 RAW = os.path.join(ROOT, 'assets', '0ad_raw')
@@ -717,26 +717,199 @@ def stat_icon(name):
 
 
 # ================================================================ курсоры
-def cursor(tool, rot=0.0, extra=None):
-    """Курсор DE-«инструмент»: золочёная стрелка 0 A.D. + предмет справа-снизу (прозрачный фон)."""
-    arrow = Image.open(os.path.join(CURSORS, 'arrow-default-down.png')).convert('RGBA')
-    S = 32                                   # точка прицела — (1, 1), как у стрелки 0 A.D.
-    im = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-    k = 17 / max(arrow.size)
-    im.alpha_composite(arrow.resize((max(1, round(arrow.width * k)), max(1, round(arrow.height * k))), Image.LANCZOS))
-    t = cutout(tool) if isinstance(tool, str) else tool
+# DE (docs/research/08_cursor.md): курсор действия — один предмет без стрелки; рабочий конец (лезвие, боёк,
+# остриё) в верхнем-левом углу, там же точка прицела (1, 1) и белый уголок-метка. Рисунок на холсте CD = 64
+# с тёмной обводкой, уменьшение до CS = 32 (мягкие края); процедурные предметы — на 128 (4×).
+CS = 32
+CD = 64
+GP = 128            # холст процедурного предмета
+
+
+def _dark_outline(im, r=2, alpha=235):
+    """Тёмная обводка по контуру (DE): расширенная маска под предметом."""
+    a = im.getchannel('A').point(lambda v: 255 if v > 60 else 0).filter(ImageFilter.MaxFilter(2 * r + 1))
+    out = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    out.paste(Image.new('RGBA', im.size, (24, 16, 8, alpha)), (0, 0), a)
+    out.alpha_composite(im)
+    return out
+
+
+def _tip_marker(im):
+    """Белый уголок в точке прицела (как у DE) — на готовом курсоре CS."""
+    d = ImageDraw.Draw(im)
+    d.polygon([(0, 0), (7, 0), (0, 7)], fill=(30, 22, 12, 255))
+    d.polygon([(0, 0), (5, 0), (0, 5)], fill=(255, 255, 255, 255))
+
+
+def _crop_alpha(t, thr=30):
+    bb = t.getchannel('A').point(lambda v: 255 if v > thr else 0).getbbox()
+    return t.crop(bb) if bb else t
+
+
+def _no_shadow(im):
+    """Убрать нарисованную в портрете 0 A.D. тень под предметом (тёмные малонасыщенные пиксели → прозрачные),
+    замкнуть дыры маски (металл похож на фон) и поднять почти чёрный металл до стали (на 32 px иначе пятно)."""
+    a = np.asarray(im.convert('RGBA'), np.float32)
+    rgb = a[..., :3]
+    chroma = rgb.max(-1) - rgb.min(-1)                                    # абсолютная насыщенность
+    L = rgb @ np.array([0.3, 0.59, 0.11], np.float32)
+    grey = chroma < 36
+    keep = np.where(grey, np.clip((L - 52) / 28, 0, 1), np.clip((L - 16) / 16, 0, 1))
+    al = a[..., 3] * keep
+    m = Image.fromarray(np.where(al < 90, 0, 255).astype(np.uint8))
+    m = m.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7))
+    a[..., 3] = np.maximum(np.where(al < 90, 0, al), np.asarray(m, np.float32))
+    lift = np.clip((85 - L) / 85, 0, 1) * grey * 70
+    a[..., :3] = rgb + lift[..., None]
+    return _crop_alpha(Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGBA'))
+
+
+def cursor(tool, rot=0.0, mirror=False, box=(0.05, 0.05, 0.97, 0.97), extra=None, marker=True, outline=2):
+    """Курсор DE: предмет (имя портрета 0 A.D. или RGBA), отражённый/повёрнутый так, чтобы рабочий конец был ↖,
+    прижат к верхнему-левому углу box (доли холста CD), обводка, уменьшение до CS, уголок-метка."""
+    t = _no_shadow(cutout(tool)) if isinstance(tool, str) else tool
+    if mirror:
+        t = ImageOps.mirror(t)
     if rot:
         t = t.rotate(rot, resample=Image.BICUBIC, expand=True)
-    paste_fit(im, drop_shadow(t, r=1, off=(1, 1)), (8 / S, 8 / S, 1.0, 1.0))
+    t = _crop_alpha(t)
+    im = Image.new('RGBA', (CD, CD), (0, 0, 0, 0))
+    x0, y0, x1, y1 = [v * CD for v in box]
+    k = min((x1 - x0) / t.width, (y1 - y0) / t.height)
+    t2 = t.resize((max(1, round(t.width * k)), max(1, round(t.height * k))), Image.LANCZOS)
+    im.alpha_composite(t2, (round(x0), round(y0)))
+    a = np.asarray(im).copy()
+    a[..., 3] = np.where(a[..., 3] < 48, 0, a[..., 3])                    # пыль после поворота/уменьшения
+    im = Image.fromarray(a, 'RGBA')
     if extra:
         extra(im)
+    if outline:
+        im = _dark_outline(im, outline)
+    out = im.resize((CS, CS), Image.LANCZOS)
+    if marker:
+        _tip_marker(out)
+    return out
+
+
+def _glyph():
+    return Image.new('RGBA', (GP, GP), (0, 0, 0, 0))
+
+
+def _g(x, y):
+    return (x * GP, y * GP)
+
+
+def _red_arrow(d, cx, y0, y1, w=0.16, up=True):
+    """Красная стрелка DE (вверх при up, иначе вниз), координаты — доли холста GP."""
+    hy = y0 if up else y1
+    ty = y1 if up else y0
+    col, edge = (225, 40, 20), (90, 10, 5)
+    d.polygon([_g(cx - w, hy + (0.55 * (ty - hy))), _g(cx + w, hy + 0.55 * (ty - hy)), _g(cx, hy)],
+              fill=col, outline=edge, width=K)
+    d.rectangle((*_g(cx - w * 0.42, min(hy + 0.5 * (ty - hy), ty)), *_g(cx + w * 0.42, max(hy + 0.5 * (ty - hy), ty))),
+                fill=col, outline=edge, width=K)
+
+
+def nuggets(gold=True):
+    """Самородки (золото) / камни (серые) у кирки — рисуются в extra на холсте CD, слева-снизу."""
+    top, bot, edge = ((255, 226, 110), (170, 110, 20), (110, 70, 10)) if gold else \
+        ((205, 205, 210), (95, 95, 102), (50, 50, 55))
+
+    def draw(im):
+        d = ImageDraw.Draw(im)
+        for (x, y, r) in ((0.16, 0.86, 0.13), (0.34, 0.9, 0.11), (0.24, 0.74, 0.1), (0.08, 0.7, 0.08)):
+            d.ellipse(((x - r) * CD, (y - r * 0.8) * CD, (x + r) * CD, (y + r * 0.8) * CD), fill=bot, outline=edge)
+            d.ellipse(((x - r * 0.55) * CD, (y - r * 0.6) * CD, (x + r * 0.25) * CD, (y + r * 0.05) * CD), fill=top)
+    return draw
+
+
+def drop_arrow(im):
+    """Зелёная стрелка вниз над корзиной (сдать ресурс) — на холсте CD."""
+    d = ImageDraw.Draw(im)
+    col, edge = (90, 220, 90), (20, 70, 20)
+    d.rectangle((0.66 * CD, 0.02 * CD, 0.78 * CD, 0.24 * CD), fill=col, outline=edge)
+    d.polygon([(0.56 * CD, 0.24 * CD), (0.88 * CD, 0.24 * CD), (0.72 * CD, 0.42 * CD)], fill=col, outline=edge)
+
+
+def rope_coil(im):
+    """Моток каната у молота (ремонт DE) — на холсте CD, справа-снизу."""
+    d = ImageDraw.Draw(im)
+    for i, (x, y) in enumerate(((0.62, 0.86), (0.76, 0.8), (0.88, 0.88), (0.7, 0.94))):
+        d.ellipse(((x - 0.12) * CD, (y - 0.07) * CD, (x + 0.12) * CD, (y + 0.07) * CD),
+                  fill=(206, 168, 96), outline=(96, 66, 24), width=1)
+        d.line([((x - 0.1) * CD, (y - 0.02) * CD), ((x + 0.1) * CD, (y + 0.02) * CD)], fill=(150, 110, 50), width=1)
+
+
+def hammer_tool():
+    """Молот 0 A.D. (курсор action-build) как предмет."""
+    return Image.open(os.path.join(CURSORS, 'action-build.png')).convert('RGBA')
+
+
+def sword_tool(name='action-attack'):
+    """Меч 0 A.D. (64×64, рисунок 23×23): вырезаем рамку — предмет займёт весь курсор."""
+    return _crop_alpha(Image.open(os.path.join(CURSORS, name + '.png')).convert('RGBA'))
+
+
+def flag_glyph():
+    """Флаг точки сбора DE: древко из угла вниз-вправо, бело-синее полотнище."""
+    im = _glyph()
+    d = ImageDraw.Draw(im)
+    top, base = (0.06, 0.06), (0.3, 0.96)
+    # полотнище (два клина: белый и синий)
+    fx = [top, (0.9, 0.16), (0.72, 0.36), (0.18, 0.42)]
+    d.polygon([_g(*p) for p in fx], fill=(244, 244, 240), outline=(60, 60, 70), width=K)
+    d.polygon([_g(*p) for p in (top, (0.9, 0.16), (0.6, 0.2), (0.12, 0.24))], fill=(50, 92, 210))
+    d.polygon([_g(*p) for p in ((0.12, 0.24), (0.6, 0.2), (0.9, 0.16), (0.72, 0.36), (0.18, 0.42))],
+              fill=(244, 244, 240))
+    d.polygon([_g(*p) for p in fx], outline=(60, 60, 70), width=K)
+    d.line([_g(*top), _g(*base)], fill=(96, 62, 24), width=5 * K)
+    d.line([_g(*top), _g(*base)], fill=(160, 112, 52), width=2 * K)
+    d.ellipse((*_g(base[0] - 0.06, base[1] - 0.05), *_g(base[0] + 0.06, base[1] + 0.03)), fill=(70, 46, 16))
     return im
 
 
-def down_arrow(im):
+def plank_glyph(up=True):
+    """Сходни корабля DE: доска наискось + красная стрелка (на борт — вверх, выгрузить — вниз)."""
+    im = _glyph()
     d = ImageDraw.Draw(im)
-    d.polygon([(20, 13), (30, 13), (25, 20)], fill=(90, 220, 90), outline=(20, 60, 20))
-    d.rectangle((23, 6, 27, 13), fill=(90, 220, 90), outline=(20, 60, 20))
+    pl = [(0.5, 0.06), (0.68, 0.14), (0.98, 0.9), (0.8, 0.98)]
+    d.polygon([_g(*p) for p in pl], fill=(170, 118, 60), outline=(70, 40, 12), width=K)
+    for t in (0.25, 0.5, 0.75):
+        a = (pl[0][0] + (pl[3][0] - pl[0][0]) * t, pl[0][1] + (pl[3][1] - pl[0][1]) * t)
+        b = (pl[1][0] + (pl[2][0] - pl[1][0]) * t, pl[1][1] + (pl[2][1] - pl[1][1]) * t)
+        d.line([_g(*a), _g(*b)], fill=(110, 70, 28), width=K)
+    _red_arrow(d, 0.26, 0.3, 0.92, w=0.2, up=up)
+    return im
+
+
+def boots_glyph():
+    """Следовать: сапоги 0 A.D. с красной стрелкой вперёд."""
+    b = _no_shadow(cutout('leather_boots'))
+    im = _glyph()
+    paste_fit(im, b, (0.22, 0.06, 1.0, 0.98))
+    d = ImageDraw.Draw(im)
+    _red_arrow(d, 0.12, 0.08, 0.6, w=0.12, up=True)
+    return im
+
+
+def horn_glyph():
+    """Сигнал: рог (как «чат» DE), раструбом в верхний-левый угол."""
+    h = horn().rotate(180, resample=Image.BICUBIC).rotate(38, resample=Image.BICUBIC, expand=True)
+    return _crop_alpha(h)
+
+
+def hands_tool():
+    """Лечение DE: только сложенные ладони — красный крест 0 A.D. убираем по цвету."""
+    im = _no_shadow(cutout('healing_rate'))
+    a = np.asarray(im, np.int32)
+    red = (a[..., 0] > 120) & (a[..., 1] < 100) & (a[..., 2] < 100)
+    m = np.asarray(Image.fromarray((red * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(7)), bool)
+    h, w = m.shape
+    m[:int(h * 0.42), :] = False
+    m[:, :int(w * 0.5)] = False                                            # крест — справа-снизу
+    a[m, 3] = 0
+    im = Image.fromarray(a.astype(np.uint8), 'RGBA')
+    return _crop_alpha(im.crop((0, 0, int(im.width * 0.74), im.height)))
 
 
 # ================================================================ рамки панелей по культурам
@@ -940,15 +1113,27 @@ def recipes():
 
 
 CURSOR_RECIPES = {
-    'de_tree': lambda: cursor('wood_axe', rot=10),
-    'de_gold': lambda: cursor(tint_gold(cutout('mining_pickax'), strength=0.0)),
-    'de_stone': lambda: cursor('mining_pickax'),
-    'de_berries': lambda: cursor('gather_basket'),
-    'de_farm': lambda: cursor('sickle_2'),
-    'de_meat': lambda: cursor('spear', rot=-30),
+    # добыча: инструмент, рабочий конец ↖ (DE)
+    'de_tree': lambda: cursor('wood_axe', rot=8),                                  # топор: лезвие ↖
+    'de_gold': lambda: cursor('mining_pickax', mirror=True, box=(0.16, 0.04, 0.98, 0.9), extra=nuggets(True)),
+    'de_stone': lambda: cursor('mining_pickax', mirror=True, box=(0.16, 0.04, 0.98, 0.9), extra=nuggets(False)),
+    'de_berries': lambda: cursor('gather_basket'),                                 # корзина с плодами
+    'de_farm': lambda: cursor('sickle_2'),                                         # серп: лезвие ↖
+    'de_meat': lambda: cursor('spear', rot=42),                                    # охотничье копьё: остриё ↖
     'de_fish': lambda: cursor('fishing_net'),
-    'de_drop': lambda: cursor('gather_basket_empty', extra=down_arrow),
-    'de_heal': lambda: cursor('healing_rate'),
+    'de_drop': lambda: cursor('gather_basket_empty', box=(0.05, 0.3, 0.97, 0.97), extra=drop_arrow),
+    'de_heal': lambda: cursor(hands_tool()),                                       # только ладони
+    # ремонт: молот + канат (отличается от «строить»)
+    'de_repair': lambda: cursor(hammer_tool(), box=(0.05, 0.05, 0.86, 0.86), extra=rope_coil, outline=1),
+    # меч 0 A.D. во весь курсор (рисунок 23 px из 64 — иначе крошка), остриё ↖
+    'de_attack': lambda: cursor(sword_tool('action-attack'), outline=1),
+    'de_amove': lambda: cursor(sword_tool('action-attack-move'), outline=1),
+    # режимы и состояния без аналога в 0 A.D.
+    'de_flare': lambda: cursor(horn_glyph()),
+    'de_rally': lambda: cursor(flag_glyph(), outline=1),
+    'de_board': lambda: cursor(plank_glyph(True), outline=1),
+    'de_unload': lambda: cursor(plank_glyph(False), outline=1),
+    'de_follow': lambda: cursor(boots_glyph(), outline=1),
 }
 
 

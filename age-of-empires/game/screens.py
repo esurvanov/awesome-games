@@ -107,6 +107,10 @@ class ScreensUI(SettingsUI, SavesUI):
         cur = getattr(self, 'cursors', None)
         if cur is not None:
             cur.enabled = bool(gsettings.get('cursor', True))
+            soft = gsettings.get('cursor_soft')
+            if soft is None:                    # авто: на Retina (масштаб окна > 1) — программный курсор
+                soft = S.backing_scale() > 1.0
+            cur.set_soft(bool(soft))
         if gsettings.get('fullscreen'):
             try:
                 pygame.display.toggle_fullscreen()

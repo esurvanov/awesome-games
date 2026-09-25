@@ -14,15 +14,12 @@ os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
 os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
-import pygame  # noqa: E402
-
 from game.ui import Game  # noqa: E402
-from game.world import Unit, Building, Node, Animal  # noqa: E402
+from game.world import Unit, Node  # noqa: E402
 
-# смещение «визуального острия» относительно точки мыши (из static.json: tip − hot, лог. px, после масштабирования до 32)
-VISUAL_TIP = {'arrow': (-1, 30), 'attack': (-1, -1), 'build': (-1, -1), 'repair': (-1, -1), 'garrison': (-1, -1),
-              'tree': (4, 0), 'gold': (4, 0), 'stone': (4, 0), 'berries': (4, 0), 'farm': (4, 0), 'meat': (4, 0),
-              'fish': (4, 0), 'drop': (4, 0), 'heal': (4, 0), 'rally': (0, 0), 'no': (0, 0)}
+# смещение «визуального острия» относительно точки мыши (static.json: tip − hot, лог. px). После правок 08 —
+# остриё = прицел у всех курсоров (0, 0); прежние значения: стрелка (−1, 30), de_* (4, 0).
+VISUAL_TIP = {}
 
 
 def main():
@@ -120,17 +117,74 @@ def main():
     mp = (int(mp[0]), int(mp[1]))
     for mode in ('patrol', 'guard', 'follow', 'amove', 'aground', 'flare'):
         g.order_mode = mode
-        out.append(dict(zoom=1.0, target=f'order_{mode}', expected='(DE: свой значок)', got=g.cursor_kind(mp), ok=None))
+        got = g.cursor_kind(mp)
+        out.append(dict(zoom=1.0, target=f'order_{mode}', expected=mode, got=got, ok=got == mode))
     g.order_mode = None
     g.selected = []
-    out.append(dict(zoom=1.0, target='nothing_selected_over_tree', expected='arrow', got=g.cursor_kind(mp), ok=None))
+    got = g.cursor_kind(mp)
+    out.append(dict(zoom=1.0, target='nothing_selected_over_unit', expected='arrow', got=got, ok=got == 'arrow'))
+    # точка сбора: выбрано здание, обучающее юнитов (DE — флаг)
+    if tc:
+        g.selected = [tc]
+        got = g.cursor_kind(mp)
+        out.append(dict(zoom=1.0, target='tc_selected_rally', expected='rally', got=got, ok=got == 'rally'))
+        # гарнизон жителя без ноши в центр — без Alt (DE); с ношей — сдать ресурс
+        g.selected = [vil]
+        g.center_on(*tc.center())
+        g.draw()
+        tp = g.w2s(*tc.center())
+        tp = (int(tp[0]), int(tp[1]))
+        vil.carry = 0
+        got = g.cursor_kind(tp)
+        out.append(dict(zoom=1.0, target='vil_empty_tc', expected='garrison', got=got, ok=got == 'garrison'))
+        vil.carry = 5
+        got = g.cursor_kind(tp)
+        out.append(dict(zoom=1.0, target='vil_carry_tc', expected='drop', got=got, ok=got == 'drop'))
+        # торговая повозка над рынком
+        market = next((b for b in w.buildings if b.owner == 0 and b.kind == 'market' and b.complete), None)
+        if market is None:
+            for ox, oy in ((6, 0), (-6, 0), (0, 6), (0, -6), (8, 8), (-8, -8), (8, -8), (-8, 8)):
+                if w.can_place('market', tc.tx + ox, tc.ty + oy, 0, check_explored=False):
+                    market = w.place_building('market', 0, tc.tx + ox, tc.ty + oy)
+                    market.progress = 1.0
+                    market.hp = market.max_hp
+                    market.seen = True
+                    break
+        cart = None
+        if market is not None:
+            try:
+                cart = Unit('trade_cart', 0, vil.x + 40, vil.y, w)
+                w.units.append(cart)
+            except Exception:
+                cart = None
+        if market is not None and cart is not None:
+            g.selected = [cart]
+            g.center_on(*market.center())
+            g.draw()
+            mpm = g.w2s(*market.center())
+            mpm = (int(mpm[0]), int(mpm[1]))
+            got = g.cursor_kind(mpm)
+            out.append(dict(zoom=1.0, target='cart_over_market', expected='trade', got=got,
+                            ok=got == 'trade', hit_is_target=g.entity_at(mpm) is market))
+        # размещение: нельзя (занятая клетка)
+        g.selected = [vil]
+        g.placing = 'house'
+        g.center_on(*tc.center())
+        g.draw()
+        tp = g.w2s(*tc.center())
+        got = g.cursor_kind((int(tp[0]), int(tp[1])))
+        out.append(dict(zoom=1.0, target='placing_over_tc', expected='no', got=got, ok=got == 'no'))
+        g.placing = None
     path = os.path.join('shots', 'research_cursor', 'hover.json')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
     for r in out:
-        print(f"z={r['zoom']:<4} {r['target']:22} ожид={r['expected']:10} получ={r['got']:8} ok={r['ok']} "
+        print(f"z={r['zoom']:<4} {r['target']:26} ожид={r['expected']:10} получ={r['got']:8} ok={r['ok']} "
               f"hit={r.get('hit_is_target')} vis_tip_hit={r.get('visual_tip_hits_target')} h={r.get('elev')}")
+    n_ok = sum(1 for r in out if r['ok'])
+    print(f'состояния: {n_ok}/{len(out)} верны')
+    sys.exit(0 if n_ok == len(out) else 1)
 
 
 if __name__ == '__main__':

@@ -30,7 +30,7 @@ from game.world import Unit  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(REPO, 'shots', 'research_flip')
-from flip_pointing import reveal, run, flat_spot, hilliest, c2s  # noqa: E402
+from flip_pointing import reveal, run, flat_spot  # noqa: E402
 from flip_sheet import font  # noqa: E402
 
 

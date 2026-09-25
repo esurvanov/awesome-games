@@ -15,7 +15,7 @@ import os
 import shutil
 import sys
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 sys.path.insert(0, ROOT)
@@ -121,16 +121,42 @@ def main():
             im = im.resize((64, 64), Image.LANCZOS)
         save(im, f'icons/{n}.png')
     save(load('session/icons/idle.dds'), 'icons/idle.png')
-    # ---- курсоры (+ точка прицела из .txt)
+    # ---- курсоры (+ точка прицела из .txt). docs/research/08_cursor.md: остриё = точка прицела.
     hot = {}
     cur_dir = os.path.join(TEX, 'cursors')
-    for n in ('arrow-default-down', 'action-attack', 'action-build', 'action-repair', 'action-garrison',
+    for n in ('action-build', 'action-repair', 'action-garrison', 'action-patrol', 'action-guard',
+              'action-setup-trade-route', 'action-unload', 'cursor-flare',
               'action-gather-tree', 'action-gather-rock', 'action-gather-ore', 'action-gather-fruit',
               'action-gather-grain', 'action-gather-meat', 'action-gather-fish', 'action-return-food',
-              'action-heal', 'cursor-no', 'cursor-rally'):
+              'action-heal', 'cursor-rally'):
         save(load(n + '.png', cur_dir), f'cursors/{n}.png')
         txt = os.path.join(cur_dir, n + '.txt')
         hot[n] = [int(v) for v in open(txt).read().split()[:2]] if os.path.exists(txt) else [1, 1]
+    # стрелка 0 A.D. в файле остриём вниз-влево (остриё в (0, 31)) — переворачиваем: остриё ↖ в (0, 0)
+    arrow = ImageOps.flip(load('arrow-default-down.png', cur_dir))
+    save(arrow, 'cursors/arrow-default-down.png')
+    hot['arrow-default-down'] = [0, 0]
+    # мечи 64×64 с рисунком 23×23: вырезать рамку и растянуть на весь курсор 32 (иначе меч 11 px), остриё в (1, 1)
+    for n in ('action-attack', 'action-attack-move'):
+        im = load(n + '.png', cur_dir)
+        bb = im.getchannel('A').point(lambda v: 255 if v > 30 else 0).getbbox()
+        im = im.crop(bb)
+        k = 30 / max(im.size)
+        im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
+        out = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+        out.alpha_composite(im, (1, 1))
+        save(out, f'cursors/{n}.png')
+        hot[n] = [1, 1]
+    # прицел — в центре рисунка: «нельзя» (крест) и «по земле» (мишень)
+    for n in ('cursor-no', 'action-target'):
+        im = load(n + '.png', cur_dir)
+        save(im, f'cursors/{n}.png')
+        bb = im.getchannel('A').point(lambda v: 255 if v > 30 else 0).getbbox()
+        hot[n] = [(bb[0] + bb[2] - 1) // 2, (bb[1] + bb[3] - 1) // 2]
+    # свои курсоры DE (tools/ui_icon_art.py: de_*) — предмет без стрелки, рабочий конец в (1, 1)
+    for n in ('tree', 'gold', 'stone', 'berries', 'farm', 'meat', 'fish', 'drop', 'heal', 'repair', 'attack',
+              'amove', 'flare', 'rally', 'board', 'unload', 'follow'):
+        hot[f'de_{n}'] = [1, 1]
     with open(os.path.join(OUT, 'cursors', 'hotspots.json'), 'w') as f:
         json.dump(hot, f, indent=1, sort_keys=True)
     # ---- портреты

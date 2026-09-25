@@ -24,7 +24,7 @@ import pygame  # noqa: E402
 from game.data import TILE, SCREEN_W, SCREEN_H, TOP_H, PANEL_H, HH  # noqa: E402
 from game import terrain, ui as gui  # noqa: E402
 from game.ui import Game  # noqa: E402
-from game.world import Unit, Building, Node  # noqa: E402
+from game.world import Unit, Building  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(REPO, 'shots', 'research_flip')
@@ -120,14 +120,16 @@ def t_roundtrip(g, spots):
 # ============================================================ 2. холст при масштабе: растяжение и целая камера
 def t_canvas_scale(g):
     for z in (0.6, 0.7, 0.8, 1.2, 1.4, 1.6):
-        cw = int(math.ceil(SCREEN_W / z))
-        ch = int(math.ceil((SCREEN_H - TOP_H) / z))
-        ex = SCREEN_W - cw * z              # сдвиг правого края холста относительно w2s (px экрана)
-        ey = (SCREEN_H - TOP_H) - ch * z
-        out(f'canvas stretch zoom {z}', f'растяжение {SCREEN_W / cw:.4f} vs {z}: ошибка у правого края {ex:+.2f} px, '
+        # как в ui.draw_world: холст round(W/z), растяжение ровно до round(cw·z) (раньше ceil и растяжение в dst)
+        cw = max(1, int(round(SCREEN_W / z)))
+        ch = max(1, int(round((SCREEN_H - TOP_H) / z)))
+        sw, sh = int(round(cw * z)), int(round(ch * z))
+        ex = sw - cw * z                    # сдвиг правого края холста относительно w2s (px экрана)
+        ey = sh - ch * z
+        out(f'canvas stretch zoom {z}', f'растяжение {sw / cw:.4f} vs {z}: ошибка у правого края {ex:+.2f} px, '
                                         f'у низа {ey:+.2f} px')
-    out('terrain int(cam) vs objects float', 'земля рисуется со сдвигом int(cam_x), int(cam_y) (ui.py:1268), '
-                                             'объекты — с дробным: до 1 px холста (× zoom на экране)')
+    out('terrain int(cam) vs objects', 'земля и объекты — с целой камерой int(cam_x), int(cam_y) (ui.w2c/w2s/s2w): '
+                                       'расхождения нет')
 
 
 # ============================================================ 3. щелчок по видимым пикселям
@@ -183,7 +185,6 @@ def t_click_units(g, units, label):
 
 def t_click_sprites(g, ents, label):
     """Здания, деревья, жилы: доля непрозрачных пикселей спрайта, по которым entity_at возвращает объект."""
-    w = g.world
     res = []
     for z in ZOOMS:
         g.set_zoom(z)
@@ -335,7 +336,6 @@ def t_minimap(g, tc):
 
 # ============================================================ 7. рамка выделения
 def t_box(g, units, spot):
-    w = g.world
     tx, ty = spot
     g.set_zoom(1.0)
     g.center_on((tx + 0.5) * TILE, (ty + 0.5) * TILE)
@@ -367,7 +367,8 @@ def t_overlays(g, units):
         rw = u.radius * 2.4 + 8
         top = ys.min()
         rows.append((u.kind, int(top), us.bh, us.h, rw, int(xs.min()), int(xs.max())))
-        out(f'overlay {u.kind}', f'макушка спрайта {top:+d} px, полоска на −{us.bh + 7} (bh {us.bh}, h {us.h}); '
+        bar = g.unit_top(u) if hasattr(g, 'unit_top') else us.bh + 7
+        out(f'overlay {u.kind}', f'макушка спрайта {top:+d} px, полоска на −{bar} (bh {us.bh}, h {us.h}); '
                                 f'эллипс {rw:.0f}×{rw / 2:.0f} vs тело x {xs.min():+d}..{xs.max():+d}')
     return rows
 
@@ -403,6 +404,38 @@ def main():
         w.units.append(u)
         units.append(u)
     t_click_units(g, units, 'flat')
+    # осада (широкие машины) — по одной, 4 направления
+    siege = []
+    for i, k in enumerate(('ram', 'mangonel', 'scorpion', 'trebuchet')):
+        for j in range(4):
+            u = Unit(k, 0, (flat[0] + 0.5) * TILE + i * 4 * TILE, (flat[1] + 0.5) * TILE + j * 4 * TILE, w)
+            u.face = (math.cos(j * 0.8 + 0.3), math.sin(j * 0.8 + 0.3))
+            siege.append(u)
+    w.units.extend(siege)
+    t_click_units(g, siege, 'siege')
+    for u in siege:
+        w.units.remove(u)
+    # корабли — на воде (если она есть на карте)
+    water = [(x, y) for y in range(2, w.H - 2) for x in range(2, w.W - 2) if w.terrain[y][x] == 1
+             and all(w.terrain[y + dy][x + dx] == 1 for dx in (-2, 0, 2) for dy in (-2, 0, 2))]
+    if water:
+        from game.naval import Ship
+        wx, wy = water[len(water) // 2]
+        ships = []
+        for i, k in enumerate(('galley', 'fishing_boat', 'cannon_galleon', 'transport_ship')):
+            for j in range(2):
+                try:
+                    s = Ship(k, 0, (wx + 0.5) * TILE, (wy + 0.5) * TILE, w)
+                except Exception:
+                    continue
+                s.face = (math.cos(i * 0.7 + j * 1.9), math.sin(i * 0.7 + j * 1.9))
+                ships.append(s)
+        for s in ships:
+            w.units.append(s)
+            t_click_units(g, [s], 'ship')
+            w.units.remove(s)
+    else:
+        out('click ship', 'на карте нет воды — корабли не проверены')
     hu = []
     for i, k in enumerate(('villager', 'knight')):
         u = Unit(k, 0, (hill[0] + 0.5) * TILE + i * TILE, (hill[1] + 0.5) * TILE, w)
