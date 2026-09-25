@@ -163,7 +163,17 @@
   function scope(role, name, fn, opts) {
     const prev = S.cap; S.cap = [];
     try { fn(); } finally {
-      const pos = S.cap; S.cap = prev;
+      let pos = S.cap; S.cap = prev;
+      if (opts && opts.clipBelow !== undefined) {   // collider: only triangles above the water line (the part under the sea is unreachable)
+        const y0 = opts.clipBelow, keep = []; opts = Object.assign({}, opts); delete opts.clipBelow;
+        for (let t = 0; t + 8 < pos.length; t += 9) {   // cut each triangle at the water line, keep the part above
+          const P = [0, 1, 2].map((i) => [pos[t + i * 3], pos[t + i * 3 + 1], pos[t + i * 3 + 2]]), out = [];
+          for (let i = 0; i < 3; i++) { const a = P[i], b = P[(i + 1) % 3], ia = a[1] >= y0, ib = b[1] >= y0;
+            if (ia) out.push(a); if (ia !== ib) { const f = (y0 - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * f, y0, a[2] + (b[2] - a[2]) * f]); } }
+          for (let i = 1; i + 1 < out.length; i++) keep.push(...out[0], ...out[i], ...out[i + 1]);
+        }
+        pos = keep;
+      }
       if (pos.length >= 9 && C.register) {
         let near = false; for (let k = 0; k < pos.length && !near; k += 3) if (Math.hypot(pos[k], pos[k + 2]) < REACH) near = true;
         if (near) { try { C.register({ positions: new Float32Array(pos) }, role, Object.assign({ name: 'wf_' + name }, opts)); } catch (e) { console.warn('[WorldFill] register', name, e); } }
@@ -486,7 +496,7 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
       for (let k = 0; k < tries && c < n; k++) {
         const a = rr(0, TAU), d = rr(dMin, dMax), x = Math.cos(a) * d, z = Math.sin(a) * d, s = rr(sMin, sMax);
         if (!free(x, z, s * .6 + 6) || !seaDisk(x, z, s * .6 + 4)) continue;
-        if (d - s * .6 < REACH) scope('solid', 'ice', () => fn(x, z, s, d)); else fn(x, z, s, d);
+        if (d - s * .6 < REACH) scope('solid', 'ice', () => fn(x, z, s, d), { clipBelow: -0.06 }); else fn(x, z, s, d);
         placed.push({ x, z, r: s * .6 }); c++;
       }
     };
@@ -521,7 +531,7 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
         if (rnd() < .3) drift(mg, x + rr(-1, 1), 0, z + rr(-1, 1), rr(2, 4) + H, rr(1.5, 3) + H * .5, H * rr(.25, .5) + .15, a);
         if (s - lastC > 3 && Math.hypot(x, z) < 452) { col(x, z, 1.3 + H * .25); lastC = s; }
       } };
-      if (d0 - len < REACH) scope('solid', 'pressure_ridge', ridge); else ridge();   // one passport entry per ridge
+      if (d0 - len < REACH) scope('solid', 'pressure_ridge', ridge, { clipBelow: -0.06 }); else ridge();   // one passport entry per ridge
     }
     // wind-carved snow drifts (sastrugi) on the ice
     put(B.drifts, 900, 320, 950, 4, 18, (x, z, s, d) => { drift(mg, x, 0, z, s, s * rr(.2, .4), d < 450 ? rr(.15, .35) : rr(.3, 1.3), wYaw + rr(-.35, .35)); });
@@ -635,10 +645,10 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
   const poleArms = (m) => POLE_ARMS.map(([x, y]) => new V3(x, y, 0).applyMatrix4(m));
 
   function fireRing(f, lx, lz) { scope('solid', 'fire_ring', () => fireRingIn(f, lx, lz)); }
-  function fireRingIn(f, lx, lz) {
+  function fireRingIn(f, lx, lz) {   // stones rest on the loose camp snow (≈ 10 cm), not sunk into it
     const g = f.gy(lx, lz);
-    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; addS(G.chip0, f.L(M(lx + Math.cos(a) * .75, g + .05, lz + Math.sin(a) * .75, rr(0, TAU), 0, 0, rr(.16, .24), rr(.12, .18), rr(.16, .24))), jit(COL.stone, .1)); }
-    for (let i = 0; i < 3; i++) addB(G.cyl6, f.L(M(lx, g + .09, lz, i * 1.1, Math.PI / 2, 0, .07, 1, .07)), [.05, .045, .04], [1, 0, 0]);
+    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; addS(G.chip0, f.L(M(lx + Math.cos(a) * .75, g + .15, lz + Math.sin(a) * .75, rr(0, TAU), 0, 0, rr(.16, .24), rr(.12, .18), rr(.16, .24))), jit(COL.stone, .1)); }
+    for (let i = 0; i < 3; i++) addB(G.cyl6, f.L(M(lx, g + .2, lz, i * 1.1, Math.PI / 2, 0, .07, 1, .07)), [.05, .045, .04], [1, 0, 0]);
   }
 
   function buildCamp() {
@@ -1387,5 +1397,28 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
     }
     return out;
   }
-  window.WorldFill = { build, update, passablesNear, knobs: K, get stats() { return S.stats; }, get slots() { return S.slots; } };
+  // clutter stones / snow pillows: swap the procedural stone for a real rock scan (called by modules/structures.js once the
+  // boulder model is loaded). Vertex-clustered to ~300 triangles, normalised to the old stone's unit frame
+  // (±1 across, bottom −0.3, top ≈ 0.8) so every placed instance keeps its size and burial.
+  function setStoneGeometry(src) {
+    const T = S.clutter && S.clutter.types.find((t) => t.key === 'stone'); if (!T || !src) return false;
+    const P = src.attributes.position; src.computeBoundingBox(); const bb = src.boundingBox, ctr = bb.getCenter(new V3()), sz = bb.getSize(new V3());
+    const half = Math.max(sz.x, sz.z) / 2, k = 1 / half, cell = Math.max(sz.x, sz.y, sz.z) / 11;
+    const map = new Map(), acc = [], cnt = [], vid = new Int32Array(P.count);
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), key = Math.round(x / cell) + ',' + Math.round(y / cell) + ',' + Math.round(z / cell);
+      let id = map.get(key); if (id === undefined) { id = cnt.length; map.set(key, id); acc.push(0, 0, 0); cnt.push(0); }
+      acc[id * 3] += x; acc[id * 3 + 1] += y; acc[id * 3 + 2] += z; cnt[id]++; vid[i] = id;
+    }
+    const pos = new Float32Array(cnt.length * 3), yLo = bb.min.y;
+    for (let i = 0; i < cnt.length; i++) { pos[i * 3] = (acc[i * 3] / cnt[i] - ctr.x) * k; pos[i * 3 + 1] = (acc[i * 3 + 1] / cnt[i] - yLo) * k * .95 - .3; pos[i * 3 + 2] = (acc[i * 3 + 2] / cnt[i] - ctr.z) * k; }
+    const ix = src.index ? src.index.array : Array.from({ length: P.count }, (_, i) => i), out = [], seen = new Set();
+    for (let t = 0; t < ix.length; t += 3) { const a = vid[ix[t]], b = vid[ix[t + 1]], c = vid[ix[t + 2]]; if (a === b || b === c || a === c) continue; const q = [a, b, c].sort((u, v) => u - v).join(); if (seen.has(q)) continue; seen.add(q); out.push(a, b, c); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(cnt.length * 2), 2));
+    g.setIndex(out); g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox(); g.userData.source = 'rock_boulder_01 (clustered)';
+    const old = T.im.geometry; T.im.geometry = g; T.geo = g; if (old && old !== g) old.dispose();
+    S.stats.tris.clutter_stone = triCount(g, K.pool.stone); S.stats.stoneScan = { tris: out.length / 3, verts: cnt.length };
+    return true;
+  }
+  window.WorldFill = { build, update, passablesNear, setStoneGeometry, knobs: K, get stats() { return S.stats; }, get slots() { return S.slots; } };
 })();

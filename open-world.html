@@ -1019,7 +1019,19 @@ const sea = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshSt
 }));
 sea.rotation.x = -Math.PI / 2; sea.receiveShadow = true; scene.add(sea);
 // lake ice
-const lakeIce = new THREE.Mesh(new THREE.CircleGeometry(49, 48), new THREE.MeshStandardMaterial({
+// lake-shaped sheet (was a Ø98 m disc): radial grid, triangles only where the lake bed lies below the ice
+function lakeSheetGeo(R, rings, segs) {
+  const P = [], UV = [], I = [], at = (r, k) => [Math.cos(k / segs * 6.2832) * r, Math.sin(k / segs * 6.2832) * r];
+  P.push(0, 0, 0); UV.push(0.5, 0.5);
+  for (let j = 1; j <= rings; j++) for (let k = 0; k < segs; k++) { const [x, y] = at(R * j / rings, k); P.push(x, y, 0); UV.push(0.5 + x / (2 * R), 0.5 + y / (2 * R)); }
+  const id = (j, k) => (j === 0 ? 0 : 1 + (j - 1) * segs + (k % segs));
+  const wet = (i) => getH(POI.lake.x + P[i * 3], POI.lake.z - P[i * 3 + 1]) < POI.lake.h + 0.35;   // plane rotated −90° about X: local y → world −z
+  const tri = (a, b, c) => { if (wet(a) || wet(b) || wet(c)) I.push(a, b, c); };
+  for (let j = 0; j < rings; j++) for (let k = 0; k < segs; k++) { if (j === 0) tri(0, id(1, k), id(1, k + 1)); else { tri(id(j, k), id(j + 1, k), id(j + 1, k + 1)); tri(id(j, k), id(j + 1, k + 1), id(j, k + 1)); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(P.length / 3).fill([0, 0, 1]).flat(), 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setIndex(I); return g;
+}
+const lakeIce = new THREE.Mesh(lakeSheetGeo(49, 24, 72), new THREE.MeshStandardMaterial({
   color: 0x9fe0f0, roughness: 0.04, metalness: 0.1, emissive: 0x06243a, map: (() => { const t = crackTex('#cdeef8', '#ffffff', 50); t.repeat.set(5, 5); return t; })(),
   polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
 }));
@@ -1421,12 +1433,6 @@ const DECOR = {};
     { geo: new THREE.OctahedronGeometry(1, 0), m: M4(0.9, 2.2, 0.3, 0.45, 2.6, 0.45, 0, 0, -0.35), c: cB },
     { geo: new THREE.OctahedronGeometry(1, 0), m: M4(-0.8, 1.8, -0.4, 0.4, 2.1, 0.4, 0.2, 0, 0.4), c: cA },
   ]);
-  const rockGeo = new THREE.IcosahedronGeometry(1, 3);
-  { const pa = rockGeo.attributes.position, v = new V3();
-    for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i); const n = 1 + (fbm(v.x * 1.1 + 5, v.z * 1.1 + v.y * 0.8, 4) - 0.5) * 0.7; v.multiplyScalar(n); v.y = v.y * 0.62 + 0.15; pa.setXYZ(i, v.x, v.y, v.z * 1.2); }
-    rockGeo.computeVertexNormals(); }
-  const rockMat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 });
-  patchSurface(rockMat, { snowS: 0.35, rockS: 0.32, lo: 0.55, hi: 0.78, glitter: 0 });
   // colliders come from the instance matrices + the drawn geometry (Passport), never from a guessed radius
   const place = (geo, mat, list, shape, shadow, name) => {
     const im = new THREE.InstancedMesh(geo, mat, list.length), m = new THREE.Matrix4(); im.name = name;
@@ -1437,7 +1443,9 @@ const DECOR = {};
   };
   DECOR.trees = trees; DECOR.treeGeo = treeGeo;   // trunk colliders: registered from the real tree models once they load
   place(ctGeo, new THREE.MeshPhysicalMaterial({ vertexColors: true, flatShading: true, roughness: 0.06, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05, emissive: 0x1b3a86, emissiveIntensity: 0.8 }), ctrees, 'mesh', true, 'crystal_tree');
-  DECOR.rockMesh = place(rockGeo, rockMat, rocks, 'hull', true, 'rock');
+  // rocks: real scans (boulder + closed-back rock faces) placed from this list by modules/structures.js; the per-rock
+  // height factor is drawn here so the seeded sequence of the later placements stays unchanged
+  rocks.forEach((r) => r.push(srange(0.85, 1.2))); DECOR.rocks = rocks; DECOR.rockMesh = null;
   // rift crystals
   const rc = [];
   for (let k = 0; k < 600 && rc.length < 90; k++) {
@@ -1537,25 +1545,59 @@ function animChar(c, dt, spd, air, aim, seated) {
   c.armR.rotation.x = damp(c.armR.rotation.x, aim ? 1.5 : (air ? -0.5 : s * amp * 0.8), 18, dt);
   c.torso.scale.y = 1 + Math.sin(T * 2) * 0.015;
 }
-function buildKestrel(scale) {
-  const g = new THREE.Group();
-  const hull = std(0xaebcd2, 0.55, 0.35), hullDS = std(0xaebcd2, 0.55, 0.35, { side: THREE.DoubleSide }), dark = std(0x1b2440, 0.6, 0.45);
-  const body = new THREE.Mesh(new THREE.ConeGeometry(0.55, 3.4, 6), hull); body.rotation.x = -Math.PI / 2; body.scale.z = 0.55; body.position.z = -0.2; g.add(body);
-  const back = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.45, 0.8, 6), dark); back.rotation.x = Math.PI / 2; back.scale.z = 0.55; back.position.z = 1.8; g.add(back);
-  const cock = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), new THREE.MeshStandardMaterial({ color: 0x0a1a2c, emissive: 0x1d9dff, emissiveIntensity: 0.5, metalness: 1, roughness: 0.08 }));
-  cock.scale.set(0.75, 0.55, 1.7); cock.position.set(0, 0.22, -0.1); g.add(cock);
-  const ws = new THREE.Shape(); ws.moveTo(0.3, 0.7); ws.lineTo(3.0, -1.1); ws.lineTo(2.9, -1.55); ws.lineTo(0.3, -1.45); ws.lineTo(0.3, 0.7);
-  const wg = new THREE.ExtrudeGeometry(ws, { depth: 0.09, bevelEnabled: false }); wg.rotateX(-Math.PI / 2); wg.translate(0, 0, 0.6);
-  g.add(new THREE.Mesh(wg, hullDS)); const wL = new THREE.Mesh(wg, hullDS); wL.scale.x = -1; g.add(wL);
-  const engines = [];
-  for (const sx of [1, -1]) {
-    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.1, 8), dark); eng.rotation.x = Math.PI / 2; eng.position.set(sx * 0.62, -0.05, 1.6); g.add(eng);
-    const eg = glow(0xff9a3c, 1.6); eg.position.set(sx * 0.62, -0.05, 2.25); g.add(eg); engines.push(eg);
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.8), dark); fin.position.set(sx * 2.9, 0.3, 1.9); fin.rotation.x = -0.3; g.add(fin);
-  }
-  g.scale.setScalar(scale);
-  g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+function buildKestrel() {
+  // the wreck model (ship_kestrel: weathered DC-3-like hull) is loaded into `g` by modules/structures.js, which also fits it
+  // to the ground and moves these two ending glows onto the radial engine and the open tail
+  const g = new THREE.Group(), engines = [];
+  for (let i = 0; i < 2; i++) { const eg = glow(0xff9a3c, 1.6); eg.position.set(i ? 0 : -2.9, 1, i ? 6 : -2.4); g.add(eg); engines.push(eg); }
   return { g, engines };
+}
+// objective marker (assets/marker, pass-3 kit): camera-facing soft beam (never a tube), ground ring decal, constant-size glyph
+function makeObjectiveMarker(o) {
+  o = Object.assign({ base: ASSET + 'marker/', color: 0xffb347, height: 70, width: 1.4, minPx: 4, intensity: 1.6, ringRadius: 2.6, glyphPx: 40, glyphLift: 3.2, glyphNear: 18, glyphFar: 30, beamNear: 6 }, o);
+  const L = new THREE.TextureLoader(MANAGER);
+  const tx = (n, srgb = true, rep = false) => { const t = L.load(o.base + n); if (srgb) t.colorSpace = THREE.SRGBColorSpace; if (rep) t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
+  const group = new THREE.Group(); group.name = 'objective_marker'; const col = new THREE.Color(o.color);
+  const bg = new THREE.PlaneGeometry(1, 1, 1, 8); bg.translate(0, 0.5, 0);
+  const bm = new THREE.ShaderMaterial({
+    uniforms: { map: { value: tx('beam_core.png') }, noise: { value: tx('beam_noise.png', false, true) }, color: { value: col }, time: { value: 0 }, width: { value: o.width }, height: { value: o.height }, minPx: { value: o.minPx }, viewH: { value: 1000 }, intensity: { value: o.intensity }, nearFade: { value: o.beamNear } },
+    vertexShader: `uniform float width, height, minPx, viewH; varying vec2 vUv; varying float vDist;
+      void main() { vUv = uv; vec3 base = (modelMatrix * vec4(0., 0., 0., 1.)).xyz; vec3 toCam = cameraPosition - base; toCam.y = 0.; float d = max(length(toCam), .001); vec3 f = toCam / d;
+        vec3 right = vec3(f.z, 0., -f.x); float pxWorld = 2. * d / (projectionMatrix[1][1] * viewH); float w = max(width, minPx * pxWorld);
+        vec3 p = base + right * position.x * w + vec3(0., position.y * height, 0.); vDist = d; gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.); }`,
+    fragmentShader: `uniform sampler2D map, noise; uniform vec3 color; uniform float time, intensity, nearFade, height; varying vec2 vUv; varying float vDist;
+      void main() { vec4 c = texture2D(map, vUv); float n = texture2D(noise, vec2(vUv.x * .6, vUv.y * height / 24. - time * .35)).r;
+        float a = c.a * (.55 + .8 * n); a *= smoothstep(nearFade * .4, nearFade, vDist); a *= 1. + 1.6 * smoothstep(40., 400., vDist);
+        vec3 rgb = mix(color, vec3(1.), clamp(c.r - color.r, 0., 1.)) * a * intensity; gl_FragColor = vec4(rgb, a); }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false, fog: false,
+  });
+  const beam = new THREE.Mesh(bg, bm); beam.frustumCulled = false; beam.renderOrder = 10; beam.name = 'objective_beam'; beam.userData.noCollide = true; group.add(beam);
+  const rm = new THREE.MeshBasicMaterial({ map: tx('ground_ring.png'), color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, toneMapped: false });
+  const ring = new THREE.Mesh(new THREE.PlaneGeometry(o.ringRadius * 2, o.ringRadius * 2), rm); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; ring.name = 'objective_ring'; ring.userData.noCollide = true; group.add(ring);
+  const gm = new THREE.SpriteMaterial({ map: tx('waypoint_glyph_outlined.png'), color: col.clone().lerp(new THREE.Color(1, 1, 1), 0.35), sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true, toneMapped: false, fog: false });
+  const glyph = new THREE.Sprite(gm); glyph.center.set(0.5, 0.2); glyph.renderOrder = 20; glyph.name = 'objective_glyph'; group.add(glyph);
+  for (const m of [beam, ring, glyph]) m.userData.qaIntentional = 'beam';
+  const v = new V3();
+  return { group, beam, ring, glyph,
+    update(cam, t) {
+      bm.uniforms.time.value = t; bm.uniforms.viewH.value = renderer.domElement.height;
+      ring.rotation.z = t * 0.25; const p = 1 + Math.sin(t * 2.2) * 0.06; ring.scale.set(p, p, 1); rm.opacity = 0.75 + Math.sin(t * 2.2) * 0.2;
+      const d = v.copy(group.position).sub(cam.position).length(), k = clamp((d - o.glyphNear) / (o.glyphFar - o.glyphNear), 0, 1);
+      gm.opacity = k; glyph.visible = k > 0.01; glyph.position.y = o.glyphLift + Math.sin(t * 1.6) * 0.15;
+      const sy = o.glyphPx / renderer.domElement.height * 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2); glyph.scale.set(sy, sy, 1);
+    } };
+}
+// dark water in a broken hole of the lake ice (radial canvas decal: slush rim, ragged edge)
+function iceHoleTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), cx = 128, n = 96, R = [];
+  for (let i = 0; i < n; i++) { const a = i / n * 6.283; R.push(0.66 + 0.07 * Math.sin(a * 3 + 0.7) + 0.05 * Math.sin(a * 7 + 2.1) + 0.035 * (hash2(i, 17) - 0.5)); }
+  const path = (k, j = 0) => { g.beginPath(); for (let i = 0; i <= n; i++) { const a = i / n * 6.283, r = (R[i % n] + j * (hash2(i, 31) - 0.5)) * 116 * k; g[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * r, cx + Math.sin(a) * r); } g.closePath(); };
+  g.filter = 'blur(6px)'; path(1.22, 0.06); g.fillStyle = 'rgba(205,220,236,0.42)'; g.fill();   // slush + refrozen crust around the hole
+  g.filter = 'blur(1px)'; path(1.0); const gr = g.createRadialGradient(cx, cx, 6, cx, cx, 112); gr.addColorStop(0, '#01060c'); gr.addColorStop(0.75, '#03111c'); gr.addColorStop(1, '#0a2433'); g.fillStyle = gr; g.fill();
+  g.lineWidth = 2.5; g.strokeStyle = 'rgba(180,205,228,0.55)'; path(1.0); g.stroke();   // wet broken rim
+  g.filter = 'none';
+  for (let i = 0; i < 7; i++) { const a = hash2(i, 5) * 6.283, r0 = 30 + hash2(i, 9) * 40; g.fillStyle = 'rgba(150,178,205,0.35)'; g.beginPath(); g.ellipse(cx + Math.cos(a) * r0, cx + Math.sin(a) * r0, 3 + hash2(i, 3) * 5, 2 + hash2(i, 4) * 3, a, 0, 6.283); g.fill(); }   // slush floating in the water
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 /* ---------- places ---------- */
@@ -1563,22 +1605,16 @@ const WORLD = {};
 (function places() {
   // crash site
   const cp = POI.crash;
-  const k = buildKestrel(2.6); k.g.position.set(cp.x + 4, cp.h + 1.2, cp.z - 3); k.g.rotation.set(-0.14, 0.7, 0.3); scene.add(k.g);
+  const k = buildKestrel(); k.g.position.set(cp.x + 4, cp.h, cp.z - 3); k.g.rotation.set(0, 0.7, 0, 'YXZ'); scene.add(k.g);
   k.engines.forEach((e) => (e.visible = false));
-  WORLD.kestrel = k; WORLD.kestrelBase = { pos: k.g.position.clone(), rot: k.g.rotation.clone() };   // collider: the loaded wreck model (see ship loader)
-  const debrisM = std(0x2e3542, 0.75, 0.45);
-  for (let i = 0; i < 9; i++) {
-    const a = srange(0, 6.28), d = srange(8, 20), x = cp.x + Math.cos(a) * d, z = cp.z + Math.sin(a) * d;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(srange(0.3, 1.1), srange(0.06, 0.25), srange(0.3, 0.9)), debrisM);
-    m.position.set(x, getH(x, z) + 0.2, z); m.rotation.set(srange(-0.6, 0.6), srange(0, 6), srange(-0.6, 0.6)); m.castShadow = true; scene.add(m);
-    Passport.register(m, 'solid', { name: 'debris' });
-  }
-  const crate = new THREE.Group(); crate.position.set(cp.x - 7, cp.h, cp.z + 6);
-  const cb = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.9), std(0x39445e, 0.5, 0.5)); cb.position.y = 0.45; cb.rotation.y = 0.4; cb.castShadow = true; crate.add(cb);
-  const cs = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.08, 0.92), new THREE.MeshBasicMaterial({ color: 0x7fe3ff })); cs.position.y = 0.7; cs.rotation.y = 0.4; crate.add(cs);
-  const cg = glow(0x7fe3ff, 3.5, 0.7); cg.position.y = 1; crate.add(cg); scene.add(crate);
-  Passport.register(crate, 'solid', { name: 'tool_crate' });
-  WORLD.crate = crate; WORLD.crateGlow = cg;
+  WORLD.kestrel = k; WORLD.kestrelBase = { pos: k.g.position.clone(), rot: k.g.rotation.clone() };   // model, ground fit, collider: modules/structures.js
+  // debris: Kestrel pieces along the crash trail (modules/structures.js); the old boxes' random draws are kept so the
+  // seeded placements after this point stay where they were
+  for (let i = 0; i < 9; i++) for (const [a, b] of [[0, 6.28], [8, 20], [0.3, 1.1], [0.06, 0.25], [0.3, 0.9], [-0.6, 0.6], [0, 6], [-0.6, 0.6]]) srange(a, b);
+  // tool container: the ribbed aluminium cargo case (prop_cargo_case, lid opens) is put into `crate` by modules/structures.js
+  const crate = new THREE.Group(); crate.position.set(cp.x - 9, cp.h, cp.z + 4.5);   // beside the wreck's west side, off the walk-in line
+  const cg = glow(0x7fe3ff, 1.6, 0.7); cg.position.y = 0.95; crate.add(cg); scene.add(crate);
+  WORLD.crate = crate; WORLD.crateGlow = cg; WORLD.crateGlowS = 1.6;
   WORLD.shipSmoke = new V3(cp.x + 4, cp.h + 3, cp.z - 3);
 
   // station
@@ -1594,7 +1630,6 @@ const WORLD = {};
   WORLD.stationW = toW; WORLD.station = st;
 
   // spires
-  const PART_GEOS = [new THREE.IcosahedronGeometry(0.55, 0), new THREE.TorusKnotGeometry(0.38, 0.12, 40, 6), new THREE.OctahedronGeometry(0.6, 0)];
   WORLD.spires = ['spireN', 'spireW', 'spireE'].map((key, i) => {
     const p = POI[key], g = new THREE.Group(); g.position.set(p.x, p.h, p.z); scene.add(g);
     // quartz spire on its rock plinth + stone altar: models added into `g` by modules/structures.js (which also registers `g`)
@@ -1606,7 +1641,7 @@ const WORLD = {};
     const light = new THREE.PointLight(0x7fe3ff, candela(140), 45, 2); light.position.y = 8; g.add(light);
     const toCenter = Math.atan2(-p.x, -p.z);
     const ax = Math.sin(toCenter) * 6.5, az = Math.cos(toCenter) * 6.5;
-    const part = new THREE.Mesh(PART_GEOS[i], new THREE.MeshStandardMaterial({ color: 0xffc46b, emissive: 0xff8a1f, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3, flatShading: true }));
+    const part = new THREE.Group(); part.name = 'ship_part';   // a real Kestrel part (cowling / propeller blade / cable loom) is put in by modules/structures.js
     part.position.set(ax, 2.6, az); part.userData.noCollide = true; g.add(part);
     const pg = glow(0xffa53c, 3, 0.8); pg.position.copy(part.position); g.add(pg);
     return { key, g, mat, ring, beam, light, part, pg, ax, az, partY: 2.6, altar: new V3(p.x + ax, p.h + 1.6, p.z + az), taken: false };
@@ -1614,10 +1649,10 @@ const WORLD = {};
 
   // lake cell
   const lp = POI.lake, cell = new THREE.Group(); cell.position.set(lp.x + 6, lp.h, lp.z - 4); scene.add(cell);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(2.4, 20), new THREE.MeshBasicMaterial({ color: 0x06243a })); hole.rotation.x = -Math.PI / 2; hole.position.y = 0.08; cell.add(hole);
-  const cellM = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.2, 10), new THREE.MeshStandardMaterial({ color: 0x9fefff, emissive: 0x2ab8ff, emissiveIntensity: 1.2 }));
-  cellM.position.y = 1.2; cell.add(cellM);
-  const cg2 = glow(0x7fe3ff, 4, 0.9); cg2.position.y = 1.2; cell.add(cg2);
+  const hole = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 5.6), new THREE.MeshStandardMaterial({ map: iceHoleTexture(), transparent: true, depthWrite: false, roughness: 0.08, metalness: 0, polygonOffset: true, polygonOffsetFactor: -4 }));
+  hole.rotation.x = -Math.PI / 2; hole.position.y = 0.04; hole.name = 'ice_hole'; hole.userData.noCollide = true; hole.receiveShadow = true; cell.add(hole);
+  const cellM = new THREE.Group(); cellM.name = 'cell_prop'; cell.add(cellM);   // the power cell model (modules/structures.js) sits in the hole
+  const cg2 = glow(0x7fe3ff, 1.8, 0.55); cg2.position.y = 0.75; cell.add(cg2);
   const cl = new THREE.PointLight(0x7fe3ff, candela(30), 20, 2); cl.position.y = 2; cell.add(cl);
   WORLD.cell = cell;
 
@@ -1656,8 +1691,7 @@ const WORLD = {};
   }
 
   // objective beacon
-  const bc = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 140, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  scene.add(bc); WORLD.beacon = bc;
+  const mk = makeObjectiveMarker({ color: 0xffb347 }); mk.group.visible = false; scene.add(mk.group); WORLD.beacon = mk.group; WORLD.marker = mk;
 })();
 let WF_OK = false;
 try {
@@ -2015,6 +2049,7 @@ $('dialog').addEventListener('click', () => { if (Dialog.active) Dialog.next(); 
 /* ============================ STORY ACTIONS ============================ */
 function takeTool() {
   G.hasTool = true; tool.visible = true; WORLD.crate.remove(WORLD.crateGlow);
+  if (window.STRUCT && STRUCT.openCase) STRUCT.openCase();   // lid opens, the cutter lifts out into the pilot's hand
   Sound.pickup(); toast('i-bolt', 'Импульсный резак', 'c-ice');
   Dialog.play(D.tool, () => setStage(1));
 }
@@ -2064,15 +2099,16 @@ function shipInteract() {
   else Dialog.play(D.shipEarly);
 }
 const INTER = [
-  { pos: () => WORLD.crate.position, r: 3.2, label: 'Открыть контейнер', icon: 'i-bolt', when: () => G.stage === 0, act: takeTool },
-  { pos: () => orm.pos, r: 3.6, label: 'Говорить', icon: 'i-person', when: () => G.stage >= 1 && !G.riding, act: talkOrm },
-  { pos: () => WORLD.cell.position, r: 3.4, label: 'Взять ячейку', icon: 'i-bolt', when: () => G.stage === 2, act: takeCell },
-  ...WORLD.spires.map((s, i) => ({ pos: () => s.altar, r: 3.4, label: 'Извлечь деталь', icon: 'i-part', when: () => G.stage === 4 && !s.taken, act: () => takePart(s, i) })),
-  ...WORLD.echoes.map((eo) => ({ pos: () => eo.pos, r: 3.2, label: 'Слушать эхо', icon: 'i-echo', when: () => !G.echoes.includes(eo.i), act: () => readEcho(eo) })),
-  { pos: () => WORLD.heart.g.position, r: 6, label: 'Коснуться Сердца', icon: 'i-aurora', when: () => G.stage === 7 && boss.dead && !G.ending, act: heartChoice },
-  { pos: () => WORLD.kestrel.g.position, r: 9, label: '«Кестрел»', icon: 'i-ship', when: () => G.stage >= 1 && !G.riding, act: shipInteract },
-  { pos: () => sk, r: 3.6, label: 'Сесть в скиммер', icon: 'i-skimmer', when: () => sk.unlocked && !G.riding, act: mount },
-  { pos: () => sk, r: 3.6, label: 'Скиммер · нет заряда', icon: 'i-skimmer', off: true, when: () => !sk.unlocked, act: () => toast('i-skimmer', 'Нет заряда', 'c-pink') },
+  // pri: story beats (3) > the ship / echoes / skimmer (1) > rest, petting (0); among equals the nearest wins
+  { pos: () => WORLD.crate.position, r: 3.2, pri: 3, label: 'Открыть контейнер', icon: 'i-bolt', when: () => G.stage === 0, act: takeTool },
+  { pos: () => orm.pos, r: 3.6, get pri() { return G.stage === 1 || G.stage === 3 || G.stage === 5 ? 3 : 1; }, label: 'Говорить', icon: 'i-person', when: () => G.stage >= 1 && !G.riding, act: talkOrm },
+  { pos: () => WORLD.cell.position, r: 3.4, pri: 3, label: 'Взять ячейку', icon: 'i-bolt', when: () => G.stage === 2, act: takeCell },
+  ...WORLD.spires.map((s, i) => ({ pos: () => s.altar, r: 3.4, pri: 3, label: 'Извлечь деталь', icon: 'i-part', when: () => G.stage === 4 && !s.taken, act: () => takePart(s, i) })),
+  ...WORLD.echoes.map((eo) => ({ pos: () => eo.pos, r: 3.2, pri: 1, label: 'Слушать эхо', icon: 'i-echo', when: () => !G.echoes.includes(eo.i), act: () => readEcho(eo) })),
+  { pos: () => WORLD.heart.g.position, r: 6, pri: 3, label: 'Коснуться Сердца', icon: 'i-aurora', when: () => G.stage === 7 && boss.dead && !G.ending, act: heartChoice },
+  { pos: () => WORLD.kestrel.g.position, r: 9, get pri() { return G.stage === 8 ? 3 : 1; }, label: '«Кестрел»', icon: 'i-ship', when: () => G.stage >= 1 && !G.riding, act: shipInteract },
+  { pos: () => sk, r: 3.6, pri: 1, label: 'Сесть в скиммер', icon: 'i-skimmer', when: () => sk.unlocked && !G.riding, act: mount },
+  { pos: () => sk, r: 3.6, pri: 0, label: 'Скиммер · нет заряда', icon: 'i-skimmer', off: true, when: () => !sk.unlocked, act: () => toast('i-skimmer', 'Нет заряда', 'c-pink') },
 ];
 let curInter = null;
 
@@ -2106,7 +2142,7 @@ function save() {
 function applySave(s) {
   G.stage = s.stage; G.hasTool = s.hasTool; G.hasCell = s.hasCell; G.shards = s.shards || []; G.echoes = s.echoes || []; G.cleared = s.cleared || [];
   G.deaths = s.deaths || 0; G.time = s.time || 0; G.checkpoint = s.cp || 'crash'; G.ending = s.ending || null;
-  tool.visible = G.hasTool; if (G.hasTool) WORLD.crate.remove(WORLD.crateGlow);
+  tool.visible = G.hasTool; if (G.hasTool) { WORLD.crate.remove(WORLD.crateGlow); if (window.STRUCT && STRUCT.caseOpened) STRUCT.caseOpened(); }
   WORLD.cell.visible = !G.hasCell;
   (s.parts || []).forEach((t, i) => { if (t) { const sp = WORLD.spires[i]; sp.taken = true; sp.part.visible = sp.pg.visible = sp.beam.visible = false; sp.mat.emissiveIntensity = 0.15; sp.light.intensity = candela(26); } });
   G.parts = WORLD.spires.filter((s) => s.taken).length;
@@ -2118,7 +2154,33 @@ function applySave(s) {
   if (G.ending === 'free') { G.heartRise = true; G.aurora = 2.2; }
   player.hpMax = 5 + Math.floor(G.shards.length / 6);
   if (s.fox) { fox.joined = true; fox.st = 'follow'; }
-  if (s.pos) { player.x = s.pos[0]; player.z = s.pos[1]; }
+  if (s.pos) {
+    player.x = s.pos[0]; player.z = s.pos[1];
+    // saves from older layouts can sit inside today's buildings (station dome) or against a plinth: nearest open ground
+    const f = safeGround(player.x, player.z); G.migrated = f.moved > 0.05 ? { from: [s.pos[0], s.pos[1]], to: [+f.x.toFixed(2), +f.z.toFixed(2)], moved: +f.moved.toFixed(2), why: f.why } : null;
+    player.x = f.x; player.z = f.z;
+  }
+}
+// a spot the pilot can stand on: nothing solid above the ground (no roof, no overhang), no wall inside the capsule,
+// walkable slope. Spiral outward from (x, z); the spot itself when it is fine
+function safeGround(x, z) {
+  const P = PH.ok ? PH.P : null, S = P ? { groups: P.groups.STATIC } : null;
+  const why = (px, pz) => {
+    const g = groundH(px, pz);
+    if (normalY(px, pz) < 0.72) return 'slope';
+    if (!P) return (COLS || []).some((c) => !c.off && Math.hypot(c.x - px, c.z - pz) < c.r + 0.5) ? 'solid' : null;
+    const top = P.raycast({ x: px, y: g + 40, z: pz }, { x: 0, y: -1, z: 0 }, 60, S);
+    if (top && top.point.y > g + 0.35) return 'roof';
+    for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283, d = { x: Math.cos(a), y: 0, z: Math.sin(a) };
+      for (const h of [0.45, 1.4]) { const r = P.raycast({ x: px, y: g + h, z: pz }, d, 0.75, S); if (r && r.distance < 0.7) return 'wall'; } }
+    return null;
+  };
+  const w0 = why(x, z); if (!w0) return { x, z, moved: 0 };
+  for (let r = 0.75; r <= 40; r += 0.75) {
+    const n = Math.max(8, Math.round(6.283 * r / 0.75));
+    for (let k = 0; k < n; k++) { const a = k / n * 6.283, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; if (getH(px, pz) > 0.3 && !why(px, pz)) return { x: px, z: pz, moved: r, why: w0 }; }
+  }
+  return { x, z, moved: 0, why: w0 };
 }
 
 /* ============================ FLOW ============================ */
@@ -2149,7 +2211,7 @@ function startGame(fromSave) {
 }
 function continueGame() {
   const s = store.get('eor-save', null); if (!s) return startGame(false);
-  applySave(s); startGame(true); toast('i-target', stageText(), 'c-amber');
+  applySave(s); startGame(true); G.safeUntil = T + 3; toast('i-target', stageText(), 'c-amber');
 }
 function toMenu() {
   save(); location.reload();
@@ -2169,7 +2231,7 @@ function openUI(which) {
 function closeUI() { G.ui = null; $('mapScreen').hidden = true; $('journal').hidden = true; if (!coarse) requestLock(); }
 function renderSoundBtn() { $('bSound').innerHTML = ICON(Sound.muted ? 'i-mute' : 'i-sound'); }
 function playerHurt(dmg, dx, dz) {
-  if (player.inv > 0 || player.rollT > 0 || G.deadT > 0 || Dialog.active) return;
+  if (player.inv > 0 || player.rollT > 0 || G.deadT > 0 || Dialog.active || T < (G.safeUntil || 0)) return;   // safeUntil: a few seconds after Continue
   if (gradePass) gradePass.uniforms.uHurt.value = 1;
   if (AV.player && player.hp - dmg > 0) AV.player.once('hit', 0.35);
   player.hp -= dmg; player.inv = 1.1; player.lastHurt = T; shake = Math.max(shake, 0.6);
@@ -2461,7 +2523,9 @@ function updateEnemies(dt) {
     if (G.cleared.includes(z.id) || z.active || !z.need()) continue;
     if (Math.hypot(player.x - z.x, player.z - z.z) < z.trig) {
       z.active = true; z.list = [];
-      for (let i = 0; i < z.n; i++) { const a = i / z.n * 6.283 + rand(-0.3, 0.3), d = z.r * rand(0.6, 1.1); z.list.push(spawnShardling(z.x + Math.cos(a) * d, z.z + Math.sin(a) * d, z)); }
+      for (let i = 0; i < z.n; i++) { const a = i / z.n * 6.283 + rand(-0.3, 0.3), d = z.r * rand(0.6, 1.1); let x = z.x + Math.cos(a) * d, zz = z.z + Math.sin(a) * d;
+        const pd = Math.hypot(x - player.x, zz - player.z); if (pd < 7) { x = player.x + (x - player.x) / (pd || 1) * 7; zz = player.z + (zz - player.z) / (pd || 1) * 7; }   // never on top of the pilot (a save inside the arena)
+        z.list.push(spawnShardling(x, zz, z)); }
       if (z.id === 'lake') Dialog.play(D.lake);
       Sound.whoosh();
     }
@@ -2629,11 +2693,11 @@ function updatePickups(dt) {
   if (T - player.lastHurt > 6 && player.hp < player.hpMax && G.deadT <= 0) { player.regenT += dt; if (player.regenT > 2.5) { player.regenT = 0; player.hp++; renderHearts(); } }
 }
 function updateInteract() {
-  curInter = null; let bd = 1e9;
+  curInter = null; let bd = 1e9, bp = -1;
   for (const it of INTER) {
     if (it.when && !it.when()) continue;
-    const p = it.pos(), d = Math.hypot(p.x - player.x, p.z - player.z);
-    if (d < it.r && d < bd && Math.abs((p.y || player.y) - player.y) < 8) { bd = d; curInter = it; }
+    const p = it.pos(), d = Math.hypot(p.x - player.x, p.z - player.z), pr = it.pri || 0;
+    if (d < it.r && (pr > bp || (pr === bp && d < bd)) && Math.abs((p.y || player.y) - player.y) < 8) { bd = d; bp = pr; curInter = it; }
   }
   if (G.riding && !curInter) { promptEl.hidden = false; promptEl.className = ''; $('promptText').textContent = 'Выйти'; $('promptIcon').innerHTML = '<use href="#i-skimmer"/>'; return; }
   if (curInter) {
@@ -2774,8 +2838,8 @@ function updateWorld(dt) {
     if (G.heartRise) { h.g.position.y += dt * 8; h.beam.material.opacity = 0.35; if (h.g.position.y > RIFT_FLOOR + 200) h.g.visible = false; }
   }
   if (WORLD.blink) WORLD.blink.visible = Math.floor(T * 1.2) % 2 === 0;
-  if (WORLD.cell.visible) WORLD.cell.children[2].position.y = 1.2 + Math.sin(T * 3) * 0.1;
-  if (WORLD.crateGlow.parent) WORLD.crateGlow.scale.setScalar(3.5 + Math.sin(T * 4) * 0.5);
+  if (WORLD.cell.visible) WORLD.cell.children[2].position.y = 0.75 + Math.sin(T * 3) * 0.1;
+  if (WORLD.crateGlow.parent) WORLD.crateGlow.scale.setScalar((WORLD.crateGlowS || 3.5) * (1 + Math.sin(T * 4) * 0.14));
   // kestrel steam
   if (G.mode !== 'ending' && Math.random() < 0.18) emit(WORLD.shipSmoke.x + rand(-1.5, 1.5), WORLD.shipSmoke.y, WORLD.shipSmoke.z + rand(-1.5, 1.5), rand(-0.4, 0.4), rand(1, 2), rand(-0.4, 0.4), rand(2, 3.5), 0x0b0f18, rand(1.2, 2.4), 0.3, -0.2);
   if (Math.random() < 0.08) emit(WORLD.shipSmoke.x + rand(-2, 2), WORLD.shipSmoke.y - 1, WORLD.shipSmoke.z + rand(-2, 2), rand(-3, 3), rand(2, 5), rand(-3, 3), 0.5, 0xffa040, 0.3, 1, 8);
@@ -2807,8 +2871,9 @@ function updateBeacon() {
   const t = STAGES[G.stage] && STAGES[G.stage].tgt(), b = WORLD.beacon;
   if (!t || G.mode !== 'play') { b.visible = false; return; }
   const d = Math.hypot(t.x - player.x, t.z - player.z);
-  b.visible = d > 14; b.position.set(t.x, (t.y || groundH(t.x, t.z)) + 70, t.z);
-  b.material.opacity = 0.22 + Math.sin(T * 3) * 0.08;
+  const gh = groundH(t.x, t.z), y = t.y !== undefined && Math.abs(t.y - gh) < 3 ? t.y : inRift(t.x, t.z) ? getH(t.x, t.z) : gh;   // ring on the ground / ice / altar / rift floor
+  b.visible = d > 2.5; b.position.set(t.x, y, t.z);
+  WORLD.marker.update(camera, T);
 }
 
 /* ---------- ending ---------- */
@@ -2830,7 +2895,7 @@ function updateEnding(dt) {
   k.position.y = base.pos.y + up * 6 + Math.max(0, t - 2.5) ** 2 * 1.6;
   if (t > 2.5) { const f = (t - 2.5) ** 2 * 3; k.position.x = base.pos.x - Math.sin(base.rot.y) * f; k.position.z = base.pos.z - Math.cos(base.rot.y) * f; }
   if (G.ending === 'free' && Math.random() < 0.8) emit(k.position.x + rand(-6, 6), k.position.y - 3, k.position.z + rand(-6, 6), 0, rand(4, 9), 0, 1.2, [0x5cf5c0, 0xc49bff, 0x7fe3ff][(Math.random() * 3) | 0], rand(0.5, 1.2), 0.5, -1);
-  tmp.set(0, 0, 3); k.localToWorld(tmp); emit(tmp.x, tmp.y, tmp.z, rand(-2, 2), rand(-2, 0), rand(-2, 2), 0.8, 0xffa040, 1, 1, 0);
+  if (WORLD.kestrel.exhaust) tmp.copy(WORLD.kestrel.exhaust); else tmp.set(0, 0, 3); k.localToWorld(tmp); emit(tmp.x, tmp.y, tmp.z, rand(-2, 2), rand(-2, 0), rand(-2, 2), 0.8, 0xffa040, 1, 1, 0);
   const a = 0.6 + t * 0.12;
   camera.position.set(base.pos.x + Math.sin(a) * 26, base.pos.y + 4 + t * 1.2, base.pos.z + Math.cos(a) * 26);
   camera.lookAt(k.position);
@@ -2848,7 +2913,7 @@ function showEndCard() {
 /* ---------- loader ---------- */
 const LOAD = { done: false, cb: null, mods: [['sky', 'Небо', 'i-aurora', /sky/], ['terrain', 'Рельеф', 'i-rift', /snow_|rock_/], ['pilot', 'Пилот', 'i-visor', /pilot_/],
   ['orm', 'Орм', 'i-person', /hermit/], ['fox', 'Лиса', 'i-paw', /fox/], ['fire', 'Костёр', 'i-fire', /firepit/], ['phys', 'Физика', 'i-bolt', /physics/], ['world', 'Мир', 'i-map', /worldfill/],
-  ['trees', 'Лес', 'i-spire', /tree_/], ['base', 'База', 'i-station', /struct_|prop_|vehicle_/], ['ship', 'Корабль', 'i-ship', /globalhawk/], ['fauna', 'Олени', 'i-paw', /stag/]] };
+  ['trees', 'Лес', 'i-spire', /tree_/], ['base', 'База', 'i-station', /struct_|prop_|vehicle_/], ['ship', 'Корабль', 'i-ship', /ship_kestrel/], ['fauna', 'Олени', 'i-paw', /stag/]] };
 $('lMods').innerHTML = LOAD.mods.map(([k, n, i]) => `<div class="lmod" id="lm-${k}">${ICON(i)}<span>${n}</span></div>`).join('');
 function markMod(url, cls) { for (const m of LOAD.mods) if (m[3].test(url)) { const el = $('lm-' + m[0]); if (el && !el.classList.contains('bad')) el.classList.add(cls); } }
 MANAGER.onProgress = (url, n, total) => { $('lFill').style.width = Math.round(n / Math.max(1, total) * 100) + '%'; markMod(url, 'ok'); };
@@ -2952,8 +3017,12 @@ function loadPacked(name, path, cb) {
 }
 function attach(parent, root) { const wrap = new THREE.Group(); wrap.rotation.y = Math.PI; wrap.add(root); parent.add(wrap); return wrap; }
 if (GL) {
-  loadPacked('pilot_aces', ASSET, (g) => {
+  loadPacked('pilot_aces_textured', ASSET, (g) => {   // textured suit (same skeleton + 37 clips as pilot_aces)
     const root = prepModel(g.scene, 1.9);
+    // the suit ships double-sided: openings (collar, cuffs, visor rim) showed flipped outer faces from inside. An explicit
+    // inner shell (reversed triangles, flipped normals) + single-sided materials draws the inside correctly lit
+    root.traverse((o) => { if (!o.isSkinnedMesh || !window.STRUCT || !STRUCT.shellInside) return; const ms = [].concat(o.material);
+      if (ms.some((m) => m.side === THREE.DoubleSide && !m.transparent)) { o.geometry = STRUCT.shellInside(o.geometry); ms.forEach((m) => { if (!m.transparent) m.side = THREE.FrontSide; }); } });
     attach(player.c.g, root); player.c.body.visible = false;
     AV.player = makeAnimator(root, g.animations, { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', run: 'Sprint_Loop', jump: 'Jump_Loop', land: 'Jump_Land',
       aim: 'Pistol_Idle_Loop', shoot: 'Pistol_Shoot', roll: 'Roll', interact: 'Interact', wave: 'Idle_Talking_Loop', hit: 'Hit_Chest', death: 'Death01', drive: 'Driving_Loop', slide: 'Slide_Loop', climb: 'ClimbUp_1m' });
@@ -3121,7 +3190,13 @@ function updateScan(dt) {
 /* ---------- campfire ---------- */
 const FIRE = { pos: WORLD.stationW(3, 11) }; FIRE.pos.y = groundH(FIRE.pos.x, FIRE.pos.z);
 const fireLight = new THREE.PointLight(0xff8a3a, candela(24), 22, 2); fireLight.position.set(FIRE.pos.x, FIRE.pos.y + 1.3, FIRE.pos.z); scene.add(fireLight);
-loadPacked('firepit', ASSET + 'firepit/', (g) => { const r = prepModel(g.scene, 0); r.position.copy(FIRE.pos); scene.add(r); Passport.register(r, 'solid', { name: 'firepit' }); });
+loadPacked('firepit', ASSET + 'firepit/', (g) => {
+  const r = prepModel(g.scene, 0); r.position.copy(FIRE.pos); scene.add(r); let ent = Passport.register(r, 'solid', { name: 'firepit' });
+  // the ring rests on the loose snow: re-seat once the terrain's snow depth (drifts included) has settled
+  setTimeout(() => { const b = new THREE.Box3().setFromObject(r), x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
+    const d = window.Terrain && Terrain.snowDepthAt ? Terrain.snowDepthAt(x, z) : 0, want = groundH(x, z) + d * 0.85 - 0.03;
+    Passport.remove(ent); r.position.y += want - b.min.y; r.updateMatrixWorld(true); ent = Passport.register(r, 'solid', { name: 'firepit' }); }, 6000);
+});
 function updateFire(dt) {
   fireLight.intensity = candela(24) * (0.93 + Math.sin(T * 13) * 0.13 + Math.sin(T * 23.7) * 0.1 + rand(-0.07, 0.07));
   const d = camera.position.distanceTo(FIRE.pos);
@@ -3140,7 +3215,7 @@ function finishRest() {
   if (fox.joined) { fox.x = FIRE.pos.x + 1.6; fox.z = FIRE.pos.z + 1.2; }
   save();
 }
-INTER.push({ pos: () => FIRE.pos, r: 3.2, label: 'Отдохнуть у огня', icon: 'i-fire', noAnim: true, when: () => G.stage >= 2 && !G.riding, act: rest });
+INTER.push({ pos: () => FIRE.pos, r: 3.2, get pri() { return player.hp < player.hpMax ? 2 : 0; }, label: 'Отдохнуть у огня', icon: 'i-fire', noAnim: true, when: () => G.stage >= 2 && !G.riding, act: rest });
 
 /* ---------- weather: blizzards ---------- */
 const WX = { storm: 0, target: 0, t: 120 };
@@ -3225,17 +3300,7 @@ loadPacked('rock_boulder_01', ASSET, (g) => {
   for (const { geo, mat } of parts) { const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = true; im.receiveShadow = true; im.name = 'boulder'; scene.add(im); DECOR.boulderMeshes.push(im); }
 });
 
-// the Kestrel wreck
-loadPacked('ship_kestrel_globalhawk', ASSET, (g) => {
-  // authored material: the scan ships as matte lambert; the airframe is painted aluminium (metal/rough only, colors untouched)
-  const k = WORLD.kestrel.g, root = prepModel(g.scene, 0, (m) => { m.metalness = Math.max(m.metalness || 0, 0.5); m.roughness = Math.min(m.roughness == null ? 0.5 : m.roughness, 0.5); });
-  k.children.forEach((c) => { if (c.isMesh) c.visible = false; });
-  const wrap = new THREE.Group(); wrap.rotation.y = Math.PI; wrap.scale.setScalar(1 / k.scale.x); wrap.position.set(0, -0.15, 0.4); wrap.add(root); k.add(wrap);
-  k.rotation.set(-0.1, 0.7, 0.07); WORLD.kestrelBase.rot.copy(k.rotation);
-  k.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(wrap); k.position.y -= bb.min.y - (POI.crash.h - 1.1); WORLD.kestrelBase.pos.copy(k.position);
-  WORLD.shipSmoke.set(k.position.x, POI.crash.h + 1.2, k.position.z);
-  WORLD.kestrelCol = Passport.register(wrap, 'solid', { name: 'kestrel' });   // exact hull, wings, tail: walk under the wing, stand on it
-});
+// the Kestrel wreck: ship_kestrel (weathered DC-3-like hull, textures as authored) + its debris trail — modules/structures.js
 
 // station dressing and pushable props
 function makeProp(name, lx, lz, opts) {
@@ -3257,7 +3322,7 @@ function placeStatic(name, lx, lz, ry, tint) {
   });
 }
 placeStatic('struct_hab_module', 16, 11, 0.4); placeStatic('struct_hab_module', -17, 5, -1.1);
-placeStatic('struct_radome', -15, -15, 0); placeStatic('struct_radio_dish', 9, -14, 2.4);
+placeStatic('struct_radome', -15, -15, 0); placeStatic('struct_radio_dish', 9, -14, 2.4, (m) => { if (m.name === 'radio_dish') { m.color.setHex(0xd2d8e2); m.metalnessMap = null; m.metalness = 0.12; m.roughness = 0.7; } });   // the pack's factor (#0a1035, metal 1, rough 1) rendered it 91 % near-black: painted steel
 placeStatic('vehicle_rover_sev', -13, 18, 0.9);
 loadPacked('prop_lamp_post', ASSET, (g) => {
   const parts = bakeParts(prepModel(g.scene, 0));
