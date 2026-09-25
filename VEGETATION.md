@@ -17,10 +17,17 @@ A/B switch: `open-world.html?noveg` (the module does not register).
 ## 1. Trees — `FOREST`
 
 ```
-near  (d < nearMul × Q.treeNear)       real models (nearMul 0.47 pass-2, 0.36–0.4 pass-1), BatchedMesh per material (7 draws), shadows d < FOREST.shadowR
-mid   (R … Q.vegTreeMid)               16-tri cross cards, ONE instanced draw for all species
-far   (> Q.vegTreeMid)                 camera-facing billboard, 8 views blended, ONE instanced draw
+near  (d < nearMul × Q.treeNear)       real models (nearMul 0.47 pass-2, 0.36–0.4 pass-1), BatchedMesh per material, shadows d < FOREST.shadowR
+far   (beyond)                         night-relightable octahedral impostor (assets/veg/imp, 8×8 hemi-octahedral), one instanced quad per species
 ```
+FIX-LOOK (2026-09-26): the 16-tri cross cards and the daylight-baked 8-view billboard are gone — **one** LOD beyond the models.
+The impostor material is a `MeshStandardMaterial` whose albedo + world normal come from the atlas (ray–plane hit, 1 parallax
+step, 4 frames blended), so the moon, hemisphere, aurora light, fog and tone mapping are the near trees' own; gain 1, only
+`IMP.shade` 0.7 (crown self-shadow the atlas lacks, measured with `tools/qa/lod-probe.mjs`: impostor/model tree luminance
+0.70 → ≈ 1.0 at 90 m). Screen-door cross-fade over 14 m, complementary to the models' dither. Branch snow (`vegSnow`, world-up
+normal + 3D noise clumps, `uVSnowK`) runs on models **and** impostors. `tree_pine_scots` retired (dark flat crown, inside-out
+trunk); its share went to snow-laden / dense spruce. Trees are seated by their fitted trunk base (lowest snow surface around the
+trunk − 12 cm, `seatTrees`): 95 trees lowered, worst 2.07 m (wind-bent firs lean off their origin).
 
 | # | Species | Source | Where |
 |---|---|---|---|
@@ -53,6 +60,8 @@ Camera-centred 16 m chunks, generated deterministically (seeded per chunk), cach
 
 | Kind | Mesh | Draws | Radius (*high*) | Placement |
 |---|---|---|---|---|
+FIX-LOOK: tufts/shrubs take their albedo from `STYLE.palette` straw/heather colours (photo texture = relative detail), size by exposure, normals bent to up (lit like the snow), backlit transmission glow toward the moon, snow-coloured base 2–12 cm, sunk 7 cm; decals at 55 % opacity.
+
 | tufts | 4 InstancedMeshes (one per variant) (dry tussock 50 %, sedge 25 %, seed grass 15 %, frosted 10 %), cards in one 2×2 atlas RT | 4 | `Q.vegGrassR` 60 m | thin snow, slopes, wind-scoured ridges, lake shore (sedge), rock feet; ≈ 2.5 % on deep snow |
 | shrubs | InstancedMeshes: leaves full / LOD + twigs, per species | ≤ 9 (empty pools skip) | `Q.vegShrubR` 72 m | clusters of 3–8: birch + crowberry on bare ground, willow near water |
 | shrub LOD | ⅓ of the leaf cards grown ×1.6 beyond 20 m, twigs hidden | 0 | | |
@@ -68,6 +77,8 @@ Camera-centred 16 m chunks, generated deterministically (seeded per chunk), cach
 
 | Set | Count | Model | Seating | Collider |
 |---|---|---|---|---|
+FIX-LOOK: every set is seated by the QA burial invariant itself (`seatDy`: mean share of the 3×3 footprint columns under ground + loose snow = 12–20 %, bisection), re-seated when the terrain re-stamps its drifts; snow pillow 20–24 cm displaced on up-facing tops (`cap`); outcrops use the closed-back scan `rock_rock_face_02_closed` (pack from assets/incoming3).
+
 | boulders | 70 (same x/z/scale as before) | rock_boulder_01 | bottom = min(ground − 20–35 % height, lowest ground under 60 % of the footprint − 6 %) ; tilt ±0.15 rad, non-uniform scale | re-registered `solid` trimesh (`DECOR.boulderEntries`) |
 | procedural | 300 | game blob | lowered onto the lowest ground under them | re-registered `solid` hull (`rock#k`) |
 | flat boulders | 70 (40 next to big boulders) | rock_namaqualand_boulder_02 | as boulders | `solid` trimesh `rock_flat#k` |

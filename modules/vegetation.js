@@ -48,6 +48,19 @@ vec2 vegSway(vec2 org, float k, float amp){
   return d;
 }`;
   const GLSL_DITHER = `float vegDither(){ return fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(.06711056, .00583715)))); }`;
+  // snow lying on branch tops (b03/b04/b06): world-up normals + 3D value noise → clumps of 0.3–0.8 m; the SAME function
+  // runs on the near models and on the impostors (from the atlas normal), so both LODs carry the same snow.
+  const GLSL_VSNOW = `
+uniform float uVSnowK; uniform vec3 uVSnowC;
+float vsH(vec3 p){ p = fract(p * .3183099 + .1); p *= 17.; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vsN(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3. - 2. * f);
+  return mix(mix(mix(vsH(i), vsH(i + vec3(1, 0, 0)), f.x), mix(vsH(i + vec3(0, 1, 0)), vsH(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(vsH(i + vec3(0, 0, 1)), vsH(i + vec3(1, 0, 1)), f.x), mix(vsH(i + vec3(0, 1, 1)), vsH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
+  float nz = vsN(wp * .9) * .65 + vsN(wp * 2.6 + 7.) * .35;
+  float m = smoothstep(.18, .62, n.y + (nz - .5) * 1.1) * k * uVSnowK;
+  return mix(alb, uVSnowC * (.82 + .3 * nz), clamp(m, 0., .92));
+}`;
   // last line of defence: a NaN/Inf pixel would be smeared over the whole frame by bloom (black screen)
   const SAFE_END = (fs) => fs.replace(/}\s*$/, '  gl_FragColor = (any(isnan(gl_FragColor)) || any(isinf(gl_FragColor))) ? vec4(0., 0., 0., 1.) : min(gl_FragColor, vec4(64.));\n}');
   function sharedUniforms(sh) { for (const k in U) sh.uniforms[k] = U[k]; }
@@ -69,7 +82,6 @@ vec2 vegSway(vec2 org, float k, float amp){
   ];
   const NSP = SP.length;
   
-  const ATL = { W: 2048, H: 2560, bw: 0.5, bh: 0.2 };   // species block s: 1024x512 at ((s%2)*1024, floor(s/2)*512)
 
   /* ================================================================== init */
   function init(ctx) {
@@ -83,6 +95,8 @@ vec2 vegSway(vec2 org, float k, float amp){
       uVShake: { value: Array.from({ length: 6 }, () => new THREE.Vector4(1e5, 1e5, 0, -99)) }, uVShakeD: { value: Array.from({ length: 6 }, () => new THREE.Vector4(1, 0, 0, 0)) }, uVSR: { value: 90 },
       uVGrass: { value: new THREE.Vector4(64, 10, 95, 14) },   // tuft R, band, shrub R, band
       uVBB: { value: new THREE.Vector3(1, 1, 1) },
+      uVMoonDir: { value: new V3(0.77, 0.36, 0.56).normalize() }, uVMoonCol: { value: new THREE.Color() }, uVHemiS: { value: new THREE.Color() },
+      uVSnowK: { value: 1 }, uVSnowC: { value: new THREE.Color().setRGB(0.56, 0.6, 0.67) },   // branch snow: linear albedo (≈ ground snow)
     });
     VEG.U = U; VEG.SP = SP; VEG._ = { F, GR, R, A };   // internals (debug / stand)
     ctx.VEG = VEG;
@@ -118,7 +132,8 @@ vec2 vegSway(vec2 org, float k, float amp){
       if (dr < 118 && rr < 0.22) return 9;
       if (h > 46) return rr < 0.45 ? 7 : rr < 0.8 ? 4 : 1;
       if (cv > 1.4 && h > 12) return rr < 0.6 ? 6 : 4;
-      const w = [[3, 0.27], [4, 0.2], [5, 0.15], [0, 0.13], [1, 0.08], [8, 0.08], [6, 0.03], [2, 0.03], [9, 0.03]];
+      // tree_pine_scots (8) is retired: its flat crown read as a dark blob at night and its trunk was inside-out
+      const w = [[3, 0.32], [4, 0.2], [5, 0.18], [0, 0.13], [1, 0.08], [6, 0.03], [2, 0.03], [9, 0.03]];
       let a = 0; for (const [s, p] of w) { a += p; if (rr < a) return s; } return 3;
     };
     for (let i = 0; i < list.length; i++) { const t = list[i]; t.v = pick(t[0], t[2], C.getH(t[0], t[2]), r()); }
@@ -175,7 +190,7 @@ vec2 vegSway(vec2 org, float k, float amp){
     mat.onBeforeCompile = (sh, r) => {
       if (prev && !depth) prev(sh, r);
       sharedUniforms(sh);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + '\nvarying float vVFade;')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + '\nvarying float vVFade; varying vec3 vVW;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_BATCHING
             mat4 vM = batchingMatrix;
@@ -191,10 +206,12 @@ vec2 vegSway(vec2 org, float k, float amp){
           vOff.y -= length(vOff.xz) * .12 * vK;
           transformed += (transpose(mat3(vM)) * vOff) / max(vS2, 1e-4);
           float vD = length(vOrg.xz - uVCam.xz); vVFade = 1. - smoothstep(uVFade.x * ${mul.toFixed(2)} - uVFade.y, uVFade.x * ${mul.toFixed(2)}, vD);
-          ${depth ? 'vVFade *= 1. - smoothstep(uVSR - 10., uVSR, vD);' : ''}`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade;\n' + GLSL_DITHER)
+          ${depth ? 'vVFade *= 1. - smoothstep(uVSR - 10., uVSR, vD);' : ''}
+          vVW = (modelMatrix * vM * vec4(transformed, 1.)).xyz;`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW))
         .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if (vegDither() > vVFade) discard;');
-      if (!depth) sh.fragmentShader = SAFE_END(sh.fragmentShader);
+      if (!depth) sh.fragmentShader = SAFE_END(sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          diffuseColor.rgb = vegSnow(diffuseColor.rgb, normalize((vec4(normal, 0.) * viewMatrix).xyz), vVW, ${needles ? '1.' : '.7'});`));
     };
     mat.customProgramCacheKey = () => 'vegTree' + (needles ? 'N' : 'B') + (depth ? 'D' : '') + mul;
     return mat;
@@ -318,9 +335,8 @@ vec2 vegSway(vec2 org, float k, float amp){
     return rt;
   }
   function setupAtlas() {
-    A.tree = makeRT(ATL.W, ATL.H);
     A.tuft = makeRT(1024, 1024); A.leaf = makeRT(1024, 1024); A.decal = makeRT(1024, 1024);
-    for (const rt of [A.tree, A.tuft, A.leaf, A.decal]) clearRT(rt, 0.05, 0.07, 0.05);
+    for (const rt of [A.tuft, A.leaf, A.decal]) clearRT(rt, 0.05, 0.07, 0.05);
     A.blitMat = new THREE.ShaderMaterial({ uniforms: { tSrc: { value: null } }, depthTest: false, depthWrite: false, blending: THREE.NoBlending, toneMapped: false,
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
       fragmentShader: 'uniform sampler2D tSrc; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tSrc, vUv); }' });
@@ -340,113 +356,122 @@ vec2 vegSway(vec2 org, float k, float amp){
   }
   function clearRT(rt, r, g, b) { withRT(rt, 0, 0, rt.width, rt.height, () => { renderer.setClearColor(new THREE.Color().setRGB(r, g, b), 0); renderer.clear(true, true, false); }); }
   function blit(rt, tex, x, y, w, h) { A.blitMat.uniforms.tSrc.value = tex; withRT(rt, x, y, w, h, () => renderer.render(A.qScene, A.qCam)); A.blitMat.uniforms.tSrc.value = null; }
-  function blockPx(s) { return [(s % 2) * 1024, Math.floor(s / 2) * 512]; }
-  // bake a species (the game's pass-1 trees) into its 4x2 block: orthographic views every 45°, neutral light ≈ albedo
-  function bakeSpecies(s) {
-    const sp = SP[s], S = sp.S, [bx, by] = blockPx(s);
-    const sc = new THREE.Scene(); sc.add(new THREE.AmbientLight(0xffffff, Math.PI * 0.72)); const dl = new THREE.DirectionalLight(0xffffff, 0.9); sc.add(dl); sc.add(dl.target);
-    const g = new THREE.Group(); sc.add(g);
-    for (const p of sp.bake) { const m = p.mat.clone(); m.onBeforeCompile = () => {}; m.customProgramCacheKey = () => 'vegBake' + m.type; if (m.transparent && !m.alphaTest) { m.transparent = false; m.alphaTest = 0.3; } g.add(new THREE.Mesh(p.geo, m)); }
-    const cam = new THREE.OrthographicCamera(-S / 2, S / 2, S, 0, 0.1, 200);
-    for (let i = 0; i < 8; i++) {
-      const a = i * Math.PI / 4, col = i % 4, row = Math.floor(i / 4);
-      cam.position.set(Math.sin(a) * 80, 0, Math.cos(a) * 80); cam.lookAt(0, 0, 0); cam.updateMatrixWorld();
-      dl.position.set(Math.sin(a + 0.5) * 50, 60, Math.cos(a + 0.5) * 50);
-      withRT(A.tree, bx + col * 256, by + (1 - row) * 256, 256, 256, () => { renderer.setClearColor(new THREE.Color().setRGB(0.03, 0.05, 0.035), 0); renderer.clear(true, true, false); renderer.render(sc, cam); });
-    }
-    g.traverse((o) => { if (o.material) o.material.dispose(); });
-    sp.baked = true;
-  }
-
-  /* ------------------------------------------------------------------ mid (cross cards) + far (billboards) */
-  function midGeometry() {
-    // 4 vertical planes at 0/45/90/135°, both faces; face looking along azimuth a shows view a (atlas cell), base at y=0
-    const pos = [], uv = [], view = [], idx = [];
-    for (let k = 0; k < 4; k++) for (const back of [0, 1]) {
-      const vi = k + back * 4, a = vi * Math.PI / 4, rx = Math.cos(a), rz = -Math.sin(a), b = pos.length / 3;
-      for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { pos.push(rx * (u - 0.5), v, rz * (u - 0.5)); uv.push(u, v); view.push(vi); }
-      idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
-    }
-    const g = new THREE.InstancedBufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    g.setAttribute('aView', new THREE.Float32BufferAttribute(view, 1)); g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
-    g.setIndex(idx); return g;
-  }
-  function farGeometry() {
-    const g = new THREE.InstancedBufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0], 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
-    g.setIndex([0, 1, 2, 0, 2, 3]); return g;
-  }
-  function impostorAttrs(g) {
-    const n = F.trees.length, aT = new Float32Array(n * 4), aT2 = new Float32Array(n * 4);
-    F.trees.forEach((t, i) => { aT.set([t[0], t.y, t[2], t.yaw], i * 4); aT2.set([(SP[t.v].S || 10) * t.s, t.v, C.hash2(i, 33), SP[t.v].nearMul || 1], i * 4); });
-    g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4)); g.setAttribute('aT2', new THREE.InstancedBufferAttribute(aT2, 4));
-    g.instanceCount = n;
-  }
-  function refreshImpostorSizes() {
-    for (const m of [F.mid, F.far]) { if (!m) continue; const a = m.geometry.attributes.aT2; F.trees.forEach((t, i) => { a.array[i * 4] = (SP[t.v].S || 10) * t.s; }); a.needsUpdate = true; }
-  }
-  const GLSL_ATLAS = `
-vec2 vegCell(float sp, float view, vec2 uv){
-  float col = mod(view, 4.), row = floor(view / 4.);
-  vec2 blk = vec2(mod(sp, 2.) * .5, floor(sp / 2. + .01) * .2);
-  vec2 c = vec2((col + clamp(uv.x, .004, .996)) / 4., ((1. - row) + clamp(uv.y, .004, .996)) / 2.);
-  return blk + c * vec2(.5, .2);
-}`;
-  function impostorMaterial(kind) {
-    const m = new THREE.MeshStandardMaterial({ map: A.tree.texture, alphaTest: 0.38, roughness: 0.92, metalness: 0, side: THREE.FrontSide, alphaToCoverage: true });
-    m.name = 'veg_' + kind;
-    m.userData.gain = { value: new THREE.Vector3().setScalar(kind === 'far' ? 0.8 : 0.86) };
+  /* ------------------------------------------------------------------ far LOD: night-relightable octahedral impostors
+   * One LOD beyond the real models (no cards/billboard mix): hemi-octahedral 8×8 atlases (albedo + world normal + depth,
+   * assets/veg/imp, baked by assets/incoming3/impostors/tools/bake-impostors.mjs). The material is a MeshStandardMaterial
+   * whose map/normal come from the atlas, so the moon, hemisphere, aurora light, fog/height fog and tone mapping are exactly
+   * the near trees' (no baked light, gain 1). One instanced quad per species (≤ 9 draws), ray-plane + 1 parallax step,
+   * 4 frames blended; screen-door cross-fade with the near models over uVFade.y metres (complementary dither). */
+  const IMP = { base: 'veg/imp/', meta: {}, meshes: [], shade: 0.7, snow: 0.6 };
+  const IMP_META = {   // from assets/incoming3/impostors/<name>.json (center, radius, frameHalf, height); grid 8, cell 128 px
+    tree_spruce_tall_snow: [[0.0837, 7, 0.3433], 8.2275, 8.4743, 14],
+    tree_spruce_small_snow: [[-0.0809, 2.8952, -0.045], 3.4215, 3.5241, 6.2096],
+    tree_dead_birch: [[-0.2099, 5.1789, -0.2683], 5.327, 5.4868, 10.3578],
+    tree_spruce_snowladen: [[0, 5.61, 0], 6.5754, 6.7727, 11.22],
+    tree_spruce_young_dusted: [[0, 3.315, 0], 4.1041, 4.2272, 6.63],
+    tree_spruce_dense_tall: [[0, 8.16, 0], 9.025, 9.2958, 16.32],
+    tree_fir_windbent: [[0, 4.59, 0], 4.9985, 5.1485, 9.18],
+    tree_spruce_krummholz: [[0, 1.224, 0], 1.8161, 1.8706, 2.448],
+    tree_snag_dead: [[0, 3.726, 0], 3.8248, 3.9396, 7.452],
+  };
+  const GLSL_OCT = `
+vec2 impEnc(vec3 d){ d.y = max(d.y, 0.); d /= (abs(d.x) + d.y + abs(d.z)); return vec2(d.x + d.z, d.x - d.z); }
+vec3 impDec(vec2 g){ float x = (g.x + g.y) * .5, z = (g.x - g.y) * .5; return normalize(vec3(x, 1. - abs(x) - abs(z), z)); }
+void impBasis(vec3 D, out vec3 T, out vec3 B){ T = cross(vec3(0., 1., 0.), D); T = dot(T, T) < 1e-8 ? vec3(1., 0., 0.) : normalize(T); B = cross(D, T); }`;
+  function impostorMaterial(s) {
+    const sp = SP[s], M = IMP_META[sp.name], k = sp.impK || 1;
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+    m.name = 'veg_imp_' + sp.name;
+    const u = {
+      tImpA: { value: IMP.tex[s].a }, tImpN: { value: IMP.tex[s].n }, tImpD: { value: IMP.tex[s].d },
+      uImpC: { value: new V3(M[0][0] * k, M[0][1] * k, M[0][2] * k) }, uImpK: { value: new THREE.Vector2(IMP.shade, IMP.snow) }, uImpR: { value: new THREE.Vector3(M[1] * k, M[2] * k, 8) },   // radius, frameHalf, grid
+    };
+    m.userData.imp = u;
     m.onBeforeCompile = (sh) => {
-      sharedUniforms(sh); sh.uniforms.uVBB = m.userData.gain;
-      const far = kind === 'far';
+      sharedUniforms(sh); Object.assign(sh.uniforms, u);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-${GLSL_COMMON}${GLSL_ATLAS}
-attribute vec4 aT; attribute vec4 aT2; ${far ? '' : 'attribute float aView;'}
-varying vec2 vA0; varying vec2 vA1; varying float vBl; varying float vVF0; varying float vVF1;`)
+${GLSL_COMMON}${GLSL_OCT}
+attribute vec4 aT; attribute vec4 aT2;
+uniform vec3 uImpC; uniform vec3 uImpR;
+varying vec3 vIRo; varying vec3 vIP; varying vec2 vICs; varying float vIFade; varying vec3 vIW;`)
         .replace('#include <beginnormal_vertex>', `
-float vcy = cos(aT.w), vsy = sin(aT.w);
-vec3 vToC = uVCam - aT.xyz; vec2 vDir = vToC.xz / max(length(vToC.xz), 1e-3);
-${far ? `vec3 vRight = vec3(vDir.y, 0., -vDir.x);
-  float vAz = atan(vDir.x, vDir.y) - aT.w; float vF = mod(vAz / .785398 + 16., 8.); float vI0 = floor(vF); vBl = vF - vI0;
-  vA0 = vegCell(aT2.y, vI0, uv); vA1 = vegCell(aT2.y, mod(vI0 + 1., 8.), uv);
-  vec3 objectNormal = normalize(vec3(vDir.x, 0., vDir.y) * .75 + vRight * (position.x * 1.1) + vec3(0., (position.y - .42) * .9 + .3, 0.));`
-    : `vA0 = vegCell(aT2.y, aView, uv); vA1 = vA0; vBl = 0.;
-  vec3 vCn = normalize(vec3(position.x * 2., (position.y - .45) * .6 + .35, position.z * 2.));
-  vec3 objectNormal = vec3(vcy * vCn.x + vsy * vCn.z, vCn.y, -vsy * vCn.x + vcy * vCn.z);`}`)
+float iS = aT2.x, icy = cos(aT.w), isy = sin(aT.w);
+vec3 iRel = (cameraPosition - aT.xyz) / iS; vec3 iRo = vec3(icy * iRel.x - isy * iRel.z, iRel.y, isy * iRel.x + icy * iRel.z);   // camera in tree space
+vec3 iV = normalize(iRo - uImpC); vec3 iT, iB; impBasis(iV, iT, iB);
+vec3 iP = uImpC + iV * (.5 * uImpR.x) + (iT * position.x + iB * position.y) * (uImpR.y * 1.1);
+vIRo = iRo; vIP = iP; vICs = vec2(icy, isy);
+vec3 objectNormal = vec3(icy * iV.x + isy * iV.z, iV.y, -isy * iV.x + icy * iV.z);`)
         .replace('#include <begin_vertex>', `
-${far ? 'vec3 transformed = aT.xyz + vRight * position.x * aT2.x + vec3(0., position.y * aT2.x, 0.);'
-    : 'vec3 vLp = position * aT2.x; vec3 transformed = aT.xyz + vec3(vcy * vLp.x + vsy * vLp.z, vLp.y, -vsy * vLp.x + vcy * vLp.z);'}
-float vK = clamp(position.y * aT2.x / 12., 0., 1.4); vK *= vK; transformed.xz += vegSway(aT.xz, vK, 1.1);
-float vD = length(vToC.xz);
-float vNR = uVFade.x * aT2.w; vVF0 = smoothstep(vNR - uVFade.y, vNR, vD);   // near → mid (per-species radius)
-vVF1 = 1. - smoothstep(uVFade.z - uVFade.w, uVFade.z, vD);        // mid → far
-${far ? 'if (vD < uVFade.z - uVFade.w - 1.) transformed = vec3(0., -1e5, 0.);' : 'if (vD < vNR - uVFade.y - 1. || vD > uVFade.z + 1.) transformed = vec3(0., -1e5, 0.);'}`);
+vec3 transformed = aT.xyz + iS * vec3(icy * iP.x + isy * iP.z, iP.y, -isy * iP.x + icy * iP.z);
+float iK = clamp((iP.y - uImpC.y * .3) * iS / 12., 0., 1.4); iK *= iK; transformed.xz += vegSway(aT.xz, iK, 1.1);   // same sway as the near model
+vIW = transformed;
+float iD = length(aT.xz - uVCam.xz), iNR = uVFade.x * aT2.y;
+vIFade = smoothstep(iNR - uVFade.y, iNR, iD);                                  // 0 inside the near radius → 1 outside
+if (iD < iNR - uVFade.y - 1.) transformed = aT.xyz - vec3(0., 1e4, 0.);`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-uniform vec3 uVBB; varying vec2 vA0; varying vec2 vA1; varying float vBl; varying float vVF0; varying float vVF1;
-${GLSL_DITHER}`)
+${GLSL_DITHER}${GLSL_OCT}${GLSL_VSNOW}
+uniform sampler2D tImpA, tImpN, tImpD; uniform vec3 uImpC; uniform vec3 uImpR; uniform vec2 uImpK;
+varying vec3 vIRo; varying vec3 vIP; varying vec2 vICs; varying float vIFade; varying vec3 vIW;
+vec3 iAccC; vec3 iAccN; float iAccA;
+void impFrame(vec2 fr, float w, vec3 ro, vec3 rd){
+  if (w <= 0.) return;
+  float G = uImpR.z; vec3 D = impDec(fr / (G - 1.) * 2. - 1.); vec3 T, B; impBasis(D, T, B);
+  float dn = dot(rd, D); if (abs(dn) < 1e-4) return;
+  vec2 c0 = fr / G; vec2 ins = vec2(.5 / 128.);
+  vec3 q = ro + rd * (dot(uImpC - ro, D) / dn) - uImpC;
+  vec2 uv = vec2(dot(q, T), dot(q, B)) / (2. * uImpR.y) + .5;
+  float s = (texture2D(tImpD, c0 + clamp(uv, ins, 1. - ins) / G).r * 2. - 1.) * uImpR.x;
+  q = ro + rd * (dot(uImpC + D * s - ro, D) / dn) - uImpC;
+  uv = vec2(dot(q, T), dot(q, B)) / (2. * uImpR.y) + .5;
+  if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return;
+  vec2 a = c0 + clamp(uv, ins, 1. - ins) / G;
+  vec4 c = texture2D(tImpA, a); float wa = w * c.a;
+  iAccC += c.rgb * wa; iAccN += (texture2D(tImpN, a).xyz * 2. - 1.) * wa; iAccA += wa;
+}
+vec3 impNW;`)
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  if (vegDither() < 1. - vIFade) discard;                                     // complementary to the near models' dither`)
         .replace('#include <map_fragment>', `
-vec4 vTc = texture2D(map, vA0); ${far ? 'vTc = mix(vTc, texture2D(map, vA1), vBl);' : ''}
-vec2 vDx = dFdx(vA0 * vec2(${ATL.W}., ${ATL.H}.)), vDy = dFdy(vA0 * vec2(${ATL.W}., ${ATL.H}.));
-float vMip = max(0., .5 * log2(max(dot(vDx, vDx), dot(vDy, vDy))));
-vTc.a = clamp(vTc.a * (1. + vMip * .28), 0., 1.);
-diffuseColor *= vec4(vTc.rgb * uVBB, vTc.a);
-float vDi = vegDither();
-${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discard;'}`);
+{ vec3 ro = vIRo, rd = normalize(vIP - vIRo); vec3 V = normalize(ro - uImpC); float G = uImpR.z;
+  vec2 f = (impEnc(V) * .5 + .5) * (G - 1.); vec2 b = clamp(floor(f), vec2(0.), vec2(G - 2.)); vec2 w = clamp(f - b, 0., 1.);
+  iAccC = vec3(0.); iAccN = vec3(0.); iAccA = 0.;
+  impFrame(b, (1. - w.x) * (1. - w.y), ro, rd); impFrame(b + vec2(1., 0.), w.x * (1. - w.y), ro, rd);
+  impFrame(b + vec2(0., 1.), (1. - w.x) * w.y, ro, rd); impFrame(b + vec2(1., 1.), w.x * w.y, ro, rd);
+  float dith = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 17., vec2(.06711056, .00583715))));
+  if (iAccA < 1e-3 || iAccA < .45 + (dith - .5) * .5) discard;
+  diffuseColor.rgb *= iAccC / iAccA;
+  vec3 nl = normalize(iAccN + vec3(0., 1e-4, 0.));
+  impNW = normalize(vec3(vICs.x * nl.x + vICs.y * nl.z, nl.y, -vICs.y * nl.x + vICs.x * nl.z));
+  diffuseColor.rgb = vegSnow(diffuseColor.rgb, impNW, vIW, uImpK.y) * uImpK.x;   // x: crown self-shadow the atlas lacks
+}`)
+        .replace('#include <normal_fragment_maps>', 'normal = normalize((viewMatrix * vec4(impNW, 0.)).xyz);');
       sh.fragmentShader = SAFE_END(sh.fragmentShader);
     };
-    m.customProgramCacheKey = () => 'vegImp' + kind;
+    m.customProgramCacheKey = () => 'vegImp2';
     return m;
   }
+  function loadImpostors() {
+    IMP.tex = [];
+    const L = VEG.TL || (VEG.TL = new THREE.TextureLoader(C.MANAGER));
+    const ld = (f, srgb) => { const t = L.load(C.ASSET + IMP.base + f, undefined, undefined, () => console.warn('[veg] impostor texture failed', f)); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
+    SP.forEach((sp, s) => { if (IMP_META[sp.name]) IMP.tex[s] = { a: ld(sp.name + '_albedo.png', true), n: ld(sp.name + '_normal.png', false), d: ld(sp.name + '_depth.png', false) }; });
+  }
   function buildImpostors() {
-    const gm = midGeometry(); impostorAttrs(gm);
-    const gf = farGeometry(); impostorAttrs(gf);
-    F.mid = new THREE.Mesh(gm, impostorMaterial('mid')); F.mid.name = 'veg_tree_mid';
-    F.far = new THREE.Mesh(gf, impostorMaterial('far')); F.far.name = 'veg_tree_far';
-    for (const m of [F.mid, F.far]) { m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false; scene.add(m); }
-    VEG.stats.impostors = F.trees.length;
+    const quad = new THREE.PlaneGeometry(2, 2);
+    for (let s = 0; s < NSP; s++) {
+      const trees = F.trees.filter((t) => t.v === s); if (!trees.length || !IMP.tex[s]) continue;
+      const sp = SP[s], M = IMP_META[sp.name];
+      sp.impK = sp.H ? sp.H / M[3] : 1;   // the game's pass-1 meshes may be rescaled by prepModel: match the bake to the drawn model
+      const g = new THREE.InstancedBufferGeometry(); g.index = quad.index; g.setAttribute('position', quad.attributes.position); g.setAttribute('uv', quad.attributes.uv); g.setAttribute('normal', quad.attributes.normal);
+      const aT = new Float32Array(trees.length * 4), aT2 = new Float32Array(trees.length * 4);
+      trees.forEach((t, i) => { aT.set([t[0], t.y, t[2], t.yaw], i * 4); aT2.set([t.s, sp.nearMul || 1, C.hash2(t.i, 33), 0], i * 4); });
+      g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4)); g.setAttribute('aT2', new THREE.InstancedBufferAttribute(aT2, 4)); g.instanceCount = trees.length;
+      const mesh = new THREE.Mesh(g, impostorMaterial(s)); mesh.name = 'veg_tree_imp_' + sp.name;
+      mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
+      scene.add(mesh); IMP.meshes.push(mesh);
+    }
+    F.mid = IMP.meshes; F.far = null;
+    VEG.stats.impostors = F.trees.length; VEG.stats.impostorDraws = IMP.meshes.length;
   }
 
   /* ================================================================== assets */
@@ -462,8 +487,7 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
     TEX.pbark = loadTex('bark_pine_color.jpg', true, false); TEX.pbarkN = loadTex('bark_pine_normal.jpg', false, false);
     TEX.dbark = loadTex('bark_dead_color.jpg', true, false); TEX.dbarkN = loadTex('bark_dead_normal.jpg', false, false);
     TEX.sbark = loadTex('shrub_bark.jpg', true, false);
-    // billboards → species blocks of the impostor atlas
-    SP.forEach((sp, s) => { if (sp.src === 'game') return; loadTex(sp.name + '_billboard.png', true, true, (t) => { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; A.queue.push(() => { const [x, y] = blockPx(s); blit(A.tree, t, x, y, 1024, 512); t.dispose(); sp.baked = true; }); }); });
+    loadImpostors();
     // tuft cards / shrub leaves / decals → 2x2 atlases (glTF uv: flipY false, cell k at ((k%2)*512, floor(k/2)*512))
     const TUFTS = ['veg_tuft_dry_tussock', 'veg_tuft_sedge', 'veg_tuft_seedgrass', 'veg_tuft_frosted'];
     const LEAVES = ['veg_shrub_dwarf_birch_leaf', 'veg_shrub_dwarf_willow_leaf', 'veg_shrub_crowberry_leaf'];
@@ -473,7 +497,9 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
     TEX.lichen = loadTex('veg_decal_lichen_orange.png', true, true);
     C.loadPacked('veg_set', C.ASSET, onVegSet);
     C.loadPacked('rock_namaqualand_boulder_02', C.ASSET, (g) => { R.flat = g; });
-    C.loadPacked('rock_rock_face_02', C.ASSET, (g) => { R.face = g; });
+    // outcrops: the closed-back scan (assets/incoming3, packed as rock_rock_face_02_closed) when present, else the open one
+    const face = (n) => C.loadPacked(n, C.ASSET, (g) => { R.face = g; R.faceName = n; });
+    try { fetch(C.ASSET + 'pack/rock_rock_face_02_closed.js', { method: 'HEAD' }).then((r) => face(r.ok ? 'rock_rock_face_02_closed' : 'rock_rock_face_02'), () => face('rock_rock_face_02')); } catch (e) { face('rock_rock_face_02'); }
   }
   const PACK = {};
   function onVegSet(g) {
@@ -494,6 +520,24 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
     if (N) { let z = 0; for (let i = 0; i < N.count; i++) { const x = N.getX(i), y = N.getY(i), w = N.getZ(i), l = Math.hypot(x, y, w); if (!(l > 1e-6)) { N.setXYZ(i, 0, 1, 0); z++; } else if (Math.abs(l - 1) > 1e-3) N.setXYZ(i, x / l, y / l, w / l); } if (z) { N.needsUpdate = true; VEG.stats.zeroNormals = (VEG.stats.zeroNormals || 0) + z; } }
     return geo;
   }
+  // trunk base under the drawn snow: register, read the fitted trunk base of every instance, lower the trees whose base
+  // is above (lowest snow surface around the trunk − 12 cm), re-register. Wind-bent firs lean: their base sits off the
+  // origin, on the downhill side of a ridge, hence the 1.5 m floats before this pass.
+  function seatTrees(trees, holder, name) {
+    const P = Passport(), surf = (x, z) => (C.groundH ? C.groundH(x, z) : C.getH(x, z)) + depthAt(x, z);
+    let es = P.registerInstances(holder, trees.map((t) => t.mReal), 'trunk', { part: /bark/i, name });
+    let moved = 0;
+    trees.forEach((t, k) => {
+      const e = es[k]; if (!e || !e.trunk) return;
+      const tr = e.trunk, rr = tr.r + 0.35; let lo = surf(tr.x, tr.z);
+      for (let a = 0; a < 8; a++) lo = Math.min(lo, surf(tr.x + Math.cos(a * TAU / 8) * rr, tr.z + Math.sin(a * TAU / 8) * rr));
+      const gap = tr.y0 + 0.6 - (lo - 0.12);
+      if (gap > 0) { t.y -= gap; t.mReal.elements[13] -= gap; moved++; VEG.stats.seatMax = Math.max(VEG.stats.seatMax || 0, +gap.toFixed(2)); }
+    });
+    if (moved) { for (const e of es) P.remove(e); es = P.registerInstances(holder, trees.map((t) => t.mReal), 'trunk', { part: /bark/i, name }); }
+    VEG.stats.seated = (VEG.stats.seated || 0) + moved;
+    return es;
+  }
   function buildNewSpecies() {
     const needles = new THREE.MeshStandardMaterial({ name: 'needles', map: TEX.needles, alphaTest: 0.42, vertexColors: true, roughness: 0.88, metalness: 0 });
     const pbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.pbark, normalMap: TEX.pbarkN, roughness: 0.95, metalness: 0 }); pbark.color.setRGB(0.8, 0.78, 0.76);
@@ -507,8 +551,8 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
       }
       // trunk colliders: cylinder fitted to the bark base ring, one per tree (same Passport path as the pass-1 trees)
       const holder = new THREE.Group(); for (const p of P.parts) if (p.name === 'bark') { const m = new THREE.Mesh(p.geo, pbark); m.name = 'bark'; holder.add(m); }
-      const mats = F.trees.filter((t) => t.v === s).map((t) => t.mReal);
-      if (mats.length) try { Passport().registerInstances(holder, mats, 'trunk', { part: /bark/i, name: SP[s].name }); } catch (e) { console.warn('[veg] trunk colliders', SP[s].name, e); }
+      const trees = F.trees.filter((t) => t.v === s);
+      if (trees.length) try { seatTrees(trees, holder, SP[s].name); } catch (e) { console.warn('[veg] trunk colliders', SP[s].name, e); }
       const bb = new THREE.Box3(); for (const p of P.parts) { p.geo.computeBoundingBox(); bb.union(p.geo.boundingBox); } SP[s].H = bb.max.y;
     }
     // COLOR_0 layouts must match inside one batch
@@ -528,7 +572,8 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
     m.name = 'veg_' + kind;
     m.onBeforeCompile = (sh) => {
       sharedUniforms(sh); sh.uniforms.uVGrass = U.uVGrass;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + '\nuniform vec4 uVGrass; varying float vVFade;' + (kind === 'decal' ? '\nattribute float aCell;' : ''))
+      const plant = kind === 'tuft' || kind === 'leaf';
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + '\nuniform vec4 uVGrass; varying float vVFade; varying vec3 vVWp; varying float vVHb;' + (kind === 'decal' ? '\nattribute float aCell;' : ''))
         .replace('#include <uv_vertex>', '#include <uv_vertex>' + (kind === 'decal' ? '\n vMapUv = vec2(mod(aCell, 2.) * .5, floor(aCell / 2. + .01) * .5) + clamp(uv, .004, .996) * .5;' : ''))
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_INSTANCING
@@ -546,11 +591,24 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
           for (int i = 0; i < 8; i++) { vec4 a = uVActors[i]; vec2 dd = vW.xz - a.xz; float dl = length(dd);
             if (a.w > 0. && dl < a.w && abs(vW.y - a.y) < 2.5) { float f = (1. - dl / a.w); f *= f; vOff.xz += dd / max(dl, .05) * f * a.w * .55 * vK; vOff.y -= f * .35 * vK * ${kind === 'tuft' ? '.5' : '.35'}; } }
           transformed += (transpose(mat3(vM)) * vOff) / max(vS2, 1e-4);
+          vVWp = vW + vOff; vVHb = position.y * sqrt(vS2);
           vVFade = 1. - smoothstep(${kind === 'tuft' ? 'uVGrass.x - uVGrass.y, uVGrass.x' : 'uVGrass.z - uVGrass.w, uVGrass.z'}, vD);`}`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade;\n' + GLSL_DITHER)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC;\n' + GLSL_DITHER)
         .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + (kind === 'decal' ? '' : ' if (vegDither() > vVFade) discard;'))
         .replace('#include <map_fragment>', `#include <map_fragment>
-          ${kind === 'decal' ? 'diffuseColor.a *= vVFade;' : `{ vec2 dx = dFdx(vMapUv * 1024.), dy = dFdy(vMapUv * 1024.); float mp = max(0., .5 * log2(max(dot(dx, dx), dot(dy, dy)))); diffuseColor.a = clamp(diffuseColor.a * (1. + mp * .3), 0., 1.); }`}`);
+          ${kind === 'decal' ? 'diffuseColor.a *= vVFade * .55;' : `{ vec2 dx = dFdx(vMapUv * 1024.), dy = dFdy(vMapUv * 1024.); float mp = max(0., .5 * log2(max(dot(dx, dx), dot(dy, dy)))); diffuseColor.a = clamp(diffuseColor.a * (1. + mp * .3), 0., 1.); }`}
+          ${plant ? `{ // photo texture → relative detail (≈ 1); the albedo itself comes from the instance colour (STYLE.palette straw / heather)
+            vec2 cc = floor(clamp(vMapUv, 0., .999) * 2.); float ci = cc.x + 2. * cc.y;
+            vec4 ref = ${kind === 'tuft' ? 'vec4(.056, .054, .074, .071)' : 'vec4(.105, .106, .034, .1)'};
+            float rl = ci < .5 ? ref.x : ci < 1.5 ? ref.y : ci < 2.5 ? ref.z : ref.w;
+            float tl = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
+            diffuseColor.rgb = clamp(mix(vec3(tl), diffuseColor.rgb * (tl / max(dot(diffuseColor.rgb, vec3(.3333)), 1e-4)), ${kind === 'tuft' ? '.3' : '.1'}) / rl, .3, 1.7); }` : ''}`)
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + (plant || kind === 'twig' ? `
+          normal = normalize(mix(normal, normalize((viewMatrix * vec4(0., 1., 0., 0.)).xyz), ${kind === 'tuft' ? '.75' : kind === 'leaf' ? '.55' : '.35'}));   // thin blades: lit like the snow they stand in` : ''))
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>' + (plant ? `
+          diffuseColor.rgb = mix(diffuseColor.rgb, uVSnowC, (1. - smoothstep(.02, ${kind === 'tuft' ? '.12' : '.08'}, vVHb)) * .8);   // snow caught at the base
+          { vec3 Vv = normalize(cameraPosition - vVWp); float bk = pow(max(dot(-Vv, uVMoonDir), 0.), 4.);   // light through the blades (backlit glow)
+            totalEmissiveRadiance += diffuseColor.rgb * (uVMoonCol * (${kind === 'tuft' ? '.14 + 1.1' : '.1 + .8'} * bk) + uVHemiS * .12); }` : ''));
       sh.fragmentShader = SAFE_END(sh.fragmentShader);
     };
     m.customProgramCacheKey = () => 'vegGround' + kind;
@@ -630,6 +688,12 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
   }
   function addRockToGrid(x, z, r) { const G = 8, k = Math.floor(x / G) * 65536 + Math.floor(z / G); let a = GR.rockGrid.get(k); if (!a) GR.rockGrid.set(k, (a = [])); a.push({ x, z, r }); GR.rocks.push({ x, z, r }); }
   const LAKE = () => C.POI.lake;
+  // ground plant albedo (linear) from the style palette: dry straw / sedge / seed grass / frosted; birch rust, willow, crowberry heather
+  let _pal = null;
+  const PAL = () => _pal || (_pal = (() => { const P = (C.STYLE && C.STYLE.palette) || {}, L = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255].map((v) => Math.pow(v, 2.2));
+    return { tuft: [P.strawDry || 0xb69a6a, P.strawSedge || 0xa8987a, P.strawSeed || 0xc2a878, P.strawFrost || 0xb4b0a4].map(L),
+      tuftAlt: [P.strawGrey || 0x9c968a, P.strawRust || 0x9a7452, P.strawOlive || 0x8c8a66].map(L),
+      shrub: [P.heatherBirch || 0x7c5038, P.heatherWillow || 0x7a6c52, P.heatherCrow || 0x5e4a42].map(L) }; })());
   function genChunk(ci, cj) {
     const CS = GR.CS, r = mulberry(ihash(ci, cj, 4711)), dens = C.Q.grass || 1;
     const out = { tuft: [], shrub: [], decal: [], pass: [] };
@@ -649,8 +713,11 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
       if (shore > 0.3) v = w < 0.6 ? 1 : w < 0.85 ? 0 : 2;
       else if (h > 34 || bare < 0.35) v = w < 0.45 ? 3 : w < 0.85 ? 0 : 2;
       else v = w < 0.52 ? 0 : w < 0.75 ? 1 : w < 0.9 ? 2 : 3;
-      const s = 0.75 + r() * 0.75, sy = s * (0.8 + r() * 0.4), bright = 1.05 + r() * 0.3, frost = v === 3 || bare < 0.35 ? 0.08 : 0;
-      out.tuft.push([v, x, h + Math.max(0, depthAt(x, z) - 0.1) - 0.03, z, r() * TAU, s, sy, [bright * 0.94 + frost, bright * 0.96 + frost, bright + frost * 1.2]]);
+      // size by exposure: tall on bare wind-scoured ground, short stubs poking out of deeper snow
+      const s = (0.6 + r() * 0.7) * (0.75 + 0.45 * bare), sy = s * (0.75 + r() * 0.5), frost = v === 3 || bare < 0.35 ? 0.1 : 0;
+      const c0 = PAL().tuft[v], alt = PAL().tuftAlt[(r() * PAL().tuftAlt.length) | 0], mixA = r() * 0.45, br = 0.82 + r() * 0.36;
+      const col = [0, 1, 2].map((k) => ((c0[k] * (1 - mixA) + alt[k] * mixA) * br) * (1 - frost) + frost * 0.5);
+      out.tuft.push([v, x, h + Math.max(0, depthAt(x, z) - 0.06) - 0.07, z, r() * TAU, s, sy, col]);
       out.pass.push([x, z, 0.22 * s, 0.5 * sy, 0]);
     }
     // shrub clusters: birch + crowberry on bare ground, willow near water
@@ -666,7 +733,7 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
         const a = r() * TAU, d = Math.sqrt(r()) * 2.8, x = x0 + Math.cos(a) * d, z = z0 + Math.sin(a) * d, h = C.getH(x, z);
         if (C.normalY(x, z) < 0.65 || rockNear(x, z) < 0.2) continue;
         const sp = wet && r() < 0.6 ? 1 : r() < 0.55 ? 0 : 2, s = (sp === 0 ? 0.9 : 0.8) + r() * (sp === 0 ? 0.9 : 0.8);
-        const tint = sp === 0 ? [0.72 + r() * 0.12, 0.66 + r() * 0.08, 0.64 + r() * 0.08] : [0.9 + r() * 0.2, 0.92 + r() * 0.18, 0.9 + r() * 0.15];
+        const c0 = PAL().shrub[sp], br = 0.8 + r() * 0.4, hue = (r() - 0.5) * 0.12, tint = [c0[0] * br * (1 + hue), c0[1] * br, c0[2] * br * (1 - hue)];
         out.shrub.push([sp, x, h + Math.max(0, depthAt(x, z) - 0.12) - 0.04, z, r() * TAU, s, tint]);
         out.pass.push([x, z, 0.4 * s * (sp === 1 ? 1.1 : 0.8), GR.shrubH[sp] * s, 1]);
       }
@@ -783,6 +850,15 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
       if (prev) prev(sh, r);
       sh.uniforms.tVLichen = { value: TEX.lichen }; sh.uniforms.tVSnow = { value: C.TX.snow }; sh.uniforms.tVSnowN = { value: C.TX.snowN };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vVWp; varying vec3 vVWn;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          ${o.cap ? `{ // snow pillow 5–30 cm on the up-facing top (d01–d05): grows along world up, thickest on flat tops
+            mat4 cM = modelMatrix;
+            #ifdef USE_INSTANCING
+              cM = cM * instanceMatrix;
+            #endif
+            vec3 cN = normalize(mat3(cM) * objectNormal); vec3 cW = (cM * vec4(position, 1.)).xyz;
+            float cT = ${o.cap.toFixed(3)} * smoothstep(.45, .92, cN.y) * (.55 + .45 * sin(cW.x * 1.7 + cW.z * 1.3) * sin(cW.z * 2.1 - cW.x * .7));
+            transformed += (transpose(mat3(cM)) * vec3(0., cT, 0.)) / max(dot(cM[1].xyz, cM[1].xyz), 1e-4); }` : ''}`)
         .replace('#include <fog_vertex>', `#include <fog_vertex>
           vec4 vwp = vec4(transformed, 1.); vec3 vwn = objectNormal;
           #ifdef USE_INSTANCING
@@ -815,6 +891,37 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
     mat.customProgramCacheKey = function () { return (pk ? pk.call(this) : '') + '|vegRock' + JSON.stringify(o); };
     mat.needsUpdate = true;
   }
+  /* Seating by the QA invariant itself (tools/qa/qa-page.js placedCheck): lowest vertex of each 3×3 footprint cell of the
+   * collider vs the visible surface (ground + loose snow); buried share = mean over cells of the column under the surface.
+   * seatDy solves that share = target exactly (monotone in dy → bisection) instead of guessing a sink depth per model. */
+  const SURF = (x, z) => (C.groundH ? C.groundH(x, z) : C.getH(x, z)) + depthAt(x, z);
+  function seatDy(v, target) {
+    const n = v.length / 3; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < n; i++) { const x = v[i * 3], z = v[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    const lo = [], top = [];
+    for (let i = 0; i < n; i++) { const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2]; const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
+      if (!lo[k] || y < lo[k][1]) lo[k] = [x, y, z]; if (top[k] === undefined || y > top[k]) top[k] = y; }
+    const cs = []; for (let k = 0; k < 9; k++) if (lo[k] && top[k] - lo[k][1] > 0.02) cs.push([lo[k][1], top[k] - lo[k][1], SURF(lo[k][0], lo[k][2])]);
+    if (!cs.length) return 0;
+    const f = (dy) => { let a = 0; for (const [y, h, sf] of cs) a += clamp((sf - (y + dy)) / h, 0, 1); return a / cs.length; };
+    let a = -40, b = 40; for (let it = 0; it < 40; it++) { const m = (a + b) / 2; if (f(m) > target) a = m; else b = m; }
+    return (a + b) / 2;
+  }
+  // every rock set: its matrices, the instanced meshes drawing them, how to (re)register its colliders
+  function reseatRocks(why) {
+    const t0 = performance.now(); let moved = 0, worst = 0;
+    for (const S of R.sets) {
+      const ch = [];
+      S.list.forEach((M, k) => { const e = S.entries[k]; if (!e || !e.geo) return; const t = 0.12 + 0.08 * C.hash2(k * 3 + 1, S.seed), dy = seatDy(e.geo.v, t);
+        if (Math.abs(dy) > 0.01) { M.elements[13] += dy; ch.push(k); worst = Math.max(worst, Math.abs(dy)); } });
+      if (!ch.length) continue; moved += ch.length;
+      for (const im of S.meshes) { S.list.forEach((M, i) => im.setMatrixAt(i, M)); im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); }
+      for (const e of S.entries) Passport().remove(e);
+      S.entries = S.register();
+      if (S.after) S.after(S.entries);
+    }
+    VEG.stats.reseat = (VEG.stats.reseat || []).concat([{ why, moved, worst: +worst.toFixed(2), ms: Math.round(performance.now() - t0) }]).slice(-6);
+  }
   const SNOWC = () => typeof C.snowCover === 'function';   // terrain module: snow shading + drifts around every Passport solid
   const GROUND = (x, z) => C.getH(x, z) + Math.min(depthAt(x, z), 0.35) * 0.8;   // rendered snow surface (approx.)
   const LOWEST = (x, z, rad) => { let m = C.getH(x, z); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; m = Math.min(m, C.getH(x + Math.cos(a) * rad, z + Math.sin(a) * rad)); } return m; };
@@ -837,10 +944,11 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
       M.compose(p.set(x, y, z), q, s.set(sx, sy, sz));
       skirts.push([x, z, foot * 1.05, hgt]); addRockToGrid(x, z, foot);
     });
-    for (const im of D.boulderMeshes) { D.boulders.forEach((M, i) => im.setMatrixAt(i, M)); im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); rockMaterialPatch(im.material, { desat: 0.55, grade: [0.62, 0.68, 0.8], lichen: 0.55, snow: SNOWC() ? 0 : 1 }); }
+    for (const im of D.boulderMeshes) { D.boulders.forEach((M, i) => im.setMatrixAt(i, M)); im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); rockMaterialPatch(im.material, { desat: 0.55, grade: [0.62, 0.68, 0.8], lichen: 0.55, snow: SNOWC() ? 0 : 1, cap: 0.24 }); }
     for (const en of D.boulderEntries || []) P.remove(en);
     const holder = new THREE.Group(); holder.add(new THREE.Mesh(bgeo, D.boulderMeshes[0].material));
     D.boulderEntries = P.registerInstances(holder, D.boulders, 'solid', { name: 'boulder' });
+    R.sets = [{ name: 'boulder', seed: 11, list: D.boulders, meshes: D.boulderMeshes, entries: D.boulderEntries, register: () => P.registerInstances(holder, D.boulders, 'solid', { name: 'boulder' }), after: (en) => { D.boulderEntries = en; } }];
     // --- procedural basalt rocks (game DECOR.rockMesh): re-seat on slopes ---
     const RM = D.rockMesh;
     if (RM && RM.count) {
@@ -853,13 +961,16 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
         skirts.push([p.x, p.z, foot * 0.95, s.y * 0.7]); addRockToGrid(p.x, p.z, foot);
       }
       RM.instanceMatrix.needsUpdate = true; RM.computeBoundingSphere && RM.computeBoundingSphere();
-      P.register(RM, 'solid', { shape: 'hull', name: 'rock' });
+      const rl = []; for (let i = 0; i < RM.count; i++) { const Mi = new THREE.Matrix4(); RM.getMatrixAt(i, Mi); rl.push(Mi); }
+      const regR = () => [].concat(P.register(RM, 'solid', { shape: 'hull', name: 'rock' }));
+      R.sets.push({ name: 'rock', seed: 13, list: rl, meshes: [RM], entries: regR(), register: regR });
     }
     // --- new rocks: flat namaqualand boulders + rock-face outcrops on slopes ---
     const addModel = (g, name, list, patch) => {
       const root = C.prepModel(g.scene, 0), parts = C.bakeParts(root), meshes = [];
-      for (const { geo, mat } of parts) { sanitize(geo); mat.side = THREE.FrontSide; rockMaterialPatch(mat, Object.assign({}, patch, { snow: SNOWC() ? 0 : 1 })); if (SNOWC()) try { C.snowCover(mat, { amount: 0.8, minUp: 0.6, soft: 0.22, skirt: 0.35 }); } catch (e) { /* own snow off: none */ } const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((M, i) => im.setMatrixAt(i, M)); im.castShadow = true; im.receiveShadow = true; im.name = name; scene.add(im); meshes.push(im); }
+      for (const { geo, mat } of parts) { sanitize(geo); if (!/_back$/i.test(mat.name || '')) mat.side = THREE.FrontSide; rockMaterialPatch(mat, Object.assign({}, patch, { snow: SNOWC() ? 0 : 1 })); if (SNOWC()) try { C.snowCover(mat, { amount: 1, minUp: 0.55, soft: 0.2, skirt: 0.35 }); } catch (e) { /* own snow off: none */ } const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((M, i) => im.setMatrixAt(i, M)); im.castShadow = true; im.receiveShadow = true; im.name = name; scene.add(im); meshes.push(im); }
       const entries = P.registerInstances(root, list, 'solid', { name });
+      R.sets.push({ name, seed: name.length * 7, list, meshes, entries, register: () => P.registerInstances(root, list, 'solid', { name }) });
       return { meshes, entries };
     };
     const rr = mulberry(4242 + 17);
@@ -875,7 +986,7 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
       };
       for (const M of D.boulders.slice(0, 40)) { M.decompose(p, q, s); const a = rr() * TAU, d = 2.2 * s.x + 1 + rr() * 2; tryAt(p.x + Math.cos(a) * d, p.z + Math.sin(a) * d); }
       for (let k = 0; k < 2000 && list.length < 70; k++) tryAt((rr() - 0.5) * 760, (rr() - 0.5) * 760);
-      R.flatMesh = addModel(g, 'rock_flat', list, { desat: 0.75, grade: [0.55, 0.6, 0.72], lichen: 0.8, snow: 1 });
+      R.flatMesh = addModel(g, 'rock_flat', list, { desat: 0.75, grade: [0.55, 0.6, 0.72], lichen: 0.8, snow: 1, cap: 0.2 });
       D.rocksFlat = list;
     }
     { // outcrops: rock face (open back −Z) pushed into slopes, face looking downhill
@@ -892,9 +1003,10 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
         const w = (b3.max.x - b3.min.x) * sc * 0.5;
         skirts.push([x, z, w, (b3.max.y - b3.min.y) * sy * 0.6]); addRockToGrid(bx, bz, w);
       }
-      R.faceMesh = addModel(g, 'rock_outcrop', list, { desat: 0.7, grade: [0.55, 0.6, 0.72], lichen: 0.6, snow: 1 });
+      R.faceMesh = addModel(g, 'rock_outcrop', list, { desat: 0.7, grade: [0.55, 0.6, 0.72], lichen: 0.6, snow: 1, cap: 0.22 });
       D.rocksOutcrop = list;
     }
+    reseatRocks('placed');
     if (!SNOWC()) buildSkirts(skirts);   // with the terrain module the drifts come from its obstacle stamps + snowCover skirt
     VEG.stats.rocks = { boulders: D.boulders.length, procedural: RM ? RM.count : 0, flat: D.rocksFlat.length, outcrops: D.rocksOutcrop.length, skirts: skirts.length };
     // ground chunks generated before the rock list existed must be re-rolled (rock proximity feeds placement)
@@ -1015,16 +1127,20 @@ ${far ? 'if (vDi < vVF1) discard;' : 'if (vDi < 1. - vVF0 || vDi >= vVF1) discar
   VEG.director = DIR;
 
   /* ================================================================== update */
-  let tAcc = 0, bakedGame = [false, false, false];
+  let tAcc = 0;
   function update(dt, ctx) {
     tAcc += dt;
     U.uVT.value = tAcc; U.uVStorm.value = (C.WX && C.WX.storm) || 0; U.uVCam.value.copy(camera.position);
+    if (C.MOON_DIR) U.uVMoonDir.value.copy(C.MOON_DIR);
+    if (C.moon) U.uVMoonCol.value.copy(C.moon.color).multiplyScalar(C.moon.intensity / Math.PI);
+    if (C.hemi) U.uVHemiS.value.copy(C.hemi.color).multiplyScalar(C.hemi.intensity / Math.PI);
     while (A.queue.length) A.queue.shift()();
     adoptGameTrees();
-    for (let vi = 0; vi < 3; vi++) if (!bakedGame[vi] && SP[vi].bake) { bakedGame[vi] = true; bakeSpecies(vi); refreshImpostorSizes(); }
-    if (!F.mid && VEG.ready.vegSet) buildImpostors();
+    if (!F.mid && VEG.ready.vegSet && ((F.adopted[0] && F.adopted[1] && F.adopted[2]) || tAcc > 40)) buildImpostors();
     updateForest();
     rocksStep();
+    // the terrain re-stamps its drifts when the set of solids changes (our rocks included): re-seat against the new snow
+    { const TS = window.Terrain && window.Terrain.S; if (R.done && R.sets && TS && TS.obstKey && TS.obstKey !== R.seatKey && !TS.obstPending) { R.seatKey = TS.obstKey; reseatRocks('drifts ' + TS.obstKey); } }
     updateGround();
     autoBump(dt);
     director(dt);
