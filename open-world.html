@@ -701,7 +701,19 @@ let composer = null, gradePass = null, bloomPass = null;
   sceneRT.depthTexture = new THREE.DepthTexture(16, 16); sceneRT.depthTexture.type = THREE.UnsignedIntType;
   composer = post.composer = new THREE.EffectComposer(renderer, new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType }));
   post.render = new (class ScenePass extends THREE.Pass {
-    constructor() { super(); this.needsSwap = false; this.quad = new THREE.FullScreenQuad(new THREE.ShaderMaterial(Object.assign({}, THREE.CopyShader, { uniforms: THREE.UniformsUtils.clone(THREE.CopyShader.uniforms), depthTest: false, depthWrite: false }))); }
+    // the copy doubles as a NaN / Inf guard: one bad pixel from any shader would be smeared over the frame by bloom
+    // (black frames). A bad pixel takes the mean of its valid neighbours instead.
+    constructor() { super(); this.needsSwap = false; this.quad = new THREE.FullScreenQuad(new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: null } }, depthTest: false, depthWrite: false,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        bool bad(vec4 v){ return any(isnan(v)) || any(isinf(v)) || v.r != v.r || v.g != v.g || v.b != v.b || max(max(v.r, v.g), v.b) > 60000.; }
+        void main(){
+          vec4 c = texture2D(tDiffuse, vUv);
+          if (bad(c)) { vec2 e = 1. / vec2(textureSize(tDiffuse, 0)); vec4 s = vec4(0.); float n = 0.;
+            for (int i = 0; i < 8; i++) { float a = float(i) * .785398; vec4 q = texture2D(tDiffuse, vUv + vec2(cos(a), sin(a)) * e * 2.); if (!bad(q)) { s += q; n += 1.; } }
+            c = n > 0. ? s / n : vec4(0., 0., 0., 1.); }
+          gl_FragColor = c;
+        }` })); }
     setSize(w, h) { sceneRT.setSize(w, h); }
     render(r, w, readBuffer) {
       r.setRenderTarget(sceneRT); r.clear(); r.render(scene, camera);
@@ -737,7 +749,7 @@ let composer = null, gradePass = null, bloomPass = null;
         col *= mix(.72, 1., v);
         col += vec3(1., .1, .3) * uHurt * (1. - v) * .55;
         col += vec3(.3, .9, 1.) * uScan * .07;
-        col += (rnd(vUv * 900. + fract(uTime)) - .5) * .018;
+        col += (rnd(vUv * 900. + fract(uTime)) - .5) * .018 * smoothstep(.0, .06, dot(col, vec3(.3, .55, .15)));   // grain fades out in the blacks (no clipped-to-zero speckle)
         gl_FragColor = vec4(col, 1.);
       }`,
   });
@@ -2386,8 +2398,9 @@ function updatePlayer(dt) {
   if (CLIMB.t >= 0) { updateClimb(dt); c.g.position.set(player.x, player.y, player.z); c.g.rotation.set(0, player.face, 0); animChar(c, dt, 0, false, false, false); if (AV.player) AV.player.update(dt); return; }
   if (PH.ok && ml > 0.05 && player.rollT <= 0) {   // ledge climb: jump into a 0.8–1.6 m ledge, or press jump right in front of one
     const lx = mx / ml, lz = mz / ml;
-    const jumping = !player.onGround && !player.sliding && T - (player.jumpAt || -9) < 1.2 && player.vy < 3.5;   // only from a real jump, never while sliding off a steep face
-    if (jumping || (player.onGround && pressed.has('Space'))) { const L = ledgeAhead(lx, lz); if (L) { startClimb(L, lx, lz); pressed.delete('Space'); return; } }
+    const jumping = !player.onGround && !player.sliding && T - (player.jumpAt || -9) < 1.2;   // only from a real jump, never while sliding off a steep face
+    // measured from the ground the jump left (not the airborne feet): a jump into a 1–1.8 m ledge grabs it
+    if (jumping || (player.onGround && pressed.has('Space'))) { const L = ledgeAhead(lx, lz, jumping ? Math.min(player.y, player.jumpY !== undefined ? player.jumpY : player.y) : player.y); if (L && L.y > player.y - 0.35) { startClimb(L, lx, lz); pressed.delete('Space'); return; } }
   }
   if (PH.ok) {
     if (player.rollT > 0.5) PH.ch.setVelocity(player.rollDir[0] * 15, 0, player.rollDir[1] * 15);
@@ -2401,7 +2414,7 @@ function updatePlayer(dt) {
     player.x = st.position.x; player.y = st.position.y; player.z = st.position.z;
     player.vx = st.velocity.x; player.vz = st.velocity.z; player.vy = st.velocity.y; player.onGround = st.grounded; player.sliding = st.sliding;
     if (st.landed && st.landingSpeed > 9 && AV.player) AV.player.once('land', 0.3);
-    if (st.jumped) { Sound.jump(); player.jumpAt = T; }
+    if (st.jumped) { Sound.jump(); player.jumpAt = T; player.jumpY = player.y; }
     if (st.landed && st.landingSpeed > 9) { Sound.step(); shake = Math.max(shake, Math.min(0.8, st.landingSpeed / 40)); burst(player.x, player.y + 0.1, player.z, 0x9fb4d8, Math.min(30, st.landingSpeed | 0), 4, 0.6, 0.45, 1); }
     if (st.sliding && Math.random() < 0.5) emit(player.x, player.y + 0.1, player.z, rand(-1, 1), rand(0.5, 1.5), rand(-1, 1), 0.6, 0x9fb4d8, 0.4, 2, 1);
     if (boundary(player, 430)) { PH.ch.setPosition(player.x, player.y, player.z); if (!G.edgeWarned) { G.edgeWarned = true; toast('i-chip', 'Дальше — открытый лёд', 'c-ice'); } }
@@ -2436,30 +2449,64 @@ function updatePlayer(dt) {
   c.g.visible = player.inv > 0 ? Math.floor(T * 16) % 2 === 0 : true;
 }
 /* ---------- ledge climb ---------- */
-const CLIMB = { t: -1, dur: 1, from: new V3(), to: new V3(), h: 1 };
-function ledgeAhead(dx, dz) {
-  const P = PH.P, S = P.groups.STATIC, feet = player.y;
-  const wall = P.raycast({ x: player.x, y: feet + 0.6, z: player.z }, { x: dx, y: 0, z: dz }, 1.1, { groups: S });
-  if (!wall || wall.normal.y > 0.6) return null;                                     // needs a face to climb, not a slope
+const CLIMB = { t: -1, dur: 1, from: new V3(), to: new V3(), h: 1, curve: null, footLock: null, face: 0 };
+// ledge ahead: a near-vertical face on STATIC geometry (terrain, rocks, 'solid' Passport meshes incl. the wreck) with a
+// walkable top 0.8–1.8 m above the feet, open above the edge and head room on top. feet = the ground the climb starts from.
+function ledgeAhead(dx, dz, feetY) {
+  const P = PH.P, S = P.groups.STATIC, feet = feetY === undefined ? player.y : feetY;
+  let wall = null;
+  for (const hy of [0.6, 0.35, 0.95]) { wall = P.raycast({ x: player.x, y: feet + hy, z: player.z }, { x: dx, y: 0, z: dz }, 1.2, { groups: S }); if (wall && wall.normal.y <= 0.6) break; wall = null; }
+  if (!wall) return null;                                                             // needs a face to climb, not a slope
   const d = wall.distance + 0.4, top = P.raycast({ x: player.x + dx * d, y: feet + 2.2, z: player.z + dz * d }, { x: 0, y: -1, z: 0 }, 2.2, { groups: S });
   if (!top || top.normal.y < 0.7) return null;                                       // walkable top
-  const h = top.point.y - feet; if (h < 0.8 || h > 1.6) return null;
+  const h = top.point.y - feet; if (h < 0.8 || h > 1.8) return null;
   if (P.raycast({ x: player.x, y: top.point.y + 0.35, z: player.z }, { x: dx, y: 0, z: dz }, d + 0.3, { groups: S })) return null;   // wall continues above
   if (P.sphereCast({ x: top.point.x, y: top.point.y + 0.45, z: top.point.z }, { x: 0, y: 1, z: 0 }, 1.2, 0.35, { groups: S | P.groups.TRUNK })) return null;   // head room
-  return { x: top.point.x, y: top.point.y, z: top.point.z, h };
+  return { x: top.point.x, y: top.point.y, z: top.point.z, h, wall: wall.distance };
+}
+// root curve of ClimbUp_1m (the clip is in place): while the hands hold the edge the body rises by the hands' drop in
+// the clip; once the left foot is on the top it rises by that foot's drop. Normalised to 0…1 and scaled to the ledge.
+function climbCurve() {
+  if (CLIMB.curve !== null) return CLIMB.curve;
+  CLIMB.curve = false;
+  const A = AV.player; if (!A || !A.acts.climb || !THREE.SkeletonUtils) return false;
+  const clone = THREE.SkeletonUtils.clone(A.mixer.getRoot()), mx = new THREE.AnimationMixer(clone), clip = A.acts.climb.getClip(); mx.clipAction(clip).play();
+  const b = (n) => clone.getObjectByName(n), hl = b('hand_l'), hr = b('hand_r'), fl = b('foot_l'); if (!hl || !hr || !fl) return false;
+  const N = 48, hand = [], foot = [], p = new V3();
+  for (let i = 0; i <= N; i++) { mx.setTime(clip.duration * i / N); clone.updateMatrixWorld(true);
+    hand.push((p.setFromMatrixPosition(hl.matrixWorld).y + p.setFromMatrixPosition(hr.matrixWorld).y) / 2); p.setFromMatrixPosition(fl.matrixWorld); foot.push([p.x, p.y, p.z]); }
+  mx.uncacheRoot(clone);
+  let iS = 0; for (let i = 1; i <= N * 0.7; i++) if (hand[i] < hand[iS]) iS = i;                 // hands lowest = the foot takes over
+  let iL = 0; while (iL < iS && foot[iL][1] < foot[0][1] + 0.08) iL++;                            // left foot leaves the ground
+  const c = []; let run = 0;
+  for (let i = 0; i <= N; i++) { const v = i <= iS ? hand[0] - hand[i] : hand[0] - hand[iS] + foot[iS][1] - foot[i][1]; run = Math.max(run, v); c.push(run); }
+  const end = c[N] || 1;
+  CLIMB.curve = { N, u: c.map((v) => v / end), kL: iL / N, kS: iS / N, foot, clipDur: clip.duration };
+  return CLIMB.curve;
 }
 function startClimb(L, dx, dz) {
-  CLIMB.t = 0; CLIMB.h = L.h; CLIMB.dur = 0.75 + L.h * 0.35;
+  const cv = climbCurve();
+  CLIMB.t = 0; CLIMB.h = L.y - player.y; CLIMB.dur = (cv ? cv.clipDur : 0.667) / 0.72 * (0.75 + 0.25 * Math.max(1, CLIMB.h));
   CLIMB.from.set(player.x, player.y, player.z); CLIMB.to.set(L.x, L.y + 0.03, L.z);
-  player.face = Math.atan2(-dx, -dz); player.vx = player.vz = player.vy = 0;
+  CLIMB.face = player.face = Math.atan2(-dx, -dz); player.vx = player.vz = player.vy = 0; CLIMB.footLock = null;
   PH.ch.setEnabled(false);
-  if (AV.player) AV.player.once('climb', CLIMB.dur);
+  if (AV.player) { AV.player.lock = 0; AV.player.once('climb', CLIMB.dur, 0.18); if (cv) AV.player.speed('climb', cv.clipDur / CLIMB.dur); }
   Sound.jump();
 }
 function updateClimb(dt) {
-  CLIMB.t += dt; const k = Math.min(1, CLIMB.t / CLIMB.dur), ku = smooth(0.05, 0.6, k), kf = smooth(0.4, 1, k);
+  CLIMB.t += dt; const k = Math.min(1, CLIMB.t / CLIMB.dur), cv = CLIMB.curve;
+  let ku, kf;
+  if (cv) { const f = k * cv.N, i = Math.min(cv.N - 1, Math.floor(f)); ku = lerp(cv.u[i], cv.u[i + 1], f - i); kf = smooth(cv.kL, cv.kS, k); }
+  else { ku = smooth(0.05, 0.6, k); kf = smooth(0.4, 1, k); }
   player.x = lerp(CLIMB.from.x, CLIMB.to.x, kf); player.z = lerp(CLIMB.from.z, CLIMB.to.z, kf); player.y = lerp(CLIMB.from.y, CLIMB.to.y, ku);
-  if (k >= 1) { CLIMB.t = -1; PH.ch.setEnabled(true); PH.ch.setPosition(player.x, player.y, player.z); player.onGround = true; if (AV.player) { AV.player.lock = 0; AV.player.loop('idle', 0.15); } }
+  // left foot on the top from the moment it takes over: locked where the clip's last frame puts it (leg IK, interaction)
+  if (cv) {
+    const e = cv.foot[cv.N], cf = Math.cos(CLIMB.face), sf = Math.sin(CLIMB.face), lx = -e[0], lz = -e[2];   // model → group: the wrapper turns it by π
+    const fk = CLIMB.footLock || (CLIMB.footLock = { x: 0, y: 0, z: 0, w: 0 });
+    fk.x = CLIMB.to.x + lx * cf + lz * sf; fk.z = CLIMB.to.z - lx * sf + lz * cf; fk.y = CLIMB.to.y + e[1];
+    fk.w = smooth(cv.kS - 0.12, cv.kS, k);
+  }
+  if (k >= 1) { CLIMB.t = -1; CLIMB.footLock = null; PH.ch.setEnabled(true); PH.ch.setPosition(player.x, player.y, player.z); player.onGround = true; if (AV.player) { AV.player.lock = 0; AV.player.loop('idle', 0.25); } }
 }
 function fireBolt() {
   camera.getWorldDirection(fwd);
@@ -2594,7 +2641,7 @@ function updateBoss(dt) {
   switch (boss.st) {
     case 'intro': boss.g.scale.setScalar(Math.min(1, boss.g.scale.x + dt * 0.7)); if (boss.t <= 0) boss.st = 'idle'; break;
     case 'idle': {
-      const want = d > 13 ? 4.5 * boss.phase : d < 7 ? -3 : 0;
+      let want = d > 13 ? 4.5 * boss.phase : d < 7 ? -3 : 0; if (boss.vMax) want = clamp(want, -boss.vMax * 0.6, boss.vMax);   // the golem's gait top speed (feet planted)
       boss.x += dx / (d || 1) * want * dt; boss.z += dz / (d || 1) * want * dt;
       boss.atk -= dt;
       if (boss.hp <= boss.max / 2 && !boss.summoned) { boss.summoned = true; boss.phase = 1.5; toast('i-skull', 'Страж зовёт осколышей', 'c-pink'); for (let i = 0; i < 3; i++) { const a = i * 2.1; spawnShardling(boss.x + Math.cos(a) * 9, boss.z + Math.sin(a) * 9, null).st = 'chase'; } }
@@ -3100,7 +3147,8 @@ function updateFox(dt) {
     }
   }
   const mx = tx - fox.x, mz = tz - fox.z, ml = Math.hypot(mx, mz);
-  fox.speed = damp(fox.speed, want, 5, dt);
+  if (fox.vMax) want = Math.min(want, fox.vMax);   // the gait's top speed (interaction module): faster, the paws would skate
+  fox.speed = want > fox.speed ? Math.min(want, fox.speed + 7 * dt) : damp(fox.speed, want, 5, dt);   // run-up ≤ 7 m/s²: the gait gets its steps in
   if (ml > 0.05 && fox.speed > 0.1) {
     const st = Math.min(ml, fox.speed * dt); fox.x += mx / ml * st; fox.z += mz / ml * st;
     fox.yaw += wrapA(Math.atan2(-mx, -mz) - fox.yaw) * Math.min(1, dt * 8);
@@ -3364,8 +3412,12 @@ function updateStags(dt) {
     } else {
       const hd = Math.hypot(s.x - s.hx, s.z - s.hz);
       if (hd > 110) { s.fx = (s.hx - s.x) / hd; s.fz = (s.hz - s.z) / hd; }
+      const x0 = s.x, z0 = s.z, want = Math.hypot(s.fx, s.fz) * 11;
       s.x += s.fx * 11 * dt; s.z += s.fz * 11 * dt; collide(s, 0.8); boundary(s, 420);
-      s.yaw += wrapA(Math.atan2(s.fx, s.fz) - s.yaw) * Math.min(1, dt * 6);
+      // blocked (tree, rock, the island edge): run along it — the flee direction becomes the direction it actually got
+      const mvx = s.x - x0, mvz = s.z - z0, got = Math.hypot(mvx, mvz) / Math.max(dt, 1e-4);
+      if (want > 1 && got < want * 0.7 && got > 0.2) { const k = Math.hypot(s.fx, s.fz) / (got * dt); s.fx = mvx * k; s.fz = mvz * k; }
+      s.yaw += wrapA((got > 1 ? Math.atan2(mvx, mvz) : Math.atan2(s.fx, s.fz)) - s.yaw) * Math.min(1, dt * 6);   // the body faces where it really goes
       if (s.t <= 0 && d > 40) { s.st = 'graze'; s.t = rand(3, 6); s.A.loop('look', 0.4); }
       if (Math.random() < dt * 8) emit(s.x, groundH(s.x, s.z) + 0.1, s.z, rand(-1, 1), rand(0.5, 1.5), rand(-1, 1), 0.6, 0x9fb4d8, 0.5, 2, 1);
     }

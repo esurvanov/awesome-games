@@ -592,20 +592,23 @@
     const n = DEF.mirN, m = DEF.mir, o = new Float32Array(n * n), di = Math.round((nx - DEF.cx) / DEF.mirC), dj = Math.round((nz - DEF.cz) / DEF.mirC);
     for (let j = 0; j < n; j++) { const sj = j + dj; if (sj < 0 || sj >= n) continue; for (let i = 0; i < n; i++) { const si = i + di; if (si >= 0 && si < n) o[j * n + i] = m[sj * n + si] * keep; } }
     DEF.mir = o; DEF.cur = 1 - DEF.cur; DEF.cx = nx; DEF.cz = nz;
+    if (keep < 1) for (const e of SL.list) e[7] *= keep;   // blizzard refill: the CPU stamp log fades with the map
     U.tDef.value = DEF.rt[DEF.cur].texture; U.uDef.value.set(nx, nz, DEF.ext, DEF.ext / DEF.res);
   }
   // queue a stamp; dx,dz = forward direction; len/wid in metres
   function stamp(o) {
-    const x = o.x, z = o.z; if (Math.abs(x - DEF.cx) > DEF.ext / 2 - 2 || Math.abs(z - DEF.cz) > DEF.ext / 2 - 2) return;
-    if (DEF.stamps.length >= DEF.max) return;
+    const x = o.x, z = o.z; if (Math.abs(x - DEF.cx) > DEF.ext / 2 - 2 || Math.abs(z - DEF.cz) > DEF.ext / 2 - 2) return false;
+    if (DEF.stamps.length >= DEF.max) return false;
     const t = typeof o.type === 'number' ? o.type : STAMP_T[o.type || 'boot'] || 0;
     let dx = o.dx || 0, dz = o.dz || 1; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
     DEF.stamps.push([x, z, dx, dz, o.len || 0.3, o.wid || 0.13, t, o.str == null ? 0.9 : o.str]);
+    logStamp(x, z, dx, dz, o.len || 0.3, o.wid || 0.13, t, o.str == null ? 0.9 : o.str);
     // CPU mirror (0.5 m cells): enough for depth/speed queries
     const n = DEF.mirN, c = DEF.mirC, rad = Math.max(o.wid || 0.13, (o.len || 0.3) * 0.5) * 0.9 + 0.1;
     const i0 = Math.floor((x - rad - DEF.cx) / c + n / 2), i1 = Math.floor((x + rad - DEF.cx) / c + n / 2), j0 = Math.floor((z - rad - DEF.cz) / c + n / 2), j1 = Math.floor((z + rad - DEF.cz) / c + n / 2);
     const v = (o.str == null ? 0.9 : o.str) * (t === 3 ? 1 : 0.75);
     for (let j = Math.max(0, j0); j <= Math.min(n - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(n - 1, i1); i++) { const k = j * n + i; if (DEF.mir[k] < v) DEF.mir[k] = v; }
+    return true;   // accepted (the caller may retry a rejected one next frame, after the map re-centred)
   }
   function pressAt(x, z) {
     const n = DEF.mirN, i = Math.floor((x - DEF.cx) / DEF.mirC + n / 2), j = Math.floor((z - DEF.cz) / DEF.mirC + n / 2);
@@ -663,7 +666,8 @@
       const ground = p.onGround && (!ctx.CLIMB || ctx.CLIMB.t < 0) && onTerrain(p.x, p.y, p.z);
       const prev = TRK.pl && TRK.pl.g;
       const run = Math.hypot(p.vx || 0, p.vz || 0) > 8.5;
-      const tt = footTrack('pl', TRK, p.x, p.z, ground, run ? 0.85 : 0.62, 'boot', 0.135, 0.31, 0.92, 0.13, run ? 2 : 1);
+      const feetOwn = TR.feetByActors && TR.feetByActors.pilot && TR.feetByActors.pilot();   // the interaction module stamps each planted boot where it is
+      const tt = footTrack('pl', TRK, p.x, p.z, ground && !feetOwn, run ? 0.85 : 0.62, 'boot', 0.135, 0.31, 0.92, 0.13, run ? 2 : 1);
       if (ground && prev === false && TRK.plAir > 0.25) {   // landing: both feet + a burst of powder
         const fx = -Math.sin(p.face), fz = -Math.cos(p.face);
         stamp({ x: p.x + fz * 0.14, z: p.z - fx * 0.14, dx: fx, dz: fz, type: 'boot', len: 0.33, wid: 0.15, str: 1 });
@@ -689,8 +693,76 @@
     const f = ctx.fox;
     if (f && f.g && f.g.visible !== false) { const fp = f.g.position; footTrack('fox', TRK, fp.x, fp.z, onTerrain(fp.x, fp.y, fp.z, 0.3), 0.3, 'paw', 0.085, 0.095, 0.85, 0.06, 0); }
     // stags
-    for (const s of ctx.STAGS || []) { if (!s.g || s.g.visible === false) continue; const g = s.g.position; let h = TRK.stags.get(s); if (!h) TRK.stags.set(s, (h = {})); footTrack('t', h, g.x, g.z, onTerrain(g.x, g.y, g.z, 0.4), 0.72, 'hoof', 0.12, 0.13, 0.9, 0.2, 0); }
+    if (DEF.fresh) SL.clear();   // deformation map re-centred far away / reallocated: the CPU log starts over too
+    const stagsOwn = TR.feetByActors && TR.feetByActors.stags && TR.feetByActors.stags();
+    for (const s of ctx.STAGS || []) { if (stagsOwn || !s.g || s.g.visible === false) continue; const g = s.g.position; let h = TRK.stags.get(s); if (!h) TRK.stags.set(s, (h = {})); footTrack('t', h, g.x, g.z, onTerrain(g.x, g.y, g.z, 0.4), 0.72, 'hoof', 0.12, 0.13, 0.9, 0.2, 0); }
   }
+
+  /* ------------------------------------------------------ visible snow surface on the CPU (feet, paws, hooves) */
+  // The rendered snow (detail rings) = smooth(H) + loose snow + micro relief, pressed by the deformation map — not the
+  // physics ground. Actors that stand on it need that height: snowSurfaceAt(x, z, pressMin) replays the vertex formula
+  // (GLSL_DETAIL_V: trHs + trSnow/trMicro — keep in sync) with the press taken from a log of the stamps drawn into the
+  // map (same shapes; the GPU map is sampled at mip ~0.8 on a 0.22 m vertex grid, so stamps meant to be stood on use a
+  // flat plateau wider than that blur). pressMin: the press the caller is about to stamp there (a planted foot).
+  const SL = { list: [], grid: new Map(), max: 2400, head: 0, CS: 2,
+    clear() { this.list.length = 0; this.grid.clear(); this.head = 0; } };
+  function logStamp(x, z, dx, dz, len, wid, t, str) {
+    const e = [x, z, dx, dz, len, wid, t, str, 0], r = Math.max(wid * 0.8, len * (t === 3 ? 0.51 : 0.675)) + 0.3;
+    if (SL.list.length >= SL.max) { const old = SL.list[SL.head]; old[7] = 0; SL.list[SL.head] = e; SL.head = (SL.head + 1) % SL.max; } else SL.list.push(e);
+    const i0 = Math.floor((x - r) / SL.CS), i1 = Math.floor((x + r) / SL.CS), j0 = Math.floor((z - r) / SL.CS), j1 = Math.floor((z + r) / SL.CS);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = i * 65536 + j; let a = SL.grid.get(k); if (!a) SL.grid.set(k, (a = [])); a.push(e); if (a.length > 48) { const b = a.filter((q) => q[7] > 0.01); SL.grid.set(k, b.length > 48 ? b.slice(-48) : b); } }
+  }
+  const sm = (a, b, x) => smooth(a, b, x);
+  function stampShape(e, x, z) {   // → [press, rim] of one stamp at (x, z) (the deformation fragment shader, CPU)
+    const ox = x - e[0], oz = z - e[1], fx = e[2], fz = e[3], rx = fz, rz = -fx, t = e[6];
+    const u = (ox * rx + oz * rz) / (e[5] * 0.5), v = (ox * fx + oz * fz) / (e[4] * 0.5), ml = t === 3 ? 1.02 : 1.35;
+    if (Math.abs(u) > 1.6 || Math.abs(v) > ml) return null;
+    let p = 0, r = 0;
+    if (t < 0.5) { const d = Math.hypot(u / (0.74 + 0.26 * sm(-1, 0.5, v)), v); p = (1 - sm(0.82, 1, d)) * 0.93; r = sm(0.95, 1.12, d) * (1 - sm(1.12, 1.45, d)); }
+    else if (t < 2.5 && t >= 1.5) { const d = Math.min(Math.hypot((u - 0.42) * 1.7, v), Math.hypot((u + 0.42) * 1.7, v)); p = 1 - sm(0.75, 1, d); r = sm(0.95, 1.1, d) * (1 - sm(1.1, 1.5, d)); }
+    else if (t < 3.5 && t >= 2.5) { const d = Math.abs(u); p = (1 - sm(0.8, 1, d)) * (1 - sm(0.85, 1, Math.abs(v))) * 0.95; r = sm(0.95, 1.1, d) * (1 - sm(1.1, 1.5, d)) * (1 - sm(0.85, 1, Math.abs(v))); }
+    else { const d = Math.hypot(u, v); p = 1 - sm(t < 1.5 ? 0.7 : 0.6, 1, d); r = sm(0.95, 1.1, d) * (1 - sm(1.1, t < 1.5 ? 1.4 : 1.5, d)); }
+    return [p * e[7], r * e[7]];
+  }
+  // the map is read at mip ~0.8 (0.125 / 0.25 m texels) on a 0.22 m vertex grid: ≈ a ±0.35 m tent blur → 3 × 3 taps
+  const TAPS = []; for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) TAPS.push([i * 0.2, j * 0.2, (i ? 0.25 : 0.5) * (j ? 0.25 : 0.5)]);
+  function pressCPU(x, z) {   // [press, rim, edge] as the vertex shader sees them
+    let P = 0, Rr = 0;
+    for (const [ox, oz, w] of TAPS) {
+      const a = SL.grid.get(Math.floor((x + ox) / SL.CS) * 65536 + Math.floor((z + oz) / SL.CS)); if (!a) continue;
+      let p = 0, r = 0; for (const e of a) { if (e[7] <= 0.01) continue; const q = stampShape(e, x + ox, z + oz); if (q) { if (q[0] > p) p = q[0]; if (q[1] > r) r = q[1]; } }
+      P += p * w; Rr += r * w;
+    }
+    const e = Math.min(DEF.ext / 2 - Math.abs(x - DEF.cx), DEF.ext / 2 - Math.abs(z - DEF.cz)) / 4, edge = clamp(e, 0, 1);
+    return [P * edge, Rr * edge, edge];
+  }
+  const fract = (v) => v - Math.floor(v);
+  function trHash(x, y) { let a = fract(x * 0.1031), b = fract(y * 0.1031), c = a; const d = a * (b + 33.33) + b * (c + 33.33) + c * (a + 33.33); a += d; b += d; c += d; return fract((a + b) * c); }
+  function trVN(x, y) { const i = Math.floor(x), j = Math.floor(y); let fx = x - i, fy = y - j; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    const a = trHash(i, j), b = trHash(i + 1, j), c = trHash(i, j + 1), d = trHash(i + 1, j + 1); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fy; }
+  const lodW = (l, s) => clamp(l / s * 0.33 - 1, 0, 1);
+  function trMicro(x, z, s, expo) {
+    const wx = S.wind[0], wz = S.wind[1], qx = x * wx + z * wz, qz = -x * wz + z * wx;
+    let h = (trVN(x * 0.14, z * 0.14) - 0.5) * 0.15 * lodW(7, s) + (trVN(x * 0.37 + 17, z * 0.37 + 17) - 0.5) * 0.07 * lodW(2.7, s);
+    let sa = trVN(qx * 0.21 + 5, qz * 1.25 + 5); sa = 1 - Math.abs(sa * 2 - 1); sa *= sa;
+    const sb = 1 - Math.abs(trVN(qx * 0.55 + 11, qz * 3.2 + 11) * 2 - 1);
+    h += ((sa - 0.45) * 0.10 * lodW(0.8, s) + (sb - 0.5) * 0.035 * lodW(0.31, s)) * expo;
+    return clamp(h, -0.14, 0.14);
+  }
+  function sampleHs(x, z) {
+    const HALF = S.W / 2, T = S.W / DN, gx = (x + HALF) / T - 0.5, gz = (z + HALF) / T - 0.5, H = S.Hs;
+    const i = clamp(Math.floor(gx), 0, DN - 2), j = clamp(Math.floor(gz), 0, DN - 2), fx = clamp(gx - i, 0, 1), fz = clamp(gz - j, 0, 1), k = j * DN + i;
+    return (H[k] * (1 - fx) + H[k + 1] * fx) * (1 - fz) + (H[k + DN] * (1 - fx) + H[k + DN + 1] * fx) * fz;
+  }
+  function snowSurfaceAt(x, z, pressMin = 0) {
+    if (!S.Hs || !S.D) return ctx.groundH(x, z);
+    const s = S.levels && S.levels.length ? S.levels[0].s : ctx.CELL / 16, dep = sampleD(x, z);
+    const m = trMicro(x, z, s, smooth(0.03, 0.14, dep)) * smooth(0, 0.08, dep), loose = Math.max(dep + m, 0);
+    const pr = pressCPU(x, z), on = !S.noDef && pr[2] > 0, p = on ? Math.max(pr[0], pressMin * pr[2]) : 0, r = on ? pr[1] : 0;
+    return sampleHs(x, z) + loose * (1 - p) + r * Math.min(dep, 0.3) * 0.35 * (1 - p);
+  }
+  // how hard a planted foot presses the loose snow (fraction of it): 8–20 cm sink in fresh snow, less on a thin crust
+  function footPress(x, z) { const d = sampleD(x, z); return d < 0.02 ? 0 : clamp(0.2 / d, 0.25, 0.65); }
 
   /* ------------------------------------------------------ snow gameplay */
   function snowDepthAt(x, z) { if (!S.D) return 0; return sampleD(x, z) * (1 - pressAt(x, z)); }
@@ -934,7 +1006,8 @@
     // public API
     Object.assign(TR, { snowDepthAt, surfaceAt, slopeAt, snowCover, stamp, windDir: { x: S.wind[0], z: S.wind[1] }, S, DEF, U,
       addFootprint(x, z, face, o = {}) { const fx = -Math.sin(face || 0), fz = -Math.cos(face || 0); stamp(Object.assign({ x, z, dx: fx, dz: fz, type: 'boot', len: 0.31, wid: 0.135, str: 0.92 }, o)); puff(x, z, sampleD(x, z)); } });
-    Object.assign(c, { snowDepthAt, surfaceAt, slopeAt, snowCover, addFootprint: TR.addFootprint, snowStamp: stamp, windDir: TR.windDir });
+    Object.assign(c, { snowDepthAt, surfaceAt, slopeAt, snowCover, addFootprint: TR.addFootprint, snowStamp: stamp, windDir: TR.windDir, snowSurfaceAt, footPress });
+    Object.assign(TR, { snowSurfaceAt, footPress, pressCPU, SL });
     if (c.WORLD_TERRAIN) c.WORLD_TERRAIN.detail = S.root;
     S.initMs = performance.now() - t0;
   }

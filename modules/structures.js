@@ -560,7 +560,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       boss.mat = mat; boss.armL = new THREE.Group(); boss.armR = new THREE.Group(); boss.halo = new THREE.Group();
       GOLEM.A = C.makeAnimator(root, gl.animations, { idle: 'Idle', walk: 'Walk', run: 'Run', slam: 'Attack2', swing: 'Attack1', throw: 'Throw_Rock2', summon: 'Throw_Rock',
         hurt1: 'Hurt1', hurt2: 'Hurt2', hurt3: 'Hurt3', death: 'Death', wake: 'Sleep_End', sleep: 'Sleep_Idle' });
-      GOLEM.A.loop('idle', 0);
+      GOLEM.A.loop('sleep', 0);   // asleep under the rift floor until the intro wakes it (no idle → wake pose snap)
       boss.anim = bossAnim; boss.onDeath = bossDeath;
       // the golem is 8 m tall and walks on the rift floor: tie its shadow/bounds to the group
       count('golem');
@@ -573,16 +573,30 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     GOLEM.hurtCd -= dt;
     if (st === 'intro') {   // rises out of the rift floor instead of growing from a point
       boss.g.scale.setScalar(1); GOLEM.wrap.position.y = -1.2 - Math.max(0, boss.t) / 2 * 8.5;
-      if (enter) { A.lock = 0; A.once('wake', 2.5, 0); }
+      if (enter) { A.lock = 0; A.once('wake', 2.5, 0.3); }
     } else GOLEM.wrap.position.y = damp(GOLEM.wrap.position.y, -1.2, 10, dt);
-    if (boss.summoned && !GOLEM.lastSummon) { A.lock = 0; A.speed('summon', 2.2); A.once('summon', 7.5 / 2.2, 0.15); GOLEM.showRock = 1.2; }
+    if (boss.summoned && !GOLEM.lastSummon) { A.lock = 0; A.speed('summon', 2.2); A.once('summon', 7.5 / 2.2, 0.35); GOLEM.showRock = 1.2; }
     GOLEM.lastSummon = boss.summoned;
-    if (enter && st === 'rise') { A.lock = 0; A.speed('slam', 1.5); A.once('slam', 3.54 / 1.5, 0.1); }
-    if (enter && st === 'charge') { A.lock = 0; const k = Math.random() < 0.5 ? 'swing' : 'throw'; const ts = k === 'swing' ? 1.7 : 2.4; A.speed(k, ts); A.once(k, (k === 'swing' ? 3.54 : 5.42) / ts, 0.1); if (k === 'throw') GOLEM.showRock = 1.6; }
-    if (boss.flash > 0.05 && GOLEM.hurtCd <= 0 && A.lock <= 0 && st !== 'intro') { GOLEM.hurtCd = 2.2; const k = 'hurt' + (1 + ((Math.random() * 3) | 0)); A.speed(k, 1.6); A.once(k, 1.6 / 1.6, 0.08); }
-    const loopK = sp > 5.2 ? 'run' : sp > 0.5 ? 'walk' : 'idle';
+    if (enter && st === 'rise') { A.lock = 0; A.speed('slam', 1.5); A.once('slam', 3.54 / 1.5, 0.35); }
+    if (enter && st === 'charge') { A.lock = 0; const k = Math.random() < 0.5 ? 'swing' : 'throw'; const ts = k === 'swing' ? 1.7 : 2.4; A.speed(k, ts); A.once(k, (k === 'swing' ? 3.54 : 5.42) / ts, 0.35); if (k === 'throw') GOLEM.showRock = 1.6; }
+    if (boss.flash > 0.05 && GOLEM.hurtCd <= 0 && A.lock <= 0 && st !== 'intro') { GOLEM.hurtCd = 2.2; const k = 'hurt' + (1 + ((Math.random() * 3) | 0)); A.speed(k, 1.6); A.once(k, 1.6 / 1.6, 0.25); }
+    // locomotion: walk ↔ run as one phase-synced gait (interaction module), rate = signed speed along the facing ÷
+    // measured stride — backing off plays the walk backwards; the golem's top speed is the gait's (boss.vMax)
+    const ry = boss.g.rotation.y; GOLEM.vAlong = dt > 0 ? ((boss.x - GOLEM.px2) * -Math.sin(ry) + (boss.z - GOLEM.pz2) * -Math.cos(ry)) / dt : 0; GOLEM.px2 = boss.x; GOLEM.pz2 = boss.z;
+    if (!GOLEM.gaitTried && window.INTERACTION && INTERACTION.makeGait && A.acts.walk) {
+      GOLEM.gaitTried = true;
+      try {
+        const S = {}; for (const k of ['walk', 'run']) if (A.acts[k]) S[k] = INTERACTION.strideSpeed(GOLEM.root, A.acts[k].getClip(), [['footL'], ['footR']], 'hip');
+        if (S.walk > 0.3) {
+          GOLEM.gait = INTERACTION.makeGait(A, { root: GOLEM.root, keys: ['walk', 'run'], stride: S, bands: [[S.walk * 1.3, S.walk * 1.65]], idle: 'idle', idleLo: 0.2, idleHi: 0.9, foot: 'footL', ref: 'hip', fwd: -1,
+            rateMax: 1.7, enabled: () => !C.boss.dead, speed: () => GOLEM.vAlong || 0, want: () => Math.abs(GOLEM.vAlong || 0) });
+          if (GOLEM.gait) { boss.vMax = GOLEM.gait.vMax; GOLEM.stride = S; }
+        }
+      } catch (e) { warn('golem gait', e.message); }
+    }
+    const loopK = GOLEM.gait ? (Math.abs(GOLEM.vAlong) > 0.3 ? 'walk' : 'idle') : sp > 5.2 ? 'run' : sp > 0.5 ? 'walk' : 'idle';
     A.loop(loopK, 0.3);
-    if (loopK === 'walk') A.speed('walk', clamp(sp / 3.2, 0.6, 1.7)); if (loopK === 'run') A.speed('run', clamp(sp / 6.5, 0.7, 1.5));
+    if (!GOLEM.gait) { if (loopK === 'walk') A.speed('walk', clamp(sp / 3.2, 0.6, 1.7)); if (loopK === 'run') A.speed('run', clamp(sp / 6.5, 0.7, 1.5)); }
     if (GOLEM.rock) { GOLEM.showRock = (GOLEM.showRock || 0) - dt; GOLEM.rock.visible = GOLEM.showRock > 0; }
     A.update(dt);
     // glow: flash on hits, hotter while charging / rising

@@ -15,10 +15,10 @@
   const SUB = { body: true, look: true, arms: true, steps: true, world: true, ice: true, stags: true, fox: true, camera: true };
   const ERR = {};
   const K = {                       // knobs (documented in INTERACTION.md)
-    ik: true, ikRay: 1.7, pelvisMin: -0.5, pelvisMax: 0.12, tiltMax: 0.6, stride: true, strideMin: 0.55, strideMax: 1.9,
+    ik: true, ikRay: 1.7, pelvisMin: -0.5, pelvisMax: 0.4, tiltMax: 0.6, stride: true, strideMin: 0.55, strideMax: 1.9,
     lean: 1, look: true, lookRange: 6, snowFloat: 0.3, bob: 0.018, dip: 1, iceAccel: 0.3, iceDecel: 0.14, stepVol: 1,
     stagTurn: 2.4, stagTop: 9.5, stagAlign: 0.85, foxAlign: 0.8, trees: true,
-    gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]],
+    gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]], stagRate: 2.4, foxRate: 4.5, footStamp: true,
   };
   const STATS = { ms: 0, msMax: 0, frames: 0, steps: 0, cracks: 0, shakes: 0, lands: 0, pounces: 0, trails: 0 };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -256,7 +256,8 @@
       let L = 0, top = G.keys[0], tw = -1; for (const k of G.keys) { L += G.w[k] * G.len[k]; if (G.w[k] > tw) { tw = G.w[k]; top = k; } }
       let f = L > 1e-4 ? v / L : 0; const fMax = o.rateMax / G.dur[top]; f = clamp(f, -fMax, fMax); G.f = f;
       G.phase = ((G.phase + f * dt) % 1 + 1) % 1;
-      const wi = o.idle && A.acts[o.idle] ? 1 - clamp((av - o.idleLo) / (o.idleHi - o.idleLo), 0, 1) : 0;
+      const wiT = o.idle && A.acts[o.idle] ? 1 - clamp((av - o.idleLo) / (o.idleHi - o.idleLo), 0, 1) : 0;
+      G.wi = G.wi === undefined ? wiT : damp(G.wi, wiT, wiT > G.wi ? 7 : 14, dt); const wi = G.wi;   // settle into idle over ~0.3 s (no pelvis snap at a stop)
       G.fade = Math.min(1, G.fade + dt / G.fadeDur);
       for (const k of G.keys) { const a = A.acts[k]; a.setEffectiveTimeScale(0); a.time = ((G.phase + G.off[k]) % 1) * G.dur[k]; a.setEffectiveWeight(G.w[k] * (1 - wi) * G.fade); }
       if (wi > 0 || (o.idle && A.acts[o.idle] && A.acts[o.idle].isRunning())) { const a = A.acts[o.idle]; a.setEffectiveTimeScale(1); a.setEffectiveWeight(wi * G.fade); }
@@ -321,8 +322,14 @@
       if (h) { L.g = h; } else { L.g = { y: P.y - 0.02, nx: 0, ny: 1, nz: 0, tag: null }; }
       const ny = clamp(L.g.ny, 0.6, 1);
       // loose snow (terrain module) lies above the physics ground: a boot compresses it and rests K.snowFloat of the way up
-      L.snow = !riding && L.g.tag && L.g.tag.kind === 'terrain' ? Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat : 0;
-      L.tgt.set(L.anim.x, L.g.y + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
+      // on terrain the boot stands on the VISIBLE snow (terrain module: smooth relief + loose snow + micro relief), pressed
+      // down where it plants: footPress = the share of the loose snow a boot compresses (stamped by plantStamp below)
+      L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowSurfaceAt === 'function';
+      let gy = L.g.y;
+      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const v = C.snowSurfaceAt(sx, sz, C.footPress ? C.footPress(sx, sz) * 0.72 : 0); /* ×0.72: the pad's press as the blurred map shows it at its centre */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
+      else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat;
+      L.gy = gy;
+      L.tgt.set(L.anim.x, gy + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
       minD = Math.min(minD, L.tgt.y - L.anim.y);
     }
     B.sink = 0;   // snow sink is the snow float above (terrain draws loose snow over the hard ground)
@@ -350,6 +357,9 @@
         setWorldQuat(L.foot, _q[4].copy(L.wq).premultiply(_q[3]));
       }
     }
+    // climbing: the left foot, once on the top, stays where it landed while the body rises over it (CLIMB.footLock)
+    const fk = climbing && C.CLIMB.footLock;
+    if (fk && fk.w > 0.01 && B.legs[0]) { const L = B.legs[0], cur = wpos(L.foot, _p[18]); cur.lerp(_p[19].set(fk.x, fk.y, fk.z), fk.w); solve2(L.thigh, L.calf, L.foot, cur, R, L.n); }
     lookUpdate(dt, F, R);
     armsUpdate(dt, F, R);
     markBones();
@@ -459,6 +469,20 @@
       }
     }
     if (!grounded) for (const L of B.legs) L.up = 1;
+    if (K.footStamp && grounded && B.wLegs > 0.5) for (const L of B.legs) plantStamp(L);
+  }
+  // a planted boot on snow presses it: a flat pad (the rendered snow mesh is 0.22 m coarse, the map blurred: the pad's
+  // plateau is wider than that, so the visible surface under the sole is exactly the pressed height the IK aims at) and
+  // the boot print itself (tread detail, drawn by the snow shader). Once per plant, again if the foot moves 12 cm.
+  function plantStamp(L) {
+    if (!L.onSnow || L.c > 0.03 || !hasStamp()) return;
+    const w = wpos(L.foot, _p[12]), b = L.ball ? wpos(L.ball, _p[13]) : w, x = (w.x + b.x) / 2, z = (w.z + b.z) / 2;
+    if (L.st && Math.hypot(x - L.st.x, z - L.st.z) < 0.12) return;
+    const pr = C.footPress ? C.footPress(x, z) : 0.5; if (pr <= 0) return;
+    let dx = b.x - w.x, dz = b.z - w.z; const dl = Math.hypot(dx, dz); if (dl < 0.03) { const f = C.player.c.g.rotation.y; dx = -Math.sin(f); dz = -Math.cos(f); } else { dx /= dl; dz /= dl; }
+    let ok = false;
+    try { ok = C.snowStamp({ x, z, dx, dz, len: 0.75, wid: 0.75, type: 'blob', str: pr }) !== false; if (ok) { C.snowStamp({ x, z, dx, dz, len: 0.31, wid: 0.135, type: 'boot', str: Math.min(1, pr + 0.15) }); STATS.trails++; } } catch (e) { return; }
+    if (ok) L.st = { x, z };   // rejected (outside the map until it re-centres after a teleport): try again next frame
   }
   function footfall(L, hs) {
     const P = C.player, x = L.anim.x, z = L.anim.z, y = L.g.y, surf = surfaceAt(x, y, z, L.g);
@@ -661,9 +685,11 @@
         const want = Math.atan2(S.wantX, S.wantZ), d = wrapA(want - S.dir), mx = K.stagTurn * dt;
         S.dir += clamp(d, -mx, mx); S.turn = clamp(d, -mx, mx) / Math.max(dt, 1e-3);
         // speed ramps up from a standstill (the game moves them at a flat 11 m/s × |f|)
-        S.v = Math.min(K.stagTop, (S.v || 0) + dt * K.stagTop / 0.9);
+        // top speed = what the gallop clip strides at its fastest believable rate (hooves stay planted: rate = speed ÷ stride)
+        const top = ST.runV > 0.5 ? Math.min(K.stagTop, ST.runV * K.stagRate) : K.stagTop;
+        S.v = Math.min(top, (S.v || 0) + dt * top / 0.9);
         const m = S.v / 11; s.fx = Math.sin(S.dir) * m; s.fz = Math.cos(S.dir) * m; S.wroteX = s.fx; S.wroteZ = s.fz;
-        if (ST.runV > 0.5 && s.A.acts.run) s.A.acts.run.setEffectiveTimeScale(clamp(S.v / ST.runV, 0.8, 2.0));
+        if (ST.runV > 0.5 && s.A.acts.run) s.A.acts.run.setEffectiveTimeScale(clamp(S.v / ST.runV, 0.3, K.stagRate));
       } else { S.dir = s.yaw; S.wroteX = null; S.turn = 0; S.v = 0; }
       const camD = Math.hypot(s.x - cam.x, s.z - cam.z);
       if (camD > 160 || !s.g.visible) continue;
@@ -672,23 +698,43 @@
       const hF = C.groundH(s.x + fx * 0.9, s.z + fz * 0.9), hB = C.groundH(s.x - fx * 0.9, s.z - fz * 0.9), hR = C.groundH(s.x + rx * 0.35, s.z + rz * 0.35), hL = C.groundH(s.x - rx * 0.35, s.z - rz * 0.35);
       const pitchT = Math.atan2(hF - hB, 1.8) * K.stagAlign, rollT = Math.atan2(hR - hL, 0.7) * K.stagAlign - clamp((S.turn || 0) * 0.08, -0.25, 0.25);
       S.pitch = damp(S.pitch, pitchT, 8, dt); S.roll = damp(S.roll, rollT, 8, dt);
-      const q = _qY[1].setFromAxisAngle(_qY[3], -S.pitch).premultiply(_qY[2].setFromAxisAngle(_qY[4], S.roll));
+      const standing = s.st !== 'flee'; if (!standing) { S.pf = damp(S.pf || 0, 0, 6, dt); S.rf = damp(S.rf || 0, 0, 6, dt); }
+      const q = _qY[1].setFromAxisAngle(_qY[3], -(S.pitch + (S.pf || 0))).premultiply(_qY[2].setFromAxisAngle(_qY[4], S.roll + (S.rf || 0)));
       S.wrap.quaternion.copy(q).multiply(_qY[0]);
       S.wrap.position.y = 0; s.g.updateMatrixWorld(true);
-      // ---- ground offset: lowest hoof sole on its ground (the old code put the group origin on the centre height only)
-      let gap = 1e9;
+      // ---- ground: hooves on the VISIBLE snow (pressed where planted). Standing: a plane through the 4 hoof errors sets
+      // height, pitch and roll (all four hooves down on uneven snow); running: the lowest hoof touches down
+      let gap = 1e9; const fit = [0, 0, 0, 0, 0, 0, 0, 0, 0], sv = C.snowSurfaceAt, fp = C.footPress, gx = s.g.position.x, gz = s.g.position.z;
       for (let i = 0; i < 4; i++) {
-        const b = S.feet[i]; if (!b) continue; const p = wpos(b, _p[9]), sole = p.y - ST.sole[i], g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
-        gap = Math.min(gap, sole - g);
+        const b = S.feet[i]; if (!b) continue; const p = wpos(b, _p[9]), sole = p.y - ST.sole[i];
+        let g; if (typeof sv === 'function') { g = sv(p.x, p.z, S.up[i] ? 0 : fp ? fp(p.x, p.z) * 0.6 : 0); if (!isFinite(g)) g = C.groundH(p.x, p.z); } else g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
+        const e = sole - g; gap = Math.min(gap, e);
+        if (standing) { const a = (p.x - gx) * fx + (p.z - gz) * fz, bb = (p.x - gx) * rx + (p.z - gz) * rz; fit[0] += 1; fit[1] += a; fit[2] += bb; fit[3] += a * a; fit[4] += a * bb; fit[5] += bb * bb; fit[6] += e; fit[7] += e * a; fit[8] += e * bb; }
+        if (typeof sv === 'function' && !S.up[i] && hasStamp() && K.footStamp && (!S.st || !S.st[i] || Math.hypot(p.x - S.st[i][0], p.z - S.st[i][1]) > 0.1)) {   // planted hoof presses the snow
+          const pr = fp ? fp(p.x, p.z) : 0.5; let ok = pr <= 0;
+          if (pr > 0) { try { ok = C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.6, wid: 0.6, type: 'blob', str: pr }) !== false; if (ok) C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.13, wid: 0.12, type: 'hoof', str: Math.min(1, pr + 0.15) }); } catch (er) { /* */ } }
+          if (ok) (S.st || (S.st = []))[i] = [p.x, p.z];
+        }
         // hoof plants → trail (terrain deformation if present; else the shared footprint decal near the player)
         const hh = p.y - g; if (hh > ST.sole[i] + 0.12) S.up[i] = 1;
-        else if (S.up[i] && hh < ST.sole[i] + 0.04 && s.st === 'flee') {
-          S.up[i] = 0;
+        else if (S.up[i] && hh < ST.sole[i] + 0.04) {
+          S.up[i] = 0; if (s.st !== 'flee') continue;
           if (!hasStamp() && (S.trailN++ & 1) === 0 && Math.hypot(p.x - P.x, p.z - P.z) < 70) C.addFootprint(p.x, p.z, yaw + Math.PI);   // no terrain module: decal prints
           if (Math.random() < 0.6) C.emit(p.x, g + 0.05, p.z, rnd(-0.8, 0.8) - fx * 2, rnd(0.6, 1.6), rnd(-0.8, 0.8) - fz * 2, 0.6, 0xdce6f6, 0.4, 2.5, 2);
         }
       }
-      if (gap < 1e8) { S.off = damp(S.off, clamp(-gap, -1.2, 1.2), 12, dt); S.wrap.position.y = S.off; }
+      let offT = -gap;
+      if (standing && fit[0] >= 3) {   // least-squares plane e = c0 + c1·a (forward) + c2·b (right) → height, pitch, roll
+        const [n, sa, sb, saa, sab, sbb, se, sea, seb] = fit, M = [[n, sa, sb], [sa, saa, sab], [sb, sab, sbb]], r = [se, sea, seb];
+        const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        const D0 = det(M);
+        if (Math.abs(D0) > 1e-6) {
+          const col = (k) => M.map((row, i) => row.map((v, j) => (j === k ? r[i] : v))), c0 = det(col(0)) / D0, c1 = det(col(1)) / D0, c2 = det(col(2)) / D0;
+          offT = -c0; const k = Math.min(1, dt * 10);
+          S.pf = clamp((S.pf || 0) - Math.atan(c1) * k, -0.35, 0.35); S.rf = clamp((S.rf || 0) - Math.atan(c2) * k, -0.35, 0.35);
+        }
+      }
+      if (gap < 1e8) { S.off = damp(S.off, clamp(offT, -1.2, 1.2), 12, dt); S.wrap.position.y = S.off; }
     }
     // keep each stag's skinned bounds honest for tools that read bounding boxes (world validator): one per 0.4 s
     ST.bbT -= dt;
@@ -704,12 +750,16 @@
     const f = C.fox; if (!f || !f.anim) return false;
     const root = f.anim.mixer.getRoot(); FX.wrap = root.parent;
     try {
-      for (const k of ['walk', 'run']) if (f.anim.acts[k]) FX.stride[k] = strideSpeed(root, f.anim.acts[k].getClip(), [['b_LeftFoot02_018'], ['b_RightFoot02_022'], ['b_LeftHand_011'], ['b_RightHand_08']], 'b_Hip_01');
+      // stride from the hind paws: the clips' front paws sweep slower than the hind ones; the hind paws carry the body
+      for (const k of ['walk', 'run']) if (f.anim.acts[k]) FX.stride[k] = strideSpeed(root, f.anim.acts[k].getClip(), [['b_LeftFoot02_018'], ['b_RightFoot02_022']], 'b_Hip_01');
     } catch (e) { /* keep the game's rates */ }
-    const orig = f.anim.speed.bind(f.anim), origLoop = f.anim.loop.bind(f.anim);
-    // the fox moves far faster than its walk clip strides: past 2.2 m/s it trots with the run clip, rate from the real speed
-    f.anim.loop = (k, fade) => origLoop(SUB.fox && k === 'walk' && f.speed > 2.2 && f.anim.acts.run ? 'run' : k, fade);
-    f.anim.speed = (k, s) => { if (SUB.fox && k === 'walk' && f.speed > 2.2) k = 'run'; const v = FX.stride[k]; if (K.stride && v > 0.2 && SUB.fox) s = clamp(f.speed / v, 0.6, 2.6); return orig(k, s); };
+    // walk ↔ run as one phase-synced gait (see makeGait); the fox's top speed is what the run clip strides at rateMax
+    // (updateFox clamps its wanted speed to fox.vMax), so paws never skate
+    try {
+      FX.gait = makeGait(f.anim, { root, keys: ['walk', 'run'], stride: FX.stride, bands: [[1.2, 2.4]], idle: 'sit', idleLo: 0.15, idleHi: 0.7, foot: 'b_LeftFoot02_018', ref: 'b_Hip_01', fwd: 1,
+        rateMax: K.foxRate, enabled: () => SUB.fox && K.gait, speed: () => f.speed || 0, want: () => f.speed || 0 });
+      if (FX.gait) f.vMax = FX.gait.vMax;
+    } catch (e) { console.warn('[interaction] fox gait', e); }
     FX.q = [new Q().setFromAxisAngle(new V3(0, 1, 0), Math.PI), new Q(), new Q(), new V3(1, 0, 0), new V3(0, 0, 1)];
     FX.ready = true; return true;
   }
@@ -866,7 +916,7 @@
     return 'interaction off';
   }
   function on() { for (const k in SUB) SUB[k] = true; return 'interaction on'; }
-  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, testIK, testWalk, strideSpeed: (...a) => strideSpeed(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
+  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, testIK, testWalk, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
   (window.GameModules = window.GameModules || []).push({
     name: 'interaction',
     order: 50,
@@ -879,6 +929,9 @@
       if (orig) S.step = function () { if (SUB.steps && B.ready && auOK() && !C.G.riding) return; return orig.apply(this, arguments); };
       ctx.surfaceAtPlayer = () => B.lastSurf;
       ctx.interaction = window.INTERACTION;
+      // boots and hooves stamp their own prints where they plant (plantStamp / stagUpdate): the terrain module's
+      // stride-spaced trail for the pilot and the stags steps aside
+      if (window.Terrain) Terrain.feetByActors = { pilot: () => K.footStamp && SUB.body && SUB.steps && B.ready && typeof C.snowSurfaceAt === 'function', stags: () => K.footStamp && SUB.stags && ST.ready && typeof C.snowSurfaceAt === 'function' };
     },
     update(dt, ctx) {
       const t0 = performance.now();
