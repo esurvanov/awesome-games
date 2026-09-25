@@ -153,12 +153,14 @@ async function saveTests() {
     if (!btn) problems.push('Continue button hidden');
     if (s.stage !== c.save.stage) problems.push(`stage ${s.stage} ≠ ${c.save.stage}`);
     if (s.mode !== 'play') problems.push('mode ' + s.mode);
-    if (Math.hypot(s.pos[0] - c.save.pos[0], s.pos[2] - c.save.pos[1]) > 3) problems.push(`pilot at ${s.pos} (saved ${c.save.pos})`);
+    // a save inside today's buildings is migrated by the game to the nearest open ground (G.migrated): the pilot must be exactly there
+    const mig = await ev(() => DBG.G.migrated || null), want = mig ? mig.to : c.save.pos;
+    if (Math.hypot(s.pos[0] - want[0], s.pos[2] - want[1]) > 3 || (mig && mig.moved > 15)) problems.push(`pilot at ${s.pos} (saved ${c.save.pos}${mig ? `, migrated → ${mig.to} (${mig.why})` : ''})`);
     if (s.pos[1] < s.ground - 0.5 || s.pos[1] > s.ground + 8) problems.push(`pilot ${Math.round((s.pos[1] - s.ground) * 100) / 100} m from the ground`);
     if (s.parts !== (c.save.parts || []).filter(Boolean).length) problems.push(`parts ${s.parts}`);
     problems.push(...counters);
     const errs = H.errors.slice(e0).filter((e) => !/api\/stats/.test(e)); if (errs.length) problems.push('JS: ' + errs.slice(0, 2).join(' | '));
-    res.push({ name: c.name, ok: problems.length === 0, detail: problems.join('; ') || `stage ${s.stage} · parts ${s.parts} · echoes ${s.echoes} · ${s.text}`, snap: s });
+    res.push({ name: c.name, ok: problems.length === 0, detail: problems.join('; ') || `stage ${s.stage} · parts ${s.parts} · echoes ${s.echoes} · ${s.text}${mig ? ` · moved ${mig.moved} m off the ${mig.why}` : ''}`, snap: s });
     log(`  save ${c.name.padEnd(46)} ${problems.length ? 'FAIL ' + problems.join('; ') : 'ok'}`);
   }
   await ev(() => localStorage.removeItem('eor-save'));
