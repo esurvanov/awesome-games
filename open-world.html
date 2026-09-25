@@ -484,6 +484,8 @@ class CascadedSunShadow extends SunLightShadow {
 window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderPass, ShaderPass, UnrealBloomPass, OutputPass, GTAOPass, Pass, FullScreenQuad, CopyShader,
   SunLight, SunLightShadow, CascadedSunShadow, SkeletonUtils, BufferGeometryUtils });
 </script>
+<script type="module" src="qa-hooks.js"></script>
+<script src="style.js"></script>
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
 <script src="ai-content.js"></script>
@@ -2830,7 +2832,8 @@ function loadPacked(name, path, cb) {
     for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
     delete window.__PACK[name];
     const cib = window.createImageBitmap; window.createImageBitmap = undefined; // force <img>-based textures: fetch(blob:) is blocked by the sandbox
-    try { GL.parse(bytes.buffer, path, (g) => { try { cb(g); } catch (e) { console.error(e); } MANAGER.itemEnd(key); }, (e) => { console.error(name, e); fail(); }); } catch (e) { console.error(name, e); fail(); }
+    try { GL.parse(bytes.buffer, path, (g) => { g.scene.userData.source = name; g.scene.traverse((o) => { if (o.geometry) o.geometry.userData.source = name; });   // provenance for tools/inventory.mjs
+      try { cb(g); } catch (e) { console.error(e); } MANAGER.itemEnd(key); }, (e) => { console.error(name, e); fail(); }); } catch (e) { console.error(name, e); fail(); }
     finally { window.createImageBitmap = cib; }
   };
   document.head.appendChild(sc);
@@ -3224,6 +3227,7 @@ const MODCTX = {
   Passport, PH, CLIMB, cam, keys, pressed, Dialog, INTER, Sound, WX, addFootprint, toast, srand, srange, fbm, vnoise, ridge, hash2,
   get T() { return T; }, get G() { return G; }, get mode() { return G.mode; },
   ENV,   // atmosphere: ENV.dirty = true re-bakes the sky environment
+  STYLE: window.STYLE,   // shared palette / material presets / light constants (style.js, STYLE.md)
   // terrain & snow (modules/terrain.js replaces these forwarders with the real functions in its init; see TERRAIN.md)
   sea, lakeIce, fpMesh,
   snowCover: (m, o) => (window.Terrain && Terrain.snowCover ? Terrain.snowCover(m, o) : m),
@@ -3297,6 +3301,8 @@ function frame(now) {
   if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
     terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead,
+    // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
+    STAGES, ZONES, enemies, boss, INTER, spawnShardling, save, continueGame, applySave, store, setPause, ENDINGS, heals,
     newGame: () => startGame(false),
     // teleport onto whatever is under (x, z): terrain or the top of a solid (rock, wreck, roof)
     teleport(x, z, yaw, y) {
