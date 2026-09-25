@@ -18,6 +18,7 @@
     ik: true, ikRay: 1.7, pelvisMin: -0.5, pelvisMax: 0.12, tiltMax: 0.6, stride: true, strideMin: 0.55, strideMax: 1.9,
     lean: 1, look: true, lookRange: 6, snowFloat: 0.3, bob: 0.018, dip: 1, iceAccel: 0.3, iceDecel: 0.14, stepVol: 1,
     stagTurn: 2.4, stagTop: 9.5, stagAlign: 0.85, foxAlign: 0.8, trees: true,
+    gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]],
   };
   const STATS = { ms: 0, msMax: 0, frames: 0, steps: 0, cracks: 0, shakes: 0, lands: 0, pounces: 0, trails: 0 };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -182,6 +183,87 @@
     act.stop(); mx.uncacheRoot(clone);
     v.sort((x, y) => x - y); return v.length ? v[v.length >> 1] : 0;
   }
+  /* ------------------------------------------------------------------ gait blend space (phase-synced) */
+  // One gait family (walk / jog / run …) plays at ONE shared phase: every clip is aligned on the same foot's forward-most
+  // point, weights follow the speed through transition bands, and the shared cycle rate = speed ÷ blended stride length
+  // (stride length = measured contact speed × clip duration). The planted foot therefore stays put at every speed a clip
+  // or a blend of two can reach; above rateMax the rate is capped (the owner clamps the speed there: gait.vMax).
+  function gaitPhase(root, clip, foot, ref, fwd) {
+    const clone = T3.SkeletonUtils.clone(root), mx = new T3.AnimationMixer(clone), act = mx.clipAction(clip); act.play();
+    const f = clone.getObjectByName(foot), r = clone.getObjectByName(ref); let best = -1e9, bt = 0; const zs = [];
+    if (f && r) for (let i = 0; i < 64; i++) {
+      mx.setTime(clip.duration * i / 64); clone.updateMatrixWorld(true);
+      const z = (_p[0].setFromMatrixPosition(f.matrixWorld).z - _p[1].setFromMatrixPosition(r.matrixWorld).z) * fwd; zs.push(z);
+      if (z > best) { best = z; bt = i / 64; }
+    }
+    // foot position (forward of the reference bone) per phase, phase 0 = forward-most point (heel strike)
+    const i0 = Math.round(bt * 64), zp = zs.length ? zs.map((_, j) => zs[(i0 + j) % 64]) : null;
+    act.stop(); mx.uncacheRoot(clone); return { off: bt, zp };
+  }
+  // o: { root, keys, stride {k: m/s}, bands [[a, b]] between keys[i] and keys[i+1] (m/s), idle?, idleLo, idleHi, foot, ref, fwd (±1: model forward axis z),
+  //      rateMax, speed() → signed m/s along the facing, enabled() }
+  function makeGait(A, o) {
+    const G = { on: false, phase: 0, fade: 1, fadeDur: 0.2, keys: o.keys.filter((k) => A.acts[k] && o.stride[k] > 0.05), dur: {}, len: {}, off: {}, w: {}, f: 0, o };
+    if (!G.keys.length) return null;
+    G.zp = {}; for (const k of G.keys) { const c = A.acts[k].getClip(), ph = gaitPhase(o.root, c, o.foot, o.ref, o.fwd); G.dur[k] = c.duration; G.len[k] = o.stride[k] * c.duration; G.off[k] = ph.off; G.zp[k] = ph.zp; }
+    // start phase per clip: in the stance half (heel strike → the foot's rearmost point), where the foot sits where the
+    // idle stance has it: starting from a standstill the planted foot does not move
+    let zIdle = 0; if (o.idle && A.acts[o.idle]) { const c2 = T3.SkeletonUtils.clone(o.root), m2 = new T3.AnimationMixer(c2); m2.clipAction(A.acts[o.idle].getClip()).play(); m2.setTime(0); c2.updateMatrixWorld(true);
+      const f = c2.getObjectByName(o.foot), r = c2.getObjectByName(o.ref); if (f && r) zIdle = (_p[0].setFromMatrixPosition(f.matrixWorld).z - _p[1].setFromMatrixPosition(r.matrixWorld).z) * o.fwd; m2.uncacheRoot(c2); }
+    G.start = {}; for (const k of G.keys) { const z = G.zp[k]; let j1 = 0; if (z) { for (let j = 1; j < 64; j++) if (z[j] < z[j1]) j1 = j; let bj = 0, bd = 1e9; for (let j = 0; j <= j1; j++) { const d = Math.abs(z[j] - zIdle); if (d < bd) { bd = d; bj = j; } } G.start[k] = bj / 64; } else G.start[k] = 0.1; }
+    G.zIdle = zIdle;
+    const last = G.keys[G.keys.length - 1]; G.vMax = o.stride[last] * o.rateMax;
+    const isG = (k) => G.keys.includes(k) || (o.idle && k === o.idle);
+    G.startKey = () => { const w = o.want ? o.want() : 0, b0 = o.bands.length ? o.bands[0][1] : 0; return w >= b0 && G.keys.length > 1 ? G.keys[1] : G.keys[0]; };
+    const origLoop = A.loop.bind(A), origOnce = A.once.bind(A), origSpeed = A.speed.bind(A), origUpdate = A.update.bind(A);
+    G.enter = (fade) => {
+      const prev = A.cur && A.acts[A.cur];
+      if (prev && !isG(A.cur)) { prev.fadeOut(fade); G.fade = 0; G.fadeDur = Math.max(0.05, fade); } else G.fade = 1;
+      if (Math.abs(o.speed()) < 1.2) G.phase = G.start[G.startKey()];   // from a standstill: the idle stance's planted foot stays
+      for (const k of G.keys.concat(o.idle && A.acts[o.idle] ? [o.idle] : [])) { const a = A.acts[k]; a.stopFading(); a.enabled = true; a.setLoop(T3.LoopRepeat, Infinity); if (!a.isRunning()) { a.reset(); a.play(); } if (k === o.idle && A.cur !== o.idle) a.setEffectiveWeight(0); }
+      G.on = true;
+    };
+    G.exit = (fade) => {
+      for (const k of G.keys.concat(o.idle && A.acts[o.idle] ? [o.idle] : [])) { const a = A.acts[k]; if (a.getEffectiveWeight() > 1e-3) { a.setEffectiveTimeScale(k === o.idle ? 1 : Math.max(0.05, Math.abs(G.f) * G.dur[k])); a.fadeOut(fade); } else a.stop(); }
+      G.on = false;
+    };
+    A.loop = (k, fade = 0.2) => {
+      if (A.lock > 0) return;
+      if (o.enabled() && (G.keys.includes(k) || (G.on && k === o.idle))) { if (!G.on) G.enter(fade); return; }
+      if (G.on) { G.exit(fade); if (A.cur === k) A.cur = null; }   // else the new clip cross-fades from the dominant gait clip
+      return origLoop(k, fade);
+    };
+    A.once = (k, dur, fade = 0.12) => { if (G.on) { G.exit(fade); if (A.cur === k) A.cur = null; } return origOnce(k, dur, fade); };
+    A.speed = (k, s) => (G.on && isG(k) ? undefined : origSpeed(k, s));
+    A.update = (dt) => {
+      if (G.on && !o.enabled()) { G.exit(0.2); const k = o.idle || G.keys[0]; if (A.cur === k) A.cur = null; origLoop(k, 0.2); }
+      if (G.on) G.step(dt);
+      return origUpdate(dt);
+    };
+    G.step = (dt) => {
+      const v = o.speed(), av = Math.abs(v);
+      if (av < 0.1) G.still = (G.still || 0) + dt; else { if (G.still > 0.25) G.phase = G.start[G.startKey()]; G.still = 0; }   // restart from a standstill
+      // weights follow max(speed, wanted speed) while speeding up (a run starts in the jog, not through the walk) and
+      // hold while braking (the stop happens in the gait it was in); a slow walk (wanted speed low) uses the walk clip
+      const want = o.want ? o.want() : av, b0 = o.bands.length ? o.bands[0][1] : 0;
+      let wv = want + 0.3 < av ? Math.max(av, G.hold || 0) : Math.max(av, Math.min(want, b0)); if (av < 0.05) wv = Math.min(want, b0); G.hold = wv;
+      for (const k of G.keys) G.w[k] = 0;
+      G.w[G.keys[0]] = 1;
+      for (let j = 0; j < G.keys.length - 1; j++) {
+        const [a, b] = o.bands[j], t = clamp((wv - a) / (b - a), 0, 1); if (t <= 0) break;
+        G.w[G.keys[j]] = 1 - t; G.w[G.keys[j + 1]] = t; if (t < 1) break;
+      }
+      let L = 0, top = G.keys[0], tw = -1; for (const k of G.keys) { L += G.w[k] * G.len[k]; if (G.w[k] > tw) { tw = G.w[k]; top = k; } }
+      let f = L > 1e-4 ? v / L : 0; const fMax = o.rateMax / G.dur[top]; f = clamp(f, -fMax, fMax); G.f = f;
+      G.phase = ((G.phase + f * dt) % 1 + 1) % 1;
+      const wi = o.idle && A.acts[o.idle] ? 1 - clamp((av - o.idleLo) / (o.idleHi - o.idleLo), 0, 1) : 0;
+      G.fade = Math.min(1, G.fade + dt / G.fadeDur);
+      for (const k of G.keys) { const a = A.acts[k]; a.setEffectiveTimeScale(0); a.time = ((G.phase + G.off[k]) % 1) * G.dur[k]; a.setEffectiveWeight(G.w[k] * (1 - wi) * G.fade); }
+      if (wi > 0 || (o.idle && A.acts[o.idle] && A.acts[o.idle].isRunning())) { const a = A.acts[o.idle]; a.setEffectiveTimeScale(1); a.setEffectiveWeight(wi * G.fade); }
+      A.cur = wi > 0.5 ? o.idle : top;
+    };
+    return G;
+  }
   function bodySetup() {
     const A = C.AV.player; if (!A || !A.mixer) return false;
     const root = A.mixer.getRoot(), wrap = root.parent; if (!wrap) return false;
@@ -202,6 +284,12 @@
       if (K.stride && v > 0.3 && SUB.body) { const P = C.player, hs = Math.hypot(P.vx, P.vz); s = clamp(hs / v, K.strideMin, K.strideMax); }
       return orig(k, s);
     };
+    // walk ↔ jog ↔ sprint as one phase-synced blend space (replaces per-clip rates + crossfades between gaits)
+    try {
+      B.gait = makeGait(A, { root, keys: ['walk', 'jog', 'run'], stride: B.stride, bands: K.gaitBands, idle: 'idle', idleLo: 0.12, idleHi: 0.8, foot: 'foot_l', ref: 'pelvis', fwd: 1, rateMax: 1.9,
+        enabled: () => K.gait && SUB.body, want: () => C.player.wantS || 0,
+        speed: () => { const P = C.player, c = P.c.g, hs = Math.hypot(P.vx, P.vz), d = -P.vx * Math.sin(c.rotation.y) - P.vz * Math.cos(c.rotation.y); return d < -0.3 * hs ? -hs : hs; } });
+    } catch (e) { console.warn('[interaction] gait setup failed', e); B.gait = null; }
     B.ready = true; return true;
   }
   // bones the mixer did not rewrite this frame still hold last frame's IK: put their animation pose back first
@@ -563,7 +651,7 @@
   const _qY = [];
   function stagUpdate(dt) {
     if (!ST.ready && !stagSetup()) return;
-    if (!_qY.length) { _qY.push(new Q().setFromAxisAngle(new V3(0, 1, 0), Math.PI), new Q(), new Q(), new V3(1, 0, 0), new V3(0, 0, 1)); }
+    if (!_qY.length) { _qY.push(new Q(), new Q(), new Q(), new V3(1, 0, 0), new V3(0, 0, 1)); }   // [0] = model → group: the stag model faces +Z (no flip)
     const cam = C.camera.position, P = C.player;
     for (const s of C.STAGS) {
       const S = ST.per.get(s); if (!S) continue;
@@ -772,13 +860,13 @@
   function off() {
     for (const k in SUB) SUB[k] = false;
     if (B.wrap) B.wrap.position.set(0, 0, 0);
-    for (const [s, S] of ST.per) { S.wrap.position.set(0, 0, 0); S.wrap.quaternion.setFromAxisAngle(new V3(0, 1, 0), Math.PI); if (s.st === 'flee' && S.wroteX !== null) { const l = Math.hypot(s.fx, s.fz) || 1; s.fx /= l; s.fz /= l; } }
+    for (const [s, S] of ST.per) { S.wrap.position.set(0, 0, 0); S.wrap.quaternion.identity(); if (s.st === 'flee' && S.wroteX !== null) { const l = Math.hypot(s.fx, s.fz) || 1; s.fx /= l; s.fz /= l; } }
     if (FX.wrap) { FX.wrap.position.set(0, 0, 0); FX.wrap.quaternion.setFromAxisAngle(new V3(0, 1, 0), Math.PI); }
     if (ICE.base && C.PH.ch) { C.PH.ch.params.groundAccel = ICE.base.a; C.PH.ch.params.groundDecel = ICE.base.d; }
     return 'interaction off';
   }
   function on() { for (const k in SUB) SUB[k] = true; return 'interaction on'; }
-  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, testIK, testWalk, surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
+  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, testIK, testWalk, strideSpeed: (...a) => strideSpeed(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
   (window.GameModules = window.GameModules || []).push({
     name: 'interaction',
     order: 50,

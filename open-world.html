@@ -2083,6 +2083,7 @@ function mount() {
 }
 function dismount() {
   G.riding = false; sk.mounted = false; sk.speed = 0;
+  player.face = sk.yaw; player.c.g.rotation.set(0, sk.yaw, 0); player.vx = player.vz = player.vy = 0;   // drop the sled's quaternion (pitch/roll, Euler flip)
   const rx = Math.cos(sk.yaw), rz = -Math.sin(sk.yaw);
   player.x = sk.x + rx * 2.2; player.z = sk.z + rz * 2.2; player.y = groundH(player.x, player.z) + 0.5; player.c.body.position.y = 0;
   if (PH.ok) { PH.vh.setEnabled(false); PH.ch.setEnabled(true); phSync(); }
@@ -2299,6 +2300,7 @@ addEventListener('resize', resize);
 
 /* ============================ UPDATE ============================ */
 const tmp = new V3(), tmp2 = new V3(), fwd = new V3();
+const RUNUP = 20;   // m/s² — start-up acceleration on foot (see updatePlayer)
 function updatePlayer(dt) {
   const c = player.c;
   let ix = (K('KeyD', 'ArrowRight') ? 1 : 0) - (K('KeyA', 'ArrowLeft') ? 1 : 0) + joy.x;
@@ -2319,7 +2321,7 @@ function updatePlayer(dt) {
     if (AV.player) AV.player.once('roll', 0.6); Sound.jump(); burst(player.x, player.y + 0.2, player.z, 0x9fb4d8, 14, 3, 0.5, 0.4, 1);
   }
   if (pressed.has('KeyG') && player.onGround) waveHello();
-  if (CLIMB.t >= 0) { updateClimb(dt); c.g.position.set(player.x, player.y, player.z); c.g.rotation.y = player.face; animChar(c, dt, 0, false, false, false); if (AV.player) AV.player.update(dt); return; }
+  if (CLIMB.t >= 0) { updateClimb(dt); c.g.position.set(player.x, player.y, player.z); c.g.rotation.set(0, player.face, 0); animChar(c, dt, 0, false, false, false); if (AV.player) AV.player.update(dt); return; }
   if (PH.ok && ml > 0.05 && player.rollT <= 0) {   // ledge climb: jump into a 0.8–1.6 m ledge, or press jump right in front of one
     const lx = mx / ml, lz = mz / ml;
     const jumping = !player.onGround && !player.sliding && T - (player.jumpAt || -9) < 1.2 && player.vy < 3.5;   // only from a real jump, never while sliding off a steep face
@@ -2327,7 +2329,12 @@ function updatePlayer(dt) {
   }
   if (PH.ok) {
     if (player.rollT > 0.5) PH.ch.setVelocity(player.rollDir[0] * 15, 0, player.rollDir[1] * 15);
-    const want = player.rollT > 0 ? { x: player.rollDir[0] * 15, z: player.rollDir[1] * 15 } : { x: mx * (run ? 11.5 : 6.5), z: mz * (run ? 11.5 : 6.5) };
+    // run-up: speed along the wanted direction grows at most RUNUP m/s² (the physics would reach sprint speed in 0.2 s
+    // with the feet still in the idle stance: they slid); braking and turning stay as crisp as the controller makes them
+    let wantS = (run ? 11.5 : 6.5) * Math.min(1, ml);
+    if (ml > 0.05 && player.onGround) { const along = Math.max(0, (player.vx * mx + player.vz * mz) / ml); wantS = Math.min(wantS, along + RUNUP * dt); }
+    player.wantS = ml > 0.05 ? (run ? 11.5 : 6.5) * Math.min(1, ml) : 0;   // wanted speed (the gait picks jog vs walk from it)
+    const want = player.rollT > 0 ? { x: player.rollDir[0] * 15, z: player.rollDir[1] * 15 } : { x: ml > 0.05 ? mx / ml * wantS : 0, z: ml > 0.05 ? mz / ml * wantS : 0 };
     const st = PH.ch.move(dt, want, pressed.has('Space'));
     player.x = st.position.x; player.y = st.position.y; player.z = st.position.z;
     player.vx = st.velocity.x; player.vz = st.velocity.z; player.vy = st.velocity.y; player.onGround = st.grounded; player.sliding = st.sliding;
@@ -2355,9 +2362,10 @@ function updatePlayer(dt) {
   if (wantFire && player.fireCd <= 0) { fireBolt(); player.fireCd = 0.2; player.aimT = 0.7; }
   // facing
   let tgt = player.face;
-  if (player.rollT > 0) tgt = player.face; else if (player.aimT > 0) tgt = cam.yaw; else if (ml > 0.05) tgt = Math.atan2(-mx, -mz);
+  const hsF = Math.hypot(player.vx, player.vz);   // the body turns into its real motion (curves, braking); from a standstill into the input
+  if (player.rollT > 0) tgt = player.face; else if (player.aimT > 0) tgt = cam.yaw; else if (ml > 0.05) tgt = hsF > 1.5 && player.onGround ? Math.atan2(-player.vx, -player.vz) : Math.atan2(-mx, -mz);
   player.face += wrapA(tgt - player.face) * Math.min(1, dt * 12);
-  c.g.position.set(player.x, player.y, player.z); c.g.rotation.y = player.face;
+  c.g.position.set(player.x, player.y, player.z); c.g.rotation.set(0, player.face, 0);   // x/z too: riding leaves the sled's pitch/roll (and a flipped Euler) in the rotation
   const hs = Math.hypot(player.vx, player.vz);
   const prevS = Math.sin(c.phase);
   animChar(c, dt, hs, !player.onGround, player.aimT > 0, false);
@@ -2408,6 +2416,14 @@ function updateSkimmer(dt, ix, iy) {
   let ahead, behind;
   if (PH.ok && PH.vh) {
     const s = PH.vh.update(dt, iy, ix, boost, pressed.has('Space'));
+    // skis bite: the sled goes where it points. Extra lateral grip (strong when coasting, where the pads' downhill push
+    // would crab it sideways) and no creeping backwards without reverse input. A boosted hard turn keeps its drift.
+    if (s.grounded && PH.vh.body && !(boost && Math.abs(ix) > 0.5)) {
+      const b = PH.vh.body, lv = b.linvel(), fx = -Math.sin(s.yaw), fz = -Math.cos(s.yaw), rx = -fz, rz = fx;
+      let vf = lv.x * fx + lv.z * fz, vr = lv.x * rx + lv.z * rz;
+      vr *= Math.exp(-(iy === 0 ? 10 : 3) * dt); if (vf < 0 && iy >= 0) vf *= Math.exp(-8 * dt);
+      b.setLinvel({ x: fx * vf + rx * vr, y: lv.y, z: fz * vf + rz * vr }, true);
+    }
     sk.x = s.position.x; sk.y = s.position.y; sk.z = s.position.z; sk.yaw = s.yaw; sk.speed = s.speed;
     if (Math.hypot(sk.x, sk.z) > 440) { boundary(sk, 440); PH.vh.teleport(sk.x, groundH(sk.x, sk.z) + 1.2, sk.z, sk.yaw); }
     sk.g.position.set(sk.x, sk.y, sk.z); sk.g.quaternion.set(s.quaternion.x, s.quaternion.y, s.quaternion.z, s.quaternion.w); sk.g.rotateZ(s.bank);
@@ -2455,7 +2471,7 @@ function updateEnemies(dt) {
     const e = enemies[i];
     if (e.dead) { enemies.splice(i, 1); continue; }
     const dx = player.x - e.x, dz = player.z - e.z, d = Math.hypot(dx, dz), hd = Math.hypot(e.x - e.hx, e.z - e.hz);
-    e.t -= dt; let mv = 0, mx = 0, mz = 0;
+    e.t -= dt; let mv = 0, mx = 0, mz = 0; const px0 = e.x, pz0 = e.z;
     const alive = G.deadT <= 0;
     switch (e.st) {
       case 'idle':
@@ -2486,7 +2502,12 @@ function updateEnemies(dt) {
     collide(e, 0.8);
     for (const o of enemies) if (o !== e && !o.dead) { const ox = e.x - o.x, oz = e.z - o.z, od = Math.hypot(ox, oz); if (od < 1.8 && od > 0.01) { e.x += ox / od * (1.8 - od) * 0.5; e.z += oz / od * (1.8 - od) * 0.5; } }
     e.y = groundH(e.x, e.z) + 1.3 + Math.sin(T * 2.5 + e.bob) * 0.25;
-    e.g.position.set(e.x, e.y, e.z); e.g.rotation.y = Math.atan2(-dx, -dz);
+    // facing: the body turns into its real motion (dash, return, circling, separation pushes); standing still it watches the pilot
+    { const vx = dt > 0 ? (e.x - px0) / dt : 0, vz = dt > 0 ? (e.z - pz0) / dt : 0, sp = Math.hypot(vx, vz);
+      const want = e.st === 'dash' ? Math.atan2(-e.dx, -e.dz) : sp > 1.2 ? Math.atan2(-vx, -vz) : Math.atan2(-dx, -dz);
+      if (e.yaw === undefined) e.yaw = want;
+      e.yaw = wrapA(e.yaw + wrapA(want - e.yaw) * Math.min(1, dt * (e.st === 'dash' ? 40 : sp > 1.2 ? 16 : 8))); }
+    e.g.position.set(e.x, e.y, e.z); e.g.rotation.y = e.yaw;
     e.orbit.rotation.y += dt * (e.st === 'windup' ? 9 : 2);
     e.flash -= dt;
     e.mat.emissive.setHex(e.flash > 0 ? 0xffffff : e.st === 'windup' || e.st === 'dash' ? 0xb0206a : 0x3a1a9a);
@@ -3167,7 +3188,7 @@ loadPacked('animal_stag', ASSET, (g) => {
     if (getH(x, z) < 1 || inRift(x, z)) continue;
     const root = THREE.SkeletonUtils ? THREE.SkeletonUtils.clone(base) : (STAGS.length ? null : base);
     if (!root) break;
-    const grp = new THREE.Group(); const wrap = new THREE.Group(); wrap.rotation.y = Math.PI; wrap.add(root); grp.add(wrap); scene.add(grp);
+    const grp = new THREE.Group(); const wrap = new THREE.Group(); wrap.add(root); grp.add(wrap); scene.add(grp);   // the stag model faces +Z = the group's yaw direction (sin yaw, cos yaw): no flip
     const A = makeAnimator(root, g.animations, { idle: 'Idle', eat: 'Eat', look: 'LookAround', run: 'Run' });
     A.loop(['idle', 'eat', 'look'][STAGS.length % 3]);
     STAGS.push({ g: grp, A, x, z, hx: x, hz: z, yaw: Math.random() * 6.28, st: 'graze', t: rand(3, 8), vx: 0, vz: 0 });
