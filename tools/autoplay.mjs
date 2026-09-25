@@ -46,11 +46,17 @@ async function clickChoice(label) {
   const r = await ev((label) => { const b = [...document.querySelectorAll('#dChoices button')].find((x) => x.children[1] && x.children[1].textContent === label); if (!b) return 'missing'; if (b.disabled) return 'disabled'; b.click(); return 'ok'; }, label);
   await sleep(150); return r;
 }
-async function interact(label, timeout = 2500) {
-  const t0 = Date.now(); let seen = null;
-  while (Date.now() - t0 < timeout) { seen = await ev(() => (document.getElementById('prompt').hidden ? null : document.getElementById('promptText').textContent)); if (seen === label) break; await sleep(100); }
-  if (seen !== label) return { ok: false, seen };
-  await page.keyboard.press('KeyE'); await sleep(250); return { ok: true, seen };
+async function interact(label, timeout = 2500, retarget = null) {
+  // wait for the expected prompt; if another interaction steals it (closest wins), walk around the target (≤ 6 angles)
+  const conflicts = [];
+  for (let k = 0; k < (retarget ? 6 : 1); k++) {
+    if (k && retarget) { await retarget(k); await sleep(400); }
+    const t0 = Date.now(); let seen = null;
+    while (Date.now() - t0 < timeout / (k ? 2 : 1)) { seen = await ev(() => (document.getElementById('prompt').hidden ? null : document.getElementById('promptText').textContent)); if (seen === label) break; await sleep(100); }
+    if (seen === label) { await page.keyboard.press('KeyE'); await sleep(250); return { ok: true, seen, conflicts }; }
+    if (seen) conflicts.push(seen);
+  }
+  return { ok: false, seen: conflicts[conflicts.length - 1] || null, conflicts };
 }
 
 async function runStory(kind) {
@@ -65,6 +71,7 @@ async function runStory(kind) {
     const after = await snap(), counters = await ev(() => QAS.counterCheck()), objective = await ev(() => QAS.objectiveCheck());
     const s = { i: run.steps.length, name, ms: Date.now() - t0, before, after, r, counters, objective, errors: H.errors.slice(e0) };
     const A = (kind2, what) => run.anomalies.push({ step: name, kind: kind2, what, at: after.pos, stage: after.stage });
+    if (r.prompt && r.prompt.ok && r.prompt.conflicts && r.prompt.conflicts.length) A('prompt_conflict', `another prompt ("${[...new Set(r.prompt.conflicts)].join('", "')}") wins next to the "${r.prompt.expect}" target`);
     if (r.prompt && !r.prompt.ok) A('soft_lock', `prompt "${r.prompt.expect}" not shown near the target (saw "${r.prompt.seen}")`);
     if (r.dialog && r.dialog.state === 'stuck') A('soft_lock', 'dialog did not close after 40 × E');
     if (expect && !expect(after, before)) A('stuck', `expected progress did not happen (stage ${before.stage} → ${after.stage}, parts ${after.parts}, echoes ${after.echoes})`);
@@ -77,16 +84,17 @@ async function runStory(kind) {
     log(`  ${name.padEnd(22)} stage ${before.stage}→${after.stage} · ${s.ms} ms${run.anomalies.filter((a) => a.step === name).map((a) => ' · ' + a.kind).join('')}`);
     return s;
   };
-  const stagedTalk = (label, tgt) => async () => { await ev((t) => { QAS.goNear(QAS.targets[t](), 2.2); }, tgt); await sleep(500); const p = await interact(label); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: label }), dialog: d }; };
+  const around = (tgt, r, i) => (k) => ev((a) => QAS.goNear(a.i === null ? QAS.targets[a.t]() : QAS.targets[a.t](a.i), a.r, 0.6 + a.k * 1.05), { t: tgt, r, i: i === undefined ? null : i, k });
+  const stagedTalk = (label, tgt) => async () => { await ev((t) => { QAS.goNear(QAS.targets[t](), 2.2); }, tgt); await sleep(500); const p = await interact(label, 2500, around(tgt, 2.2)); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: label }), dialog: d }; };
   await step('new game + intro', async () => { await ev(() => { DBG.newGame(); }); await sleep(900); const d = await advanceDialog(); await ev(() => QAS.cheat.hp()); return { dialog: d }; }, (a) => a.mode === 'play' && a.stage === 0 && !a.dialog);
   await step('take tool', stagedTalk('Открыть контейнер', 'crate'), (a) => a.stage === 1 && a.hasTool);
   await step('meet Orm', stagedTalk('Говорить', 'orm'), (a) => a.stage === 2);
   await step('lake cell', async () => { await ev(() => { QAS.goNear(QAS.targets.cell(), 2); QAS.cheat.hp(); }); await sleep(900); await advanceDialog(); await ev(() => QAS.goNear(QAS.targets.cell(), 2)); await sleep(500);
-    const p = await interact('Взять ячейку'); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: 'Взять ячейку' }), dialog: d }; }, (a) => a.stage === 3 && a.hasCell);
+    const p = await interact('Взять ячейку', 2500, around('cell', 2)); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: 'Взять ячейку' }), dialog: d }; }, (a) => a.stage === 3 && a.hasCell);
   await step('cell to Orm', stagedTalk('Говорить', 'orm'), (a) => a.stage === 4);
-  if (kind === 'free') for (let i = 0; i < 4; i++) await step(`echo ${i + 1}`, async () => { await ev((i) => QAS.goNear(QAS.targets.echo(i), 2), i); await sleep(500); const p = await interact('Слушать эхо'); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: 'Слушать эхо' }), dialog: d }; }, (a, b) => a.echoes === b.echoes + 1);
+  if (kind === 'free') for (let i = 0; i < 4; i++) await step(`echo ${i + 1}`, async () => { await ev((i) => QAS.goNear(QAS.targets.echo(i), 2), i); await sleep(500); const p = await interact('Слушать эхо', 2500, around('echo', 2, i)); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: 'Слушать эхо' }), dialog: d }; }, (a, b) => a.echoes === b.echoes + 1);
   for (let i = 0; i < 3; i++) await step(`spire ${['N', 'W', 'E'][i]}`, async () => { await ev((i) => { QAS.goNear(QAS.targets.spire(i), 2); QAS.cheat.hp(); }, i); await sleep(700); await advanceDialog(); await ev((i) => QAS.goNear(QAS.targets.spire(i), 2), i); await sleep(500);
-    const p = await interact('Извлечь деталь'); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: 'Извлечь деталь' }), dialog: d }; }, (a, b) => a.parts === b.parts + 1 && (a.parts < 3 || a.stage === 5));
+    const p = await interact('Извлечь деталь', 2500, around('spire', 2, i)); const d = await advanceDialog(); return { prompt: Object.assign(p, { expect: 'Извлечь деталь' }), dialog: d }; }, (a, b) => a.parts === b.parts + 1 && (a.parts < 3 || a.stage === 5));
   await step('Orm, the Rift', stagedTalk('Говорить', 'orm'), (a) => a.stage === 6);
   await step('rift boss', async () => {
     await ev(() => { const r = DBG.POI.rift; QAS.cheat.hp(); DBG.teleport(r.x + 3, r.z + 26); });
@@ -114,7 +122,7 @@ async function runStory(kind) {
   const last = run.steps[run.steps.length - 1];
   if (last.r.end) { if (!last.r.end.card) run.anomalies.push({ step: last.name, kind: 'soft_lock', what: 'ending card not shown after 8.6 s' }); if (!last.r.end.endings.includes(kind)) run.anomalies.push({ step: last.name, kind: 'quest_counter_wrong', what: 'ending not recorded in eor-endings' }); if (last.r.end.save) run.anomalies.push({ step: last.name, kind: 'quest_counter_wrong', what: 'save not cleared after the ending' }); }
   run.reached = last.after.mode === 'ending' ? `ending "${last.r.end && last.r.end.title}"` : `stage ${last.after.stage}`;
-  run.ok = run.anomalies.length === 0 && last.after.mode === 'ending';
+  run.ok = run.anomalies.filter((a) => a.kind !== 'prompt_conflict').length === 0 && last.after.mode === 'ending';
   run.jsErrors = H.errors.slice(errs0);
   fs.writeFileSync(path.join(out, `trace-${kind}.json`), JSON.stringify(run, null, 1));
   return run;

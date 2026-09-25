@@ -140,9 +140,10 @@
   M.shardlings = { setup() { QAV.clearEnemies(); const s = spotNear(POI.crash.x - 25, POI.crash.z - 20, 0.5, 0, 12); QA.place(s.x, s.z, { yaw: 0.9, pitch: 0.2 }); P.hp = P.hpMax = 99;
       const fx = -Math.sin(0.9), fz = -Math.cos(0.9); for (let i = -1; i <= 1; i++) freshEnemy(s.x + fx * 22 + fz * i * 5, s.z + fz * 22 - fx * i * 5, 'chase'); return { only: ['shardling'], every: 4 }; },
     async run() { await QA.wait(3000); }, after() { QAV.clearEnemies(); } };
-  M.boss = { setup() { QAV.clearEnemies(); D.setStage(6, true); const r = POI.rift, x = r.x + 4, z = r.z + 30; D.teleport(x, z); P.hp = P.hpMax = 99; D.cam.yaw = Math.atan2(x - r.x, z - r.z); D.cam.pitch = 0.25; D.cam.dist = 9;
+  M.boss = { setup() { QAV.clearEnemies(); D.setStage(6, true); const r = POI.rift, x = r.x + 3, z = r.z + 22; D.teleport(x, z); P.hp = P.hpMax = 99; D.cam.yaw = Math.atan2(x - r.x, z - r.z); D.cam.pitch = 0.25; D.cam.dist = 9;
       return { only: ['boss'], every: 6, waitFor: () => D.boss.active }; },
-    async run() { for (let i = 0; i < 30 && !D.boss.active; i++) await QA.wait(100); QA.closeDialogs(); await QA.wait(2600); QA.closeDialogs(); await QA.wait(3500); } };
+    async run() { for (let i = 0; i < 30 && !D.boss.active; i++) await QA.wait(100); QA.closeDialogs(); await QA.wait(2600); QA.closeDialogs();
+      for (let i = 0; i < 4; i++) { const d = Math.hypot(P.x - D.boss.x, P.z - D.boss.z); QA.keys(['KeyW'], d > 18); QA.keys(['KeyS'], d < 15); await QA.wait(900); } QA.release(); await QA.wait(600); } };
   QAV.motionOrder = ['walk', 'run_turn', 'strafe_back', 'climb_crate', 'climb_kestrel', 'ride', 'fox_follow', 'fox_seek', 'stags_flee', 'stags_flee2', 'shardlings', 'boss'];
 })();
 /* ------------------------------------------------------------------ one motion take, end to end (in the page) */

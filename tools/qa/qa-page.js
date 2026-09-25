@@ -103,9 +103,10 @@
     D.enemies.forEach((e, k) => { if (e.dead) return; const root = e.anim ? e.anim.mixer.getRoot() : e.g;
       add('shardling' + k, 'shardling', e.g, () => (e.eye ? horiz(wpos(e.eye, V()).sub(wpos(e.g, V()))) : null), root, e.anim, { st: () => e.st, feet: [] }); });
     const B = D.boss; if (B && B.g && B.g.visible && B.active) {
-      let root = null; B.g.traverse((o) => { if (!root && o.isSkinnedMesh) root = o.skeleton.bones[0].parent || o.parent; });
-      const rr = root || B.g, bn = bonesOf(rr);
-      add('boss', 'boss', B.g, FWD.biped(bn, 'hip.L', 'hip.R'), rr, null, { pelvis: bn.hip, st: () => B.st });
+      const bn = {}; B.g.traverse((o) => { if (o.isSkinnedMesh) for (const b of o.skeleton.bones) if (!bn[b.name]) bn[b.name] = b; });
+      const f = FWD.biped(bn, 'hipL', 'hipR'), g = () => { const a = f(); if (a || !bn.jaws || !bn.head) return a; return horiz(wpos(bn.jaws, V()).sub(wpos(bn.head, V()))); };
+      add('boss', 'boss', B.g, g, B.g, null, { pelvis: bn.hip, st: () => B.st });
+      out[out.length - 1].bn = bn;
     }
     // snowmobile: headlight glows (warm white) minus the tail light (red) — the model's own emitters
     { const sk = D.sk, heads = [], tails = [];
@@ -195,8 +196,9 @@
     const bs = F.map((f, i) => { const j = Math.max(0, i - 3), k = Math.min(F.length - 1, i + 3), a = F[j].a[id].p, b = F[k].a[id].p, dt = F[k].t - F[j].t; return dt > 0 ? Math.hypot(b[0] - a[0], b[2] - a[2]) / dt : 0; });
     const vMed = median(bs.filter((v) => v > 0.4)) || 0;
     for (let k = 0; k < nf; k++) {
-      // sole height above the (CPU) ground, relative to its own minimum within ±0.35 s: terrain offsets cancel out
-      const h = F.map((f) => { const s = f.a[id].ft[k]; return s ? s[1] - s[3] : null; });
+      // sole height above the actor's root (the root rides on the physics ground, so terrain relief cancels), relative
+      // to its own minimum within ±0.35 s
+      const h = F.map((f) => { const s = f.a[id].ft[k]; return s ? s[1] - f.a[id].p[1] : null; });
       const hr = h.map((v, i) => { if (v === null) return null; let m = Infinity; for (let j = i; j >= 0 && F[i].t - F[j].t < 0.35; j--) if (h[j] !== null && h[j] < m) m = h[j]; for (let j = i; j < F.length && F[j].t - F[i].t < 0.35; j++) if (h[j] !== null && h[j] < m) m = h[j]; return v - m; });
       let span = null;
       const close = (i) => {
@@ -210,7 +212,8 @@
       for (let i = 1; i < F.length; i++) {
         const s = F[i].a[id].ft[k], s0 = F[i - 1].a[id].ft[k]; if (!s || !s0 || hr[i] === null) { close(i); continue; }
         const dt = F[i].t - F[i - 1].t, vy = dt > 0 ? (s[1] - s0[1]) / dt : 0;
-        if (hr[i] < 0.04 && Math.abs(vy) < 0.5) { if (!span) span = { i0: i }; } else close(i);
+        const vyr = dt > 0 ? vy - (F[i].a[id].p[1] - F[i - 1].a[id].p[1]) / dt : 0;
+        if (hr[i] < 0.05 && Math.abs(vyr) < 0.6) { if (!span) span = { i0: i }; } else close(i);
       }
       close(F.length);
     }
