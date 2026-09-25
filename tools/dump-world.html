@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>World Dump</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { --bg: #070b1a; --ink: #e8f4ff; --dim: #8a9cc0; --ok: #5cf5c0; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px system-ui, sans-serif; }
+  #s { padding: 8px 12px; } #s b { color: var(--ok); }
+  iframe { width: 960px; height: 540px; max-width: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<!-- Loads the game with #dbg, waits for async models, then dumps placements to /api/world-dump
+     (server/cache/world-dump.json) for tools/validate-world.mjs. Run through server/server.mjs. -->
+<div id="s">⏳ загрузка…</div>
+<iframe id="f"></iframe>
+<script src="../ai-content.js"></script>
+<script src="../ai.js"></script>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search), page = q.get('page') || 'open-world.html', WAIT = +(q.get('wait') || 25) * 1000;
+  const f = document.getElementById('f'), st = document.getElementById('s'); f.src = '../' + page + '#dbg';
+  // POI centres as defined in open-world.html (POI const is not exported by #dbg)
+  const POI = { crash: { x: -20, z: 200 }, station: { x: 180, z: 105 }, lake: { x: -185, z: 55 }, rift: { x: 0, z: -40 }, spireN: { x: 35, z: -285 }, spireW: { x: -272, z: -85 }, spireE: { x: 292, z: -110 } };
+  let seen = 0;
+  const iv = setInterval(() => {
+    const w = f.contentWindow, D = w && w.DBG;
+    if (!D) { st.textContent = '⏳ ждём игру…'; return; }
+    if (!seen) seen = Date.now();
+    const left = Math.ceil((WAIT - (Date.now() - seen)) / 1000);
+    if (left > 0) { st.textContent = '⏳ модели грузятся · ' + left + ' с'; return; }
+    clearInterval(iv);
+    const named = { fox: D.fox && D.fox.g, skimmer: D.sk && D.sk.g, player: D.player && D.player.c && D.player.c.g };
+    const W = D.WORLD || {};
+    if (W.kestrel) named.ship_kestrel = W.kestrel.g; if (W.heart) named.heart_of_rift = W.heart.g; if (W.crate) named.cargo_crate = W.crate; if (W.cell) named.power_cell = W.cell;
+    (D.STAGS || []).forEach((s, i) => { named['stag_' + i] = s.g; });
+    const ws = w.WorldFill && w.WorldFill.stats, sites = ws ? { camp: ws.camp, wreck: ws.ship, pier: ws.pier, ruins: Array.isArray(ws.ruins) ? ws.ruins[0] : ws.ruins } : null;
+    const extra = [];
+    (D.FOREST && D.FOREST.list || []).forEach((t, i) => { if (i % 12 === 0) extra.push({ label: 'spruce tree', kind: 'tree', x: t[0], z: t[2], minY: t[1], size: [3 * t[3], 6 * t[3], 3 * t[3]] }); });
+    const dump = AI.dumpWorld({ THREE: D.THREE || w.THREE, scene: D.scene, named, POI: D.POI || POI, getH: D.getH, groundH: D.groundH, sites: () => sites, extraItems: () => extra }, { post: false, perInstanced: 30 });
+    fetch('/api/world-dump', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(dump) })
+      .then((r) => r.json()).then((j) => { st.innerHTML = '<b>✓</b> ' + dump.count + ' объектов → server/cache/world-dump.json'; document.title = 'World Dump · done'; })
+      .catch(() => { st.textContent = '✗ сервер недоступен'; });
+  }, 500);
+})();
+</script>
+</body>
+</html>

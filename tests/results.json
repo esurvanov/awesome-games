@@ -1,0 +1,36 @@
+{
+ "note": "Real-API run of tests/ai.test.mjs on 2026-09-25 (content c3, model jev-1.13.0). Re-created from the run's console output after an offline run overwrote the file; the script now writes offline runs to results-offline.json.",
+ "passed": 47, "failed": 0,
+ "keywordBaseline": { "orm": "7/10", "commands": "10/10" },
+ "real": {
+  "upstreamCalls": 35, "inputTokens": 35477, "usd": 0.00149,
+  "latencyMs": { "p50": 318, "p95": 426 }, "cacheHitMs": { "p50": 0 }, "parallelBurstMs": 324,
+  "tokensPerCall": { "ORM_TALK": 1464, "COMMANDS": 945, "DIRECTOR": 778, "CREATURE": 1193, "HINTS": 539, "QUALITY_DIRECTOR": 657, "PRELOAD": 492 },
+  "accuracy": { "ORM_TALK": "10/10", "COMMANDS": "9/10 (miss: 'Искра, ищи!' → where_fox; fixed in c4, recheck 3/3)" },
+  "orm": [
+   {"phrase":"Привет, старик!","got":"greet","conf":1,"mood":4},
+   {"phrase":"Кто такая Лидия?","got":"lidia_who","conf":1,"lidia":0.72},
+   {"phrase":"Почему ты не пошёл за ней?","got":"lidia_guilt","conf":1,"lidia":0.68},
+   {"phrase":"Куда мне теперь идти?","got":"goal_spires","conf":0.99},
+   {"phrase":"что это за штуки светятся в небе","got":"aurora","conf":1},
+   {"phrase":"расскажи про лису","got":"fox_joined","conf":0.47},
+   {"phrase":"ты тупой","got":"rude","conf":1,"mood":1},
+   {"phrase":"сколько будет 17 умножить на 23","got":"dont_know","conf":1},
+   {"phrase":"фывапролд","got":"dont_understand","conf":0.77},
+   {"phrase":"как мне починить корабль?","got":"ship","conf":0.83}
+  ],
+  "director": [
+   {"case":"calm explorer","event":"none","conf":0.42,"tension":3,"afterC4":"fox_find 0.49"},
+   {"case":"hurt after death","event":"supply_drop","conf":0.84,"tension":4},
+   {"case":"in combat","event":"none","conf":1,"tension":5}
+  ],
+  "creature": [
+   {"c0:stag@8":"flee","c1:stag@55":"graze","c2:fox@4":"lead_player_to_shard","c3:shardling@12":"retreat"},
+   {"c0:stag@25":"alert","c1:fox@3":"alert","c2:shardling@45":"alert","c3:shardling@9":"approach"}
+  ],
+  "hints": [{"stage":2,"stuck":true,"noul":0.9,"id":"h2a"},{"stage":4,"stuck":false,"noul":0.08,"id":"h4a"}],
+  "quality": [{"case":"struggling laptop","preset":"low","focus":"enemy"},{"case":"strong desktop","preset":"high","focus":"landscape","src":"rules (conf<0.4)"},{"case":"phone ok","preset":"med","focus":"vehicle"}],
+  "preload": [{"stage":2,"zone":"lake"},{"stage":6,"zone":"rift"}]
+ },
+ "otherRealCalls": { "smoke": 1, "validator": 1, "c4Recheck": 6, "totalAllRuns": 43 }
+}

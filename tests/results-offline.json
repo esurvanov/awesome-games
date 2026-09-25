@@ -1,0 +1,232 @@
+{
+ "at": "2026-09-25T15:01:15.396Z",
+ "checks": [
+  {
+   "name": "ORM replies ≥ 40",
+   "ok": true,
+   "extra": {
+    "n": 47
+   }
+  },
+  {
+   "name": "commands ≥ 25",
+   "ok": true,
+   "extra": {
+    "n": 27
+   }
+  },
+  {
+   "name": "Orm lines short (≤80 chars)",
+   "ok": true,
+   "extra": {
+    "max": 72
+   }
+  },
+  {
+   "name": "ORM_TALK: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 3
+   }
+  },
+  {
+   "name": "DIRECTOR: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 2
+   }
+  },
+  {
+   "name": "CREATURE: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 4
+   }
+  },
+  {
+   "name": "COMMANDS: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 1
+   }
+  },
+  {
+   "name": "HINTS: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 2
+   }
+  },
+  {
+   "name": "QUALITY_DIRECTOR: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 2
+   }
+  },
+  {
+   "name": "PRELOAD: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 1
+   }
+  },
+  {
+   "name": "schema rejects malformed state",
+   "ok": true
+  },
+  {
+   "name": "unknown set rejected",
+   "ok": true
+  },
+  {
+   "name": "429 → exponential backoff retry succeeds",
+   "ok": true,
+   "extra": {
+    "attempts": 2
+   }
+  },
+  {
+   "name": "identical state → cache hit",
+   "ok": true,
+   "extra": {
+    "ms": 0
+   }
+  },
+  {
+   "name": "non-whitelisted set → 400",
+   "ok": true
+  },
+  {
+   "name": "bad state → 422",
+   "ok": true
+  },
+  {
+   "name": "foreign Origin → 403",
+   "ok": true
+  },
+  {
+   "name": ".env is never served",
+   "ok": true
+  },
+  {
+   "name": "server/ folder is never served",
+   "ok": true
+  },
+  {
+   "name": "ai.js served, contains no key",
+   "ok": true
+  },
+  {
+   "name": "529 persistent → fails fast (<1.7 s)",
+   "ok": true,
+   "extra": {
+    "ms": 519,
+    "upstreamCalls": 3
+   }
+  },
+  {
+   "name": "circuit breaker open → instant 503",
+   "ok": true,
+   "extra": {
+    "reason": "cooldown"
+   }
+  },
+  {
+   "name": "stats show circuit open",
+   "ok": true
+  },
+  {
+   "name": "hung upstream → timeout at ~1.5 s",
+   "ok": true,
+   "extra": {
+    "ms": 1503
+   }
+  },
+  {
+   "name": "rate limit → 429 beyond burst",
+   "ok": true,
+   "extra": {
+    "ok": 10,
+    "limited": 6
+   }
+  },
+  {
+   "name": "no key → stats.ai=false, decide 503 (client uses rules)",
+   "ok": true
+  },
+  {
+   "name": "probe detects missing server quickly",
+   "ok": true,
+   "extra": {
+    "ms": 0
+   }
+  },
+  {
+   "name": "decide() resolves null instantly offline",
+   "ok": true,
+   "extra": {
+    "ms": 0.02
+   }
+  },
+  {
+   "name": "Orm talk falls back to keyword rules",
+   "ok": true,
+   "extra": {
+    "id": "lidia_who"
+   }
+  },
+  {
+   "name": "director rules fire offline (low HP → supply_drop)",
+   "ok": true,
+   "extra": {
+    "toasts": [
+     "Старый ящик «Полярной». Лекарства"
+    ]
+   }
+  },
+  {
+   "name": "AI.tick cost per frame",
+   "ok": true,
+   "extra": {
+    "ms": 0.0006
+   }
+  },
+  {
+   "name": "quality hysteresis: alternating advice → 0 changes",
+   "ok": true,
+   "extra": {
+    "changes": 0
+   }
+  },
+  {
+   "name": "quality hysteresis: 3 consistent \"up\" samples → one step up",
+   "ok": true,
+   "extra": {
+    "set": [
+     "ultra",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "quality hysteresis: fps 20 → immediate single step down (no jump to low)",
+   "ok": true,
+   "extra": {
+    "set": [
+     "ultra",
+     "high"
+    ]
+   }
+  }
+ ],
+ "keywordBaseline": {
+  "orm": "7/10",
+  "commands": "10/10"
+ },
+ "client": {
+  "probeMs": 0,
+  "offlineDecideMs": 0.024,
+  "tickMs": 0.0006
+ }
+}

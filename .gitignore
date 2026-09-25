@@ -1,0 +1,18 @@
+# secrets
+.env
+*.env
+# local caches / tooling
+server/cache/
+tools/node_modules/
+tools/.chrome-profile/
+node_modules/
+# heavy or generated
+stand/
+_backup-*/
+.open-world.*.bak
+Игры/
+assets/incoming/
+assets/incoming2/
+assets/incoming3/
+*.zip
+.DS_Store

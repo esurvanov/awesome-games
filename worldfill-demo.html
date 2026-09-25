@@ -1,0 +1,249 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>WorldFill Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: dark; --bg: #070b1a; --ink: #e8f4ff; --dim: #8a9cc0; --ice: #7fe3ff; --panel: rgba(9, 15, 36, .78); --line: rgba(127, 227, 255, .22); }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.35 system-ui, -apple-system, sans-serif; overflow: hidden; }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: fixed; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 24px); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip, button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink); font: 600 12px system-ui, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  button { cursor: pointer; } button:hover { border-color: var(--ice); } button.on { background: rgba(127, 227, 255, .25); }
+  svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .bar { width: 60px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; } .bar i { display: block; height: 100%; background: var(--ice); }
+  .keys { position: fixed; right: 12px; bottom: 12px; color: var(--dim); }
+  #err { position: fixed; left: 12px; bottom: 12px; color: #ff7d9a; white-space: pre-wrap; max-width: 70vw; }
+</style>
+<canvas id="c"></canvas>
+<div class="hud">
+  <div class="row">
+    <span class="chip"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><b id="fps">–</b> fps</span>
+    <span class="chip"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><b id="calls">–</b> calls</span>
+    <span class="chip"><svg viewBox="0 0 24 24"><path d="M12 3 3 20h18z"/></svg><b id="tris">–</b> tris</span>
+    <span class="chip"><svg viewBox="0 0 24 24"><path d="M12 22V12M5 12l7-9 7 9"/></svg>WF <b id="wf">–</b></span>
+  </div>
+  <div class="row" id="presets"></div>
+  <div class="row">
+    <button id="storm"><svg viewBox="0 0 24 24"><path d="M3 8h12a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Метель</button>
+    <button id="walk" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M10 22l2-7 3 3v4M9 11l3-3 3 3 3 1"/></svg>Пешком</button>
+    <span class="chip">storm <span class="bar"><i id="stormBar" style="width:0"></i></span></span>
+  </div>
+</div>
+<div class="keys chip">WASD · мышь · Shift · Q/E</div>
+<div id="err"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="worldfill.js"></script>
+<script>
+window.addEventListener('error', (e) => { document.getElementById('err').textContent += (e.message || e) + '\n'; });
+/*WORLD-BEGIN*/
+// ---- copied from open-world.html (noise, heightmap, POI, patchSurface) so the demo matches the game ----
+var WORLDSIM = (function () {
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  let seed = 20260925;
+  const srand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const srange = (a, b) => a + srand() * (b - a);
+  function hash2(x, y) { let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
+  function vnoise(x, y) { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi; const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
+  function fbm(x, y, o = 5) { let s = 0, a = 0.5, f = 1; for (let i = 0; i < o; i++) { s += a * vnoise(x * f + i * 17.3, y * f - i * 9.1); f *= 2.03; a *= 0.5; } return s; }
+  function ridge(x, y, o = 5) { let s = 0, a = 0.5, f = 1; for (let i = 0; i < o; i++) { const n = 1 - Math.abs(vnoise(x * f + i * 5.7, y * f) * 2 - 1); s += a * n * n; f *= 2.1; a *= 0.5; } return s; }
+  const W = 900, RES = 256, CELL = W / RES, VN = RES + 1, RIFT_FLOOR = 5;
+  const POI = { crash: { x: -20, z: 200 }, station: { x: 180, z: 105 }, lake: { x: -185, z: 55 }, rift: { x: 0, z: -40 }, spireN: { x: 35, z: -285 }, spireW: { x: -272, z: -85 }, spireE: { x: 292, z: -110 } };
+  function baseH(x, z) {
+    const wob = (fbm(x * 0.004 + 3.1, z * 0.004 + 7.7, 4) - 0.5) * 130, r = Math.hypot(x, z) + wob, land = 1 - smooth(255, 395, r);
+    let h = land * (9 + fbm(x * 0.007, z * 0.007, 5) * 26) - (1 - land) * 9;
+    const north = smooth(-50, -250, z) * land; h += north * ridge(x * 0.0055 + 5, z * 0.0055 + 2, 5) * 125;
+    const east = smooth(110, 300, x) * land * (1 - north); h += east * fbm(x * 0.011 + 9, z * 0.011, 4) * 24;
+    h += land * (fbm(x * 0.045, z * 0.045, 3) - 0.5) * 4; return h;
+  }
+  const FLAT = [];
+  function flatAt(p, r, minH, edge = 1.9, offset = 0) { p.h = Math.max(baseH(p.x, p.z) + offset, minH); FLAT.push({ x: p.x, z: p.z, r, h: p.h, e: r * edge }); }
+  flatAt(POI.crash, 26, 8); flatAt(POI.station, 34, 10); flatAt(POI.spireN, 20, 24); flatAt(POI.spireW, 20, 8); flatAt(POI.spireE, 20, 10); flatAt(POI.lake, 50, 3, 1.35, -5);
+  POI.rift.h = RIFT_FLOOR;
+  function riftD(x, z) { return Math.hypot(x - POI.rift.x, (z - POI.rift.z) * 1.25) + (fbm(x * 0.03, z * 0.03, 3) - 0.5) * 14; }
+  function worldH(x, z) {
+    let h = baseH(x, z);
+    for (const f of FLAT) { const d = Math.hypot(x - f.x, z - f.z); if (d < f.e) h = lerp(h, f.h, smooth(f.e, f.r, d)); }
+    const dr = riftD(x, z); if (dr < 140) { const rim = smooth(115, 84, dr) * smooth(50, 80, dr) * 9; h = lerp(h + rim, RIFT_FLOOR, smooth(80, 48, dr)); }
+    return Math.max(h, -4);
+  }
+  const H = new Float32Array(VN * VN);
+  for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) H[iz * VN + ix] = worldH(ix * CELL - W / 2, iz * CELL - W / 2);
+  function getH(x, z) {
+    const gx = (x + W / 2) / CELL, gz = (z + W / 2) / CELL; if (gx < 0 || gz < 0 || gx >= RES || gz >= RES) return -4;
+    const ix = Math.floor(gx), iz = Math.floor(gz), fx = gx - ix, fz = gz - iz;
+    const a = H[iz * VN + ix], b = H[(iz + 1) * VN + ix], c = H[(iz + 1) * VN + ix + 1], d = H[iz * VN + ix + 1];
+    if (fx + fz <= 1) return a + (d - a) * fx + (b - a) * fz; return c + (b - c) * (1 - fx) + (d - c) * (1 - fz);
+  }
+  const groundH = (x, z) => Math.max(getH(x, z), 0);
+  function normalY(x, z) { const e = 1.2, hx = getH(x + e, z) - getH(x - e, z), hz = getH(x, z + e) - getH(x, z - e); return 2 * e / Math.hypot(hx, 2 * e, hz); }
+  const ECHO_POS = [[-120, 170], [95, 225], [250, 25], [-200, -190], [140, -215], [-75, -150], [-280, 150], [60, 85]];
+  const NEAR = [[POI.crash, 32], [POI.station, 42], [POI.spireN, 30], [POI.spireW, 30], [POI.spireE, 30], [POI.lake, 60]];
+  ECHO_POS.forEach(([x, z]) => NEAR.push([{ x, z }, 12]));
+  const nearPOI = (x, z, extra = 0) => NEAR.some(([p, r]) => Math.hypot(x - p.x, z - p.z) < r + extra);
+  const inRift = (x, z, m = 0) => riftD(x, z) < 88 + m;
+  const cols = []; const addCol = (x, z, r) => cols.push({ x, z, r });
+  function makePatchSurface(TX) {
+    const TU = { tSnow: { value: TX.snow }, tSnowN: { value: TX.snowN }, tSnowR: { value: TX.snowR }, tRock: { value: TX.rock }, tRockN: { value: TX.rockN }, tRockR: { value: TX.rockR },
+      uScanC: { value: new THREE.Vector2() }, uScanR: { value: -1 }, uScanA: { value: 0 }, uTime: { value: 0 } };
+    function patchSurface(mat, o) {
+      const f = (v) => Number(v).toFixed(4);
+      mat.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, TU);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aRock; varying float vRock; varying vec3 vWPos; varying vec3 vWNor;')
+          .replace('#include <fog_vertex>', `#include <fog_vertex>
+            vec4 wp4 = vec4(transformed, 1.0); vec3 wn3 = objectNormal;
+            #ifdef USE_INSTANCING
+              wp4 = instanceMatrix * wp4; wn3 = mat3(instanceMatrix) * wn3;
+            #endif
+            vWPos = (modelMatrix * wp4).xyz; vWNor = normalize(mat3(modelMatrix) * wn3); vRock = aRock;`);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+            uniform sampler2D tSnow, tSnowN, tSnowR, tRock, tRockN, tRockR; uniform vec2 uScanC; uniform float uScanR, uScanA, uTime;
+            varying vec3 vWPos; varying vec3 vWNor; varying float vRock;
+            float sh21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+            vec3 triS(sampler2D t, vec3 p, vec3 w){ return texture2D(t, p.zy).rgb * w.x + texture2D(t, p.xz).rgb * w.y + texture2D(t, p.xy).rgb * w.z; }`)
+          .replace('#include <map_fragment>', `
+            vec3 wn = normalize(vWNor);
+            vec3 bw = pow(abs(wn), vec3(4.)); bw /= (bw.x + bw.y + bw.z);
+            vec2 uvS = vWPos.xz * ${f(o.snowS)};
+            float macro = texture2D(tSnow, vWPos.xz * .0107).r;
+            float snowMask = smoothstep(${f(o.lo)}, ${f(o.hi)}, wn.y + (macro - .5) * .3) * (1. - clamp(vRock, 0., 1.));
+            vec3 pR = vWPos * ${f(o.rockS)};
+            vec3 rockC = triS(tRock, pR, bw) * vec3(.62, .68, .82);
+            vec3 sT = texture2D(tSnow, uvS).rgb; sT = mix(vec3(.8), sT, .5);
+            vec3 snowC = sT * (.8 + .4 * macro) * vec3(.86, .92, 1.02);
+            diffuseColor.rgb *= mix(rockC, snowC, snowMask);
+            float tRough = mix(triS(tRockR, pR, bw).g, texture2D(tSnowR, uvS).g * .9, snowMask);`)
+          .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = roughness * tRough;')
+          .replace('#include <normal_fragment_maps>', `
+            vec3 nS = texture2D(tSnowN, uvS).xyz * 2. - 1.;
+            vec3 nx = texture2D(tRockN, pR.zy).xyz * 2. - 1., ny = texture2D(tRockN, pR.xz).xyz * 2. - 1., nz = texture2D(tRockN, pR.xy).xyz * 2. - 1.;
+            vec3 dRock = vec3(0., nx.y, nx.x) * bw.x + vec3(ny.x, 0., ny.y) * bw.y + vec3(nz.x, nz.y, 0.) * bw.z;
+            vec3 wN2 = normalize(wn + mix(dRock * 1.2, vec3(nS.x, 0., nS.y) * .45, snowMask));
+            normal = normalize((viewMatrix * vec4(wN2, 0.)).xyz);`)
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+            float glit = step(.9965, sh21(floor(vWPos.xz * 24.))) * snowMask * (.5 + .5 * sin(uTime * 3. + vWPos.x * 7. + vWPos.z * 3.)) * (1. - smoothstep(12., 40., length(vViewPosition))) * ${f(o.glitter)};
+            totalEmissiveRadiance += vec3(.8, .9, 1.) * glit * 1.4;`);
+      };
+      mat.customProgramCacheKey = () => 'surf' + JSON.stringify(o);
+    }
+    return { TU, patchSurface };
+  }
+  return { clamp, lerp, smooth, srand, srange, vnoise, fbm, ridge, W, RES, CELL, VN, H, POI, FLAT, riftD, getH, groundH, normalY, nearPOI, inRift, addCol, cols, ECHO_POS, makePatchSurface };
+})();
+/*WORLD-END*/
+
+(function main() {
+  const S = WORLDSIM, $ = (id) => document.getElementById(id);
+  const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.info.autoReset = false;
+  const scene = new THREE.Scene(), FOG = new THREE.Color(0x1b2b55); scene.fog = new THREE.Fog(FOG, 90, 640);
+  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 3000);
+  scene.add(new THREE.HemisphereLight(0x94c4ff, 0x1c2548, 0.36));
+  const moon = new THREE.DirectionalLight(0xd2ddff, 0.95); moon.castShadow = true; moon.shadow.mapSize.set(1536, 1536);
+  Object.assign(moon.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 320 }); moon.shadow.bias = -0.0008; scene.add(moon, moon.target);
+  const MOON_DIR = new THREE.Vector3(0.77, 0.36, 0.56).normalize();
+  const TL = new THREE.TextureLoader(), tex = (n) => { const t = TL.load('assets/' + n); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; };
+  const TX = { snow: tex('snow_diff.jpg'), snowN: tex('snow_nor.jpg'), snowR: tex('snow_rough.jpg'), rock: tex('rock_diff.jpg'), rockN: tex('rock_nor.jpg'), rockR: tex('rock_rough.jpg') };
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  TX.sky = TL.load('assets/sky.jpg', (t) => { scene.environment = pmrem.fromEquirectangular(t).texture; }); TX.sky.generateMipmaps = false; TX.sky.minFilter = THREE.LinearFilter;
+  const { TU, patchSurface } = S.makePatchSurface(TX);
+  // sky (same as game)
+  const aurA = new THREE.Color(0.2, 1.0, 0.66), aurB = new THREE.Color(0.66, 0.32, 1.0);
+  const skyU = { uTime: { value: 0 }, uFog: { value: FOG }, uA: { value: aurA }, uB: { value: aurB }, uInt: { value: 1 }, tSky: { value: TX.sky }, uStorm: { value: 0 } };
+  const NOISE_GLSL = `float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+    float vn(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f); return mix(mix(h21(i), h21(i+vec2(1.,0.)), u.x), mix(h21(i+vec2(0.,1.)), h21(i+vec2(1.,1.)), u.x), u.y); }
+    float fb(vec2 p){ float s = 0., a = .5; for(int i = 0; i < 5; i++){ s += a * vn(p); p = p * 2.03 + 17.1; a *= .5; } return s; }`;
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(1400, 48, 24), new THREE.ShaderMaterial({
+    uniforms: skyU, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+    vertexShader: 'varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.); gl_Position = p.xyww; }',
+    fragmentShader: `uniform float uTime, uInt, uStorm; uniform vec3 uFog, uA, uB; uniform sampler2D tSky; varying vec3 vDir; ${NOISE_GLSL}
+      void main(){ vec3 d = normalize(vDir); float y = d.y;
+        vec2 suv = vec2(atan(d.z, d.x) * .15915494 + .5, asin(clamp(y, -1., 1.)) * .31830989 + .5);
+        vec3 ph = texture2D(tSky, suv).rgb; float lum = dot(ph, vec3(.3, .5, .2));
+        vec3 photo = pow(ph, vec3(2.5)) * vec3(.42, .5, .72) + vec3(1., .97, .9) * smoothstep(.93, 1., lum) * 1.6;
+        vec3 col = mix(uFog, photo, smoothstep(-.01, .2, y)); if (y < 0.) col = uFog;
+        vec2 uv = vec2(atan(d.x, -d.z), asin(clamp(y, -1., 1.))) * 170.; vec2 id = floor(uv); float r = h21(id);
+        col += vec3(.8, .9, 1.) * step(.983, r) * smoothstep(.42, 0., length(fract(uv) - .5)) * (.55 + .45 * sin(uTime * 2.2 + r * 90.)) * smoothstep(.03, .25, y);
+        float az = atan(d.x, -d.z);
+        for (int i = 0; i < 3; i++) { float fi = float(i); float n = fb(vec2(az * 2.4 + fi * 7.3, uTime * .03 + fi * 3.1));
+          float edge = .14 + fi * .08 + .05 * sin(az * 2. + uTime * .09 + fi) + (n - .5) * .18; float e = y - edge;
+          float c = smoothstep(-.012, .015, e) * exp(-max(e, 0.) * (5.5 - fi)); float rays = .45 + .55 * vn(vec2(az * 44. + uTime * .25 + fi * 13., fi * 5.));
+          col += mix(uA, uB, clamp(e * 4.5, 0., 1.)) * c * rays * (.35 + .5 * n) * (1. - fi * .22) * uInt; }
+        col += uA * exp(-abs(y) * 14.) * .06 * uInt; col = mix(col, uFog * 1.15, uStorm * .85); gl_FragColor = vec4(col, 1.); }`,
+  }));
+  sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
+  // terrain (same shading as the game)
+  (function terrain() {
+    const { VN, RES, CELL, W, H } = S, pos = new Float32Array(VN * VN * 3), col = new Float32Array(VN * VN * 3), rk = new Float32Array(VN * VN), idx = new Uint32Array(RES * RES * 6);
+    for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) {
+      const i = iz * VN + ix, x = ix * CELL - W / 2, z = iz * CELL - W / 2, y = H[i]; pos.set([x, y, z], i * 3);
+      const k = 0.9 + S.vnoise(x * 0.04 + 3, z * 0.04) * 0.2, lo = y < 0.9 ? S.smooth(0.9, 0, y) : 0;
+      col.set([S.lerp(1, .8, lo) * k, S.lerp(1, .93, lo) * k, S.lerp(1, 1.05, lo) * k], i * 3); rk[i] = S.smooth(62, 42, S.riftD(x, z)) * 0.9;
+    }
+    let k = 0; for (let iz = 0; iz < RES; iz++) for (let ix = 0; ix < RES; ix++) { const a = iz * VN + ix, b = a + VN, c = b + 1, d = a + 1; idx.set([a, b, d, b, c, d], k); k += 6; }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aRock', new THREE.BufferAttribute(rk, 1));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.35 }); patchSurface(mat, { snowS: 0.16, rockS: 0.055, lo: 0.7, hi: 0.86, glitter: 1 });
+    const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; scene.add(m);
+  })();
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x86b2c8, roughness: 0.22, metalness: 0.05, envMapIntensity: 0.7, normalMap: tex('snow_nor.jpg'), polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 }));
+  sea.material.normalMap.repeat.set(200, 200); sea.rotation.x = -Math.PI / 2; sea.receiveShadow = true; scene.add(sea);
+  const lk = S.POI.lake, lakeIce = new THREE.Mesh(new THREE.CircleGeometry(49, 48), new THREE.MeshStandardMaterial({ color: 0x9fe0f0, roughness: 0.04, metalness: 0.1, emissive: 0x06243a, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  lakeIce.rotation.x = -Math.PI / 2; lakeIce.position.set(lk.x, lk.h + 0.03, lk.z); scene.add(lakeIce);
+  // stand-ins for game POIs (so placement vs. POIs can be judged)
+  for (const k of ['spireN', 'spireW', 'spireE']) { const p = S.POI[k], m = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x6fc9ff, emissive: 0x1b5fb0, flatShading: true })); m.scale.set(3.2, 24, 3.2); m.position.set(p.x, p.h + 22, p.z); scene.add(m); }
+  { const p = S.POI.station, m = new THREE.Mesh(new THREE.SphereGeometry(7, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xc5cfdc })); m.position.set(p.x, p.h + .6, p.z); scene.add(m); }
+  // storm state
+  const Q = new URLSearchParams(location.search);
+  let T = 0, storm = +(Q.get('storm') || 0), stormTarget = storm;
+  const ctx = {
+    THREE, scene, camera, renderer, getH: S.getH, groundH: S.groundH, normalY: S.normalY, W: S.W, CELL: S.CELL, POI: S.POI, riftD: S.riftD, nearPOI: S.nearPOI, inRift: S.inRift,
+    srand: S.srand, srange: S.srange, fbm: S.fbm, vnoise: S.vnoise, ridge: S.ridge, addCol: S.addCol, patchSurface, TX, glow: null, emit: null, FOG, MOON_DIR,
+    T: () => T, storm: () => storm, aurora: () => ({ color: aurA, i: skyU.uInt.value }),
+  };
+  const stats = WorldFill.build(ctx);
+  $('wf').textContent = (stats.trisTotal / 1000).toFixed(0) + 'k / ' + stats.calls;
+  // camera controller
+  const cam = { x: 60, y: 0, z: 260, yaw: 0.2, pitch: -0.05, walk: true };
+  const presets = [['Лагерь', stats.camp, 22], ['Корабль', stats.ship, 40], ['Руины', stats.ruins && stats.ruins[0], 18], ['Пирс', stats.pier, 14], ['Горизонт', { x: 380, z: -40 }, 3], ['Берег', { x: -330, z: 210 }, 3], ['Станция', S.POI.station, 60]];
+  presets.forEach(([name, p, back]) => { if (!p) return; const b = document.createElement('button'); b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>' + name;
+    b.onclick = () => { cam.x = p.x + back * .7; cam.z = p.z + back * .7; cam.yaw = Math.atan2(cam.x - p.x, cam.z - p.z); cam.pitch = -0.08; }; $('presets').appendChild(b); });
+  if (Q.get('at')) { const b = $('presets').children[+Q.get('at')]; if (b) b.click(); }
+  if (storm) $('storm').classList.add('on');
+  $('storm').onclick = () => { stormTarget = stormTarget ? 0 : 1; $('storm').classList.toggle('on', !!stormTarget); };
+  $('walk').onclick = () => { cam.walk = !cam.walk; $('walk').classList.toggle('on', cam.walk); };
+  const keys = new Set(); addEventListener('keydown', (e) => keys.add(e.code)); addEventListener('keyup', (e) => keys.delete(e.code));
+  let drag = null; $('c').addEventListener('pointerdown', (e) => { drag = [e.clientX, e.clientY]; });
+  addEventListener('pointerup', () => (drag = null));
+  addEventListener('pointermove', (e) => { if (!drag) return; cam.yaw -= (e.clientX - drag[0]) * 0.004; cam.pitch = S.clamp(cam.pitch - (e.clientY - drag[1]) * 0.004, -1.4, 1.4); drag = [e.clientX, e.clientY]; });
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+  addEventListener('resize', resize); resize();
+  let last = performance.now(), fpsN = 0, fpsT = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min((now - last) / 1000, 0.05); last = now; T += dt;
+    storm += (stormTarget - storm) * (1 - Math.exp(-0.8 * dt)); $('stormBar').style.width = (storm * 100).toFixed(0) + '%';
+    scene.fog.near = S.lerp(90, 6, storm); scene.fog.far = S.lerp(640, 160, storm);
+    const sp = (keys.has('ShiftLeft') ? 60 : 12) * dt, fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
+    if (keys.has('KeyW')) { cam.x += fx * sp; cam.z += fz * sp; } if (keys.has('KeyS')) { cam.x -= fx * sp; cam.z -= fz * sp; }
+    if (keys.has('KeyA')) { cam.x += fz * sp; cam.z -= fx * sp; } if (keys.has('KeyD')) { cam.x -= fz * sp; cam.z += fx * sp; }
+    if (keys.has('KeyE')) cam.y += sp; if (keys.has('KeyQ')) cam.y -= sp;
+    const g = S.groundH(cam.x, cam.z) + 1.7; if (cam.walk) cam.y = g; else cam.y = Math.max(cam.y, g);
+    camera.position.set(cam.x, cam.y, cam.z); camera.rotation.set(cam.pitch, cam.yaw, 0, 'YXZ');
+    sky.position.copy(camera.position); skyU.uTime.value = T; skyU.uStorm.value = storm; skyU.uInt.value = 1 - 0.75 * storm; TU.uTime.value = T;
+    moon.position.set(cam.x + MOON_DIR.x * 150, cam.y + MOON_DIR.y * 150, cam.z + MOON_DIR.z * 150); moon.target.position.set(cam.x, cam.y, cam.z);
+    WorldFill.update(dt, ctx);
+    renderer.info.reset(); renderer.render(scene, camera);
+    fpsN++; fpsT += dt;
+    if (fpsT > 0.5) { $('fps').textContent = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; $('calls').textContent = renderer.info.render.calls; $('tris').textContent = (renderer.info.render.triangles / 1000).toFixed(0) + 'k'; }
+  }
+  requestAnimationFrame(frame);
+  window.DEMO = { ctx, cam, stats, renderer, scene };
+})();
+</script>
