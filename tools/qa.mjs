@@ -99,7 +99,7 @@ for (const [v, r] of Object.entries(res.views || {})) {
   const blackObj = (r.dark && r.dark.top || []).filter((d) => d.ofObject > 0.5 && d.px >= 300 && d.owner);
   if (blackObj.length) add(G.black, 'near-black objects', v, blackObj.map((d) => `${d.name} ${Math.round(d.ofObject * 100)} % black`).join(', '), 'warn', { img });
   if (r.untextured.length) add(G.tex, 'untextured on screen', v, r.untextured.map((u) => `${u.name} ${(u.frac * 100).toFixed(1)} %${u.flat ? ' flat' : ''}`).join(', '), 'warn', { img });
-  add(G.cam, 'camera', v, r.camera.pass ? 'ok' : [r.camera.underground && 'underground', r.camera.inside && 'inside mesh', r.camera.blocked && 'sight blocked by ' + r.camera.blocked.by, r.camera.blockedView && `view ${Math.round(r.nearCover * 100)} % covered < 1.2 m`, r.camera.nearest && r.camera.nearest.d < 0.15 && 'near-plane clip'].filter(Boolean).join(', '), r.camera.pass, { img });
+  add(G.cam, 'camera', v, r.camera.pass ? 'ok' : [r.camera.underground && 'underground', r.camera.inside && 'inside mesh', r.camera.blocked && 'sight blocked by ' + r.camera.blocked.by, r.camera.blockedView && `view covered: ${Math.round(r.nearCover * 100)} % < 1.2 m, ${Math.round((r.nearCover3 || 0) * 100)} % < 3 m`, r.camera.nearest && r.camera.nearest.d < 0.15 && 'near-plane clip'].filter(Boolean).join(', '), r.camera.pass, { img });
   for (const f of r.feet || []) add(G.feet, 'feet on visible surface', `${v} · ${f.id}`, `worst ${f.worst} m · ` + f.feet.map((q) => `${q.bone} ${q.clearance}`).join(', '), f.pass, { img });
 }
 for (const [s, r] of Object.entries(res.feet || {})) {

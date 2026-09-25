@@ -441,7 +441,7 @@ void main() {
     // sheet is lit correctly by three (normals flipped), so it is only a warning (inside-out models, thin shells)
     out.backfaces.pass = bm.holes / total <= 0.0005 ? (bm.dsBack / total > 0.005 ? 'warn' : true) : false;
     // view blocked: share of the frame covered by geometry closer than 1.2 m (camera inside a tree crown, a wall…)
-    { let n = 0; for (let i = 0; i < total; i++) if (bm.D1[i] < 1.2) n++; out.nearCover = r3(n / total); }
+    { let n = 0, n3 = 0; for (let i = 0; i < total; i++) { if (bm.D1[i] < 1.2) n++; if (bm.D1[i] < 3) n3++; } out.nearCover = r3(n / total); out.nearCover3 = r3(n3 / total); }
     if (o.magenta) out.backfaces.mask = QA.maskPng({ w: bm.w, h: bm.h, buf: (() => { const b = new Uint8Array(total * 4); for (let i = 0; i < total; i++) if (bm.mask[i]) { b[i * 4] = 1; } return b; })() }, [255, 0, 255]);
     const overrideOk = (m) => !matsOf(m).some((x) => x.isShaderMaterial || x.side === T.BackSide);
     const prims = QA.drawables((m) => QA.isPrimitive(m) && !QA.intentional(m) && overrideOk(m)), pp = QA.idPass(prims, 'all', 0.5);
@@ -468,7 +468,7 @@ void main() {
         const l = 0.2126 * frame.data[f] + 0.7152 * frame.data[f + 1] + 0.0722 * frame.data[f + 2]; if (l < 6) { dark++; per.set(k, (per.get(k) || 0) + 1); } }
       out.dark = { px: dark, frac: r3(dark / (ap.w * ap.h)), top: [...per.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => { const obj = k ? all[k - 1] : null;
         return { name: obj ? QA.label(obj) : '(sky / custom shader)', owner: obj ? QA.ownerOf(obj) : '', px: n, ofObject: r3(n / (size.get(k) || 1)) }; }) }; }
-    out.camera = QA.cameraCheck(); out.camera.nearCover = out.nearCover; if (out.nearCover > 0.2) { out.camera.pass = false; out.camera.blockedView = true; }
+    out.camera = QA.cameraCheck(); out.camera.nearCover = out.nearCover; out.camera.nearCover3 = out.nearCover3; if (out.nearCover > 0.2 || out.nearCover3 > 0.3) { out.camera.pass = false; out.camera.blockedView = true; }   // a wall / tree crown in the lens
     return out;
   };
   // mask PNG (data URL) of an ID pass: coloured where any id is present, transparent elsewhere
