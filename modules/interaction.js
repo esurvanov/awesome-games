@@ -257,7 +257,7 @@
       let f = L > 1e-4 ? v / L : 0; const fMax = o.rateMax / G.dur[top]; f = clamp(f, -fMax, fMax); G.f = f;
       G.phase = ((G.phase + f * dt) % 1 + 1) % 1;
       const wiT = o.idle && A.acts[o.idle] ? 1 - clamp((av - o.idleLo) / (o.idleHi - o.idleLo), 0, 1) : 0;
-      G.wi = G.wi === undefined ? wiT : damp(G.wi, wiT, wiT > G.wi ? 7 : 14, dt); const wi = G.wi;   // settle into idle over ~0.3 s (no pelvis snap at a stop)
+      G.wi = G.wi === undefined ? wiT : damp(G.wi, wiT, wiT > G.wi ? 7 : 9, dt); const wi = G.wi;   // settle into idle over ~0.3 s (no pelvis snap at a stop)
       G.fade = Math.min(1, G.fade + dt / G.fadeDur);
       for (const k of G.keys) { const a = A.acts[k]; a.setEffectiveTimeScale(0); a.time = ((G.phase + G.off[k]) % 1) * G.dur[k]; a.setEffectiveWeight(G.w[k] * (1 - wi) * G.fade); }
       if (wi > 0 || (o.idle && A.acts[o.idle] && A.acts[o.idle].isRunning())) { const a = A.acts[o.idle]; a.setEffectiveTimeScale(1); a.setEffectiveWeight(wi * G.fade); }
@@ -716,7 +716,7 @@
         if (standing) { const a = (p.x - gx) * fx + (p.z - gz) * fz, bb = (p.x - gx) * rx + (p.z - gz) * rz; fit[0] += 1; fit[1] += a; fit[2] += bb; fit[3] += a * a; fit[4] += a * bb; fit[5] += bb * bb; fit[6] += e; fit[7] += e * a; fit[8] += e * bb; }
         if (typeof sv === 'function' && !S.up[i] && hasStamp() && K.footStamp && (!S.st || !S.st[i] || Math.hypot(p.x - S.st[i][0], p.z - S.st[i][1]) > 0.1)) {   // planted hoof presses the snow
           const pr = fp ? fp(p.x, p.z) : 0.5; let ok = pr <= 0;
-          if (pr > 0) { try { ok = C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.6, wid: 0.6, type: 'blob', str: pr }) !== false; if (ok) C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.13, wid: 0.12, type: 'hoof', str: Math.min(1, pr + 0.15) }); } catch (er) { /* */ } }
+          if (pr > 0) { try { ok = C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.9, wid: 0.9, type: 'blob', str: pr }) !== false; if (ok) C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.13, wid: 0.12, type: 'hoof', str: Math.min(1, pr + 0.15) }); } catch (er) { /* */ } }
           if (ok) (S.st || (S.st = []))[i] = [p.x, p.z];
         }
         // hoof plants → trail (terrain deformation if present; else the shared footprint decal near the player)

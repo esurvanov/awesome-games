@@ -578,7 +578,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       if (enter) { A.lock = 0; const wd = A.acts.wake ? A.acts.wake.getClip().duration : 2; A.once('wake', Math.min(4.5, wd / 0.55), 0.4); A.speed('wake', 0.55); }
     } else {
       GOLEM.wrap.position.y = damp(GOLEM.wrap.position.y, -1.2, 10, dt);
-      if (A.cur === 'wake' && Math.abs(GOLEM.vAlong || 0) > 0.3) A.lock = 0;   // it starts walking: the gait takes over from the stand-up clip
+      if (A.cur === 'wake' && Math.abs(GOLEM.vAlong || 0) > 0.3 && A.lock > 0) { A.lock = 0; GOLEM.wakeOut = 0.6; }   // it starts walking: the gait takes over from the stand-up clip
     }
     if (boss.summoned && !GOLEM.lastSummon) { A.lock = 0; A.speed('summon', 2.2); A.once('summon', 7.5 / 2.2, 0.35); GOLEM.showRock = 1.2; }
     GOLEM.lastSummon = boss.summoned;
@@ -601,7 +601,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       } catch (e) { warn('golem gait', e.message); }
     }
     const loopK = GOLEM.gait ? (Math.abs(GOLEM.vAlong) > 0.3 ? 'walk' : 'idle') : sp > 5.2 ? 'run' : sp > 0.5 ? 'walk' : 'idle';
-    A.loop(loopK, 0.3);
+    A.loop(loopK, GOLEM.wakeOut > 0 ? 0.6 : 0.3); GOLEM.wakeOut = (GOLEM.wakeOut || 0) - dt;   // out of the stand-up clip: a longer blend
     if (!GOLEM.gait) { if (loopK === 'walk') A.speed('walk', clamp(sp / 3.2, 0.6, 1.7)); if (loopK === 'run') A.speed('run', clamp(sp / 6.5, 0.7, 1.5)); }
     if (GOLEM.rock) { GOLEM.showRock = (GOLEM.showRock || 0) - dt; GOLEM.rock.visible = GOLEM.showRock > 0; }
     A.update(dt);

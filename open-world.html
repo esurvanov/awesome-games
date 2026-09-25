@@ -2455,7 +2455,7 @@ const CLIMB = { t: -1, dur: 1, from: new V3(), to: new V3(), h: 1, curve: null, 
 function ledgeAhead(dx, dz, feetY) {
   const P = PH.P, S = P.groups.STATIC, feet = feetY === undefined ? player.y : feetY;
   let wall = null;
-  for (const hy of [0.6, 0.35, 0.95]) { wall = P.raycast({ x: player.x, y: feet + hy, z: player.z }, { x: dx, y: 0, z: dz }, 1.2, { groups: S }); if (wall && wall.normal.y <= 0.6) break; wall = null; }
+  for (const hy of [0.6, 0.35, 0.95]) { wall = P.raycast({ x: player.x, y: feet + hy, z: player.z }, { x: dx, y: 0, z: dz }, 1.6, { groups: S }); /* reach: a step + a lunge */ if (wall && wall.normal.y <= 0.6) break; wall = null; }
   if (!wall) return null;                                                             // needs a face to climb, not a slope
   const d = wall.distance + 0.4, top = P.raycast({ x: player.x + dx * d, y: feet + 2.2, z: player.z + dz * d }, { x: 0, y: -1, z: 0 }, 2.2, { groups: S });
   if (!top || top.normal.y < 0.7) return null;                                       // walkable top
@@ -2653,7 +2653,7 @@ function updateBoss(dt) {
     case 'charge': boss.core.scale.setScalar(4.5 + Math.sin(T * 40) * 1.5); if (boss.t <= 0) { volley(); boss.st = 'recover'; boss.t = 0.7; } break;
     case 'recover': if (boss.t <= 0) { boss.st = 'idle'; boss.atk = rand(1.8, 3) / boss.phase; boss.core.scale.setScalar(4.5); } break;
   }
-  if (boss.st === 'rise') boss.y = damp(boss.y, targetY, 4, dt);
+  if (boss.st === 'rise') boss.y += Math.min(targetY - boss.y, (targetY - boss.y) * (1 - Math.exp(-4 * dt)), 14 * dt);   // leap, ≤ 14 m/s
   else if (boss.st === 'drop') boss.y = Math.max(targetY, boss.y - 18 * dt);   // slam: a hard fall, not a teleport (≤ 18 m/s)
   else boss.y = damp(boss.y, targetY, 3, dt);
   const rd = Math.hypot(boss.x - rp.x, (boss.z - rp.z) * 1.25); if (rd > 38) { boss.x = rp.x + (boss.x - rp.x) * 38 / rd; boss.z = rp.z + (boss.z - rp.z) * 38 / rd; }
