@@ -1,0 +1,3574 @@
+{
+ "_about": {
+  "what": "Numeric look-targets for 'Эхо Разлома' sampled from references/img (60 CC/PD photos) + physical rules. Compare against game screenshots with the same method.",
+  "method": {
+   "downsample": "longest side 400 px, sRGB input",
+   "Y": "relative luminance, linear-light Rec.709 (0..1) after sRGB decode",
+   "snow_mask": "lower 60% of frame, HSV-saturation<0.45, B>=R-15, max(RGB)>40",
+   "snow_lit": "top 20% of snow_mask by Y; median RGB (sRGB 0..255)",
+   "snow_shadow": "10th..30th percentile of snow_mask by Y (skips rocks/black); median RGB",
+   "sky": "top 15% rows, aurora pixels excluded",
+   "aurora": "G>1.3R and G>1.05B and G>60",
+   "warm_light": "R>170, R>1.6B, G>90 (windows, lamps)",
+   "lit_shadow_ratio": "(Y_lit+0.005)/(Y_shadow+0.005)",
+   "dark_frac_midband": "share of pixels with Y<0.02 in rows 35..75% (silhouette density: trees, rocks, buildings)",
+   "michelson_p05_p95": "(Y95-Y05)/(Y95+Y05) global contrast"
+  },
+  "compare_tool": "python3 references/measure.py <screenshot> [a..j|night_master|blue_hour_master]",
+  "caveat": "Photos are long exposures: real eye sees night ~10-100x darker and less saturated. Use colour RATIOS and hue as primary targets, absolute Y as the 'photographic' look the game grades toward. Categories c,d,e,i,j are mostly daylight: take SHAPE/MATERIAL cues from them, colours from 'night_master'."
+ },
+ "night_master": {
+  "images": [
+   "a01",
+   "a02",
+   "a03",
+   "a04",
+   "a05",
+   "a06",
+   "b04",
+   "b06",
+   "f01",
+   "f02",
+   "f04",
+   "g04",
+   "h01",
+   "h02",
+   "h03",
+   "h04",
+   "j03"
+  ],
+  "measured": {
+   "Y_median": {
+    "median": 0.044,
+    "min": 0.011,
+    "max": 0.107,
+    "n": 17
+   },
+   "Y_p05": {
+    "median": 0.006,
+    "min": 0.001,
+    "max": 0.027,
+    "n": 17
+   },
+   "Y_p95": {
+    "median": 0.301,
+    "min": 0.068,
+    "max": 0.726,
+    "n": 17
+   },
+   "snow_lit_rgb": {
+    "median": [
+     112,
+     112,
+     145
+    ],
+    "hex": "#707091",
+    "n": 16
+   },
+   "snow_shadow_rgb": {
+    "median": [
+     53,
+     58,
+     60
+    ],
+    "hex": "#353a3c",
+    "n": 16
+   },
+   "sky_rgb": {
+    "median": [
+     29,
+     50,
+     64
+    ],
+    "hex": "#1d3240",
+    "n": 17
+   },
+   "aurora_rgb": {
+    "median": [
+     53,
+     108,
+     75
+    ],
+    "hex": "#356c4b",
+    "n": 9
+   },
+   "warm_light_rgb": {
+    "median": [
+     203,
+     148,
+     96
+    ],
+    "hex": "#cb9460",
+    "n": 6
+   },
+   "snow_lit_Y": {
+    "median": 0.169,
+    "min": 0.033,
+    "max": 0.671,
+    "n": 16
+   },
+   "snow_shadow_Y": {
+    "median": 0.041,
+    "min": 0.017,
+    "max": 0.111,
+    "n": 16
+   },
+   "lit_shadow_ratio": {
+    "median": 3.985,
+    "min": 1.62,
+    "max": 14.93,
+    "n": 16
+   },
+   "snow_blue_over_red_lit": {
+    "median": 1.035,
+    "min": 0.894,
+    "max": 1.792,
+    "n": 16
+   },
+   "snow_blue_over_red_shadow": {
+    "median": 1.323,
+    "min": 0.88,
+    "max": 1.733,
+    "n": 16
+   },
+   "dark_frac_midband": {
+    "median": 0.212,
+    "min": 0.01,
+    "max": 0.609,
+    "n": 17
+   },
+   "michelson_p05_p95": {
+    "median": 0.931,
+    "min": 0.742,
+    "max": 0.992,
+    "n": 17
+   },
+   "aurora_frac": {
+    "median": 0.1,
+    "min": 0.001,
+    "max": 0.442,
+    "n": 9
+   }
+  },
+  "targets": {
+   "frame_Y_median": [
+    0.03,
+    0.06
+   ],
+   "frame_Y_p95": [
+    0.2,
+    0.4
+   ],
+   "snow_lit_hex": "#707091 median .. #c0c4d0 bright (moon-lit, slightly blue; B/R 1.0-1.2)",
+   "snow_shadow_hex": "#353a3c median .. #4a5a70 (shadow is BLUER than lit: B/R 1.3-1.6)",
+   "sky_zenith_hex": "#0a1630 .. #1d3246",
+   "sky_horizon_hex": "#1d3246 .. #2a4a5a (greenish if aurora)",
+   "lit_to_shadow_luminance": [
+    3,
+    6
+   ],
+   "rule_shadow_bluer_than_lit": true,
+   "global_michelson": [
+    0.85,
+    0.97
+   ],
+   "warm_window_hex": "#cb9460 measured (2700-3200 K); emissive Y 5-20x lit snow"
+  },
+  "physics": {
+   "full_moon_illuminance_lux": [
+    0.1,
+    0.3
+   ],
+   "bright_aurora_illuminance_lux": [
+    0.01,
+    0.1
+   ],
+   "starlight_lux": 0.001,
+   "snow_albedo_fresh": [
+    0.8,
+    0.9
+   ],
+   "snow_albedo_old_windpacked": [
+    0.65,
+    0.8
+   ],
+   "moon_angular_diameter_deg": 0.52,
+   "shadow_penumbra_width_m": "0.009 x occluder-to-ground distance (1 m -> 9 mm, 10 m -> 9 cm, 20 m tree -> 18 cm): moon shadows stay crisp at all game distances; they fade by haze/contrast, not blur",
+   "shadow_visible_distance_m": "crisp-edged shadows readable to 80-150 m on open snow in full moon; cascade coverage >= 80 m recommended",
+   "aurora_shadows": "aurora is a wide area source -> very soft/no shadows, only a green tint on upward-facing snow"
+  }
+ },
+ "blue_hour_master": {
+  "images": [
+   "b01",
+   "b02",
+   "b03",
+   "b05",
+   "h03",
+   "h04",
+   "h05",
+   "g03",
+   "j03",
+   "c06",
+   "f03"
+  ],
+  "measured": {
+   "Y_median": {
+    "median": 0.198,
+    "min": 0.047,
+    "max": 0.304,
+    "n": 11
+   },
+   "Y_p05": {
+    "median": 0.009,
+    "min": 0.002,
+    "max": 0.128,
+    "n": 11
+   },
+   "Y_p95": {
+    "median": 0.451,
+    "min": 0.148,
+    "max": 0.83,
+    "n": 11
+   },
+   "snow_lit_rgb": {
+    "median": [
+     147,
+     166,
+     196
+    ],
+    "hex": "#93a6c4",
+    "n": 10
+   },
+   "snow_shadow_rgb": {
+    "median": [
+     89,
+     109,
+     144
+    ],
+    "hex": "#596d90",
+    "n": 10
+   },
+   "sky_rgb": {
+    "median": [
+     130,
+     161,
+     218
+    ],
+    "hex": "#82a1da",
+    "n": 11
+   },
+   "warm_light_rgb": {
+    "median": [
+     210,
+     128,
+     61
+    ],
+    "hex": "#d2803d",
+    "n": 1
+   },
+   "snow_lit_Y": {
+    "median": 0.387,
+    "min": 0.033,
+    "max": 0.488,
+    "n": 11
+   },
+   "snow_shadow_Y": {
+    "median": 0.154,
+    "min": 0.017,
+    "max": 0.286,
+    "n": 11
+   },
+   "lit_shadow_ratio": {
+    "median": 2.43,
+    "min": 1.53,
+    "max": 6.81,
+    "n": 11
+   },
+   "snow_blue_over_red_lit": {
+    "median": 1.494,
+    "min": 1.198,
+    "max": 1.72,
+    "n": 11
+   },
+   "snow_blue_over_red_shadow": {
+    "median": 1.61,
+    "min": 1.382,
+    "max": 1.772,
+    "n": 11
+   },
+   "dark_frac_midband": {
+    "median": 0.201,
+    "min": 0.002,
+    "max": 0.52,
+    "n": 10
+   },
+   "michelson_p05_p95": {
+    "median": 0.911,
+    "min": 0.581,
+    "max": 0.996,
+    "n": 11
+   }
+  },
+  "targets": {
+   "snow_lit_B_over_R": [
+    1.2,
+    1.7
+   ],
+   "snow_shadow_B_over_R": [
+    1.4,
+    1.8
+   ],
+   "lit_to_shadow_luminance": [
+    1.5,
+    3
+   ],
+   "sky_hex": "#82a1da measured"
+  }
+ },
+ "categories": {
+  "a": {
+   "name": "Ночь, снег, сияние, луна",
+   "aurora_colors": {
+    "green_557nm_hex": "#35d07a (main curtain, lower 100-150 km)",
+    "red_630nm_hex": "#c8384a (upper fringe >200 km, faint)",
+    "violet_428nm_hex": "#8a5ad8 (lower edge in strong storms)"
+   },
+   "aurora_frame_coverage": "7-44% of frame in photos; target 10-25% of sky area",
+   "aurora_reflect_on_snow": "snow picks up green tint: lit snow G/R 1.1-1.5 under strong aurora (a03,a04)",
+   "stars": "visible, 2000-5000 per hemisphere to naked eye; Milky Way only without moon",
+   "images": [
+    "a01",
+    "a02",
+    "a03",
+    "a04",
+    "a05",
+    "a06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.045,
+     "min": 0.038,
+     "max": 0.098,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.007,
+     "min": 0.004,
+     "max": 0.024,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.336,
+     "min": 0.111,
+     "max": 0.512,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      111,
+      132,
+      141
+     ],
+     "hex": "#6f848d",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      45,
+      59,
+      60
+     ],
+     "hex": "#2d3b3c",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      26,
+      51,
+      62
+     ],
+     "hex": "#1a333e",
+     "n": 6
+    },
+    "aurora_rgb": {
+     "median": [
+      31,
+      108,
+      79
+     ],
+     "hex": "#1f6c4f",
+     "n": 6
+    },
+    "warm_light_rgb": {
+     "median": [
+      195,
+      179,
+      99
+     ],
+     "hex": "#c3b363",
+     "n": 2
+    },
+    "snow_lit_Y": {
+     "median": 0.248,
+     "min": 0.093,
+     "max": 0.671,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.041,
+     "min": 0.023,
+     "max": 0.069,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 4.955,
+     "min": 1.79,
+     "max": 14.93,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.01,
+     "min": 0.894,
+     "max": 1.792,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.406,
+     "min": 0.933,
+     "max": 1.733,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.104,
+     "min": 0.06,
+     "max": 0.365,
+     "n": 6
+    },
+    "michelson_p05_p95": {
+     "median": 0.951,
+     "min": 0.742,
+     "max": 0.981,
+     "n": 6
+    },
+    "aurora_frac": {
+     "median": 0.224,
+     "min": 0.071,
+     "max": 0.442,
+     "n": 6
+    }
+   }
+  },
+  "b": {
+   "name": "Ель в снегу, ночь/сумерки",
+   "spruce_crown_width_to_height": [
+    0.2,
+    0.35
+   ],
+   "snow_load": "crown 'snow ghosts': 30-100% of needles hidden, blobs 0.3-1 m, drooping lower branches",
+   "silhouette_density_midband": "0.3-0.45 dense forest edge (b06), 0.03-0.1 open taiga (b02-b04)",
+   "snow_on_branches_Y_vs_ground": "branch snow 0.7-1.0x ground snow luminance (self-shadowed)",
+   "images": [
+    "b01",
+    "b02",
+    "b03",
+    "b04",
+    "b05",
+    "b06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.229,
+     "min": 0.037,
+     "max": 0.304,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.048,
+     "min": 0.002,
+     "max": 0.101,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.593,
+     "min": 0.423,
+     "max": 0.726,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      152,
+      171,
+      207
+     ],
+     "hex": "#98abcf",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      93,
+      109,
+      150
+     ],
+     "hex": "#5d6d96",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      118,
+      160,
+      226
+     ],
+     "hex": "#76a0e2",
+     "n": 6
+    },
+    "aurora_rgb": {
+     "median": [
+      55,
+      77,
+      56
+     ],
+     "hex": "#374d38",
+     "n": 1
+    },
+    "warm_light_rgb": {
+     "median": [
+      242,
+      173,
+      135
+     ],
+     "hex": "#f2ad87",
+     "n": 1
+    },
+    "snow_lit_Y": {
+     "median": 0.417,
+     "min": 0.134,
+     "max": 0.641,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.156,
+     "min": 0.039,
+     "max": 0.286,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 2.45,
+     "min": 1.53,
+     "max": 14.65,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.308,
+     "min": 0.934,
+     "max": 1.664,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.625,
+     "min": 0.88,
+     "max": 1.772,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.036,
+     "min": 0.002,
+     "max": 0.371,
+     "n": 6
+    },
+    "michelson_p05_p95": {
+     "median": 0.869,
+     "min": 0.634,
+     "max": 0.992,
+     "n": 6
+    },
+    "aurora_frac": {
+     "median": 0.001,
+     "min": 0.001,
+     "max": 0.001,
+     "n": 1
+    }
+   }
+  },
+  "c": {
+   "name": "Следы и ботинки",
+   "boot_sink_depth_cm": {
+    "fresh_powder_50_100kgm3": [
+     20,
+     45
+    ],
+    "settled_150_250kgm3": [
+     8,
+     20
+    ],
+    "wind_slab_tundra_300_400kgm3": [
+     1,
+     6
+    ],
+    "crust": [
+     0,
+     2
+    ],
+    "snowshoe_in_powder": [
+     8,
+     20
+    ]
+   },
+   "footprint_size_cm": [
+    30,
+    11
+   ],
+   "stride_m_deep_snow": [
+    0.5,
+    0.7
+   ],
+   "trench_width_cm_trail_breaking": [
+    35,
+    50
+   ],
+   "print_rim_raise_cm": [
+    1,
+    3
+   ],
+   "print_interior": "deep blue shadow: inner Y 0.3-0.5x surrounding snow (c03 ratio 2.5)",
+   "wall": "near-vertical in cold powder, crumbled rim, snow clods thrown forward",
+   "images": [
+    "c01",
+    "c02",
+    "c03",
+    "c04",
+    "c05",
+    "c06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.383,
+     "min": 0.223,
+     "max": 0.769,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.024,
+     "min": 0.004,
+     "max": 0.221,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.678,
+     "min": 0.484,
+     "max": 0.847,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      199,
+      204,
+      209
+     ],
+     "hex": "#c7ccd1",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      127,
+      141,
+      158
+     ],
+     "hex": "#7f8d9e",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      162,
+      171,
+      185
+     ],
+     "hex": "#a2abb9",
+     "n": 6
+    },
+    "warm_light_rgb": {
+     "median": [
+      188,
+      130,
+      46
+     ],
+     "hex": "#bc822e",
+     "n": 2
+    },
+    "snow_lit_Y": {
+     "median": 0.6,
+     "min": 0.339,
+     "max": 0.839,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.267,
+     "min": 0.063,
+     "max": 0.723,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 1.97,
+     "min": 1.16,
+     "max": 9.74,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.06,
+     "min": 0.948,
+     "max": 1.198,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.132,
+     "min": 1.054,
+     "max": 1.415,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.133,
+     "min": 0.047,
+     "max": 0.257,
+     "n": 4
+    },
+    "michelson_p05_p95": {
+     "median": 0.927,
+     "min": 0.504,
+     "max": 0.991,
+     "n": 6
+    }
+   }
+  },
+  "d": {
+   "name": "Валуны, скалы, надувы",
+   "snow_cap_thickness_cm": [
+    5,
+    30
+   ],
+   "cap_shape": "rounded pillow, overhang (cornice) on lee side",
+   "lee_drift_length": "3-10x obstacle height downwind; windward side scoured to bare rock",
+   "sastrugi": {
+    "height_cm": [
+     5,
+     50
+    ],
+    "wavelength_m": [
+     1,
+     5
+    ],
+    "orientation": "parallel to prevailing wind"
+   },
+   "rock_Y_vs_lit_snow": "rock 0.05-0.15x lit snow (ratios 9-11 in d01,d03,d05)",
+   "rock_colour": "dark grey, slightly warm vs blue snow",
+   "images": [
+    "d01",
+    "d02",
+    "d03",
+    "d04",
+    "d05",
+    "d06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.314,
+     "min": 0.096,
+     "max": 0.471,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.039,
+     "min": 0.008,
+     "max": 0.068,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.586,
+     "min": 0.484,
+     "max": 0.905,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      197,
+      203,
+      207
+     ],
+     "hex": "#c5cbcf",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      70,
+      81,
+      103
+     ],
+     "hex": "#465167",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      164,
+      172,
+      190
+     ],
+     "hex": "#a4acbe",
+     "n": 6
+    },
+    "snow_lit_Y": {
+     "median": 0.594,
+     "min": 0.464,
+     "max": 0.711,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.084,
+     "min": 0.045,
+     "max": 0.399,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 7.455,
+     "min": 1.17,
+     "max": 10.91,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.07,
+     "min": 1.01,
+     "max": 1.126,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.269,
+     "min": 1.016,
+     "max": 1.718,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.059,
+     "min": 0.003,
+     "max": 0.088,
+     "n": 5
+    },
+    "michelson_p05_p95": {
+     "median": 0.882,
+     "min": 0.754,
+     "max": 0.983,
+     "n": 6
+    }
+   }
+  },
+  "e": {
+   "name": "Тундра: кусты и трава из-под снега",
+   "tundra_snow_depth_cm": [
+    20,
+    60
+   ],
+   "shrub_height_above_snow_cm": [
+    5,
+    40
+   ],
+   "species": "dwarf birch (Betula nana), polar willow, crowberry, sedge/grass tufts",
+   "exposed_fraction_windswept": "10-40% of ground shows vegetation/tussocks on ridges; 0-5% in hollows",
+   "colour": "dry grass straw #b69a6a, shrubs rusty-brown #6b4a38, both desaturated at night (~40% of daylight saturation)",
+   "images": [
+    "e01",
+    "e02",
+    "e03",
+    "e04",
+    "e05",
+    "e06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.238,
+     "min": 0.05,
+     "max": 0.722,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.071,
+     "min": 0.017,
+     "max": 0.238,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.736,
+     "min": 0.559,
+     "max": 0.939,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      206,
+      219,
+      229
+     ],
+     "hex": "#cedbe5",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      110,
+      113,
+      121
+     ],
+     "hex": "#6e7179",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      208,
+      212,
+      201
+     ],
+     "hex": "#d0d4c9",
+     "n": 6
+    },
+    "aurora_rgb": {
+     "median": [
+      78,
+      113,
+      85
+     ],
+     "hex": "#4e7155",
+     "n": 2
+    },
+    "warm_light_rgb": {
+     "median": [
+      183,
+      147,
+      107
+     ],
+     "hex": "#b7936b",
+     "n": 3
+    },
+    "snow_lit_Y": {
+     "median": 0.699,
+     "min": 0.057,
+     "max": 0.934,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.166,
+     "min": 0.027,
+     "max": 0.655,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 1.935,
+     "min": 1.35,
+     "max": 11.46,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.023,
+     "min": 0.993,
+     "max": 1.243,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.0,
+     "min": 0.892,
+     "max": 1.5,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.008,
+     "min": 0.001,
+     "max": 0.126,
+     "n": 5
+    },
+    "michelson_p05_p95": {
+     "median": 0.827,
+     "min": 0.504,
+     "max": 0.94,
+     "n": 6
+    },
+    "aurora_frac": {
+     "median": 0.018,
+     "min": 0.015,
+     "max": 0.021,
+     "n": 2
+    }
+   }
+  },
+  "f": {
+   "name": "Полярная станция, тёплые окна",
+   "window_hex_measured": "#cb9460",
+   "light_pool_radius_m": [
+    3,
+    8
+   ],
+   "light_pool_on_snow": "warm pool falls off ~1/r^2, snow in pool 3-10x brighter than moonlit snow",
+   "structure": "modular blocks on stilts 1.5-3 m (f03 Halley VI, f04 Summit), antenna masts 10-30 m, radome, drifts piled to windward sides",
+   "red_beacon": "small red obstruction lights on masts (f02)",
+   "images": [
+    "f01",
+    "f02",
+    "f03",
+    "f04",
+    "f05",
+    "f06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.163,
+     "min": 0.011,
+     "max": 0.383,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.014,
+     "min": 0.002,
+     "max": 0.091,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.478,
+     "min": 0.068,
+     "max": 0.804,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      152,
+      163,
+      175
+     ],
+     "hex": "#98a3af",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      75,
+      90,
+      103
+     ],
+     "hex": "#4b5a67",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      99,
+      116,
+      138
+     ],
+     "hex": "#63748a",
+     "n": 6
+    },
+    "aurora_rgb": {
+     "median": [
+      52,
+      79,
+      67
+     ],
+     "hex": "#344f43",
+     "n": 3
+    },
+    "warm_light_rgb": {
+     "median": [
+      205,
+      131,
+      50
+     ],
+     "hex": "#cd8332",
+     "n": 2
+    },
+    "snow_lit_Y": {
+     "median": 0.359,
+     "min": 0.068,
+     "max": 0.798,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.108,
+     "min": 0.02,
+     "max": 0.23,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 3.03,
+     "min": 2.34,
+     "max": 5.54,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.043,
+     "min": 0.925,
+     "max": 1.216,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.132,
+     "min": 1.027,
+     "max": 1.626,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.128,
+     "min": 0.046,
+     "max": 0.609,
+     "n": 5
+    },
+    "michelson_p05_p95": {
+     "median": 0.924,
+     "min": 0.78,
+     "max": 0.97,
+     "n": 6
+    },
+    "aurora_frac": {
+     "median": 0.017,
+     "min": 0.001,
+     "max": 0.075,
+     "n": 3
+    }
+   }
+  },
+  "g": {
+   "name": "Лёд: озеро/море, трещины, торосы, айсберги",
+   "pressure_ridge_sail_height_m": {
+    "typical": [
+     1,
+     3
+    ],
+    "max": 10
+   },
+   "ridge_block_size_m": [
+    0.3,
+    2
+   ],
+   "lake_black_ice": "clear black ice Y 0.03-0.1 with white crack planes (g03, g06); crack spacing 1-10 m, cracks look like white feathered planes",
+   "sea_ice_freeboard_cm": [
+    5,
+    30
+   ],
+   "iceberg_frozen_in": "tabular/irregular, 5-30 m high, blue-white faces, snow moat around base",
+   "ice_colour_blue": "#4a86b0 .. #9acbe6 in cracks/broken edges",
+   "images": [
+    "g01",
+    "g02",
+    "g03",
+    "g04",
+    "g05",
+    "g06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.173,
+     "min": 0.03,
+     "max": 0.347,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.024,
+     "min": 0.002,
+     "max": 0.27,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.533,
+     "min": 0.125,
+     "max": 0.83,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      134,
+      141,
+      178
+     ],
+     "hex": "#868db2",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      65,
+      77,
+      108
+     ],
+     "hex": "#414d6c",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      95,
+      122,
+      152
+     ],
+     "hex": "#5f7a98",
+     "n": 6
+    },
+    "warm_light_rgb": {
+     "median": [
+      235,
+      120,
+      75
+     ],
+     "hex": "#eb784b",
+     "n": 2
+    },
+    "snow_lit_Y": {
+     "median": 0.285,
+     "min": 0.12,
+     "max": 0.553,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.08,
+     "min": 0.033,
+     "max": 0.308,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 3.655,
+     "min": 1.21,
+     "max": 4.85,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.361,
+     "min": 0.905,
+     "max": 1.494,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.598,
+     "min": 1.469,
+     "max": 1.721,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.015,
+     "min": 0.005,
+     "max": 0.225,
+     "n": 6
+    },
+    "michelson_p05_p95": {
+     "median": 0.891,
+     "min": 0.169,
+     "max": 0.996,
+     "n": 6
+    }
+   }
+  },
+  "h": {
+   "name": "Горы ночью / синий час",
+   "far_contrast_loss": "mountains at 5-15 km keep 40-80% of near contrast in clear arctic air",
+   "visibility_km": {
+    "clear_arctic": [
+     20,
+     50
+    ],
+    "arctic_haze": [
+     5,
+     15
+    ],
+    "ice_fog_diamond_dust": [
+     0.1,
+     1
+    ]
+   },
+   "koschmieder_beta": "beta=3.912/V (per km)",
+   "sky_blue_hour_hex": "#82a1da measured; night-with-moon zenith #0a1630..#1d3246",
+   "images": [
+    "h01",
+    "h02",
+    "h03",
+    "h04",
+    "h05",
+    "h06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.05,
+     "min": 0.016,
+     "max": 0.177,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.007,
+     "min": 0.001,
+     "max": 0.009,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.287,
+     "min": 0.12,
+     "max": 0.635,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      160,
+      169,
+      193
+     ],
+     "hex": "#a0a9c1",
+     "n": 4
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      81,
+      81,
+      96
+     ],
+     "hex": "#515160",
+     "n": 4
+    },
+    "sky_rgb": {
+     "median": [
+      23,
+      101,
+      158
+     ],
+     "hex": "#17659e",
+     "n": 6
+    },
+    "warm_light_rgb": {
+     "median": [
+      211,
+      133,
+      69
+     ],
+     "hex": "#d38545",
+     "n": 2
+    },
+    "snow_lit_Y": {
+     "median": 0.382,
+     "min": 0.033,
+     "max": 0.689,
+     "n": 5
+    },
+    "snow_shadow_Y": {
+     "median": 0.078,
+     "min": 0.019,
+     "max": 0.111,
+     "n": 5
+    },
+    "lit_shadow_ratio": {
+     "median": 4.35,
+     "min": 1.62,
+     "max": 8.38,
+     "n": 5
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.496,
+     "min": 0.989,
+     "max": 1.72,
+     "n": 5
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.382,
+     "min": 1.046,
+     "max": 1.691,
+     "n": 5
+    },
+    "dark_frac_midband": {
+     "median": 0.386,
+     "min": 0.177,
+     "max": 0.559,
+     "n": 6
+    },
+    "michelson_p05_p95": {
+     "median": 0.972,
+     "min": 0.888,
+     "max": 0.986,
+     "n": 6
+    },
+    "aurora_frac": {
+     "median": 0.0,
+     "min": 0.0,
+     "max": 0.0,
+     "n": 1
+    }
+   }
+  },
+  "i": {
+   "name": "Северные олени",
+   "shoulder_height_m": {
+    "svalbard": [
+     0.8,
+     0.9
+    ],
+    "mainland": [
+     1.0,
+     1.2
+    ]
+   },
+   "body_length_m": [
+    1.5,
+    2.0
+   ],
+   "coat": "grey-brown body, pale/white neck and rump, dark legs; winter coat thick",
+   "antlers": "both sexes; females smaller",
+   "behaviour": "herds 5-50, dig feeding craters 30-60 cm wide, trails in single file",
+   "images": [
+    "i01",
+    "i02",
+    "i03",
+    "i04",
+    "i05",
+    "i06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.302,
+     "min": 0.142,
+     "max": 0.544,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.03,
+     "min": 0.005,
+     "max": 0.088,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.455,
+     "min": 0.331,
+     "max": 0.738,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      180,
+      179,
+      182
+     ],
+     "hex": "#b4b3b6",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      133,
+      136,
+      142
+     ],
+     "hex": "#85888e",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      91,
+      97,
+      106
+     ],
+     "hex": "#5b616a",
+     "n": 6
+    },
+    "aurora_rgb": {
+     "median": [
+      62,
+      87,
+      80
+     ],
+     "hex": "#3e5750",
+     "n": 3
+    },
+    "snow_lit_Y": {
+     "median": 0.453,
+     "min": 0.316,
+     "max": 0.734,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.247,
+     "min": 0.151,
+     "max": 0.534,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 1.53,
+     "min": 1.37,
+     "max": 3.1,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.011,
+     "min": 0.974,
+     "max": 1.153,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.054,
+     "min": 1.023,
+     "max": 1.378,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.005,
+     "min": 0.001,
+     "max": 0.199,
+     "n": 5
+    },
+    "michelson_p05_p95": {
+     "median": 0.859,
+     "min": 0.692,
+     "max": 0.976,
+     "n": 6
+    },
+    "aurora_frac": {
+     "median": 0.002,
+     "min": 0.0,
+     "max": 0.003,
+     "n": 3
+    }
+   }
+  },
+  "j": {
+   "name": "Обломки самолёта в снегу",
+   "ref_airframe": "Douglas DC-3/C-47: fuselage 19.7 m, dia ~2.5 m, wingspan 29 m",
+   "skin": "weathered aluminium, matte grey #a8acb0 daylight, dents, torn edges, missing panels",
+   "burial": "snow drifted to 30-70% of fuselage height on windward side, cap of snow on top",
+   "debris_field_m": [
+    50,
+    300
+   ],
+   "wreck_Y_vs_snow": "metal 0.3-0.7x lit snow; interior black (ratio 7-17)",
+   "images": [
+    "j01",
+    "j02",
+    "j03",
+    "j04",
+    "j05",
+    "j06"
+   ],
+   "measured": {
+    "Y_median": {
+     "median": 0.307,
+     "min": 0.084,
+     "max": 0.698,
+     "n": 6
+    },
+    "Y_p05": {
+     "median": 0.007,
+     "min": 0.002,
+     "max": 0.034,
+     "n": 6
+    },
+    "Y_p95": {
+     "median": 0.615,
+     "min": 0.148,
+     "max": 0.99,
+     "n": 6
+    },
+    "snow_lit_rgb": {
+     "median": [
+      201,
+      208,
+      218
+     ],
+     "hex": "#c9d0da",
+     "n": 6
+    },
+    "snow_shadow_rgb": {
+     "median": [
+      64,
+      63,
+      62
+     ],
+     "hex": "#403f3e",
+     "n": 6
+    },
+    "sky_rgb": {
+     "median": [
+      164,
+      172,
+      183
+     ],
+     "hex": "#a4acb7",
+     "n": 6
+    },
+    "warm_light_rgb": {
+     "median": [
+      195,
+      156,
+      107
+     ],
+     "hex": "#c39c6b",
+     "n": 3
+    },
+    "snow_lit_Y": {
+     "median": 0.632,
+     "min": 0.143,
+     "max": 0.991,
+     "n": 6
+    },
+    "snow_shadow_Y": {
+     "median": 0.051,
+     "min": 0.017,
+     "max": 0.601,
+     "n": 6
+    },
+    "lit_shadow_ratio": {
+     "median": 8.78,
+     "min": 1.64,
+     "max": 16.68,
+     "n": 6
+    },
+    "snow_blue_over_red_lit": {
+     "median": 1.042,
+     "min": 0.976,
+     "max": 1.494,
+     "n": 6
+    },
+    "snow_blue_over_red_shadow": {
+     "median": 1.123,
+     "min": 0.876,
+     "max": 1.517,
+     "n": 6
+    },
+    "dark_frac_midband": {
+     "median": 0.166,
+     "min": 0.025,
+     "max": 0.425,
+     "n": 6
+    },
+    "michelson_p05_p95": {
+     "median": 0.971,
+     "min": 0.893,
+     "max": 0.995,
+     "n": 6
+    }
+   }
+  }
+ },
+ "per_image": {
+  "a01": {
+   "Y_median": 0.0822,
+   "Y_p05": 0.0049,
+   "Y_p95": 0.5123,
+   "snow_lit_rgb": [
+    194,
+    189,
+    192
+   ],
+   "snow_shadow_rgb": [
+    51,
+    59,
+    61
+   ],
+   "sky_rgb": [
+    27,
+    51,
+    60
+   ],
+   "aurora_rgb": [
+    70,
+    146,
+    58
+   ],
+   "aurora_frac": 0.2227,
+   "warm_light_rgb": [
+    194,
+    203,
+    101
+   ],
+   "warm_frac": 0.00566,
+   "snow_lit_Y": 0.5175,
+   "snow_shadow_Y": 0.0419,
+   "lit_shadow_ratio": 11.13,
+   "snow_blue_over_red_lit": 0.995,
+   "snow_blue_over_red_shadow": 1.157,
+   "dark_frac_midband": 0.114,
+   "far_near_contrast": 0.605,
+   "michelson_p05_p95": 0.981
+  },
+  "a02": {
+   "Y_median": 0.0458,
+   "Y_p05": 0.0044,
+   "Y_p95": 0.3009,
+   "snow_lit_rgb": [
+    71,
+    106,
+    127
+   ],
+   "snow_shadow_rgb": [
+    31,
+    43,
+    53
+   ],
+   "sky_rgb": [
+    2,
+    52,
+    57
+   ],
+   "aurora_rgb": [
+    2,
+    123,
+    97
+   ],
+   "aurora_frac": 0.2248,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.1317,
+   "snow_shadow_Y": 0.0227,
+   "lit_shadow_ratio": 4.94,
+   "snow_blue_over_red_lit": 1.792,
+   "snow_blue_over_red_shadow": 1.733,
+   "dark_frac_midband": 0.365,
+   "far_near_contrast": 2.912,
+   "michelson_p05_p95": 0.971
+  },
+  "a03": {
+   "Y_median": 0.0377,
+   "Y_p05": 0.0093,
+   "Y_p95": 0.2591,
+   "snow_lit_rgb": [
+    71,
+    98,
+    60
+   ],
+   "snow_shadow_rgb": [
+    34,
+    48,
+    51
+   ],
+   "sky_rgb": [
+    25,
+    39,
+    32
+   ],
+   "aurora_rgb": [
+    55,
+    88,
+    51
+   ],
+   "aurora_frac": 0.2882,
+   "warm_light_rgb": [
+    197,
+    155,
+    98
+   ],
+   "warm_frac": 0.01208,
+   "snow_lit_Y": 0.1047,
+   "snow_shadow_Y": 0.027,
+   "lit_shadow_ratio": 3.43,
+   "snow_blue_over_red_lit": 0.894,
+   "snow_blue_over_red_shadow": 1.548,
+   "dark_frac_midband": 0.094,
+   "far_near_contrast": 0.295,
+   "michelson_p05_p95": 0.931
+  },
+  "a04": {
+   "Y_median": 0.0423,
+   "Y_p05": 0.0055,
+   "Y_p95": 0.4466,
+   "snow_lit_rgb": [
+    152,
+    233,
+    156
+   ],
+   "snow_shadow_rgb": [
+    40,
+    60,
+    59
+   ],
+   "sky_rgb": [
+    18,
+    50,
+    64
+   ],
+   "aurora_rgb": [
+    3,
+    108,
+    75
+   ],
+   "aurora_frac": 0.4422,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.6713,
+   "snow_shadow_Y": 0.0403,
+   "lit_shadow_ratio": 14.93,
+   "snow_blue_over_red_lit": 1.026,
+   "snow_blue_over_red_shadow": 1.265,
+   "dark_frac_midband": 0.182,
+   "far_near_contrast": 13.422,
+   "michelson_p05_p95": 0.976
+  },
+  "a05": {
+   "Y_median": 0.0444,
+   "Y_p05": 0.0165,
+   "Y_p95": 0.1114,
+   "snow_lit_rgb": [
+    69,
+    89,
+    104
+   ],
+   "snow_shadow_rgb": [
+    50,
+    64,
+    87
+   ],
+   "sky_rgb": [
+    29,
+    57,
+    77
+   ],
+   "aurora_rgb": [
+    9,
+    109,
+    90
+   ],
+   "aurora_frac": 0.0706,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.0933,
+   "snow_shadow_Y": 0.0499,
+   "lit_shadow_ratio": 1.79,
+   "snow_blue_over_red_lit": 1.554,
+   "snow_blue_over_red_shadow": 1.705,
+   "dark_frac_midband": 0.083,
+   "far_near_contrast": 0.987,
+   "michelson_p05_p95": 0.742
+  },
+  "a06": {
+   "Y_median": 0.0979,
+   "Y_p05": 0.0244,
+   "Y_p95": 0.3716,
+   "snow_lit_rgb": [
+    174,
+    158,
+    167
+   ],
+   "snow_shadow_rgb": [
+    79,
+    70,
+    79
+   ],
+   "sky_rgb": [
+    49,
+    80,
+    82
+   ],
+   "aurora_rgb": [
+    53,
+    98,
+    84
+   ],
+   "aurora_frac": 0.0997,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3639,
+   "snow_shadow_Y": 0.0693,
+   "lit_shadow_ratio": 4.97,
+   "snow_blue_over_red_lit": 0.959,
+   "snow_blue_over_red_shadow": 0.933,
+   "dark_frac_midband": 0.06,
+   "far_near_contrast": 0.216,
+   "michelson_p05_p95": 0.877
+  },
+  "b01": {
+   "Y_median": 0.3042,
+   "Y_p05": 0.1012,
+   "Y_p95": 0.451,
+   "snow_lit_rgb": [
+    138,
+    194,
+    219
+   ],
+   "snow_shadow_rgb": [
+    102,
+    150,
+    176
+   ],
+   "sky_rgb": [
+    107,
+    178,
+    230
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4885,
+   "snow_shadow_Y": 0.2781,
+   "lit_shadow_ratio": 1.74,
+   "snow_blue_over_red_lit": 1.576,
+   "snow_blue_over_red_shadow": 1.727,
+   "dark_frac_midband": 0.002,
+   "far_near_contrast": 0.988,
+   "michelson_p05_p95": 0.634
+  },
+  "b02": {
+   "Y_median": 0.2604,
+   "Y_p05": 0.0681,
+   "Y_p95": 0.65,
+   "snow_lit_rgb": [
+    154,
+    167,
+    207
+   ],
+   "snow_shadow_rgb": [
+    92,
+    108,
+    152
+   ],
+   "sky_rgb": [
+    133,
+    159,
+    224
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3875,
+   "snow_shadow_Y": 0.1539,
+   "lit_shadow_ratio": 2.47,
+   "snow_blue_over_red_lit": 1.329,
+   "snow_blue_over_red_shadow": 1.663,
+   "dark_frac_midband": 0.01,
+   "far_near_contrast": 3.039,
+   "michelson_p05_p95": 0.81
+  },
+  "b03": {
+   "Y_median": 0.2975,
+   "Y_p05": 0.0748,
+   "Y_p95": 0.6084,
+   "snow_lit_rgb": [
+    161,
+    166,
+    207
+   ],
+   "snow_shadow_rgb": [
+    95,
+    110,
+    149
+   ],
+   "sky_rgb": [
+    148,
+    166,
+    229
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3928,
+   "snow_shadow_Y": 0.159,
+   "lit_shadow_ratio": 2.43,
+   "snow_blue_over_red_lit": 1.287,
+   "snow_blue_over_red_shadow": 1.587,
+   "dark_frac_midband": 0.035,
+   "far_near_contrast": 2.877,
+   "michelson_p05_p95": 0.781
+  },
+  "b04": {
+   "Y_median": 0.1074,
+   "Y_p05": 0.0273,
+   "Y_p95": 0.7262,
+   "snow_lit_rgb": [
+    106,
+    99,
+    120
+   ],
+   "snow_shadow_rgb": [
+    55,
+    58,
+    80
+   ],
+   "sky_rgb": [
+    105,
+    126,
+    168
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    242,
+    173,
+    135
+   ],
+   "warm_frac": 0.02068,
+   "snow_lit_Y": 0.1341,
+   "snow_shadow_Y": 0.044,
+   "lit_shadow_ratio": 2.84,
+   "snow_blue_over_red_lit": 1.116,
+   "snow_blue_over_red_shadow": 1.49,
+   "dark_frac_midband": 0.037,
+   "far_near_contrast": 18.048,
+   "michelson_p05_p95": 0.928
+  },
+  "b05": {
+   "Y_median": 0.1981,
+   "Y_p05": 0.0035,
+   "Y_p95": 0.423,
+   "snow_lit_rgb": [
+    151,
+    175,
+    252
+   ],
+   "snow_shadow_rgb": [
+    122,
+    143,
+    214
+   ],
+   "sky_rgb": [
+    130,
+    161,
+    248
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4414,
+   "snow_shadow_Y": 0.2864,
+   "lit_shadow_ratio": 1.53,
+   "snow_blue_over_red_lit": 1.664,
+   "snow_blue_over_red_shadow": 1.772,
+   "dark_frac_midband": 0.269,
+   "far_near_contrast": 1.328,
+   "michelson_p05_p95": 0.984
+  },
+  "b06": {
+   "Y_median": 0.0371,
+   "Y_p05": 0.0024,
+   "Y_p95": 0.5778,
+   "snow_lit_rgb": [
+    212,
+    210,
+    198
+   ],
+   "snow_shadow_rgb": [
+    55,
+    56,
+    48
+   ],
+   "sky_rgb": [
+    30,
+    41,
+    36
+   ],
+   "aurora_rgb": [
+    55,
+    77,
+    56
+   ],
+   "aurora_frac": 0.0006,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.6412,
+   "snow_shadow_Y": 0.0391,
+   "lit_shadow_ratio": 14.65,
+   "snow_blue_over_red_lit": 0.934,
+   "snow_blue_over_red_shadow": 0.88,
+   "dark_frac_midband": 0.371,
+   "far_near_contrast": 0.633,
+   "michelson_p05_p95": 0.992
+  },
+  "c01": {
+   "Y_median": 0.5837,
+   "Y_p05": 0.0171,
+   "Y_p95": 0.6849,
+   "snow_lit_rgb": [
+    207,
+    212,
+    219
+   ],
+   "snow_shadow_rgb": [
+    59,
+    72,
+    86
+   ],
+   "sky_rgb": [
+    200,
+    207,
+    211
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    192,
+    135,
+    31
+   ],
+   "warm_frac": 0.00106,
+   "snow_lit_Y": 0.6539,
+   "snow_shadow_Y": 0.0627,
+   "lit_shadow_ratio": 9.74,
+   "snow_blue_over_red_lit": 1.054,
+   "snow_blue_over_red_shadow": 1.411,
+   "dark_frac_midband": 0.093,
+   "far_near_contrast": 0.671,
+   "michelson_p05_p95": 0.951
+  },
+  "c02": {
+   "Y_median": 0.4086,
+   "Y_p05": 0.2212,
+   "Y_p95": 0.6705,
+   "snow_lit_rgb": [
+    192,
+    196,
+    199
+   ],
+   "snow_shadow_rgb": [
+    147,
+    156,
+    163
+   ],
+   "sky_rgb": [
+    170,
+    178,
+    186
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.5463,
+   "snow_shadow_Y": 0.3275,
+   "lit_shadow_ratio": 1.66,
+   "snow_blue_over_red_lit": 1.036,
+   "snow_blue_over_red_shadow": 1.107,
+   "dark_frac_midband": 0.0,
+   "far_near_contrast": 1.342,
+   "michelson_p05_p95": 0.504
+  },
+  "c03": {
+   "Y_median": 0.223,
+   "Y_p05": 0.0309,
+   "Y_p95": 0.6129,
+   "snow_lit_rgb": [
+    160,
+    157,
+    152
+   ],
+   "snow_shadow_rgb": [
+    105,
+    100,
+    111
+   ],
+   "sky_rgb": [
+    154,
+    143,
+    140
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3393,
+   "snow_shadow_Y": 0.1319,
+   "lit_shadow_ratio": 2.51,
+   "snow_blue_over_red_lit": 0.948,
+   "snow_blue_over_red_shadow": 1.054,
+   "dark_frac_midband": 0.047,
+   "far_near_contrast": 1.273,
+   "michelson_p05_p95": 0.904
+  },
+  "c04": {
+   "Y_median": 0.7691,
+   "Y_p05": 0.0125,
+   "Y_p95": 0.847,
+   "snow_lit_rgb": [
+    227,
+    238,
+    243
+   ],
+   "snow_shadow_rgb": [
+    204,
+    225,
+    233
+   ],
+   "sky_rgb": [
+    212,
+    231,
+    238
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    184,
+    126,
+    61
+   ],
+   "warm_frac": 0.00036,
+   "snow_lit_Y": 0.8386,
+   "snow_shadow_Y": 0.7229,
+   "lit_shadow_ratio": 1.16,
+   "snow_blue_over_red_lit": 1.066,
+   "snow_blue_over_red_shadow": 1.142,
+   "dark_frac_midband": 0.173,
+   "far_near_contrast": 1.787,
+   "michelson_p05_p95": 0.971
+  },
+  "c05": {
+   "Y_median": 0.3568,
+   "Y_p05": 0.0036,
+   "Y_p95": 0.7808,
+   "snow_lit_rgb": [
+    223,
+    228,
+    251
+   ],
+   "snow_shadow_rgb": [
+    162,
+    166,
+    183
+   ],
+   "sky_rgb": [
+    105,
+    105,
+    116
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.7808,
+   "snow_shadow_Y": 0.3833,
+   "lit_shadow_ratio": 2.02,
+   "snow_blue_over_red_lit": 1.121,
+   "snow_blue_over_red_shadow": 1.123,
+   "dark_frac_midband": 0.257,
+   "far_near_contrast": 1.036,
+   "michelson_p05_p95": 0.991
+  },
+  "c06": {
+   "Y_median": 0.2303,
+   "Y_p05": 0.1283,
+   "Y_p95": 0.484,
+   "snow_lit_rgb": [
+    156,
+    172,
+    185
+   ],
+   "snow_shadow_rgb": [
+    108,
+    127,
+    153
+   ],
+   "sky_rgb": [
+    146,
+    164,
+    185
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4016,
+   "snow_shadow_Y": 0.2063,
+   "lit_shadow_ratio": 1.92,
+   "snow_blue_over_red_lit": 1.198,
+   "snow_blue_over_red_shadow": 1.415,
+   "dark_frac_midband": 0.0,
+   "far_near_contrast": 5.595,
+   "michelson_p05_p95": 0.581
+  },
+  "d01": {
+   "Y_median": 0.3548,
+   "Y_p05": 0.0203,
+   "Y_p95": 0.768,
+   "snow_lit_rgb": [
+    213,
+    220,
+    230
+   ],
+   "snow_shadow_rgb": [
+    61,
+    70,
+    84
+   ],
+   "sky_rgb": [
+    197,
+    204,
+    214
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.7105,
+   "snow_shadow_Y": 0.0609,
+   "lit_shadow_ratio": 10.85,
+   "snow_blue_over_red_lit": 1.079,
+   "snow_blue_over_red_shadow": 1.4,
+   "dark_frac_midband": 0.059,
+   "far_near_contrast": 0.631,
+   "michelson_p05_p95": 0.948
+  },
+  "d02": {
+   "Y_median": 0.1875,
+   "Y_p05": 0.0569,
+   "Y_p95": 0.4986,
+   "snow_lit_rgb": [
+    190,
+    200,
+    205
+   ],
+   "snow_shadow_rgb": [
+    102,
+    124,
+    152
+   ],
+   "sky_rgb": [
+    60,
+    120,
+    188
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.5687,
+   "snow_shadow_Y": 0.1955,
+   "lit_shadow_ratio": 2.86,
+   "snow_blue_over_red_lit": 1.077,
+   "snow_blue_over_red_shadow": 1.505,
+   "dark_frac_midband": 0.023,
+   "far_near_contrast": 1.914,
+   "michelson_p05_p95": 0.795
+  },
+  "d03": {
+   "Y_median": 0.471,
+   "Y_p05": 0.0078,
+   "Y_p95": 0.9047,
+   "snow_lit_rgb": [
+    215,
+    215,
+    219
+   ],
+   "snow_shadow_rgb": [
+    70,
+    67,
+    72
+   ],
+   "sky_rgb": [
+    223,
+    222,
+    223
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.6801,
+   "snow_shadow_Y": 0.0578,
+   "lit_shadow_ratio": 10.91,
+   "snow_blue_over_red_lit": 1.01,
+   "snow_blue_over_red_shadow": 1.038,
+   "dark_frac_midband": 0.088,
+   "far_near_contrast": 1.704,
+   "michelson_p05_p95": 0.983
+  },
+  "d04": {
+   "Y_median": 0.436,
+   "Y_p05": 0.0678,
+   "Y_p95": 0.4841,
+   "snow_lit_rgb": [
+    173,
+    183,
+    195
+   ],
+   "snow_shadow_rgb": [
+    160,
+    171,
+    182
+   ],
+   "sky_rgb": [
+    174,
+    183,
+    193
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4669,
+   "snow_shadow_Y": 0.3987,
+   "lit_shadow_ratio": 1.17,
+   "snow_blue_over_red_lit": 1.126,
+   "snow_blue_over_red_shadow": 1.138,
+   "dark_frac_midband": 0.003,
+   "far_near_contrast": 0.578,
+   "michelson_p05_p95": 0.754
+  },
+  "d05": {
+   "Y_median": 0.273,
+   "Y_p05": 0.0113,
+   "Y_p95": 0.4851,
+   "snow_lit_rgb": [
+    177,
+    182,
+    187
+   ],
+   "snow_shadow_rgb": [
+    60,
+    60,
+    65
+   ],
+   "sky_rgb": [
+    154,
+    162,
+    168
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4643,
+   "snow_shadow_Y": 0.0455,
+   "lit_shadow_ratio": 9.29,
+   "snow_blue_over_red_lit": 1.062,
+   "snow_blue_over_red_shadow": 1.016,
+   "dark_frac_midband": 0.071,
+   "far_near_contrast": 0.862,
+   "michelson_p05_p95": 0.954
+  },
+  "d06": {
+   "Y_median": 0.0962,
+   "Y_p05": 0.0677,
+   "Y_p95": 0.673,
+   "snow_lit_rgb": [
+    205,
+    206,
+    210
+   ],
+   "snow_shadow_rgb": [
+    71,
+    93,
+    122
+   ],
+   "sky_rgb": [
+    73,
+    86,
+    108
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.6195,
+   "snow_shadow_Y": 0.1061,
+   "lit_shadow_ratio": 5.62,
+   "snow_blue_over_red_lit": 1.028,
+   "snow_blue_over_red_shadow": 1.718,
+   "dark_frac_midband": 0.0,
+   "far_near_contrast": 1.848,
+   "michelson_p05_p95": 0.817
+  },
+  "e01": {
+   "Y_median": 0.2361,
+   "Y_p05": 0.1069,
+   "Y_p95": 0.7515,
+   "snow_lit_rgb": [
+    148,
+    149,
+    148
+   ],
+   "snow_shadow_rgb": [
+    102,
+    110,
+    120
+   ],
+   "sky_rgb": [
+    233,
+    210,
+    188
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.298,
+   "snow_shadow_Y": 0.1531,
+   "lit_shadow_ratio": 1.92,
+   "snow_blue_over_red_lit": 0.993,
+   "snow_blue_over_red_shadow": 1.178,
+   "dark_frac_midband": 0.0,
+   "far_near_contrast": 3.001,
+   "michelson_p05_p95": 0.751
+  },
+  "e02": {
+   "Y_median": 0.0499,
+   "Y_p05": 0.0173,
+   "Y_p95": 0.5594,
+   "snow_lit_rgb": [
+    68,
+    67,
+    72
+   ],
+   "snow_shadow_rgb": [
+    38,
+    46,
+    56
+   ],
+   "sky_rgb": [
+    111,
+    152,
+    148
+   ],
+   "aurora_rgb": [
+    113,
+    157,
+    144
+   ],
+   "aurora_frac": 0.0213,
+   "warm_light_rgb": [
+    210,
+    195,
+    107
+   ],
+   "warm_frac": 0.05826,
+   "snow_lit_Y": 0.0565,
+   "snow_shadow_Y": 0.0266,
+   "lit_shadow_ratio": 1.95,
+   "snow_blue_over_red_lit": 1.03,
+   "snow_blue_over_red_shadow": 1.5,
+   "dark_frac_midband": 0.126,
+   "far_near_contrast": 12.53,
+   "michelson_p05_p95": 0.94
+  },
+  "e03": {
+   "Y_median": 0.239,
+   "Y_p05": 0.0342,
+   "Y_p95": 0.6613,
+   "snow_lit_rgb": [
+    201,
+    223,
+    251
+   ],
+   "snow_shadow_rgb": [
+    118,
+    116,
+    123
+   ],
+   "sky_rgb": [
+    101,
+    129,
+    150
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    179,
+    147,
+    107
+   ],
+   "warm_frac": 0.01844,
+   "snow_lit_Y": 0.7215,
+   "snow_shadow_Y": 0.179,
+   "lit_shadow_ratio": 3.95,
+   "snow_blue_over_red_lit": 1.243,
+   "snow_blue_over_red_shadow": 1.0,
+   "dark_frac_midband": 0.017,
+   "far_near_contrast": 0.596,
+   "michelson_p05_p95": 0.902
+  },
+  "e04": {
+   "Y_median": 0.7218,
+   "Y_p05": 0.1464,
+   "Y_p95": 0.9394,
+   "snow_lit_rgb": [
+    246,
+    248,
+    250
+   ],
+   "snow_shadow_rgb": [
+    213,
+    211,
+    210
+   ],
+   "sky_rgb": [
+    235,
+    238,
+    244
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    183,
+    144,
+    97
+   ],
+   "warm_frac": 0.01995,
+   "snow_lit_Y": 0.9338,
+   "snow_shadow_Y": 0.6554,
+   "lit_shadow_ratio": 1.42,
+   "snow_blue_over_red_lit": 1.016,
+   "snow_blue_over_red_shadow": 0.982,
+   "dark_frac_midband": 0.001,
+   "far_near_contrast": 0.668,
+   "michelson_p05_p95": 0.73
+  },
+  "e05": {
+   "Y_median": 0.6077,
+   "Y_p05": 0.2376,
+   "Y_p95": 0.7215,
+   "snow_lit_rgb": [
+    212,
+    215,
+    215
+   ],
+   "snow_shadow_rgb": [
+    184,
+    189,
+    184
+   ],
+   "sky_rgb": [
+    211,
+    215,
+    214
+   ],
+   "aurora_rgb": [
+    44,
+    69,
+    26
+   ],
+   "aurora_frac": 0.0155,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.6761,
+   "snow_shadow_Y": 0.4991,
+   "lit_shadow_ratio": 1.35,
+   "snow_blue_over_red_lit": 1.014,
+   "snow_blue_over_red_shadow": 1.0,
+   "dark_frac_midband": 0.001,
+   "far_near_contrast": 1.323,
+   "michelson_p05_p95": 0.504
+  },
+  "e06": {
+   "Y_median": 0.2371,
+   "Y_p05": 0.0315,
+   "Y_p95": 0.8253,
+   "snow_lit_rgb": [
+    225,
+    236,
+    243
+   ],
+   "snow_shadow_rgb": [
+    76,
+    73,
+    68
+   ],
+   "sky_rgb": [
+    206,
+    219,
+    234
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.8221,
+   "snow_shadow_Y": 0.0672,
+   "lit_shadow_ratio": 11.46,
+   "snow_blue_over_red_lit": 1.08,
+   "snow_blue_over_red_shadow": 0.892,
+   "dark_frac_midband": 0.008,
+   "far_near_contrast": 0.21,
+   "michelson_p05_p95": 0.927
+  },
+  "f01": {
+   "Y_median": 0.011,
+   "Y_p05": 0.0029,
+   "Y_p95": 0.0684,
+   "snow_lit_rgb": [
+    57,
+    79,
+    55
+   ],
+   "snow_shadow_rgb": [
+    39,
+    38,
+    43
+   ],
+   "sky_rgb": [
+    15,
+    13,
+    15
+   ],
+   "aurora_rgb": [
+    52,
+    79,
+    50
+   ],
+   "aurora_frac": 0.0748,
+   "warm_frac": 2e-05,
+   "snow_lit_Y": 0.0682,
+   "snow_shadow_Y": 0.0201,
+   "lit_shadow_ratio": 2.91,
+   "snow_blue_over_red_lit": 0.964,
+   "snow_blue_over_red_shadow": 1.128,
+   "dark_frac_midband": 0.609,
+   "far_near_contrast": 0.348,
+   "michelson_p05_p95": 0.917
+  },
+  "f02": {
+   "Y_median": 0.0346,
+   "Y_p05": 0.0019,
+   "Y_p95": 0.1231,
+   "snow_lit_rgb": [
+    104,
+    94,
+    96
+   ],
+   "snow_shadow_rgb": [
+    56,
+    49,
+    58
+   ],
+   "sky_rgb": [
+    44,
+    38,
+    49
+   ],
+   "aurora_rgb": [
+    132,
+    183,
+    112
+   ],
+   "aurora_frac": 0.0173,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.1173,
+   "snow_shadow_Y": 0.0339,
+   "lit_shadow_ratio": 3.15,
+   "snow_blue_over_red_lit": 0.925,
+   "snow_blue_over_red_shadow": 1.037,
+   "dark_frac_midband": 0.212,
+   "far_near_contrast": 0.891,
+   "michelson_p05_p95": 0.97
+  },
+  "f03": {
+   "Y_median": 0.2462,
+   "Y_p05": 0.0261,
+   "Y_p95": 0.5572,
+   "snow_lit_rgb": [
+    151,
+    170,
+    184
+   ],
+   "snow_shadow_rgb": [
+    86,
+    114,
+    140
+   ],
+   "sky_rgb": [
+    156,
+    184,
+    205
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3869,
+   "snow_shadow_Y": 0.1594,
+   "lit_shadow_ratio": 2.38,
+   "snow_blue_over_red_lit": 1.216,
+   "snow_blue_over_red_shadow": 1.622,
+   "dark_frac_midband": 0.046,
+   "far_near_contrast": 3.061,
+   "michelson_p05_p95": 0.911
+  },
+  "f04": {
+   "Y_median": 0.0798,
+   "Y_p05": 0.0142,
+   "Y_p95": 0.3993,
+   "snow_lit_rgb": [
+    154,
+    156,
+    167
+   ],
+   "snow_shadow_rgb": [
+    65,
+    67,
+    67
+   ],
+   "sky_rgb": [
+    32,
+    48,
+    72
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    197,
+    141,
+    95
+   ],
+   "warm_frac": 0.00906,
+   "snow_lit_Y": 0.3319,
+   "snow_shadow_Y": 0.0558,
+   "lit_shadow_ratio": 5.54,
+   "snow_blue_over_red_lit": 1.044,
+   "snow_blue_over_red_shadow": 1.027,
+   "dark_frac_midband": 0.128,
+   "far_near_contrast": 1.728,
+   "michelson_p05_p95": 0.931
+  },
+  "f05": {
+   "Y_median": 0.3828,
+   "Y_p05": 0.0912,
+   "Y_p95": 0.7396,
+   "snow_lit_rgb": [
+    190,
+    195,
+    213
+   ],
+   "snow_shadow_rgb": [
+    106,
+    133,
+    171
+   ],
+   "sky_rgb": [
+    187,
+    213,
+    245
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    214,
+    122,
+    5
+   ],
+   "warm_frac": 0.07993,
+   "snow_lit_Y": 0.5447,
+   "snow_shadow_Y": 0.2297,
+   "lit_shadow_ratio": 2.34,
+   "snow_blue_over_red_lit": 1.079,
+   "snow_blue_over_red_shadow": 1.626,
+   "dark_frac_midband": 0.0,
+   "far_near_contrast": 0.61,
+   "michelson_p05_p95": 0.78
+  },
+  "f06": {
+   "Y_median": 0.323,
+   "Y_p05": 0.0145,
+   "Y_p95": 0.8042,
+   "snow_lit_rgb": [
+    228,
+    231,
+    238
+   ],
+   "snow_shadow_rgb": [
+    121,
+    132,
+    145
+   ],
+   "sky_rgb": [
+    154,
+    202,
+    237
+   ],
+   "aurora_rgb": [
+    47,
+    79,
+    67
+   ],
+   "aurora_frac": 0.0014,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.7982,
+   "snow_shadow_Y": 0.2254,
+   "lit_shadow_ratio": 3.49,
+   "snow_blue_over_red_lit": 1.043,
+   "snow_blue_over_red_shadow": 1.136,
+   "dark_frac_midband": 0.061,
+   "far_near_contrast": 0.592,
+   "michelson_p05_p95": 0.965
+  },
+  "g01": {
+   "Y_median": 0.204,
+   "Y_p05": 0.028,
+   "Y_p95": 0.5327,
+   "snow_lit_rgb": [
+    100,
+    97,
+    93
+   ],
+   "snow_shadow_rgb": [
+    44,
+    57,
+    66
+   ],
+   "sky_rgb": [
+    49,
+    82,
+    104
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.1202,
+   "snow_shadow_Y": 0.0382,
+   "lit_shadow_ratio": 2.9,
+   "snow_blue_over_red_lit": 0.905,
+   "snow_blue_over_red_shadow": 1.5,
+   "dark_frac_midband": 0.017,
+   "far_near_contrast": 1.316,
+   "michelson_p05_p95": 0.9
+  },
+  "g02": {
+   "Y_median": 0.3282,
+   "Y_p05": 0.0837,
+   "Y_p95": 0.748,
+   "snow_lit_rgb": [
+    185,
+    191,
+    181
+   ],
+   "snow_shadow_rgb": [
+    82,
+    105,
+    129
+   ],
+   "sky_rgb": [
+    226,
+    224,
+    206
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.51,
+   "snow_shadow_Y": 0.1347,
+   "lit_shadow_ratio": 3.69,
+   "snow_blue_over_red_lit": 0.977,
+   "snow_blue_over_red_shadow": 1.585,
+   "dark_frac_midband": 0.005,
+   "far_near_contrast": 1.207,
+   "michelson_p05_p95": 0.799
+  },
+  "g03": {
+   "Y_median": 0.0924,
+   "Y_p05": 0.0018,
+   "Y_p95": 0.83,
+   "snow_lit_rgb": [
+    103,
+    117,
+    146
+   ],
+   "snow_shadow_rgb": [
+    43,
+    51,
+    69
+   ],
+   "sky_rgb": [
+    219,
+    231,
+    252
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 3e-05,
+   "snow_lit_Y": 0.1778,
+   "snow_shadow_Y": 0.0332,
+   "lit_shadow_ratio": 4.78,
+   "snow_blue_over_red_lit": 1.404,
+   "snow_blue_over_red_shadow": 1.61,
+   "dark_frac_midband": 0.225,
+   "far_near_contrast": 2.301,
+   "michelson_p05_p95": 0.996
+  },
+  "g04": {
+   "Y_median": 0.0299,
+   "Y_p05": 0.0079,
+   "Y_p95": 0.1254,
+   "snow_lit_rgb": [
+    118,
+    118,
+    175
+   ],
+   "snow_shadow_rgb": [
+    61,
+    58,
+    99
+   ],
+   "sky_rgb": [
+    18,
+    22,
+    50
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    216,
+    109,
+    89
+   ],
+   "warm_frac": 0.00088,
+   "snow_lit_Y": 0.1956,
+   "snow_shadow_Y": 0.0504,
+   "lit_shadow_ratio": 3.62,
+   "snow_blue_over_red_lit": 1.48,
+   "snow_blue_over_red_shadow": 1.638,
+   "dark_frac_midband": 0.01,
+   "far_near_contrast": 0.958,
+   "michelson_p05_p95": 0.881
+  },
+  "g05": {
+   "Y_median": 0.3468,
+   "Y_p05": 0.2702,
+   "Y_p95": 0.3798,
+   "snow_lit_rgb": [
+    150,
+    165,
+    197
+   ],
+   "snow_shadow_rgb": [
+    127,
+    153,
+    186
+   ],
+   "sky_rgb": [
+    142,
+    163,
+    201
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3747,
+   "snow_shadow_Y": 0.3082,
+   "lit_shadow_ratio": 1.21,
+   "snow_blue_over_red_lit": 1.318,
+   "snow_blue_over_red_shadow": 1.469,
+   "dark_frac_midband": 0.012,
+   "far_near_contrast": 0.744,
+   "michelson_p05_p95": 0.169
+  },
+  "g06": {
+   "Y_median": 0.1415,
+   "Y_p05": 0.0202,
+   "Y_p95": 0.5342,
+   "snow_lit_rgb": [
+    154,
+    203,
+    231
+   ],
+   "snow_shadow_rgb": [
+    70,
+    96,
+    118
+   ],
+   "sky_rgb": [
+    36,
+    74,
+    93
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    254,
+    132,
+    62
+   ],
+   "warm_frac": 0.05483,
+   "snow_lit_Y": 0.5528,
+   "snow_shadow_Y": 0.1101,
+   "lit_shadow_ratio": 4.85,
+   "snow_blue_over_red_lit": 1.494,
+   "snow_blue_over_red_shadow": 1.721,
+   "dark_frac_midband": 0.031,
+   "far_near_contrast": 1.085,
+   "michelson_p05_p95": 0.927
+  },
+  "h01": {
+   "Y_median": 0.0236,
+   "Y_p05": 0.0076,
+   "Y_p95": 0.4342,
+   "snow_lit_rgb": [
+    177,
+    177,
+    175
+   ],
+   "snow_shadow_rgb": [
+    87,
+    88,
+    92
+   ],
+   "sky_rgb": [
+    2,
+    22,
+    51
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4389,
+   "snow_shadow_Y": 0.0971,
+   "lit_shadow_ratio": 4.35,
+   "snow_blue_over_red_lit": 0.989,
+   "snow_blue_over_red_shadow": 1.046,
+   "dark_frac_midband": 0.313,
+   "far_near_contrast": 0.663,
+   "michelson_p05_p95": 0.966
+  },
+  "h02": {
+   "Y_median": 0.0162,
+   "Y_p05": 0.001,
+   "Y_p95": 0.12,
+   "sky_rgb": [
+    4,
+    21,
+    90
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "dark_frac_midband": 0.559,
+   "far_near_contrast": 0.911,
+   "michelson_p05_p95": 0.984
+  },
+  "h03": {
+   "Y_median": 0.0469,
+   "Y_p05": 0.0092,
+   "Y_p95": 0.1556,
+   "snow_lit_rgb": [
+    42,
+    51,
+    72
+   ],
+   "snow_shadow_rgb": [
+    33,
+    37,
+    46
+   ],
+   "sky_rgb": [
+    75,
+    100,
+    161
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.0332,
+   "snow_shadow_Y": 0.0186,
+   "lit_shadow_ratio": 1.62,
+   "snow_blue_over_red_lit": 1.707,
+   "snow_blue_over_red_shadow": 1.382,
+   "dark_frac_midband": 0.458,
+   "far_near_contrast": 2.095,
+   "michelson_p05_p95": 0.888
+  },
+  "h04": {
+   "Y_median": 0.0936,
+   "Y_p05": 0.0022,
+   "Y_p95": 0.3224,
+   "snow_lit_rgb": [
+    143,
+    162,
+    211
+   ],
+   "snow_shadow_rgb": [
+    81,
+    92,
+    136
+   ],
+   "sky_rgb": [
+    73,
+    102,
+    156
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    210,
+    128,
+    61
+   ],
+   "warm_frac": 0.00043,
+   "snow_lit_Y": 0.3642,
+   "snow_shadow_Y": 0.1112,
+   "lit_shadow_ratio": 3.18,
+   "snow_blue_over_red_lit": 1.496,
+   "snow_blue_over_red_shadow": 1.691,
+   "dark_frac_midband": 0.52,
+   "far_near_contrast": 2.78,
+   "michelson_p05_p95": 0.986
+  },
+  "h05": {
+   "Y_median": 0.0534,
+   "Y_p05": 0.0081,
+   "Y_p95": 0.2523,
+   "sky_rgb": [
+    1,
+    130,
+    218
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.00044,
+   "snow_lit_Y": 0.3819,
+   "snow_shadow_Y": 0.0648,
+   "lit_shadow_ratio": 5.54,
+   "snow_blue_over_red_lit": 1.72,
+   "snow_blue_over_red_shadow": 1.456,
+   "dark_frac_midband": 0.177,
+   "far_near_contrast": 6.506,
+   "michelson_p05_p95": 0.938
+  },
+  "h06": {
+   "Y_median": 0.1771,
+   "Y_p05": 0.0071,
+   "Y_p95": 0.6348,
+   "snow_lit_rgb": [
+    200,
+    221,
+    214
+   ],
+   "snow_shadow_rgb": [
+    81,
+    74,
+    101
+   ],
+   "sky_rgb": [
+    42,
+    136,
+    206
+   ],
+   "aurora_frac": 0.0002,
+   "warm_light_rgb": [
+    212,
+    139,
+    77
+   ],
+   "warm_frac": 0.04443,
+   "snow_lit_Y": 0.6889,
+   "snow_shadow_Y": 0.0778,
+   "lit_shadow_ratio": 8.38,
+   "snow_blue_over_red_lit": 1.066,
+   "snow_blue_over_red_shadow": 1.215,
+   "dark_frac_midband": 0.21,
+   "far_near_contrast": 2.111,
+   "michelson_p05_p95": 0.978
+  },
+  "i01": {
+   "Y_median": 0.5441,
+   "Y_p05": 0.0214,
+   "Y_p95": 0.7168,
+   "snow_lit_rgb": [
+    217,
+    218,
+    223
+   ],
+   "snow_shadow_rgb": [
+    182,
+    184,
+    189
+   ],
+   "sky_rgb": [
+    73,
+    72,
+    71
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.00011,
+   "snow_lit_Y": 0.7044,
+   "snow_shadow_Y": 0.4778,
+   "lit_shadow_ratio": 1.47,
+   "snow_blue_over_red_lit": 1.023,
+   "snow_blue_over_red_shadow": 1.039,
+   "dark_frac_midband": 0.021,
+   "far_near_contrast": 1.192,
+   "michelson_p05_p95": 0.942
+  },
+  "i02": {
+   "Y_median": 0.5117,
+   "Y_p05": 0.0877,
+   "Y_p95": 0.7379,
+   "snow_lit_rgb": [
+    223,
+    222,
+    223
+   ],
+   "snow_shadow_rgb": [
+    194,
+    192,
+    198
+   ],
+   "sky_rgb": [
+    98,
+    106,
+    144
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.00018,
+   "snow_lit_Y": 0.7342,
+   "snow_shadow_Y": 0.5342,
+   "lit_shadow_ratio": 1.37,
+   "snow_blue_over_red_lit": 1.0,
+   "snow_blue_over_red_shadow": 1.025,
+   "dark_frac_midband": 0.003,
+   "far_near_contrast": 1.581,
+   "michelson_p05_p95": 0.788
+  },
+  "i03": {
+   "Y_median": 0.257,
+   "Y_p05": 0.0305,
+   "Y_p95": 0.3314,
+   "snow_lit_rgb": [
+    148,
+    152,
+    172
+   ],
+   "snow_shadow_rgb": [
+    121,
+    125,
+    135
+   ],
+   "sky_rgb": [
+    84,
+    88,
+    95
+   ],
+   "aurora_rgb": [
+    62,
+    87,
+    80
+   ],
+   "aurora_frac": 0.003,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.3164,
+   "snow_shadow_Y": 0.2037,
+   "lit_shadow_ratio": 1.54,
+   "snow_blue_over_red_lit": 1.153,
+   "snow_blue_over_red_shadow": 1.149,
+   "dark_frac_midband": 0.005,
+   "far_near_contrast": 0.809,
+   "michelson_p05_p95": 0.831
+  },
+  "i04": {
+   "Y_median": 0.3463,
+   "Y_p05": 0.0757,
+   "Y_p95": 0.4153,
+   "snow_lit_rgb": [
+    171,
+    171,
+    181
+   ],
+   "snow_shadow_rgb": [
+    139,
+    142,
+    149
+   ],
+   "sky_rgb": [
+    157,
+    157,
+    162
+   ],
+   "aurora_rgb": [
+    75,
+    101,
+    92
+   ],
+   "aurora_frac": 0.0003,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4112,
+   "snow_shadow_Y": 0.2696,
+   "lit_shadow_ratio": 1.52,
+   "snow_blue_over_red_lit": 1.058,
+   "snow_blue_over_red_shadow": 1.07,
+   "dark_frac_midband": 0.0,
+   "far_near_contrast": 1.453,
+   "michelson_p05_p95": 0.692
+  },
+  "i05": {
+   "Y_median": 0.1417,
+   "Y_p05": 0.0288,
+   "Y_p95": 0.4847,
+   "snow_lit_rgb": [
+    185,
+    184,
+    183
+   ],
+   "snow_shadow_rgb": [
+    96,
+    110,
+    128
+   ],
+   "sky_rgb": [
+    60,
+    66,
+    73
+   ],
+   "aurora_rgb": [
+    52,
+    80,
+    73
+   ],
+   "aurora_frac": 0.002,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4797,
+   "snow_shadow_Y": 0.1515,
+   "lit_shadow_ratio": 3.1,
+   "snow_blue_over_red_lit": 0.984,
+   "snow_blue_over_red_shadow": 1.378,
+   "dark_frac_midband": 0.001,
+   "far_near_contrast": 0.607,
+   "michelson_p05_p95": 0.888
+  },
+  "i06": {
+   "Y_median": 0.2422,
+   "Y_p05": 0.0051,
+   "Y_p95": 0.4248,
+   "snow_lit_rgb": [
+    175,
+    175,
+    171
+   ],
+   "snow_shadow_rgb": [
+    128,
+    131,
+    131
+   ],
+   "sky_rgb": [
+    114,
+    118,
+    118
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.426,
+   "snow_shadow_Y": 0.2243,
+   "lit_shadow_ratio": 1.88,
+   "snow_blue_over_red_lit": 0.974,
+   "snow_blue_over_red_shadow": 1.023,
+   "dark_frac_midband": 0.199,
+   "far_near_contrast": 0.768,
+   "michelson_p05_p95": 0.976
+  },
+  "j01": {
+   "Y_median": 0.3119,
+   "Y_p05": 0.0343,
+   "Y_p95": 0.6093,
+   "snow_lit_rgb": [
+    181,
+    193,
+    220
+   ],
+   "snow_shadow_rgb": [
+    99,
+    106,
+    129
+   ],
+   "sky_rgb": [
+    79,
+    81,
+    101
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    237,
+    194,
+    142
+   ],
+   "warm_frac": 0.00903,
+   "snow_lit_Y": 0.5311,
+   "snow_shadow_Y": 0.1443,
+   "lit_shadow_ratio": 3.59,
+   "snow_blue_over_red_lit": 1.22,
+   "snow_blue_over_red_shadow": 1.272,
+   "dark_frac_midband": 0.025,
+   "far_near_contrast": 2.399,
+   "michelson_p05_p95": 0.893
+  },
+  "j02": {
+   "Y_median": 0.2045,
+   "Y_p05": 0.0021,
+   "Y_p95": 0.5395,
+   "snow_lit_rgb": [
+    175,
+    179,
+    181
+   ],
+   "snow_shadow_rgb": [
+    51,
+    55,
+    57
+   ],
+   "sky_rgb": [
+    165,
+    170,
+    174
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.4473,
+   "snow_shadow_Y": 0.0371,
+   "lit_shadow_ratio": 10.75,
+   "snow_blue_over_red_lit": 1.039,
+   "snow_blue_over_red_shadow": 1.122,
+   "dark_frac_midband": 0.425,
+   "far_near_contrast": 22.91,
+   "michelson_p05_p95": 0.992
+  },
+  "j03": {
+   "Y_median": 0.0838,
+   "Y_p05": 0.0059,
+   "Y_p95": 0.1478,
+   "snow_lit_rgb": [
+    90,
+    107,
+    134
+   ],
+   "snow_shadow_rgb": [
+    32,
+    35,
+    48
+   ],
+   "sky_rgb": [
+    63,
+    87,
+    121
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 0.0,
+   "snow_lit_Y": 0.1434,
+   "snow_shadow_Y": 0.0168,
+   "lit_shadow_ratio": 6.81,
+   "snow_blue_over_red_lit": 1.494,
+   "snow_blue_over_red_shadow": 1.517,
+   "dark_frac_midband": 0.251,
+   "far_near_contrast": 10.325,
+   "michelson_p05_p95": 0.923
+  },
+  "j04": {
+   "Y_median": 0.3026,
+   "Y_p05": 0.0084,
+   "Y_p95": 0.6215,
+   "snow_lit_rgb": [
+    221,
+    223,
+    217
+   ],
+   "snow_shadow_rgb": [
+    54,
+    56,
+    59
+   ],
+   "sky_rgb": [
+    164,
+    175,
+    193
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    176,
+    155,
+    104
+   ],
+   "warm_frac": 0.00209,
+   "snow_lit_Y": 0.7337,
+   "snow_shadow_Y": 0.0393,
+   "lit_shadow_ratio": 16.68,
+   "snow_blue_over_red_lit": 0.976,
+   "snow_blue_over_red_shadow": 1.125,
+   "dark_frac_midband": 0.142,
+   "far_near_contrast": 3.218,
+   "michelson_p05_p95": 0.973
+  },
+  "j05": {
+   "Y_median": 0.4658,
+   "Y_p05": 0.0019,
+   "Y_p95": 0.8116,
+   "snow_lit_rgb": [
+    225,
+    228,
+    234
+   ],
+   "snow_shadow_rgb": [
+    74,
+    71,
+    66
+   ],
+   "sky_rgb": [
+    218,
+    220,
+    224
+   ],
+   "aurora_frac": 0.0,
+   "warm_frac": 4e-05,
+   "snow_lit_Y": 0.7749,
+   "snow_shadow_Y": 0.0632,
+   "lit_shadow_ratio": 11.44,
+   "snow_blue_over_red_lit": 1.044,
+   "snow_blue_over_red_shadow": 0.876,
+   "dark_frac_midband": 0.191,
+   "far_near_contrast": 1.802,
+   "michelson_p05_p95": 0.995
+  },
+  "j06": {
+   "Y_median": 0.6975,
+   "Y_p05": 0.0156,
+   "Y_p95": 0.9899,
+   "snow_lit_rgb": [
+    253,
+    254,
+    254
+   ],
+   "snow_shadow_rgb": [
+    198,
+    204,
+    219
+   ],
+   "sky_rgb": [
+    204,
+    220,
+    246
+   ],
+   "aurora_frac": 0.0,
+   "warm_light_rgb": [
+    195,
+    156,
+    107
+   ],
+   "warm_frac": 0.00805,
+   "snow_lit_Y": 0.9906,
+   "snow_shadow_Y": 0.6008,
+   "lit_shadow_ratio": 1.64,
+   "snow_blue_over_red_lit": 1.004,
+   "snow_blue_over_red_shadow": 1.109,
+   "dark_frac_midband": 0.112,
+   "far_near_contrast": 1.84,
+   "michelson_p05_p95": 0.969
+  }
+ }
+}
