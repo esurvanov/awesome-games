@@ -117,3 +117,15 @@ Draw calls: +2 mountains, +≤25 ice sectors (+ shadows for ridges/growlers/smal
 - Light shafts come from depth only: transparent objects (mist sheets, glows) don't occlude.
 - Bergs have open undersides (asset note) — all are sunk 0.3–0.6 m and none is reachable from below.
 - Collision bench: `climb_crate` / `jump_boulder` failures seen during this pass also occur with `?noatmo` (other agents' work in progress).
+
+## 10 · FIX-LOOK night palette (2026-09-26)
+
+| | Before | Now (clear_aurora) |
+|---|---|---|
+| 🌙 moon | `#b4c6ff` × 2.8 | `#f0eae4` × 4.4 (preset keys `moonCol` / `moon`) |
+| 🌌 hemi | `#7d9de0` / `#2c3c70` × 1.2 | `#7c93d4` / `#252c48` × 0.75 (`hemiSky` / `hemiGnd`) |
+| 💚 aurora light | `#33ffa8`-ish × 0.7 | `#4dff8e` × 0.12 |
+| 🎞 exposure · env | 0.8 · 1 | 0.64 · 0.3 (`envK` → `scene.environmentIntensity`) |
+| 🌑 shadow split λ | .85 (crisp ≈ 23 m) | .38 high/ultra, .5 med (first cascade ≈ 80 m, same maps, no extra cost) |
+
+Colours default to `STYLE.palette` (moon, hemiSky, hemiGround); all presets get them unless they set their own. Sea bergs / growlers / ridges are seated by the QA burial invariant (12–18 %).

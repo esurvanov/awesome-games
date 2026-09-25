@@ -79,3 +79,15 @@ ctx.STYLE.tag(mesh, { owner: 'vegetation', source: 'pack:veg_set', intentional: 
 | `owner` | module column in the inventory (default: file that called `add()`, via `qa-hooks.js`) |
 | `source` | provenance (default: `pack:<name>` from `loadPacked`, `primitive:<Box…>`, `generated`) |
 | `intentional` | primitive allowed on screen (beam, particle, UI helper) — never reported as a v1 leftover |
+
+## 🌙 Night palette (FIX-LOOK, 2026-09-26)
+
+| Key | Was | Now | Why |
+|---|---|---|---|
+| moon | `#b4c6ff` | `#f0eae4` | lit snow B/R 1.0–1.2 (night_master) |
+| hemiSky / hemiGround | `#7d9de0` / `#2c3c70` | `#7c93d4` / `#252c48` | shadow bluer than lit, B/R 1.3–1.6 |
+| auroraA / auroraLight | `#33ffa8` / `#5cf5c0` | `#4dff8e` | aurora `#356c4b`: green, not cyan |
+| fog / heightFog | `#1b2b55` / `#22355f` | `#1a2c46` / `#20344f` | sky `#1d3240` |
+| straw* / heather* | — | `#aa9778` … `#5a4c48` | grass & shrubs (e02/e05/e06) |
+
+Runtime: atmosphere.js applies moon/hemi colours from these every frame; vegetation.js reads straw/heather.

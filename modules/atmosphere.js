@@ -17,32 +17,38 @@
   /* ============================ presets ============================ */
   // colours are display hex (decoded to linear once); intensities in the game's physical units
   const PRESETS = {
-    clear_aurora: { fog: 0x1b2b55, fogNear: 90, fogFar: 640, hfDen: 0.010, hfH: 7, hfMax: 0.55, hfCol: 0x22355f, scatter: 0.55,
-      skyExp: 1.0, stars: 1.0, veil: 0.0, storm: 0.0, aur: 1.0, aurA: 0x33ffa8, aurB: 0xa852ff, aurCycle: 0,
-      moon: 2.8, hemi: 1.2, aurLight: 0.7, bloom: 0.5, exposure: 0.8,
+    clear_aurora: { fog: 0x1a2c46, fogNear: 90, fogFar: 640, hfDen: 0.010, hfH: 7, hfMax: 0.55, hfCol: 0x20344f, scatter: 0.55,
+      skyExp: 1.0, stars: 1.0, veil: 0.0, storm: 0.0, aur: 1.0, aurA: 0x4dff8e, aurB: 0xa852ff, aurCycle: 0,
+      moon: 4.4, hemi: 0.75, aurLight: 0.12, bloom: 0.5, exposure: 0.64, envK: 0.3,
       snow: 0.30, snowFar: 0.35, wind: 1.0, fall: 1.3, streak: 0, shafts: 0.5, haze: 1.0, iceAur: 1.0, breath: 1.0 },
     calm_mist: { fog: 0x27385f, fogNear: 25, fogFar: 430, hfDen: 0.045, hfH: 9, hfMax: 0.88, hfCol: 0x2f4371, scatter: 1.4,
       skyExp: 0.8, stars: 0.6, veil: 0.15, storm: 0.0, aur: 0.45, aurA: 0x33ffa8, aurB: 0x8a6bff, aurCycle: 0,
-      moon: 2.4, hemi: 1.35, aurLight: 0.35, bloom: 0.62, exposure: 0.82,
+      moon: 2.8, hemi: 0.9, aurLight: 0.2, bloom: 0.62, exposure: 0.82,
       snow: 0.12, snowFar: 0.15, wind: 0.25, fall: 0.7, streak: 0, shafts: 1.0, haze: 1.5, iceAur: 0.5, breath: 1.3 },
     overcast: { fog: 0x1d2334, fogNear: 45, fogFar: 470, hfDen: 0.014, hfH: 8, hfMax: 0.6, hfCol: 0x232b3f, scatter: 0.15,
       skyExp: 0.35, stars: 0.05, veil: 0.85, storm: 0.3, aur: 0.06, aurA: 0x33ffa8, aurB: 0xa852ff, aurCycle: 0,
-      moon: 1.0, hemi: 1.55, aurLight: 0.05, bloom: 0.4, exposure: 0.85,
+      moon: 1.0, hemi: 1.25, aurLight: 0.03, bloom: 0.4, exposure: 0.85,
       snow: 0.55, snowFar: 0.6, wind: 3.0, fall: 1.5, streak: 0.15, shafts: 0.0, haze: 1.6, iceAur: 0.1, breath: 1.0 },
     blizzard: { fog: 0x2b3858, fogNear: 6, fogFar: 160, hfDen: 0.03, hfH: 14, hfMax: 0.7, hfCol: 0x34456b, scatter: 0.35,
       skyExp: 0.3, stars: 0.0, veil: 1.0, storm: 1.0, aur: 0.22, aurA: 0x33ffa8, aurB: 0xa852ff, aurCycle: 0,
-      moon: 1.3, hemi: 1.7, aurLight: 0.15, bloom: 0.45, exposure: 0.85,
+      moon: 1.3, hemi: 1.45, aurLight: 0.08, bloom: 0.45, exposure: 0.85,
       snow: 1.0, snowFar: 1.0, wind: 22, fall: 4.5, streak: 1.0, shafts: 0.0, haze: 3.0, iceAur: 0.1, breath: 0.6 },
     aurora_flare: { fog: 0x173052, fogNear: 110, fogFar: 720, hfDen: 0.008, hfH: 6, hfMax: 0.5, hfCol: 0x1d4a5a, scatter: 0.35,
       skyExp: 1.05, stars: 1.0, veil: 0.0, storm: 0.0, aur: 2.2, aurA: 0x3dffb0, aurB: 0xc25cff, aurCycle: 1,
-      moon: 2.4, hemi: 1.1, aurLight: 1.5, bloom: 0.85, exposure: 0.8,
+      moon: 3.0, hemi: 0.7, aurLight: 0.9, bloom: 0.85, exposure: 0.8,
       snow: 0.2, snowFar: 0.25, wind: 0.6, fall: 1.0, streak: 0, shafts: 0.3, haze: 0.9, iceAur: 1.8, breath: 1.0 },
     rift_glow: { fog: 0x2a1d55, fogNear: 60, fogFar: 540, hfDen: 0.022, hfH: 10, hfMax: 0.7, hfCol: 0x3b2672, scatter: 0.6,
       skyExp: 0.85, stars: 0.8, veil: 0.1, storm: 0.0, aur: 0.9, aurA: 0x8a6bff, aurB: 0xff5cc8, aurCycle: 0,
-      moon: 2.3, hemi: 1.1, aurLight: 0.9, bloom: 0.9, exposure: 0.8,
+      moon: 3.0, hemi: 0.75, aurLight: 0.5, bloom: 0.9, exposure: 0.8,
       snow: 0.3, snowFar: 0.3, wind: 0.8, fall: 1.1, streak: 0, shafts: 0.4, haze: 1.1, iceAur: 1.0, breath: 1.0 },
   };
-  const COLOR_KEYS = ['fog', 'hfCol', 'aurA', 'aurB'];
+  const COLOR_KEYS = ['fog', 'hfCol', 'aurA', 'aurB', 'moonCol', 'hemiSky', 'hemiGnd'];
+  // night palette (FIX-LOOK, references/targets.json night_master): near-neutral moon (lit snow B/R 1.0–1.2), blue sky
+  // ambient (shadows bluer than lit snow, B/R 1.3–1.6), weaker ambient vs moon (lit/shadow 3–6×), greener aurora (#356c4b).
+  // Values mirror STYLE.palette (style.js) when present.
+  const PAL = (k, d) => (window.STYLE && window.STYLE.palette && window.STYLE.palette[k] !== undefined ? window.STYLE.palette[k] : d);
+  const NIGHT = { moonCol: PAL('moon', 0xf0eae4), hemiSky: PAL('hemiSky', 0x7c93d4), hemiGnd: PAL('hemiGround', 0x252c48), envK: 0.6 };
+  for (const k in PRESETS) for (const c in NIGHT) if (PRESETS[k][c] === undefined) PRESETS[k][c] = NIGHT[c];
   // quality knobs added to QUALITY presets (see ATMOSPHERE.md)
   const QKNOBS = {
     low:   { atmSnow: 700,  atmSnowFar: 1500, atmShafts: 0,  atmShaftScale: 0.35, atmIceMax: 0.5 },
@@ -261,6 +267,19 @@ uniform vec3 uAtmFog, uAtmMoon, uAtmRim, uAtmSnowK; uniform vec4 uAtmHaze; unifo
       });
     }
   }
+  // dy that makes the QA buried share (mean over the 3×3 footprint cells of the column below the surface) = target
+  function seatDy(v, target, surf) {
+    const n = v.length / 3; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < n; i++) { const x = v[i * 3], z = v[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    const lo = [], top = [];
+    for (let i = 0; i < n; i++) { const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2]; const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
+      if (!lo[k] || y < lo[k][1]) lo[k] = [x, y, z]; if (top[k] === undefined || y > top[k]) top[k] = y; }
+    const cs = []; for (let k = 0; k < 9; k++) if (lo[k] && top[k] - lo[k][1] > 0.02) cs.push([lo[k][1], top[k] - lo[k][1], surf(lo[k][0], lo[k][2])]);
+    if (!cs.length) return 0;
+    const f = (dy) => { let a = 0; for (const [y, h, s] of cs) a += Math.min(1, Math.max(0, (s - (y + dy)) / h)); return a / cs.length; };
+    let a = -40, b = 40; for (let it = 0; it < 40; it++) { const m = (a + b) / 2; if (f(m) > target) a = m; else b = m; }
+    return (a + b) / 2;
+  }
   function placeIce(got) {
     const t0 = performance.now();
     const getH = C.getH, TAU = Math.PI * 2;
@@ -322,6 +341,19 @@ uniform vec3 uAtmFog, uAtmMoon, uAtmRim, uAtmSnowK; uniform vec4 uAtmHaze; unifo
     }
     put('env_ice_chunk', 90, 1500, 300, 760, 0.4, 2.0, 0.3);
 
+    // seat every reachable piece by the QA burial invariant (share of each footprint column under the snow/ice surface,
+    // tools/qa/qa-page.js placedCheck): 12–18 % buried, i.e. sitting IN the sea ice, open undersides still hidden
+    {
+      const surf = (x, z) => Math.max(getH(x, z), 0) + (C.snowDepthAt ? C.snowDepthAt(x, z) : 0), Vv = new THREE.Vector3();
+      for (const name of Object.keys(inst)) {
+        const pos = got[name].geo.attributes.position, step = Math.max(1, Math.floor(pos.count / 1500));
+        inst[name].forEach((it, k) => {
+          if (it.d - it.r >= R) return;
+          const v = []; for (let i = 0; i < pos.count; i += step) { Vv.fromBufferAttribute(pos, i).applyMatrix4(it.m); v.push(Vv.x, Vv.y, Vv.z); }
+          it.m.elements[13] += seatDy(v, 0.12 + 0.06 * rnd(), surf);
+        });
+      }
+    }
     // build: instanced meshes split into 6 angular sectors per model (frustum culling works per sector)
     A.ice = []; let tris = 0, cols = 0;
     const SECT = 6;
@@ -660,6 +692,8 @@ float atmN(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f); ret
     if (P.aurCycle > 0.01) { _c.a = _c.a || new THREE.Color(); _c.a.setHSL((ctx.T * 0.03) % 1, 0.9, 0.6); aA.lerp(_c.a, P.aurCycle); }
     ctx.aurLight.color.copy(aA); ctx.aurLight.intensity = P.aurLight;
     ctx.moon.intensity = P.moon; ctx.hemi.intensity = P.hemi;
+    ctx.moon.color.copy(P.moonCol); ctx.hemi.color.copy(P.hemiSky); ctx.hemi.groundColor.copy(P.hemiGnd);
+    ctx.scene.environmentIntensity = P.envK;   // sky reflections (aurora-green, blue) on every PBR material
     if (ctx.post && ctx.post.bloom) ctx.post.bloom.strength = P.bloom;
     ctx.renderer.toneMappingExposure = P.exposure;
     // mountains
@@ -720,6 +754,10 @@ float atmN(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f); ret
     A.params = decode(PRESETS.clear_aurora); A.target = decode(PRESETS.clear_aurora);
     // quality knobs
     for (const q in QKNOBS) if (ctx.QUALITY[q]) Object.assign(ctx.QUALITY[q], QKNOBS[q]);
+    // FIX-LOOK: moon shadows stay crisp to ≥ 80 m (targets.json: readable to 80–150 m in full moon). Same 2 cascades and
+    // map size (no cost change): split λ .85 → .38 moves the first cascade's far edge from ≈ 23 m to ≈ 80 m on high/ultra.
+    for (const [q, v] of [['med', 0.5], ['high', 0.38], ['ultra', 0.38]]) if (ctx.QUALITY[q]) ctx.QUALITY[q].split = v;
+    if (ctx.QUALITY[ctx.Q.name]) { ctx.Q.split = ctx.QUALITY[ctx.Q.name].split; if (ctx.moon && ctx.moon.shadow) ctx.moon.shadow.splitLambda = ctx.Q.split; }
     if (ctx.QUALITY[ctx.Q.name]) Object.assign(ctx.Q, QKNOBS[ctx.Q.name] || {});
     ctx.setAtmosphere = setAtmosphere;
     Object.defineProperty(ctx, 'atmosphere', { get: () => A, configurable: true });

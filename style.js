@@ -17,9 +17,15 @@
   /* ------------------------------------------------------------------ palette (sRGB hex) */
   S.palette = {
     // night sky / fog / atmosphere (atmosphere.js clear_aurora; the other presets in S.atmosphere)
-    fog: 0x1b2b55, heightFog: 0x22355f, auroraA: 0x33ffa8, auroraB: 0xa852ff, riftFog: 0x2a1d55, riftAurora: 0x8a6bff,
-    // light colours (open-world.html RENDERER block)
-    moon: 0xb4c6ff, hemiSky: 0x7d9de0, hemiGround: 0x2c3c70, auroraLight: 0x5cf5c0,
+    fog: 0x1a2c46, heightFog: 0x20344f, auroraA: 0x4dff8e, auroraB: 0xa852ff, riftFog: 0x2a1d55, riftAurora: 0x8a6bff,
+    // light colours — night palette (FIX-LOOK, measured against references/targets.json night_master; atmosphere.js
+    // applies them every frame): near-neutral moon, blue sky ambient, deep blue ground bounce. Was moon #b4c6ff,
+    // hemi #7d9de0 / #2c3c70 (cyan-blue lit snow, shadows less blue than light).
+    moon: 0xf0eae4, hemiSky: 0x7c93d4, hemiGround: 0x252c48, auroraLight: 0x4dff8e,
+    // ground plants (vegetation.js instance colours; e02/e05/e06): dry straw, sedge, seed grass, frost-grey + variants;
+    // dwarf shrubs rust / willow / crowberry heather. Night lighting desaturates them (targets: straw #b69a6a, shrubs #6b4a38).
+    strawDry: 0xaa9778, strawSedge: 0xa0957f, strawSeed: 0xb4a584, strawFrost: 0xb4b0a4, strawGrey: 0x9c968a, strawRust: 0x917a62, strawOlive: 0x8a8872,
+    heatherBirch: 0x6a5a50, heatherWillow: 0x6e6656, heatherCrow: 0x5a4c48,
     // UI / emitter accents already used across HUD, glows and beams
     ice: 0x7fe3ff, amber: 0xffb347, aurora: 0x5cf5c0, violet: 0xc49bff, pink: 0xff4d9d, danger: 0xff5c7d,
     beacon: 0xffb347, spireBeam: 0x7fe3ff, heartBeam: 0xb77bff, stationWarm: 0xffb070, fire: 0xff9a40,
