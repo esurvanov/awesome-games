@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>ArtWorld — стенд</title>
+<style>
+  body { margin: 0; background: #0b1520; color: #cfe; font: 12px "PT Mono", monospace; }
+  .bar { display: flex; gap: 8px; padding: 6px 10px; align-items: center; }
+  button { background: #1d2c3c; color: #cfe; border: 1px solid #2d4258; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+  button.on { background: #ffd27a; color: #111; }
+  canvas { display: block; }
+</style></head>
+<body>
+<div class="bar">
+  <button id="bDay" class="on">☀️ день</button><button id="bNight">🌙 ночь</button><button id="bBoth">◐ оба</button>
+  <button id="bPause">⏸ пауза</button><span id="info"></span>
+</div>
+<div id="wrap"></div>
+<script src="../js/art-world.js"></script>
+<script>
+'use strict';
+const AW = ArtWorld, CW = 1600, CH = 1680, DPR = Math.min(2, devicePixelRatio || 1);
+const qs = new URLSearchParams(location.search);
+let mode = qs.get('mode') || 'day', paused = qs.has('t'), T0 = +(qs.get('t') || 0);
+const BTYPES = ['balok', 'woodshed', 'smoke', 'labaz2', 'forge', 'market', 'tower'];
+const BH = { balok: 38, woodshed: 36, smoke: 40, labaz2: 36, forge: 44, tower: 34, market: 50 };
+const STAGES = [0.05, 0.3, 0.55, 0.7, 0.82, 0.93, 1];
+
+// частицы-эффекты: заспавнить и прокрутить апдейтером игры до момента t
+function simulate(spawn, t) {
+  const P = []; spawn(P); let e = 0; const dt = 1 / 60;
+  while (e < t) { for (let i = P.length - 1; i >= 0; i--) { const q = P[i]; q.life -= dt; if (q.life <= 0) { P.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; if (q.g) q.vy += q.g * dt; } e += dt; }
+  return P;
+}
+function makeCanvas() {
+  const c = document.createElement('canvas'); c.width = CW * DPR; c.height = CH * DPR; c.style.width = CW + 'px'; c.style.height = CH + 'px';
+  document.getElementById('wrap').appendChild(c); return c;
+}
+const L_WARM = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(255,190,130,0.95)'); gr.addColorStop(0.35, 'rgba(255,160,80,0.7)'); gr.addColorStop(0.7, 'rgba(230,120,60,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); return c; })();
+const GLOW = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,140,50,0.7)'); gr.addColorStop(0.4, 'rgba(255,110,30,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return c; })();
+const NOISE = (() => { const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#e9f0f5'; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 1400; i++) { const a = Math.random(); g.fillStyle = a < 0.5 ? 'rgba(150,175,205,0.12)' : 'rgba(255,255,255,0.6)'; g.fillRect(Math.random() * 512, Math.random() * 512, 1 + a * 2, 1); } return c; })();
+
+function label(g, x, y, t) { g.font = '600 11px "PT Sans", sans-serif'; g.textAlign = 'center'; g.fillStyle = '#35475a'; g.fillText(t, x, y); }
+function section(g, x, y, t) { g.font = '700 13px "PT Sans", sans-serif'; g.textAlign = 'left'; g.fillStyle = '#23384d'; g.fillText(t, x, y); }
+
+function scene(g, now, night) {
+  const LIGHTS = [], GL = [];
+  const env = { now, night, wind: 1, light: (x, y, r, t, a = 1) => LIGHTS.push({ x, y, r, a }), glow: (x, y, k) => GL.push({ x, y, k }) };
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (let i = 0; i < CW; i += 512) for (let j = 0; j < CH; j += 512) g.drawImage(NOISE, i, j);
+  // ---- деревья
+  section(g, 16, 22, '🌲 деревья: ель ×5 размеров, v1, стена · берёза · кедр');
+  const trees = [[0, 0.8, 0, 0], [0, 0.95, 0, 1], [0, 1.1, 0, 0], [0, 1.25, 0, 1], [0, 1.4, 0, 0], [0, 1.25, 1, 0], [0, 1.4, 1, 1], [1, 0.8, 0, 0], [1, 1.1, 0, 1], [1, 1.4, 0, 0], [2, 0.95, 0, 0], [2, 1.25, 0, 1], [2, 1.4, 0, 0]];
+  trees.forEach(([k, s, w, v], i) => {
+    const x = 70 + i * 104, y = 205, sway = Math.sin(now * 1.7 + i) * 0.03;
+    g.save(); g.transform(1, 0, -sway, 1, x, y); const tw = AW.treeW(k); g.drawImage(AW.treeSprite(k, s, w, v), -tw / 2, -160, tw, 170); g.restore();
+    label(g, x, y + 22, ['ель', 'берёза', 'кедр'][k] + ' ' + s + (w ? ' стена' : '') + (v ? ' v1' : ''));
+  });
+  // ---- обломки, чум, лабаз
+  section(g, 16, 252, '🚁 обломки · ⛺ чум · 🛖 лабаз · 🔥 костёр · 🪵 сигнальная куча');
+  g.drawImage(AW.spr('mi8'), 180 - 160, 430 - 140, 320, 210); label(g, 180, 492, 'Ми-8');
+  g.drawImage(AW.spr('tail'), 470 - 110, 430 - 100, 220, 140); label(g, 470, 492, 'хвост');
+  g.drawImage(AW.spr('chum'), 650 - 65, 430 - 120, 130, 140); env.light(650, 420, 90, 'w', 0.6); label(g, 650, 492, 'чум');
+  g.drawImage(AW.spr('labaz'), 770 - 40, 430 - 80, 80, 90); label(g, 770, 492, 'лабаз');
+  // костры
+  AW.fire(g, { x: 870, y: 430, fuel: 120 }, env); label(g, 870, 460, 'костёр 120');
+  AW.fire(g, { x: 950, y: 430, fuel: 20 }, env); label(g, 950, 460, 'костёр 20');
+  AW.fire(g, { x: 1030, y: 430, fuel: 0 }, env); label(g, 1030, 460, 'потух');
+  [0, 1, 2, 3, 4].forEach(w => { AW.stack(g, { x: 1100 + w * 70, y: 440, wood: w, lit: 0 }, env); label(g, 1100 + w * 70, 472, 'куча ' + w + '/4'); });
+  AW.stack(g, { x: 1540, y: 440, wood: 4, lit: 60 }, env); label(g, 1540, 472, 'горит');
+  // ---- постройки: тип × стадия
+  section(g, 16, 520, '🏗 посёлок: разметка → сруб → стропила → обрешётка → кровля → готово');
+  STAGES.forEach((p, j) => label(g, 110 + j * 110, 540, p < 1 ? 'prog ' + p : 'готово'));
+  BTYPES.forEach((t, i) => {
+    const y = 610 + i * 92 + (t === 'tower' ? 40 : 0);
+    label(g, 30, y, t);
+    STAGES.forEach((p, j) => {
+      const b = { type: t, x: 110 + j * 110, y: y - BH[t] / 2, prog: p, done: p >= 1, fuel: t === 'tower' ? 50 : 0, stockWood: 30 };
+      AW.building(g, b, env);
+    });
+  });
+  // вышка без огня и дровяник пустой
+  AW.building(g, { type: 'tower', x: 880, y: 1202 - 17, done: 1, fuel: 0 }, env); label(g, 880, 1222, 'вышка без огня');
+  AW.building(g, { type: 'woodshed', x: 880, y: 800 - 18, done: 1, stockWood: 2 }, env); label(g, 880, 820, 'дровяник: 2');
+  AW.building(g, { type: 'woodshed', x: 880, y: 700 - 18, done: 1, stockWood: 60 }, env); label(g, 880, 720, 'дровяник: 60');
+  // ---- эффекты
+  const ex = 1000;
+  section(g, ex - 30, 540, '✨ эффекты (t = 0.08 / 0.3 / 0.9 с)');
+  const FX = [['snowPuff', P => AW.fx.snowPuff(P, 0, 0)], ['chips', P => AW.fx.chips(P, 0, 0)], ['blood', P => AW.fx.blood(P, 0, 0)], ['splash', P => AW.fx.splash(P, 0, 0)], ['embers', P => AW.fx.embers(P, 0, 0, 12)], ['smoke', P => { AW.fx.smoke(P, 0, 0, 1); AW.fx.smoke(P, 12, 0, 0); }]];
+  FX.forEach(([n, sp], i) => {
+    const y = 600 + i * 64;
+    label(g, ex - 10, y, n);
+    [0.08, 0.3, 0.9].forEach((t, j) => {
+      const x = ex + 70 + j * 90;
+      if (n === 'splash') { g.fillStyle = '#1f4b66'; g.beginPath(); g.ellipse(x, y, 11, 5, 0, 0, 7); g.fill(); g.strokeStyle = '#f2f8fc'; g.lineWidth = 2; g.stroke(); }
+      if (n === 'blood') AW.decal(g, { x, y, k: 'blood', life: 60, seed: 7 + j });
+      const P = simulate(sp, t + (paused ? 0 : 0));
+      for (const q of P) { const qq = Object.assign({}, q, { x: q.x + x, y: q.y + y }); AW.drawParticle(g, qq, env); }
+    });
+  });
+  // живой цикл: эффекты анимируются
+  const loopT = now % 1.2;
+  section(g, ex + 330, 540, '▶ цикл');
+  FX.forEach(([n, sp], i) => { const y = 600 + i * 64, x = ex + 380; const P = simulate(sp, loopT); for (const q of P) AW.drawParticle(g, Object.assign({}, q, { x: q.x + x, y: q.y + y }), env); });
+  // старые типы частиц
+  const old = [{ type: 'dot', x: 1450, y: 1000, vx: 0, vy: 0, life: 0.5, max: 0.8, color: '#8e1414' }, { type: 'breath', x: 1480, y: 1000, life: 0.6, max: 1.1 }, { type: 'spark', x: 1510, y: 998, life: 0.7, max: 1 }, { type: 'text', x: 1500, y: 1030, life: 1, max: 1.3, text: '+3 🪵' }];
+  for (const q of old) AW.drawParticle(g, q, env);
+  label(g, 1480, 1016, 'dot/breath/spark');
+  // ---- пятна
+  section(g, ex - 30, 1000, '🩸 пятна: кровь · кострище · вытоптано');
+  AW.decal(g, { x: ex + 20, y: 1040, k: 'blood', life: 60, seed: 3 });
+  AW.decal(g, { x: ex + 90, y: 1040, k: 'ash', life: 60 });
+  AW.decal(g, { x: ex + 170, y: 1040, k: 'trample', life: 60 });
+  AW.decal(g, { x: ex + 250, y: 1040, k: 'blood', life: 4, seed: 9 }); label(g, ex + 250, 1062, 'угасает');
+  // ---- следы
+  section(g, ex - 30, 1086, '🐾 следы (затухают слева направо)');
+  const tracks = ['p', 'w', 'h', 'b', 'd', 's'];
+  tracks.forEach((k, i) => {
+    const y0 = 1100 + i * 26; label(g, ex - 10, y0 + 4, k);
+    const step = k === 's' ? 16 : k === 'b' ? 26 : k === 'h' ? 30 : 18;
+    for (let j = 0; j < 22; j++) {
+      const x = ex + 20 + j * step; if (x > CW - 20) break;
+      const a = Math.sin(j * 0.4 + i) * 0.25, side = k === 'p' || k === 'w' || k === 'd' || k === 'b' ? (j % 2 ? 4 : -4) : 0;
+      AW.print(g, { x, y: y0 + side + Math.sin(j * 0.4) * 3, a, k, life: 25 - j * 1.1 });
+    }
+  });
+  // ---- изба-зимовье: без улучшений · всё улучшено · интерьер (срез)
+  section(g, 16, 1262, '🏠 изба: без улучшений · стены+дверь+заслонка+рация · интерьер (крыша снята)');
+  const HIN = (x, y) => ({ x0: x - 100, x1: x + 100, y0: y - 100, y1: y + 40 });
+  const hutAt = (x, y, o) => Object.assign({ x, y, in: HIN(x, y), wall: 12, doorW: 40, fuel: night > 0 ? 100 : 0, open: 0, cut: 0 }, o);
+  [[260, { walls: 0, door: 0, bench: 0, damper: 0, radio: 0 }], [740, { walls: 1, door: 1, bench: 1, damper: 1, radio: 1 }]].forEach(([x, o]) => {
+    const H = hutAt(x, 1560, o); AW.hutFront(g, H, env); AW.hutRoof(g, H, env, 1); label(g, x, 1640, o.walls ? 'улучшена' : 'голая');
+  });
+  {
+    const H = hutAt(1260, 1560, { walls: 1, door: 1, bench: 1, damper: 1, radio: 1, fuel: 100, cut: 1 });
+    AW.hutFloor(g, H); AW.hutNorth(g, H);
+    AW.hutStove(g, 1190, 1488, { fuel: 100, damper: 1, pipeTop: 1410 }, env); AW.hutBench(g, 1318, 1484, { bench: 1, radio: 1 }, env);
+    AW.hutBed(g, 1188, 1558); AW.hutChest(g, 1342, 1554); AW.hutFront(g, H, env);
+    label(g, 1260, 1640, 'интерьер');
+  }
+  // ---- ночное освещение (как в игре: multiply карты света + свечение)
+  if (night > 0) {
+    const lm = scene.lm || (scene.lm = document.createElement('canvas')); lm.width = CW / 2; lm.height = CH / 2;
+    const lx = lm.getContext('2d');
+    const amb = [40 + 200 * (1 - night), 55 + 190 * (1 - night), 100 + 150 * (1 - night)];
+    lx.globalCompositeOperation = 'source-over'; lx.fillStyle = `rgb(${amb.map(v => v | 0)})`; lx.fillRect(0, 0, lm.width, lm.height);
+    lx.globalCompositeOperation = 'screen';
+    for (const L of LIGHTS) { const r = L.r / 2; lx.globalAlpha = L.a * night; lx.drawImage(L_WARM, L.x / 2 - r, L.y / 2 - r, r * 2, r * 2); }
+    lx.globalAlpha = 1;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'multiply'; g.drawImage(lm, 0, 0, CW * DPR, CH * DPR);
+    g.globalCompositeOperation = 'lighter'; g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (const e of GL) { const r = 50 * e.k; g.globalAlpha = 0.3 * (0.25 + night * 0.75); g.drawImage(GLOW, e.x - r, e.y - r, r * 2, r * 2); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  }
+  return { lights: LIGHTS.length, glows: GL.length };
+}
+
+let cvs = [];
+function setup() {
+  document.getElementById('wrap').innerHTML = ''; cvs = [];
+  if (mode !== 'night') cvs.push([makeCanvas(), 0]);
+  if (mode !== 'day') cvs.push([makeCanvas(), 0.95]);
+  for (const b of ['bDay', 'bNight', 'bBoth']) document.getElementById(b).classList.toggle('on', b === { day: 'bDay', night: 'bNight', both: 'bBoth' }[mode]);
+}
+let t0 = performance.now(), frames = 0, acc = 0, fps = 0;
+function loop(ts) {
+  const now = paused ? T0 : T0 + (ts - t0) / 1000;
+  const t1 = performance.now();
+  let st;
+  for (const [c, n] of cvs) st = scene(c.getContext('2d'), now, n);
+  acc += performance.now() - t1; frames++;
+  if (frames % 30 === 0) { document.getElementById('info').textContent = `кадр ${(acc / 30).toFixed(1)} мс · огней ${st.lights} · свечений ${st.glows}`; acc = 0; }
+  window.__ready = true;
+  if (!paused) requestAnimationFrame(loop);
+}
+document.getElementById('bDay').onclick = () => { mode = 'day'; setup(); if (paused) loop(0); };
+document.getElementById('bNight').onclick = () => { mode = 'night'; setup(); if (paused) loop(0); };
+document.getElementById('bBoth').onclick = () => { mode = 'both'; setup(); if (paused) loop(0); };
+document.getElementById('bPause').onclick = () => { paused = !paused; T0 = T0 + (performance.now() - t0) / 1000; t0 = performance.now(); if (!paused) requestAnimationFrame(loop); };
+window.onerror = (m, s, l) => { document.getElementById('info').textContent = 'ERR ' + m + ' @' + l; };
+setup(); requestAnimationFrame(loop);
+</script>
+</body></html>

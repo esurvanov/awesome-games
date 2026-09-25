@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ru" data-look="metal" data-time="day">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Сибирь</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=PT+Sans:wght@400;700&family=PT+Mono&family=Neucha&display=swap" rel="stylesheet">
+<style>
+  /* ═════════ 1. Токены (SPEC-ui §2; облик «жесть и краска», документ — .plate.doc) ═════════ */
+  :root {
+    --w-snow: #f6f9fc; --w-snow-2: #dde6ee; --w-snow-3: #b6c9df; --w-dusk: #6f8ea8; --w-night: #27394a;
+    --w-fire: #ffb347; --w-ember: #ff6a1a; --w-gold: #ffd27a; --w-red: #b8392d; --w-plus: #9fe36b; --w-felt: #e3d5b6;
+    --s-warm: #ff9a3c; --s-food: #d8b25a; --s-hp: #e25a4f; --s-cold: #8cc3e6;
+    --s-ok: #9fe36b; --s-warn: #ffd27a; --s-danger: #e25a4f; --s-info: #8cc3e6;
+    --f-head: "Russo One", "PT Sans", sans-serif; --f-body: "PT Sans", system-ui, sans-serif;
+    --f-num: "PT Mono", ui-monospace, monospace; --f-hand: "Neucha", "PT Sans", cursive;
+    --fs-2xs: 10px; --fs-xs: 11px; --fs-s: 12px; --fs-m: 14px; --fs-l: 16px; --fs-xl: 20px; --fs-2xl: 28px; --fs-3xl: 52px;
+    --sp-1: 2px; --sp-2: 4px; --sp-3: 6px; --sp-4: 8px; --sp-5: 12px; --sp-6: 16px; --sp-7: 24px;
+    --ic-s: 16px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px; --hit: 32px;
+    --a-disabled: .4; --a-scrim: .62; --a-row: .05; --t-fast: .12s; --t-mid: .25s;
+    /* металл */
+    --c1: #111a15; --c2: #18231c; --c3: #22302a; --c4: #2b3c33; --c5: #34483d; --c6: #0b120e; --c7: #4d6456; --c8: #6d8777;
+    --c9: #e8943a; --c10: #f4a64c; --c11: #a7b5a6; --c12: #ebe6d3; --on-accent: #1a0f06; --ink-violet: #4e3f94;
+    --panel-bg: linear-gradient(180deg, var(--c4), var(--c3) 30%, var(--c3));
+    --panel-edge: 1px solid var(--c7);
+    --panel-sh: inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 0 rgba(0,0,0,.28), 0 2px 0 rgba(11,18,14,.55), 0 8px 18px rgba(39,57,74,.38);
+    --well-bg: #0d140f; --well-sh: inset 0 2px 3px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.06);
+    --r-panel: 4px; --r-ctl: 3px; --r-pill: 3px;
+    --rivet: radial-gradient(circle, #a4b3a6 0 1.3px, #56675b 1.4px 1.9px, #0b120e 2px 2.4px, transparent 2.5px);
+    --glow: 0 0 6px currentColor;
+    --ui: 1; --hitT: 32px;
+    /* старые имена — псевдонимы на один релиз */
+    --ink: var(--c2); --panel: var(--c3); --line: var(--c7); --snow: var(--c12); --muted: var(--c11);
+    --warm: var(--s-warm); --food: var(--s-food); --hp: var(--s-hp); --ice: var(--s-cold); --btn: var(--c9); --btn-ink: var(--on-accent); --gold: var(--w-gold);
+    color-scheme: dark;
+  }
+  [data-time="night"] { --c12: #f3eedc; --glow: 0 0 9px currentColor; }
+  .has-touch { --hitT: calc(44px / var(--ui)); }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--w-night); color: var(--c12); font: var(--fs-m)/1.35 var(--f-body); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  button { font-family: inherit; color: inherit; }
+  .num, .mono { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+  kbd { font: var(--fs-2xs) var(--f-num); padding: 0 4px; border-radius: 2px; border: 1px solid currentColor; opacity: .7; line-height: 14px; }
+  .has-touch kbd { display: none; }
+
+  /* ═════════ 2. Компоненты (SPEC-ui §3: 8 + тост) ═════════ */
+  .ic { width: var(--ic-m); height: var(--ic-m); fill: currentColor; flex: none; display: inline-block; vertical-align: middle; }
+  .ic.s { width: var(--ic-s); height: var(--ic-s); } .ic.l { width: var(--ic-l); height: var(--ic-l); } .ic.xl { width: var(--ic-xl); height: var(--ic-xl); }
+  .ic.em { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin: 0 .06em; }
+  /* 1 · панель */
+  .plate { background: var(--panel-bg); border: var(--panel-edge); border-radius: var(--r-panel); box-shadow: var(--panel-sh); color: var(--c12); position: relative; box-sizing: border-box; }
+  .plate.rv { background: var(--rivet) 3px 3px/9px 9px no-repeat, var(--rivet) right 3px top 3px/9px 9px no-repeat,
+    var(--rivet) left 3px bottom 3px/9px 9px no-repeat, var(--rivet) right 3px bottom 3px/9px 9px no-repeat, var(--panel-bg); }
+  .plate-h { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5) var(--sp-3); font: var(--fs-s) var(--f-head); letter-spacing: .12em; text-transform: uppercase; color: var(--c11); border-bottom: 1px solid var(--c6); box-shadow: 0 1px 0 rgba(255,255,255,.06); }
+  .plate-b { padding: var(--sp-4) var(--sp-5) var(--sp-5); display: grid; gap: var(--sp-3); }
+  /* документ: бумажная шкала c1…c12 внутри металла */
+  .plate.doc { --panel-bg: #e9dfc7; --c1: #e3d5b6; --c2: #e9dfc7; --c3: #f3ecda; --c4: #e8dcc0; --c5: #dccdaa; --c6: rgba(58,47,34,.3); --c7: #8f7c5c; --c8: #3a3f46;
+    --c9: #b8392d; --c10: #cc4a3c; --c11: #6d6453; --c12: #2b2f3a; --on-accent: #fff6e6; --well-bg: rgba(255,255,255,.5); --well-sh: inset 0 0 0 1px rgba(58,47,34,.35); --glow: none; --a-row: 0;
+    --s-ok: #3f7a2a; --s-warn: #9a6a10; --r-panel: 2px; --r-ctl: 2px; --r-pill: 2px;
+    --panel-edge: 1px solid #c7b48c; --panel-sh: 0 1px 0 #fffaf0 inset, 0 2px 0 rgba(58,47,34,.25), 0 10px 26px rgba(11,18,14,.45); color: var(--c12); }
+  .plate.doc .plate-h { color: var(--ink-violet); border-bottom: 1.5px solid var(--c12); box-shadow: none; }
+  /* 2–3 · кнопки */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-3); min-height: var(--hit); min-width: var(--hitT); padding: 0 var(--sp-5); box-sizing: border-box;
+    font: 700 var(--fs-m) var(--f-body); letter-spacing: .03em; border-radius: var(--r-ctl); cursor: pointer; transition: filter var(--t-fast), transform var(--t-fast); white-space: nowrap; }
+  .has-touch .btn { min-height: var(--hitT); }
+  .btn.pri { background: linear-gradient(180deg, #f5ad55, var(--c9)); color: var(--on-accent); border: 1px solid rgba(0,0,0,.35); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 0 #7a4412;
+    text-transform: uppercase; font: 400 var(--fs-m) var(--f-head); letter-spacing: .08em; }
+  .btn.sec { background: linear-gradient(180deg, var(--c5), var(--c4)); color: var(--c12); border: 1px solid var(--c6); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 0 var(--c6); }
+  .btn.ico { width: var(--hitT); min-width: var(--hitT); padding: 0; }
+  .btn:hover, .btn.is-hover { filter: brightness(1.1); }
+  .btn.sec:hover, .btn.sec.is-hover { background: linear-gradient(180deg, var(--c5), var(--c5)); border-color: var(--c8); filter: none; }
+  .btn:active, .btn.is-press { transform: translateY(2px); box-shadow: inset 0 2px 3px rgba(0,0,0,.4); }
+  .btn:disabled, .btn.is-off { opacity: var(--a-disabled); cursor: default; filter: none; transform: none; }
+  .btn:focus-visible, .btn.is-focus, .tab:focus-visible { outline: 2px solid var(--s-warn); outline-offset: 2px; }
+  .btn.on { color: var(--c9); background: var(--c1); box-shadow: inset 0 2px 3px rgba(0,0,0,.5), inset 0 -2px 0 var(--c9); }
+  .btn .dot { position: absolute; right: -4px; top: -4px; }
+  .plate.doc .btn.pri { background: var(--c9); box-shadow: 0 2px 0 #7a2a20; color: var(--on-accent); }
+  .plate.doc .btn.sec { background: rgba(255,255,255,.35); border: 1px solid var(--c8); box-shadow: 0 2px 0 rgba(58,47,34,.3); }
+  /* 4 · вкладки / сегменты */
+  .tabs { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .tab { position: relative; display: inline-flex; align-items: center; gap: var(--sp-2); height: 30px; min-height: 30px; min-width: var(--hitT); justify-content: center; padding: 0 var(--sp-4); box-sizing: border-box;
+    font: 700 var(--fs-s) var(--f-body); color: var(--c11); background: transparent; border: 1px solid transparent; border-radius: var(--r-ctl); cursor: pointer; }
+  .has-touch .tab { height: var(--hitT); }
+  .tab:hover, .tab.is-hover { color: var(--c12); background: var(--c4); }
+  .tab.on { color: var(--c9); background: var(--c1); border-color: var(--c6); box-shadow: inset 0 2px 3px rgba(0,0,0,.5), inset 0 -2px 0 var(--c9); text-shadow: var(--glow); }
+  .tab.is-off, .tab:disabled { opacity: var(--a-disabled); cursor: default; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--s-danger); display: inline-block; }
+  /* 5 · строка */
+  .row { display: grid; grid-template-columns: 32px 1fr auto auto; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-ctl); background: rgba(255,255,255,var(--a-row)); text-align: left; }
+  .ri { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-ctl); background: var(--well-bg); box-shadow: var(--well-sh); color: var(--c12); }
+  .rn { display: grid; font-size: var(--fs-m); min-width: 0; } .rn small { font-size: var(--fs-xs); color: var(--c11); }
+  .row:hover, .row.is-hover { background: rgba(255,255,255,.09); }
+  .row.sel { box-shadow: inset 3px 0 0 var(--c9); background: rgba(232,148,58,.12); }
+  .row.is-off .ri, .row.is-off .rn { opacity: .55; }
+  .row.done .ri { color: var(--s-ok); }
+  .plate.doc .row { border-bottom: 1px dashed rgba(58,47,34,.35); border-radius: 0; }
+  .badges { display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+  /* 6 · плитки */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: var(--sp-3); width: 100%; }
+  .tile { display: grid; justify-items: center; gap: var(--sp-1); padding: var(--sp-4) var(--sp-2) var(--sp-3); border-radius: var(--r-ctl); background: var(--well-bg); box-shadow: var(--well-sh); color: var(--c11); font-size: var(--fs-xs); text-align: center; line-height: 1.15; }
+  .tile .ic { width: var(--ic-l); height: var(--ic-l); color: var(--c12); }
+  .tile b { font: 400 var(--fs-l) var(--f-num); color: var(--w-gold); text-shadow: var(--glow); }
+  .plate.doc .tile b { color: var(--c12); }
+  .tile.miss b { color: var(--s-danger); } .tile.gain b { color: var(--s-ok); }
+  /* 7 · бейдж / чип */
+  .badge { display: inline-flex; align-items: center; gap: var(--sp-2); height: 22px; padding: 0 var(--sp-3); font: var(--fs-s) var(--f-num); border-radius: var(--r-pill); background: var(--c1); color: var(--c12); border: 1px solid var(--c6); white-space: nowrap; box-sizing: border-box; }
+  .badge .ic { width: var(--ic-s); height: var(--ic-s); }
+  .badge.ok { color: var(--s-ok); } .badge.warn { color: var(--s-warn); } .badge.danger { color: var(--s-danger); } .badge.info { color: var(--s-info); }
+  .badge.miss { background: rgba(226,90,79,.2); color: #ffb3aa; }
+  .plate.doc .badge { background: transparent; border: 1.5px solid currentColor; } .plate.doc .badge.miss { background: rgba(184,57,45,.1); color: var(--c9); }
+  .badge.lamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: var(--glow); }
+  .badge.lamp.off { color: var(--c11); } .badge.lamp.off::before { background: var(--c1); box-shadow: inset 0 0 0 1px var(--c7); }
+  .chip { height: 30px; padding: 0 var(--sp-4); font-size: var(--fs-m); }
+  .badge.stamp { color: var(--ink-violet); background: transparent; border: 2px solid var(--ink-violet); font: var(--fs-m) var(--f-head); text-transform: uppercase; letter-spacing: .1em; transform: rotate(-6deg); opacity: .85; height: 28px; padding: 0 10px; }
+  /* 8 · шкала */
+  .bar { display: grid; grid-template-columns: 20px 1fr 30px; align-items: center; gap: var(--sp-3); font-size: var(--fs-s); }
+  .bar > .ic { color: var(--c); }
+  .trk { position: relative; height: 10px; border-radius: 2px; background: var(--well-bg); box-shadow: var(--well-sh); overflow: hidden; }
+  .trk i { display: block; height: 100%; width: calc(var(--v, 0) * 1%); background: var(--c); box-shadow: 0 0 6px var(--c); transition: width .15s linear; }
+  .trk u { position: absolute; right: 0; top: 0; bottom: 0; width: 0; background: repeating-linear-gradient(45deg, rgba(140,195,230,.55) 0 3px, transparent 3px 6px); }
+  .trk::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(0,0,0,.35) calc(10% - 1px) 10%); }
+  .bar b { font: 400 var(--fs-s) var(--f-num); text-align: right; color: var(--c11); }
+  .bar.low b { color: var(--s-danger); } .bar.low .trk i { animation: ds-blink .5s infinite alternate; }
+  @keyframes ds-blink { to { opacity: .35; } }
+  input[type=range].rng { -webkit-appearance: none; appearance: none; width: 150px; height: 22px; background: transparent; cursor: pointer; margin: 0; }
+  .has-touch input[type=range].rng { height: var(--hitT); }
+  input[type=range].rng::-webkit-slider-runnable-track { height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--c9) calc(var(--v, 50) * 1%), var(--well-bg) 0); box-shadow: var(--well-sh); }
+  input[type=range].rng::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 20px; margin-top: -5px; border-radius: 2px; background: linear-gradient(180deg, var(--c8), var(--c5)); border: 1px solid var(--c6); }
+  /* + тост */
+  .toast { display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-5) var(--sp-3) var(--sp-4); font-size: var(--fs-l); border-left: 4px solid var(--tc, var(--s-info)); max-width: 100%; box-sizing: border-box; }
+  .toast .ic { color: var(--tc, var(--s-info)); }
+  .toast.ok { --tc: var(--s-ok); } .toast.warn { --tc: var(--s-warn); } .toast.danger { --tc: var(--s-danger); }
+  .toast.show { animation: toast 2.6s ease forwards; }
+  @keyframes toast { 0% { opacity: 0; transform: translateY(8px); } 8%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-8px); } }
+  /* заголовки экранов */
+  .h1 { font: var(--fs-3xl)/1 var(--f-head); letter-spacing: .08em; margin: 0; }
+  .h2 { font: var(--fs-2xl) var(--f-head); letter-spacing: .04em; margin: 0; display: flex; align-items: center; gap: var(--sp-4); justify-content: center; }
+  .sub { font: var(--fs-s) var(--f-num); letter-spacing: .12em; color: var(--c11); margin: 0; text-transform: uppercase; }
+  .hand { font: 18px var(--f-hand); color: var(--ink-violet); }
+
+  /* ═════════ 3. Раскладка: один масштаб --ui (SPEC-ui §5–6), слои с zoom ═════════ */
+  .layer { position: fixed; inset: 0; pointer-events: none; zoom: var(--ui); }
+  .layer > * { pointer-events: auto; }
+  #hud { z-index: 2; }
+  .tl, .tr, .bl { position: absolute; display: grid; gap: var(--sp-3); }
+  .tl, .tr, .bl { pointer-events: none; } /* пустые места колонок не перехватывают клики по миру */
+  .tl > *, .tr > *, .bl > * { pointer-events: auto; }
+  .tl { left: 16px; top: calc(env(safe-area-inset-top, 0px) + 12px); width: var(--tlw, 232px); }
+  .tr { right: 16px; top: calc(env(safe-area-inset-top, 0px) + 12px); justify-items: end; max-width: var(--trw, 220px); }
+  .bl { left: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
+  .bars { display: grid; gap: 5px; padding: 9px 12px; }
+  #frost { display: flex; gap: 2px; color: var(--s-cold); } #frost:empty { display: none; }
+  .chipline { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 10px; align-items: center; }
+  .chipline > span { display: inline-flex; align-items: center; gap: 3px; font: var(--fs-s) var(--f-num); }
+  .chipline .ic { width: var(--ic-s); height: var(--ic-s); }
+  .chipline .kg { margin-left: auto; color: var(--c11); } .chipline .kg.over { color: var(--s-danger); }
+  .chipline .dim { color: var(--c11); font: var(--fs-s) var(--f-body); }
+  .chipline small { font: var(--fs-2xs) var(--f-num); color: var(--w-gold); }
+  .chipline .alarm { color: var(--s-danger); animation: ds-blink .4s infinite alternate; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  #clock.warn { color: var(--s-warn); border-color: var(--s-warn); }
+  #parts { display: flex; gap: 4px; align-items: center; padding: 5px 8px; }
+  #parts .ic { opacity: .35; } #parts .ic.on { opacity: 1; color: var(--s-ok); filter: drop-shadow(0 0 3px currentColor); }
+  #parts .ch { font: var(--fs-xs) var(--f-num); color: var(--c11); margin-left: 4px; min-width: 28px; text-align: right; }
+  #minimap { width: 128px; height: 128px; display: block; padding: 0; border-radius: var(--r-panel); pointer-events: auto; cursor: crosshair; }
+  #goals { padding: 0 0 6px; min-width: 200px; }
+  #goals .plate-h { padding: 7px 12px 5px; }
+  #goals .g { display: flex; gap: 6px; align-items: center; padding: 2px 12px; font-size: 13px; }
+  #goals .g .ic { width: var(--ic-s); height: var(--ic-s); color: var(--c11); }
+  #goals .g.done { color: var(--c11); text-decoration: line-through; } #goals .g.done .ic { color: var(--s-ok); }
+  #goals .g.alt { color: var(--c11); font-style: italic; }
+  #skills { display: flex; gap: 6px; padding: 6px 8px; align-items: center; flex-wrap: wrap; }
+  .ring { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--c9) calc(var(--p) * 360deg), var(--c1) 0); }
+  .ring::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--c3); }
+  .ring .ic { position: relative; width: 16px; height: 16px; }
+  .ring b { position: absolute; right: -4px; bottom: -4px; font: 400 var(--fs-2xs)/12px var(--f-num); background: var(--c1); color: var(--w-gold); border-radius: 2px; padding: 0 3px; border: 1px solid var(--c6); }
+  .sep { width: 1px; height: 22px; background: var(--c6); box-shadow: 1px 0 0 rgba(255,255,255,.06); margin: 0 2px; }
+  .gear { color: var(--c11); opacity: .35; display: inline-flex; } .gear.on { opacity: 1; color: var(--c12); }
+  .hudbtns { display: flex; gap: 6px; }
+  /* верх-центр: цели → баннер зоны → тосты (одна колонка) */
+  #ov { z-index: 4; }
+  .tcol { position: absolute; left: var(--tcx, 50%); top: var(--tct, 12px); width: var(--tcw, 300px); transform: translateX(var(--tctx, -50%)); display: grid; gap: 6px; justify-items: center; pointer-events: none; }
+  .tcol > * { pointer-events: auto; max-width: 100%; }
+  #toasts { display: grid; gap: 6px; justify-items: center; pointer-events: none; }
+  #toasts:empty { display: none; }
+  .modal #toasts .toast:not(:last-child) { display: none; }
+  #zone { font: var(--fs-l) var(--f-head); letter-spacing: .06em; --tc: var(--s-warn); }
+  #zone.show { animation: fadeio 2.8s ease forwards; }
+  @keyframes fadeio { 0% { opacity: 0; } 15%, 75% { opacity: 1; } 100% { opacity: 0; } }
+  /* низ-центр: подсказка обучения → приказы → подсказка действия (стек снизу вверх) */
+  .bc { position: absolute; left: var(--bcx, 50%); bottom: var(--bcb, 16px); width: var(--bcw, 480px); transform: translateX(var(--bctx, -50%)); display: flex; flex-direction: column-reverse; align-items: center; gap: 6px; pointer-events: none; }
+  .bc > * { pointer-events: auto; max-width: 100%; }
+  .prompt { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .prompt:empty { display: none; }
+  .cmdbar { display: flex; gap: 6px; align-items: center; padding: 6px 8px; flex-wrap: wrap; justify-content: center; box-sizing: border-box; }
+  .cmdbar .cbt { display: inline-flex; gap: 4px; align-items: center; font: var(--fs-s) var(--f-num); color: var(--c12); }
+  .cmdbar .dim { font-size: var(--fs-xs); color: var(--c11); }
+  .cmdbar .grp { position: relative; font-family: var(--f-num); } .cmdbar .grp.empty { opacity: .45; }
+  .cmdbar .grp small { font-size: 9px; color: var(--w-gold); margin-left: 2px; }
+  .tip { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-left: 4px solid var(--s-warn); box-sizing: border-box; }
+  .tip .ti { color: var(--s-warn); display: inline-flex; } .tip .tt { white-space: normal; }
+  .tip.show { animation: tipin .25s ease; } @keyframes tipin { from { opacity: 0; transform: translateY(8px); } }
+  .corner { position: absolute; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); display: flex; gap: 6px; }
+  #hud[hidden] ~ #ov #goals, #hud[hidden] ~ #ov .bc { display: none; }
+  .modal .bl, .modal .bc, .modal .tbtns, .modal #goals, .modal #zone, .modal #offsel { display: none !important; }
+  .compact.modal .tl, .compact.modal .tr, .compact.modal .corner { display: none; }
+  .end-screen #hud, .end-screen .bc, .end-screen #goals, .end-screen .corner, .end-screen #offsel, .end-screen #touch { display: none !important; }
+  /* выделенные за экраном */
+  #offsel { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  .offa { position: absolute; transform: translate(-50%, -50%) scale(var(--ui)); pointer-events: auto; cursor: pointer; min-width: 44px; height: 44px; padding: 0 6px; border-radius: 22px;
+    display: flex; align-items: center; gap: 2px; background: var(--c3); border: 1px solid var(--c7); box-shadow: var(--panel-sh); font: var(--fs-s) var(--f-num); color: var(--c12); }
+  .offa i { font-style: normal; color: var(--c9); display: inline-flex; }
+  .offa i::before { content: ""; border: 6px solid transparent; border-left: 9px solid currentColor; margin-right: -4px; }
+
+  /* модальные окна: диалог, записка, панель */
+  .mwrap { position: fixed; left: 16px; right: 16px; top: var(--mtop, 64px); bottom: 16px; display: grid; place-items: center; pointer-events: none; z-index: 7; }
+  .mwrap > * { pointer-events: auto; zoom: var(--ui); }
+  .dwrap { position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); display: flex; justify-content: center; pointer-events: none; z-index: 7; }
+  .dwrap > * { pointer-events: auto; zoom: var(--ui); }
+  #dialog { width: min(560px, calc((100vw - 32px) / var(--ui))); box-sizing: border-box; padding: 12px 14px; display: grid; grid-template-columns: 48px 1fr; gap: 4px 12px; }
+  #dlg-face { grid-row: span 3; width: 48px; height: 48px; display: grid; place-items: center; background: var(--well-bg); box-shadow: var(--well-sh); border-radius: var(--r-ctl); overflow: hidden; color: var(--c12); }
+  #dlg-face canvas { width: 48px; height: 48px; display: block; }
+  #dlg-name { font: var(--fs-s) var(--f-head); letter-spacing: .12em; text-transform: uppercase; color: var(--c11); }
+  #dlg-text { font-size: var(--fs-l); line-height: 1.4; min-height: 2.8em; }
+  #dlg-note { font-size: var(--fs-s); color: var(--c11); font-style: italic; }
+  #dlg-opts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  #dlg-opts .btn { white-space: normal; text-align: left; padding: 4px 12px; }
+  #note { width: min(380px, calc((100vw - 48px) / var(--ui))); padding: 18px 20px 14px; transform: rotate(-1.2deg); cursor: pointer; display: grid; gap: 10px; }
+  #note .note-h { display: flex; align-items: center; gap: 8px; }
+  #note-text { font: var(--fs-l)/1.5 var(--f-body); }
+  #note .sign { font: 17px var(--f-hand); color: var(--ink-violet); justify-self: end; }
+  #note small { font-size: var(--fs-xs); color: var(--c11); text-align: right; }
+  #panel { width: min(480px, calc((100vw - 32px) / var(--ui))); max-height: calc((100vh - var(--mtop, 64px) - 16px) / var(--ui)); display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+  #panel .plate-h { text-transform: none; letter-spacing: 0; font-family: var(--f-body); color: var(--c12); padding: 8px 8px 8px 10px; }
+  #panel-head { display: flex; gap: 6px; align-items: center; flex: 1; flex-wrap: wrap; min-width: 0; }
+  #panel-head .ph { display: inline-flex; gap: 6px; align-items: center; font: var(--fs-s) var(--f-head); letter-spacing: .12em; text-transform: uppercase; color: var(--c11); }
+  #panel-head .fur { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; font: var(--fs-s) var(--f-num); color: var(--w-gold); }
+  #panel-body { overflow: auto; padding: 8px 10px 12px; display: grid; gap: 5px; align-content: start; }
+  .hint { margin: 2px 0; font-size: var(--fs-s); color: var(--c11); text-align: center; display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .chain { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--c11); flex-wrap: wrap; }
+  .chain .ic { color: var(--c11); } .chain .on .ic, .chain .ic.on { color: var(--c12); }
+  .chain .on { color: var(--c12); } .chain > span { display: inline-flex; align-items: center; gap: 3px; }
+  .chain i { font-style: normal; color: var(--c7); }
+  .chain i::before { content: ""; display: inline-block; width: 10px; height: 2px; background: currentColor; vertical-align: middle; }
+  .chead, .crow { display: grid; grid-template-columns: 32px 44px 1fr 44px; align-items: center; gap: 6px; text-align: center; }
+  .chead { color: var(--c11); } .crow { padding: 3px 6px; border-radius: var(--r-ctl); background: rgba(255,255,255,var(--a-row)); }
+  .crow b { font: 400 var(--fs-m) var(--f-num); color: var(--w-gold); } .arr { display: flex; gap: 6px; justify-content: center; }
+  .has-touch #panel .row { grid-template-columns: 32px 1fr auto; } .has-touch #panel .row > .ri { grid-row: 1 / span 2; } .has-touch #panel .row > .badges { grid-column: 2; justify-content: flex-start; }
+  .narrow #o-head { justify-self: start; padding-right: 96px; text-align: left; }
+  .has-touch #panel .row > .btn, .has-touch #panel .row > .badge.lamp { grid-column: 3; grid-row: 1 / span 2; }
+
+  /* тач */
+  .touch { z-index: 2; }
+  .stickzone { position: absolute; left: 0; bottom: 0; width: 50%; height: 55%; pointer-events: auto; }
+  .stick { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 2px solid var(--c7); background: rgba(34,48,42,.45); left: 90px; bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); }
+  .knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px; border-radius: 50%; background: linear-gradient(180deg, var(--c5), var(--c4)); border: 1px solid var(--c6); box-shadow: 0 2px 0 var(--c6); }
+  .tbtns { position: absolute; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); display: grid; grid-template-columns: repeat(2, 58px); grid-auto-rows: 58px; gap: 10px; pointer-events: auto; align-items: center; justify-items: center; }
+  .tbtns .btn { width: 58px; height: 58px; min-height: 58px; border-radius: 50%; padding: 0; touch-action: none; }
+  .tbtns .btn .ic { width: 26px; height: 26px; }
+  .tbtns #t-act { grid-column: 2; grid-row: 1 / span 2; width: 74px; height: 74px; }
+  .tbtns #t-act .ic { width: 34px; height: 34px; }
+  .tbtns #t-cmd { grid-column: 2; position: relative; }
+  .tbtns #t-cmd:not([data-n=""])[data-n]::after { content: attr(data-n); position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--w-gold); color: var(--on-accent); font: 700 11px/18px var(--f-body); }
+  .order-mode .stickzone { pointer-events: none; } .order-mode .stick { display: none; }
+  .order-mode #t-act, .order-mode #t-fire, .order-mode #t-eat, .order-mode #t-sniff { opacity: .5; }
+  .has-touch #skills { display: none; }
+  .compact #parts { display: none; }
+  .compact #minimap { width: 72px; height: 72px; }
+  .compact .chips { flex-direction: column; align-items: flex-end; }
+  .narrow .corner { top: var(--crt, 200px); bottom: auto; }
+  .narrow .bl { top: var(--blt, 240px); bottom: auto; }
+  .narrow #goals .g.done, .narrow #goals .g:not(.done) ~ .g { display: none; }
+  .narrow #goals { min-width: 0; }
+  .compact.order-mode #prompt, .compact.order-mode #tip { display: none; }
+  .compact:not(.narrow) .cmdbar { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; gap: 4px; padding: 5px; } .compact:not(.narrow) .cmdbar > * { flex: none; } .compact:not(.narrow) .cmdbar .cbt { display: none; }
+  .sq1 #tip, .sq2 #goals, .sq3 #zone, .sq4 #toasts .toast:not(:last-child), .sq5 #toasts { display: none !important; }
+  .has-touch .offa { transform: translate(-50%, -50%); }
+  @media (max-height: 520px) and (orientation: landscape) {
+    .has-touch .bl { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 12px); left: calc(16px + var(--tlw, 232px) + 10px); }
+    .has-touch .stick { bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+    .tbtns { grid-template-columns: repeat(3, max(48px, var(--hitT))); grid-auto-rows: max(48px, var(--hitT)); gap: 8px; }
+    .tbtns .btn { width: max(48px, var(--hitT)); height: max(48px, var(--hitT)); min-height: 0; }
+    .tbtns #t-act { grid-column: 3; grid-row: 1 / span 2; width: 60px; height: 60px; }
+    .tbtns #t-cmd { grid-column: auto; }
+    .stickzone { height: 60%; } .stick { bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+  }
+
+  /* ═════════ 4. Экраны: затемнение .62 → .plate → заголовок → содержимое → кнопки ═════════ */
+  .screen { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: 16px; box-sizing: border-box; background: radial-gradient(ellipse at center, rgba(39,57,74,.3), rgba(17,26,21,var(--a-scrim))); overflow: auto; }
+  .screen > .plate { zoom: var(--ui); }
+  .card { width: min(480px, calc((100vw - 32px) / var(--ui))); max-height: calc((100vh - 32px) / var(--ui)); overflow: auto; display: grid; gap: 12px; justify-items: center; text-align: center; padding: 22px 20px 20px; box-sizing: border-box; }
+  .card > .full, .full { width: 100%; box-sizing: border-box; text-align: left; display: grid; gap: 5px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .row.set { grid-template-columns: 32px 1fr auto; }
+  .bigic { width: 56px; height: 56px; color: var(--s-cold); }
+  #menu .card { position: relative; }
+  .titleplate { padding: 6px 18px; background: #e9dfc7; color: #2b2f3a; box-shadow: inset 0 0 0 2px #2b2f3a, 0 2px 0 #0b120e; border-radius: 2px; }
+  .titleplate .h1 { color: #2b2f3a; text-shadow: none; }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center; font-size: var(--fs-s); color: var(--c11); }
+  .keys span { display: inline-flex; align-items: center; gap: 5px; }
+  .credits { font-size: var(--fs-xs); color: var(--c11); line-height: 1.4; text-align: center; }
+  .credits a { color: inherit; }
+  #over .card { position: relative; }
+  #o-text { margin: 0; font-size: var(--fs-l); line-height: 1.45; max-width: 38ch; }
+  .days { display: grid; grid-template-columns: repeat(var(--n, 7), 1fr); gap: 4px; width: 100%; }
+  .days div { display: grid; gap: 3px; justify-items: center; font: var(--fs-2xs) var(--f-num); color: var(--c11); }
+  .days i { width: 100%; height: 34px; border-radius: 2px; background: linear-gradient(to top, var(--s-warm) calc(var(--w) * 1%), transparent 0), var(--well-bg); box-shadow: var(--well-sh); }
+  .days i.bad { background: linear-gradient(to top, var(--s-danger) calc(var(--w) * 1%), transparent 0), var(--well-bg); }
+  .act-stamp { position: absolute; right: 18px; top: 22px; }
+  .sign-line { font: 18px var(--f-hand); color: var(--ink-violet); justify-self: end; }
+  .plate.doc .h2 { color: var(--c12); }
+  /* титр главы / эпохи */
+  #chapter { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; pointer-events: none; background: radial-gradient(ellipse at center, rgba(17,26,21,.35), rgba(17,26,21,var(--a-scrim))); }
+  #chapter.show { animation: fadeio 3.4s ease forwards; }
+  .chc { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 16px 24px; zoom: var(--ui); max-width: calc((100vw - 32px) / var(--ui)); box-sizing: border-box; }
+  #ch-num { font: var(--fs-s) var(--f-num); letter-spacing: .3em; text-transform: uppercase; color: var(--c11); display: flex; gap: 6px; align-items: center; }
+  #ch-title { font: var(--fs-3xl)/1 var(--f-head); letter-spacing: .04em; display: flex; gap: 12px; align-items: center; color: var(--c12); text-shadow: 0 2px 0 #0b120e; }
+  #ch-title .ic { width: 44px; height: 44px; }
+  #ch-date { font: var(--fs-l) var(--f-body); max-width: 40ch; }
+  #ch-goals { display: grid; gap: 4px; justify-items: start; }
+  #ch-goals:empty { display: none; }
+  #ch-goals span { display: flex; gap: 6px; align-items: center; font-size: var(--fs-m); }
+  @media (max-width: 520px) { #ch-title { font-size: 36px; } .h1 { font-size: 40px; } }
+
+  /* упрощённая графика и движение */
+  .lowq .bar.low .trk i, .lowq .chipline .alarm { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .toast.show, #zone.show, #chapter.show { animation-duration: .01s; } .bar.low .trk i, .chipline .alarm { animation: none; } }
+</style>
+
+<canvas id="game"></canvas>
+
+<div id="hud" class="layer" hidden>
+  <div class="tl">
+    <div class="plate rv bars">
+      <div class="bar" id="b-warm" style="--c: var(--s-warm)"><svg class="ic"><use href="#i-warm"/></svg><div class="trk"><i></i><u></u></div><b>100</b></div>
+      <div class="bar" id="b-food" style="--c: var(--s-food)"><svg class="ic"><use href="#i-food"/></svg><div class="trk"><i></i></div><b>70</b></div>
+      <div class="bar" id="b-hp" style="--c: var(--s-hp)"><svg class="ic"><use href="#i-hp"/></svg><div class="trk"><i></i></div><b>100</b></div>
+      <div id="frost" title="Обморожение"></div>
+    </div>
+    <div class="plate chipline" id="inv"></div>
+    <div class="plate chipline" id="colony"></div>
+  </div>
+  <div class="tr">
+    <div class="chips">
+      <span class="plate badge chip" id="clock"></span>
+      <span class="plate badge chip info" id="temp"></span>
+      <span class="plate badge chip danger lamp" id="storm" title="Пурга" hidden><svg class="ic s"><use href="#i-storm"/></svg></span>
+    </div>
+    <div class="plate" id="parts" title="Рация"></div>
+    <canvas id="minimap" class="plate rv" width="128" height="128"></canvas>
+  </div>
+  <div class="bl">
+    <div class="plate" id="skills"></div>
+    <div class="hudbtns">
+      <button class="btn sec" id="craft-btn" title="Мастерская (C)"><svg class="ic"><use href="#i-craft"/></svg><kbd>C</kbd></button>
+      <button class="btn sec" id="build-btn" title="Стройка (B)"><svg class="ic"><use href="#i-build"/></svg><kbd>B</kbd></button>
+      <button class="btn sec" id="sniff-btn" title="Нюх (V)"><svg class="ic"><use href="#i-sniff"/></svg><kbd>V</kbd></button>
+      <button class="btn sec" id="idle-btn" title="Бездельники (.)"><svg class="ic"><use href="#i-idle"/></svg><kbd>.</kbd></button>
+      <button class="btn sec" id="alarm-btn" title="Набат (H)"><svg class="ic"><use href="#i-alarm"/></svg><kbd>H</kbd></button>
+    </div>
+  </div>
+</div>
+
+<div id="offsel"></div>
+
+<div class="touch layer" id="touch" hidden>
+  <div class="stickzone" id="stickzone"><div class="stick" id="stick"><div class="knob" id="knob"></div></div></div>
+  <div class="tbtns">
+    <button class="btn sec" id="t-fire" aria-label="Огонь"><svg class="ic"><use href="#i-fire"/></svg></button>
+    <button class="btn pri" id="t-act" aria-label="Действие"><svg class="ic"><use href="#i-axe"/></svg></button>
+    <button class="btn sec" id="t-eat" aria-label="Есть"><svg class="ic"><use href="#i-food"/></svg></button>
+    <button class="btn sec" id="t-craft" aria-label="Мастерская"><svg class="ic"><use href="#i-craft"/></svg></button>
+    <button class="btn sec" id="t-sniff" aria-label="Нюх"><svg class="ic"><use href="#i-sniff"/></svg></button>
+    <button class="btn sec" id="t-cmd" aria-label="Режим приказов посёлку" aria-pressed="false"><svg class="ic"><use href="#i-people"/></svg></button>
+  </div>
+</div>
+
+<div id="ov" class="layer">
+  <div class="tcol" id="tcol">
+    <div class="plate rv" id="goals"></div>
+    <div class="plate toast warn" id="zone" hidden></div>
+    <div id="toasts"></div>
+  </div>
+  <div class="bc" id="bc">
+    <div class="prompt" id="prompt"></div>
+    <div class="plate cmdbar" id="cmdbar" hidden></div>
+    <div class="plate tip" id="tip" hidden><span class="ti" id="tip-i"></span><span class="tt" id="tip-t"></span><button class="btn sec ico" id="tip-x" aria-label="Понятно"><svg class="ic s"><use href="#i-ok"/></svg></button><button class="btn sec ico" id="tip-off" title="Больше не показывать подсказки" aria-label="Выключить подсказки"><svg class="ic s"><use href="#i-close"/></svg></button></div>
+  </div>
+  <div class="corner"><button class="btn sec ico" id="cam-btn" aria-label="Камера к герою" title="Камера к герою (0)" hidden><svg class="ic"><use href="#i-cam"/></svg></button><button class="btn sec ico" id="snd" aria-label="Звук"><svg class="ic"><use href="#i-sfx"/></svg></button><button class="btn sec ico" id="pause-btn" aria-label="Пауза"><svg class="ic"><use href="#i-pause"/></svg></button></div>
+</div>
+
+<div id="chapter" hidden><div class="chc"><div id="ch-num"></div><div id="ch-title"></div><div id="ch-date"></div><div id="ch-goals"></div></div></div>
+
+<div class="dwrap"><div class="plate rv" id="dialog" hidden>
+  <div id="dlg-face"></div>
+  <div id="dlg-name"></div>
+  <div id="dlg-text"></div>
+  <div id="dlg-note" hidden></div>
+  <div id="dlg-opts"></div>
+</div></div>
+
+<div class="mwrap">
+  <div class="plate doc" id="note" hidden><div class="note-h plate-h"><span id="note-ic"></span><span>Записка</span></div><div id="note-text"></div><small>нажми, чтобы закрыть</small></div>
+  <div class="plate rv" id="panel" hidden>
+    <div class="plate-h"><div id="panel-head"></div><button class="btn sec ico" id="panel-close" aria-label="Закрыть"><svg class="ic"><use href="#i-close"/></svg></button></div>
+    <div id="panel-body"></div>
+  </div>
+</div>
+
+<div class="screen" id="menu">
+  <div class="card plate doc">
+    <span class="badge stamp act-stamp">секретно</span>
+    <div class="titleplate"><h1 class="h1">СИБИРЬ</h1></div>
+    <div class="hand">Эвенкия · январь 1993</div>
+    <div class="chain"><span class="on" title="Обломки"><svg class="ic l"><use href="#i-heli"/></svg></span><i></i><span class="on" title="Уркачан"><svg class="ic l"><use href="#i-evenk"/></svg></span><i></i><span class="on" title="Стая"><svg class="ic l"><use href="#i-wolf"/></svg></span><i></i><span class="on" title="Сигнал"><svg class="ic l"><use href="#i-mast"/></svg></span></div>
+    <div class="tiles">
+      <div class="tile"><svg class="ic"><use href="#i-radio"/></svg>рация</div>
+      <div class="tile"><svg class="ic"><use href="#i-hut"/></svg>изба</div>
+      <div class="tile"><svg class="ic"><use href="#i-trade"/></svg>торг</div>
+      <div class="tile"><svg class="ic"><use href="#i-wolf"/></svg>стая</div>
+      <div class="tile"><svg class="ic"><use href="#i-epoch"/></svg>эпохи</div>
+    </div>
+    <div class="keys" id="keys-hint">
+      <span><kbd>WASD</kbd>идти</span><span><kbd>E</kbd>действие</span><span><kbd>F</kbd>огонь</span><span><kbd>Q</kbd>есть</span><span><kbd>C</kbd>мастерская</span>
+      <span><kbd>R</kbd>ловушка</span><span><kbd>B</kbd>стройка</span><span><kbd>V</kbd>нюх</span><span><kbd>H</kbd>набат</span><span><kbd>ЛКМ</kbd>рамка</span><span><kbd>ПКМ</kbd>приказ</span><span><kbd>колесо</kbd>масштаб</span>
+    </div>
+    <div class="btns">
+      <button class="btn pri" id="start"><svg class="ic"><use href="#i-play"/></svg>Новая игра</button>
+      <button class="btn sec" id="continue" hidden><svg class="ic"><use href="#i-retry"/></svg>Продолжить</button>
+      <button class="btn sec" id="load-btn" hidden><svg class="ic"><use href="#i-load"/></svg>Загрузить</button>
+      <button class="btn sec" id="about-btn" aria-expanded="false"><svg class="ic"><use href="#i-log"/></svg>Об игре</button>
+    </div>
+    <div class="credits" id="about" hidden>«Сибирь» · Эвенкия, 1993<br>Icons: game-icons.net — Lorc, Delapouite, Caro Asercion, Skoll, Sbed, DarkZaitzev (CC BY 3.0); Lucide (ISC); Tabler (MIT)</div>
+  </div>
+</div>
+
+<div class="screen" id="pause" hidden>
+  <div class="card plate rv">
+    <div class="h2"><svg class="ic l"><use href="#i-pause"/></svg>Пауза</div>
+    <div class="full">
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-music"/></svg></span><span>Музыка</span><input class="rng" type="range" id="s-music" min="0" max="1" step="0.05" aria-label="Громкость музыки"></div>
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-sfx"/></svg></span><span>Эффекты</span><input class="rng" type="range" id="s-sfx" min="0" max="1" step="0.05" aria-label="Громкость эффектов"></div>
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-frost"/></svg></span><span>Сложность</span><div class="tabs" id="s-diff"></div></div>
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-ui"/></svg></span><span>Интерфейс</span><div class="tabs" id="s-ui"></div></div>
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-shake"/></svg></span><span>Тряска</span><button class="btn sec lampbtn" id="s-shake" aria-label="Тряска экрана"></button></div>
+      <div class="row set" id="s-edge-row"><span class="ri"><svg class="ic"><use href="#i-cam"/></svg></span><span>Обзор у края</span><button class="btn sec lampbtn" id="s-edge" aria-label="Сдвиг камеры у края экрана"></button></div>
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-tips"/></svg></span><span>Подсказки</span><button class="btn sec lampbtn" id="s-tips" aria-label="Подсказки"></button></div>
+      <div class="row set"><span class="ri"><svg class="ic"><use href="#i-gfx"/></svg></span><span>Графика <span id="s-q-now" class="num"></span></span><div class="tabs" id="s-q"></div></div>
+    </div>
+    <div class="btns"><button class="btn pri" id="resume"><svg class="ic"><use href="#i-play"/></svg>Продолжить</button><button class="btn sec" id="p-save"><svg class="ic"><use href="#i-save"/></svg>Сохранить</button><button class="btn sec" id="p-load"><svg class="ic"><use href="#i-load"/></svg>Загрузить</button></div>
+  </div>
+</div>
+
+<div class="screen" id="slots" hidden>
+  <div class="card plate rv"><div class="h2" id="sl-title"></div>
+    <div class="full" id="sl-list"></div>
+    <button class="btn sec" id="sl-back"><svg class="ic"><use href="#i-back"/></svg>Назад</button></div>
+</div>
+
+<div class="screen" id="over" hidden>
+  <div class="card plate rv" id="o-card">
+    <span class="badge stamp act-stamp" id="o-stamp" hidden></span>
+    <div class="sub" id="o-head" hidden></div>
+    <span id="o-ic"></span>
+    <div class="h2" id="o-title"></div>
+    <div class="badge chip" id="o-chip" hidden></div>
+    <p id="o-text"></p>
+    <div class="days" id="o-days" hidden></div>
+    <div class="tiles" id="o-stats"></div>
+    <div class="full" id="o-rows" hidden></div>
+    <span class="sign-line" id="o-sign" hidden>нач. партии — подпись</span>
+    <div class="btns">
+      <button class="btn pri" id="o-retry"><svg class="ic"><use href="#i-retry"/></svg>С последнего сна</button>
+      <button class="btn sec" id="again"><svg class="ic"><use href="#i-play"/></svg>Новая игра</button>
+      <button class="btn sec" id="o-menu" hidden><svg class="ic"><use href="#i-back"/></svg>В меню</button>
+    </div>
+    <div class="credits" id="o-credits" hidden>Icons: game-icons.net — Lorc, Delapouite, Caro Asercion, Skoll, Sbed, DarkZaitzev (CC BY 3.0); Lucide (ISC); Tabler (MIT)</div>
+  </div>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/art-people.js"></script>
+<script src="js/art-animals.js"></script>
+<script src="js/art-world.js"></script>
+<script src="js/colony.js"></script>
+<script src="js/gfx.js"></script>
+<script src="js/finale.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ui.js"></script>
+<script>if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('has-touch');</script>

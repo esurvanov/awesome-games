@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Звери — стенд</title>
+<style>
+  :root { --bg: #dfe8f1; --ink: #1d2733; --card: #eef3f8; }
+  body { margin: 0; background: var(--bg); font: 12px system-ui, sans-serif; color: var(--ink); }
+  .bar { display: flex; gap: 6px; padding: 6px 10px; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  button { font: inherit; padding: 4px 10px; border: 1px solid #9fb0c2; border-radius: 6px; background: #fff; cursor: pointer; }
+  button.on { background: #1d2733; color: #fff; }
+  #ops { margin-left: auto; opacity: .7; }
+  canvas { display: block; }
+</style></head>
+<body>
+<div class="bar">
+  <button id="bDay">☀️ День</button><button id="bNight">🌙 Ночь</button>
+  <button id="bZ1">1×</button><button id="bZ2">1.6×</button>
+  <button id="bPause">⏸</button>
+  <span id="ops"></span>
+</div>
+<canvas id="c"></canvas>
+<script src="../js/art-animals.js"></script>
+<script>
+'use strict';
+const Q = new URLSearchParams(location.search);
+let night = +(Q.get('night') || 0), zoom = +(Q.get('zoom') || 1.6), paused = false, T0 = performance.now(), tFix = Q.get('t');
+const CW = 150, CH = 104, COLS = +(Q.get('cols') || 8);
+const A = ArtAnimals;
+const cells = [];
+function cell(label, kind, o, upd) { cells.push({ label, kind, o: Object.assign({ x: 0, y: 0, face: 1, vx: 0, vy: 0 }, o), upd, ops: 0 }); }
+// ---- волки
+cell('волк · шаг', 'wolf', { st: 'scout', vx: 40 });
+cell('волк · рысь', 'wolf', { st: 'scout', vx: 95 });
+cell('волк · круг', 'wolf', { st: 'circle', vx: -110, face: -1 });
+cell('волк · припал', 'wolf', { st: 'crouch' }, (o, t) => { if (Math.floor(t / 2.5) % 2) { o.st = 'crouch'; o.vx = 0; } else { o.st = 'lunge'; o.vx = 190; } });
+cell('волк · бросок', 'wolf', { st: 'lunge', vx: 190 });
+cell('волк · бегство', 'wolf', { st: 'flee', vx: -170, face: -1 });
+cell('волк · вверх', 'wolf', { st: 'retreat', vx: 60, vy: -160 });
+cell('волк · нюхает', 'wolf', { st: 'scout' });
+cell('волк · вой', 'wolf', { st: 'scout', howl: 1 });
+cell('волк · ранен', 'wolf', { st: 'circle', vx: 90, hurt: 1 });
+cell('вожак · рысь', 'wolf', { st: 'circle', vx: 105, leader: 1 });
+cell('вожак · припал', 'wolf', { st: 'crouch', leader: 1, face: -1 });
+cell('волк · вниз', 'wolf', { st: 'scout', vx: -30, vy: 90, face: -1 });
+// ---- медведь
+cell('медведь · бродит', 'bear', { st: 'wander', vx: 65 });
+cell('медведь · охота', 'bear', { st: 'hunt', vx: 120 });
+cell('медведь · дыбы', 'bear', { st: 'hunt' }, (o, t) => { const p = t % 3; o.st = p < 1.6 ? 'windup' : 'hunt'; o.vx = p < 1.6 ? 0 : 80; });
+cell('медведь · атака', 'bear', { st: 'charge', vx: 200 });
+cell('медведь · оглушён', 'bear', { st: 'stun' });
+cell('медведь · бежит', 'bear', { st: 'flee', vx: -150, face: -1 });
+cell('медведь · стоит', 'bear', { st: 'wander' });
+// ---- заяц
+cell('заяц · сидит', 'hare', { hop: 0 });
+cell('заяц · скачет', 'hare', { vx: 40, hop: 0 }, (o, t, dt) => { o.hop += dt * 14; });
+cell('заяц · удирает', 'hare', { vx: -150, face: -1, hop: 0 }, (o, t, dt) => { o.hop += dt * 14; });
+// ---- олень
+cell('олень · пасётся', 'deer', { ph: 1 });
+cell('олень · шаг', 'deer', { vx: 30, ph: 2 });
+cell('олень · рысь', 'deer', { vx: -80, face: -1, ph: 3 });
+cell('олень · бег', 'deer', { vx: 150, ph: 4 });
+// ---- лайка
+cell('лайка · сидит', 'dog', { pet: 1 });
+cell('лайка · бег', 'dog', { vx: 150 });
+cell('лайка · рысь', 'dog', { pet: 1, vx: 70 });
+cell('лайка · лает', 'dog', { bark: 1 });
+cell('лайка · лает (Пурга)', 'dog', { pet: 1, bark: 1, face: -1 }, (o, t) => { o.bark = Math.floor(t / 2) % 3 !== 2; });
+// ---- ворон
+cell('ворон · сидит', 'raven', { z: 20, fly: 0 });
+cell('ворон · взлёт', 'raven', { z: 20, fly: 0 }, (o, t) => { const p = t % 4; o.fly = p > 1.2 ? 1 : 0; o.z = o.fly ? 20 + (p - 1.2) * 18 : 20; o.vx = o.fly ? 120 : 0; o.vy = o.fly ? -40 : 0; });
+cell('ворон · машет', 'raven', { z: 40, fly: 1, vx: 150, vy: 30 });
+cell('ворон · парит', 'raven', { z: 50, fly: 1, vx: -140, vy: -60 });
+// ---- туши
+for (const k of ['wolf', 'wolfLeader', 'bear', 'hare', 'deer', 'dog', 'raven']) cell('туша · ' + k, 'corpse', { kind: k, t0: 0 });
+
+if (Q.get('only')) { const re = new RegExp(Q.get('only')); for (let i = cells.length - 1; i >= 0; i--) if (!re.test(cells[i].label)) cells.splice(i, 1); }
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+function size() {
+  const dpr = window.devicePixelRatio || 1, rows = Math.ceil(cells.length / COLS);
+  cv.style.width = CW * COLS * zoom + 'px'; cv.style.height = CH * rows * zoom + 'px';
+  cv.width = CW * COLS * zoom * dpr; cv.height = CH * rows * zoom * dpr; cv._d = dpr;
+}
+size();
+// счётчик операций пути
+let OPS = 0;
+for (const fn of ['fill', 'stroke', 'fillRect']) { const o = g[fn].bind(g); g[fn] = (...a) => { OPS++; return o(...a); }; }
+function snowCell(x0, y0, off, sc) {
+  g.fillStyle = night ? '#2c3a5c' : '#f2f6fa'; g.fillRect(x0, y0, CW, CH);
+  g.fillStyle = night ? 'rgba(160,180,230,0.25)' : 'rgba(110,140,175,0.28)';
+  for (let i = 0; i < 18; i++) { const xx = ((i * 37 + off) % CW + CW) % CW, yy = 58 + (i * 23 % 40); g.fillRect(x0 + xx, y0 + yy, 3, 1.2); }
+  g.strokeStyle = 'rgba(80,100,130,0.25)'; g.strokeRect(x0 + 0.5, y0 + 0.5, CW - 1, CH - 1);
+}
+let last = performance.now() / 1000;
+function loop() {
+  const wall = performance.now() / 1000, dt = paused ? 0 : Math.min(0.05, wall - last); last = wall;
+  if (!paused) { loop.t = (loop.t || 0) + dt; }
+  const now = tFix != null ? +tFix : loop.t;
+  const d = cv._d;
+  g.setTransform(d * zoom, 0, 0, d * zoom, 0, 0);
+  g.clearRect(0, 0, CW * COLS, CH * 99);
+  const eyes = []; let maxOps = 0;
+  cells.forEach((c, i) => {
+    const x0 = (i % COLS) * CW, y0 = Math.floor(i / COLS) * CH, o = c.o;
+    if (c.upd) c.upd(o, now, dt);
+    o.odom = (o.odom || 0) + (o.vx || 0) * dt;
+    snowCell(x0, y0, -o.odom, 1);
+    const gy = c.kind === 'bear' ? 92 : c.kind === 'raven' ? 80 : 84;
+    o.x = x0 + CW / 2 - (c.kind === 'wolf' || c.kind === 'bear' || c.kind === 'deer' ? (o.face || 1) * 6 : 0); o.y = y0 + gy;
+    g.save(); g.beginPath(); g.rect(x0, y0, CW, CH); g.clip();
+    OPS = 0;
+    const env = { now, night, eye: (x, y, f, kind) => eyes.push({ x, y, f, kind }), light() {} };
+    if (c.kind === 'raven') { g.strokeStyle = '#4a3426'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x0 + 40, o.y - 20 + 0.5); g.lineTo(x0 + 110, o.y - 18); g.stroke(); o.y = y0 + gy; }
+    if (c.kind === 'corpse') A.corpse(g, o.kind, o.x, o.y - 6, now % 8 * 12);
+    else A[c.kind](g, o, env);
+    c.ops = OPS; maxOps = Math.max(maxOps, OPS);
+    g.restore();
+    g.fillStyle = night ? '#c9d6f0' : '#3b4a5c'; g.font = '10px system-ui'; g.fillText(c.label, x0 + 5, y0 + 12);
+    g.fillStyle = c.ops > 70 ? '#c0392b' : night ? '#8fa3c8' : '#8a98a8'; g.fillText(c.ops + ' оп', x0 + CW - 34, y0 + 12);
+  });
+  if (night) {
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = 'rgb(105,125,185)'; for (let i = 0; i < cells.length; i++) g.fillRect((i % COLS) * CW, Math.floor(i / COLS) * CH, CW, CH);
+    g.globalCompositeOperation = 'lighter';
+    for (const e of eyes) {
+      const bear = e.kind === 'bear', red = e.kind !== 'wolf', r = bear ? 2.4 : 1.8;
+      g.fillStyle = red ? 'rgba(255,106,58,0.95)' : 'rgba(255,220,90,0.95)';
+      g.beginPath(); g.arc(e.x, e.y, r, 0, 7); g.arc(e.x - e.f * (bear ? 6 : 4), e.y, r, 0, 7); g.fill();
+      g.fillStyle = red ? 'rgba(255,90,50,0.18)' : 'rgba(255,220,90,0.16)'; g.beginPath(); g.arc(e.x - e.f * 2, e.y, 8, 0, 7); g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+  }
+  document.getElementById('ops').textContent = 'макс. операций на зверя: ' + maxOps;
+  requestAnimationFrame(loop);
+}
+const $ = id => document.getElementById(id);
+function marks() { $('bDay').className = night ? '' : 'on'; $('bNight').className = night ? 'on' : ''; $('bZ1').className = zoom === 1 ? 'on' : ''; $('bZ2').className = zoom !== 1 ? 'on' : ''; }
+$('bDay').onclick = () => { night = 0; marks(); }; $('bNight').onclick = () => { night = 1; marks(); };
+$('bZ1').onclick = () => { zoom = 1; size(); marks(); }; $('bZ2').onclick = () => { zoom = 1.6; size(); marks(); };
+$('bPause').onclick = () => { paused = !paused; $('bPause').textContent = paused ? '▶' : '⏸'; };
+marks(); loop();
+</script>
+</body></html>

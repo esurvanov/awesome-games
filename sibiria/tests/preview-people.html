@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Люди — стенд</title>
+<style>
+  :root { --bg: #e9eff5; --fg: #22303e; --btn: #ffffff; --bd: #c7d3df; }
+  :root[data-theme="dark"] { --bg: #0f1522; --fg: #d8e2ee; --btn: #1b2436; --bd: #33415a; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
+  .bar { position: sticky; top: 0; display: flex; gap: 6px; align-items: center; padding: 6px 10px; background: var(--bg); border-bottom: 1px solid var(--bd); z-index: 2; flex-wrap: wrap; }
+  button { background: var(--btn); color: var(--fg); border: 1px solid var(--bd); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; }
+  button.on { outline: 2px solid #d9822b; }
+  .wrap { overflow: auto; }
+  canvas { display: block; }
+  #stat { margin-left: auto; opacity: .7; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button id="bDay" class="on">☀️ день</button>
+  <button id="bNight">🌙 ночь</button>
+  <button id="bPause">⏸ пауза</button>
+  <button id="bSlow">🐢 ×0.3</button>
+  <button id="bFrost">❄️ иней</button>
+  <span id="stat"></span>
+</div>
+<div class="wrap"><canvas id="cv"></canvas></div>
+<script src="../js/art-people.js"></script>
+<script>
+'use strict';
+const looks = Object.keys(ArtPeople.LOOKS);
+const cols = ['idle', 'walk', 'walk↑', 'walk↓', 'run', 'limp', 'carry', 'talk', 'wave', 'chop', 'saw', 'dig', 'fish', 'fishBite', 'build', 'swing', 'aim', 'shoot', 'sit', 'sleep', 'hurt', 'dead'];
+const CW = 62, CH = 70, LX = 58, TY = 22, Z = 1.6;
+const cv = document.getElementById('cv'), g = cv.getContext('2d');
+const W = LX + cols.length * CW, H = TY + looks.length * CH;
+const dpr = window.devicePixelRatio || 1;
+cv.width = W * Z * dpr; cv.height = H * Z * dpr; cv.style.width = W * Z + 'px'; cv.style.height = H * Z + 'px';
+const lm = document.createElement('canvas'); lm.width = W; lm.height = H; const lx = lm.getContext('2d');
+const lg = document.createElement('canvas'); lg.width = lg.height = 128;
+{ const x = lg.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); }
+let night = 0, paused = false, slow = false, frost = false, T = 0, last = performance.now();
+const qs = id => document.getElementById(id);
+qs('bDay').onclick = () => { night = 0; qs('bDay').classList.add('on'); qs('bNight').classList.remove('on'); document.documentElement.dataset.theme = 'light'; };
+qs('bNight').onclick = () => { night = 1; qs('bNight').classList.add('on'); qs('bDay').classList.remove('on'); document.documentElement.dataset.theme = 'dark'; };
+qs('bPause').onclick = e => { paused = !paused; e.target.classList.toggle('on', paused); };
+qs('bSlow').onclick = e => { slow = !slow; e.target.classList.toggle('on', slow); };
+qs('bFrost').onclick = e => { frost = !frost; e.target.classList.toggle('on', frost); };
+if (location.hash.includes('night')) qs('bNight').onclick();
+if (location.hash.includes('frost')) qs('bFrost').onclick();
+const tH = location.hash.match(/t=([\d.]+)/); if (tH) { T = +tH[1]; paused = true; }
+
+const lights = [], sparks = [];
+const env = { now: 0, night: 0, light(x, y, r, type, a) { lights.push([x, y, r, type, a]); }, spark(x, y, a) { sparks.push([x, y, a]); } };
+function cellAnim(c, li, t) {
+  const o = { x: 0, y: 0, face: 1, vy: 0, speed: 0.5, t, phase: t * 8, anim: c, animT: 0, look: looks[li], tool: 'none', carry: null, frost: frost ? 0.8 : 0.1, seed: li * 1.7 };
+  const L = ArtPeople.LOOKS[looks[li]];
+  const cyc = (d, pause) => Math.min(1, ((t + li * 0.13) % (d + pause)) / d);
+  if (c === 'walk↑') { o.anim = 'walk'; o.vy = -1; }
+  if (c === 'walk↓') { o.anim = 'walk'; o.vy = 1; }
+  if (c === 'run') { o.speed = 1; o.phase = t * 13; }
+  if (c === 'limp') o.phase = t * 5;
+  if (c === 'carry') { o.carry = ['🪵', '🐟', '🧊', '🍖'][li % 4]; o.speed = 0.5; }
+  if (c === 'idle') { o.tool = li === 0 ? 'axe' : li === 1 ? 'torch' : 'none'; }
+  if (c === 'walk' && li === 1) o.tool = 'torch';
+  if (c === 'chop') { o.tool = 'axe'; o.animT = cyc(0.9, 0); }
+  if (c === 'saw') { o.anim = 'chop'; o.tool = 'saw'; }
+  if (c === 'dig') o.animT = cyc(1, 0);
+  if (c === 'build') o.animT = cyc(0.7, 0);
+  if (c === 'swing') { o.tool = 'axe'; o.animT = cyc(0.45, 0.5); }
+  if (c === 'aim' || c === 'shoot') { o.tool = L.weapon || (li % 2 ? 'bow' : 'rifle'); if (c === 'shoot') o.animT = cyc(1.4, 0.2); }
+  if (c === 'hurt') o.animT = cyc(0.6, 0.6);
+  if (c === 'dead') { o.animT = cyc(1.2, 1.4); o.tool = li === 0 ? 'axe' : 'none'; }
+  if (c === 'wave' && li === 6) o.wet = true;
+  if (c === 'talk' && li === 3) { o.sel = true; o.hp = 0.35; }
+  if (c === 'idle' && li === 7) { o.sel = true; o.hp = 0.8; }
+  if (c === 'idle' && li === 2) o.blink = true;
+  return o;
+}
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!paused) T += dt * (slow ? 0.3 : 1);
+  lights.length = 0; sparks.length = 0; env.now = T; env.night = night;
+  g.setTransform(Z * dpr, 0, 0, Z * dpr, 0, 0);
+  g.fillStyle = night ? '#c8d4e2' : '#eef3f8'; g.fillRect(0, 0, W, H);
+  g.fillStyle = night ? '#b8c6d6' : '#e1e9f1';
+  for (let r = 0; r < looks.length; r++) g.fillRect(LX, TY + r * CH + CH - 18, cols.length * CW, 12);
+  g.strokeStyle = 'rgba(120,140,170,0.25)'; g.lineWidth = 0.5;
+  for (let c = 0; c <= cols.length; c++) { g.beginPath(); g.moveTo(LX + c * CW, TY); g.lineTo(LX + c * CW, H); g.stroke(); }
+  let ops = 0;
+  for (let r = 0; r < looks.length; r++) for (let c = 0; c < cols.length; c++) {
+    const o = cellAnim(cols[c], r, T);
+    o.x = LX + c * CW + CW / 2 - (cols[c] === 'fish' || cols[c] === 'fishBite' || cols[c] === 'build' || cols[c] === 'aim' || cols[c] === 'shoot' ? 8 : 0); o.y = TY + r * CH + CH - 12;
+    if (cols[c] === 'sit') { g.fillStyle = '#5b3d27'; g.fillRect(o.x + 14, o.y - 3, 12, 3); g.fillStyle = '#ff8a2a'; g.beginPath(); g.ellipse(o.x + 20, o.y - 6, 3, 5 + Math.sin(T * 13) * 1, 0, 0, 7); g.fill(); env.light(o.x + 20, o.y - 6, 120, 'w', 0.9); }
+    ArtPeople.draw(g, o, env);
+  }
+  // ночь: карта освещения
+  if (night) {
+    lx.globalCompositeOperation = 'source-over'; lx.fillStyle = 'rgba(8,14,34,0.8)'; lx.clearRect(0, 0, W, H); lx.fillRect(0, 0, W, H);
+    lx.globalCompositeOperation = 'destination-out';
+    for (const [x, y, r, , a] of lights) { lx.globalAlpha = a; lx.drawImage(lg, x - r / 4, y - r / 4, r / 2, r / 2); }
+    lx.globalAlpha = 1;
+    g.drawImage(lm, 0, 0);
+    g.globalCompositeOperation = 'lighter';
+    for (const [x, y, r, type, a] of lights) { g.globalAlpha = a * 0.12; g.fillStyle = type === 'w' ? '#ff9a40' : '#7090ff'; g.beginPath(); g.arc(x, y, r / 8, 0, 7); g.fill(); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  }
+  for (const [x, y, a] of sparks) { g.globalAlpha = Math.min(1, a); g.fillStyle = '#fff7d0'; g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+  // подписи
+  g.fillStyle = night ? '#d8e2ee' : '#22303e'; g.font = '600 8px system-ui'; g.textAlign = 'center';
+  cols.forEach((c, i) => g.fillText(c, LX + i * CW + CW / 2, 13));
+  g.textAlign = 'left'; looks.forEach((l, i) => g.fillText(l, 4, TY + i * CH + CH / 2));
+  qs('stat').textContent = 't=' + T.toFixed(2);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

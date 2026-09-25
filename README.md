@@ -4,12 +4,12 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Two complete open-source games: a medieval real-time strategy and a winter open world. Clone and play, or play one right now in your browser.
+### Three complete open-source games: a medieval real-time strategy, a winter open world and a taiga survival-and-settlement game. Clone and play, or play one right now in your browser.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/berezovka/)
 [![Chronicles of Kingdoms: quick start](https://img.shields.io/badge/⚔_Chronicles_of_Kingdoms-quick_start-3776AB?style=for-the-badge)](age-of-empires/README.md#-quick-start)
 
-![Games](https://img.shields.io/badge/games-2-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+![Games](https://img.shields.io/badge/games-3-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
 </div>
 
@@ -58,6 +58,27 @@ Back home after five years: firewood for grandma, a 1979 Zhiguli that won't star
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+<a href="sibiria/"><img src="sibiria/docs/screenshots/village-day.jpg" alt="Sibiria: a hut, settlers and a watchtower in the snow" width="100%"></a>
+
+### 🐺 [Sibiria](sibiria/)
+
+**Survive four nights in the Evenki taiga, 1993 — then build a settlement around your hut.**
+
+Your Mi-8 went down in Evenkia and the radio is smashed. Light the stove, meet the old Evenk Urkachan, carry Vera out of the wreck, hold off the wolves and the rogue bear, and call for a helicopter — or stay and build a village.
+
+- 📖 4 chapters · 4 endings · 🔥 real cold and a hunting wolf pack
+- 🏘 hire settlers · 8 buildings · 4 ages · market and alarm bell
+- 🎣 reaction fishing · 🎧 all sound synthesised · 📱 phone-ready
+
+`JavaScript` · `Canvas 2D` · any browser, nothing to install
+
+**[▶ Play now](https://hedgehogues.github.io/awesome-games/sibiria/)**
+
+</td>
+</tr>
 </table>
 
 ## 📸 A closer look
@@ -82,6 +103,7 @@ Back home after five years: firewood for grandma, a 1979 Zhiguli that won't star
 | Game | How |
 |---|---|
 | ❄️ Berezovka | Open **[hedgehogues.github.io/awesome-games/berezovka](https://hedgehogues.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
+| 🐺 Sibiria | Open **[hedgehogues.github.io/awesome-games/sibiria](https://hedgehogues.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
 | ⚔️ Chronicles of Kingdoms | `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
 
 ## 📜 Licence
