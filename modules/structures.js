@@ -730,7 +730,12 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   function shellInside(geo) {
     const T3 = THREE || window.THREE, n = geo.attributes.position.count, g = new T3.BufferGeometry();
     for (const k of Object.keys(geo.attributes)) {
-      const a = geo.attributes[k]; if (a.isInterleavedBufferAttribute) { g.setAttribute(k, a); continue; }
+      let a = geo.attributes[k];
+      if (a.isInterleavedBufferAttribute) {   // de-interleave (glTF skinned meshes interleave skin data): the doubled index reaches past the shared buffer otherwise → the whole draw is dropped
+        const d = a.data, raw = new d.array.constructor(a.count * a.itemSize);
+        for (let i = 0; i < a.count; i++) for (let c = 0; c < a.itemSize; c++) raw[i * a.itemSize + c] = d.array[i * d.stride + a.offset + c];
+        a = new T3.BufferAttribute(raw, a.itemSize, a.normalized);
+      }
       const arr = new a.array.constructor(a.array.length * 2); arr.set(a.array); arr.set(a.array, a.array.length);
       if (k === 'normal') for (let i = a.array.length; i < arr.length; i++) arr[i] = -arr[i];
       g.setAttribute(k, new T3.BufferAttribute(arr, a.itemSize, a.normalized));
