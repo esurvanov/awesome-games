@@ -29,13 +29,14 @@
     return bad;
   };
   // objective sanity: inside the island, near the ground it stands on, not buried in a solid
+  // (a spire's part lies inside the spire by design: not 'under a solid')
   QAS.objectiveCheck = () => {
     const t = QAS.target(); if (!t) return D.G.stage < 9 ? ['stage ' + D.G.stage + ' has no objective target'] : [];
     const bad = [], R = Math.hypot(t.x, t.z), g = D.groundH(t.x, t.z);
     if (!Number.isFinite(t.x + t.z)) bad.push('objective NaN');
     if (R > 430) bad.push(`objective outside the island (r ${Math.round(R)} m)`);
     if (t.y !== undefined && Number.isFinite(t.y) && D.G.stage !== 7 && (t.y < g - 1.5 || t.y > g + 6)) bad.push(`objective ${r2(t.y - g)} m from the ground`);
-    if (D.PH && D.PH.ok) { const h = D.PH.P.raycast({ x: t.x, y: g + 60, z: t.z }, { x: 0, y: -1, z: 0 }, 80, { groups: D.PH.P.groups.STATIC }); if (h && h.point.y > g + 5 && h.tag && h.tag.kind === 'solid' && D.G.stage !== 7 && !/^spire/.test(h.tag.name || ''))   // the part lies inside its spire by design bad.push(`objective under a solid (${h.tag.name}, ${r2(h.point.y - g)} m above)`); }
+    if (D.PH && D.PH.ok) { const h = D.PH.P.raycast({ x: t.x, y: g + 60, z: t.z }, { x: 0, y: -1, z: 0 }, 80, { groups: D.PH.P.groups.STATIC }); if (h && h.point.y > g + 5 && h.tag && h.tag.kind === 'solid' && D.G.stage !== 7 && !/^spire/.test(h.tag.name || '')) bad.push(`objective under a solid (${h.tag.name}, ${r2(h.point.y - g)} m above)`); }
     return bad;
   };
   // put the pilot at distance r from p (ground level), facing it, camera behind
