@@ -16,3 +16,5 @@ assets/incoming2/
 assets/incoming3/
 *.zip
 .DS_Store
+tools/.stand.lock
+tools/.stand-queue/
