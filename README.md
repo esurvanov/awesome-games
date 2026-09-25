@@ -1,3 +1,89 @@
-# awesome-games
+<div align="center">
 
-- [age-of-empires](age-of-empires/) — "Chronicles of Kingdoms": a historical real-time strategy game in the spirit of Age of Empires II (Python, pygame-ce). Run: `Play.command` (macOS) or `python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py`. Graphics and sound come from the open projects 0 A.D. and Millennium A.D. (CC BY-SA 3.0), see `age-of-empires/CREDITS.md`.
+🇬🇧 **English** · [🇷🇺 Русский](README.ru.md)
+
+<img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
+
+### Two complete open-source games: a medieval real-time strategy and a winter open world. Clone and play, or play one right now in your browser.
+
+[![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/berezovka/)
+[![Chronicles of Kingdoms: quick start](https://img.shields.io/badge/⚔_Chronicles_of_Kingdoms-quick_start-3776AB?style=for-the-badge)](age-of-empires/README.md#-quick-start)
+
+![Games](https://img.shields.io/badge/games-2-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+
+</div>
+
+---
+
+## 🎮 The games
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<a href="age-of-empires/"><img src="age-of-empires/docs/screenshots/battle.jpg" alt="Open-field battle with siege engines"></a>
+
+### ⚔️ [Chronicles of Kingdoms](age-of-empires/)
+**Medieval RTS in the spirit of Age of Empires II.**
+
+Build a village in the Dark Age, wall it, raise a castle, reach the Imperial Age and break the enemy with trebuchets — against up to 7 AI players.
+
+- 🏰 14 civilizations · 4 ages · 130+ technologies
+- ⚔️ 75+ unit types, formations, naval warfare
+- 🗺 6 random maps · 🤖 AI from Easiest to Extreme
+- 🌍 7 UI languages · 💾 save / load
+
+`Python 3.12` · `pygame-ce` · macOS / Windows / Linux
+
+**[→ Quick start](age-of-empires/README.md#-quick-start)**
+
+</td>
+<td width="50%" valign="top">
+
+<a href="https://hedgehogues.github.io/awesome-games/berezovka/"><img src="berezovka/docs/screenshots/street.jpg" alt="Snowy village street in Berezovka"></a>
+
+### ❄️ [Berezovka](berezovka/)
+**A snowbound Russian village you can walk into — 3D open world in the browser.**
+
+Back home after five years: firewood for grandma, a 1979 Zhiguli that won't start, a missing cat past the bear, and a church bell for the holiday night.
+
+- 🗺 ~1 km² open world · 📖 story in 12 steps
+- 🚗 drivable Zhiguli with suspension and ice drift
+- 🌗 day, night, northern lights, blizzards
+- 🎣 ice fishing · 🪆 12 hidden matryoshkas
+
+`three.js` · `WebGL 2` · any desktop browser, nothing to install
+
+**[▶ Play now](https://hedgehogues.github.io/awesome-games/berezovka/)**
+
+</td>
+</tr>
+</table>
+
+## 📸 A closer look
+
+| Chronicles of Kingdoms | Berezovka |
+|---|---|
+| ![Byzantine town](age-of-empires/docs/screenshots/town.jpg) | ![Northern lights over the village](berezovka/docs/screenshots/night.jpg) |
+| ![Fleet and dock](age-of-empires/docs/screenshots/naval.jpg) | ![The church on the hill](berezovka/docs/screenshots/church.jpg) |
+| ![Tech tree](age-of-empires/docs/screenshots/techtree.jpg) | ![Grandma's yard](berezovka/docs/screenshots/yard.jpg) |
+
+## 💡 What these games have in common
+
+| | |
+|---|---|
+| 🆓 **Open all the way down** | Code under MIT. Every sprite, model, texture and sound comes from open projects under CC0, CC-BY, CC BY-SA or MIT, with authors credited in each game's `CREDITS.md`. |
+| 🎯 **Finished, not a demo** | Each game has a start, goals and an ending. You can play it through. |
+| 📏 **Built against reality** | Numbers are checked against real ones: unit stats follow the classic RTS, and Berezovka's buildings, walking speeds and car acceleration each have an automated check. |
+| 🧩 **Readable source** | No engine editor and no proprietary tools. Clone the repo and read the code. |
+
+## 🚀 Play
+
+| Game | How |
+|---|---|
+| ❄️ Berezovka | Open **[hedgehogues.github.io/awesome-games/berezovka](https://hedgehogues.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
+| ⚔️ Chronicles of Kingdoms | `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
+
+## 📜 Licence
+
+Code — MIT, see each game's `LICENSE`. Art and sound keep their original licences, listed in [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md) and [berezovka/CREDITS.md](berezovka/CREDITS.md).

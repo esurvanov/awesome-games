@@ -1,0 +1,271 @@
+{
+ "step_snow_0": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_snow_1": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_snow_2": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_snow_3": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_snow_4": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_hard_0": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_hard_1": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_hard_2": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_hard_3": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "step_hard_4": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "hit": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "hit_1": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "ice": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  }
+ ],
+ "pick": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  }
+ ],
+ "quest": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  }
+ ],
+ "fail": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  }
+ ],
+ "talk": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/interface-sounds"
+  }
+ ],
+ "creak": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/rpg-audio"
+  }
+ ],
+ "door": [
+  {
+   "author": "Kenney",
+   "license": "CC0",
+   "url": "https://kenney.nl/assets/rpg-audio"
+  }
+ ],
+ "bell": [
+  {
+   "author": "Rockhunt2000",
+   "license": "CC0",
+   "url": "https://commons.wikimedia.org/wiki/File:Große-Glocke-nm.flac"
+  }
+ ],
+ "wind": [
+  {
+   "author": "Tvabutzku1234",
+   "license": "CC0",
+   "url": "https://commons.wikimedia.org/wiki/File:Howling_wind.ogg"
+  }
+ ],
+ "amb": [
+  {
+   "author": "Tvabutzku1234",
+   "license": "CC0",
+   "url": "https://commons.wikimedia.org/wiki/File:Howling_wind.ogg"
+  },
+  {
+   "author": "Oona Räisänen",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Corvus_cornix.ogg"
+  },
+  {
+   "author": "soerena",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Dog.ogg"
+  }
+ ],
+ "bark_0": [
+  {
+   "author": "soerena",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Dog.ogg"
+  }
+ ],
+ "bark_2": [
+  {
+   "author": "soerena",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Dog.ogg"
+  }
+ ],
+ "bark_1": [
+  {
+   "author": "Broadbeer",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:George_vuf_1996.ogg"
+  }
+ ],
+ "roar_0": [
+  {
+   "author": "NPS & MSU Acoustic Atlas",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Yellowstone_sound_library_-_Grizzly_Bears_Roar_-_001.mp3"
+  }
+ ],
+ "roar_1": [
+  {
+   "author": "Shizhao",
+   "license": "CC-BY 3.0",
+   "url": "https://commons.wikimedia.org/wiki/File:Bear_growl.ogg"
+  }
+ ],
+ "meow_0": [
+  {
+   "author": "Heismark",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Meow_of_a_pleading_cat.oga"
+  }
+ ],
+ "meow_2": [
+  {
+   "author": "Heismark",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Meow_of_a_pleading_cat.oga"
+  }
+ ],
+ "meow_1": [
+  {
+   "author": "George Miquilena",
+   "license": "CC0",
+   "url": "https://commons.wikimedia.org/wiki/File:Maullido_de_gata_hembra_joven.ogg"
+  }
+ ],
+ "engine": [
+  {
+   "author": "Work With Sounds / Tekniska museet",
+   "license": "CC-BY 4.0",
+   "url": "https://commons.wikimedia.org/wiki/File:WWS_CarPrinzNSU1200Cengine.ogg"
+  }
+ ],
+ "engine_start": [
+  {
+   "author": "Work With Sounds / Muzeum Inżynierii Miejskiej",
+   "license": "CC-BY 4.0",
+   "url": "https://commons.wikimedia.org/wiki/File:WWS_FSRTarpan239Dvanstarting.ogg"
+  }
+ ],
+ "boom_0": [
+  {
+   "author": "ezwa",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Fireworks_in_distance_1.ogg"
+  }
+ ],
+ "launch": [
+  {
+   "author": "ezwa",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Fireworks_in_distance_1.ogg"
+  }
+ ],
+ "boom_1": [
+  {
+   "author": "stephan",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Fireworks_piece.ogg"
+  }
+ ],
+ "splash": [
+  {
+   "author": "gradha",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Bathtub_water_splashes.ogg"
+  }
+ ],
+ "radio": [
+  {
+   "author": "David Medoff, Victor (1927)",
+   "license": "PD",
+   "url": "https://commons.wikimedia.org/wiki/File:Коробушка,_Давид_Медов,_акк._оркестр,_Victor,_1927.ogg"
+  }
+ ]
+}
