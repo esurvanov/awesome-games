@@ -17,6 +17,11 @@
  *   --cold             fresh browser profile (cold CDN cache) instead of tools/.chrome-profile
  *   --settle 1500      ms to wait after a teleport before the screenshot
  *   --eval "<js>"      evaluate an expression in the page after the new game starts and print it (debugging)
+ *   --repeat 3         fps: N measurements per view (each --measure ms, default 900); median + spread, "noisy" if spread > 15 %
+ *   --quiet-check      refuse fps conclusions on a busy machine: wait ≤ 3 min for quiet (no other headless Chrome,
+ *                      CPU/load low), else the run is marked fpsVerdict "refused" (numbers kept, no PASS/FAIL on fps)
+ *
+ * Measurement hygiene (tools/qa/hygiene.mjs): only one benchmark browser at a time — tools/.stand.lock (pid, FIFO queue).
  *
  * Serves the game directory with an emulated claude.ai artifact CSP and only the file types
  * the artifact host serves, so anything that would break there breaks here too.
@@ -27,6 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 import { execSync } from 'node:child_process';
+import { acquireLock, quietCheck, spreadStats } from './qa/hygiene.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'stand');
@@ -273,6 +279,13 @@ async function collideTests(page, log) {
 
 /* -------------------------------------------------------------------- main */
 async function run() {
+  const release = await acquireLock('stand ' + label, { log: (...a) => console.log('[stand]', ...a) });
+  let load = quietCheck();
+  if (opt('quiet-check') && !load.quiet) {
+    console.log('[stand] quiet-check: machine busy (' + load.reasons.join('; ') + ') — waiting up to 3 min');
+    for (let i = 0; i < 18 && !load.quiet; i++) { await sleep(10000); load = quietCheck(); }
+    console.log('[stand] quiet-check: ' + (load.quiet ? 'machine quiet' : 'still busy — fps conclusions refused'));
+  }
   const srv = await serve(), port = srv.address().port;
   const dir = path.join(OUT, label); fs.mkdirSync(dir, { recursive: true });
   const log = (...a) => console.log('[stand]', ...a);
@@ -285,7 +298,7 @@ async function run() {
   let others = 0; try { others = Number(execSync("ps -Ao args | grep -c '[G]oogle Chrome --allow-pre-commit-input'").toString().trim()) || 0; } catch (e) { others = 0; }
   if (others) log(`note: ${others} other headless Chrome instance(s) running — fps may be lower than on an idle machine`);
   const browser = await puppeteer.launch({ executablePath: CHROME, headless: !opt('headful'), args, userDataDir, protocolTimeout: 900000, defaultViewport: { width: VW, height: VH, deviceScaleFactor: 1 } });
-  const closeAll = BROWSER_CLOSE = async () => { try { await browser.close(); } catch (e) { /* already closed */ } try { srv.close(); } catch (e) { /* */ } };
+  const closeAll = BROWSER_CLOSE = async () => { try { await browser.close(); } catch (e) { /* already closed */ } try { srv.close(); } catch (e) { /* */ } release(); };
   for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => closeAll().then(() => process.exit(130)));
   const page = await browser.newPage();
   const errors = [], failed = [], warnings = [];
@@ -328,7 +341,11 @@ async function run() {
     }, def);
     await sleep(settle);
     await page.evaluate(() => window.__stand.closeDialogs());
-    const m = await page.evaluate(() => window.__stand.measure(2000));
+    // repeat-and-median: N short measurements; spread > 15 % marks the view "noisy"
+    const reps = [];
+    for (let k = 0; k < Number(opt('repeat', 3)); k++) reps.push(await page.evaluate((ms) => window.__stand.measure(ms), Number(opt('measure', 900))));
+    const fst = spreadStats(reps.map((r) => r.fps)), mid = reps.slice().sort((a, b) => a.fps - b.fps)[reps.length >> 1];
+    const m = Object.assign({}, mid, { fps: fst.median, fpsSamples: reps.map((r) => r.fps), fpsSpreadPct: fst.spreadPct, noisy: fst.noisy });
     const file = path.join(dir, v + '.png');
     await page.screenshot({ path: file });
     // black-frame check: mean luminance of the screenshot (HUD margins cropped); a NaN pixel + bloom blackens the whole frame
@@ -339,19 +356,26 @@ async function run() {
     if (m.black) log(`  !! BLACK FRAME: ${v} (mean luma ${m.luma})`);
     const st = await page.evaluate(() => window.__stand.player());
     result.views[v] = Object.assign(m, { player: st, setup: info });
-    log(`  ${v.padEnd(12)} ${String(m.fps).padStart(5)} fps · ${m.drawCalls} calls · ${(m.triangles / 1e6).toFixed(2)}M tris`);
+    log(`  ${v.padEnd(12)} ${String(m.fps).padStart(5)} fps (${m.fpsSamples.join(' / ')}${m.noisy ? ' NOISY' : ''}) · ${m.drawCalls} calls · ${(m.triangles / 1e6).toFixed(2)}M tris`);
   }
   await page.evaluate(() => { DBG.camOv = null; DBG.cam.dist = 7.5; });
   if (!opt('no-collide')) { log('collision tests'); result.collisions = await collideTests(page, log); }
   const fpsList = Object.values(result.views).map((v) => v.fps);
   result.summary = { fpsMedian: fpsList.length ? [...fpsList].sort((a, b) => a - b)[fpsList.length >> 1] : null, fpsMin: fpsList.length ? Math.min(...fpsList) : null,
     errors: errors.length, failed: failed.length, modulesOk: loader.filter((m) => m.ok).length, modules: loader.length, blackFrames: Object.values(result.views).filter((x) => x.black).length,
-    collisionsOk: result.collisions ? result.collisions.filter((c) => c.ok).length : null, collisions: result.collisions ? result.collisions.length : null };
+    collisionsOk: result.collisions ? result.collisions.filter((c) => c.ok).length : null, collisions: result.collisions ? result.collisions.length : null,
+    noisyViews: Object.values(result.views).filter((x) => x.noisy).length };
+  const loadEnd = quietCheck();
+  result.machine = { start: load, end: loadEnd };
+  // fps verdict: only on a quiet machine and with stable samples
+  result.summary.fpsVerdict = !load.quiet || !loadEnd.quiet ? 'refused: machine busy (' + (load.quiet ? loadEnd : load).reasons.join('; ') + ')'
+    : result.summary.noisyViews ? 'unreliable: ' + result.summary.noisyViews + ' noisy view(s)' : fpsList.length ? (result.summary.fpsMin >= 55 ? 'PASS' : 'FAIL') : 'n/a';
+  log('fps verdict: ' + result.summary.fpsVerdict);
   fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 2));
   log('summary', JSON.stringify(result.summary));
   if (errors.length) log('errors:', errors.slice(0, 10));
   if (failed.length) log('failed:', failed.slice(0, 10));
-  await browser.close(); srv.close();
+  await closeAll();
 }
 
 /* ------------------------------------------------------------ compare page */

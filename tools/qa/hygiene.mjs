@@ -24,6 +24,9 @@ const alive = (pid) => { if (!pid) return false; try { process.kill(pid, 0); ret
 const readLock = () => { try { return JSON.parse(fs.readFileSync(LOCK, 'utf8')); } catch (e) { return null; } };
 
 export async function acquireLock(label, { wait = true, timeoutMs = 30 * 60e3, log = console.log } = {}) {
+  // a child run of a lock holder (qa.mjs → stand.mjs) inherits the lock: STAND_LOCK_PARENT = the holder's pid
+  const inh = Number(process.env.STAND_LOCK_PARENT || 0), cur0 = readLock();
+  if (inh && cur0 && cur0.pid === inh && alive(inh)) return () => {};
   fs.mkdirSync(QUEUE, { recursive: true });
   const ticket = path.join(QUEUE, `${Date.now()}-${process.pid}`);
   fs.writeFileSync(ticket, label);
