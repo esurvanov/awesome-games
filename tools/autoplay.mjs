@@ -102,7 +102,7 @@ async function runStory(kind) {
     const d0 = await advanceDialog();
     await ev(() => QAS.cheat.bossHp(3));
     let fired = 0; const pitches = [0.08, -0.05, -0.2, 0.2];
-    for (let k = 0; k < 60 && !(await ev(() => DBG.boss.dead)); k++) {
+    for (let k = 0; k < 140 && !(await ev(() => DBG.boss.dead)); k++) {
       await ev((p) => { const b = DBG.boss, r = DBG.POI.rift, d = Math.hypot(DBG.player.x - b.x, DBG.player.z - b.z); if (d < 12 || d > 30) DBG.teleport(b.x + (DBG.player.x - b.x) / (d || 1) * 18, b.z + (DBG.player.z - b.z) / (d || 1) * 18); QAS.aimAt(b.x, b.y + 3.6, b.z, p); QAS.cheat.hp(); }, pitches[Math.floor(k / 12) % pitches.length]);
       await page.keyboard.press('KeyF'); fired++; await sleep(260); await advanceDialog(3);
     }

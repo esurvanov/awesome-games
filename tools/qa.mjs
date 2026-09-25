@@ -66,6 +66,7 @@ try {
     log('placed objects'); res.placed = await runPlaced(H, log);
   }
   if (!opt('no-motion')) { log('motion takes'); res.motions = await runMotions(H, path.join(dir, 'eye', 'motion'), pick('motions'), log); }
+  if (!opt('no-eye') && !opt('views')) { const late = await H.page.evaluate(() => QAV.lateViews); Object.assign(res.views, await runViews(H, path.join(dir, 'eye'), late, log)); }
 } catch (e) { log('FAILED', e.stack || e.message); res.crash = String(e.stack || e.message); }
 finally { if (H) { res.errors = H.errors.slice(0, 50); res.failed = H.failed.slice(0, 50); await H.close(); } }
 

@@ -86,7 +86,8 @@
     for (let i = -1; i <= 1; i++) freshEnemy(s.x + fx * 9 + fz * i * 2.5, s.z + fz * 9 - fx * i * 2.5, 'recover'); D.enemies.forEach((e) => (e.t = 99));
     return { note: '3 shardlings at 9 m', feet: ['player'], after: () => QAV.clearEnemies() }; };
   QAV.viewOrder = ['crate_close', 'debris', 'kestrel_side', 'kestrel_wing', 'forest', 'forest_edge', 'boulder', 'outcrop_front', 'outcrop_back', 'grass', 'shrubs', 'station_door', 'orm', 'pier', 'lake_shore',
-    'camp', 'ruins', 'rift_rim', 'mountains', 'beam', 'pilot_hands', 'fox', 'stags', 'enemies', 'snowmobile'];
+    'camp', 'ruins', 'rift_rim', 'mountains', 'beam', 'pilot_hands', 'fox', 'stags', 'enemies'];
+  QAV.lateViews = ['snowmobile'];   // mounting changes the pilot for the rest of the session (see walk_after_ride): run after the takes
   QAV.dismount = () => { D.pressed.add('KeyE'); };
 
   /* ------------------------------------------------------------------ feet spots (pilot idle on every surface type) */
@@ -113,13 +114,13 @@
   M.strafe_back = { setup() { const s = spotNear(POI.crash.x - 5, POI.crash.z + 45, 0.5, 0, 8); QA.place(s.x, s.z, { yaw: 2.0, pitch: 0.25 }); return { only: ['player'] }; },
     async run() { await QA.wait(200); await hold(['KeyS'], 1400); await hold(['KeyD'], 1200); await QA.wait(300); } };
   M.climb_crate = { setup() { const c = W.stationW(5, -8), st = W.stationW(0, 0), a = Math.atan2(c.x - st.x, c.z - st.z), x = c.x + Math.sin(a) * 3.2, z = c.z + Math.cos(a) * 3.2;
-      this.c = c; QA.place(x, z, { yaw: Math.atan2(x - c.x, z - c.z), pitch: 0.2, dist: 5 }); D.cam.yaw += 0.9; return { only: ['player'], every: 3 }; },
+      this.c = c; QA.place(x, z, { yaw: Math.atan2(x - c.x, z - c.z), pitch: 0.2, dist: 5 }); return { only: ['player'], every: 3 }; },   // W walks along the camera: camera stays behind, aimed at the crate
     async run() { QA.keys(['KeyW'], true); let climbed = false; for (let i = 0; i < 70; i++) { await QA.wait(40); const d = Math.hypot(P.x - this.c.x, P.z - this.c.z); if (D.CLIMB.t >= 0) climbed = true; if (!climbed && d < 1.6) D.pressed.add('Space'); if (climbed && D.CLIMB.t < 0) break; }
       QA.release(); await QA.wait(700); return { climbed }; } };
-  M.climb_kestrel = { setup() { const L = QAV.kestrelLedge(); if (!L) return { skip: 'no climbable ledge on the Kestrel' }; this.L = L; D.teleport(L.x - L.dx * 1.5, L.z - L.dz * 1.5, Math.atan2(-L.dx, -L.dz));
-      P.face = Math.atan2(-L.dx, -L.dz); D.cam.yaw = P.face + 1.0; D.cam.pitch = 0.25; D.cam.dist = 5.5; return { only: ['player'], every: 3, note: `ledge ${L.h.toFixed(2)} m` }; },
-    async run() { let climbed = false; D.cam.yaw = P.face + 1.0; QA.keys(['KeyW'], true);
-      for (let i = 0; i < 80; i++) { await QA.wait(40); if (D.CLIMB.t >= 0) climbed = true; if (!climbed && i > 4) D.pressed.add('Space'); if (climbed && D.CLIMB.t < 0) break; }
+  M.climb_kestrel = { setup() { const L = QAV.kestrelLedge(); if (!L) return { skip: 'no climbable ledge on the Kestrel' }; this.L = L; D.teleport(L.x - L.dx * 0.8, L.z - L.dz * 0.8, Math.atan2(-L.dx, -L.dz));
+      P.face = Math.atan2(-L.dx, -L.dz); D.cam.yaw = P.face; D.cam.pitch = 0.25; D.cam.dist = 5.5; return { only: ['player'], every: 3, note: `ledge ${L.h.toFixed(2)} m` }; },
+    async run() { let climbed = false; D.cam.yaw = P.face; QA.keys(['KeyW'], true);
+      for (let i = 0; i < 80; i++) { await QA.wait(40); if (D.CLIMB.t >= 0) climbed = true; if (!climbed && Math.hypot(P.x - this.L.x, P.z - this.L.z) < 0.9) D.pressed.add('Space'); if (climbed && D.CLIMB.t < 0) break; }   // jump only where the ledge probe succeeded (like a player)
       QA.release(); await QA.wait(800); return { climbed, ledge: this.L.h }; } };
   M.ride = { setup() { const s = spotNear(POI.crash.x + 40, POI.crash.z - 10, 0.5, 0, 10); D.sk.unlocked = true; QA.place(s.x, s.z, { yaw: 1.2 }); D.sk.x = s.x; D.sk.z = s.z + 2; D.sk.yaw = 1.2; D.sk.speed = 0;
       D.mount(); return { only: ['snowmobile'], every: 5 }; },
@@ -144,7 +145,9 @@
       return { only: ['boss'], every: 6, waitFor: () => D.boss.active }; },
     async run() { for (let i = 0; i < 30 && !D.boss.active; i++) await QA.wait(100); QA.closeDialogs(); await QA.wait(2600); QA.closeDialogs();
       for (let i = 0; i < 4; i++) { const d = Math.hypot(P.x - D.boss.x, P.z - D.boss.z); QA.keys(['KeyW'], d > 18); QA.keys(['KeyS'], d < 15); await QA.wait(900); } QA.release(); await QA.wait(600); } };
-  QAV.motionOrder = ['walk', 'run_turn', 'strafe_back', 'climb_crate', 'climb_kestrel', 'ride', 'fox_follow', 'fox_seek', 'stags_flee', 'stags_flee2', 'shardlings', 'boss'];
+  M.walk_after_ride = { setup() { const s = spotNear(POI.crash.x - 20, POI.crash.z + 35, 0.5, 0, 8); QA.place(s.x, s.z, { yaw: 0.6, pitch: 0.25 }); return { only: ['player'], note: 'same walk, after mounting + dismounting the snowmobile' }; },
+    async run() { await QA.wait(300); await hold(['KeyW'], 2600); await QA.wait(300); } };
+  QAV.motionOrder = ['walk', 'run_turn', 'strafe_back', 'climb_crate', 'climb_kestrel', 'fox_follow', 'fox_seek', 'stags_flee', 'stags_flee2', 'shardlings', 'boss', 'ride', 'walk_after_ride'];
 })();
 /* ------------------------------------------------------------------ one motion take, end to end (in the page) */
 (() => {
