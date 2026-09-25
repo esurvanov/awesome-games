@@ -1,0 +1,66 @@
+{
+ "action-attack": [
+  1,
+  1
+ ],
+ "action-build": [
+  1,
+  1
+ ],
+ "action-garrison": [
+  1,
+  1
+ ],
+ "action-gather-fish": [
+  1,
+  1
+ ],
+ "action-gather-fruit": [
+  1,
+  1
+ ],
+ "action-gather-grain": [
+  1,
+  1
+ ],
+ "action-gather-meat": [
+  1,
+  1
+ ],
+ "action-gather-ore": [
+  1,
+  1
+ ],
+ "action-gather-rock": [
+  1,
+  1
+ ],
+ "action-gather-tree": [
+  1,
+  1
+ ],
+ "action-heal": [
+  1,
+  1
+ ],
+ "action-repair": [
+  1,
+  1
+ ],
+ "action-return-food": [
+  1,
+  1
+ ],
+ "arrow-default-down": [
+  1,
+  1
+ ],
+ "cursor-no": [
+  13,
+  14
+ ],
+ "cursor-rally": [
+  5,
+  31
+ ]
+}

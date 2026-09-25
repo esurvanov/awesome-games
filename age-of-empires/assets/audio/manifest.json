@@ -1,0 +1,3659 @@
+{
+ "about": "Звуки и музыка из 0 A.D. (Wildfire Games), изменены (см. changes у файла). Лицензия CC BY-SA 3.0; эти файлы распространяются под той же лицензией.",
+ "source": "https://gitea.wildfiregames.com/0ad/0ad @ ",
+ "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+ "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+ "music": {
+  "menu": [
+   "music/Epitaph.opus"
+  ],
+  "peace": [
+   "music/Celtica.opus",
+   "music/Celtic_Pride.opus",
+   "music/Highland_Mist.opus",
+   "music/Harvest_Festival.opus",
+   "music/Tavern_in_the_Mist.opus",
+   "music/Northern_Frontier.opus",
+   "music/Albian_Nocturne.opus",
+   "music/Mountain_Idyll.opus",
+   "music/Sunrise.opus",
+   "music/The_Fledgling_Kingdom.opus",
+   "music/Waters_Edge.opus",
+   "music/As_Seasons_Change.opus",
+   "music/Midwinter.opus",
+   "music/Solstice_Festival.opus",
+   "music/Eastern_Dreams.opus",
+   "music/Cisalpine_Gaul.opus",
+   "music/The_Road_Ahead.opus"
+  ],
+  "battle": [
+   "music/Honor_Bound.opus",
+   "music/Tale_of_Warriors.opus",
+   "music/Red_Dawn.opus",
+   "music/Calm_Before_the_Storm.opus",
+   "music/Point_of_No_Return.opus",
+   "music/Harsh_Lands_Rugged_People.opus",
+   "music/A_Brothers_Revenge.opus",
+   "music/Bandit_Country.opus",
+   "music/Taiko_1.opus",
+   "music/Taiko_2.opus",
+   "music/Upstart_King.opus"
+  ],
+  "victory": [
+   "music/You_are_Victorious.opus"
+  ],
+  "defeat": [
+   "music/Dried_Tears.opus"
+  ]
+ },
+ "sfx": {
+  "age_other": [
+   "sfx/age_other/alarmresearchphase_1_p89.opus"
+  ],
+  "age_up": [
+   "sfx/age_up/alarmresearchphase_1.opus"
+  ],
+  "alert": [
+   "sfx/alert/alarmattackplayer_1.opus",
+   "sfx/alert/alarmattackunit_1.opus"
+  ],
+  "alert_city": [
+   "sfx/alert_city/alarmattackcity_1.opus"
+  ],
+  "arrow": [
+   "sfx/arrow/bow_attack_01.opus",
+   "sfx/arrow/bow_attack_02.opus",
+   "sfx/arrow/bow_attack_03.opus",
+   "sfx/arrow/bow_attack_04.opus",
+   "sfx/arrow/bow_attack_05.opus",
+   "sfx/arrow/bow_attack_06.opus"
+  ],
+  "arrow_gun": [
+   "sfx/arrow_gun/Musket_1.opus",
+   "sfx/arrow_gun/Musket_2.opus",
+   "sfx/arrow_gun/Musket_3.opus"
+  ],
+  "arrow_jav": [
+   "sfx/arrow_jav/jav_attack_01.opus",
+   "sfx/arrow_jav/jav_attack_02.opus",
+   "sfx/arrow_jav/jav_attack_03.opus",
+   "sfx/arrow_jav/jav_attack_04.opus"
+  ],
+  "baa": [
+   "sfx/baa/goat_10.opus",
+   "sfx/baa/goat_13.opus",
+   "sfx/baa/goat_14.opus",
+   "sfx/baa/goat_15.opus"
+  ],
+  "bell": [
+   "sfx/bell/alarmalert0.opus",
+   "sfx/bell/alarmalert2.opus"
+  ],
+  "blast": [
+   "sfx/blast/siegeprojectilehit_01.opus",
+   "sfx/blast/siegeprojectilehit_01_p92.opus",
+   "sfx/blast/siegeprojectilehit_02.opus",
+   "sfx/blast/siegeprojectilehit_02_p92.opus",
+   "sfx/blast/siegeprojectilehit_03.opus",
+   "sfx/blast/siegeprojectilehit_03_p92.opus",
+   "sfx/blast/siegeprojectilehit_04.opus",
+   "sfx/blast/siegeprojectilehit_04_p92.opus"
+  ],
+  "board": [
+   "sfx/board/warship_move_01.opus",
+   "sfx/board/ship_select_01.opus"
+  ],
+  "click": [
+   "sfx/click/rally_click_01.opus",
+   "sfx/click/rally_click_02.opus"
+  ],
+  "cmd_attack_f": [
+   "sfx/cmd_attack_f/civ_female_attack_1.opus",
+   "sfx/cmd_attack_f/civ_female_go_out_against_1.opus"
+  ],
+  "cmd_attack_m": [
+   "sfx/cmd_attack_m/civ_male_attack_1.opus",
+   "sfx/cmd_attack_m/civ_male_go_out_against_1.opus",
+   "sfx/cmd_attack_m/civ_male_fight_1.opus"
+  ],
+  "cmd_build_f": [
+   "sfx/cmd_build_f/civ_female_build_1.opus",
+   "sfx/cmd_build_f/civ_female_repair_1.opus"
+  ],
+  "cmd_build_m": [
+   "sfx/cmd_build_m/civ_male_build_1.opus",
+   "sfx/cmd_build_m/civ_male_repair_1.opus"
+  ],
+  "cmd_cav": [
+   "sfx/cmd_cav/horse_idle1.opus",
+   "sfx/cmd_cav/horse_idle2.opus"
+  ],
+  "cmd_cav_attack": [
+   "sfx/cmd_cav_attack/horse_attack1.opus",
+   "sfx/cmd_cav_attack/horse_attack3.opus"
+  ],
+  "cmd_elephant": [
+   "sfx/cmd_elephant/elephant_order1.opus",
+   "sfx/cmd_elephant/elephant_order2.opus"
+  ],
+  "cmd_garrison_f": [
+   "sfx/cmd_garrison_f/civ_female_garrison_1.opus"
+  ],
+  "cmd_garrison_m": [
+   "sfx/cmd_garrison_m/civ_male_garrison_1.opus"
+  ],
+  "cmd_gather_f": [
+   "sfx/cmd_gather_f/civ_female_work_land_1.opus",
+   "sfx/cmd_gather_f/civ_female_gather_together_1.opus"
+  ],
+  "cmd_gather_m": [
+   "sfx/cmd_gather_m/civ_male_work_land_1.opus",
+   "sfx/cmd_gather_m/civ_male_gather_together_1.opus"
+  ],
+  "cmd_heal_m": [
+   "sfx/cmd_heal_m/civ_male_heal_1.opus"
+  ],
+  "cmd_move_f": [
+   "sfx/cmd_move_f/civ_female_walk_1.opus"
+  ],
+  "cmd_move_m": [
+   "sfx/cmd_move_m/civ_male_walk_1.opus",
+   "sfx/cmd_move_m/civ_male_march_1.opus"
+  ],
+  "cmd_ship": [
+   "sfx/cmd_ship/warship_move_01.opus"
+  ],
+  "cmd_siege": [
+   "sfx/cmd_siege/ram_move.opus",
+   "sfx/cmd_siege/onager_moving_11.opus"
+  ],
+  "cmd_siege_attack": [
+   "sfx/cmd_siege_attack/ram_attack_order.opus"
+  ],
+  "convert": [
+   "sfx/convert/alarmunitturn_1.opus"
+  ],
+  "convert_start": [
+   "sfx/convert_start/sel_temple_10.opus",
+   "sfx/convert_start/sel_temple.opus"
+  ],
+  "death": [
+   "sfx/death/male_death_01.opus",
+   "sfx/death/male_death_02.opus",
+   "sfx/death/male_death_04.opus",
+   "sfx/death/male_death_05.opus",
+   "sfx/death/male_death_06.opus",
+   "sfx/death/male_death_07.opus",
+   "sfx/death/male_death_08.opus",
+   "sfx/death/male_death_09.opus",
+   "sfx/death/death_11.opus",
+   "sfx/death/death_13.opus",
+   "sfx/death/death_14.opus",
+   "sfx/death/death_16.opus",
+   "sfx/death/death_17.opus"
+  ],
+  "death_animal": [
+   "sfx/death_animal/Animal_death_generic_10.opus",
+   "sfx/death_animal/Animal_death_generic_12.opus",
+   "sfx/death_animal/Animal_death_generic_13.opus"
+  ],
+  "death_boar": [
+   "sfx/death_boar/pig_death.opus"
+  ],
+  "death_camel": [
+   "sfx/death_camel/death_camel_10.opus"
+  ],
+  "death_elephant": [
+   "sfx/death_elephant/elephant_death1.opus",
+   "sfx/death_elephant/elephant_death2.opus"
+  ],
+  "death_female": [
+   "sfx/death_female/female_death_01.opus",
+   "sfx/death_female/female_death_02.opus",
+   "sfx/death_female/female_death_03.opus",
+   "sfx/death_female/female_death_06.opus",
+   "sfx/death_female/female_death_08.opus",
+   "sfx/death_female/female_death_09.opus"
+  ],
+  "death_horse": [
+   "sfx/death_horse/death_horse_10.opus",
+   "sfx/death_horse/death_horse_11.opus",
+   "sfx/death_horse/death_horse_12.opus",
+   "sfx/death_horse/death_horse_13.opus"
+  ],
+  "death_ship": [
+   "sfx/death_ship/warship_death_01.opus",
+   "sfx/death_ship/warship_death_02.opus"
+  ],
+  "defeat": [
+   "sfx/defeat/alarmdefeat_1.opus"
+  ],
+  "defeat_ally": [
+   "sfx/defeat_ally/alarm_defeated_ally.opus"
+  ],
+  "defeat_other": [
+   "sfx/defeat_other/alarmalert1.opus"
+  ],
+  "destroy": [
+   "sfx/destroy/building_collapse_large_01.opus",
+   "sfx/destroy/building_collapse_large_02.opus"
+  ],
+  "done_archery_range": [
+   "sfx/done_archery_range/complete_range.opus"
+  ],
+  "done_barracks": [
+   "sfx/done_barracks/complete_barracks.opus"
+  ],
+  "done_blacksmith": [
+   "sfx/done_blacksmith/complete_forge.opus"
+  ],
+  "done_camp": [
+   "sfx/done_camp/complete_storehouse.opus"
+  ],
+  "done_castle": [
+   "sfx/done_castle/complete_fortress.opus"
+  ],
+  "done_dock": [
+   "sfx/done_dock/complete_dock.opus"
+  ],
+  "done_farm": [
+   "sfx/done_farm/complete_field.opus"
+  ],
+  "done_gate": [
+   "sfx/done_gate/complete_gate.opus"
+  ],
+  "done_house": [
+   "sfx/done_house/complete_house.opus"
+  ],
+  "done_market": [
+   "sfx/done_market/complete_market.opus"
+  ],
+  "done_mill": [
+   "sfx/done_mill/complete_farmstead.opus"
+  ],
+  "done_monastery": [
+   "sfx/done_monastery/complete_temple.opus"
+  ],
+  "done_siege_workshop": [
+   "sfx/done_siege_workshop/complete_universal.opus"
+  ],
+  "done_stable": [
+   "sfx/done_stable/complete_stable.opus"
+  ],
+  "done_tower": [
+   "sfx/done_tower/complete_tower.opus"
+  ],
+  "done_town_center": [
+   "sfx/done_town_center/complete_civ_center.opus"
+  ],
+  "done_university": [
+   "sfx/done_university/complete_library.opus"
+  ],
+  "done_wall": [
+   "sfx/done_wall/complete_wall.opus"
+  ],
+  "eject": [
+   "sfx/eject/stonegate_open_21.opus",
+   "sfx/eject/stonegate_open_22.opus"
+  ],
+  "explode": [
+   "sfx/explode/explode_debris_20.opus"
+  ],
+  "fire_bolt": [
+   "sfx/fire_bolt/ballist_attack_01.opus",
+   "sfx/fire_bolt/ballist_attack_02.opus"
+  ],
+  "fire_cannon": [
+   "sfx/fire_cannon/Musket_1_p62.opus",
+   "sfx/fire_cannon/Musket_2_p62.opus",
+   "sfx/fire_cannon/Musket_3_p62.opus"
+  ],
+  "fire_siege": [
+   "sfx/fire_siege/onager_shooting_11.opus",
+   "sfx/fire_siege/onager_shooting_11_p90.opus",
+   "sfx/fire_siege/onager_shooting_11_p110.opus",
+   "sfx/fire_siege/ballist_attack_01.opus"
+  ],
+  "garrison": [
+   "sfx/garrison/stonegate_close_21.opus",
+   "sfx/garrison/stonegate_close_22.opus"
+  ],
+  "hit_arrow": [
+   "sfx/hit_arrow/arrow_metal_01.opus",
+   "sfx/hit_arrow/arrow_metal_02.opus",
+   "sfx/hit_arrow/arrow_metal_03.opus",
+   "sfx/hit_arrow/arrow_metal_04.opus",
+   "sfx/hit_arrow/arrow_wood_01.opus",
+   "sfx/hit_arrow/arrow_wood_02.opus",
+   "sfx/hit_arrow/arrow_wood_03.opus",
+   "sfx/hit_arrow/fleshimp_10.opus",
+   "sfx/hit_arrow/fleshimp_10_p94.opus",
+   "sfx/hit_arrow/fleshimp_10_p106.opus",
+   "sfx/hit_arrow/fleshimp_11.opus",
+   "sfx/hit_arrow/fleshimp_11_p94.opus",
+   "sfx/hit_arrow/fleshimp_11_p106.opus",
+   "sfx/hit_arrow/fleshimp_12.opus",
+   "sfx/hit_arrow/fleshimp_12_p94.opus",
+   "sfx/hit_arrow/fleshimp_12_p106.opus"
+  ],
+  "hit_bld": [
+   "sfx/hit_bld/arrow_stone_01.opus",
+   "sfx/hit_bld/arrow_stone_02.opus",
+   "sfx/hit_bld/arrow_stone_03.opus",
+   "sfx/hit_bld/arrow_stone_04.opus",
+   "sfx/hit_bld/shield_wood_05.opus",
+   "sfx/hit_bld/shield_wood_07.opus"
+  ],
+  "hit_melee": [
+   "sfx/hit_melee/swordhit_10.opus",
+   "sfx/hit_melee/swordhit_10_p94.opus",
+   "sfx/hit_melee/swordhit_10_p106.opus",
+   "sfx/hit_melee/swordhit_11.opus",
+   "sfx/hit_melee/swordhit_11_p94.opus",
+   "sfx/hit_melee/swordhit_11_p106.opus",
+   "sfx/hit_melee/swordhit_12.opus",
+   "sfx/hit_melee/swordhit_12_p94.opus",
+   "sfx/hit_melee/swordhit_12_p106.opus",
+   "sfx/hit_melee/swordhit_15.opus",
+   "sfx/hit_melee/swordhit_15_p94.opus",
+   "sfx/hit_melee/swordhit_15_p106.opus",
+   "sfx/hit_melee/swordhit_16.opus",
+   "sfx/hit_melee/swordhit_16_p94.opus",
+   "sfx/hit_melee/swordhit_16_p106.opus",
+   "sfx/hit_melee/swordhit_18.opus",
+   "sfx/hit_melee/swordhit_18_p94.opus",
+   "sfx/hit_melee/swordhit_18_p106.opus",
+   "sfx/hit_melee/shield_metal_02.opus",
+   "sfx/hit_melee/shield_metal_02_p94.opus",
+   "sfx/hit_melee/shield_metal_02_p106.opus",
+   "sfx/hit_melee/shield_metal_04.opus",
+   "sfx/hit_melee/shield_metal_04_p94.opus",
+   "sfx/hit_melee/shield_metal_04_p106.opus",
+   "sfx/hit_melee/shield_metal_05.opus",
+   "sfx/hit_melee/shield_metal_05_p94.opus",
+   "sfx/hit_melee/shield_metal_05_p106.opus",
+   "sfx/hit_melee/shield_metal_07.opus",
+   "sfx/hit_melee/shield_metal_07_p94.opus",
+   "sfx/hit_melee/shield_metal_07_p106.opus"
+  ],
+  "hit_pierce": [
+   "sfx/hit_pierce/fleshstab_01.opus",
+   "sfx/hit_pierce/fleshstab_01_p94.opus",
+   "sfx/hit_pierce/fleshstab_01_p106.opus",
+   "sfx/hit_pierce/fleshstab_02.opus",
+   "sfx/hit_pierce/fleshstab_02_p94.opus",
+   "sfx/hit_pierce/fleshstab_02_p106.opus",
+   "sfx/hit_pierce/fleshstab_03.opus",
+   "sfx/hit_pierce/fleshstab_03_p94.opus",
+   "sfx/hit_pierce/fleshstab_03_p106.opus",
+   "sfx/hit_pierce/shield_wood_02.opus",
+   "sfx/hit_pierce/shield_wood_04.opus",
+   "sfx/hit_pierce/shield_wood_06.opus"
+  ],
+  "hit_ram": [
+   "sfx/hit_ram/ram_attack.opus",
+   "sfx/hit_ram/ram_attack_p90.opus",
+   "sfx/hit_ram/ram_attack_p108.opus"
+  ],
+  "hit_shot": [
+   "sfx/hit_shot/sling_metal_01.opus",
+   "sfx/hit_shot/sling_metal_02.opus",
+   "sfx/hit_shot/sling_metal_03.opus",
+   "sfx/hit_shot/sling_metal_04.opus",
+   "sfx/hit_shot/sling_wood_01.opus",
+   "sfx/hit_shot/sling_wood_02.opus"
+  ],
+  "hit_siege": [
+   "sfx/hit_siege/siegeprojectilehit_01.opus",
+   "sfx/hit_siege/siegeprojectilehit_02.opus",
+   "sfx/hit_siege/siegeprojectilehit_03.opus",
+   "sfx/hit_siege/siegeprojectilehit_04.opus"
+  ],
+  "hit_thud": [
+   "sfx/hit_thud/fleshimp_10.opus",
+   "sfx/hit_thud/fleshimp_10_p94.opus",
+   "sfx/hit_thud/fleshimp_10_p106.opus",
+   "sfx/hit_thud/fleshimp_11.opus",
+   "sfx/hit_thud/fleshimp_11_p94.opus",
+   "sfx/hit_thud/fleshimp_11_p106.opus",
+   "sfx/hit_thud/fleshimp_12.opus",
+   "sfx/hit_thud/fleshimp_12_p94.opus",
+   "sfx/hit_thud/fleshimp_12_p106.opus",
+   "sfx/hit_thud/shield_wood_08.opus"
+  ],
+  "market": [
+   "sfx/market/sel_market.opus",
+   "sfx/market/sel_market_p95.opus",
+   "sfx/market/sel_market_p105.opus"
+  ],
+  "pack": [
+   "sfx/pack/onager_moving_11.opus",
+   "sfx/pack/ram_move.opus"
+  ],
+  "place": [
+   "sfx/place/con_stone_02.opus",
+   "sfx/place/con_stone_04.opus"
+  ],
+  "reseed": [
+   "sfx/reseed/hoe_11.opus",
+   "sfx/reseed/hoe_13.opus"
+  ],
+  "sel_berries": [
+   "sfx/sel_berries/sel_fruit_02.opus"
+  ],
+  "sel_boar": [
+   "sfx/sel_boar/pig_10.opus",
+   "sfx/sel_boar/pig_12.opus"
+  ],
+  "sel_camel": [
+   "sfx/sel_camel/camel_10.opus"
+  ],
+  "sel_cav": [
+   "sfx/sel_cav/horse_select1.opus",
+   "sfx/sel_cav/horse_select2.opus",
+   "sfx/sel_cav/horse_select3.opus"
+  ],
+  "sel_elephant": [
+   "sfx/sel_elephant/elephant_select1.opus",
+   "sfx/sel_elephant/elephant_select2.opus"
+  ],
+  "sel_gold": [
+   "sfx/sel_gold/sel_metal_01.opus"
+  ],
+  "sel_mil": [
+   "sfx/sel_mil/civ_male_what_is_it_1.opus",
+   "sfx/sel_mil/civ_male_my_lord_1.opus",
+   "sfx/sel_mil/civ_male_hello_1.opus"
+  ],
+  "sel_sheep": [
+   "sfx/sel_sheep/sheep_10.opus",
+   "sfx/sel_sheep/sheep_11.opus"
+  ],
+  "sel_ship": [
+   "sfx/sel_ship/ship_select_01.opus"
+  ],
+  "sel_siege": [
+   "sfx/sel_siege/siege_select_10.opus"
+  ],
+  "sel_stone": [
+   "sfx/sel_stone/sel_stone_02.opus"
+  ],
+  "sel_tree": [
+   "sfx/sel_tree/sel_tree_01.opus"
+  ],
+  "sel_vil_f": [
+   "sfx/sel_vil_f/civ_female_hello_1.opus",
+   "sfx/sel_vil_f/civ_female_what_is_it_1.opus",
+   "sfx/sel_vil_f/civ_female_my_lord_1.opus"
+  ],
+  "sel_vil_m": [
+   "sfx/sel_vil_m/civ_male_hello_1.opus",
+   "sfx/sel_vil_m/civ_male_what_is_it_1.opus",
+   "sfx/sel_vil_m/civ_male_my_lord_1.opus"
+  ],
+  "selb_barracks": [
+   "sfx/selb_barracks/sel_barracks.opus"
+  ],
+  "selb_blacksmith": [
+   "sfx/selb_blacksmith/sel_forge.opus"
+  ],
+  "selb_camp": [
+   "sfx/selb_camp/sel_storehouse.opus"
+  ],
+  "selb_castle": [
+   "sfx/selb_castle/sel_fortress.opus"
+  ],
+  "selb_dock": [
+   "sfx/selb_dock/sel_dock.opus"
+  ],
+  "selb_farm": [
+   "sfx/selb_farm/sel_field.opus"
+  ],
+  "selb_gate": [
+   "sfx/selb_gate/sel_gate.opus"
+  ],
+  "selb_house": [
+   "sfx/selb_house/sel_house.opus"
+  ],
+  "selb_market": [
+   "sfx/selb_market/sel_market.opus"
+  ],
+  "selb_mill": [
+   "sfx/selb_mill/sel_farmstead.opus"
+  ],
+  "selb_monastery": [
+   "sfx/selb_monastery/sel_temple.opus"
+  ],
+  "selb_siege_workshop": [
+   "sfx/selb_siege_workshop/sel_universal_1.opus"
+  ],
+  "selb_stable": [
+   "sfx/selb_stable/sel_stable.opus"
+  ],
+  "selb_tower": [
+   "sfx/selb_tower/sel_tower.opus"
+  ],
+  "selb_town_center": [
+   "sfx/selb_town_center/sel_civ_center.opus"
+  ],
+  "selb_university": [
+   "sfx/selb_university/sel_library.opus"
+  ],
+  "selb_wall": [
+   "sfx/selb_wall/sel_wall.opus"
+  ],
+  "tech_done": [
+   "sfx/tech_done/alarmresearchtech_1.opus"
+  ],
+  "trade": [
+   "sfx/trade/sel_market.opus",
+   "sfx/trade/sel_market_p90.opus"
+  ],
+  "train_cav": [
+   "sfx/train_cav/alarmcreatecavalry_1.opus"
+  ],
+  "train_inf": [
+   "sfx/train_inf/alarmcreatemiltaryfoot_1.opus"
+  ],
+  "train_monk": [
+   "sfx/train_monk/alarmcreatepriest_1.opus"
+  ],
+  "train_ship": [
+   "sfx/train_ship/alarm_warship_03.opus"
+  ],
+  "train_vil": [
+   "sfx/train_vil/alarmcreateworker_1.opus",
+   "sfx/train_vil/alarmcreatefemale.opus"
+  ],
+  "tribute": [
+   "sfx/tribute/sel_market_p85.opus"
+  ],
+  "unload": [
+   "sfx/unload/smove_21.opus",
+   "sfx/unload/ship_move.opus"
+  ],
+  "upgrade": [
+   "sfx/upgrade/alarmupgradearmory_1.opus"
+  ],
+  "victory": [
+   "sfx/victory/alarmvictory_1.opus"
+  ],
+  "work_build": [
+   "sfx/work_build/con_wood_01.opus",
+   "sfx/work_build/con_wood_02.opus",
+   "sfx/work_build/con_wood_03.opus",
+   "sfx/work_build/con_wood_04.opus",
+   "sfx/work_build/con_wood_06.opus",
+   "sfx/work_build/con_wood_07.opus",
+   "sfx/work_build/con_wood_08.opus",
+   "sfx/work_build/con_stone_01.opus",
+   "sfx/work_build/con_stone_03.opus",
+   "sfx/work_build/con_saw_05.opus"
+  ],
+  "work_butcher": [
+   "sfx/work_butcher/gather_meat_01.opus",
+   "sfx/work_butcher/gather_meat_02.opus",
+   "sfx/work_butcher/gather_meat_04.opus",
+   "sfx/work_butcher/gather_meat_06.opus",
+   "sfx/work_butcher/gather_meat_08.opus"
+  ],
+  "work_chop": [
+   "sfx/work_chop/lumber_tree_01.opus",
+   "sfx/work_chop/lumber_tree_02.opus",
+   "sfx/work_chop/lumber_tree_03.opus",
+   "sfx/work_chop/lumber_tree_04.opus",
+   "sfx/work_chop/lumber_tree_05.opus",
+   "sfx/work_chop/lumber_tree_06.opus",
+   "sfx/work_chop/lumber_tree_07.opus",
+   "sfx/work_chop/lumber_tree_08.opus",
+   "sfx/work_chop/lumber_tree_09.opus"
+  ],
+  "work_farm": [
+   "sfx/work_farm/hoe_10.opus",
+   "sfx/work_farm/hoe_12.opus",
+   "sfx/work_farm/hoe_14.opus",
+   "sfx/work_farm/hoe_15.opus",
+   "sfx/work_farm/hoe_16.opus",
+   "sfx/work_farm/hoe_17.opus",
+   "sfx/work_farm/gather_field_01.opus",
+   "sfx/work_farm/gather_field_05.opus",
+   "sfx/work_farm/gather_field_06.opus"
+  ],
+  "work_fish": [
+   "sfx/work_fish/wave_21.opus",
+   "sfx/work_fish/wave_21.opus",
+   "sfx/work_fish/wave_21.opus"
+  ],
+  "work_forage": [
+   "sfx/work_forage/gather_fruit_01.opus",
+   "sfx/work_forage/gather_fruit_03.opus",
+   "sfx/work_forage/gather_fruit_04.opus",
+   "sfx/work_forage/gather_fruit_05.opus",
+   "sfx/work_forage/gather_fruit_06.opus",
+   "sfx/work_forage/gather_fruit_08.opus",
+   "sfx/work_forage/gather_fruit_11.opus",
+   "sfx/work_forage/gather_fruit_12.opus"
+  ],
+  "work_mine": [
+   "sfx/work_mine/mine_stone_01.opus",
+   "sfx/work_mine/mine_stone_02.opus",
+   "sfx/work_mine/mine_stone_04.opus",
+   "sfx/work_mine/mine_stone_05.opus",
+   "sfx/work_mine/mine_stone_06.opus",
+   "sfx/work_mine/mine_stone_09.opus",
+   "sfx/work_mine/mine_metal_02.opus",
+   "sfx/work_mine/mine_metal_03.opus",
+   "sfx/work_mine/mine_metal_04.opus",
+   "sfx/work_mine/mine_metal_07.opus"
+  ]
+ },
+ "files": {
+  "music/A_Brothers_Revenge.opus": {
+   "title": "A Brothers Revenge",
+   "source": "binaries/data/mods/public/audio/music/A_Brothers_Revenge.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-7.9 → -20 LUFS), Opus 80k",
+   "duration": 137.98,
+   "bytes": 1593866
+  },
+  "music/Albian_Nocturne.opus": {
+   "title": "Albian Nocturne",
+   "source": "binaries/data/mods/public/audio/music/Albian_Nocturne.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-13.8 → -20 LUFS), Opus 80k",
+   "duration": 160.52,
+   "bytes": 1873304
+  },
+  "music/As_Seasons_Change.opus": {
+   "title": "As Seasons Change",
+   "source": "binaries/data/mods/public/audio/music/As_Seasons_Change.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.7 → -20 LUFS), Opus 80k",
+   "duration": 200.91,
+   "bytes": 2542615
+  },
+  "music/Bandit_Country.opus": {
+   "title": "Bandit Country",
+   "source": "binaries/data/mods/public/audio/music/Bandit_Country.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.1 → -20 LUFS), Opus 80k",
+   "duration": 99.77,
+   "bytes": 1259860
+  },
+  "music/Calm_Before_the_Storm.opus": {
+   "title": "Calm Before the Storm",
+   "source": "binaries/data/mods/public/audio/music/Calm_Before_the_Storm.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-13.2 → -20 LUFS), Opus 80k",
+   "duration": 142.69,
+   "bytes": 1750824
+  },
+  "music/Celtic_Pride.opus": {
+   "title": "Celtic Pride",
+   "source": "binaries/data/mods/public/audio/music/Celtic_Pride.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-12.6 → -20 LUFS), Opus 80k",
+   "duration": 195.36,
+   "bytes": 2385018
+  },
+  "music/Celtica.opus": {
+   "title": "Celtica",
+   "source": "binaries/data/mods/public/audio/music/Celtica.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-12.8 → -20 LUFS), Opus 80k",
+   "duration": 183.41,
+   "bytes": 2204170
+  },
+  "music/Cisalpine_Gaul.opus": {
+   "title": "Cisalpine Gaul",
+   "source": "binaries/data/mods/public/audio/music/Cisalpine_Gaul.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-11.5 → -20 LUFS), Opus 80k",
+   "duration": 188.99,
+   "bytes": 2300714
+  },
+  "music/Dried_Tears.opus": {
+   "title": "Dried Tears",
+   "source": "binaries/data/mods/public/audio/music/Dried_Tears.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-12.7 → -20 LUFS), Opus 80k",
+   "duration": 83.65,
+   "bytes": 922244
+  },
+  "music/Eastern_Dreams.opus": {
+   "title": "Eastern Dreams",
+   "source": "binaries/data/mods/public/audio/music/Eastern_Dreams.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-13.3 → -20 LUFS), Opus 80k",
+   "duration": 229.01,
+   "bytes": 2568478
+  },
+  "music/Epitaph.opus": {
+   "title": "Epitaph",
+   "source": "binaries/data/mods/public/audio/music/Epitaph.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-21.4 → -20 LUFS), Opus 80k",
+   "duration": 518.61,
+   "bytes": 5979447
+  },
+  "music/Harsh_Lands_Rugged_People.opus": {
+   "title": "Harsh Lands Rugged People",
+   "source": "binaries/data/mods/public/audio/music/Harsh_Lands_Rugged_People.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.9 → -20 LUFS), Opus 80k",
+   "duration": 178.79,
+   "bytes": 1740182
+  },
+  "music/Harvest_Festival.opus": {
+   "title": "Harvest Festival",
+   "source": "binaries/data/mods/public/audio/music/Harvest_Festival.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-17.0 → -20 LUFS), Opus 80k",
+   "duration": 220.01,
+   "bytes": 2616915
+  },
+  "music/Highland_Mist.opus": {
+   "title": "Highland Mist",
+   "source": "binaries/data/mods/public/audio/music/Highland_Mist.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-12.5 → -20 LUFS), Opus 80k",
+   "duration": 235.01,
+   "bytes": 2744586
+  },
+  "music/Honor_Bound.opus": {
+   "title": "Honor Bound",
+   "source": "binaries/data/mods/public/audio/music/Honor_Bound.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-16.2 → -20 LUFS), Opus 80k",
+   "duration": 166.01,
+   "bytes": 1807268
+  },
+  "music/Midwinter.opus": {
+   "title": "Midwinter",
+   "source": "binaries/data/mods/public/audio/music/Midwinter.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.7 → -20 LUFS), Opus 80k",
+   "duration": 129.54,
+   "bytes": 1521184
+  },
+  "music/Mountain_Idyll.opus": {
+   "title": "Mountain Idyll",
+   "source": "binaries/data/mods/public/audio/music/Mountain_Idyll.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-17.8 → -20 LUFS), Opus 80k",
+   "duration": 102.49,
+   "bytes": 1143325
+  },
+  "music/Northern_Frontier.opus": {
+   "title": "Northern Frontier",
+   "source": "binaries/data/mods/public/audio/music/Northern_Frontier.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-18.5 → -20 LUFS), Opus 80k",
+   "duration": 113.59,
+   "bytes": 1314862
+  },
+  "music/Point_of_No_Return.opus": {
+   "title": "Point of No Return",
+   "source": "binaries/data/mods/public/audio/music/Point_of_No_Return.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-21.4 → -20 LUFS), Opus 80k",
+   "duration": 150.51,
+   "bytes": 1818185
+  },
+  "music/Red_Dawn.opus": {
+   "title": "Red Dawn",
+   "source": "binaries/data/mods/public/audio/music/Red_Dawn.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-17.6 → -20 LUFS), Opus 80k",
+   "duration": 176.11,
+   "bytes": 2024280
+  },
+  "music/Solstice_Festival.opus": {
+   "title": "Solstice Festival",
+   "source": "binaries/data/mods/public/audio/music/Solstice_Festival.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-12.3 → -20 LUFS), Opus 80k",
+   "duration": 148.25,
+   "bytes": 1731832
+  },
+  "music/Sunrise.opus": {
+   "title": "Sunrise",
+   "source": "binaries/data/mods/public/audio/music/Sunrise.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-13.5 → -20 LUFS), Opus 80k",
+   "duration": 141.51,
+   "bytes": 1640481
+  },
+  "music/Taiko_1.opus": {
+   "title": "Taiko 1",
+   "source": "binaries/data/mods/public/audio/music/Taiko_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-11.4 → -20 LUFS), Opus 80k",
+   "duration": 102.47,
+   "bytes": 969816
+  },
+  "music/Taiko_2.opus": {
+   "title": "Taiko 2",
+   "source": "binaries/data/mods/public/audio/music/Taiko_2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-11.7 → -20 LUFS), Opus 80k",
+   "duration": 177.11,
+   "bytes": 1667138
+  },
+  "music/Tale_of_Warriors.opus": {
+   "title": "Tale of Warriors",
+   "source": "binaries/data/mods/public/audio/music/Tale_of_Warriors.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-16.2 → -20 LUFS), Opus 80k",
+   "duration": 164.01,
+   "bytes": 1843052
+  },
+  "music/Tavern_in_the_Mist.opus": {
+   "title": "Tavern in the Mist",
+   "source": "binaries/data/mods/public/audio/music/Tavern_in_the_Mist.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.2 → -20 LUFS), Opus 80k",
+   "duration": 156.99,
+   "bytes": 1916864
+  },
+  "music/The_Fledgling_Kingdom.opus": {
+   "title": "The Fledgling Kingdom",
+   "source": "binaries/data/mods/public/audio/music/The_Fledgling_Kingdom.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.7 → -20 LUFS), Opus 80k",
+   "duration": 98.14,
+   "bytes": 1207006
+  },
+  "music/The_Road_Ahead.opus": {
+   "title": "The Road Ahead",
+   "source": "binaries/data/mods/public/audio/music/The_Road_Ahead.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.0 → -20 LUFS), Opus 80k",
+   "duration": 305.42,
+   "bytes": 3492282
+  },
+  "music/Upstart_King.opus": {
+   "title": "Upstart King",
+   "source": "binaries/data/mods/public/audio/music/Upstart_King.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-17.6 → -20 LUFS), Opus 80k",
+   "duration": 109.75,
+   "bytes": 1278187
+  },
+  "music/Waters_Edge.opus": {
+   "title": "Water's Edge",
+   "source": "binaries/data/mods/public/audio/music/Water's_Edge.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-14.3 → -20 LUFS), Opus 80k",
+   "duration": 188.91,
+   "bytes": 2090313
+  },
+  "music/You_are_Victorious.opus": {
+   "title": "You are Victorious!",
+   "source": "binaries/data/mods/public/audio/music/You_are_Victorious!.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/); музыка — Omri Lahav и др. (см. CREDITS.md)",
+   "changes": "громкость выровнена (-13.0 → -20 LUFS), Opus 80k",
+   "duration": 46.51,
+   "bytes": 517619
+  },
+  "sfx/age_other/alarmresearchphase_1_p89.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmresearchphase_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.89; stereo, Opus 48k",
+   "duration": 3.665,
+   "bytes": 21723
+  },
+  "sfx/age_up/alarmresearchphase_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmresearchphase_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 3.262,
+   "bytes": 20327
+  },
+  "sfx/alert/alarmattackplayer_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmattackplayer_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 3.936,
+   "bytes": 25588
+  },
+  "sfx/alert/alarmattackunit_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmattackunit_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 1.302,
+   "bytes": 8466
+  },
+  "sfx/alert_city/alarmattackcity_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmattackcity_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 1.774,
+   "bytes": 9935
+  },
+  "sfx/arrow/bow_attack_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/bow_attack_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 6499
+  },
+  "sfx/arrow/bow_attack_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/bow_attack_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 6649
+  },
+  "sfx/arrow/bow_attack_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/bow_attack_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 6677
+  },
+  "sfx/arrow/bow_attack_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/bow_attack_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 6187
+  },
+  "sfx/arrow/bow_attack_05.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/bow_attack_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 6439
+  },
+  "sfx/arrow/bow_attack_06.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/bow_attack_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.197,
+   "bytes": 7545
+  },
+  "sfx/arrow_gun/Musket_1.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/Musket_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.034,
+   "bytes": 5873
+  },
+  "sfx/arrow_gun/Musket_2.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/Musket_2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.034,
+   "bytes": 5873
+  },
+  "sfx/arrow_gun/Musket_3.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/Musket_3.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.026,
+   "bytes": 5600
+  },
+  "sfx/arrow_jav/jav_attack_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/jav_attack_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.491,
+   "bytes": 2985
+  },
+  "sfx/arrow_jav/jav_attack_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/jav_attack_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.332,
+   "bytes": 1935
+  },
+  "sfx/arrow_jav/jav_attack_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/jav_attack_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.406,
+   "bytes": 2346
+  },
+  "sfx/arrow_jav/jav_attack_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/jav_attack_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.415,
+   "bytes": 2112
+  },
+  "sfx/baa/goat_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/goat_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.684,
+   "bytes": 4369
+  },
+  "sfx/baa/goat_13.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/goat_13.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.042,
+   "bytes": 6925
+  },
+  "sfx/baa/goat_14.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/goat_14.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.053,
+   "bytes": 6544
+  },
+  "sfx/baa/goat_15.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/goat_15.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.606,
+   "bytes": 10837
+  },
+  "sfx/bell/alarmalert0.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmalert0.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.696,
+   "bytes": 18557
+  },
+  "sfx/bell/alarmalert2.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmalert2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 4.487,
+   "bytes": 31416
+  },
+  "sfx/blast/siegeprojectilehit_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.2,
+   "bytes": 15614
+  },
+  "sfx/blast/siegeprojectilehit_01_p92.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость, скорость/тон ×0.92; mono, Opus 48k",
+   "duration": 2.391,
+   "bytes": 16585
+  },
+  "sfx/blast/siegeprojectilehit_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.2,
+   "bytes": 15595
+  },
+  "sfx/blast/siegeprojectilehit_02_p92.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость, скорость/тон ×0.92; mono, Opus 48k",
+   "duration": 2.391,
+   "bytes": 16715
+  },
+  "sfx/blast/siegeprojectilehit_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.2,
+   "bytes": 11979
+  },
+  "sfx/blast/siegeprojectilehit_03_p92.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость, скорость/тон ×0.92; mono, Opus 48k",
+   "duration": 2.391,
+   "bytes": 15029
+  },
+  "sfx/blast/siegeprojectilehit_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.133,
+   "bytes": 12424
+  },
+  "sfx/blast/siegeprojectilehit_04_p92.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость, скорость/тон ×0.92; mono, Opus 48k",
+   "duration": 2.318,
+   "bytes": 13741
+  },
+  "sfx/board/ship_select_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/ship_select_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.27,
+   "bytes": 7614
+  },
+  "sfx/board/warship_move_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/warship_move_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 7328
+  },
+  "sfx/click/rally_click_01.opus": {
+   "source": "binaries/data/mods/public/audio/interface/ui/rally_click_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.097,
+   "bytes": 695
+  },
+  "sfx/click/rally_click_02.opus": {
+   "source": "binaries/data/mods/public/audio/interface/ui/rally_click_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.125,
+   "bytes": 917
+  },
+  "sfx/cmd_attack_f/civ_female_attack_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_attack_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.928,
+   "bytes": 5798
+  },
+  "sfx/cmd_attack_f/civ_female_go_out_against_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_go_out_against_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.391,
+   "bytes": 2634
+  },
+  "sfx/cmd_attack_m/civ_male_attack_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_attack_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.759,
+   "bytes": 5057
+  },
+  "sfx/cmd_attack_m/civ_male_fight_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_fight_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.546,
+   "bytes": 3456
+  },
+  "sfx/cmd_attack_m/civ_male_go_out_against_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_go_out_against_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.917,
+   "bytes": 5674
+  },
+  "sfx/cmd_build_f/civ_female_build_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_build_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.033,
+   "bytes": 6532
+  },
+  "sfx/cmd_build_f/civ_female_repair_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_repair_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.859,
+   "bytes": 5467
+  },
+  "sfx/cmd_build_m/civ_male_build_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_build_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.859,
+   "bytes": 5379
+  },
+  "sfx/cmd_build_m/civ_male_repair_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_repair_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.894,
+   "bytes": 5740
+  },
+  "sfx/cmd_cav/horse_idle1.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_idle1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.361,
+   "bytes": 8198
+  },
+  "sfx/cmd_cav/horse_idle2.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_idle2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.741,
+   "bytes": 4502
+  },
+  "sfx/cmd_cav_attack/horse_attack1.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_attack1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.469,
+   "bytes": 9227
+  },
+  "sfx/cmd_cav_attack/horse_attack3.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_attack3.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.192,
+   "bytes": 7292
+  },
+  "sfx/cmd_elephant/elephant_order1.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/elephant_order1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.551,
+   "bytes": 9948
+  },
+  "sfx/cmd_elephant/elephant_order2.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/elephant_order2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.953,
+   "bytes": 6200
+  },
+  "sfx/cmd_garrison_f/civ_female_garrison_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_garrison_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.952,
+   "bytes": 5969
+  },
+  "sfx/cmd_garrison_m/civ_male_garrison_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_garrison_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.045,
+   "bytes": 6537
+  },
+  "sfx/cmd_gather_f/civ_female_gather_together_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_gather_together_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.557,
+   "bytes": 3636
+  },
+  "sfx/cmd_gather_f/civ_female_work_land_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_work_land_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.929,
+   "bytes": 5889
+  },
+  "sfx/cmd_gather_m/civ_male_gather_together_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_gather_together_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.592,
+   "bytes": 3659
+  },
+  "sfx/cmd_gather_m/civ_male_work_land_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_work_land_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.94,
+   "bytes": 5940
+  },
+  "sfx/cmd_heal_m/civ_male_heal_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_heal_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.557,
+   "bytes": 3551
+  },
+  "sfx/cmd_move_f/civ_female_walk_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_walk_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.592,
+   "bytes": 3826
+  },
+  "sfx/cmd_move_m/civ_male_march_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_march_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.882,
+   "bytes": 5466
+  },
+  "sfx/cmd_move_m/civ_male_walk_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_walk_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.813,
+   "bytes": 5086
+  },
+  "sfx/cmd_ship/warship_move_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/warship_move_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 7328
+  },
+  "sfx/cmd_siege/onager_moving_11.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/onager_moving_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 7332
+  },
+  "sfx/cmd_siege/ram_move.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ram_move.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.5,
+   "bytes": 9203
+  },
+  "sfx/cmd_siege_attack/ram_attack_order.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ram_attack_order.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.952,
+   "bytes": 10553
+  },
+  "sfx/convert/alarmunitturn_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmunitturn_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 3.242,
+   "bytes": 26935
+  },
+  "sfx/convert_start/sel_temple.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_temple.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.505,
+   "bytes": 15509
+  },
+  "sfx/convert_start/sel_temple_10.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_temple_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.091,
+   "bytes": 12567
+  },
+  "sfx/death/death_11.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/death_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.567,
+   "bytes": 3603
+  },
+  "sfx/death/death_13.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/death_13.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.618,
+   "bytes": 4067
+  },
+  "sfx/death/death_14.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/death_14.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.859,
+   "bytes": 5623
+  },
+  "sfx/death/death_16.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/death_16.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.479,
+   "bytes": 3221
+  },
+  "sfx/death/death_17.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/death_17.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.714,
+   "bytes": 4586
+  },
+  "sfx/death/male_death_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.468,
+   "bytes": 3068
+  },
+  "sfx/death/male_death_02.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.805,
+   "bytes": 4873
+  },
+  "sfx/death/male_death_04.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.169,
+   "bytes": 6319
+  },
+  "sfx/death/male_death_05.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.568,
+   "bytes": 3769
+  },
+  "sfx/death/male_death_06.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.577,
+   "bytes": 3733
+  },
+  "sfx/death/male_death_07.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.483,
+   "bytes": 3103
+  },
+  "sfx/death/male_death_08.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.515,
+   "bytes": 3337
+  },
+  "sfx/death/male_death_09.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/male_death_09.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.783,
+   "bytes": 4840
+  },
+  "sfx/death_animal/Animal_death_generic_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/Animal_death_generic_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.268,
+   "bytes": 1876
+  },
+  "sfx/death_animal/Animal_death_generic_12.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/Animal_death_generic_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.406,
+   "bytes": 2752
+  },
+  "sfx/death_animal/Animal_death_generic_13.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/Animal_death_generic_13.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.379,
+   "bytes": 2580
+  },
+  "sfx/death_boar/pig_death.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/pig_death.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 8784
+  },
+  "sfx/death_camel/death_camel_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/death_camel_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.927,
+   "bytes": 5932
+  },
+  "sfx/death_elephant/elephant_death1.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/elephant_death1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.069,
+   "bytes": 13146
+  },
+  "sfx/death_elephant/elephant_death2.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/elephant_death2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.346,
+   "bytes": 13822
+  },
+  "sfx/death_female/female_death_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/female_death_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.048,
+   "bytes": 7240
+  },
+  "sfx/death_female/female_death_02.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/female_death_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.812,
+   "bytes": 5158
+  },
+  "sfx/death_female/female_death_03.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/female_death_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.824,
+   "bytes": 6063
+  },
+  "sfx/death_female/female_death_06.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/female_death_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.746,
+   "bytes": 10294
+  },
+  "sfx/death_female/female_death_08.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/female_death_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.813,
+   "bytes": 5176
+  },
+  "sfx/death_female/female_death_09.opus": {
+   "source": "binaries/data/mods/public/audio/actor/human/death/female_death_09.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.842,
+   "bytes": 6066
+  },
+  "sfx/death_horse/death_horse_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/death_horse_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.954,
+   "bytes": 12283
+  },
+  "sfx/death_horse/death_horse_11.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/death_horse_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.876,
+   "bytes": 12257
+  },
+  "sfx/death_horse/death_horse_12.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/death_horse_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.547,
+   "bytes": 9861
+  },
+  "sfx/death_horse/death_horse_13.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/death/death_horse_13.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.582,
+   "bytes": 9982
+  },
+  "sfx/death_ship/warship_death_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/warship_death_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 3.0 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 3.0,
+   "bytes": 19015
+  },
+  "sfx/death_ship/warship_death_02.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/warship_death_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 3.0 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 3.0,
+   "bytes": 20250
+  },
+  "sfx/defeat/alarmdefeat_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmdefeat_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.228,
+   "bytes": 12508
+  },
+  "sfx/defeat_ally/alarm_defeated_ally.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarm_defeated_ally.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 5.031,
+   "bytes": 37181
+  },
+  "sfx/defeat_other/alarmalert1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmalert1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 3.405,
+   "bytes": 22227
+  },
+  "sfx/destroy/building_collapse_large_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/destruction/building_collapse_large_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 4.0 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 4.0,
+   "bytes": 23547
+  },
+  "sfx/destroy/building_collapse_large_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/destruction/building_collapse_large_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 4.0 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 4.0,
+   "bytes": 22452
+  },
+  "sfx/done_archery_range/complete_range.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_range.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.037,
+   "bytes": 10827
+  },
+  "sfx/done_barracks/complete_barracks.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_barracks.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.752,
+   "bytes": 17684
+  },
+  "sfx/done_blacksmith/complete_forge.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_forge.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.898,
+   "bytes": 16728
+  },
+  "sfx/done_camp/complete_storehouse.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_storehouse.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.73,
+   "bytes": 23348
+  },
+  "sfx/done_castle/complete_fortress.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_fortress.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.407,
+   "bytes": 13676
+  },
+  "sfx/done_dock/complete_dock.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_dock.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.065,
+   "bytes": 17976
+  },
+  "sfx/done_farm/complete_field.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_field.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.343,
+   "bytes": 19398
+  },
+  "sfx/done_gate/complete_gate.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_gate.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.791,
+   "bytes": 15818
+  },
+  "sfx/done_house/complete_house.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_house.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.767,
+   "bytes": 22094
+  },
+  "sfx/done_market/complete_market.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.4,
+   "bytes": 20497
+  },
+  "sfx/done_mill/complete_farmstead.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_farmstead.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.997,
+   "bytes": 19337
+  },
+  "sfx/done_monastery/complete_temple.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_temple.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 4.099,
+   "bytes": 25700
+  },
+  "sfx/done_siege_workshop/complete_universal.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_universal.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.73,
+   "bytes": 23348
+  },
+  "sfx/done_stable/complete_stable.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_stable.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.633,
+   "bytes": 9554
+  },
+  "sfx/done_tower/complete_tower.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_tower.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.125,
+   "bytes": 12305
+  },
+  "sfx/done_town_center/complete_civ_center.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_civ_center.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 3.092,
+   "bytes": 18358
+  },
+  "sfx/done_university/complete_library.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_library.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.235,
+   "bytes": 21559
+  },
+  "sfx/done_wall/complete_wall.opus": {
+   "source": "binaries/data/mods/public/audio/interface/complete/building/complete_wall.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.282,
+   "bytes": 13327
+  },
+  "sfx/eject/stonegate_open_21.opus": {
+   "source": "binaries/data/mods/public/audio/actor/gate/stonegate_open_21.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.8 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.8,
+   "bytes": 11638
+  },
+  "sfx/eject/stonegate_open_22.opus": {
+   "source": "binaries/data/mods/public/audio/actor/gate/stonegate_open_22.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.8 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.8,
+   "bytes": 11008
+  },
+  "sfx/explode/explode_debris_20.opus": {
+   "source": "binaries/data/mods/public/audio/attack/destruction/explode_debris_20.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 3.5 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 3.5,
+   "bytes": 19226
+  },
+  "sfx/fire_bolt/ballist_attack_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ballist_attack_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 8376
+  },
+  "sfx/fire_bolt/ballist_attack_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ballist_attack_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 9276
+  },
+  "sfx/fire_cannon/Musket_1_p62.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/Musket_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.0 с с затуханием, выровнена громкость, скорость/тон ×0.62; mono, Opus 48k",
+   "duration": 1.668,
+   "bytes": 8834
+  },
+  "sfx/fire_cannon/Musket_2_p62.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/Musket_2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.0 с с затуханием, выровнена громкость, скорость/тон ×0.62; mono, Opus 48k",
+   "duration": 1.668,
+   "bytes": 8834
+  },
+  "sfx/fire_cannon/Musket_3_p62.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/Musket_3.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.0 с с затуханием, выровнена громкость, скорость/тон ×0.62; mono, Opus 48k",
+   "duration": 1.655,
+   "bytes": 8513
+  },
+  "sfx/fire_siege/ballist_attack_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ballist_attack_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 8376
+  },
+  "sfx/fire_siege/onager_shooting_11.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/onager_shooting_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.888,
+   "bytes": 6071
+  },
+  "sfx/fire_siege/onager_shooting_11_p110.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/onager_shooting_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.10; mono, Opus 48k",
+   "duration": 0.807,
+   "bytes": 5464
+  },
+  "sfx/fire_siege/onager_shooting_11_p90.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/onager_shooting_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.90; mono, Opus 48k",
+   "duration": 0.986,
+   "bytes": 6696
+  },
+  "sfx/garrison/stonegate_close_21.opus": {
+   "source": "binaries/data/mods/public/audio/actor/gate/stonegate_close_21.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.6 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.6,
+   "bytes": 10331
+  },
+  "sfx/garrison/stonegate_close_22.opus": {
+   "source": "binaries/data/mods/public/audio/actor/gate/stonegate_close_22.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.6 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.6,
+   "bytes": 10684
+  },
+  "sfx/hit_arrow/arrow_metal_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_metal_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.463,
+   "bytes": 2764
+  },
+  "sfx/hit_arrow/arrow_metal_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_metal_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.252,
+   "bytes": 1628
+  },
+  "sfx/hit_arrow/arrow_metal_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_metal_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.58,
+   "bytes": 2977
+  },
+  "sfx/hit_arrow/arrow_metal_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_metal_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.363,
+   "bytes": 2425
+  },
+  "sfx/hit_arrow/arrow_wood_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_wood_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.255,
+   "bytes": 6524
+  },
+  "sfx/hit_arrow/arrow_wood_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_wood_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.274,
+   "bytes": 6580
+  },
+  "sfx/hit_arrow/arrow_wood_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_wood_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.094,
+   "bytes": 5680
+  },
+  "sfx/hit_arrow/fleshimp_10.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.316,
+   "bytes": 1856
+  },
+  "sfx/hit_arrow/fleshimp_10_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.298,
+   "bytes": 1750
+  },
+  "sfx/hit_arrow/fleshimp_10_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.336,
+   "bytes": 2063
+  },
+  "sfx/hit_arrow/fleshimp_11.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.273,
+   "bytes": 1490
+  },
+  "sfx/hit_arrow/fleshimp_11_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.258,
+   "bytes": 1518
+  },
+  "sfx/hit_arrow/fleshimp_11_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.291,
+   "bytes": 1580
+  },
+  "sfx/hit_arrow/fleshimp_12.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.245,
+   "bytes": 1447
+  },
+  "sfx/hit_arrow/fleshimp_12_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.231,
+   "bytes": 1364
+  },
+  "sfx/hit_arrow/fleshimp_12_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.26,
+   "bytes": 1525
+  },
+  "sfx/hit_bld/arrow_stone_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_stone_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.114,
+   "bytes": 857
+  },
+  "sfx/hit_bld/arrow_stone_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_stone_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.127,
+   "bytes": 951
+  },
+  "sfx/hit_bld/arrow_stone_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_stone_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.119,
+   "bytes": 876
+  },
+  "sfx/hit_bld/arrow_stone_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/arrow_stone_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.115,
+   "bytes": 915
+  },
+  "sfx/hit_bld/shield_wood_05.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_wood_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.131,
+   "bytes": 1205
+  },
+  "sfx/hit_bld/shield_wood_07.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_wood_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.079,
+   "bytes": 640
+  },
+  "sfx/hit_melee/shield_metal_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.255,
+   "bytes": 1783
+  },
+  "sfx/hit_melee/shield_metal_02_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.24,
+   "bytes": 1664
+  },
+  "sfx/hit_melee/shield_metal_02_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.271,
+   "bytes": 1787
+  },
+  "sfx/hit_melee/shield_metal_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.332,
+   "bytes": 2235
+  },
+  "sfx/hit_melee/shield_metal_04_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.313,
+   "bytes": 2122
+  },
+  "sfx/hit_melee/shield_metal_04_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.353,
+   "bytes": 2411
+  },
+  "sfx/hit_melee/shield_metal_05.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.381,
+   "bytes": 3939
+  },
+  "sfx/hit_melee/shield_metal_05_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.359,
+   "bytes": 2737
+  },
+  "sfx/hit_melee/shield_metal_05_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.405,
+   "bytes": 3032
+  },
+  "sfx/hit_melee/shield_metal_07.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.364,
+   "bytes": 2694
+  },
+  "sfx/hit_melee/shield_metal_07_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.343,
+   "bytes": 2437
+  },
+  "sfx/hit_melee/shield_metal_07_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_metal_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.387,
+   "bytes": 2803
+  },
+  "sfx/hit_melee/swordhit_10.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.293,
+   "bytes": 2215
+  },
+  "sfx/hit_melee/swordhit_10_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.277,
+   "bytes": 2239
+  },
+  "sfx/hit_melee/swordhit_10_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.312,
+   "bytes": 2237
+  },
+  "sfx/hit_melee/swordhit_11.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.308,
+   "bytes": 2582
+  },
+  "sfx/hit_melee/swordhit_11_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.29,
+   "bytes": 2391
+  },
+  "sfx/hit_melee/swordhit_11_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.327,
+   "bytes": 2702
+  },
+  "sfx/hit_melee/swordhit_12.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.508,
+   "bytes": 3307
+  },
+  "sfx/hit_melee/swordhit_12_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.479,
+   "bytes": 3208
+  },
+  "sfx/hit_melee/swordhit_12_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.54,
+   "bytes": 3540
+  },
+  "sfx/hit_melee/swordhit_15.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_15.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.141,
+   "bytes": 1342
+  },
+  "sfx/hit_melee/swordhit_15_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_15.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.133,
+   "bytes": 1234
+  },
+  "sfx/hit_melee/swordhit_15_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_15.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.15,
+   "bytes": 1373
+  },
+  "sfx/hit_melee/swordhit_16.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_16.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.327,
+   "bytes": 3056
+  },
+  "sfx/hit_melee/swordhit_16_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_16.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.309,
+   "bytes": 2843
+  },
+  "sfx/hit_melee/swordhit_16_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_16.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.348,
+   "bytes": 2997
+  },
+  "sfx/hit_melee/swordhit_18.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_18.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.521,
+   "bytes": 3292
+  },
+  "sfx/hit_melee/swordhit_18_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_18.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.491,
+   "bytes": 3069
+  },
+  "sfx/hit_melee/swordhit_18_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/weapon/swordhit_18.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.554,
+   "bytes": 3461
+  },
+  "sfx/hit_pierce/fleshstab_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.458,
+   "bytes": 2828
+  },
+  "sfx/hit_pierce/fleshstab_01_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.432,
+   "bytes": 2621
+  },
+  "sfx/hit_pierce/fleshstab_01_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.488,
+   "bytes": 2939
+  },
+  "sfx/hit_pierce/fleshstab_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.676,
+   "bytes": 5220
+  },
+  "sfx/hit_pierce/fleshstab_02_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.638,
+   "bytes": 4934
+  },
+  "sfx/hit_pierce/fleshstab_02_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.719,
+   "bytes": 5172
+  },
+  "sfx/hit_pierce/fleshstab_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.516,
+   "bytes": 3658
+  },
+  "sfx/hit_pierce/fleshstab_03_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.487,
+   "bytes": 2819
+  },
+  "sfx/hit_pierce/fleshstab_03_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshstab_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.549,
+   "bytes": 3131
+  },
+  "sfx/hit_pierce/shield_wood_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_wood_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.144,
+   "bytes": 1155
+  },
+  "sfx/hit_pierce/shield_wood_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_wood_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.137,
+   "bytes": 1259
+  },
+  "sfx/hit_pierce/shield_wood_06.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_wood_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.112,
+   "bytes": 777
+  },
+  "sfx/hit_ram/ram_attack.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ram_attack.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.6 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.6,
+   "bytes": 9429
+  },
+  "sfx/hit_ram/ram_attack_p108.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ram_attack.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.6 с с затуханием, выровнена громкость, скорость/тон ×1.08; mono, Opus 48k",
+   "duration": 1.481,
+   "bytes": 8751
+  },
+  "sfx/hit_ram/ram_attack_p90.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ram_attack.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.6 с с затуханием, выровнена громкость, скорость/тон ×0.90; mono, Opus 48k",
+   "duration": 1.778,
+   "bytes": 10487
+  },
+  "sfx/hit_shot/sling_metal_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/sling_metal_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.233,
+   "bytes": 1453
+  },
+  "sfx/hit_shot/sling_metal_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/sling_metal_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.368,
+   "bytes": 2307
+  },
+  "sfx/hit_shot/sling_metal_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/sling_metal_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.21,
+   "bytes": 1272
+  },
+  "sfx/hit_shot/sling_metal_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/sling_metal_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.273,
+   "bytes": 1730
+  },
+  "sfx/hit_shot/sling_wood_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/sling_wood_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.132,
+   "bytes": 938
+  },
+  "sfx/hit_shot/sling_wood_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/sling_wood_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.133,
+   "bytes": 931
+  },
+  "sfx/hit_siege/siegeprojectilehit_01.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.2,
+   "bytes": 15614
+  },
+  "sfx/hit_siege/siegeprojectilehit_02.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.2,
+   "bytes": 15595
+  },
+  "sfx/hit_siege/siegeprojectilehit_03.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.2,
+   "bytes": 11979
+  },
+  "sfx/hit_siege/siegeprojectilehit_04.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/siegeprojectilehit_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 2.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 2.133,
+   "bytes": 12424
+  },
+  "sfx/hit_thud/fleshimp_10.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.316,
+   "bytes": 1856
+  },
+  "sfx/hit_thud/fleshimp_10_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.298,
+   "bytes": 1750
+  },
+  "sfx/hit_thud/fleshimp_10_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.336,
+   "bytes": 2063
+  },
+  "sfx/hit_thud/fleshimp_11.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.273,
+   "bytes": 1490
+  },
+  "sfx/hit_thud/fleshimp_11_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.258,
+   "bytes": 1518
+  },
+  "sfx/hit_thud/fleshimp_11_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.291,
+   "bytes": 1580
+  },
+  "sfx/hit_thud/fleshimp_12.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.245,
+   "bytes": 1447
+  },
+  "sfx/hit_thud/fleshimp_12_p106.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.06; mono, Opus 48k",
+   "duration": 0.231,
+   "bytes": 1364
+  },
+  "sfx/hit_thud/fleshimp_12_p94.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/fleshimp_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.94; mono, Opus 48k",
+   "duration": 0.26,
+   "bytes": 1525
+  },
+  "sfx/hit_thud/shield_wood_08.opus": {
+   "source": "binaries/data/mods/public/audio/attack/impact/shield_wood_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.105,
+   "bytes": 815
+  },
+  "sfx/market/sel_market.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.964,
+   "bytes": 5931
+  },
+  "sfx/market/sel_market_p105.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×1.05; mono, Opus 48k",
+   "duration": 0.919,
+   "bytes": 5716
+  },
+  "sfx/market/sel_market_p95.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.95; mono, Opus 48k",
+   "duration": 1.015,
+   "bytes": 6317
+  },
+  "sfx/pack/onager_moving_11.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/onager_moving_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.696,
+   "bytes": 10570
+  },
+  "sfx/pack/ram_move.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/ram_move.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.5,
+   "bytes": 9203
+  },
+  "sfx/place/con_stone_02.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_stone_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.325,
+   "bytes": 2027
+  },
+  "sfx/place/con_stone_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_stone_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.259,
+   "bytes": 1768
+  },
+  "sfx/reseed/hoe_11.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.83,
+   "bytes": 10759
+  },
+  "sfx/reseed/hoe_13.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_13.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.553,
+   "bytes": 9146
+  },
+  "sfx/sel_berries/sel_fruit_02.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/resource/sel_fruit_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.2 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.2,
+   "bytes": 6613
+  },
+  "sfx/sel_boar/pig_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/pig_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.999,
+   "bytes": 5691
+  },
+  "sfx/sel_boar/pig_12.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/pig_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.999,
+   "bytes": 5691
+  },
+  "sfx/sel_camel/camel_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/camel_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.291,
+   "bytes": 1954
+  },
+  "sfx/sel_cav/horse_select1.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_select1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.866,
+   "bytes": 5353
+  },
+  "sfx/sel_cav/horse_select2.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_select2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.514,
+   "bytes": 8828
+  },
+  "sfx/sel_cav/horse_select3.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/horse_select3.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.428,
+   "bytes": 7850
+  },
+  "sfx/sel_elephant/elephant_select1.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/elephant_select1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.963,
+   "bytes": 5955
+  },
+  "sfx/sel_elephant/elephant_select2.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/elephant_select2.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.979,
+   "bytes": 5986
+  },
+  "sfx/sel_gold/sel_metal_01.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/resource/sel_metal_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.775,
+   "bytes": 6185
+  },
+  "sfx/sel_mil/civ_male_hello_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_hello_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.43,
+   "bytes": 2856
+  },
+  "sfx/sel_mil/civ_male_my_lord_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_my_lord_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.511,
+   "bytes": 3358
+  },
+  "sfx/sel_mil/civ_male_what_is_it_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_what_is_it_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.743,
+   "bytes": 4716
+  },
+  "sfx/sel_sheep/sheep_10.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/sheep_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.091,
+   "bytes": 7163
+  },
+  "sfx/sel_sheep/sheep_11.opus": {
+   "source": "binaries/data/mods/public/audio/actor/fauna/animal/sheep_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.089,
+   "bytes": 6991
+  },
+  "sfx/sel_ship/ship_select_01.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/ship_select_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.27,
+   "bytes": 7614
+  },
+  "sfx/sel_siege/siege_select_10.opus": {
+   "source": "binaries/data/mods/public/audio/attack/siege/siege_select_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.788,
+   "bytes": 5235
+  },
+  "sfx/sel_stone/sel_stone_02.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/resource/sel_stone_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.395,
+   "bytes": 2499
+  },
+  "sfx/sel_tree/sel_tree_01.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/resource/sel_tree_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.5,
+   "bytes": 3035
+  },
+  "sfx/sel_vil_f/civ_female_hello_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_hello_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.427,
+   "bytes": 2794
+  },
+  "sfx/sel_vil_f/civ_female_my_lord_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_my_lord_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.546,
+   "bytes": 3518
+  },
+  "sfx/sel_vil_f/civ_female_what_is_it_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_female_what_is_it_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.546,
+   "bytes": 3556
+  },
+  "sfx/sel_vil_m/civ_male_hello_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_hello_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.43,
+   "bytes": 2856
+  },
+  "sfx/sel_vil_m/civ_male_my_lord_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_my_lord_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.511,
+   "bytes": 3358
+  },
+  "sfx/sel_vil_m/civ_male_what_is_it_1.opus": {
+   "source": "binaries/data/mods/public/audio/voice/latin/civ/civ_male_what_is_it_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.743,
+   "bytes": 4716
+  },
+  "sfx/selb_barracks/sel_barracks.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_barracks.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.429,
+   "bytes": 9014
+  },
+  "sfx/selb_blacksmith/sel_forge.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_forge.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.648,
+   "bytes": 9866
+  },
+  "sfx/selb_camp/sel_storehouse.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_storehouse.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.604,
+   "bytes": 3869
+  },
+  "sfx/selb_castle/sel_fortress.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_fortress.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.148,
+   "bytes": 6476
+  },
+  "sfx/selb_dock/sel_dock.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_dock.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.69,
+   "bytes": 9741
+  },
+  "sfx/selb_farm/sel_field.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_field.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.01,
+   "bytes": 6104
+  },
+  "sfx/selb_gate/sel_gate.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_gate.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.959,
+   "bytes": 11656
+  },
+  "sfx/selb_house/sel_house.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_house.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.551,
+   "bytes": 9168
+  },
+  "sfx/selb_market/sel_market.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.964,
+   "bytes": 5931
+  },
+  "sfx/selb_mill/sel_farmstead.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_farmstead.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.919,
+   "bytes": 11177
+  },
+  "sfx/selb_monastery/sel_temple.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_temple.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 2.505,
+   "bytes": 15509
+  },
+  "sfx/selb_siege_workshop/sel_universal_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_universal_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.42,
+   "bytes": 2587
+  },
+  "sfx/selb_stable/sel_stable.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_stable.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.161,
+   "bytes": 7089
+  },
+  "sfx/selb_tower/sel_tower.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_tower.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.043,
+   "bytes": 6539
+  },
+  "sfx/selb_town_center/sel_civ_center.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_civ_center.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.19,
+   "bytes": 7252
+  },
+  "sfx/selb_university/sel_library.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_library.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.062,
+   "bytes": 11036
+  },
+  "sfx/selb_wall/sel_wall.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_wall.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.277,
+   "bytes": 1868
+  },
+  "sfx/tech_done/alarmresearchtech_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmresearchtech_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.638,
+   "bytes": 20992
+  },
+  "sfx/trade/sel_market.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.964,
+   "bytes": 5930
+  },
+  "sfx/trade/sel_market_p90.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.90; mono, Opus 48k",
+   "duration": 1.072,
+   "bytes": 6500
+  },
+  "sfx/train_cav/alarmcreatecavalry_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmcreatecavalry_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.982,
+   "bytes": 16850
+  },
+  "sfx/train_inf/alarmcreatemiltaryfoot_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmcreatemiltaryfoot_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 0.945,
+   "bytes": 7137
+  },
+  "sfx/train_monk/alarmcreatepriest_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmcreatepriest_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.054,
+   "bytes": 14144
+  },
+  "sfx/train_ship/alarm_warship_03.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarm_warship_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.959,
+   "bytes": 14935
+  },
+  "sfx/train_vil/alarmcreatefemale.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmcreatefemale.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.056,
+   "bytes": 6458
+  },
+  "sfx/train_vil/alarmcreateworker_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmcreateworker_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 0.96,
+   "bytes": 6744
+  },
+  "sfx/tribute/sel_market_p85.opus": {
+   "source": "binaries/data/mods/public/audio/interface/select/building/sel_market.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость, скорость/тон ×0.85; mono, Opus 48k",
+   "duration": 1.135,
+   "bytes": 6961
+  },
+  "sfx/unload/ship_move.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/ship_move.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.5 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.5,
+   "bytes": 9678
+  },
+  "sfx/unload/smove_21.opus": {
+   "source": "binaries/data/mods/public/audio/actor/ship/smove_21.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.5 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.5,
+   "bytes": 10551
+  },
+  "sfx/upgrade/alarmupgradearmory_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmupgradearmory_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 1.787,
+   "bytes": 10281
+  },
+  "sfx/victory/alarmvictory_1.opus": {
+   "source": "binaries/data/mods/public/audio/interface/alarm/alarmvictory_1.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; stereo, Opus 48k",
+   "duration": 2.39,
+   "bytes": 17880
+  },
+  "sfx/work_build/con_saw_05.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_saw_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.678,
+   "bytes": 4589
+  },
+  "sfx/work_build/con_stone_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_stone_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.429,
+   "bytes": 2538
+  },
+  "sfx/work_build/con_stone_03.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_stone_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.406,
+   "bytes": 2559
+  },
+  "sfx/work_build/con_wood_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.171,
+   "bytes": 1175
+  },
+  "sfx/work_build/con_wood_02.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.15,
+   "bytes": 1221
+  },
+  "sfx/work_build/con_wood_03.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.175,
+   "bytes": 1482
+  },
+  "sfx/work_build/con_wood_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.177,
+   "bytes": 1543
+  },
+  "sfx/work_build/con_wood_06.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.143,
+   "bytes": 1059
+  },
+  "sfx/work_build/con_wood_07.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.118,
+   "bytes": 1132
+  },
+  "sfx/work_build/con_wood_08.opus": {
+   "source": "binaries/data/mods/public/audio/resource/construction/con_wood_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.125,
+   "bytes": 1226
+  },
+  "sfx/work_butcher/gather_meat_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_meat_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 10297
+  },
+  "sfx/work_butcher/gather_meat_02.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_meat_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 8205
+  },
+  "sfx/work_butcher/gather_meat_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_meat_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 10073
+  },
+  "sfx/work_butcher/gather_meat_06.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_meat_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 8324
+  },
+  "sfx/work_butcher/gather_meat_08.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_meat_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.4 с с затуханием, выровнена громкость; mono, Opus 48k",
+   "duration": 1.4,
+   "bytes": 8335
+  },
+  "sfx/work_chop/lumber_tree_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.331,
+   "bytes": 2038
+  },
+  "sfx/work_chop/lumber_tree_02.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.272,
+   "bytes": 1708
+  },
+  "sfx/work_chop/lumber_tree_03.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.301,
+   "bytes": 1957
+  },
+  "sfx/work_chop/lumber_tree_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.422,
+   "bytes": 2629
+  },
+  "sfx/work_chop/lumber_tree_05.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.194,
+   "bytes": 1819
+  },
+  "sfx/work_chop/lumber_tree_06.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.428,
+   "bytes": 2533
+  },
+  "sfx/work_chop/lumber_tree_07.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.323,
+   "bytes": 2024
+  },
+  "sfx/work_chop/lumber_tree_08.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.222,
+   "bytes": 1517
+  },
+  "sfx/work_chop/lumber_tree_09.opus": {
+   "source": "binaries/data/mods/public/audio/resource/lumbering/lumber_tree_09.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.265,
+   "bytes": 1921
+  },
+  "sfx/work_farm/gather_field_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_field_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.11,
+   "bytes": 6549
+  },
+  "sfx/work_farm/gather_field_05.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_field_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.079,
+   "bytes": 6500
+  },
+  "sfx/work_farm/gather_field_06.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_field_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.778,
+   "bytes": 4717
+  },
+  "sfx/work_farm/hoe_10.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_10.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.795,
+   "bytes": 5224
+  },
+  "sfx/work_farm/hoe_12.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.098,
+   "bytes": 7410
+  },
+  "sfx/work_farm/hoe_14.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_14.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.985,
+   "bytes": 5882
+  },
+  "sfx/work_farm/hoe_15.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_15.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 1.137,
+   "bytes": 7207
+  },
+  "sfx/work_farm/hoe_16.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_16.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.565,
+   "bytes": 3572
+  },
+  "sfx/work_farm/hoe_17.opus": {
+   "source": "binaries/data/mods/public/audio/resource/farming/hoe_17.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.711,
+   "bytes": 4382
+  },
+  "sfx/work_fish/wave_21.opus": {
+   "source": "binaries/data/mods/public/audio/ambient/water/wave_21.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, укорочено до 1.3 с с затуханием, фрагмент с 17.0 с, выровнена громкость; mono, Opus 48k",
+   "duration": 1.3,
+   "bytes": 8333
+  },
+  "sfx/work_forage/gather_fruit_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.76,
+   "bytes": 4519
+  },
+  "sfx/work_forage/gather_fruit_03.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.824,
+   "bytes": 5105
+  },
+  "sfx/work_forage/gather_fruit_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.762,
+   "bytes": 4759
+  },
+  "sfx/work_forage/gather_fruit_05.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.447,
+   "bytes": 2597
+  },
+  "sfx/work_forage/gather_fruit_06.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.807,
+   "bytes": 5719
+  },
+  "sfx/work_forage/gather_fruit_08.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_08.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.696,
+   "bytes": 4201
+  },
+  "sfx/work_forage/gather_fruit_11.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_11.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.833,
+   "bytes": 4928
+  },
+  "sfx/work_forage/gather_fruit_12.opus": {
+   "source": "binaries/data/mods/public/audio/resource/gathering/gather_fruit_12.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.807,
+   "bytes": 5489
+  },
+  "sfx/work_mine/mine_metal_02.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_metal_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.54,
+   "bytes": 3684
+  },
+  "sfx/work_mine/mine_metal_03.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_metal_03.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.529,
+   "bytes": 4143
+  },
+  "sfx/work_mine/mine_metal_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_metal_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.527,
+   "bytes": 4351
+  },
+  "sfx/work_mine/mine_metal_07.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_metal_07.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.597,
+   "bytes": 4147
+  },
+  "sfx/work_mine/mine_stone_01.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_stone_01.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.375,
+   "bytes": 2434
+  },
+  "sfx/work_mine/mine_stone_02.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_stone_02.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.334,
+   "bytes": 2417
+  },
+  "sfx/work_mine/mine_stone_04.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_stone_04.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.323,
+   "bytes": 2026
+  },
+  "sfx/work_mine/mine_stone_05.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_stone_05.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.409,
+   "bytes": 2519
+  },
+  "sfx/work_mine/mine_stone_06.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_stone_06.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.42,
+   "bytes": 3100
+  },
+  "sfx/work_mine/mine_stone_09.opus": {
+   "source": "binaries/data/mods/public/audio/resource/mining/mine_stone_09.ogg",
+   "license": "CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)",
+   "credit": "0 A.D. © Wildfire Games (https://www.wildfiregames.com/)",
+   "changes": "обрезана тишина, выровнена громкость; mono, Opus 48k",
+   "duration": 0.593,
+   "bytes": 3542
+  }
+ }
+}

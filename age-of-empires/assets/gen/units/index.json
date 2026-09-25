@@ -1,0 +1,8722 @@
+{
+ "version": 1,
+ "groups": {
+  "caro": "caro",
+  "teut": "caro",
+  "anglo": "anglo",
+  "celt": "anglo",
+  "norse": "norse",
+  "rus": "rus",
+  "byz": "byz",
+  "hisp": "caro",
+  "umay": "umay",
+  "han": "han"
+ },
+ "default": "caro",
+ "sets": {
+  "vil_m.caro": {
+   "file": "units/vil_m.caro.png",
+   "mask": "units/vil_m.caro.m.png",
+   "meta": "units/vil_m.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.4
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.07
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 15.0
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 15.0
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/britons/citizen_male.xml"
+  },
+  "vil_m.anglo": {
+   "file": "units/vil_m.anglo.png",
+   "mask": "units/vil_m.anglo.m.png",
+   "meta": "units/vil_m.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.4
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.07
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 15.0
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 15.0
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/britons/citizen_male.xml"
+  },
+  "vil_m.norse": {
+   "file": "units/vil_m.norse.png",
+   "mask": "units/vil_m.norse.m.png",
+   "meta": "units/vil_m.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.79
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.07
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 15.0
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 15.0
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/germans/citizen_male.xml"
+  },
+  "vil_m.rus": {
+   "file": "units/vil_m.rus.png",
+   "mask": "units/vil_m.rus.m.png",
+   "meta": "units/vil_m.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.79
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.07
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 15.0
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 15.0
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/germans/citizen_male.xml"
+  },
+  "vil_m.byz": {
+   "file": "units/vil_m.byz.png",
+   "mask": "units/vil_m.byz.m.png",
+   "meta": "units/vil_m.byz.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.35
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.04
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 14.99
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 14.99
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.94
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/romans/citizen_male.xml"
+  },
+  "vil_m.umay": {
+   "file": "units/vil_m.umay.png",
+   "mask": "units/vil_m.umay.m.png",
+   "meta": "units/vil_m.umay.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.4
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.07
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 15.0
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 15.0
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/achaemenids/citizen_male.xml"
+  },
+  "vil_m.han": {
+   "file": "units/vil_m.han.png",
+   "mask": "units/vil_m.han.m.png",
+   "meta": "units/vil_m.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.4
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.07
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 15.0
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 15.0
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 6.667,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/citizen_male.xml"
+  },
+  "vil_f.caro": {
+   "file": "units/vil_f.caro.png",
+   "mask": "units/vil_f.caro.m.png",
+   "meta": "units/vil_f.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.2
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 14.98
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 14.96
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 14.96
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/caro/female_citizen.xml"
+  },
+  "vil_f.norse": {
+   "file": "units/vil_f.norse.png",
+   "mask": "units/vil_f.norse.m.png",
+   "meta": "units/vil_f.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.2
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 14.98
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 14.96
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 14.96
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/norse/female_citizen.xml"
+  },
+  "vil_f.byzantines": {
+   "file": "units/vil_f.byzantines.png",
+   "mask": "units/vil_f.byzantines.m.png",
+   "meta": "units/vil_f.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.2
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 14.98
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 14.96
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 14.96
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/byzantines/female_citizen.xml"
+  },
+  "vil_f.umayyads": {
+   "file": "units/vil_f.umayyads.png",
+   "mask": "units/vil_f.umayyads.m.png",
+   "meta": "units/vil_f.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.2
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 14.98
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 14.96
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 14.96
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/umayyads/female_citizen.xml"
+  },
+  "vil_f.han": {
+   "file": "units/vil_f.han.png",
+   "mask": "units/vil_f.han.m.png",
+   "meta": "units/vil_f.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 6.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.2
+    },
+    "carry_wood": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "stride": 14.98
+    },
+    "carry_stone": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 736,
+     "stride": 14.96
+    },
+    "carry_gold": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 992,
+     "stride": 14.96
+    },
+    "carry_food": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 1248,
+     "stride": 14.96
+    },
+    "chop": {
+     "n": 16,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 1504
+    },
+    "mine": {
+     "n": 16,
+     "dur": 2.375,
+     "loop": true,
+     "i0": 1760
+    },
+    "farm": {
+     "n": 16,
+     "dur": 2.708,
+     "loop": true,
+     "i0": 2016
+    },
+    "forage": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2272
+    },
+    "butcher": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 2528
+    },
+    "build": {
+     "n": 16,
+     "dur": 0.833,
+     "loop": true,
+     "i0": 2784
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 3040,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 3296
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/female_citizen.xml"
+  },
+  "monk.caro": {
+   "file": "units/monk.caro.png",
+   "mask": "units/monk.caro.m.png",
+   "meta": "units/monk.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 480
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/healer.xml"
+  },
+  "monk.rus": {
+   "file": "units/monk.rus.png",
+   "mask": "units/monk.rus.m.png",
+   "meta": "units/monk.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 480
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 30,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/rus/priest.xml"
+  },
+  "monk.byzantines": {
+   "file": "units/monk.byzantines.png",
+   "mask": "units/monk.byzantines.m.png",
+   "meta": "units/monk.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 480
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/healer.xml"
+  },
+  "monk.umayyads": {
+   "file": "units/monk.umayyads.png",
+   "mask": "units/monk.umayyads.m.png",
+   "meta": "units/monk.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 480
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/umayyads/healer.xml"
+  },
+  "monk.han": {
+   "file": "units/monk.han.png",
+   "mask": "units/monk.han.m.png",
+   "meta": "units/monk.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 16,
+     "dur": 4.167,
+     "loop": true,
+     "i0": 480
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/healer.xml"
+  },
+  "trader.byz": {
+   "file": "units/trader.byz.png",
+   "mask": "units/trader.byz.m.png",
+   "meta": "units/trader.byz.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 16,
+     "dur": 1.583,
+     "loop": true,
+     "i0": 16,
+     "stride": 25.09
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 27,
+   "dirs": 16,
+   "actor": "units/byzantines/trader.xml"
+  },
+  "trader.umay": {
+   "file": "units/trader.umay.png",
+   "mask": "units/trader.umay.m.png",
+   "meta": "units/trader.umay.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 16,
+     "dur": 1.583,
+     "loop": true,
+     "i0": 16,
+     "stride": 25.09
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 38,
+   "dirs": 16,
+   "actor": "units/umayyads/trader.xml"
+  },
+  "trader.han": {
+   "file": "units/trader.han.png",
+   "mask": null,
+   "meta": "units/trader.han.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 16,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 16,
+     "stride": 17.96
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "units/han/trader.xml"
+  },
+  "militia.caro": {
+   "file": "units/militia.caro.png",
+   "mask": "units/militia.caro.m.png",
+   "meta": "units/militia.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_swordsman_b.xml"
+  },
+  "militia.anglo": {
+   "file": "units/militia.anglo.png",
+   "mask": "units/militia.anglo.m.png",
+   "meta": "units/militia.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_swordsman_b.xml"
+  },
+  "militia.norse": {
+   "file": "units/militia.norse.png",
+   "mask": "units/militia.norse.m.png",
+   "meta": "units/militia.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_swordsman_b.xml"
+  },
+  "militia.rus": {
+   "file": "units/militia.rus.png",
+   "mask": "units/militia.rus.m.png",
+   "meta": "units/militia.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/rus/infantry_swordsman_b.xml"
+  },
+  "militia.byzantines": {
+   "file": "units/militia.byzantines.png",
+   "mask": "units/militia.byzantines.m.png",
+   "meta": "units/militia.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_swordsman_b.xml"
+  },
+  "militia.umayyads": {
+   "file": "units/militia.umayyads.png",
+   "mask": "units/militia.umayyads.m.png",
+   "meta": "units/militia.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_swordsman_b.xml"
+  },
+  "militia.han": {
+   "file": "units/militia.han.png",
+   "mask": "units/militia.han.m.png",
+   "meta": "units/militia.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.caro": {
+   "file": "units/man_at_arms.caro.png",
+   "mask": "units/man_at_arms.caro.m.png",
+   "meta": "units/man_at_arms.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.anglo": {
+   "file": "units/man_at_arms.anglo.png",
+   "mask": "units/man_at_arms.anglo.m.png",
+   "meta": "units/man_at_arms.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.norse": {
+   "file": "units/man_at_arms.norse.png",
+   "mask": "units/man_at_arms.norse.m.png",
+   "meta": "units/man_at_arms.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.rus": {
+   "file": "units/man_at_arms.rus.png",
+   "mask": "units/man_at_arms.rus.m.png",
+   "meta": "units/man_at_arms.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/rus/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.byzantines": {
+   "file": "units/man_at_arms.byzantines.png",
+   "mask": "units/man_at_arms.byzantines.m.png",
+   "meta": "units/man_at_arms.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.umayyads": {
+   "file": "units/man_at_arms.umayyads.png",
+   "mask": "units/man_at_arms.umayyads.m.png",
+   "meta": "units/man_at_arms.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_swordsman_b.xml"
+  },
+  "man_at_arms.han": {
+   "file": "units/man_at_arms.han.png",
+   "mask": "units/man_at_arms.han.m.png",
+   "meta": "units/man_at_arms.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_b.xml"
+  },
+  "long_swordsman.caro": {
+   "file": "units/long_swordsman.caro.png",
+   "mask": "units/long_swordsman.caro.m.png",
+   "meta": "units/long_swordsman.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_swordsman_e.xml"
+  },
+  "long_swordsman.anglo": {
+   "file": "units/long_swordsman.anglo.png",
+   "mask": "units/long_swordsman.anglo.m.png",
+   "meta": "units/long_swordsman.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_swordsman_e.xml"
+  },
+  "long_swordsman.norse": {
+   "file": "units/long_swordsman.norse.png",
+   "mask": "units/long_swordsman.norse.m.png",
+   "meta": "units/long_swordsman.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_swordsman_e.xml"
+  },
+  "long_swordsman.byzantines": {
+   "file": "units/long_swordsman.byzantines.png",
+   "mask": "units/long_swordsman.byzantines.m.png",
+   "meta": "units/long_swordsman.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_swordsman_e.xml"
+  },
+  "long_swordsman.umayyads": {
+   "file": "units/long_swordsman.umayyads.png",
+   "mask": "units/long_swordsman.umayyads.m.png",
+   "meta": "units/long_swordsman.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_swordsman_e.xml"
+  },
+  "long_swordsman.han": {
+   "file": "units/long_swordsman.han.png",
+   "mask": "units/long_swordsman.han.m.png",
+   "meta": "units/long_swordsman.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 27,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_c.xml"
+  },
+  "two_handed_swordsman.caro": {
+   "file": "units/two_handed_swordsman.caro.png",
+   "mask": "units/two_handed_swordsman.caro.m.png",
+   "meta": "units/two_handed_swordsman.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_swordsman_e.xml"
+  },
+  "two_handed_swordsman.anglo": {
+   "file": "units/two_handed_swordsman.anglo.png",
+   "mask": "units/two_handed_swordsman.anglo.m.png",
+   "meta": "units/two_handed_swordsman.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_swordsman_e.xml"
+  },
+  "two_handed_swordsman.norse": {
+   "file": "units/two_handed_swordsman.norse.png",
+   "mask": "units/two_handed_swordsman.norse.m.png",
+   "meta": "units/two_handed_swordsman.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_swordsman_e.xml"
+  },
+  "two_handed_swordsman.byzantines": {
+   "file": "units/two_handed_swordsman.byzantines.png",
+   "mask": "units/two_handed_swordsman.byzantines.m.png",
+   "meta": "units/two_handed_swordsman.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_swordsman_e.xml"
+  },
+  "two_handed_swordsman.umayyads": {
+   "file": "units/two_handed_swordsman.umayyads.png",
+   "mask": "units/two_handed_swordsman.umayyads.m.png",
+   "meta": "units/two_handed_swordsman.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 29,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_swordsman_e.xml"
+  },
+  "two_handed_swordsman.han": {
+   "file": "units/two_handed_swordsman.han.png",
+   "mask": "units/two_handed_swordsman.han.m.png",
+   "meta": "units/two_handed_swordsman.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_c.xml"
+  },
+  "champion.caro": {
+   "file": "units/champion.caro.png",
+   "mask": "units/champion.caro.m.png",
+   "meta": "units/champion.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_swordsman_e.xml"
+  },
+  "champion.anglo": {
+   "file": "units/champion.anglo.png",
+   "mask": "units/champion.anglo.m.png",
+   "meta": "units/champion.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_swordsman_e.xml"
+  },
+  "champion.norse": {
+   "file": "units/champion.norse.png",
+   "mask": "units/champion.norse.m.png",
+   "meta": "units/champion.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_swordsman_e.xml"
+  },
+  "champion.byzantines": {
+   "file": "units/champion.byzantines.png",
+   "mask": "units/champion.byzantines.m.png",
+   "meta": "units/champion.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_swordsman_e.xml"
+  },
+  "champion.umayyads": {
+   "file": "units/champion.umayyads.png",
+   "mask": "units/champion.umayyads.m.png",
+   "meta": "units/champion.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 29,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_swordsman_e.xml"
+  },
+  "champion.han": {
+   "file": "units/champion.han.png",
+   "mask": "units/champion.han.m.png",
+   "meta": "units/champion.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_c.xml"
+  },
+  "spearman.caro": {
+   "file": "units/spearman.caro.png",
+   "mask": "units/spearman.caro.m.png",
+   "meta": "units/spearman.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_spearman_b.xml"
+  },
+  "spearman.anglo": {
+   "file": "units/spearman.anglo.png",
+   "mask": null,
+   "meta": "units/spearman.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_spearman_b.xml"
+  },
+  "spearman.norse": {
+   "file": "units/spearman.norse.png",
+   "mask": null,
+   "meta": "units/spearman.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_spearman_b.xml"
+  },
+  "spearman.rus": {
+   "file": "units/spearman.rus.png",
+   "mask": "units/spearman.rus.m.png",
+   "meta": "units/spearman.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/rus/infantry_spearman_b.xml"
+  },
+  "spearman.byzantines": {
+   "file": "units/spearman.byzantines.png",
+   "mask": "units/spearman.byzantines.m.png",
+   "meta": "units/spearman.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_spearman_b.xml"
+  },
+  "spearman.umayyads": {
+   "file": "units/spearman.umayyads.png",
+   "mask": "units/spearman.umayyads.m.png",
+   "meta": "units/spearman.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 28,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_spearman_b.xml"
+  },
+  "spearman.han": {
+   "file": "units/spearman.han.png",
+   "mask": "units/spearman.han.m.png",
+   "meta": "units/spearman.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 28,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_spearman_b.xml"
+  },
+  "pikeman.caro": {
+   "file": "units/pikeman.caro.png",
+   "mask": "units/pikeman.caro.m.png",
+   "meta": "units/pikeman.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_spearman_e.xml"
+  },
+  "pikeman.anglo": {
+   "file": "units/pikeman.anglo.png",
+   "mask": "units/pikeman.anglo.m.png",
+   "meta": "units/pikeman.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_spearman_e.xml"
+  },
+  "pikeman.norse": {
+   "file": "units/pikeman.norse.png",
+   "mask": "units/pikeman.norse.m.png",
+   "meta": "units/pikeman.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_spearman_e.xml"
+  },
+  "pikeman.rus": {
+   "file": "units/pikeman.rus.png",
+   "mask": "units/pikeman.rus.m.png",
+   "meta": "units/pikeman.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/rus/infantry_spearman_a.xml"
+  },
+  "pikeman.byzantines": {
+   "file": "units/pikeman.byzantines.png",
+   "mask": "units/pikeman.byzantines.m.png",
+   "meta": "units/pikeman.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_spearman_e.xml"
+  },
+  "pikeman.umayyads": {
+   "file": "units/pikeman.umayyads.png",
+   "mask": "units/pikeman.umayyads.m.png",
+   "meta": "units/pikeman.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 36,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_spearman_e.xml"
+  },
+  "pikeman.han": {
+   "file": "units/pikeman.han.png",
+   "mask": "units/pikeman.han.m.png",
+   "meta": "units/pikeman.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_spearman_b.xml"
+  },
+  "halberdier.caro": {
+   "file": "units/halberdier.caro.png",
+   "mask": "units/halberdier.caro.m.png",
+   "meta": "units/halberdier.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_spearman_e.xml"
+  },
+  "halberdier.anglo": {
+   "file": "units/halberdier.anglo.png",
+   "mask": "units/halberdier.anglo.m.png",
+   "meta": "units/halberdier.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_spearman_e.xml"
+  },
+  "halberdier.norse": {
+   "file": "units/halberdier.norse.png",
+   "mask": "units/halberdier.norse.m.png",
+   "meta": "units/halberdier.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/infantry_spearman_e.xml"
+  },
+  "halberdier.rus": {
+   "file": "units/halberdier.rus.png",
+   "mask": "units/halberdier.rus.m.png",
+   "meta": "units/halberdier.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/rus/infantry_spearman_a.xml"
+  },
+  "halberdier.byzantines": {
+   "file": "units/halberdier.byzantines.png",
+   "mask": "units/halberdier.byzantines.m.png",
+   "meta": "units/halberdier.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_spearman_e.xml"
+  },
+  "halberdier.umayyads": {
+   "file": "units/halberdier.umayyads.png",
+   "mask": "units/halberdier.umayyads.m.png",
+   "meta": "units/halberdier.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.97
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_spearman_e.xml"
+  },
+  "halberdier.han": {
+   "file": "units/halberdier.han.png",
+   "mask": "units/halberdier.han.m.png",
+   "meta": "units/halberdier.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_spearman_b.xml"
+  },
+  "archer.caro": {
+   "file": "units/archer.caro.png",
+   "mask": "units/archer.caro.m.png",
+   "meta": "units/archer.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_archer_b.xml"
+  },
+  "archer.norse": {
+   "file": "units/archer.norse.png",
+   "mask": null,
+   "meta": "units/archer.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/norse/infantry_archer_b.xml"
+  },
+  "archer.rus": {
+   "file": "units/archer.rus.png",
+   "mask": null,
+   "meta": "units/archer.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/rus/infantry_archer_b.xml"
+  },
+  "archer.byzantines": {
+   "file": "units/archer.byzantines.png",
+   "mask": "units/archer.byzantines.m.png",
+   "meta": "units/archer.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_archer_b.xml"
+  },
+  "archer.umayyads": {
+   "file": "units/archer.umayyads.png",
+   "mask": "units/archer.umayyads.m.png",
+   "meta": "units/archer.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 18,
+   "scale": 0.122,
+   "bh": 18,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_archer_b.xml"
+  },
+  "archer.han": {
+   "file": "units/archer.han.png",
+   "mask": "units/archer.han.m.png",
+   "meta": "units/archer.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/han/infantry_archer_b.xml"
+  },
+  "crossbowman.caro": {
+   "file": "units/crossbowman.caro.png",
+   "mask": "units/crossbowman.caro.m.png",
+   "meta": "units/crossbowman.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_archer_b.xml"
+  },
+  "crossbowman.norse": {
+   "file": "units/crossbowman.norse.png",
+   "mask": null,
+   "meta": "units/crossbowman.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/norse/infantry_archer_b.xml"
+  },
+  "crossbowman.rus": {
+   "file": "units/crossbowman.rus.png",
+   "mask": null,
+   "meta": "units/crossbowman.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/rus/infantry_archer_b.xml"
+  },
+  "crossbowman.byzantines": {
+   "file": "units/crossbowman.byzantines.png",
+   "mask": "units/crossbowman.byzantines.m.png",
+   "meta": "units/crossbowman.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_archer_b.xml"
+  },
+  "crossbowman.umayyads": {
+   "file": "units/crossbowman.umayyads.png",
+   "mask": "units/crossbowman.umayyads.m.png",
+   "meta": "units/crossbowman.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 23,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_archer_b.xml"
+  },
+  "crossbowman.han": {
+   "file": "units/crossbowman.han.png",
+   "mask": "units/crossbowman.han.m.png",
+   "meta": "units/crossbowman.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/han/infantry_crossbowman_b.xml"
+  },
+  "arbalester.caro": {
+   "file": "units/arbalester.caro.png",
+   "mask": "units/arbalester.caro.m.png",
+   "meta": "units/arbalester.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_archer_e.xml"
+  },
+  "arbalester.norse": {
+   "file": "units/arbalester.norse.png",
+   "mask": "units/arbalester.norse.m.png",
+   "meta": "units/arbalester.norse.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/norse/infantry_archer_e.xml"
+  },
+  "arbalester.rus": {
+   "file": "units/arbalester.rus.png",
+   "mask": null,
+   "meta": "units/arbalester.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/rus/infantry_archer_b.xml"
+  },
+  "arbalester.byzantines": {
+   "file": "units/arbalester.byzantines.png",
+   "mask": "units/arbalester.byzantines.m.png",
+   "meta": "units/arbalester.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_archer_e.xml"
+  },
+  "arbalester.umayyads": {
+   "file": "units/arbalester.umayyads.png",
+   "mask": "units/arbalester.umayyads.m.png",
+   "meta": "units/arbalester.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_archer_e.xml"
+  },
+  "arbalester.han": {
+   "file": "units/arbalester.han.png",
+   "mask": "units/arbalester.han.m.png",
+   "meta": "units/arbalester.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/han/infantry_archer_b.xml"
+  },
+  "skirmisher.caro": {
+   "file": "units/skirmisher.caro.png",
+   "mask": "units/skirmisher.caro.m.png",
+   "meta": "units/skirmisher.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_javelinist_b.xml"
+  },
+  "skirmisher.anglo": {
+   "file": "units/skirmisher.anglo.png",
+   "mask": "units/skirmisher.anglo.m.png",
+   "meta": "units/skirmisher.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_javelinist_b.xml"
+  },
+  "skirmisher.byzantines": {
+   "file": "units/skirmisher.byzantines.png",
+   "mask": "units/skirmisher.byzantines.m.png",
+   "meta": "units/skirmisher.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 23,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_javelinist_b.xml"
+  },
+  "elite_skirmisher.caro": {
+   "file": "units/elite_skirmisher.caro.png",
+   "mask": "units/elite_skirmisher.caro.m.png",
+   "meta": "units/elite_skirmisher.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_javelinist_e.xml"
+  },
+  "elite_skirmisher.anglo": {
+   "file": "units/elite_skirmisher.anglo.png",
+   "mask": "units/elite_skirmisher.anglo.m.png",
+   "meta": "units/elite_skirmisher.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/anglo/infantry_javelinist_e.xml"
+  },
+  "elite_skirmisher.byzantines": {
+   "file": "units/elite_skirmisher.byzantines.png",
+   "mask": "units/elite_skirmisher.byzantines.m.png",
+   "meta": "units/elite_skirmisher.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/byzantines/infantry_javelinist_e.xml"
+  },
+  "scout.caro": {
+   "file": "units/scout.caro.png",
+   "mask": "units/scout.caro.m.png",
+   "meta": "units/scout.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_spearman_b_m.xml"
+  },
+  "scout.anglo": {
+   "file": "units/scout.anglo.png",
+   "mask": "units/scout.anglo.m.png",
+   "meta": "units/scout.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/anglo/cavalry_spearman_b.xml"
+  },
+  "scout.rus": {
+   "file": "units/scout.rus.png",
+   "mask": "units/scout.rus.m.png",
+   "meta": "units/scout.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_scout.xml"
+  },
+  "scout.byzantines": {
+   "file": "units/scout.byzantines.png",
+   "mask": "units/scout.byzantines.m.png",
+   "meta": "units/scout.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_javelinist_b_m.xml"
+  },
+  "scout.umayyads": {
+   "file": "units/scout.umayyads.png",
+   "mask": "units/scout.umayyads.m.png",
+   "meta": "units/scout.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "units/umayyads/cavalry_spearman_b_m.xml"
+  },
+  "scout.han": {
+   "file": "units/scout.han.png",
+   "mask": "units/scout.han.m.png",
+   "meta": "units/scout.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_spearman_b_m.xml"
+  },
+  "light_cavalry.caro": {
+   "file": "units/light_cavalry.caro.png",
+   "mask": "units/light_cavalry.caro.m.png",
+   "meta": "units/light_cavalry.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 37,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_spearman_a_m.xml"
+  },
+  "light_cavalry.anglo": {
+   "file": "units/light_cavalry.anglo.png",
+   "mask": "units/light_cavalry.anglo.m.png",
+   "meta": "units/light_cavalry.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 37,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/anglo/cavalry_spearman_a.xml"
+  },
+  "light_cavalry.rus": {
+   "file": "units/light_cavalry.rus.png",
+   "mask": "units/light_cavalry.rus.m.png",
+   "meta": "units/light_cavalry.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 37,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_scout_a.xml"
+  },
+  "light_cavalry.byzantines": {
+   "file": "units/light_cavalry.byzantines.png",
+   "mask": "units/light_cavalry.byzantines.m.png",
+   "meta": "units/light_cavalry.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 37,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_javelinist_a_m.xml"
+  },
+  "light_cavalry.umayyads": {
+   "file": "units/light_cavalry.umayyads.png",
+   "mask": "units/light_cavalry.umayyads.m.png",
+   "meta": "units/light_cavalry.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 37,
+   "scale": 0.12,
+   "bh": 37,
+   "dirs": 16,
+   "actor": "units/umayyads/cavalry_spearman_a_m.xml"
+  },
+  "light_cavalry.han": {
+   "file": "units/light_cavalry.han.png",
+   "mask": "units/light_cavalry.han.m.png",
+   "meta": "units/light_cavalry.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 37,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_spearman_b_m.xml"
+  },
+  "hussar.caro": {
+   "file": "units/hussar.caro.png",
+   "mask": "units/hussar.caro.m.png",
+   "meta": "units/hussar.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_spearman_a_m.xml"
+  },
+  "hussar.anglo": {
+   "file": "units/hussar.anglo.png",
+   "mask": "units/hussar.anglo.m.png",
+   "meta": "units/hussar.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/anglo/cavalry_spearman_a.xml"
+  },
+  "hussar.rus": {
+   "file": "units/hussar.rus.png",
+   "mask": "units/hussar.rus.m.png",
+   "meta": "units/hussar.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_scout_a.xml"
+  },
+  "hussar.byzantines": {
+   "file": "units/hussar.byzantines.png",
+   "mask": "units/hussar.byzantines.m.png",
+   "meta": "units/hussar.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_javelinist_a_m.xml"
+  },
+  "hussar.umayyads": {
+   "file": "units/hussar.umayyads.png",
+   "mask": "units/hussar.umayyads.m.png",
+   "meta": "units/hussar.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 38,
+   "dirs": 16,
+   "actor": "units/umayyads/cavalry_spearman_a_m.xml"
+  },
+  "hussar.han": {
+   "file": "units/hussar.han.png",
+   "mask": "units/hussar.han.m.png",
+   "meta": "units/hussar.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 38,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_spearman_b_m.xml"
+  },
+  "knight.caro": {
+   "file": "units/knight.caro.png",
+   "mask": "units/knight.caro.m.png",
+   "meta": "units/knight.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_spearman_c_m.xml"
+  },
+  "knight.anglo": {
+   "file": "units/knight.anglo.png",
+   "mask": "units/knight.anglo.m.png",
+   "meta": "units/knight.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/anglo/cavalry_spearman_e.xml"
+  },
+  "knight.rus": {
+   "file": "units/knight.rus.png",
+   "mask": "units/knight.rus.m.png",
+   "meta": "units/knight.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_spearman_c_m.xml"
+  },
+  "knight.byzantines": {
+   "file": "units/knight.byzantines.png",
+   "mask": "units/knight.byzantines.m.png",
+   "meta": "units/knight.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_spearman_c_m.xml"
+  },
+  "knight.umayyads": {
+   "file": "units/knight.umayyads.png",
+   "mask": "units/knight.umayyads.m.png",
+   "meta": "units/knight.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 29.1
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "units/umayyads/cavalry_spearman_c_m.xml"
+  },
+  "knight.han": {
+   "file": "units/knight.han.png",
+   "mask": "units/knight.han.m.png",
+   "meta": "units/knight.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 29.1
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_spearman_c_m.xml"
+  },
+  "cavalier.caro": {
+   "file": "units/cavalier.caro.png",
+   "mask": "units/cavalier.caro.m.png",
+   "meta": "units/cavalier.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_spearman_e_m.xml"
+  },
+  "cavalier.anglo": {
+   "file": "units/cavalier.anglo.png",
+   "mask": "units/cavalier.anglo.m.png",
+   "meta": "units/cavalier.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/anglo/cavalry_spearman_e.xml"
+  },
+  "cavalier.rus": {
+   "file": "units/cavalier.rus.png",
+   "mask": "units/cavalier.rus.m.png",
+   "meta": "units/cavalier.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_spearman_c_m.xml"
+  },
+  "cavalier.byzantines": {
+   "file": "units/cavalier.byzantines.png",
+   "mask": "units/cavalier.byzantines.m.png",
+   "meta": "units/cavalier.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_spearman_e_m.xml"
+  },
+  "cavalier.umayyads": {
+   "file": "units/cavalier.umayyads.png",
+   "mask": "units/cavalier.umayyads.m.png",
+   "meta": "units/cavalier.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "units/umayyads/cavalry_spearman_e_m.xml"
+  },
+  "cavalier.han": {
+   "file": "units/cavalier.han.png",
+   "mask": "units/cavalier.han.m.png",
+   "meta": "units/cavalier.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 29.1
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_spearman_c_m.xml"
+  },
+  "paladin.caro": {
+   "file": "units/paladin.caro.png",
+   "mask": "units/paladin.caro.m.png",
+   "meta": "units/paladin.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_spearman_e_m.xml"
+  },
+  "paladin.anglo": {
+   "file": "units/paladin.anglo.png",
+   "mask": "units/paladin.anglo.m.png",
+   "meta": "units/paladin.anglo.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/anglo/cavalry_spearman_e.xml"
+  },
+  "paladin.rus": {
+   "file": "units/paladin.rus.png",
+   "mask": "units/paladin.rus.m.png",
+   "meta": "units/paladin.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.51
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_spearman_c_m.xml"
+  },
+  "paladin.byzantines": {
+   "file": "units/paladin.byzantines.png",
+   "mask": "units/paladin.byzantines.m.png",
+   "meta": "units/paladin.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_spearman_e_m.xml"
+  },
+  "paladin.umayyads": {
+   "file": "units/paladin.umayyads.png",
+   "mask": "units/paladin.umayyads.m.png",
+   "meta": "units/paladin.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "units/umayyads/cavalry_spearman_e_m.xml"
+  },
+  "paladin.han": {
+   "file": "units/paladin.han.png",
+   "mask": "units/paladin.han.m.png",
+   "meta": "units/paladin.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 29.1
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_spearman_c_m.xml"
+  },
+  "cavalry_archer.caro": {
+   "file": "units/cavalry_archer.caro.png",
+   "mask": "units/cavalry_archer.caro.m.png",
+   "meta": "units/cavalry_archer.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_archer_b_m.xml"
+  },
+  "cavalry_archer.rus": {
+   "file": "units/cavalry_archer.rus.png",
+   "mask": "units/cavalry_archer.rus.m.png",
+   "meta": "units/cavalry_archer.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_archer_b_m.xml"
+  },
+  "cavalry_archer.byzantines": {
+   "file": "units/cavalry_archer.byzantines.png",
+   "mask": "units/cavalry_archer.byzantines.m.png",
+   "meta": "units/cavalry_archer.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 34,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_archer_b_m.xml"
+  },
+  "cavalry_archer.umayyads": {
+   "file": "units/cavalry_archer.umayyads.png",
+   "mask": "units/cavalry_archer.umayyads.m.png",
+   "meta": "units/cavalry_archer.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 40,
+   "scale": 0.12,
+   "bh": 40,
+   "dirs": 16,
+   "actor": "units/umayyads/camelry_archer_b_m.xml"
+  },
+  "cavalry_archer.han": {
+   "file": "units/cavalry_archer.han.png",
+   "mask": "units/cavalry_archer.han.m.png",
+   "meta": "units/cavalry_archer.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_archer_b_m.xml"
+  },
+  "heavy_cavalry_archer.caro": {
+   "file": "units/heavy_cavalry_archer.caro.png",
+   "mask": "units/heavy_cavalry_archer.caro.m.png",
+   "meta": "units/heavy_cavalry_archer.caro.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_archer_e_m.xml"
+  },
+  "heavy_cavalry_archer.rus": {
+   "file": "units/heavy_cavalry_archer.rus.png",
+   "mask": "units/heavy_cavalry_archer.rus.m.png",
+   "meta": "units/heavy_cavalry_archer.rus.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/rus/cavalry_archer_b_m.xml"
+  },
+  "heavy_cavalry_archer.byzantines": {
+   "file": "units/heavy_cavalry_archer.byzantines.png",
+   "mask": "units/heavy_cavalry_archer.byzantines.m.png",
+   "meta": "units/heavy_cavalry_archer.byzantines.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 25.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.55
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 34,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_archer_e_m.xml"
+  },
+  "heavy_cavalry_archer.umayyads": {
+   "file": "units/heavy_cavalry_archer.umayyads.png",
+   "mask": "units/heavy_cavalry_archer.umayyads.m.png",
+   "meta": "units/heavy_cavalry_archer.umayyads.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 40,
+   "scale": 0.12,
+   "bh": 40,
+   "dirs": 16,
+   "actor": "units/umayyads/camelry_archer_e_m.xml"
+  },
+  "heavy_cavalry_archer.han": {
+   "file": "units/heavy_cavalry_archer.han.png",
+   "mask": "units/heavy_cavalry_archer.han.m.png",
+   "meta": "units/heavy_cavalry_archer.han.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_archer_b_m.xml"
+  },
+  "gun": {
+   "file": "units/gun.png",
+   "mask": "units/gun.m.png",
+   "meta": "units/gun.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 25,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_archer_b.xml"
+  },
+  "camel": {
+   "file": "units/camel.png",
+   "mask": "units/camel.m.png",
+   "meta": "units/camel.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 39,
+   "scale": 0.12,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "units/umayyads/camelry_archer_b_m.xml"
+  },
+  "camel_h": {
+   "file": "units/camel_h.png",
+   "mask": "units/camel_h.m.png",
+   "meta": "units/camel_h.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 160,
+     "stride": 18.49
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 40,
+   "scale": 0.1236,
+   "bh": 40,
+   "dirs": 16,
+   "actor": "units/umayyads/camelry_archer_e_m.xml"
+  },
+  "mangonel": {
+   "file": "units/mangonel.png",
+   "mask": "units/mangonel.m.png",
+   "meta": "units/mangonel.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 32,
+     "event": 0.145
+    }
+   },
+   "h": 37,
+   "scale": 0.1357,
+   "bh": 37,
+   "dirs": 16,
+   "actor": "units/romans/siege_onager.xml"
+  },
+  "onager": {
+   "file": "units/onager.png",
+   "mask": "units/onager.m.png",
+   "meta": "units/onager.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 32,
+     "event": 0.145
+    }
+   },
+   "h": 41,
+   "scale": 0.1496,
+   "bh": 41,
+   "dirs": 16,
+   "actor": "units/romans/siege_onager.xml"
+  },
+  "onager_s": {
+   "file": "units/onager_s.png",
+   "mask": "units/onager_s.m.png",
+   "meta": "units/onager_s.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 5.0,
+     "loop": true,
+     "i0": 32,
+     "event": 0.145
+    }
+   },
+   "h": 47,
+   "scale": 0.1705,
+   "bh": 47,
+   "dirs": 16,
+   "actor": "units/romans/siege_onager.xml"
+  },
+  "scorpio": {
+   "file": "units/scorpio.png",
+   "mask": "units/scorpio.m.png",
+   "meta": "units/scorpio.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.333,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 0.333,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 14.667,
+     "loop": true,
+     "i0": 32,
+     "event": 0.96
+    }
+   },
+   "h": 34,
+   "scale": 0.1629,
+   "bh": 34,
+   "dirs": 16,
+   "actor": "units/romans/siege_scorpio.xml"
+  },
+  "ballista": {
+   "file": "units/ballista.png",
+   "mask": "units/ballista.m.png",
+   "meta": "units/ballista.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.333,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 0.333,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 14.667,
+     "loop": true,
+     "i0": 32,
+     "event": 0.96
+    }
+   },
+   "h": 43,
+   "scale": 0.2036,
+   "bh": 43,
+   "dirs": 16,
+   "actor": "units/romans/siege_scorpio.xml"
+  },
+  "bombard": {
+   "file": "units/bombard.png",
+   "mask": null,
+   "meta": "units/bombard.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 1.2,
+     "loop": true,
+     "i0": 16,
+     "stride": 38.55
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.6,
+     "loop": true,
+     "i0": 208,
+     "event": 0.35
+    }
+   },
+   "h": 26,
+   "scale": 0.213,
+   "bh": 26,
+   "dirs": 16,
+   "actor": "@bombard"
+  },
+  "treb_packed": {
+   "file": "units/treb_packed.png",
+   "mask": "units/treb_packed.m.png",
+   "meta": "units/treb_packed.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 16,
+     "stride": 43.21
+    }
+   },
+   "h": 57,
+   "scale": 0.1538,
+   "bh": 57,
+   "dirs": 16,
+   "actor": "units/caro/siege_trebuchet_packed.xml"
+  },
+  "treb_up": {
+   "file": "units/treb_up.png",
+   "mask": "units/treb_up.m.png",
+   "meta": "units/treb_up.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.542,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 0.542,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 14.583,
+     "loop": true,
+     "i0": 32,
+     "event": 0.15
+    }
+   },
+   "h": 74,
+   "scale": 0.1331,
+   "bh": 47,
+   "dirs": 16,
+   "actor": "units/caro/siege_trebuchet.xml"
+  },
+  "axe_thrower": {
+   "file": "units/axe_thrower.png",
+   "mask": "units/axe_thrower.m.png",
+   "meta": "units/axe_thrower.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 30,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/caro/infantry_javelinist_b.xml"
+  },
+  "axe_thrower_e": {
+   "file": "units/axe_thrower_e.png",
+   "mask": "units/axe_thrower_e.m.png",
+   "meta": "units/axe_thrower_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.34
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.042,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.1257,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_javelinist_b.xml"
+  },
+  "longbow": {
+   "file": "units/longbow.png",
+   "mask": "units/longbow.m.png",
+   "meta": "units/longbow.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.34
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 21,
+   "scale": 0.1257,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/caro/infantry_archer_e.xml"
+  },
+  "longbow_e": {
+   "file": "units/longbow_e.png",
+   "mask": "units/longbow_e.m.png",
+   "meta": "units/longbow_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.71
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 480,
+     "event": 0.45
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 25,
+   "scale": 0.1294,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/caro/infantry_archer_e.xml"
+  },
+  "mangudai": {
+   "file": "units/mangudai.png",
+   "mask": "units/mangudai.m.png",
+   "meta": "units/mangudai.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.52
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 35,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/cavalry_archer_b_m.xml"
+  },
+  "mangudai_e": {
+   "file": "units/mangudai_e.png",
+   "mask": "units/mangudai_e.m.png",
+   "meta": "units/mangudai_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 18.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.1236,
+   "bh": 32,
+   "dirs": 16,
+   "actor": "units/han/cavalry_archer_b_m.xml"
+  },
+  "cataphract": {
+   "file": "units/cataphract.png",
+   "mask": "units/cataphract.m.png",
+   "meta": "units/cataphract.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 33,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_spearman_e_m.xml"
+  },
+  "cataphract_e": {
+   "file": "units/cataphract_e.png",
+   "mask": "units/cataphract_e.m.png",
+   "meta": "units/cataphract_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.62
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.1236,
+   "bh": 32,
+   "dirs": 16,
+   "actor": "units/byzantines/cavalry_spearman_e_m.xml"
+  },
+  "teuton": {
+   "file": "units/teuton.png",
+   "mask": "units/teuton.m.png",
+   "meta": "units/teuton.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.46
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 30,
+   "scale": 0.1269,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/caro/champion_infantry.xml"
+  },
+  "teuton_e": {
+   "file": "units/teuton_e.png",
+   "mask": "units/teuton_e.m.png",
+   "meta": "units/teuton_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.83
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 31,
+   "scale": 0.1307,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/caro/champion_infantry.xml"
+  },
+  "samurai": {
+   "file": "units/samurai.png",
+   "mask": "units/samurai.m.png",
+   "meta": "units/samurai.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.95
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_c.xml"
+  },
+  "samurai_e": {
+   "file": "units/samurai_e.png",
+   "mask": "units/samurai_e.m.png",
+   "meta": "units/samurai_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.31
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 29,
+   "scale": 0.1257,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_swordsman_c.xml"
+  },
+  "chukonu": {
+   "file": "units/chukonu.png",
+   "mask": "units/chukonu.m.png",
+   "meta": "units/chukonu.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.98
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.85
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/han/infantry_crossbowman_b.xml"
+  },
+  "chukonu_e": {
+   "file": "units/chukonu_e.png",
+   "mask": "units/chukonu_e.m.png",
+   "meta": "units/chukonu_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.34
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.85
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 24,
+   "scale": 0.1257,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/han/infantry_crossbowman_b.xml"
+  },
+  "elephant": {
+   "file": "units/elephant.png",
+   "mask": "units/elephant.m.png",
+   "meta": "units/elephant.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 20.4
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 56,
+   "scale": 0.118,
+   "bh": 51,
+   "dirs": 16,
+   "actor": "fauna/elephant_asian.xml"
+  },
+  "elephant_e": {
+   "file": "units/elephant_e.png",
+   "mask": "units/elephant_e.m.png",
+   "meta": "units/elephant_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 21.44
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 62,
+   "scale": 0.124,
+   "bh": 53,
+   "dirs": 16,
+   "actor": "fauna/elephant_asian.xml"
+  },
+  "mameluke": {
+   "file": "units/mameluke.png",
+   "mask": "units/mameluke.m.png",
+   "meta": "units/mameluke.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 160,
+     "stride": 18.49
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 40,
+   "scale": 0.1236,
+   "bh": 40,
+   "dirs": 16,
+   "actor": "units/umayyads/camelry_archer_a_m.xml"
+  },
+  "mameluke_e": {
+   "file": "units/mameluke_e.png",
+   "mask": "units/mameluke_e.m.png",
+   "meta": "units/mameluke_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.667,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 43,
+   "scale": 0.1273,
+   "bh": 43,
+   "dirs": 16,
+   "actor": "units/umayyads/camelry_archer_a_m.xml"
+  },
+  "janissary": {
+   "file": "units/janissary.png",
+   "mask": "units/janissary.m.png",
+   "meta": "units/janissary.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 11.96
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_archer_b.xml"
+  },
+  "janissary_e": {
+   "file": "units/janissary_e.png",
+   "mask": "units/janissary_e.m.png",
+   "meta": "units/janissary_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 12.34
+    },
+    "attack": {
+     "n": 20,
+     "dur": 3.333,
+     "loop": true,
+     "i0": 480,
+     "event": 0.8
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.1257,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/umayyads/infantry_archer_e.xml"
+  },
+  "berserk": {
+   "file": "units/berserk.png",
+   "mask": "units/berserk.m.png",
+   "meta": "units/berserk.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 20,
+   "scale": 0.122,
+   "bh": 20,
+   "dirs": 16,
+   "actor": "units/norse/champion_berserker.xml"
+  },
+  "berserk_e": {
+   "file": "units/berserk_e.png",
+   "mask": "units/berserk_e.m.png",
+   "meta": "units/berserk_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.1
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 24,
+   "scale": 0.1257,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/champion_berserker.xml"
+  },
+  "huskarl": {
+   "file": "units/huskarl.png",
+   "mask": "units/huskarl.m.png",
+   "meta": "units/huskarl.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 13.69
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 22,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/champion_huscarl.xml"
+  },
+  "huskarl_e": {
+   "file": "units/huskarl_e.png",
+   "mask": "units/huskarl_e.m.png",
+   "meta": "units/huskarl_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 14.1
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 25,
+   "scale": 0.1257,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/norse/champion_huscarl.xml"
+  },
+  "woad": {
+   "file": "units/woad.png",
+   "mask": "units/woad.m.png",
+   "meta": "units/woad.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 16.9
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 27,
+   "scale": 0.122,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "units/britons/infantry_swordsman_c.xml"
+  },
+  "woad_e": {
+   "file": "units/woad_e.png",
+   "mask": "units/woad_e.m.png",
+   "meta": "units/woad_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.5,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 17.41
+    },
+    "attack": {
+     "n": 20,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 27,
+   "scale": 0.1257,
+   "bh": 22,
+   "dirs": 16,
+   "actor": "units/britons/infantry_swordsman_c.xml"
+  },
+  "conquistador": {
+   "file": "units/conquistador.png",
+   "mask": "units/conquistador.m.png",
+   "meta": "units/conquistador.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.05
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 35,
+   "scale": 0.12,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_archer_b_m.xml"
+  },
+  "conquistador_e": {
+   "file": "units/conquistador_e.png",
+   "mask": "units/conquistador_e.m.png",
+   "meta": "units/conquistador_e.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 160,
+     "stride": 19.62
+    },
+    "attack": {
+     "n": 20,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 480,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 2.333,
+     "loop": false,
+     "i0": 800
+    }
+   },
+   "h": 36,
+   "scale": 0.1236,
+   "bh": 32,
+   "dirs": 16,
+   "actor": "units/caro/cavalry_archer_b_m.xml"
+  },
+  "onager_han": {
+   "file": "units/onager_han.png",
+   "mask": "units/onager_han.m.png",
+   "meta": "units/onager_han.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.167,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 0.167,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.35,
+     "loop": true,
+     "i0": 32,
+     "event": 0.11
+    }
+   },
+   "h": 38,
+   "scale": 0.0877,
+   "bh": 26,
+   "dirs": 16,
+   "actor": "units/han/siege_mangonel.xml"
+  },
+  "onager_han_s": {
+   "file": "units/onager_han_s.png",
+   "mask": "units/onager_han_s.m.png",
+   "meta": "units/onager_han_s.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.167,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 1,
+     "dur": 0.167,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    },
+    "attack": {
+     "n": 20,
+     "dur": 4.35,
+     "loop": true,
+     "i0": 32,
+     "event": 0.11
+    }
+   },
+   "h": 45,
+   "scale": 0.1062,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "units/han/siege_mangonel.xml"
+  },
+  "ship.byzantines.fishing_boat_1.25.lateen": {
+   "file": "units/ship.byzantines.fishing_boat_1.25.lateen.png",
+   "mask": "units/ship.byzantines.fishing_boat_1.25.lateen.m.png",
+   "meta": "units/ship.byzantines.fishing_boat_1.25.lateen.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 2.083,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 52,
+   "scale": 0.0649,
+   "bh": 18,
+   "dirs": 16,
+   "actor": "structures/byzantines/fishing_boat.xml"
+  },
+  "ship.han.fishing_ship_1.25": {
+   "file": "units/ship.han.fishing_ship_1.25.png",
+   "mask": "units/ship.han.fishing_ship_1.25.m.png",
+   "meta": "units/ship.han.fishing_ship_1.25.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 17,
+   "scale": 0.071,
+   "bh": 15,
+   "dirs": 16,
+   "actor": "structures/han/fishing_ship.xml"
+  },
+  "ship.norse.knarr.tent": {
+   "file": "units/ship.norse.knarr.tent.png",
+   "mask": "units/ship.norse.knarr.tent.m.png",
+   "meta": "units/ship.norse.knarr.tent.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 31,
+   "scale": 0.0578,
+   "bh": 31,
+   "dirs": 16,
+   "actor": "structures/norse/knarr.xml"
+  },
+  "ship.han.merchant_ship": {
+   "file": "units/ship.han.merchant_ship.png",
+   "mask": "units/ship.han.merchant_ship.m.png",
+   "meta": "units/ship.han.merchant_ship.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 2.0,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 1.667,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 70,
+   "scale": 0.0914,
+   "bh": 28,
+   "dirs": 16,
+   "actor": "structures/han/merchant_ship.xml"
+  },
+  "ship.byzantines.warship_light_1.9": {
+   "file": "units/ship.byzantines.warship_light_1.9.png",
+   "mask": "units/ship.byzantines.warship_light_1.9.m.png",
+   "meta": "units/ship.byzantines.warship_light_1.9.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.875,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 41,
+   "scale": 0.0461,
+   "bh": 41,
+   "dirs": 16,
+   "actor": "structures/byzantines/warship_light.xml"
+  },
+  "ship.han.trireme_1.9": {
+   "file": "units/ship.han.trireme_1.9.png",
+   "mask": "units/ship.han.trireme_1.9.m.png",
+   "meta": "units/ship.han.trireme_1.9.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 64,
+   "scale": 0.0562,
+   "bh": 64,
+   "dirs": 16,
+   "actor": "structures/han/trireme.xml"
+  },
+  "ship.byzantines.dromon_warship_2.15": {
+   "file": "units/ship.byzantines.dromon_warship_2.15.png",
+   "mask": "units/ship.byzantines.dromon_warship_2.15.m.png",
+   "meta": "units/ship.byzantines.dromon_warship_2.15.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.875,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 58,
+   "scale": 0.0465,
+   "bh": 58,
+   "dirs": 16,
+   "actor": "structures/byzantines/dromon_warship.xml"
+  },
+  "ship.han.trireme_2.15": {
+   "file": "units/ship.han.trireme_2.15.png",
+   "mask": "units/ship.han.trireme_2.15.m.png",
+   "meta": "units/ship.han.trireme_2.15.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 73,
+   "scale": 0.0635,
+   "bh": 73,
+   "dirs": 16,
+   "actor": "structures/han/trireme.xml"
+  },
+  "ship.byzantines.merchant_ship_2.4.galleon": {
+   "file": "units/ship.byzantines.merchant_ship_2.4.galleon.png",
+   "mask": "units/ship.byzantines.merchant_ship_2.4.galleon.m.png",
+   "meta": "units/ship.byzantines.merchant_ship_2.4.galleon.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.875,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 78,
+   "scale": 0.0927,
+   "bh": 78,
+   "dirs": 16,
+   "actor": "structures/byzantines/merchant_ship.xml"
+  },
+  "ship.han.towership_2.4": {
+   "file": "units/ship.han.towership_2.4.png",
+   "mask": "units/ship.han.towership_2.4.m.png",
+   "meta": "units/ship.han.towership_2.4.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.417,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 86,
+   "scale": 0.0588,
+   "bh": 86,
+   "dirs": 16,
+   "actor": "structures/han/towership.xml"
+  },
+  "ship.iberians.fireship_1.85.siphon": {
+   "file": "units/ship.iberians.fireship_1.85.siphon.png",
+   "mask": "units/ship.iberians.fireship_1.85.siphon.m.png",
+   "meta": "units/ship.iberians.fireship_1.85.siphon.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 43,
+   "scale": 0.0904,
+   "bh": 43,
+   "dirs": 16,
+   "actor": "structures/iberians/fireship.xml"
+  },
+  "ship.han.fireship_1.85": {
+   "file": "units/ship.han.fireship_1.85.png",
+   "mask": null,
+   "meta": "units/ship.han.fireship_1.85.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 34,
+   "scale": 0.1196,
+   "bh": 34,
+   "dirs": 16,
+   "actor": "structures/han/fireship.xml"
+  },
+  "ship.celts.rowboat_1.2.barrels": {
+   "file": "units/ship.celts.rowboat_1.2.barrels.png",
+   "mask": "units/ship.celts.rowboat_1.2.barrels.m.png",
+   "meta": "units/ship.celts.rowboat_1.2.barrels.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.0,
+     "loop": true,
+     "i0": 0
+    }
+   },
+   "h": 19,
+   "scale": 0.1108,
+   "bh": 19,
+   "dirs": 16,
+   "actor": "structures/celts/rowboat.xml"
+  },
+  "ship.germans.ship_scout_1.55.barrels": {
+   "file": "units/ship.germans.ship_scout_1.55.barrels.png",
+   "mask": "units/ship.germans.ship_scout_1.55.barrels.m.png",
+   "meta": "units/ship.germans.ship_scout_1.55.barrels.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.417,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 24,
+   "scale": 0.0525,
+   "bh": 24,
+   "dirs": 16,
+   "actor": "structures/germans/ship_scout.xml"
+  },
+  "ship.han.towership_2.3.guns": {
+   "file": "units/ship.han.towership_2.3.guns.png",
+   "mask": "units/ship.han.towership_2.3.guns.m.png",
+   "meta": "units/ship.han.towership_2.3.guns.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.417,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 2.292,
+     "loop": true,
+     "i0": 16,
+     "stride": 0.0
+    }
+   },
+   "h": 82,
+   "scale": 0.0563,
+   "bh": 82,
+   "dirs": 16,
+   "actor": "structures/han/towership.xml"
+  },
+  "sheep": {
+   "file": "units/sheep.png",
+   "mask": "units/sheep.m.png",
+   "meta": "units/sheep.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 1.001,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.767,
+     "loop": true,
+     "i0": 160,
+     "stride": 4.68
+    },
+    "run": {
+     "n": 16,
+     "dur": 0.375,
+     "loop": true,
+     "i0": 480,
+     "stride": 15.96
+    },
+    "death": {
+     "n": 16,
+     "dur": 0.876,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 13,
+   "scale": 0.12,
+   "bh": 13,
+   "dirs": 16,
+   "actor": "fauna/sheep1.xml"
+  },
+  "deer": {
+   "file": "units/deer.png",
+   "mask": null,
+   "meta": "units/deer.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.033,
+     "loop": true,
+     "i0": 160,
+     "stride": 5.08
+    },
+    "run": {
+     "n": 16,
+     "dur": 1.467,
+     "loop": true,
+     "i0": 480,
+     "stride": 8.42
+    },
+    "death": {
+     "n": 16,
+     "dur": 0.433,
+     "loop": false,
+     "i0": 736
+    }
+   },
+   "h": 21,
+   "scale": 0.12,
+   "bh": 21,
+   "dirs": 16,
+   "actor": "fauna/deer.xml"
+  },
+  "boar": {
+   "file": "units/boar.png",
+   "mask": null,
+   "meta": "units/boar.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 0.375,
+     "loop": true,
+     "i0": 160,
+     "stride": 6.83
+    },
+    "run": {
+     "n": 16,
+     "dur": 0.542,
+     "loop": true,
+     "i0": 480,
+     "stride": 8.89
+    },
+    "attack": {
+     "n": 16,
+     "dur": 0.667,
+     "loop": true,
+     "i0": 736,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 0.667,
+     "loop": false,
+     "i0": 992
+    }
+   },
+   "h": 11,
+   "scale": 0.12,
+   "bh": 11,
+   "dirs": 16,
+   "actor": "fauna/boar.xml"
+  },
+  "wolf": {
+   "file": "units/wolf.png",
+   "mask": null,
+   "meta": "units/wolf.json",
+   "anims": {
+    "idle": {
+     "n": 10,
+     "dur": 11.267,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 20,
+     "dur": 1.967,
+     "loop": true,
+     "i0": 160,
+     "stride": 8.43
+    },
+    "run": {
+     "n": 16,
+     "dur": 0.8,
+     "loop": true,
+     "i0": 480,
+     "stride": 22.47
+    },
+    "attack": {
+     "n": 16,
+     "dur": 2.167,
+     "loop": true,
+     "i0": 736,
+     "event": 0.5
+    },
+    "death": {
+     "n": 16,
+     "dur": 0.933,
+     "loop": false,
+     "i0": 992
+    }
+   },
+   "h": 13,
+   "scale": 0.12,
+   "bh": 13,
+   "dirs": 16,
+   "actor": "fauna/wolf.xml"
+  },
+  "ram_capped": {
+   "file": "units/ram_capped.png",
+   "mask": "units/ram_capped.m.png",
+   "meta": "units/ram_capped.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.2,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 1.2,
+     "loop": true,
+     "i0": 16,
+     "stride": 16.59
+    },
+    "attack": {
+     "n": 16,
+     "dur": 1.2,
+     "loop": true,
+     "i0": 208,
+     "event": 0.3
+    }
+   },
+   "h": 39,
+   "scale": 0.114,
+   "bh": 39,
+   "dirs": 16,
+   "actor": "structures/celts/siege_ram.xml"
+  },
+  "ram_siege": {
+   "file": "units/ram_siege.png",
+   "mask": "units/ram_siege.m.png",
+   "meta": "units/ram_siege.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 16,
+     "stride": 12.5
+    },
+    "attack": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 208,
+     "event": 0.3
+    }
+   },
+   "h": 43,
+   "scale": 0.0954,
+   "bh": 43,
+   "dirs": 16,
+   "actor": "units/byzantines/siege_ram.xml"
+  },
+  "ram_log": {
+   "file": "units/ram_log.png",
+   "mask": "units/ram_log.m.png",
+   "meta": "units/ram_log.json",
+   "anims": {
+    "idle": {
+     "n": 1,
+     "dur": 0.417,
+     "loop": true,
+     "i0": 0
+    },
+    "walk": {
+     "n": 12,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 16,
+     "stride": 20.29
+    },
+    "attack": {
+     "n": 16,
+     "dur": 1.25,
+     "loop": true,
+     "i0": 208,
+     "event": 0.3
+    }
+   },
+   "h": 38,
+   "scale": 0.1306,
+   "bh": 38,
+   "dirs": 16,
+   "actor": "structures/germans/siege_ram.xml"
+  }
+ },
+ "units": {
+  "villager": {
+   "caro": "vil_m.caro",
+   "anglo": "vil_m.anglo",
+   "norse": "vil_m.norse",
+   "rus": "vil_m.rus",
+   "byz": "vil_m.byz",
+   "umay": "vil_m.umay",
+   "han": "vil_m.han"
+  },
+  "villager_f": {
+   "caro": "vil_f.caro",
+   "anglo": "vil_f.caro",
+   "norse": "vil_f.norse",
+   "rus": "vil_f.norse",
+   "byz": "vil_f.byzantines",
+   "umay": "vil_f.umayyads",
+   "han": "vil_f.han"
+  },
+  "monk": {
+   "caro": "monk.caro",
+   "anglo": "monk.caro",
+   "norse": "monk.caro",
+   "rus": "monk.rus",
+   "byz": "monk.byzantines",
+   "umay": "monk.umayyads",
+   "han": "monk.han"
+  },
+  "trade_cart": {
+   "caro": "trader.byz",
+   "anglo": "trader.byz",
+   "norse": "trader.byz",
+   "rus": "trader.byz",
+   "byz": "trader.byz",
+   "umay": "trader.umay",
+   "han": "trader.han"
+  },
+  "militia": {
+   "caro": "militia.caro",
+   "anglo": "militia.anglo",
+   "norse": "militia.norse",
+   "rus": "militia.rus",
+   "byz": "militia.byzantines",
+   "umay": "militia.umayyads",
+   "han": "militia.han"
+  },
+  "man_at_arms": {
+   "caro": "man_at_arms.caro",
+   "anglo": "man_at_arms.anglo",
+   "norse": "man_at_arms.norse",
+   "rus": "man_at_arms.rus",
+   "byz": "man_at_arms.byzantines",
+   "umay": "man_at_arms.umayyads",
+   "han": "man_at_arms.han"
+  },
+  "long_swordsman": {
+   "caro": "long_swordsman.caro",
+   "anglo": "long_swordsman.anglo",
+   "norse": "long_swordsman.norse",
+   "rus": "long_swordsman.norse",
+   "byz": "long_swordsman.byzantines",
+   "umay": "long_swordsman.umayyads",
+   "han": "long_swordsman.han"
+  },
+  "two_handed_swordsman": {
+   "caro": "two_handed_swordsman.caro",
+   "anglo": "two_handed_swordsman.anglo",
+   "norse": "two_handed_swordsman.norse",
+   "rus": "two_handed_swordsman.norse",
+   "byz": "two_handed_swordsman.byzantines",
+   "umay": "two_handed_swordsman.umayyads",
+   "han": "two_handed_swordsman.han"
+  },
+  "champion": {
+   "caro": "champion.caro",
+   "anglo": "champion.anglo",
+   "norse": "champion.norse",
+   "rus": "champion.norse",
+   "byz": "champion.byzantines",
+   "umay": "champion.umayyads",
+   "han": "champion.han"
+  },
+  "spearman": {
+   "caro": "spearman.caro",
+   "anglo": "spearman.anglo",
+   "norse": "spearman.norse",
+   "rus": "spearman.rus",
+   "byz": "spearman.byzantines",
+   "umay": "spearman.umayyads",
+   "han": "spearman.han"
+  },
+  "pikeman": {
+   "caro": "pikeman.caro",
+   "anglo": "pikeman.anglo",
+   "norse": "pikeman.norse",
+   "rus": "pikeman.rus",
+   "byz": "pikeman.byzantines",
+   "umay": "pikeman.umayyads",
+   "han": "pikeman.han"
+  },
+  "halberdier": {
+   "caro": "halberdier.caro",
+   "anglo": "halberdier.anglo",
+   "norse": "halberdier.norse",
+   "rus": "halberdier.rus",
+   "byz": "halberdier.byzantines",
+   "umay": "halberdier.umayyads",
+   "han": "halberdier.han"
+  },
+  "archer": {
+   "caro": "archer.caro",
+   "anglo": "archer.caro",
+   "norse": "archer.norse",
+   "rus": "archer.rus",
+   "byz": "archer.byzantines",
+   "umay": "archer.umayyads",
+   "han": "archer.han"
+  },
+  "crossbowman": {
+   "caro": "crossbowman.caro",
+   "anglo": "crossbowman.caro",
+   "norse": "crossbowman.norse",
+   "rus": "crossbowman.rus",
+   "byz": "crossbowman.byzantines",
+   "umay": "crossbowman.umayyads",
+   "han": "crossbowman.han"
+  },
+  "arbalester": {
+   "caro": "arbalester.caro",
+   "anglo": "arbalester.caro",
+   "norse": "arbalester.norse",
+   "rus": "arbalester.rus",
+   "byz": "arbalester.byzantines",
+   "umay": "arbalester.umayyads",
+   "han": "arbalester.han"
+  },
+  "skirmisher": {
+   "caro": "skirmisher.caro",
+   "anglo": "skirmisher.anglo",
+   "norse": "skirmisher.anglo",
+   "rus": "skirmisher.byzantines",
+   "byz": "skirmisher.byzantines",
+   "umay": "skirmisher.byzantines",
+   "han": "skirmisher.byzantines"
+  },
+  "elite_skirmisher": {
+   "caro": "elite_skirmisher.caro",
+   "anglo": "elite_skirmisher.anglo",
+   "norse": "elite_skirmisher.anglo",
+   "rus": "elite_skirmisher.byzantines",
+   "byz": "elite_skirmisher.byzantines",
+   "umay": "elite_skirmisher.byzantines",
+   "han": "elite_skirmisher.byzantines"
+  },
+  "scout": {
+   "caro": "scout.caro",
+   "anglo": "scout.anglo",
+   "norse": "scout.anglo",
+   "rus": "scout.rus",
+   "byz": "scout.byzantines",
+   "umay": "scout.umayyads",
+   "han": "scout.han"
+  },
+  "light_cavalry": {
+   "caro": "light_cavalry.caro",
+   "anglo": "light_cavalry.anglo",
+   "norse": "light_cavalry.anglo",
+   "rus": "light_cavalry.rus",
+   "byz": "light_cavalry.byzantines",
+   "umay": "light_cavalry.umayyads",
+   "han": "light_cavalry.han"
+  },
+  "hussar": {
+   "caro": "hussar.caro",
+   "anglo": "hussar.anglo",
+   "norse": "hussar.anglo",
+   "rus": "hussar.rus",
+   "byz": "hussar.byzantines",
+   "umay": "hussar.umayyads",
+   "han": "hussar.han"
+  },
+  "knight": {
+   "caro": "knight.caro",
+   "anglo": "knight.anglo",
+   "norse": "knight.anglo",
+   "rus": "knight.rus",
+   "byz": "knight.byzantines",
+   "umay": "knight.umayyads",
+   "han": "knight.han"
+  },
+  "cavalier": {
+   "caro": "cavalier.caro",
+   "anglo": "cavalier.anglo",
+   "norse": "cavalier.anglo",
+   "rus": "cavalier.rus",
+   "byz": "cavalier.byzantines",
+   "umay": "cavalier.umayyads",
+   "han": "cavalier.han"
+  },
+  "paladin": {
+   "caro": "paladin.caro",
+   "anglo": "paladin.anglo",
+   "norse": "paladin.anglo",
+   "rus": "paladin.rus",
+   "byz": "paladin.byzantines",
+   "umay": "paladin.umayyads",
+   "han": "paladin.han"
+  },
+  "cavalry_archer": {
+   "caro": "cavalry_archer.caro",
+   "anglo": "cavalry_archer.caro",
+   "norse": "cavalry_archer.caro",
+   "rus": "cavalry_archer.rus",
+   "byz": "cavalry_archer.byzantines",
+   "umay": "cavalry_archer.umayyads",
+   "han": "cavalry_archer.han"
+  },
+  "heavy_cavalry_archer": {
+   "caro": "heavy_cavalry_archer.caro",
+   "anglo": "heavy_cavalry_archer.caro",
+   "norse": "heavy_cavalry_archer.caro",
+   "rus": "heavy_cavalry_archer.rus",
+   "byz": "heavy_cavalry_archer.byzantines",
+   "umay": "heavy_cavalry_archer.umayyads",
+   "han": "heavy_cavalry_archer.han"
+  },
+  "hand_cannoneer": {
+   "*": "gun"
+  },
+  "camel_rider": {
+   "*": "camel"
+  },
+  "heavy_camel_rider": {
+   "*": "camel_h"
+  },
+  "ram": {
+   "*": "ram_log"
+  },
+  "capped_ram": {
+   "*": "ram_capped"
+  },
+  "siege_ram": {
+   "*": "ram_siege"
+  },
+  "mangonel": {
+   "*": "mangonel",
+   "han": "onager_han"
+  },
+  "onager": {
+   "*": "onager",
+   "han": "onager_han"
+  },
+  "siege_onager": {
+   "*": "onager_s",
+   "han": "onager_han_s"
+  },
+  "scorpion": {
+   "*": "scorpio"
+  },
+  "heavy_scorpion": {
+   "*": "ballista"
+  },
+  "bombard_cannon": {
+   "*": "bombard"
+  },
+  "trebuchet": {
+   "*": "treb_packed"
+  },
+  "trebuchet_up": {
+   "*": "treb_up"
+  },
+  "throwing_axeman": {
+   "*": "axe_thrower"
+  },
+  "elite_throwing_axeman": {
+   "*": "axe_thrower_e"
+  },
+  "longbowman": {
+   "*": "longbow"
+  },
+  "elite_longbowman": {
+   "*": "longbow_e"
+  },
+  "mangudai": {
+   "*": "mangudai"
+  },
+  "elite_mangudai": {
+   "*": "mangudai_e"
+  },
+  "cataphract": {
+   "*": "cataphract"
+  },
+  "elite_cataphract": {
+   "*": "cataphract_e"
+  },
+  "teutonic_knight": {
+   "*": "teuton"
+  },
+  "elite_teutonic_knight": {
+   "*": "teuton_e"
+  },
+  "samurai": {
+   "*": "samurai"
+  },
+  "elite_samurai": {
+   "*": "samurai_e"
+  },
+  "chu_ko_nu": {
+   "*": "chukonu"
+  },
+  "elite_chu_ko_nu": {
+   "*": "chukonu_e"
+  },
+  "war_elephant": {
+   "*": "elephant"
+  },
+  "elite_war_elephant": {
+   "*": "elephant_e"
+  },
+  "mameluke": {
+   "*": "mameluke"
+  },
+  "elite_mameluke": {
+   "*": "mameluke_e"
+  },
+  "janissary": {
+   "*": "janissary"
+  },
+  "elite_janissary": {
+   "*": "janissary_e"
+  },
+  "berserk": {
+   "*": "berserk"
+  },
+  "elite_berserk": {
+   "*": "berserk_e"
+  },
+  "huskarl": {
+   "*": "huskarl"
+  },
+  "elite_huskarl": {
+   "*": "huskarl_e"
+  },
+  "woad_raider": {
+   "*": "woad"
+  },
+  "elite_woad_raider": {
+   "*": "woad_e"
+  },
+  "conquistador": {
+   "*": "conquistador"
+  },
+  "elite_conquistador": {
+   "*": "conquistador_e"
+  },
+  "fishing_ship": {
+   "caro": "ship.byzantines.fishing_boat_1.25.lateen",
+   "anglo": "ship.byzantines.fishing_boat_1.25.lateen",
+   "norse": "ship.byzantines.fishing_boat_1.25.lateen",
+   "rus": "ship.byzantines.fishing_boat_1.25.lateen",
+   "byz": "ship.byzantines.fishing_boat_1.25.lateen",
+   "umay": "ship.byzantines.fishing_boat_1.25.lateen",
+   "han": "ship.han.fishing_ship_1.25"
+  },
+  "transport_ship": {
+   "caro": "ship.norse.knarr.tent",
+   "anglo": "ship.norse.knarr.tent",
+   "norse": "ship.norse.knarr.tent",
+   "rus": "ship.norse.knarr.tent",
+   "byz": "ship.norse.knarr.tent",
+   "umay": "ship.norse.knarr.tent",
+   "han": "ship.han.merchant_ship"
+  },
+  "galley": {
+   "caro": "ship.byzantines.warship_light_1.9",
+   "anglo": "ship.byzantines.warship_light_1.9",
+   "norse": "ship.byzantines.warship_light_1.9",
+   "rus": "ship.byzantines.warship_light_1.9",
+   "byz": "ship.byzantines.warship_light_1.9",
+   "umay": "ship.byzantines.warship_light_1.9",
+   "han": "ship.han.trireme_1.9"
+  },
+  "war_galley": {
+   "caro": "ship.byzantines.dromon_warship_2.15",
+   "anglo": "ship.byzantines.dromon_warship_2.15",
+   "norse": "ship.byzantines.dromon_warship_2.15",
+   "rus": "ship.byzantines.dromon_warship_2.15",
+   "byz": "ship.byzantines.dromon_warship_2.15",
+   "umay": "ship.byzantines.dromon_warship_2.15",
+   "han": "ship.han.trireme_2.15"
+  },
+  "galleon": {
+   "caro": "ship.byzantines.merchant_ship_2.4.galleon",
+   "anglo": "ship.byzantines.merchant_ship_2.4.galleon",
+   "norse": "ship.byzantines.merchant_ship_2.4.galleon",
+   "rus": "ship.byzantines.merchant_ship_2.4.galleon",
+   "byz": "ship.byzantines.merchant_ship_2.4.galleon",
+   "umay": "ship.byzantines.merchant_ship_2.4.galleon",
+   "han": "ship.han.towership_2.4"
+  },
+  "fire_galley": {
+   "caro": "ship.iberians.fireship_1.85.siphon",
+   "anglo": "ship.iberians.fireship_1.85.siphon",
+   "norse": "ship.iberians.fireship_1.85.siphon",
+   "rus": "ship.iberians.fireship_1.85.siphon",
+   "byz": "ship.iberians.fireship_1.85.siphon",
+   "umay": "ship.iberians.fireship_1.85.siphon",
+   "han": "ship.han.fireship_1.85"
+  },
+  "demolition_ship": {
+   "caro": "ship.celts.rowboat_1.2.barrels",
+   "anglo": "ship.celts.rowboat_1.2.barrels",
+   "norse": "ship.celts.rowboat_1.2.barrels",
+   "rus": "ship.celts.rowboat_1.2.barrels",
+   "byz": "ship.celts.rowboat_1.2.barrels",
+   "umay": "ship.celts.rowboat_1.2.barrels",
+   "han": "ship.celts.rowboat_1.2.barrels"
+  },
+  "heavy_demolition_ship": {
+   "caro": "ship.germans.ship_scout_1.55.barrels",
+   "anglo": "ship.germans.ship_scout_1.55.barrels",
+   "norse": "ship.germans.ship_scout_1.55.barrels",
+   "rus": "ship.germans.ship_scout_1.55.barrels",
+   "byz": "ship.germans.ship_scout_1.55.barrels",
+   "umay": "ship.germans.ship_scout_1.55.barrels",
+   "han": "ship.germans.ship_scout_1.55.barrels"
+  },
+  "cannon_galleon": {
+   "caro": "ship.han.towership_2.3.guns",
+   "anglo": "ship.han.towership_2.3.guns",
+   "norse": "ship.han.towership_2.3.guns",
+   "rus": "ship.han.towership_2.3.guns",
+   "byz": "ship.han.towership_2.3.guns",
+   "umay": "ship.han.towership_2.3.guns",
+   "han": "ship.han.towership_2.3.guns"
+  },
+  "fire_ship": {
+   "caro": "ship.iberians.fireship_1.85.siphon",
+   "anglo": "ship.iberians.fireship_1.85.siphon",
+   "norse": "ship.iberians.fireship_1.85.siphon",
+   "rus": "ship.iberians.fireship_1.85.siphon",
+   "byz": "ship.iberians.fireship_1.85.siphon",
+   "umay": "ship.iberians.fireship_1.85.siphon",
+   "han": "ship.han.fireship_1.85"
+  },
+  "fast_fire_ship": {
+   "caro": "ship.iberians.fireship_1.85.siphon",
+   "anglo": "ship.iberians.fireship_1.85.siphon",
+   "norse": "ship.iberians.fireship_1.85.siphon",
+   "rus": "ship.iberians.fireship_1.85.siphon",
+   "byz": "ship.iberians.fireship_1.85.siphon",
+   "umay": "ship.iberians.fireship_1.85.siphon",
+   "han": "ship.han.fireship_1.85"
+  },
+  "animal_sheep": {
+   "*": "sheep"
+  },
+  "animal_deer": {
+   "*": "deer"
+  },
+  "animal_boar": {
+   "*": "boar"
+  },
+  "animal_wolf": {
+   "*": "wolf"
+  }
+ }
+}
