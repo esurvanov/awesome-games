@@ -75,3 +75,10 @@ Scene-pass GPU time, same view, alternating (`terrain-shots --cost`): terrain mo
 - Trails live only inside the 128 m window around the pilot.
 - Objects placed on `groundH` sit 0.1–0.2 m into the snow (intended soft seam); floating / steep-slope ruins are the structures agent's (use `slopeAt`).
 - Texture units: rings 13 + shadow + env = 15 of 16.
+
+## FIX-LOOK (2026-09-26)
+
+- Snow albedo near-neutral (tint `.97 .985 1.`, flat `.55 .57 .6`): the blue now comes from the sky light, lit snow B/R 1.2–1.3, shadows bluer.
+- Wind-crust normals ×1.8 (crisper sastrugi shading).
+- Steep ground: macro noise normal (37 m scale) (gullies / ribs on the 3.5 m far mesh, zero on flat ground so rings and far mesh still meet); the rock-with-snow layer is triplanar below `up .88` (no stretched top-down projection on 20–45° slopes).
+- Not done: extra far-mesh geometry (a finer mesh needs a per-vertex fade toward the ring seam — `(fine − coarse) × smoothstep(ringR, ringR + 60, dist)` — left for a later pass).

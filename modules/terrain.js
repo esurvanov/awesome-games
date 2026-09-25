@@ -153,10 +153,25 @@
       c = mix(ca, cb, b); n = mix(textureGrad(tn, uv + oa, dx, dy).rgb, textureGrad(tn, uv + ob, dx, dy).rgb, b);
     }
     vec2 trNrmXY(vec3 n){ return n.xy * 2. - 1.; }
+    // triplanar (FIX-LOOK): steep faces sample the side planes instead of a stretched top-down projection
+    void trTri(sampler2D td, sampler2D tn, vec3 P, vec3 gN, vec3 dPx, vec3 dPy, float sc, out vec3 c, out vec3 hn, out float r){
+      vec3 bw = pow(abs(gN), vec3(4.)); bw /= dot(bw, vec3(1.)); vec3 pc = P * sc, gx = dPx * sc, gy = dPy * sc;
+      c = vec3(0.); hn = vec3(0.); r = 0.;
+      if (bw.x > .02) { vec3 t = textureGrad(tn, pc.zy, gx.zy, gy.zy).rgb; c += textureGrad(td, pc.zy, gx.zy, gy.zy).rgb * bw.x; r += t.z * bw.x; vec2 n = t.xy * 2. - 1.; hn += vec3(0., n.y, n.x) * bw.x; }
+      if (bw.y > .02) { vec3 t = textureGrad(tn, pc.xz, gx.xz, gy.xz).rgb; c += textureGrad(td, pc.xz, gx.xz, gy.xz).rgb * bw.y; r += t.z * bw.y; vec2 n = t.xy * 2. - 1.; hn += vec3(n.x, 0., n.y) * bw.y; }
+      if (bw.z > .02) { vec3 t = textureGrad(tn, pc.xy, gx.xy, gy.xy).rgb; c += textureGrad(td, pc.xy, gx.xy, gy.xy).rgb * bw.z; r += t.z * bw.z; vec2 n = t.xy * 2. - 1.; hn += vec3(n.x, n.y, 0.) * bw.z; }
+    }
     ${GLSL_MS}
   `;
   const GLSL_FRAG_MAT = /* glsl */`
-    vec3 P = vW; vec3 gN = normalize(vN); float up = gN.y;
+    vec3 P = vW; vec3 gN = normalize(vN);
+    { // macro relief on steep ground (FIX-LOOK, h04/h05 couloirs): noise gradient bends the normal where the 3.5 m
+      // far mesh has no geometry for gullies/ribs; zero on flat snow, so the rings and the far mesh still meet exactly
+      float st = smoothstep(.93, .6, gN.y); if (st > .01) { vec2 q = P.xz * (1. / 37.); float e = .04;
+        float h0 = texture(tNz, q).r, hx = texture(tNz, q + vec2(e, 0.)).r, hz = texture(tNz, q + vec2(0., e)).r;
+        vec2 g = vec2(hx - h0, hz - h0) / e;
+        gN = normalize(gN + vec3(g.x, 0., g.y) * .3 * st); } }
+    float up = gN.y;
     vec3 dPx = dFdx(P), dPy = dFdy(P);
     float trDist = length(vViewPosition);
     vec4 nzA = texture(tNz, P.xz * (1. / 260.)), nzB = texture(tNz, P.xz * (1. / 47.) + .37);
@@ -187,7 +202,7 @@
     vec3 nS3 = vec3(0.), nR3 = vec3(0.), nC3 = vec3(0.), nG3 = vec3(0.);
     float rS = .8, rR = .9, rC = .9, rG = .9;
     vec2 wd = uWind, wp = vec2(-wd.y, wd.x);
-    vec3 snowFlat = vec3(.52, .56, .64) * (.9 + .2 * nzA.g);
+    vec3 snowFlat = vec3(.55, .57, .6) * (.9 + .2 * nzA.g);
     {
       float mF = smoothstep(.04, .16, depth + (nzA.b - .5) * .22);   // deep = fresh powder, thin/exposed = wind-packed crust
       vec3 cF = vec3(.6), cW = vec3(.6), tF = vec3(.5, .5, .8), tW = vec3(.5, .5, .8);
@@ -196,14 +211,17 @@
       if (mF < .99) trMS(tSWd, tSWn, vec2(dot(P.xz, wp), dot(P.xz, wd)) * (1. / 4.2), nzB.b, 0., cW, tW);
       vec2 nF = trNrmXY(tF), nW = trNrmXY(tW);
       vec2 hW = wp * nW.x + wd * nW.y;
-      cS = mix(cW * vec3(.97, .99, 1.03), cF, mF) * vec3(.93, .96, 1.03) * (.88 + .24 * nzA.g);
-      nS3 = vec3(mix(hW.x * .22, nF.x * .5, mF), 0., mix(hW.y * .22, nF.y * .5, mF));
+      cS = mix(cW * vec3(.98, .99, 1.01), cF, mF) * vec3(.97, .985, 1.) * (.88 + .24 * nzA.g);   // near-neutral albedo: the blue comes from the sky light (FIX-LOOK)
+      nS3 = vec3(mix(hW.x * .4, nF.x * .8, mF), 0., mix(hW.y * .4, nF.y * .8, mF));   // FIX-LOOK: crisper wind-crust relief (lit/shadow contrast)
       rS = mix(tW.z, tF.z, mF);
       snowFlat = cS;
       cS = cS * mix(vec3(1.), vec3(.46, .55, .78), press) * (1. + rim * .12) * (1. - min(length(dN.xz), 1.) * .4);
       rS = mix(rS, .45, press);
     }
-    if (wR > .003) { vec3 t; trNT(tRSd, tRSn, P.xz / 11., dPx.xz / 11., dPy.xz / 11., nzA.a, cR, t); vec2 n = trNrmXY(t); nR3 = vec3(n.x, 0., n.y) * .8; rR = t.z; cR *= vec3(.86, .9, 1.); }
+    if (wR > .003) {
+      if (up > .88) { vec3 t; trNT(tRSd, tRSn, P.xz / 11., dPx.xz / 11., dPy.xz / 11., nzA.a, cR, t); vec2 n = trNrmXY(t); nR3 = vec3(n.x, 0., n.y) * .8; rR = t.z; }
+      else { vec3 hn; trTri(tRSd, tRSn, P, gN, dPx, dPy, 1. / 11., cR, hn, rR); nR3 = hn * .8; }
+      cR *= vec3(.86, .9, 1.); }
     if (wG > .003) { vec3 t; trNT(tGRd, tRSn, P.xz / 2.6, dPx.xz / 2.6, dPy.xz / 2.6, nzB.r, cG, t); vec2 n = trNrmXY(t); nG3 = vec3(n.x, 0., n.y) * .8; rG = .75 + t.z * .25; cG *= vec3(.88, .92, 1.); }
     if (wC > .003) {
       vec3 bw = pow(abs(gN), vec3(4.)); bw /= dot(bw, vec3(1.)); const float sc = 1. / 7.5; vec3 pc = P * sc, gx = dPx * sc, gy = dPy * sc;
@@ -770,7 +788,7 @@
           if (uScP.z > 0.) { float gy = scGround(vScW.xz); scSk = 1. - smoothstep(0., uScP.z, vScW.y - gy + (scNz - .5) * uScP.z * .9); }
           float sc = clamp(max(scTop, scSk), 0., 1.);
           if (sc > .002) {
-            vec3 sAlb = textureGrad(tScD, suv, sdx, sdy).rgb * vec3(.93, .96, 1.03);
+            vec3 sAlb = textureGrad(tScD, suv, sdx, sdy).rgb * vec3(.97, .985, 1.);
             vec3 sN = textureGrad(tScN, suv, sdx, sdy).rgb;
             diffuseColor.rgb = mix(diffuseColor.rgb, sAlb, sc);
             #ifdef STANDARD
@@ -830,7 +848,7 @@
     vec3 cS = vec3(.7), tS = vec3(.5, .5, .8);
     vec2 wq = vec2(-uWind.y, uWind.x);
     trMS(tSnD, tSnN, vec2(dot(P.xz, wq), dot(P.xz, uWind)) / 4.2, nz.a, 0., cS, tS);
-    cS *= vec3(.93, .96, 1.03) * (1. + ridge * .08);
+    cS *= vec3(.97, .985, 1.) * (1. + ridge * .08);
     vec3 iAlb = mix(ice, cS, snowCov);
     float iRough = mix(.06 + tI.z * .35, tS.z, snowCov);
     vec2 nI = tI.xy * 2. - 1., nS = tS.xy * 2. - 1.;
