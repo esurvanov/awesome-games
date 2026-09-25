@@ -1,17 +1,17 @@
-# assets/gen/maps — производные материалы 0 A.D.
+# assets/gen/maps - derivative materials of 0 A.D.
 
-Файлы `terrain/`, `trees/`, `animals/` (и их записи в `maps.json`) получены из моделей и
-текстур игры **0 A.D.** © Wildfire Games (<https://play0ad.com/>) и распространяются под
-лицензией **CC BY-SA 3.0** (<https://creativecommons.org/licenses/by-sa/3.0/>).
+The files in `terrain/`, `trees/`, `animals/` (and their entries in `maps.json`) are derived from the models and
+textures of the game **0 A.D.** (c) Wildfire Games (<https://play0ad.com/>) and are distributed under the
+**CC BY-SA 3.0** license (<https://creativecommons.org/licenses/by-sa/3.0/>).
 
-Что здесь: плитки земли пейзажей карт (пустыня, степь, снега, тропики, осень), деревья этих
-пейзажей, волк (8 направлений).
+What is here: ground tiles for map landscapes (desert, steppe, snow, tropics, autumn), the trees of these
+landscapes, a wolf (8 directions).
 
-Материал изменён: текстуры приведены к изометрической плитке, смягчён контраст и подогнан
-средний цвет; модели отрендерены в изометрические спрайты (ортографическая камера 30°, новое
-освещение и тени), тон листвы сдвинут.
+The material was modified: textures brought to an isometric tile, contrast softened and the
+average color adjusted; models rendered into isometric sprites (orthographic camera at 30 degrees, new
+lighting and shadows), foliage tone shifted.
 
-`relic.png` — собственный рисунок скрипта (без чужой графики).
+`relic.png` is drawn by our own script (no third-party graphics).
 
-Пересборка: `.venv/bin/python tools/build_map_assets.py` (нужны сырые ассеты
-`assets/0ad_raw/`, см. `tools/fetch_0ad.py`). Полные титры — `CREDITS.md`.
+Rebuild: `.venv/bin/python tools/build_map_assets.py` (needs the raw assets
+`assets/0ad_raw/`, see `tools/fetch_0ad.py`). Full credits - `CREDITS.md`.

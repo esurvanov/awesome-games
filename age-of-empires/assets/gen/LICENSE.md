@@ -1,40 +1,40 @@
-# assets/gen — производные материалы 0 A.D. и Millennium A.D.
+# assets/gen - derivative materials of 0 A.D. and Millennium A.D.
 
-Все файлы в этой папке получены из 3D-моделей, анимаций и текстур:
+All files in this folder are derived from the 3D models, animations and textures of:
 
-- игры **0 A.D.** © Wildfire Games (<https://play0ad.com/>), лицензия **CC BY-SA 3.0**;
-- мода **Millennium A.D.** (<https://github.com/0ADMods/millenniumad>), графика (`art/`) ©
+- the game **0 A.D.** (c) Wildfire Games (<https://play0ad.com/>), license **CC BY-SA 3.0**;
+- the **Millennium A.D.** mod (<https://github.com/0ADMods/millenniumad>), graphics (`art/`) (c)
   2015 The Council of Modders, Fallen Empire Studio, Scion Development
-  (<http://www.wildfiregames.com/>), лицензия **CC BY-SA 3.0** (файл `art/license.txt` мода).
+  (<http://www.wildfiregames.com/>), license **CC BY-SA 3.0** (the mod's `art/license.txt`).
 
-Лицензия: <https://creativecommons.org/licenses/by-sa/3.0/>. Файлы распространяются под той же
-лицензией CC BY-SA 3.0. Кода мода (GPL-2.0) и его музыки здесь нет.
+License: <https://creativecommons.org/licenses/by-sa/3.0/>. The files are distributed under the same
+CC BY-SA 3.0 license. The mod's code (GPL-2.0) and its music are not here.
 
-Материал изменён: модели отрендерены в изометрические спрайты (ортографическая
-камера 30°, новое освещение и тени, уменьшение), добавлена маска цвета игрока,
-текстуры земли спроецированы в изометрические плитки; здания и стены собраны из
-деталей разных наборов, доки отрендерены в четырёх поворотах, стадии стройки —
-из фундаментов и лесов 0 A.D.
+The material was modified: models rendered into isometric sprites (orthographic
+camera at 30 degrees, new lighting and shadows, downscaling), a player-color mask added,
+ground textures projected into isometric tiles; buildings and walls assembled from
+parts of different sets, docks rendered in four rotations, construction stages made
+from 0 A.D. foundations and scaffolding.
 
-Юниты (`units/`): скелетные анимации просчитаны в кадры (ходьба, работа, атака,
-смерть, 8 направлений), модели собраны из частей, отражены по горизонтали,
-палитра сокращена до 256 цветов. Пересборка: `.venv/bin/python tools/build_units.py`.
+Units (`units/`): skeletal animations baked into frames (walking, working, attacking,
+dying, 8 directions), models assembled from parts, mirrored horizontally,
+the palette reduced to 256 colors. Rebuild: `.venv/bin/python tools/build_units.py`.
 
-Ранги юнитов (ополченец → чемпион, конный разведчик → гусар, рыцарь → паладин и т. д.) собраны
-из вариантов, шлемов, щитов, текстур доспехов и конской брони/попон 0 A.D. и Millennium A.D.
-Огнестрел (аркебуза, ручная пушка, пороховница), алебарда, бомбарда на лафете и пушки по бортам
-галеона — процедурные модели (`tools/render3d/procmesh.py`) с текстурами, вырезанными из атласа
-оружия 0 A.D. (`art/textures/skins/props/prop_weap.dds`, CC BY-SA 3.0, © Wildfire Games).
-Одежда тел перекрашена (табарды, сюрко, фартуки, стола, халаты «цвет игрока + белый»,
-`tools/render3d/paint.py`), гербы каплевидных щитов нарисованы поверх `kite_chiro_white.png`
-Millennium A.D.; процедурные двуручный меч, катана, шлемы (шапель, ведёрный, кабуто, морион),
-плюмаж, голова тарана, брусья цвета игрока, косой парус, тент, надстройки галеона, бочки и сифон —
-производные работы по CC BY-SA 3.0 (подробно — CREDITS.md).
+Unit ranks (militia -> champion, mounted scout -> hussar, knight -> paladin, etc.) are assembled
+from variants, helmets, shields, armor textures and horse armor/blankets of 0 A.D. and Millennium A.D.
+Firearms (arquebus, hand cannon, powder keg), the halberd, a bombard on a carriage and the cannons on a galleon's sides
+are procedural models (`tools/render3d/procmesh.py`) with textures cut from the 0 A.D. weapons
+atlas (`art/textures/skins/props/prop_weap.dds`, CC BY-SA 3.0, (c) Wildfire Games).
+The clothing of bodies is recolored (tabards, surcoats, aprons, stoles, robes in "player color + white",
+`tools/render3d/paint.py`), the crests of the kite shields are drawn over Millennium A.D.'s `kite_chiro_white.png`;
+the procedural two-handed sword, katana, helmets (chapel de fer, bucket, kabuto, morion),
+plume, ram head, player-color beams, lateen sail, awning, galleon superstructures, barrels and siphon are
+derivative works under CC BY-SA 3.0 (details - CREDITS.md).
 
-Какая модель откуда — поле `actor` в `atlas.json` и `units/index.json`
-(`units/<набор>.json` не хранит путей; актор — в индексе). Акторы из папок `carolingian`,
-`caro`, `anglo`, `norse`, `rus`, `byzantines`, `umayyads` — из Millennium A.D., остальные — из 0 A.D.
+Which model comes from where - the `actor` field in `atlas.json` and `units/index.json`
+(`units/<set>.json` does not store paths; the actor is in the index). Actors from the folders `carolingian`,
+`caro`, `anglo`, `norse`, `rus`, `byzantines`, `umayyads` come from Millennium A.D., the rest from 0 A.D.
 
-Пересборка: `.venv/bin/python tools/build_sprites.py` (нужны сырые ассеты
-`assets/0ad_raw/` и `assets/millenniumad_raw/`, см. `tools/fetch_0ad.py`,
-`tools/fetch_millennium.py`). Полные титры — `CREDITS.md`, сводка лицензий — `docs/licensing.md`.
+Rebuild: `.venv/bin/python tools/build_sprites.py` (needs the raw assets
+`assets/0ad_raw/` and `assets/millenniumad_raw/`, see `tools/fetch_0ad.py`,
+`tools/fetch_millennium.py`). Full credits - `CREDITS.md`, license summary - `docs/licensing.md`.

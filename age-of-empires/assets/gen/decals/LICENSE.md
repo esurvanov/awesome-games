@@ -1,17 +1,17 @@
-# assets/gen/decals — производные материалы 0 A.D.
+# assets/gen/decals - derivative materials of 0 A.D.
 
-Все файлы этой папки (и индекс `assets/gen/nature_extra.json`) получены из моделей,
-анимаций и текстур игры **0 A.D.** © Wildfire Games (<https://play0ad.com/>) и
-распространяются под лицензией **CC BY-SA 3.0**
+All files in this folder (and the index `assets/gen/nature_extra.json`) are derived from the models,
+animations and textures of the game **0 A.D.** (c) Wildfire Games (<https://play0ad.com/>) and
+are distributed under the **CC BY-SA 3.0** license
 (<https://creativecommons.org/licenses/by-sa/3.0/>).
 
-Что здесь: рыба, туши зверей по стадиям разделки, пни, развалины, снаряды,
-огонь, дым, взрыв, круги на воде.
+What is here: fish, animal carcasses at butchering stages, stumps, ruins, projectiles,
+fire, smoke, explosion, water rings.
 
-Материал изменён: модели отрендерены в изометрические спрайты (ортографическая
-камера 30°, новое освещение и тени, уменьшение), цвет смешан с толщей воды /
-кровью / мясом, снаряды обведены контуром; частицы (`art/textures/particles`)
-просчитаны офлайн в зацикленные кадры.
+The material was modified: models rendered into isometric sprites (orthographic
+camera at 30 degrees, new lighting and shadows, downscaling), color blended with water depth /
+blood / meat, projectiles outlined; particles (`art/textures/particles`)
+baked offline into looped frames.
 
-Пересборка: `.venv/bin/python tools/build_decals.py` (нужны сырые ассеты
-`assets/0ad_raw/`, см. `tools/fetch_0ad.py`). Полные титры — `CREDITS.md`.
+Rebuild: `.venv/bin/python tools/build_decals.py` (needs the raw assets
+`assets/0ad_raw/`, see `tools/fetch_0ad.py`). Full credits - `CREDITS.md`.
