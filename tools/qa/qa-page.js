@@ -420,7 +420,10 @@ void main() {
     return { roleOf(o) { for (let p = o; p; p = p.parent) if (byObj.has(p)) return byObj.get(p); const s = byName[o.name]; return s ? [...s].join('+') : null; } };
   };
   QA.drawables = (filter) => { const a = []; D.scene.traverse((o) => { if ((o.isMesh || o.isInstancedMesh || o.isBatchedMesh || o.isSkinnedMesh) && QA.visibleChain(o) && (!filter || filter(o))) a.push(o); }); return a; };
-  QA.label = (o) => { const path = []; for (let p = o; p && p !== D.scene && path.length < 4; p = p.parent) path.unshift(p.name || p.type); return path.join('/'); };
+  // readable name: own name, else the Passport entry that registered it (or an ancestor), else the type
+  let ppName = null;
+  const passName = (o) => { if (!ppName) { ppName = new Map(); for (const e of D.Passport.list) if (e.obj) ppName.set(e.obj, e.name); } for (let p = o; p; p = p.parent) if (ppName.has(p)) return ppName.get(p); return null; };
+  QA.label = (o) => { const path = []; for (let p = o; p && p !== D.scene && path.length < 4; p = p.parent) path.unshift(p.name || p.type); const s = path.join('/'); if (o.name) return s; const pn = passName(o); return pn ? pn + ':' + s : s; };
 
   /* ------------------------------------------------------------------ per-view checks */
   QA.viewChecks = async (o = {}) => {
