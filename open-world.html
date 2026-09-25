@@ -2641,6 +2641,91 @@ function updateInteract() {
     if (pressed.has('KeyE')) { pressed.delete('KeyE'); if (AV.player && !G.riding && curInter.act !== mount && !curInter.noAnim) AV.player.once('interact', 0.7); curInter.act(); }
   } else promptEl.hidden = true;
 }
+/* ---------- camera lens: out of tree crowns, off walls, never behind a trunk ---------- */
+// Crowns are not colliders: each species' crown is measured once from its drawn geometry (radius per height band,
+// 85th percentile), and the boom is shortened (smoothly) before the lens enters one. Solid walls and trunks cut the boom
+// instantly. Every 0.1 s the view is probed with 15 rays; when > 20 % of it would sit within 1.2 m (or > 30 % within 3 m)
+// of geometry, the camera swings (yaw ± up to 1.2 rad, or the other shoulder) to the nearest clear framing.
+const CAMX = { prof: [], near: [], nearT: 0, evalT: 0, yawGoal: 0, side: 1, sideK: 1, pen: 0 };
+function crownProfile(v) {
+  if (CAMX.prof[v] !== undefined) return CAMX.prof[v];
+  const VG = window.VEG; if (!VG || !VG._ || !VG._.F || !VG._.F.groups.length) return null;
+  const t = VG.trees.find((q) => q.v === v && VG._.F.groups.some((G) => G.inst.has(q))); if (!t) return null;
+  const N = 12, bins = Array.from({ length: N }, () => []), pts = []; let H = 0;
+  for (const G of VG._.F.groups) {
+    const ids = G.inst.get(t); if (!ids) continue; const b = G.b, pos = b.geometry.attributes.position;
+    for (const id of ids) {
+      const gi = b.getGeometryIdAt ? b.getGeometryIdAt(id) : b._instanceInfo[id].geometryIndex, rg = b.getGeometryRangeAt(gi);
+      for (let k = rg.vertexStart; k < rg.vertexStart + rg.vertexCount; k += 2) { const y = pos.getY(k); pts.push(Math.hypot(pos.getX(k), pos.getZ(k)), y); if (y > H) H = y; }
+    }
+  }
+  if (!pts.length || !(H > 0.5)) return (CAMX.prof[v] = null);
+  for (let i = 0; i < pts.length; i += 2) bins[Math.min(N - 1, Math.max(0, Math.floor(pts[i + 1] / H * N)))].push(pts[i]);
+  const R = new Float32Array(N); bins.forEach((a, i) => { if (a.length) { a.sort((x, y) => x - y); R[i] = a[Math.floor(a.length * 0.85)]; } });
+  return (CAMX.prof[v] = { H, R, N });
+}
+function camTreesNear(x, z) {
+  const VG = window.VEG; CAMX.near.length = 0;
+  const list = VG && VG.treesNear ? VG.treesNear(x, z, 16) : FOREST.list.filter((t) => (t[0] - x) ** 2 + (t[2] - z) ** 2 < 256);
+  for (const t of list) { if (t.v === undefined) continue; const pr = crownProfile(t.v); if (pr) CAMX.near.push([t, pr]); }
+}
+function inCrown(x, y, z, pad) {
+  for (const [t, pr] of CAMX.near) {
+    const sc = t.s || 1, hy = (y - (t.y !== undefined ? t.y : t[1])) / sc; if (hy < pr.H * 0.08 || hy >= pr.H) continue;
+    const r = pr.R[Math.floor(hy / pr.H * pr.N)] * sc + pad; if ((x - t[0]) ** 2 + (z - t[2]) ** 2 < r * r) return true;
+  }
+  return false;
+}
+function crownRay(o, dx, dy, dz, len, pad = 0) {   // distance to the first crown along a ray (len if none)
+  if (!CAMX.near.length) return len;
+  for (let d = 0.15; d < len; d += 0.15) if (inCrown(o.x + dx * d, o.y + dy * d, o.z + dz * d, pad)) return d;
+  return len;
+}
+// boom length allowed from `from` along (bx, by, bz): solids + trunks (hard), crowns (soft, with a margin)
+function camBoom(from, bx, by, bz, dist) {
+  let hard = dist, soft = dist;
+  if (PH.ok) {
+    const G = PH.P.groups, h = PH.P.sphereCast(from, { x: bx, y: by, z: bz }, dist, 0.28, { groups: G.STATIC }); if (h) hard = Math.max(0.3, h.distance - 0.05);
+    const t = PH.P.sphereCast(from, { x: bx, y: by, z: bz }, hard, 0.16, { groups: G.TRUNK }); if (t) hard = Math.max(0.3, Math.min(hard, t.distance - 0.1));
+  }
+  const c = crownRay(from, bx, by, bz, hard + 0.5, 0.35); if (c < hard + 0.5) soft = Math.max(0.3, c - 0.5);
+  return { hard, soft: Math.min(soft, hard) };
+}
+// share of a 5 × 3 ray fan inside the view that hits geometry within 1.2 m / 3 m → penalty (≥ 1 = the QA view limit)
+const _cf = new V3(), _cr = new V3(), _cu = new V3(), _cd = new V3(), UPV = new V3(0, 1, 0);
+function camCover(c, look) {
+  _cf.subVectors(look, c).normalize(); _cr.crossVectors(_cf, UPV).normalize(); _cu.crossVectors(_cr, _cf);
+  const tv = Math.tan(camera.fov * Math.PI / 360), th = tv * camera.aspect; let n1 = 0, n3 = 0;
+  for (const sx of [-0.8, -0.4, 0, 0.4, 0.8]) for (const sy of [-0.65, 0, 0.65]) {
+    _cd.copy(_cf).addScaledVector(_cr, sx * th).addScaledVector(_cu, sy * tv).normalize();
+    let d = 3; if (PH.ok) { const h = PH.P.raycast(c, _cd, 3, { groups: PH.P.groups.STATIC | PH.P.groups.TRUNK }); if (h) d = h.distance; }
+    d = Math.min(d, crownRay(c, _cd.x, _cd.y, _cd.z, d)); if (d < 1.2) n1++; if (d < 3) n3++;
+  }
+  return Math.max(n1 / 15 / 0.2, n3 / 15 / 0.3);
+}
+function camAt(yaw, pitch, side, dist, out) {   // un-smoothed camera for a framing (look point = the damped one, shoulder moved)
+  const cp = Math.cos(pitch), bx = Math.sin(yaw) * cp, by = Math.sin(pitch), bz = Math.cos(yaw) * cp, sh = 0.75 * side;
+  const lx = player.x + Math.cos(yaw) * sh, ly = player.y + 1.75, lz = player.z - Math.sin(yaw) * sh; tmp2.set(lx, ly, lz);
+  const b = camBoom(tmp2, bx, by, bz, dist), L = Math.min(b.hard, b.soft);
+  out.set(lx + bx * L, Math.max(ly + by * L, groundH(lx + bx * L, lz + bz * L) + 0.5), lz + bz * L); return tmp2;
+}
+function camFrame(dt, dist) {   // periodic framing search (on foot only)
+  if (Math.hypot(player.x - (CAMX.px || 0), player.z - (CAMX.pz || 0)) > 6) { CAMX.yawGoal = 0; CAMX.side = CAMX.sideK = 1; CAMX.nearT = 0; CAMX.evalT = 0.3; }   // teleport: fresh framing
+  CAMX.px = player.x; CAMX.pz = player.z;
+  CAMX.nearT -= dt; if (CAMX.nearT <= 0) { CAMX.nearT = 0.25; camTreesNear(player.x, player.z); }
+  CAMX.evalT -= dt; if (CAMX.evalT > 0) return; CAMX.evalT = 0.1;
+  const c = new V3(), pen0 = camCover(camera.position, cam.look); CAMX.pen = pen0;
+  if (CAMX.side !== 1 && pen0 < 0.5) { const lk = camAt(cam.yaw, cam.pitch, 1, dist, c); if (camCover(c, lk) < 0.6) CAMX.side = 1; }   // back to the right shoulder when it is clear
+  if (pen0 < 0.7 || Math.abs(CAMX.yawGoal) > 0.05) return;
+  let best = null;
+  for (const side of [CAMX.side, -CAMX.side]) for (const dy of [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.2, -1.2]) {
+    if (dy === 0 && side === CAMX.side) continue;
+    const lk = camAt(cam.yaw + dy, cam.pitch, side, dist, c), p = camCover(c, lk) + Math.abs(dy) * 0.25 + (side !== CAMX.side ? 0.15 : 0);
+    if (!best || p < best.p) best = { p, dy, side };
+    if (best.p < 0.5) break;
+  }
+  if (best && best.p < pen0 - 0.2) { CAMX.yawGoal = best.dy; CAMX.side = best.side; }
+}
 function updateCamera(dt) {
   if (window.DBG && DBG.camOv) { const o = DBG.camOv; camera.position.set(o.pos[0], o.pos[1], o.pos[2]); camera.lookAt(o.look[0], o.look[1], o.look[2]); cam.heading = -cam.yaw; return; }
   let tx, ty, tz, dist = cam.dist;
@@ -2648,18 +2733,24 @@ function updateCamera(dt) {
     cam.yawOff = damp(cam.yawOff, 0, 1.2, dt);
     cam.yaw = wrapA(cam.yaw); const want = sk.yaw + cam.yawOff;
     if (Math.abs(sk.speed) > 3) cam.yaw += wrapA(want - cam.yaw) * Math.min(1, dt * 2.5);
-    tx = sk.x; ty = sk.y + 1.6; tz = sk.z; dist = 10 + Math.abs(sk.speed) * 0.06;
-  } else { tx = player.x; ty = player.y + 1.75; tz = player.z; }
-  const ox = Math.cos(cam.yaw) * (G.riding ? 0 : 0.75), oz = -Math.sin(cam.yaw) * (G.riding ? 0 : 0.75);
+    tx = sk.x; ty = sk.y + 1.6; tz = sk.z; dist = 10 + Math.abs(sk.speed) * 0.06; CAMX.yawGoal = 0;
+  } else {
+    tx = player.x; ty = player.y + 1.75; tz = player.z;
+    camFrame(dt, dist);
+    if (Math.abs(CAMX.yawGoal) > 1e-3) { const st = clamp(CAMX.yawGoal, -2.2 * dt, 2.2 * dt); cam.yaw += st; CAMX.yawGoal -= st; }   // swing to a clear framing
+  }
+  CAMX.sideK = damp(CAMX.sideK, G.riding ? 0 : CAMX.side, 4, dt);
+  const ox = Math.cos(cam.yaw) * 0.75 * CAMX.sideK, oz = -Math.sin(cam.yaw) * 0.75 * CAMX.sideK;
   cam.look.set(damp(cam.look.x, tx + ox, 20, dt), damp(cam.look.y, ty, 12, dt), damp(cam.look.z, tz + oz, 20, dt));
   if (cam.look.distanceTo(tmp.set(tx, ty, tz)) > 20) cam.look.set(tx + ox, ty, tz + oz);
-  // boom: sphere-cast from the look point against terrain + 'solid' shapes only (trunks, props, debris never push the
-  // camera). Pull-in is instant (no peeking through walls), release eases out; when the boom gets shorter than the
-  // pilot's shoulder the model fades instead of the camera entering it.
+  // boom: solids ('solid' shapes + terrain) and trunks cut it instantly (no peeking through walls, no trunk in the
+  // sight line); tree crowns pull it in smoothly, a little before the lens would touch the needles; release eases out.
+  // When the boom gets shorter than the pilot's shoulder the model fades instead of the camera entering it.
   const cp = Math.cos(cam.pitch), bx = Math.sin(cam.yaw) * cp, by = Math.sin(cam.pitch), bz = Math.cos(cam.yaw) * cp;
-  let allow = dist;
-  if (PH.ok) { const h = PH.P.sphereCast(cam.look, { x: bx, y: by, z: bz }, dist, 0.28, { groups: PH.P.groups.STATIC }); if (h) allow = Math.max(0.3, h.distance - 0.05); }
-  cam.boom = allow < (cam.boom || dist) ? allow : damp(cam.boom || dist, allow, 2.5, dt);
+  if (G.riding && CAMX.near.length) CAMX.near.length = 0;
+  const bm = camBoom(cam.look, bx, by, bz, dist), allow = Math.min(bm.hard, bm.soft);
+  let boom = cam.boom || dist; if (bm.hard < boom) boom = bm.hard;
+  cam.boom = damp(boom, allow, allow < boom ? 14 : 2.5, dt);
   camera.position.set(cam.look.x + bx * cam.boom, cam.look.y + by * cam.boom, cam.look.z + bz * cam.boom);
   const gh = groundH(camera.position.x, camera.position.z) + 0.5; if (camera.position.y < gh) camera.position.y = gh;
   if (!G.riding && cam.boom < 1.0) player.c.g.visible = false;
@@ -3321,7 +3412,7 @@ function frame(now) {
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.
   if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
-    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead,
+    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX,
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
     STAGES, ZONES, enemies, boss, INTER, spawnShardling, save, continueGame, applySave, store, setPause, ENDINGS, heals,
     newGame: () => startGame(false),
