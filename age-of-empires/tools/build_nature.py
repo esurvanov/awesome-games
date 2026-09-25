@@ -1,6 +1,6 @@
-"""Природа и террейн из 0 A.D. для tools/build_sprites.py: деревья, кусты, шахты, животные, плитки земли.
+"""Nature and terrain from 0 A.D. for tools/build_sprites.py: trees, bushes, mines, animals, ground tiles.
 
-Все спрайты природы — «на клетку»: (ox, oy) — пиксель верхнего угла ромба клетки, как у зданий размером 1.
+All nature sprites are "per cell": (ox, oy) is the pixel of the cell diamond's top corner, as for buildings of size 1.
 """
 import os
 
@@ -10,14 +10,14 @@ from PIL import Image
 from tools.render3d import Renderer, resolve, parts_bounds, camera, assets
 from tools.render3d.actor import actor_exists
 
-# масштаб природы: единиц 0 A.D. на клетку — как у зданий (центр 0 A.D. ≈ 28–32 ед. → 4 клетки)
+# nature scale: 0 A.D. units per cell - as for buildings (the 0 A.D. center ~ 28-32 units -> 4 cells)
 UNITS_PER_TILE = 7.5
-# животные — в масштабе наших юнитов (S_ANIMAL в tools/build_units.py, пропорции DE)
+# animals - at the scale of our units (S_ANIMAL in tools/build_units.py, DE proportions)
 ANIMAL_S = 0.12
 
 TREES = {
-    # вид: (актор, сколько вариантов, предел высоты в клетках высоты, множитель масштаба)
-    # лиственные — крона шире (DE: 1.2–1.5 клетки, лес — сплошной полог; квант 14)
+    # kind: (actor, how many variants, height limit in height cells, scale multiplier)
+    # broadleaf - a wider crown (DE: 1.2-1.5 cells, the forest is a solid canopy; quantum 14)
     'oak': ('flora/trees/oak_new.xml', 4, 2.6, 1.15),
     'beech': ('flora/trees/european_beech.xml', 3, 2.6, 1.15),
     'deci': ('flora/trees/temperate_forest_biome_tree.xml', 3, 2.5, 1.12),
@@ -34,10 +34,10 @@ NODES = {
               ('geology/stonemine_temperate_quarry_01.xml', 0), ('geology/stonemine_temperate_quarry_02.xml', 0)],
 }
 NODE_FILL = {'berries': 0.95, 'gold': 1.05, 'stone': 1.05}
-TREE_WMAX = 1.75          # ширина кроны, клеток
+TREE_WMAX = 1.75          # crown width, cells
 GOLD_TINT = (1.2, 1.04, 0.6, 1.0)
 ANIMALS = {'sheep': ['fauna/sheep1.xml', 'fauna/sheep2.xml'], 'deer': ['fauna/deer.xml'], 'boar': ['fauna/boar.xml']}
-# направление «вперёд» модели животного в её координатах (угол, градусы); подобрано по рендеру
+# the "forward" direction of an animal model in its coordinates (an angle, degrees); tuned by the render
 ANIMAL_FWD = -90.0
 
 
@@ -55,8 +55,8 @@ def _sig(parts):
 
 
 def trunk_base(parts):
-    """Точка модели (x, y) у основания ствола: центр самых нижних вершин (у ели ствол не в начале
-    координат модели — дерево стояло на 9–11 px левее клетки, 09 · №28)."""
+    """A model point (x, y) at the base of the trunk: the center of the lowest vertices (for a fir the trunk is not at the
+    model's origin - the tree stood 9-11 px to the left of the cell, 09 - #28)."""
     vs = []
     for p in parts:
         if p.is_decal:
@@ -70,7 +70,7 @@ def trunk_base(parts):
         return (0.0, 0.0)
     v = np.concatenate(vs)
     z0, z1 = v[:, 2].min(), v[:, 2].max()
-    low = v[v[:, 2] <= z0 + max(0.25, 0.015 * (z1 - z0))]       # тонкий слой у земли — сам ствол, не ветви
+    low = v[v[:, 2] <= z0 + max(0.25, 0.015 * (z1 - z0))]       # a thin layer at the ground - the trunk itself, not the branches
     if len(low) < 3:
         return (0.0, 0.0)
     return (float(low[:, 0].mean()), float(low[:, 1].mean()))
@@ -91,12 +91,12 @@ def render_tree(r, actor, seed, hmax, k):
 
 
 def build(r, atlas, out, only=None):
-    """only — множество групп ('trees', 'nodes', 'animals'); None — всё."""
+    """only - a set of groups ('trees', 'nodes', 'animals'); None - everything."""
     if only:
         nat = atlas.setdefault('nature', {})
     else:
         nat = atlas['nature'] = {}
-    # ---- деревья
+    # ---- trees
     trees = nat.setdefault('trees', {})
     for sp, (actor, n, hmax, k) in TREES.items():
         if only and 'trees' not in only:
@@ -115,8 +115,8 @@ def build(r, atlas, out, only=None):
             if len(recs) >= n:
                 break
         trees[sp] = recs
-        print(f'  + деревья {sp}: {len(recs)}')
-    # ---- ресурсы
+        print(f'  + trees {sp}: {len(recs)}')
+    # ---- resources
     for kind, lst in NODES.items():
         if only and 'nodes' not in only:
             break
@@ -137,7 +137,7 @@ def build(r, atlas, out, only=None):
             recs.append(_save(out, spr, os.path.join(out, 'nature', f'{kind}_{len(recs)}')))
         nat[kind] = recs
         print(f'  + {kind}: {len(recs)}')
-    # ---- животные: 8 направлений (индекс d: угол d·45° в координатах мира, 0 — вдоль +X)
+    # ---- animals: 8 directions (index d: the angle d*45 deg in world coordinates, 0 - along +X)
     an = nat.setdefault('animals', {})
     for kind, actors in ANIMALS.items():
         if only and 'animals' not in only:
@@ -161,13 +161,13 @@ def build(r, atlas, out, only=None):
     build_farm(r, atlas, out)
 
 
-# обрывы (AoE2: отдельные объекты-скалы вдоль линии): скальные глыбы 0 A.D., шире клетки — соседние
-# куски перекрываются в сплошную стену; тёплый серо-бурый тон как у утёсов DE
+# cliffs (AoE2: separate rock objects along a line): 0 A.D. rock boulders, wider than a cell - neighboring
+# pieces overlap into a solid wall; a warm grey-brown tone like DE's bluffs
 CLIFFS = [('geology/highland1.xml', 0), ('geology/highland2.xml', 0), ('geology/highland_d.xml', 0),
           ('geology/highland_e.xml', 0)]
 CLIFF_YAWS = (0.0, 120.0, 240.0)
-CLIFF_W = 1.6             # ширина глыбы по земле, клеток
-CLIFF_H = 1.4             # предел высоты, клеток высоты (ZK ≈ 39 px)
+CLIFF_W = 1.6             # boulder width on the ground, cells
+CLIFF_H = 1.4             # height limit, height cells (ZK ~ 39 px)
 CLIFF_TINT = (0.8, 0.76, 0.72, 1.0)
 
 
@@ -190,11 +190,11 @@ def build_cliffs(r, atlas, out):
             spr = r.render(items, footprint=(1, 1))
             recs.append(_save(out, spr, os.path.join(out, 'nature', f'cliff_{len(recs)}')))
     atlas.setdefault('nature', {})['cliffs'] = recs
-    print(f'  + обрывы: {len(recs)}')
+    print(f'  + cliffs: {len(recs)}')
 
 
 def build_farm(r, atlas, out):
-    """Поле 3×3: уровни 0..4 — сколько осталось урожая (колосья срезаются по высоте), 0 — голая пашня."""
+    """A 3x3 field: levels 0..4 - how much harvest is left (ears are cut off by height), 0 - bare plowland."""
     parts = resolve('structures/plot_field_temp.xml', seed=0)
     from tools.render3d import fit_to_footprint
     place, s = fit_to_footprint(parts, 3, 1.0)
@@ -211,11 +211,11 @@ def build_farm(r, atlas, out):
         spr = r.render(its, footprint=(3, 3), decal_clip=(0, 0, 3, 3), shadow_scale=0.6)
         recs.append(_save(out, spr, os.path.join(out, 'nature', f'farm_{lv}')))
     atlas.setdefault('nature', {})['farm'] = recs
-    print('  + поле: 5 уровней')
+    print('  + field: 5 levels')
 
 
-# ------------------------------------------------------------------ террейн
-# тип: (текстура под art/textures/terrain/types/, период в клетках P) — плитка в изометрии P·64 × P·32 px
+# ------------------------------------------------------------------ terrain
+# type: (a texture under art/textures/terrain/types/, the period in cells P) - a tile in isometry P*64 x P*32 px
 TERRAIN = {
     'grass': ('temp_grass.png', 4),
     'grass2': ('temp_grass_d.png', 4),
@@ -223,22 +223,22 @@ TERRAIN = {
     'dirt': ('temperate/mud_01.png', 4),
     'forest': ('temperate/forestfloor_003.png', 4),
     'sand': ('temp_dirt_a.png', 4),
-    # типы земли для смешения по маскам (game/terrain.py GROUNDS)
-    'dirt2': ('medit_dirt_a.dds', 4),               # светлая сухая земля (AoE2 «Dirt 2»)
-    'dirt3': ('temperate/grass_dirt_03.png', 4),    # земля с травой (AoE2 «Dirt 3»)
-    'pine': ('temp_forestfloor_pine.png', 4),       # хвойная подстилка
-    'beach': ('sand_d.dds', 4),                     # пляж
-    'shallow': ('sand_wet_a.dds', 4),               # дно мелководья (бирюза поверх — в игре)
-    'rocky': ('temperate/rocks_dirt_01.png', 4),    # каменистая земля у обрывов
+    # ground types for blending by masks (game/terrain.py GROUNDS)
+    'dirt2': ('medit_dirt_a.dds', 4),               # light dry earth (AoE2 "Dirt 2")
+    'dirt3': ('temperate/grass_dirt_03.png', 4),    # earth with grass (AoE2 "Dirt 3")
+    'pine': ('temp_forestfloor_pine.png', 4),       # conifer floor
+    'beach': ('sand_d.dds', 4),                     # beach
+    'shallow': ('sand_wet_a.dds', 4),               # the shallows' bottom (turquoise on top - in the game)
+    'rocky': ('temperate/rocks_dirt_01.png', 4),    # stony ground by cliffs
 }
-# средний цвет (замер скринов DE), к которому приводится текстура без ручных множителей TERRAIN_GAIN
+# the average color (measured from DE screenshots) to which the texture is brought without manual TERRAIN_GAIN multipliers
 TERRAIN_TARGET = {
     'dirt2': (208, 176, 110), 'dirt3': (160, 148, 80), 'pine': (118, 104, 58), 'beach': (218, 196, 140),
     'shallow': (196, 180, 128), 'rocky': (150, 134, 100),
 }
-# Цвет земли AoE II DE теплее и светлее зелёных текстур 0 A.D.: трава DE ≈ (163, 157, 89), дорожная земля
-# ≈ (190, 158, 78), лесная подстилка ≈ (103, 106, 54) (замер скринов shots/ref/gfx). Множители по каналам
-# переводят средний цвет каждой текстуры к этим значениям, не трогая рисунок.
+# The AoE II DE ground color is warmer and lighter than the green 0 A.D. textures: DE grass ~ (163, 157, 89), road earth
+# ~ (190, 158, 78), forest floor ~ (103, 106, 54) (measured from screenshots shots/ref/gfx). The per-channel multipliers
+# bring each texture's average color to these values without touching the pattern.
 TERRAIN_GAIN = {
     'grass': (1.9, 1.3, 1.95), 'grass2': (1.98, 1.36, 2.05), 'grass3': (1.78, 1.2, 1.9),
     'dirt': (1.6, 1.48, 1.08), 'forest': (1.1, 1.24, 0.75), 'sand': (1.12, 1.08, 0.92),
@@ -246,13 +246,13 @@ TERRAIN_GAIN = {
 
 
 def iso_tile(tex, P):
-    """Квадратная текстура (повтор на P×P клеток) → бесшовная изометрическая плитка (P·64 × P·32).
+    """A square texture (repeating over P x P cells) -> a seamless isometric tile (P*64 x P*32).
 
-    Пиксель плитки (x, y) → клетки (gx, gy) = обратная проекция; текстура — выборка с билинейной фильтрацией."""
+    A tile pixel (x, y) -> cells (gx, gy) = the inverse projection; the texture - a sample with bilinear filtering."""
     from PIL import ImageFilter
     W, H = P * 64, P * 32
     th, tw = tex.shape[:2]
-    # сначала уменьшаем текстуру до ~ 64·√2/2 текселей на клетку (≈ разрешению ромба), чтобы не было муара
+    # first shrink the texture to ~ 64*sqrt(2)/2 texels per cell (~ the diamond's resolution) to avoid moire
     target = int(P * 48)
     img = Image.fromarray(tex[..., :3])
     if tw > target:
@@ -284,7 +284,7 @@ def build_terrain(atlas, out):
         path = assets.art('textures', 'terrain', 'types', rel)
         tex = assets.texture(path)
         if tex is None:
-            print('  ! нет текстуры', rel)
+            print('  ! no texture', rel)
             continue
         tile = iso_tile(tex, P)
         if name in TERRAIN_TARGET:
@@ -297,10 +297,10 @@ def build_terrain(atlas, out):
         os.makedirs(os.path.dirname(p), exist_ok=True)
         Image.fromarray(tile).save(p, optimize=True)
         ter[name] = {'file': _rel(out, p), 'period': P, 'mean': [int(x) for x in tile.reshape(-1, 3).mean(0)]}
-        print(f'  + террейн {name} ← {rel}')
+        print(f'  + terrain {name} ← {rel}')
 
 
-# ------------------------------------------------------------------ контактный лист
+# ------------------------------------------------------------------ contact sheet
 def contact_sheet(atlas, out, png):
     from PIL import ImageDraw
     nat = atlas.get('nature', {})
@@ -344,4 +344,4 @@ def contact_sheet(atlas, out, png):
         y += max(t.size[1] for t in rw)
     os.makedirs(os.path.dirname(png), exist_ok=True)
     sheet.save(png)
-    print('лист', png)
+    print('sheet', png)

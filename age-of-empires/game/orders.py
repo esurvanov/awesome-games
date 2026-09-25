@@ -1,39 +1,40 @@
-"""Приказы юнитов сверх базовых Unit.cmd_* (как в AoE2 DE): очередь Shift-приказов (точки маршрута),
-патруль, охрана, следование, атака с ходу, атака по земле, ремонт, стойки, строй и общая скорость группы,
-точки сбора (в т. ч. в гарнизон и несколько точек).
+"""Unit orders beyond the basic Unit.cmd_* (as in AoE2 DE): a queue of Shift orders (waypoints),
+patrol, guard, follow, attack-move, attack ground, repair, stances, formation and the group's shared speed,
+rally points (including into a garrison and several points).
 
-Поля юнита (значения по умолчанию — атрибуты класса Unit, см. world.py):
-  stance     — 'aggressive' | 'defensive' | 'stand_ground' | 'no_attack'
-  orders     — очередь следующих приказов [(вид, *аргументы)], None — пусто
-  mission    — длительный приказ: ['amove', x, y, попытки] | ['patrol', точки, i, попытки] |
-               ['guard', цель] | ['follow', цель]
-  home       — где юнит стоял, когда сам ввязался в бой (оборонительная стойка / стоять на месте)
-  auto       — текущая атака начата самим юнитом (не приказом игрока)
-  form_speed — скорость строя (px/с): группа идёт со скоростью самого медленного
-  gpt        — точка «атаки по земле»
+Unit fields (defaults are class attributes of Unit, see world.py):
+  stance     - 'aggressive' | 'defensive' | 'stand_ground' | 'no_attack'
+  orders     - a queue of the next orders [(kind, *args)], None - empty
+  mission    - a long-running order: ['amove', x, y, attempts] | ['patrol', points, i, attempts] |
+               ['guard', target] | ['follow', target]
+  home       - where the unit stood when it got into a fight on its own (defensive stance / stand ground)
+  auto       - the current attack was started by the unit itself (not by a player's order)
+  form_speed - the formation speed (px/s): the group moves at the speed of the slowest
+  gpt        - the "attack ground" point
 
-ИИ пользуется только cmd_* и этих полей не трогает: у его юнитов стойка агрессивная, очередь пуста —
-поведение прежнее.
+The AI uses only cmd_* and does not touch these fields: its units have an aggressive stance, an empty queue -
+the behavior is as before.
 """
 import math
 import random
 
+from . import i18n
 from .data import TILE
 
 STANCES = ('aggressive', 'defensive', 'stand_ground', 'no_attack')
 FORMATIONS = ('line', 'box', 'staggered', 'flank')
-PATROL_MAX = 10          # DE: у патруля и атаки с ходу — до 10 точек
-FLAGS_SHOWN = 10         # DE: очередь без предела, но флажков видно 10
-DEF_CHASE = 5 * TILE     # оборонительная стойка: дальше этого от места не преследует
-REPAIR_HP_S = 750 / 60   # ремонт здания одним жителем, ОЗ/с (openage repair.md: 750 ОЗ/мин)
-REPAIR_UNIT_K = 0.25     # осада и корабли чинятся вчетверо медленнее
-REPAIR_COST_K = 0.5      # полный ремонт стоит половину постройки (без золота)
+PATROL_MAX = 10          # DE: patrol and attack-move have up to 10 points
+FLAGS_SHOWN = 10         # DE: the queue is unlimited, but 10 flags are shown
+DEF_CHASE = 5 * TILE     # defensive stance: it does not pursue farther than this from the spot
+REPAIR_HP_S = 750 / 60   # building repair by one villager, HP/s (openage repair.md: 750 HP/min)
+REPAIR_UNIT_K = 0.25     # siege and ships are repaired four times slower
+REPAIR_COST_K = 0.5      # a full repair costs half of the construction (without gold)
 SCAN_DT = 0.4
 
 
-# ============================================================ очередь
+# ============================================================ queue
 def clear(u):
-    """Новый прямой приказ игрока: забыть очередь, длительный приказ, «дом» и строй."""
+    """A new direct order from the player: forget the queue, the long-running order, "home" and the formation."""
     u.orders = None
     u.mission = None
     u.home = None
@@ -46,7 +47,7 @@ def busy(u):
 
 
 def issue(u, w, item, queue=False):
-    """Отдать приказ item = (вид, *аргументы). queue — Shift: в конец очереди (если юнит чем-то занят)."""
+    """Give an order item = (kind, *args). queue - Shift: to the end of the queue (if the unit is busy with something)."""
     if queue and busy(u):
         if u.orders is None:
             u.orders = []
@@ -61,7 +62,7 @@ def _alive(t):
 
 
 def run(u, w, item):
-    """Выполнить приказ сейчас. False — цель пропала, приказ пропущен."""
+    """Carry out an order now. False - the target is gone, the order was skipped."""
     k = item[0]
     if k == 'move':
         u.cmd_move(item[1], item[2])
@@ -112,7 +113,7 @@ def run(u, w, item):
         rally_order(w, u, item[1])
     elif k == 'stop':
         u.stop()
-    elif k in ('relic', 'relic_in'):          # монах: поднять реликвию / отнести в монастырь (game/relics.py)
+    elif k in ('relic', 'relic_in'):          # monk: pick up a relic / carry it to the monastery (game/relics.py)
         from . import relics
         return relics.cmd_pick(u, w, item[1]) if k == 'relic' else relics.cmd_deposit(u, w, item[1])
     else:
@@ -125,7 +126,7 @@ def near(u, x, y, r=0.9 * TILE):
 
 
 def on_idle(u, w):
-    """Юнит стоит без дела, но у него есть очередь / длительный приказ / место, куда вернуться."""
+    """The unit stands idle, but it has a queue / a long-running order / a place to return to."""
     m = u.mission
     if m is not None:
         k = m[0]
@@ -146,7 +147,7 @@ def on_idle(u, w):
             u.cmd_move(*pts[m[2]])
             return
         else:
-            return          # охрана / следование — в tick
+            return          # guard / follow - in tick
     while u.orders and u.state == 'idle':
         run(u, w, u.orders.pop(0))
     if u.state == 'idle' and u.home is not None and u.stance != 'aggressive':
@@ -156,9 +157,9 @@ def on_idle(u, w):
             u.cmd_move(hx, hy)
 
 
-# ============================================================ длительные приказы
+# ============================================================ long-running orders
 def scan(u, w):
-    """Враг рядом по стойке (для атаки с ходу / патруля / охраны)."""
+    """An enemy nearby by the stance (for attack-move / patrol / guard)."""
     r = scan_radius(u)
     if r <= 0 or u.cls == 'vil' or u.d.get('monk'):
         return None
@@ -168,7 +169,7 @@ def scan(u, w):
 
 
 def tick(u, w, dt):
-    """Раз в SCAN_DT: атака с ходу / патруль ищут врагов по пути, охрана держится у цели, следование — за целью."""
+    """Every SCAN_DT: attack-move / patrol look for enemies along the way, guard stays near the target, follow - after the target."""
     if w.time < u.mis_t:
         return
     u.mis_t = w.time + SCAN_DT
@@ -204,7 +205,7 @@ def tick(u, w, dt):
         u.cmd_move(tx + math.cos(a) * rr, ty + math.sin(a) * rr)
 
 
-# ============================================================ стойки
+# ============================================================ stances
 def scan_radius(u):
     st = u.stance
     if st == 'no_attack':
@@ -215,7 +216,7 @@ def scan_radius(u):
 
 
 def engage(u, e):
-    """Юнит сам ввязывается в бой с e (увидел в обзоре / ответил на удар) — по стойке. True — атакует."""
+    """The unit gets into a fight with e on its own (saw it in view / answered a blow) - by the stance. True - it attacks."""
     st = u.stance
     if st == 'no_attack':
         return False
@@ -229,7 +230,7 @@ def engage(u, e):
 
 
 def may_chase(u, t):
-    """Юнит, сам ввязавшийся в бой, ещё преследует t? (оборонительная — недалеко, стоять — только в зоне)."""
+    """Does a unit that got into a fight on its own still pursue t? (defensive - not far, stand ground - only in the zone)."""
     st = u.stance
     if st == 'stand_ground':
         return u.dist_to(t) <= u.rng_px() + 0.4 * TILE
@@ -250,9 +251,9 @@ def set_stance(units, st):
             u.stop()
 
 
-# ============================================================ ремонт
+# ============================================================ repair
 def repairable(u, t):
-    """Житель u может чинить t: своё достроенное раненое здание, свою осаду или корабль."""
+    """Villager u can repair t: an own completed damaged building, own siege or ship."""
     if u.kind != 'villager' or t is None or not t.alive or t.owner != u.owner or t.hp >= t.max_hp:
         return False
     if hasattr(t, 'radius'):
@@ -289,7 +290,7 @@ def do_repair(u, w, dt):
     if not near_ok:
         return
     u.face_to(t)
-    # сколько жителей чинят t в этом шаге: первый — полная скорость, каждый следующий +50%
+    # how many villagers are repairing t in this step: the first - full speed, each next +50%
     if getattr(t, '_rep_t', None) != w.time:
         t._rep_prev = getattr(t, '_rep_cur', 1)
         t._rep_cur = 0
@@ -309,7 +310,7 @@ def do_repair(u, w, dt):
             n_int = int(v)
             if p.res.get(r, 0) < n_int:
                 if p is w.players[w.human]:
-                    w.msg('Не хватает ресурсов на ремонт', (255, 150, 90))
+                    w.msg(i18n.t('msg.no_resources_repair'), (255, 150, 90))
                 u.state = 'idle'
                 u.target = None
                 return
@@ -324,7 +325,7 @@ def do_repair(u, w, dt):
         w.emit('work', u.x, u.y, u.owner, 'build')
 
 
-# ============================================================ атака по земле
+# ============================================================ attack ground
 def can_attack_ground(u):
     return u.d.get('blast', 0) > 0 and not u.naval and u.d['atk'] > 0
 
@@ -391,8 +392,8 @@ def do_attack_ground(u, w, dt):
         w.emit('arrow', u.x, u.y, u.owner, u.kind)
 
 
-# ============================================================ строй
-_ROLE = {'cav': 0, 'inf': 1, 'vil': 1, 'arch': 2}      # спереди назад: конница, пехота, стрелки, осада/монахи
+# ============================================================ formation
+_ROLE = {'cav': 0, 'inf': 1, 'vil': 1, 'arch': 2}      # front to back: cavalry, infantry, ranged units, siege/monks
 
 
 def role(u):
@@ -400,12 +401,12 @@ def role(u):
 
 
 def spacing(units):
-    """Шаг строя — по самому широкому юниту (openage formations.md)."""
+    """The formation step - by the widest unit (openage formations.md)."""
     return max(2 * u.radius for u in units) + 6
 
 
 def _rows(n, form):
-    """Сколько юнитов в ряду: строй шире, чем глубже."""
+    """How many units in a row: the formation is wider than deep."""
     if n <= 4:
         return n
     per = int(math.ceil(math.sqrt(n * (3.0 if form != 'box' else 1.0))))
@@ -413,7 +414,7 @@ def _rows(n, form):
 
 
 def layout(units, wx, wy, form='line', heading=None):
-    """[(юнит, x, y)] — места в строю вокруг точки (wx, wy); heading — (dx, dy) направление движения."""
+    """[(unit, x, y)] - places in the formation around the point (wx, wy); heading - the (dx, dy) direction of movement."""
     n = len(units)
     if n == 0:
         return []
@@ -427,17 +428,17 @@ def layout(units, wx, wy, form='line', heading=None):
     hl = math.hypot(hx, hy)
     if hl < 1e-3:
         hx, hy, hl = 1.0, 1.0, math.sqrt(2)
-    fx, fy = hx / hl, hy / hl          # вперёд
-    sx, sy = -fy, fx                   # вправо
+    fx, fy = hx / hl, hy / hl          # forward
+    sx, sy = -fy, fx                   # right
     sp = spacing(units)
     if form == 'staggered':
         sp *= 1.7
     groups = [[] for _ in range(4)]
     for u in units:
         groups[role(u)].append(u)
-    slots = []                         # (вбок, назад, группа)
+    slots = []                         # (sideways, back, group)
     if form == 'box':
-        # коробка: ближний бой — по периметру квадрата, стрелки и осада — внутри
+        # box: melee along the perimeter of the square, ranged units and siege - inside
         melee = groups[0] + groups[1]
         inner = groups[2] + groups[3]
         side = 3
@@ -473,7 +474,7 @@ def layout(units, wx, wy, form='line', heading=None):
                     lat += gap / 2 if c >= cnt / 2 else -gap / 2
                 slots.append((gi, lat, back + r * sp))
         back += nrows * sp
-    # центр строя — в точке приказа
+    # the center of the formation - at the order point
     mid = back / 2 - sp / 2
     out = []
     for gi, g in enumerate(groups):
@@ -483,8 +484,8 @@ def layout(units, wx, wy, form='line', heading=None):
 
 
 def _match(units, slots, wx, wy, fx, fy, sx, sy):
-    """Юниты группы → её места: передние юниты — в передний ряд, внутри ряда — по боковой координате,
-    чтобы пути не перекрещивались."""
+    """The group's units -> its places: the front units - into the front row, within the row - by the lateral coordinate,
+    so that paths do not cross."""
     rows = {}
     for lat, bk in slots:
         rows.setdefault(round(bk, 3), []).append((lat, bk))
@@ -504,13 +505,13 @@ def _assign(slots, wx, wy, fx, fy, sx, sy):
 
 
 def group_speed(units):
-    """Скорость строя — по самому медленному (px/с)."""
+    """The formation speed - by the slowest (px/s)."""
     return min(u.speed() for u in units) if units else None
 
 
-# ============================================================ точки сбора
+# ============================================================ rally points
 def rally_order(w, u, r):
-    """Новый юнит выполняет точку сбора r: земля / ресурс / стройка / ферма / гарнизон / враг / здание."""
+    """A new unit carries out the rally point r: ground / resource / construction / farm / garrison / enemy / building."""
     from .world import Building, Node
     from . import defense
     if r is None:
@@ -541,7 +542,7 @@ def rally_order(w, u, r):
 
 
 def apply_rally(w, b, u):
-    """World.spawn: новый юнит идёт по точкам сбора здания b (несколько — DE, Shift+ПКМ)."""
+    """World.spawn: a new unit follows the rally points of building b (several - DE, Shift+right click)."""
     r = b.rally
     if r is None:
         return

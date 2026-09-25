@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Графика пейзажей карт (game/themes.py) из 0 A.D. → assets/gen/maps/ + индекс assets/gen/maps/maps.json.
+"""Graphics of the map landscapes (game/themes.py) from 0 A.D. -> assets/gen/maps/ + the index assets/gen/maps/maps.json.
 
-Пишет только в assets/gen/maps/ (атлас assets/gen/atlas.json и assets/gen/nature не трогаются):
-  terrain  — плитки земли пейзажей (пустыня, степь, снега, тропики, осень), как build_nature.build_terrain;
-  trees    — породы пейзажей (пальмы, акации, заснеженные ели, осенние дубы/клёны…), как render_tree;
-  animals  — волк, 8 направлений (как животные build_nature);
-  relic    — реликвия: золотой ларец-реликварий (свой, процедурно, PIL).
+Writes only to assets/gen/maps/ (the atlas assets/gen/atlas.json and assets/gen/nature are not touched):
+  terrain  - ground tiles of the landscapes (desert, steppe, snow, tropics, autumn), like build_nature.build_terrain;
+  trees    - species of the landscapes (palms, acacias, snowy firs, autumn oaks/maples...), like render_tree;
+  animals  - the wolf, 8 directions (like build_nature's animals);
+  relic    - the relic: a golden reliquary casket (our own, procedural, PIL).
 
   .venv/bin/python tools/build_map_assets.py [--only terrain,trees,animals,relic] [--sheet out.png]
 
-Сырые ассеты — tools/fetch_0ad.py (пальмы, акации, текстуры снега/пустыни/тропиков добавлены в выборку).
+Raw assets - tools/fetch_0ad.py (palms, acacias, snow/desert/tropics textures were added to the selection).
 """
 import argparse
 import json
@@ -31,7 +31,7 @@ GEN = os.path.join(REPO, 'assets', 'gen')
 OUT = os.path.join(GEN, 'maps')
 INDEX = os.path.join(OUT, 'maps.json')
 
-# порода: (актор, вариантов, предел высоты в клетках высоты, множитель масштаба)
+# species: (actor, variants, height limit in height cells, scale multiplier)
 TREES = {
     'palm': ('flora/trees/palm_date_new.xml', 3, 2.9, 1.1),
     'palm_tall': ('flora/trees/palm_date_new_3.xml', 2, 3.1, 1.1),
@@ -49,9 +49,9 @@ TREES = {
 }
 
 T = 'textures/terrain/types/'
-# плитка: (текстура под art/textures/terrain/types/, средний цвет-цель (как у DE) или None — без поправки)
+# tile: (a texture under art/textures/terrain/types/, the target average color (as in DE) or None - no correction)
 TERRAIN = {
-    # пустыня: светлый песок, дюны, сухая земля
+    # desert: light sand, dunes, dry earth
     'desert_sand': ('sand_sahara.dds', (214, 180, 120)),
     'desert_sand2': ('desert_sahara.dds', (206, 170, 110)),
     'desert_dunes': ('sand_dunes.dds', (224, 192, 134)),
@@ -60,21 +60,21 @@ TERRAIN = {
     'desert_scrub': ('sand_scrub_50.dds', (196, 170, 110)),
     'desert_forest': ('sand_scrub_100.dds', (150, 132, 80)),
     'desert_rocky': ('dirt_rocks.dds', (170, 140, 100)),
-    # степь: сухая жёлтая трава, пыльная земля
+    # steppe: dry yellow grass, dusty earth
     'steppe_grass': ('new_savanna_grass_a.dds', (178, 160, 88)),
     'steppe_grass2': ('new_savanna_grass_b.dds', (168, 150, 80)),
     'steppe_grass3': ('grass_field_dry.png', (188, 166, 96)),
     'steppe_dirt': ('new_savanna_dirt_c.dds', (196, 154, 94)),
     'steppe_dirt2': ('new_savanna_dirt_d.dds', (206, 170, 112)),
     'steppe_forest': ('savanna_forestfloor_a.png', (130, 112, 64)),
-    # снега
+    # snow
     'snow': ('alpine_snow_a.dds', (226, 230, 238)),
     'snow2': ('polar_snow_a.dds', (214, 220, 232)),
     'snow_grass': ('snow grass 75.dds', (186, 192, 186)),
     'snow_dirt': ('alpine_dirt_snow.dds', (170, 164, 156)),
     'snow_forest': ('alpine_forrestfloor_snow.dds', (178, 184, 186)),
     'snow_rocky': ('alpine_snow_rocky.dds', (160, 160, 164)),
-    # тропики: сочная трава, красная земля, светлый пляж
+    # tropics: lush grass, red earth, a light beach
     'tropic_grass': ('tropic_grass_a.png', (112, 150, 60)),
     'tropic_grass2': ('tropic_grass_b.png', (100, 140, 52)),
     'tropic_grass3': ('tropic_grass_plants.png', (96, 132, 50)),
@@ -82,23 +82,23 @@ TERRAIN = {
     'tropic_dirt2': ('tropic_dirt_b.png', (186, 140, 90)),
     'tropic_forest': ('tropic_forestfloor_a.png', (84, 96, 44)),
     'tropic_beach': ('tropic_beach_dry.png', (226, 206, 150)),
-    # осень: трава с опавшей листвой
+    # autumn: grass with fallen leaves
     'autumn_grass': ('temp_grass_aut.png', (170, 150, 70)),
     'autumn_grass2': ('temp_grass_b_aut.png', (160, 136, 62)),
     'autumn_grass3': ('temp_grass_c_aut.png', (178, 150, 76)),
     'autumn_forest': ('temp_forestfloor_autumn.dds', (140, 100, 52)),
 }
-P = 4           # период плитки, клеток
-# контраст рисунка плитки (1 — как в текстуре): рябь дюн 0 A.D. сильнее, чем ровный песок DE
+P = 4           # tile period, cells
+# tile pattern contrast (1 - as in the texture): the 0 A.D. dune ripple is stronger than DE's even sand
 CONTRAST = {'desert_sand': 0.45, 'desert_sand2': 0.6, 'desert_dunes': 0.45, 'snow': 0.8, 'snow2': 0.8}
-# листва пород под зелень DE (тон 90–100°, не кислотная): (целевой тон, доля сдвига, насыщенность ×, яркость ×)
+# species' foliage toward the DE green (hue 90-100 deg, not acid): (target hue, shift share, saturation x, brightness x)
 LEAF_TONE = {'palm': (96, 0.6, 0.85, 0.82), 'palm_tall': (96, 0.6, 0.85, 0.82),
              'palm_tropical': (100, 0.5, 0.9, 0.85), 'tropic': (100, 0.5, 0.9, 0.9),
              'acacia': (80, 0.35, 0.8, 0.9), 'baobab': (80, 0.35, 0.8, 0.9)}
 
 
 def leaf_tone(rgba, tone):
-    """Сдвиг листвы (зеленовато-жёлтые пиксели) к тону DE; кора и тени почти не меняются."""
+    """Shifting the foliage (greenish-yellow pixels) toward the DE hue; bark and shadows barely change."""
     th, k, ks, kv = tone
     a = rgba[..., :3].astype(np.float32) / 255.0
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
@@ -142,7 +142,7 @@ def build_terrain(idx):
         path = assets.art(*(T + rel).split('/'))
         tex = assets.texture(path)
         if tex is None:
-            print('  ! нет текстуры', rel)
+            print('  ! no texture', rel)
             continue
         tile = bn.iso_tile(tex, P)
         if name in CONTRAST:
@@ -159,14 +159,14 @@ def build_terrain(idx):
             .save(p, optimize=True)
         ter[name] = {'file': os.path.relpath(p, GEN).replace(os.sep, '/'), 'period': P,
                      'mean': [int(x) for x in tile.reshape(-1, 3).mean(0)]}
-        print(f'  + земля {name} ← {rel}')
+        print(f'  + ground {name} ← {rel}')
 
 
 def build_trees(r, idx):
     trees = idx['trees'] = {}
     for sp, (actor, n, hmax, k) in TREES.items():
         if not actor_exists(actor):
-            print('  ! нет актора', actor)
+            print('  ! no actor', actor)
             continue
         seen, recs = set(), []
         for seed in range(40):
@@ -182,14 +182,14 @@ def build_trees(r, idx):
             if len(recs) >= n:
                 break
         trees[sp] = recs
-        print(f'  + деревья {sp}: {len(recs)}')
+        print(f'  + trees {sp}: {len(recs)}')
 
 
 def build_animals(r, idx):
     an = idx['animals'] = {}
     for kind, actor in (('wolf', 'fauna/wolf.xml'),):
         if not actor_exists(actor):
-            print('  ! нет актора', actor)
+            print('  ! no actor', actor)
             continue
         parts = resolve(actor, seed=0, prefer=frozenset({'alive', 'idle', 'normal', 'base'}),
                         skip=lambda a, ap: 'blood' in a)
@@ -201,12 +201,12 @@ def build_animals(r, idx):
             spr = r.render(items, footprint=(1, 1), look=None, shadow_scale=0.9)
             dirs.append(save_sprite(spr, os.path.join(OUT, 'animals', f'{kind}_d{d}')))
         an[kind] = [dirs]
-        print(f'  + {kind}: 8 направлений')
+        print(f'  + {kind}: 8 directions')
 
 
 def build_relic(idx):
-    """Реликвия: небольшой золотой ларец на ножках с двускатной крышкой (изометрия, клетка 64×32).
-    Рисуется в 4× и уменьшается; (ox, oy) — верхний угол ромба клетки, как у спрайтов природы."""
+    """The relic: a small golden casket on legs with a gabled lid (isometry, a 64x32 cell).
+    Drawn at 4x and reduced; (ox, oy) is the top corner of the cell's diamond, as for nature sprites."""
     S = 4
     Wd, Hd = 64, 64
     im = Image.new('RGBA', (Wd * S, Hd * S), (0, 0, 0, 0))
@@ -215,27 +215,27 @@ def build_relic(idx):
     def p(x, y):
         return (x * S, y * S)
 
-    cx, base = 32, 50                    # центр клетки на земле: (32, 32 + 16) в координатах спрайта
-    # тень
+    cx, base = 32, 50                    # the center of the cell on the ground: (32, 32 + 16) in sprite coordinates
+    # shadow
     d.ellipse([p(cx - 15, base - 5), p(cx + 15, base + 5)], fill=(0, 0, 0, 90))
-    # ларец в изометрии: ширина по x ±11, «глубина» ±6 (ромб), высота 11
-    fl = [(cx - 11, base - 3), (cx, base + 3), (cx + 11, base - 3), (cx, base - 9)]   # дно
+    # the casket in isometry: width along x +-11, "depth" +-6 (a diamond), height 11
+    fl = [(cx - 11, base - 3), (cx, base + 3), (cx + 11, base - 3), (cx, base - 9)]   # bottom
     h = 11
     top = [(x, y - h) for x, y in fl]
     gold_d, gold_m, gold_l, gold_h = (122, 84, 18), (186, 136, 34), (226, 180, 60), (255, 232, 140)
-    # ножки
+    # legs
     for x, y in fl[:3]:
         d.rectangle([p(x - 1, y - 1), p(x + 1, y + 2)], fill=gold_d)
-    # левая и правая грани
+    # left and right faces
     d.polygon([p(*fl[0]), p(*fl[1]), p(*top[1]), p(*top[0])], fill=gold_m)
     d.polygon([p(*fl[1]), p(*fl[2]), p(*top[2]), p(*top[1])], fill=gold_l)
-    # крышка-кровля: конёк вдоль длинной оси
+    # the lid-roof: the ridge along the long axis
     ridge_a = ((top[0][0] + top[3][0]) / 2, (top[0][1] + top[3][1]) / 2 - 6)
     ridge_b = ((top[1][0] + top[2][0]) / 2, (top[1][1] + top[2][1]) / 2 - 6)
     d.polygon([p(*top[0]), p(*top[1]), p(*ridge_b), p(*ridge_a)], fill=gold_l)
     d.polygon([p(*top[1]), p(*top[2]), p(*ridge_b)], fill=gold_m)
     d.polygon([p(*ridge_a), p(*ridge_b), p(*top[2]), p(*top[3])], fill=gold_h)
-    # полосы и «камни»
+    # stripes and "stones"
     for t in (0.33, 0.66):
         a = (fl[0][0] + (fl[1][0] - fl[0][0]) * t, fl[0][1] + (fl[1][1] - fl[0][1]) * t)
         d.line([p(*a), p(a[0], a[1] - h)], fill=gold_d, width=S)
@@ -245,11 +245,11 @@ def build_relic(idx):
         d.ellipse([p(a[0] - 2, a[1] - h / 2 - 2), p(a[0] + 2, a[1] - h / 2 + 2)], fill=(170, 30, 40))
     a = ((fl[0][0] + fl[1][0]) / 2, (fl[0][1] + fl[1][1]) / 2)
     d.ellipse([p(a[0] - 2, a[1] - h / 2 - 2), p(a[0] + 2, a[1] - h / 2 + 2)], fill=(40, 90, 170))
-    # контур
+    # outline
     for poly in ([fl[0], fl[1], top[1], top[0]], [fl[1], fl[2], top[2], top[1]]):
         d.line([p(*q) for q in poly + [poly[0]]], fill=(70, 46, 10), width=S)
     d.line([p(*ridge_a), p(*ridge_b)], fill=(255, 245, 190), width=S)
-    # блик-ореол (реликвия заметна на земле)
+    # a glow halo (the relic is noticeable on the ground)
     glow = Image.new('RGBA', im.size, (0, 0, 0, 0))
     ImageDraw.Draw(glow).ellipse([p(cx - 18, base - 30), p(cx + 18, base + 4)], fill=(255, 236, 150, 60))
     glow = glow.filter(ImageFilter.GaussianBlur(6 * S))
@@ -257,10 +257,10 @@ def build_relic(idx):
     p_out = os.path.join(OUT, 'relic.png')
     os.makedirs(OUT, exist_ok=True)
     out.save(p_out, optimize=True)
-    # верхний угол ромба клетки: центр на земле (32, 50) → угол (32, 34)
+    # the top corner of the cell's diamond: the center on the ground (32, 50) -> the corner (32, 34)
     idx['relic'] = {'file': os.path.relpath(p_out, GEN).replace(os.sep, '/'), 'ox': 32, 'oy': base - 16,
                     'w': Wd, 'h': Hd}
-    print('  + реликвия')
+    print('  + relic')
 
 
 def contact(idx, png):
@@ -292,7 +292,7 @@ def contact(idx, png):
             sheet.alpha_composite(t, (x, y))
         y += h + 8
     sheet.save(png)
-    print('лист:', png)
+    print('sheet:', png)
 
 
 def main():

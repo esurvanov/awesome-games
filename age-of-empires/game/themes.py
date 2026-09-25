@@ -1,21 +1,21 @@
-"""Пейзажи карт (как биомы Arabia в AoE II DE): одна и та же раскладка клеток — разный облик.
+"""Map landscapes (like the Arabia biomes in AoE II DE): the same cell layout - a different look.
 
-Коды world.terrain и типы земли world.ground (game/terrain.py GROUNDS) не меняются: пейзаж только
-переназначает текстуры типов земли, породы деревьев и цвета миникарты. Пейзаж партии — world.theme
-(строка; ставит генератор карты, по умолчанию 'grass' — прежний умеренный облик).
+The world.terrain codes and the world.ground ground types (game/terrain.py GROUNDS) do not change: a landscape only
+reassigns the textures of ground types, tree species and minimap colors. The match's landscape is world.theme
+(a string; set by the map generator, by default 'grass' - the former temperate look).
 
   THEMES[key] = dict(
-      name    — подпись,
-      tex     — {тип земли: имя текстуры} (имя из assets/gen/maps/maps.json 'terrain' или из атласа;
-                 нет в словаре — текстура самого типа),
-      species — [(порода, вес)] деревьев (порода из maps.json 'trees' или из атласа 'nature.trees'),
-      conifer — породы, под которыми хвойная подстилка (тип земли 'pine'),
-      mm      — {тип земли: цвет миникарты} поверх MM_BASE,
-      water   — None (вода мира не меняется).
+      name    - the caption,
+      tex     - {ground type: texture name} (a name from assets/gen/maps/maps.json 'terrain' or from the atlas;
+                 not in the dict - the texture of the type itself),
+      species - [(species, weight)] of trees (a species from maps.json 'trees' or from the atlas 'nature.trees'),
+      conifer - species under which there is a conifer floor (ground type 'pine'),
+      mm      - {ground type: minimap color} over MM_BASE,
+      water   - None (the world's water does not change).
   of(w) · tree_species(w, tx, ty) · mm_color(w, ground_name) · KEYS · ARABIA_POOL
 """
 
-# цвета миникарты AoE II DE (dat: minimap colour типов земли и объектов; docs/research/07_maps.md §5)
+# AoE II DE minimap colors (dat: the minimap color of ground types and objects; docs/research/07_maps.md section 5)
 MM_BASE = {
     'grass': (0, 169, 0), 'grass2': (51, 151, 39), 'grass3': (0, 141, 0),
     'dirt': (243, 170, 92), 'dirt2': (248, 201, 138), 'dirt3': (155, 160, 60),
@@ -23,22 +23,22 @@ MM_BASE = {
     'sand': (248, 201, 138), 'beach': (232, 196, 120),
     'shallow': (48, 93, 182), 'water': (0, 74, 187), 'rocky': (145, 122, 96),
 }
-MM_WATER = (0, 74, 187)          # глубокая вода #004ABB
-MM_WATER_NEAR = (0, 74, 161)     # у берега #004AA1
-MM_SHALLOW = (48, 93, 182)       # мелководье #305DB6
-MM_CLIFF = (113, 75, 51)         # утёс #714B33
+MM_WATER = (0, 74, 187)          # deep water #004ABB
+MM_WATER_NEAR = (0, 74, 161)     # by the shore #004AA1
+MM_SHALLOW = (48, 93, 182)       # shallows #305DB6
+MM_CLIFF = (113, 75, 51)         # cliff #714B33
 MM_GOLD = (255, 199, 0)          # #FFC700
 MM_STONE = (145, 145, 145)       # #919191
-MM_FOOD = (165, 196, 108)        # вся еда одной точкой (ягоды, рыба, овцы, олени, кабаны) #A5C46C
-MM_RELIC = (255, 255, 255)       # реликвия — белая
-MM_WOLF = (210, 206, 196)        # хищники — нейтральная светлая точка (не еда)
+MM_FOOD = (165, 196, 108)        # all food as one dot (berries, fish, sheep, deer, boars) #A5C46C
+MM_RELIC = (255, 255, 255)       # relic - white
+MM_WOLF = (210, 206, 196)        # predators - a neutral light dot (not food)
 
 _TEMPERATE = (('oak', 5), ('beech', 3), ('deci', 3), ('birch', 2), ('pine', 3), ('fir', 3), ('poplar', 1))
 
 THEMES = {
-    'grass': dict(name='Луга', tex={}, species=_TEMPERATE, conifer=('pine', 'fir'), mm={}, water=None),
+    'grass': dict(name='grass', tex={}, species=_TEMPERATE, conifer=('pine', 'fir'), mm={}, water=None),
     'desert': dict(
-        name='Пустыня',
+        name='desert',
         tex={'grass': 'desert_sand', 'grass2': 'desert_sand2', 'grass3': 'desert_dunes', 'dirt': 'desert_dirt',
              'dirt2': 'desert_dirt2', 'dirt3': 'desert_scrub', 'forest': 'desert_forest', 'pine': 'desert_forest',
              'sand': 'desert_dunes', 'beach': 'desert_dunes', 'rocky': 'desert_rocky'},
@@ -48,7 +48,7 @@ THEMES = {
             'forest': (62, 120, 44), 'pine': (62, 120, 44), 'sand': (248, 201, 138), 'beach': (248, 212, 150)},
         water=None),
     'steppe': dict(
-        name='Степь',
+        name='steppe',
         tex={'grass': 'steppe_grass', 'grass2': 'steppe_grass2', 'grass3': 'steppe_grass3', 'dirt': 'steppe_dirt',
              'dirt2': 'steppe_dirt2', 'dirt3': 'steppe_grass3', 'forest': 'steppe_forest', 'pine': 'steppe_forest'},
         species=(('acacia', 4), ('oak', 2), ('baobab', 1)), conifer=(),
@@ -56,7 +56,7 @@ THEMES = {
             'dirt': (214, 168, 96), 'dirt3': (170, 160, 80), 'forest': (60, 110, 40), 'pine': (60, 110, 40)},
         water=None),
     'snow': dict(
-        name='Снега',
+        name='snow',
         tex={'grass': 'snow', 'grass2': 'snow2', 'grass3': 'snow_grass', 'dirt': 'snow_dirt', 'dirt2': 'snow_dirt',
              'dirt3': 'snow_grass', 'forest': 'snow_forest', 'pine': 'snow_forest', 'sand': 'snow_dirt',
              'beach': 'snow_dirt', 'rocky': 'snow_rocky'},
@@ -67,7 +67,7 @@ THEMES = {
             'rocky': (150, 146, 142)},
         water=None),
     'tropical': dict(
-        name='Тропики',
+        name='tropical',
         tex={'grass': 'tropic_grass', 'grass2': 'tropic_grass2', 'grass3': 'tropic_grass3', 'dirt': 'tropic_dirt',
              'dirt2': 'tropic_dirt2', 'dirt3': 'tropic_grass3', 'forest': 'tropic_forest', 'pine': 'tropic_forest',
              'beach': 'tropic_beach', 'sand': 'tropic_beach'},
@@ -76,7 +76,7 @@ THEMES = {
             'forest': (10, 90, 30), 'pine': (10, 90, 30), 'beach': (240, 214, 150), 'sand': (240, 214, 150)},
         water=None),
     'autumn': dict(
-        name='Осень',
+        name='autumn',
         tex={'grass': 'autumn_grass', 'grass2': 'autumn_grass2', 'grass3': 'autumn_grass3',
              'forest': 'autumn_forest', 'pine': 'autumn_forest', 'dirt3': 'autumn_grass3'},
         species=(('oak_aut', 4), ('maple_aut', 3), ('beech_aut', 2), ('poplar_aut', 1), ('pine', 1)),
@@ -105,7 +105,7 @@ def _hash(x, y, s=0):
 
 
 def pick_species(weights, tx, ty):
-    """Порода на клетке: пятна 7×7 одной породы с примесью (как game.terrain.tree_species)."""
+    """The species on a cell: 7x7 patches of one species with an admixture (like game.terrain.tree_species)."""
     if not weights:
         return None
     rx, ry = tx // 7, ty // 7
@@ -125,7 +125,7 @@ def pick_species(weights, tx, ty):
 
 
 def tree_species(w, tx, ty, available=None):
-    """Порода дерева клетки в пейзаже партии. available — породы, у которых есть спрайты (None — все)."""
+    """The tree species of a cell in the match's landscape. available - species that have sprites (None - all)."""
     sp = of(w)['species']
     if available is not None:
         sp = [(n, v) for n, v in sp if n in available]
@@ -137,7 +137,7 @@ def is_conifer(w, sp):
 
 
 def mm_color(w, ground):
-    """Цвет клетки миникарты для типа земли ground (имя) в пейзаже партии."""
+    """The minimap color of a cell for the ground type ground (a name) in the match's landscape."""
     return of(w)['mm'].get(ground) or MM_BASE.get(ground, (0, 169, 0))
 
 

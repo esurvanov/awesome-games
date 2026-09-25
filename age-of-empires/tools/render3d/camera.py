@@ -1,9 +1,9 @@
-"""Проекция игры и параметры освещения — общие для всех рендеров.
+"""The game's projection and lighting parameters - common to all renders.
 
-Земля — координаты клеток (gx, gy), высота gz в тех же клетках, Z вверх.
-Экран (как game.data.to_iso, но в клетках): sx = (gx − gy)·HW, sy = (gx + gy)·HH − gz·ZK.
-Это честная ортографическая проекция: камера смотрит вдоль −V, V = (1, 1, √(2/3)·…) — угол возвышения 30°,
-поворот 45°; одна клетка — ромб 64×32; вертикаль клетки — ZK = 32·√2·cos30° ≈ 39.19 px.
+The ground - cell coordinates (gx, gy), the height gz in the same cells, Z up.
+Screen (like game.data.to_iso, but in cells): sx = (gx - gy)*HW, sy = (gx + gy)*HH - gz*ZK.
+This is a true orthographic projection: the camera looks along -V, V = (1, 1, sqrt(2/3)*...) - an elevation angle of 30 deg,
+a rotation of 45 deg; one cell is a 64x32 diamond; a cell's vertical is ZK = 32*sqrt(2)*cos30 deg ~ 39.19 px.
 """
 import math
 
@@ -11,27 +11,27 @@ import numpy as np
 
 HW, HH = 32, 16
 ELEV = math.radians(30.0)
-K = HW / math.cos(math.pi / 4)            # пикселей на клетку вдоль горизонтали, перпендикулярной лучу
-ZK = K * math.cos(ELEV)                   # пикселей на клетку высоты (≈ 39.19)
+K = HW / math.cos(math.pi / 4)            # pixels per cell along the horizontal perpendicular to the ray
+ZK = K * math.cos(ELEV)                   # pixels per cell of height (~ 39.19)
 
-# единичный вектор «к зрителю» в координатах земли
+# the unit vector "toward the viewer" in ground coordinates
 VIEW = np.array([1.0, 1.0, 2 * HH / ZK], dtype=np.float64)
 VIEW /= np.linalg.norm(VIEW)
 
-# солнце: справа-сверху экрана, высоко (как в AoE II DE): тени падают влево (чуть вниз), длина тени ≈ 0.55
-# высоты предмета; правые (нормаль +X) грани освещены, левые (нормаль +Y) — в полутени
+# the sun: at the upper right of the screen, high (as in AoE II DE): shadows fall to the left (slightly down), the shadow length ~ 0.55
+# of the object's height; the right faces (normal +X) are lit, the left ones (normal +Y) are in half-shade
 SUN = np.array([0.5, -0.55, 1.5], dtype=np.float64)
 SUN /= np.linalg.norm(SUN)
 
 
 def project(p):
-    """(N,3) земля → (N,2) экранные пиксели (без сдвига)."""
+    """(N,3) ground -> (N,2) screen pixels (without an offset)."""
     p = np.asarray(p, dtype=np.float64)
     return np.stack([(p[:, 0] - p[:, 1]) * HW, (p[:, 0] + p[:, 1]) * HH - p[:, 2] * ZK], axis=1)
 
 
 def view_depth(p):
-    """Чем больше, тем ближе к зрителю."""
+    """The larger, the closer to the viewer."""
     return np.asarray(p, dtype=np.float64) @ VIEW
 
 
@@ -44,17 +44,17 @@ def light_basis(L=SUN):
 
 
 def shadow_on_ground(p, L=SUN):
-    """Проекция точек на плоскость z=0 вдоль луча солнца."""
+    """Projecting points onto the plane z=0 along the sun ray."""
     p = np.asarray(p, dtype=np.float64)
     t = p[:, 2:3] / L[2]
     return p - t * L[None, :]
 
 
 def placement(scale, yaw_deg=0.0, center=(0.0, 0.0), model_center=(0.0, 0.0), mirror=False, z0=0.0):
-    """Матрица 4×4: координаты модели (Z вверх, как в COLLADA) → земля в клетках.
+    """A 4x4 matrix: model coordinates (Z up, as in COLLADA) -> the ground in cells.
 
-    Модель поворачивается на yaw вокруг Z, масштабируется, её точка model_center (в координатах модели,
-    до поворота) переносится в center (клетки)."""
+    The model is rotated by yaw about Z, scaled, its point model_center (in model coordinates,
+    before rotation) is moved to center (cells)."""
     a = math.radians(yaw_deg)
     c, s = math.cos(a), math.sin(a)
     R = np.array([[c, -s, 0, 0], [s, c, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=np.float64)

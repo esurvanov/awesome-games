@@ -1,8 +1,8 @@
-"""Офлайн-рендер деталей актора (Part) в изометрический спрайт: moderngl (headless), сверхвыборка,
-карта теней от солнца, падающая тень на плоскость земли, маска цвета игрока.
+"""Offline rendering of an actor's parts (Part) into an isometric sprite: moderngl (headless), supersampling,
+a shadow map from the sun, a cast shadow onto the ground plane, the player color mask.
 
-Результат render(): Sprite(rgba (H,W,4) uint8 — прямой альфа-канал, mask (H,W) uint8 — доля цвета игрока,
-ox, oy — пиксель, куда проецируется точка земли (0, 0, 0), т.е. верхний угол основания здания).
+The result of render(): Sprite(rgba (H,W,4) uint8 - a straight alpha channel, mask (H,W) uint8 - the player color share,
+ox, oy - the pixel where the ground point (0, 0, 0) projects, i.e. the top corner of the building's base).
 """
 from dataclasses import dataclass
 
@@ -48,7 +48,7 @@ float lit_frac(vec3 lp) {
             vec2 o = vec2(float(i), float(j)) * ts * u_soft;
             float d = texture(u_shadow, lp.xy + o).r;
             float w = 1.0 - length(vec2(i, j)) / 5.0;
-            s += (lp.z - u_bias > d ? 1.0 : 0.0) * w;   // lp.z: больше — дальше от солнца
+            s += (lp.z - u_bias > d ? 1.0 : 0.0) * w;   // lp.z: larger - farther from the sun
             n += w;
         }
     }
@@ -69,9 +69,9 @@ uniform vec3 u_sun;
 uniform vec3 u_amb;
 uniform float u_clipz;
 uniform vec4 u_tint;
-uniform vec4 u_keep;      // ox, oy, dx, dy: оставить только t = dot(p.xy − o, d) ∈ u_keep_rng (d = 0 — выкл.)
+uniform vec4 u_keep;      // ox, oy, dx, dy: keep only t = dot(p.xy - o, d) in u_keep_rng (d = 0 - off)
 uniform vec2 u_keep_rng;
-uniform vec3 u_cut_lo;    // вырезать всё внутри коробки (lo > hi — выкл.)
+uniform vec3 u_cut_lo;    // cut out everything inside the box (lo > hi - off)
 uniform vec3 u_cut_hi;
 bool clipped(vec3 p) {
     if (u_keep.z != 0.0 || u_keep.w != 0.0) {
@@ -116,7 +116,7 @@ uniform sampler2D u_base;
 uniform vec3 u_sun;
 uniform vec3 u_amb;
 uniform vec3 u_L;
-uniform vec4 u_clip;     // xmin, ymin, xmax, ymax (клетки)
+uniform vec4 u_clip;     // xmin, ymin, xmax, ymax (cells)
 uniform float u_fade;
 """ + SHADOW_FN + """
 in vec3 v_pos;
@@ -181,9 +181,9 @@ FS_SHADOW = """
 uniform sampler2D u_base;
 uniform int u_alpha_test;
 uniform float u_clipz;
-uniform vec4 u_keep;      // ox, oy, dx, dy: оставить только t = dot(p.xy − o, d) ∈ u_keep_rng (d = 0 — выкл.)
+uniform vec4 u_keep;      // ox, oy, dx, dy: keep only t = dot(p.xy - o, d) in u_keep_rng (d = 0 - off)
 uniform vec2 u_keep_rng;
-uniform vec3 u_cut_lo;    // вырезать всё внутри коробки (lo > hi — выкл.)
+uniform vec3 u_cut_lo;    // cut out everything inside the box (lo > hi - off)
 uniform vec3 u_cut_hi;
 bool clipped(vec3 p) {
     if (u_keep.z != 0.0 || u_keep.w != 0.0) {
@@ -220,12 +220,12 @@ class Sprite:
 
 @dataclass
 class Look:
-    """Параметры освещения/вида."""
-    # теплее и светлее прежнего (1.2, 1.13, 1.0) / (0.52, 0.54, 0.6): картинка DE — V ≈ 0.50–0.61, тёплая (квант 24)
+    """Lighting/view parameters."""
+    # warmer and lighter than before (1.2, 1.13, 1.0) / (0.52, 0.54, 0.6): the DE picture - V ~ 0.50-0.61, warm (quantum 24)
     sun: tuple = (1.32, 1.18, 0.95)
     amb: tuple = (0.68, 0.63, 0.55)
     shadow_alpha: float = 0.42
-    soft: float = 1.3             # радиус размытия тени (в текселях карты)
+    soft: float = 1.3             # the shadow blur radius (in map texels)
     saturation: float = 1.08
     contrast: float = 1.04
 
@@ -251,7 +251,7 @@ class Renderer:
         self.sh_color = c.renderbuffer((shadow_res, shadow_res), 4)
         self.sh_fbo = c.framebuffer(color_attachments=[self.sh_color], depth_attachment=self.sh_depth)
 
-    # ------------------------------------------------------------ текстуры
+    # ------------------------------------------------------------ textures
     def _mk_tex(self, a):
         h, w = a.shape[:2]
         t = self.ctx.texture((w, h), 4, np.ascontiguousarray(a).tobytes())
@@ -269,10 +269,10 @@ class Renderer:
             self._tex[rel] = self._mk_tex(a) if a is not None else None
         return self._tex[rel]
 
-    # ------------------------------------------------------------ геометрия
+    # ------------------------------------------------------------ geometry
     @staticmethod
     def build_items(parts, place, tint_fn=None):
-        """Детали → список словарей с массивами в координатах земли (клетки)."""
+        """Parts -> a list of dicts with arrays in ground coordinates (cells)."""
         items = []
         for p in parts:
             M = place @ p.matrix
@@ -320,18 +320,18 @@ class Renderer:
         names = ['in_pos', 'in_nrm', 'in_uv0', 'in_uv1']
         fmt = '3f 3f 2f 2f'
         present = [n for n in names if n in prog]
-        # сборка формата с пропуском неиспользуемых атрибутов
+        # assembling the format skipping unused attributes
         parts = []
         for n, f in zip(names, ['3f', '3f', '2f', '2f']):
             parts.append(f if n in present else f.replace('f', 'x4').replace('3x4', '12x').replace('2x4', '8x'))
         fmt = ' '.join(parts)
         return c.vertex_array(prog, [(vbo, fmt, *present)]), vbo
 
-    # ------------------------------------------------------------ рендер
+    # ------------------------------------------------------------ render
     def render(self, items, footprint=None, clip_z=1e9, look=None, ground=True, decal_clip=None,
                shadow_scale=1.0, pad=2, crop=True):
-        """items — из build_items; footprint — (w, h) основания в клетках (для рамки/кадра).
-        clip_z — срез по высоте (стройка). decal_clip — (x0, y0, x1, y1) клетки: декали обрезаются по ним."""
+        """items - from build_items; footprint - (w, h) of the base in cells (for the box/frame).
+        clip_z - a cut by height (construction). decal_clip - (x0, y0, x1, y1) cells: decals are clipped by them."""
         look = look or Look()
         c = self.ctx
         mgl = self.mgl
@@ -362,14 +362,14 @@ class Renderer:
         W, H = int(right - left), int(bottom - top)
         ss = self.ss
         SW, SH = W * ss, H * ss
-        # ---- матрица вида: земля → NDC
+        # ---- the view matrix: ground -> NDC
         g = np.concatenate([allp[:, :2], shp[:, :2], P[:, :2]])
-        # подземные части проецируются ниже на экране — земля должна накрыть их с запасом
+        # underground parts project lower on the screen - the ground must cover them with a margin
         mg = 1.0 + max(0.0, -float(allp[:, 2].min())) * 1.5
         gx0, gy0 = g.min(0) - mg
         gx1, gy1 = g.max(0) + mg
         gq = np.array([[gx0, gy0, 0], [gx1, gy0, 0], [gx1, gy1, 0], [gx0, gy1, 0]], np.float64)
-        dep = camera.view_depth(np.concatenate([allp, P, gq]))     # плоскость земли целиком внутри глубины
+        dep = camera.view_depth(np.concatenate([allp, P, gq]))     # the ground plane is entirely inside the depth
         dmin, dmax = dep.min() - 1.0, dep.max() + 1.0
         V = camera.VIEW
         view = np.zeros((4, 4))
@@ -384,7 +384,7 @@ class Renderer:
         view[2, :3] = -2.0 * V / (dmax - dmin)
         view[2, 3] = 1.0 + 2.0 * dmin / (dmax - dmin)
         view[3, 3] = 1.0
-        # ---- матрица света
+        # ---- the light matrix
         r, u, Ld = camera.light_basis(L)
         gpts = np.concatenate([allp, shp])
         lx, ly, lz = gpts @ r, gpts @ u, gpts @ Ld
@@ -397,14 +397,14 @@ class Renderer:
         light[0, 3] = -(lx1 + lx0) / (lx1 - lx0)
         light[1, :3] = u * 2 / (ly1 - ly0)
         light[1, 3] = -(ly1 + ly0) / (ly1 - ly0)
-        light[2, :3] = -Ld * 2 / (lz1 - lz0)          # ближе к солнцу → меньше глубина
+        light[2, :3] = -Ld * 2 / (lz1 - lz0)          # closer to the sun -> less depth
         light[2, 3] = (lz1 + lz0) / (lz1 - lz0)
         light[3, 3] = 1
         texel = max(lx1 - lx0, ly1 - ly0) / self.shadow_res
         bias = 2.5 * texel / (lz1 - lz0) * 2 + 0.0015
         vaos = []
         try:
-            # ---- проход теней
+            # ---- the shadow pass
             self.sh_fbo.use()
             c.viewport = (0, 0, self.shadow_res, self.shadow_res)
             self.sh_fbo.clear(depth=1.0)
@@ -425,7 +425,7 @@ class Renderer:
                     ps['u_base'].value = 0
                 ps['u_alpha_test'].value = int(it['part'].alpha_test)
                 va.render()
-            # ---- основной проход
+            # ---- the main pass
             col = c.texture((SW, SH), 4)
             msk = c.texture((SW, SH), 4)
             dep_rb = c.depth_renderbuffer((SW, SH))
@@ -449,7 +449,7 @@ class Renderer:
                     if k in p:
                         p[k].value = v
 
-            # декали
+            # decals
             if dec:
                 c.disable(mgl.DEPTH_TEST)
                 pd = self.p_decal
@@ -466,7 +466,7 @@ class Renderer:
                     t.use(0)
                     pd['u_base'].value = 0
                     va.render()
-            # земля с тенью (пишет глубину — прячет подземные части)
+            # the ground with a shadow (writes depth - hides underground parts)
             c.enable(mgl.DEPTH_TEST)
             if ground:
                 z = -0.006
@@ -480,7 +480,7 @@ class Renderer:
                 va, vb = self._vao(pg, git)
                 vaos.append((va, vb))
                 va.render()
-            # геометрия
+            # geometry
             pgm = self.p_geom
             common(pgm)
             for it in geo:
@@ -497,7 +497,7 @@ class Renderer:
                 pgm['u_player'].value = int(it['part'].player)
                 pgm['u_alpha_test'].value = int(it['part'].alpha_test)
                 pgm['u_tint'].value = tuple(it.get('tint') or (1, 1, 1, 1))
-                # 'bright' — деталь без глубоких теней (флаги цвета игрока должны читаться с любой стороны)
+                # 'bright' - a part without deep shadows (player-color flags must read from any side)
                 pgm['u_minlight'].value = 0.95 if 'bright' in it['part'].tags else 0.0
                 va, vb = self._vao(pgm, it)
                 vaos.append((va, vb))
@@ -513,7 +513,7 @@ class Renderer:
             for va, vb in vaos:
                 va.release()
                 vb.release()
-        # ---- уменьшение (box-фильтр), премультиплицированный → прямой альфа
+        # ---- reduction (a box filter), premultiplied -> straight alpha
         rgba = rgba.reshape(H, ss, W, ss, 4).mean(axis=(1, 3))
         mk = mk.reshape(H, ss, W, ss, 4).mean(axis=(1, 3))
         a = rgba[..., 3:4]
@@ -536,7 +536,7 @@ class Renderer:
 
 
 def _clip_uniforms(p, it):
-    """Отсечения детали: 'keep' = (ox, oy, dx, dy, a, b) — полоса вдоль направления; 'cut' = (lo, hi) — коробка."""
+    """A part's clips: 'keep' = (ox, oy, dx, dy, a, b) - a strip along a direction; 'cut' = (lo, hi) - a box."""
     k = it.get('keep')
     if k is None:
         p['u_keep'].value = (0.0, 0.0, 0.0, 0.0)
@@ -554,7 +554,7 @@ def _clip_uniforms(p, it):
 
 
 def _grade(rgb, look):
-    """Лёгкая «пререндерная» цветокоррекция: насыщенность и контраст."""
+    """A light "pre-render" color correction: saturation and contrast."""
     if look.saturation == 1 and look.contrast == 1:
         return rgb
     lum = rgb @ np.array([0.299, 0.587, 0.114], np.float32)

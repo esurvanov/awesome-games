@@ -1,11 +1,11 @@
-"""Главное меню (примесь к ui.Game) — раскладка AoE2 DE:
-слева колонка: название, три плитки-иллюстрации (Одиночная игра · Сетевая игра · Обучение), орнамент,
-«Новости», «Выход»; справа вверху — настройки ⚙, профиль, громкость; справа — лента новостей;
-внизу по центру — строка версии. Плитки нарисованы из спрайтов игры (game/menu_art.py).
+"""The main menu (a mixin of ui.Game) - the AoE2 DE layout:
+a column on the left: the title, three illustrated tiles (Single Player · Multiplayer · Learn to Play), an ornament,
+"News", "Exit"; top right - settings gear, profile, volume; on the right - the news feed;
+at the bottom center - the version line. The tiles are drawn from the game's sprites (game/menu_art.py).
 
-Экраны (menu_screen): 'main' · 'single' (окно «Одиночная игра»: Схватка, Кампании, Сценарии, Загрузить игру) ·
-'setup' (лобби, game/lobby.py) · 'learn' (обучение) · 'news' · 'settings' (game/settings_ui.py) ·
-'load' (game/saves_ui.py) · 'credits' (CREDITS.md с прокруткой).
+Screens (menu_screen): 'main' · 'single' (the "Single Player" window: Skirmish, Campaigns, Scenarios, Load Game) ·
+'setup' (the lobby, game/lobby.py) · 'learn' (tutorial) · 'news' · 'settings' (game/settings_ui.py) ·
+'load' (game/saves_ui.py) · 'credits' (CREDITS.md with scrolling).
 """
 import os
 import random
@@ -14,37 +14,26 @@ import subprocess
 
 import pygame
 
-from .data import TITLE, SCREEN_W, SCREEN_H, TOP_H, VIEW_H, TILE
-from . import menu_art, uiskin as S, widgets as W
+from .data import SCREEN_W, SCREEN_H, TOP_H, VIEW_H, TILE
+from . import i18n, menu_art, uiskin as S, widgets as W
 from . import settings as gsettings
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
-# ---- главное меню
-COL = pygame.Rect(0, 0, 400, SCREEN_H)                 # тёмная колонка слева (~⅓ ширины, как в DE)
+# ---- main menu
+COL = pygame.Rect(0, 0, 400, SCREEN_H)                 # a dark column on the left (~1/3 of the width, as in DE)
 TILE_W, TILE_H = 300, 146
-MAIN_TILES = [('single', 'Одиночная игра'), ('multi', 'Сетевая игра'), ('learn', 'Обучение')]
-# окно «Одиночная игра»: (действие, подпись, доступно)
-SINGLE_TILES = [('skirmish', 'Схватка', True), ('campaign', 'Кампании', False), ('scenario', 'Сценарии', False),
-                ('load_game', 'Загрузить игру', True)]
+MAIN_TILES = [('single', 'menu.single'), ('multi', 'menu.multi'), ('learn', 'menu.learn')]     # locale keys
+# the "Single Player" window: (action, caption key, available)
+SINGLE_TILES = [('skirmish', 'menu.skirmish', True), ('campaign', 'menu.campaigns', False),
+                ('scenario', 'menu.scenarios', False), ('load_game', 'menu.load_game', True)]
 SINGLE_BOX = pygame.Rect(SCREEN_W // 2 - 380 + COL.w // 2 - 60, 170, 760, 420)
 
-NEWS_STATIC = [
-    ('Меню как в DE', 'Главное меню с плитками, окно «Одиночная игра», лобби на 8 игроков'),
-    ('Параметры партии', 'Ресурсы, население, эпохи, перемирие, победа по времени и очкам'),
-    ('Сохранения', 'F10 → «Сохранить» / «Загрузить»; достижения после партии'),
-    ('ИИ: 6 уровней', 'От «Легчайшего» до «Экстрима»'),
-]
+NEWS_STATIC = ['menu_de', 'match_options', 'saves', 'ai_levels']       # news.<key>.title / .body
 
-LEARN_CARDS = [
-    ('economics', 'Экономика', ['Жители: еда, дерево, золото, камень', 'Склады рядом с ресурсами',
-                                'Дома: +5 населения']),
-    ('construction', 'Стройка', ['Житель → кнопка здания → клик по карте', 'Несколько жителей строят быстрее']),
-    ('call-to-arms', 'Армия', ['Казармы, стрельбище, конюшня', 'Пехота ↔ конница ↔ стрелки: у каждого свой враг']),
-    ('upgrade', 'Эпохи', ['Центр: следующая эпоха', 'Новые здания, войска и технологии']),
-    ('kill', 'Победа', ['Разрушьте центры и жителей врагов', 'Или — по времени / по очкам (лобби)']),
-    ('encyclopaedia', 'Клавиши', ['F1 справка · F10 меню · H центр', '. праздный житель · +/− скорость']),
-]
+# tutorial cards: (icon, key; the title is learn.<key>.title, the lines are learn.<key>.1...n)
+LEARN_CARDS = [('economics', 'eco', 3), ('construction', 'build', 2), ('call-to-arms', 'army', 2),
+               ('upgrade', 'ages', 2), ('kill', 'victory', 2), ('encyclopaedia', 'keys', 2)]
 
 
 def _git(*args):
@@ -62,14 +51,13 @@ _NEWS = None
 def version_line():
     global _VERSION
     if _VERSION is None:
-        n = _git('rev-list', '--count', 'HEAD')
-        d = _git('log', '-1', '--format=%cd', '--date=short')
-        _VERSION = f'Версия 0.9.{n or "0"}' + (f' · сборка {d}' if d else '')
-    return _VERSION
+        _VERSION = (_git('rev-list', '--count', 'HEAD') or '0', _git('log', '-1', '--format=%cd', '--date=short'))
+    n, d = _VERSION
+    return i18n.t('menu.version', v='0.9.' + n) + (' · ' + i18n.t('menu.build', date=d) if d else '')
 
 
 def news():
-    """[(дата, заголовок)] — из истории git (если есть), иначе встроенный список."""
+    """[(date, title)] - from the git history (if any), otherwise the built-in list."""
     global _NEWS
     if _NEWS is None:
         raw = _git('log', '--no-merges', '--format=%cd|%s', '--date=short', '-14')
@@ -77,11 +65,11 @@ def news():
         for ln in raw.splitlines():
             if '|' in ln:
                 d, s = ln.split('|', 1)
-                if s.lower().startswith(('merge', 'слияние')):
+                if s.lower().startswith(('merge', 'слияние')):    # noqa: service commits
                     continue
                 items.append((d, s))
-        _NEWS = items or [('', f'{a}: {b}') for a, b in NEWS_STATIC]
-    return _NEWS
+        _NEWS = items
+    return _NEWS or [('', f'{i18n.t("news." + k + ".title")}: {i18n.t("news." + k + ".body")}') for k in NEWS_STATIC]
 
 
 def _wrap(f, s, width):
@@ -104,18 +92,18 @@ class MenuUI:
     news_scroll = 0
     _credits = None
 
-    # ============================================================ разметка
+    # ============================================================ layout
     def main_rects(self):
-        """[(rect, действие, подпись)] главного меню."""
+        """[(rect, action, caption)] of the main menu."""
         items = []
         x = COL.centerx - TILE_W // 2
         for i, (act, lbl) in enumerate(MAIN_TILES):
             items.append((pygame.Rect(x, 150 + i * (TILE_H + 14), TILE_W, TILE_H), act, lbl))
-        items.append((pygame.Rect(x, 668, TILE_W, 36), 'news', 'Новости'))
-        items.append((pygame.Rect(x, 714, TILE_W, 36), 'quit', 'Выход'))
-        items.append((pygame.Rect(SCREEN_W - 316, 10, 40, 40), 'settings', 'Настройки'))
-        items.append((pygame.Rect(SCREEN_W - 268, 10, 200, 40), 'profile', 'Профиль'))
-        items.append((pygame.Rect(SCREEN_W - 196, SCREEN_H - 96, 180, 32), 'credits', 'Об игре и авторы'))
+        items.append((pygame.Rect(x, 668, TILE_W, 36), 'news', 'menu.news'))
+        items.append((pygame.Rect(x, 714, TILE_W, 36), 'quit', 'menu.quit'))
+        items.append((pygame.Rect(SCREEN_W - 316, 10, 40, 40), 'settings', 'menu.settings'))
+        items.append((pygame.Rect(SCREEN_W - 268, 10, 200, 40), 'profile', 'menu.profile'))
+        items.append((pygame.Rect(SCREEN_W - 196, SCREEN_H - 96, 180, 32), 'credits', 'menu.credits'))
         return items
 
     def single_rects(self):
@@ -134,7 +122,7 @@ class MenuUI:
         return items
 
     def menu_items(self):
-        """[(rect, действие, значение)] — активные элементы текущего экрана меню."""
+        """[(rect, action, value)] - the active elements of the current menu screen."""
         scr = self.menu_screen
         if scr == 'setup':
             if self.picker is not None:
@@ -152,7 +140,7 @@ class MenuUI:
             return self.saves_rects()
         return [(r, act, None) for r, act, _ in self.main_rects()]
 
-    # ============================================================ действия
+    # ============================================================ actions
     def menu_action(self, act, val):
         self.audio.click()
         if act == 'single':
@@ -160,7 +148,7 @@ class MenuUI:
         elif act == 'profile':
             self.open_settings(back=self.menu_screen, tab='interface')
         elif act == 'multi':
-            self.menu_toast = ('Сетевая игра — позже', pygame.time.get_ticks())
+            self.menu_toast = (i18n.t('menu.multi_later'), pygame.time.get_ticks())
         elif act == 'learn':
             self.menu_screen = 'learn'
         elif act == 'tutorial':
@@ -173,7 +161,7 @@ class MenuUI:
             self.picker = None
             self.dropdown = None
         elif act in ('campaign', 'scenario'):
-            self.menu_toast = ('Кампании и сценарии — скоро', pygame.time.get_ticks())
+            self.menu_toast = (i18n.t('menu.campaigns_soon'), pygame.time.get_ticks())
         elif act == 'load_game':
             self.open_saves('load', back='single')
         elif act == 'settings':
@@ -195,7 +183,7 @@ class MenuUI:
             self.saves_action(act, val)
 
     def start_tutorial(self):
-        """Учебная партия: один «Легчайший» противник, перемирие 20 минут, нормальная скорость."""
+        """Tutorial match: one "Easiest" opponent, a 20-minute treaty, normal speed."""
         st = dict(treaty=20, speed=1.5)
         self.begin_loading(dict(diff=0, opponents=1, map_type='land', civs=['franks', 'britons'], teams=[0, 1],
                                 colors=None, levels=[None, 0], settings=st))
@@ -243,7 +231,7 @@ class MenuUI:
                 step = {pygame.K_DOWN: 40, pygame.K_UP: -40, pygame.K_PAGEDOWN: 400, pygame.K_PAGEUP: -400}[k]
                 self.credits_scroll += step
 
-    # ============================================================ фон
+    # ============================================================ background
     def menu_background(self):
         bg = getattr(self, 'menu_bg', None)
         if bg is not None:
@@ -252,7 +240,7 @@ class MenuUI:
         if gsettings.get('live_menu_bg', True):
             try:
                 bg = self.render_vista()
-            except Exception:           # фон — украшение: при любой ошибке — каменная стена
+            except Exception:           # the background is decoration: on any error - a stone wall
                 bg = None
                 self.world = None
         if bg is None:
@@ -264,11 +252,11 @@ class MenuUI:
         return bg
 
     def render_vista(self):
-        """Панорама: небольшой город на карте игры (реальные спрайты), мягко размытый."""
+        """A panorama: a small town on the game's map (real sprites), softly blurred."""
         state = random.getstate()
         saved = (self.state, dict(self.menu_cfg))
         zoom = self.zoom
-        self.zoom = self.zoom_to = 1.0     # панорама — всегда в обычном масштабе
+        self.zoom = self.zoom_to = 1.0     # the panorama is always at the normal scale
         try:
             random.seed(11)
             self.new_game(1, 1, map_type='coast', civs=['britons', 'franks'])
@@ -321,7 +309,7 @@ class MenuUI:
             self.menu_cfg.clear()
             self.menu_cfg.update(cfg)
 
-    # ============================================================ отрисовка
+    # ============================================================ drawing
     def draw_menu(self):
         scr = self.screen
         scr.blit(self.menu_background(), (0, 0))
@@ -353,20 +341,21 @@ class MenuUI:
 
     def draw_main(self):
         scr = self.screen
-        # колонка: тёмный камень + золотая кромка справа
+        # column: dark stone + a golden edge on the right
         col = S.tiled('skin/stone_dark.png', COL.size, tint=(170, 150, 128))
         scr.blit(col, COL.topleft)
         S.vignette(scr, COL, 120)
         pygame.draw.line(scr, (20, 12, 6), (COL.right, 0), (COL.right, SCREEN_H), 4)
         pygame.draw.line(scr, S.GOLD_DK, (COL.right - 3, 0), (COL.right - 3, SCREEN_H), 2)
-        # название
-        for i, part in enumerate(TITLE.upper().split(' ', 1)):
+        # title
+        for i, part in enumerate(i18n.t('app.title').upper().split(' ', 1)):
             img = S.gold_text(part, self.fonts['xl'])
             scr.blit(img, img.get_rect(center=(COL.centerx, 50 + i * 48)))
         mp = pygame.mouse.get_pos()
         pressed = pygame.mouse.get_pressed()[0]
         modal = self.menu_screen != 'main'
         for r, act, lbl in self.main_rects():
+            lbl = i18n.t(lbl)
             h = r.collidepoint(mp) and not modal
             if act in ('single', 'multi', 'learn'):
                 art = menu_art.tile_art(act, (r.w, r.h - 30))
@@ -377,7 +366,7 @@ class MenuUI:
                 pygame.draw.rect(scr, S.GOLD_HI if h else (120, 90, 50), r, 2)
                 if act == 'multi':
                     S.shade_overlay(scr, r, (30, 24, 20), 110)
-                    S.text(scr, 'скоро', (r.right - 40, r.y + 18), self.fonts['bs'], (250, 230, 190),
+                    S.text(scr, i18n.t('menu.soon'), (r.right - 40, r.y + 18), self.fonts['bs'], (250, 230, 190),
                            anchor='center')
             elif act == 'credits':
                 W.red_button(scr, r, lbl, self.fonts['bs'], 'hover' if h else 'normal')
@@ -391,31 +380,30 @@ class MenuUI:
                 W.red_button(scr, r, '', self.fonts['b'], 'hover' if h else 'normal')
                 from . import civ_ui
                 civ_ui.blit_emblem(self, self.cfg_defaults()['slots'][0]['civ'], (r.x + 4, r.y + 3, 30, 34))
-                S.text(scr, gsettings.get('player_name', 'Игрок'), (r.x + 42, r.y + 12), self.fonts['b'],
-                       (255, 240, 205), anchor='midleft', shadow=(30, 8, 4))
-                S.text(scr, 'одиночная игра', (r.x + 42, r.y + 29), self.fonts['s'], (230, 200, 170),
-                       anchor='midleft', shadow=None)
-        # орнамент над «Новости»
+                S.text_fit(scr, i18n.player_name(), (r.x + 42, r.y + 12), self.fonts['b'],
+                           (255, 240, 205), anchor='midleft', shadow=(30, 8, 4), max_w=r.w - 50)
+                S.text_fit(scr, i18n.t('menu.single_mode'), (r.x + 42, r.y + 29), self.fonts['s'], (230, 200, 170),
+                           anchor='midleft', shadow=None, max_w=r.w - 50)
+        # ornament above "News"
         y = 648
         pygame.draw.line(scr, S.GOLD_DK, (COL.centerx - 120, y), (COL.centerx + 120, y), 2)
         pts = [(COL.centerx, y - 8), (COL.centerx + 8, y), (COL.centerx, y + 8), (COL.centerx - 8, y)]
         pygame.draw.polygon(scr, S.GOLD, pts)
-        # лента новостей справа (как лента событий DE)
+        # the news feed on the right (like DE's event feed)
         if self.menu_screen == 'main':
             self.draw_feed(pygame.Rect(SCREEN_W - 400, 70, 380, 330))
-        # версия внизу по центру
+        # version at the bottom center
         S.text(scr, version_line(), ((COL.right + SCREEN_W) // 2, SCREEN_H - 34), self.fonts['bs'],
                (240, 226, 196), anchor='center')
-        S.text(scr, 'Графика и звук: 0 A.D. © Wildfire Games; Millennium A.D.; CC BY-SA 3.0 — подробно в «Об игре и '
-                    'авторы»', ((COL.right + SCREEN_W) // 2, SCREEN_H - 16), self.fonts['s'], (200, 188, 160),
-               anchor='center')
+        S.text_fit(scr, i18n.t('menu.credits_line'), ((COL.right + SCREEN_W) // 2, SCREEN_H - 16), self.fonts['s'],
+                   (200, 188, 160), anchor='center', max_w=SCREEN_W - COL.right - 20)
 
     def draw_feed(self, box):
         scr = self.screen
         y = box.y
         for d, s in news()[:4]:
             hdr = pygame.Rect(box.x, y, box.w, 26)
-            W.red_button(scr, hdr, d or 'Новое', self.fonts['bs'])
+            W.red_button(scr, hdr, d or i18n.t('menu.new'), self.fonts['bs'])
             lines = _wrap(self.fonts['m'], s, box.w - 20)
             if len(lines) > 2:
                 lines = lines[:2]
@@ -429,22 +417,22 @@ class MenuUI:
             if y > box.bottom:
                 break
 
-    # ---- окно «Одиночная игра»
+    # ---- the "Single Player" window
     def draw_single(self):
         scr = self.screen
         S.shade_overlay(scr, (COL.right, 0, SCREEN_W - COL.right, SCREEN_H), alpha=120)
         b = SINGLE_BOX
         S.panel(scr, b, 'parchment', frame=False)
         pygame.draw.rect(scr, (120, 84, 40), b, 2)
-        W.plate(scr, (b.centerx, b.y + 30), 'Одиночная игра', self.fonts['h'], 340)
+        W.plate(scr, (b.centerx, b.y + 30), i18n.t('menu.single'), self.fonts['h'], 340)
         mp = pygame.mouse.get_pos()
         art_of = {'skirmish': 'skirmish', 'campaign': 'campaign', 'scenario': 'scenario', 'load_game': 'load'}
         for r, act, ok in self.single_rects():
             h = r.collidepoint(mp)
             if act == 'back':
-                W.red_button(scr, r, 'Отмена', self.fonts['b'], 'hover' if h else 'normal')
+                W.red_button(scr, r, i18n.t('common.cancel'), self.fonts['b'], 'hover' if h else 'normal')
                 continue
-            lbl = next(lb for a, lb, _ in SINGLE_TILES if a == act)
+            lbl = i18n.t(next(lb for a, lb, _ in SINGLE_TILES if a == act))
             art = menu_art.tile_art(art_of[act], (r.w, r.h - 34))
             scr.blit(art, r.topleft)
             W.red_button(scr, pygame.Rect(r.x, r.bottom - 34, r.w, 34), lbl, self.fonts['b'],
@@ -452,39 +440,40 @@ class MenuUI:
             pygame.draw.rect(scr, S.GOLD_HI if h and ok else (120, 84, 40), r, 2)
             if not ok:
                 S.shade_overlay(scr, pygame.Rect(r.x, r.y, r.w, r.h - 34), (60, 50, 40), 90)
-                S.text(scr, 'скоро', (r.centerx, r.y + 22), self.fonts['b'], (255, 240, 210), anchor='center')
+                S.text(scr, i18n.t('menu.soon'), (r.centerx, r.y + 22), self.fonts['b'], (255, 240, 210), anchor='center')
 
-    # ---- обучение
+    # ---- tutorial
     def draw_learn(self):
         scr = self.screen
         S.shade_overlay(scr, (COL.right, 0, SCREEN_W - COL.right, SCREEN_H), alpha=150)
         box = pygame.Rect(COL.right + 30, 40, SCREEN_W - COL.right - 60, SCREEN_H - 140)
         S.panel(scr, box, 'parchment', frame=False)
-        W.plate(scr, (box.centerx, box.y + 32), 'Обучение: основы', self.fonts['h'], 380)
+        W.plate(scr, (box.centerx, box.y + 32), i18n.t('menu.learn_title'), self.fonts['h'], 380)
         cw, ch = (box.w - 60) // 3, 250
-        for i, (ic, title, rows) in enumerate(LEARN_CARDS):
+        for i, (ic, key, n) in enumerate(LEARN_CARDS):
             r = pygame.Rect(box.x + 20 + (i % 3) * (cw + 10), box.y + 70 + (i // 3) * (ch + 12), cw, ch)
             W.box(scr, r, 40)
             S.blit_icon(scr, ic, (r.centerx, r.y + 48), 64)
-            S.text(scr, title, (r.centerx, r.y + 100), self.fonts['l'], W.INK, anchor='center', shadow=None)
+            S.text_fit(scr, i18n.t(f'learn.{key}.title'), (r.centerx, r.y + 100), self.fonts['l'], W.INK, anchor='center',
+                       shadow=None, max_w=r.w - 20)
             y = r.y + 130
-            for row in rows:
+            for row in (i18n.t(f'learn.{key}.{j + 1}') for j in range(n)):
                 for ln in _wrap(self.fonts['m'], row, r.w - 24):
                     S.text(scr, ln, (r.centerx, y), self.fonts['m'], W.INK, anchor='center', shadow=None)
                     y += 19
                 y += 6
         mp = pygame.mouse.get_pos()
         for r, act, _ in self.learn_rects():
-            W.red_button(scr, r, 'Учебная партия' if act == 'tutorial' else 'Назад', self.fonts['b'],
+            W.red_button(scr, r, i18n.t('menu.tutorial') if act == 'tutorial' else i18n.t('common.back'), self.fonts['b'],
                          'hover' if r.collidepoint(mp) else 'normal', icon='call-to-arms' if act == 'tutorial' else None)
 
-    # ---- новости
+    # ---- news
     def draw_news(self):
         scr = self.screen
         S.shade_overlay(scr, (COL.right, 0, SCREEN_W - COL.right, SCREEN_H), alpha=150)
         box = pygame.Rect(COL.right + 60, 40, SCREEN_W - COL.right - 120, SCREEN_H - 130)
         S.panel(scr, box, 'parchment', frame=False)
-        W.plate(scr, (box.centerx, box.y + 32), 'Новости', self.fonts['h'], 300)
+        W.plate(scr, (box.centerx, box.y + 32), i18n.t('menu.news'), self.fonts['h'], 300)
         view = pygame.Rect(box.x + 30, box.y + 70, box.w - 60, box.h - 90)
         items = news()
         total = len(items) * 56
@@ -502,11 +491,11 @@ class MenuUI:
         scr.set_clip(clip)
         mp = pygame.mouse.get_pos()
         for r, act, _ in self.menu_items():
-            W.red_button(scr, r, 'Назад', self.fonts['b'], 'hover' if r.collidepoint(mp) else 'normal')
+            W.red_button(scr, r, i18n.t('common.back'), self.fonts['b'], 'hover' if r.collidepoint(mp) else 'normal')
 
-    # ---- авторы
+    # ---- credits
     def credits_lines(self):
-        """CREDITS.md → [(стиль, текст)]; стили: h1 h2 h3 p li q tr."""
+        """CREDITS.md -> [(style, text)]; styles: h1 h2 h3 p li q tr."""
         if self._credits is not None:
             return self._credits
         lines = []
@@ -514,7 +503,7 @@ class MenuUI:
             with open(os.path.join(ROOT, 'CREDITS.md'), encoding='utf-8') as f:
                 raw = f.read().splitlines()
         except OSError:
-            raw = ['# Credits', 'CREDITS.md не найден.']
+            raw = ['# Credits', i18n.t('menu.credits_missing')]
         merged = []
         for ln in raw:
             st = ln.strip()
@@ -619,4 +608,4 @@ class MenuUI:
             pygame.draw.rect(scr, (100, 60, 24), (track.x, ty, 8, th), border_radius=4)
         mp = pygame.mouse.get_pos()
         for r, act, _ in self.menu_items():
-            W.red_button(scr, r, 'Назад', self.fonts['b'], 'hover' if r.collidepoint(mp) else 'normal')
+            W.red_button(scr, r, i18n.t('common.back'), self.fonts['b'], 'hover' if r.collidepoint(mp) else 'normal')

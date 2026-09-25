@@ -1,30 +1,31 @@
-"""Оборона: стены (линии сегментов), ворота, гарнизон, набат, пролом стен, превращение башен.
+"""Defense: walls (lines of segments), gates, garrison, town bell, wall breaching, tower upgrades.
 
-Логика симуляции без графики; world.py вызывает отсюда хуки, интерфейс и ИИ — API ниже.
+Simulation logic without graphics; world.py calls hooks from here, the interface and AI use the API below.
 
-Стены и ворота — обычные здания (BUILDINGS[...]['wall'] = True; у ворот ещё 'gate' = True).
-  line_tiles(x0, y0, x1, y1)                    — клетки прямой/диагональной линии (как протяжка в оригинале)
-  place_wall_line(w, kind, pid, x0, y0, x1, y1, builders)  — фундаменты по линии, оплата за сегмент
-  gate_rect(tx, ty, horiz, span)  /  can_place_gate(...)  /  place_gate(...)  — ворота 4×1 или 1×4;
-      ставятся на свободную землю или поверх своих стен (сегменты заменяются)
-  Проходимость по владельцу: World.passable_for(x, y, owner), World.find_path(..., owner=...) —
-      клетки ворот проходимы только для владельца и союзников (сетка World.gate).
-Гарнизон (правила оригинала): BUILDINGS[k]['garrison'] — вместимость, ['garrison_cls'] — классы юнитов.
+Walls and gates are ordinary buildings (BUILDINGS[...]['wall'] = True; gates also have 'gate' = True).
+  line_tiles(x0, y0, x1, y1)                    - tiles of a straight/diagonal line (like dragging in the original)
+  place_wall_line(w, kind, pid, x0, y0, x1, y1, builders)  - foundations along the line, paid per segment
+  gate_rect(tx, ty, horiz, span)  /  can_place_gate(...)  /  place_gate(...)  - a 4x1 or 1x4 gate;
+      placed on free ground or over own walls (segments are replaced)
+  Passability by owner: World.passable_for(x, y, owner), World.find_path(..., owner=...) -
+      gate tiles are passable only for the owner and allies (grid World.gate).
+Garrison (rules of the original): BUILDINGS[k]['garrison'] - capacity, ['garrison_cls'] - unit classes.
   can_garrison(b, u) / Unit.cmd_garrison(b) / enter(w, u, b) / eject(w, b, units=None)
-  Юнит внутри: u.inside = здание, u.alive = False (исчезает с карты, но в населении), лечится,
-  жители и стрелки дают зданию +1 стрелу. При разрушении здания все выходят.
-Набат: ring_bell(w, pid) — все жители в ближайшие здания с местом; all_clear(w, pid) — назад к делам.
-Пролом: breach_target(w, u, ent) — если путь к цели перекрыт вражескими стенами, ближайший мешающий сегмент.
-Башни: upgrade_buildings(w, p, old, new) — все здания old → new (с сохранением доли ОЗ), новые строятся как new.
+  A unit inside: u.inside = the building, u.alive = False (it disappears from the map but counts toward the population), heals,
+  villagers and ranged units give the building +1 arrow. When the building is destroyed everyone comes out.
+Town bell: ring_bell(w, pid) - all villagers into the nearest buildings with room; all_clear(w, pid) - back to their tasks.
+Breach: breach_target(w, u, ent) - if the path to the target is blocked by enemy walls, the nearest blocking segment.
+Towers: upgrade_buildings(w, p, old, new) - all buildings old -> new (keeping the HP share), new ones are built as new.
 """
 import math
 import random
 
+from . import i18n
 from .data import TILE, BUILDINGS
 from .world import Building
 
-GARRISON_HEAL = 0.5          # ОЗ в игровую секунду у сидящих в гарнизоне
-ARROW_CLS = ('vil', 'arch')  # кто в гарнизоне добавляет стрелу
+GARRISON_HEAL = 0.5          # HP per game second for those sitting in a garrison
+ARROW_CLS = ('vil', 'arch')  # whoever is in the garrison adds an arrow
 
 
 def is_wall(b):
@@ -35,9 +36,9 @@ def is_gate(b):
     return isinstance(b, Building) and b.d.get('gate', False)
 
 
-# ============================================================ стены
+# ============================================================ walls
 def line_tiles(x0, y0, x1, y1):
-    """Клетки линии от (x0, y0) до (x1, y1) (8-связная, без дыр: диагональные стыки непроходимы)."""
+    """Tiles of the line from (x0, y0) to (x1, y1) (8-connected, without gaps: diagonal joints are impassable)."""
     pts = []
     n = max(abs(x1 - x0), abs(y1 - y0))
     for i in range(n + 1):
@@ -51,20 +52,20 @@ def line_tiles(x0, y0, x1, y1):
 
 
 def wall_plan(w, kind, pid, tiles):
-    """Какие клетки линии можно застроить (занятые пропускаются)."""
+    """Which tiles of the line can be built on (occupied ones are skipped)."""
     return [(x, y) for x, y in tiles if w.can_place(kind, x, y, pid)]
 
 
 def place_wall_line(w, kind, pid, x0, y0, x1, y1, builders=()):
-    """Заложить стену по линии. Платит за каждый сегмент, пока хватает ресурсов.
-    Строители идут к ближайшим сегментам и дальше строят по цепочке (ближайший следующий).
-    Возвращает список заложенных сегментов."""
+    """Lay a wall along a line. Pays for each segment while resources last.
+    Builders go to the nearest segments and then build along the chain (the nearest next one).
+    Returns the list of laid segments."""
     p = w.players[pid]
     placed = []
     for x, y in wall_plan(w, kind, pid, line_tiles(x0, y0, x1, y1)):
         if not p.pay(p.cost_of('bld', kind)):
             if pid == w.human:
-                w.msg('Не хватает ресурсов', (255, 150, 90))
+                w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
             break
         placed.append(w.place_building(kind, pid, x, y))
     assign_builders(placed, builders)
@@ -72,7 +73,7 @@ def place_wall_line(w, kind, pid, x0, y0, x1, y1, builders=()):
 
 
 def assign_builders(segs, builders):
-    """Каждому строителю — ближайший к нему сегмент (равномерно), дальше цепочка в Unit.after_build."""
+    """To each builder - the segment nearest to it (evenly), then the chain in Unit.after_build."""
     segs = [s for s in segs if s.alive]
     if not segs:
         return
@@ -85,9 +86,9 @@ def assign_builders(segs, builders):
         u.cmd_build(s)
 
 
-# ============================================================ ворота
+# ============================================================ gates
 def gate_rect(tx, ty, horiz, span=4):
-    """(x, y, ширина, высота) ворот: horiz — вдоль оси x."""
+    """(x, y, width, height) of a gate: horiz - along the x axis."""
     return (tx, ty, span, 1) if horiz else (tx, ty, 1, span)
 
 
@@ -96,7 +97,7 @@ def gate_span(kind):
 
 
 def can_place_gate(w, kind, tx, ty, horiz, pid, check_explored=True):
-    """Ворота можно ставить на свободную землю и поверх своих стен (не ворот)."""
+    """A gate can be placed on free ground and over own walls (not gates)."""
     x0, y0, gw, gh = gate_rect(tx, ty, horiz, gate_span(kind))
     for y in range(y0, y0 + gh):
         for x in range(x0, x0 + gw):
@@ -117,7 +118,7 @@ def can_place_gate(w, kind, tx, ty, horiz, pid, check_explored=True):
 
 
 def gate_orient(w, kind, tx, ty, pid, prefer=True):
-    """Ориентация ворот в точке: вдоль своей стены, если она там есть; иначе prefer."""
+    """Gate orientation at a point: along its own wall if there is one; otherwise prefer."""
     span = gate_span(kind)
     best = None
     for horiz in (prefer, not prefer):
@@ -130,7 +131,7 @@ def gate_orient(w, kind, tx, ty, pid, prefer=True):
 
 
 def place_gate(w, kind, pid, tx, ty, horiz, builders=(), pay=True):
-    """Заложить ворота (сегменты своих стен под ними сносятся). None — нельзя/не хватает ресурсов."""
+    """Lay a gate (the own wall segments under it are demolished). None - impossible/not enough resources."""
     p = w.players[pid]
     if not can_place_gate(w, kind, tx, ty, horiz, pid):
         return None
@@ -153,7 +154,7 @@ def place_gate(w, kind, pid, tx, ty, horiz, builders=(), pay=True):
 
 
 def gate_open(w, b):
-    """Открыты ли ворота: рядом свой/союзный юнит (только для отрисовки)."""
+    """Whether a gate is open: an own/allied unit is nearby (for drawing only)."""
     if not b.complete:
         return False
     x0, y0 = (b.tx - 1) * TILE, (b.ty - 1) * TILE
@@ -166,13 +167,13 @@ def gate_open(w, b):
 
 
 def wall_mask(w, b):
-    """Маска соседей-стен (для красивых стыков): биты по направлениям DIR8."""
+    """Mask of neighboring walls (for neat joints): bits by the DIR8 directions."""
     return mask_at(w, b.tx, b.ty, b.owner, exclude=b)
 
 
 def mask_at(w, x0, y0, owner, extra=(), exclude=None):
-    """Маска соединений клетки (x0, y0) со своими стенами/воротами и клетками extra (призрак линии).
-    Диагональ соединяется, только если нет углового пути через прямых соседей."""
+    """Mask of connections of the tile (x0, y0) with own walls/gates and the extra tiles (the line's ghost).
+    A diagonal connects only if there is no corner path through the straight neighbors."""
     occ = w.occ
 
     def wall(x, y):
@@ -195,9 +196,9 @@ def mask_at(w, x0, y0, owner, extra=(), exclude=None):
 DIR8 = [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, 1), (-1, -1), (1, -1)]
 
 
-# ============================================================ пролом
+# ============================================================ breach
 def breach_target(w, u, ent):
-    """Путь к ent не найден: вражеский сегмент стены/ворот рядом с концом пути, ближайший к цели."""
+    """No path to ent found: the enemy wall/gate segment near the end of the path, nearest to the target."""
     if is_wall(ent) or not w.hostile(u.owner, ent.owner):
         return None
     if u.path:
@@ -222,19 +223,19 @@ def breach_target(w, u, ent):
     return best
 
 
-# ============================================================ гарнизон
+# ============================================================ garrison
 def capacity(b):
     return b.d.get('garrison', 0) if b.complete else 0
 
 
 def can_garrison(b, u):
-    """Может ли юнит u сесть в здание b (своё, достроенное, есть место, подходящий класс)."""
+    """Whether unit u may enter building b (own, completed, has room, a suitable class)."""
     return (b.alive and b.complete and b.owner == u.owner and len(b.garrison) < capacity(b)
             and u.cls in b.d.get('garrison_cls', ('vil', 'inf', 'arch')))
 
 
 def enter(w, u, b):
-    """Юнит садится в здание: исчезает с карты (alive=False), но остаётся в населении."""
+    """A unit enters a building: it disappears from the map (alive=False) but stays in the population."""
     u.release()
     u.inside = b
     u.alive = False
@@ -249,7 +250,7 @@ def enter(w, u, b):
 
 
 def do_garrison(w, u, dt):
-    """Состояние юнита 'garrison': дойти до здания и войти."""
+    """The 'garrison' unit state: walk to the building and enter."""
     b = u.target
     if b is None or not can_garrison(b, u):
         u.state = 'idle'
@@ -260,7 +261,7 @@ def do_garrison(w, u, dt):
 
 
 def exit_tiles(w, b, n, owner):
-    """До n свободных клеток вокруг здания (сначала ближние к «фасаду»)."""
+    """Up to n free tiles around the building (nearest to the "facade" first)."""
     out = []
     for r in range(1, 6):
         ring = []
@@ -278,7 +279,7 @@ def exit_tiles(w, b, n, owner):
 
 
 def eject(w, b, units=None, rally=True):
-    """Высадить гарнизон (всех или список units) вокруг здания. Возвращает высаженных."""
+    """Eject the garrison (all or the list units) around the building. Returns the ejected units."""
     units = list(b.garrison if units is None else units)
     if not units:
         return []
@@ -307,14 +308,14 @@ def eject(w, b, units=None, rally=True):
 
 
 def tick_garrison(w, b, dt):
-    """Лечение сидящих внутри (медленно, как в оригинале)."""
+    """Healing of those sitting inside (slowly, as in the original)."""
     for u in b.garrison:
         if u.hp < u.max_hp:
             u.hp = min(float(u.max_hp), u.hp + GARRISON_HEAL * dt)
 
 
 def bonus_arrows(b):
-    """+1 стрела за каждого жителя или стрелка в гарнизоне."""
+    """+1 arrow for each villager or ranged unit in the garrison."""
     if not b.garrison:
         return 0
     return sum(1 for u in b.garrison if u.cls in ARROW_CLS)
@@ -325,9 +326,9 @@ def garrison_buildings(w, pid, cls='vil'):
             and cls in b.d.get('garrison_cls', ('vil', 'inf', 'arch'))]
 
 
-# ============================================================ набат
+# ============================================================ town bell
 def snapshot(u):
-    """Запомнить дело жителя, чтобы вернуть его после «Всё чисто»."""
+    """Remember a villager's task so as to restore it after "All clear"."""
     st = u.state
     if st in ('gather', 'return') and u.gather_kind:
         return ('gather', u.target, u.gather_kind)
@@ -337,7 +338,7 @@ def snapshot(u):
 
 
 def ring_bell(w, pid):
-    """Набат: все жители игрока бегут в ближайшие здания с местом (центр, башни, замок)."""
+    """Town bell: all of the player's villagers run to the nearest buildings with room (center, towers, castle)."""
     p = w.players[pid]
     p.bell = True
     blds = garrison_buildings(w, pid)
@@ -350,7 +351,7 @@ def ring_bell(w, pid):
         cands = [b for b in blds if room[id(b)] > 0]
         if not cands:
             continue
-        # центр — в приоритете, если он не намного дальше
+        # the center takes priority if it is not much farther
         b = min(cands, key=lambda b: u.dist_to(b) * (0.7 if b.kind == 'town_center' else 1.0))
         room[id(b)] -= 1
         u.cmd_garrison(b)
@@ -361,12 +362,12 @@ def ring_bell(w, pid):
         cx, cy = w.starts[pid][0] * TILE, w.starts[pid][1] * TILE
     w.emit('bell', cx, cy, pid, n)
     if pid == w.human:
-        w.msg('Набат! Жители — в укрытие', (255, 200, 110))
+        w.msg(i18n.t('msg.bell'), (255, 200, 110))
     return n
 
 
 def all_clear(w, pid):
-    """«Всё чисто»: жители выходят и возвращаются к прежним делам."""
+    """'All clear': villagers come out and return to their previous tasks."""
     p = w.players[pid]
     p.bell = False
     back = []
@@ -381,7 +382,7 @@ def all_clear(w, pid):
     for u in back:
         restore(w, u)
     if pid == w.human:
-        w.msg('Всё чисто — за работу', (170, 230, 150))
+        w.msg(i18n.t('msg.all_clear'), (170, 230, 150))
     return len(back)
 
 
@@ -407,9 +408,9 @@ def restore(w, u):
         u.cmd_move(*t)
 
 
-# ============================================================ башни
+# ============================================================ towers
 def upgrade_buildings(w, p, old, new):
-    """Все здания old игрока p → new (доля ОЗ сохраняется), дальше строятся сразу new."""
+    """All buildings old of player p -> new (the HP share is kept), later ones are built as new right away."""
     for k, v in list(p.alias.items()):
         if v == old:
             p.alias[k] = new
@@ -427,7 +428,7 @@ def upgrade_buildings(w, p, old, new):
 
 
 def building_upgrade(old, new):
-    """Для технологий: TECHS[...]['on_apply'] = building_upgrade('tower', 'guard_tower')."""
+    """For techs: TECHS[...]['on_apply'] = building_upgrade('tower', 'guard_tower')."""
     def apply(w, p):
         upgrade_buildings(w, p, old, new)
     return apply

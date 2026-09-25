@@ -1,12 +1,12 @@
-"""Интерфейс цивилизаций: выбор в меню (сетка гербов + карточка бонусов), герб в верхней панели,
-карточка цивилизации (F2 / клик по гербу), цивилизация владельца в панели выбранного.
+"""Civilization interface: the menu picker (coat-of-arms grid + bonus card), the coat of arms in the top panel,
+the civilization card (F2 / click on the coat of arms), the owner's civilization in the selection panel.
 
-Функции получают game (ui.Game) и рисуют на game.screen его же шрифтами и значками.
+Functions receive game (ui.Game) and draw on game.screen with its own fonts and icons.
 """
 import pygame
 
 from .data import CIVS, UNITS, TECHS, SCREEN_W, SCREEN_H, TOP_H
-from . import civ_art, uiskin
+from . import civ_art, i18n, uiskin
 
 CELL_W, CELL_H = 90, 88
 GRID_COLS = 3
@@ -20,7 +20,7 @@ def playable():
 
 
 def civ_name(key):
-    return 'Случайная' if key == 'random' else CIVS.get(key, CIVS['default'])['name']
+    return i18n.t('civ.random.name') if key == 'random' else CIVS.get(key, CIVS['default'])['name']
 
 
 def emblem(key, w, h):
@@ -47,7 +47,7 @@ def unique_techs(key):
                   key=lambda k: TECHS[k]['age'])
 
 
-# ============================================================ меню
+# ============================================================ menu
 def menu_items():
     items = []
     keys = playable() + ['random']
@@ -66,7 +66,7 @@ def draw_menu(game):
     _panel(scr, LEFT)
     _panel(scr, RIGHT)
     _flag_icon(scr, LEFT.x + 20, LEFT.y + 18)
-    game.text('Цивилизация', (LEFT.x + 34, LEFT.y + 18), 'b', (255, 225, 150), anchor='midleft')
+    game.text(i18n.t('lobby.civ'), (LEFT.x + 34, LEFT.y + 18), 'b', (255, 225, 150), anchor='midleft')
     hover = None
     for r, act, key in menu_items():
         h = r.collidepoint(mp)
@@ -92,7 +92,7 @@ def _flag_icon(scr, x, y):
 
 
 def _icon(game, spec, x, y, size=28):
-    """Значок строки бонуса: ('u'|'b'|'t', вид) или ('r', ресурс). (x, y) — левый верх."""
+    """Bonus row icon: ('u'|'b'|'t', kind) or ('r', resource). (x, y) - top left."""
     typ, name = spec
     pygame.draw.rect(game.screen, (62, 52, 40), (x, y, size, size), border_radius=5)
     if typ == 'r':
@@ -106,15 +106,15 @@ def _icon(game, spec, x, y, size=28):
 
 
 def draw_card(game, key, box, compact=False, player=None):
-    """Карточка цивилизации: герб, имя, направление, бонусы с иконками, командный бонус,
-    уникальный юнит и технологии, недоступное (перечёркнутые значки)."""
+    """Civilization card: coat of arms, name, direction, bonuses with icons, team bonus,
+    unique unit and techs, unavailable items (crossed-out icons)."""
     scr = game.screen
     x, y = box.x + 16, box.y + 14
     blit_emblem(game, key, (x, y, 56, 66))
     game.text(civ_name(key), (x + 70, y + 14), 'l', (255, 225, 150), anchor='midleft')
     if key == 'random' or key not in CIVS:
-        game.text('Цивилизация выпадет при старте', (x + 70, y + 42), 'm', (215, 205, 180), anchor='midleft')
-        # мини-гербы всех
+        game.text(i18n.t('civui.random_hint'), (x + 70, y + 42), 'm', (215, 205, 180), anchor='midleft')
+        # mini coats of arms of all
         for i, k in enumerate(playable()):
             gx = box.x + 18 + (i % 7) * 52
             gy = box.y + 110 + (i // 7) * 64
@@ -130,7 +130,7 @@ def draw_card(game, key, box, compact=False, player=None):
         _icon(game, spec, x, y)
         game.text(txt, (x + 38, y + 14), 'm', (235, 228, 210), anchor='midleft')
         y += 32
-    # командный бонус
+    # team bonus
     spec, txt = c.get('team_desc', (None, ''))
     if spec:
         pygame.draw.line(scr, (100, 84, 60), (x, y + 2), (box.right - 16, y + 2), 1)
@@ -139,7 +139,7 @@ def draw_card(game, key, box, compact=False, player=None):
         _icon(game, spec, x + 32, y)
         game.text(txt, (x + 70, y + 14), 'm', (170, 225, 160), anchor='midleft')
         y += 34
-    # уникальный юнит и технологии
+    # unique unit and techs
     pygame.draw.line(scr, (100, 84, 60), (x, y + 2), (box.right - 16, y + 2), 1)
     y += 8
     for u in unique_units(key):
@@ -159,11 +159,11 @@ def draw_card(game, key, box, compact=False, player=None):
         y += 34
     if compact and y > box.bottom - 50:
         return
-    # недоступное
+    # unavailable
     dis = [k for k in c.get('disabled', ()) if k in UNITS or k in TECHS]
     if dis:
         y += 4
-        game.text('нет:', (x, y + 14), 's', (200, 150, 130), anchor='midleft')
+        game.text(i18n.t('civui.disabled'), (x, y + 14), 's', (200, 150, 130), anchor='midleft')
         xx = x + 30
         for k in dis[:8]:
             spec = ('u', k) if k in UNITS else ('t', k)
@@ -173,15 +173,15 @@ def draw_card(game, key, box, compact=False, player=None):
 
 
 def _team_icon(scr, cx, cy):
-    """Две фигурки рядом — «команда»."""
+    """Two figures side by side - a "team"."""
     for dx, c in ((-4, (170, 225, 160)), (4, (120, 190, 120))):
         pygame.draw.circle(scr, c, (cx + dx, cy - 5), 3)
         pygame.draw.rect(scr, c, (cx + dx - 4, cy - 1, 8, 8), border_radius=3)
 
 
-# ============================================================ в игре
+# ============================================================ in game
 def top_emblem_rect():
-    """Герб-знамя справа вверху, перед круглыми кнопками (DE); свисает ниже верхней панели."""
+    """Banner coat of arms at the top right, before the round buttons (DE); hangs below the top panel."""
     return pygame.Rect(986, 2, 44, TOP_H + 10)
 
 
@@ -191,7 +191,7 @@ def draw_top(game):
 
 
 def owner_civ(game, owner, x, y):
-    """Герб и имя цивилизации владельца после имени игрока. Возвращает правую границу."""
+    """The coat of arms and civilization name of the owner after the player's name. Returns the right edge."""
     p = game.world.players[owner]
     blit_emblem(game, p.civ, (x, y - 1, 14, 17))
     r = game.text(civ_name(p.civ), (x + 18, y), 's', (215, 200, 165))
@@ -199,7 +199,7 @@ def owner_civ(game, owner, x, y):
 
 
 def draw_overlay(game):
-    """Карточка своей цивилизации + гербы всех игроков партии."""
+    """Card of your own civilization + the coats of arms of all players in the match."""
     scr = game.screen
     w = game.world
     ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
@@ -209,15 +209,16 @@ def draw_overlay(game):
     _panel(scr, box)
     p = w.players[0]
     draw_card(game, p.civ, box, player=0)
-    # игроки партии
+    # players in the match
     y = box.bottom - 70
     pygame.draw.line(scr, (100, 84, 60), (box.x + 16, y - 8), (box.right - 16, y - 8), 1)
     x = box.x + 16
     for q in w.players:
         blit_emblem(game, q.civ, (x, y, 30, 36))
         pygame.draw.rect(scr, q.color, (x, y + 40, 30, 5))
-        rel = 'вы' if q.id == 0 else ('союзник' if w.allied(0, q.id) else 'враг')
+        rel = 'you' if q.id == 0 else ('ally' if w.allied(0, q.id) else 'enemy')
         game.text(civ_name(q.civ), (x + 36, y + 8), 's', (235, 225, 200))
-        game.text(rel, (x + 36, y + 24), 's', (170, 225, 160) if rel != 'враг' else (240, 140, 120))
+        game.text(i18n.t('rel.' + rel).lower(), (x + 36, y + 24), 's',
+                  (170, 225, 160) if rel != 'enemy' else (240, 140, 120))
         x += 104
     game.text('F2 / Esc', (box.right - 14, box.y + 16), 's', (190, 175, 150), anchor='topright')

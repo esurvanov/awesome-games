@@ -11,7 +11,7 @@
 [![Code: MIT](https://img.shields.io/badge/code-MIT-yellow)](LICENSE)
 [![Assets: CC BY-SA 3.0](https://img.shields.io/badge/assets-CC%20BY--SA%203.0-EF9421)](CREDITS.md)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#-quick-start)
-[![Languages](https://img.shields.io/badge/UI-11%20languages-blue)](#-features)
+[![Languages](https://img.shields.io/badge/UI-7%20languages-blue)](#-features)
 
 <img src="docs/screenshots/hero.jpg" alt="A walled Frankish town under siege: trebuchets and rams at the gate, a house burning, the harbour behind" width="100%">
 
@@ -27,7 +27,7 @@ Build a village in the Dark Age, wall it, raise a castle, research your way to t
 | ⚔️ **75+ unit types** — infantry, archers, cavalry, siege, monks, ships | 💰 **Economy** — market trade, trade carts, relics, farms | 🧱 **Walls, gates, towers, garrison** — repair, eject, ring the bell |
 | 🎖 **Formations & stances** — line, box, staggered, flank · aggressive → no attack | 🚢 **Naval warfare** — docks, fishing, transports, galleys, fire ships | 🗺 **6 random maps** — Arabia, Arena, Black Forest, Nomad, Islands, Mediterranean |
 | ⛰ **Landscapes** — hills, cliffs, shallows, 6 biomes | 🤖 **AI** — 6 difficulty levels, Easiest → Extreme | 👥 **Up to 8 players**, teams, diplomacy, chat, minimap flares |
-| 💾 **Save / load** — slots + quick save (F7/F8) | 📊 **Post-game statistics** — 6 tabs, timeline chart | 🌍 **11 UI languages** — en, ru, de, fr, es, pt-BR, it, pl, tr, zh-CN, ja |
+| 💾 **Save / load** — slots + quick save (F7/F8) | 📊 **Post-game statistics** — 6 tabs, timeline chart | 🌍 **7 UI languages** — en, ru, de, fr, es, pt-BR, it |
 | 🎨 **Art** — 3D models pre-rendered to isometric sprites + procedural icons | 🎵 **Soundtrack & voices** — from 0 A.D., plus procedural medieval pieces | 🖥 **1280×800 window**, wheel zoom ×0.6–1.6 |
 
 ## 📸 Screenshots

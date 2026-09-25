@@ -1,7 +1,7 @@
-"""Процедурная графика воды: корабли, док, рыба, цвет глубины, блики и пена.
+"""Procedural water graphics: ships, the dock, fish, depth color, glints and foam.
 
-Всё рисуется кодом. Корабль строится как объёмный корпус в изометрии: точки задаются в локальных
-координатах (вдоль курса u, поперёк v, высота z) и проецируются так же, как клетки мира.
+Everything is drawn by code. A ship is built as a volumetric hull in isometry: points are given in local
+coordinates (along the heading u, across v, height z) and are projected the same way as world tiles.
 """
 import bisect
 import math
@@ -17,14 +17,14 @@ DECK = (186, 146, 96)
 SAIL = (236, 228, 204)
 ROPE = (70, 52, 36)
 FOAM = (214, 234, 244)
-# вода DE (de_shore_naval.jpg): открытое море ≈ (50, 123, 154), ближе к берегу ≈ (81, 167, 183) — бирюза
+# DE water (de_shore_naval.jpg): open sea ~ (50, 123, 154), nearer the shore ~ (81, 167, 183) - turquoise
 DEEP = (48, 124, 156)
 SHALLOW = (96, 196, 216)
 
 
-# ============================================================ вода на карте
+# ============================================================ water on the map
 def shore_dist(w):
-    """Расстояние (в клетках, 8-связно) от каждой клетки воды до ближайшей суши; суша — 0."""
+    """Distance (in tiles, 8-connected) from each water tile to the nearest land; land - 0."""
     W, H = w.W, w.H
     INF = 99
     dist = [[0 if w.terrain[y][x] != 1 else INF for x in range(W)] for y in range(H)]
@@ -41,7 +41,7 @@ def shore_dist(w):
                         dist[ny][nx] = d
                         nxt.append((nx, ny))
         frontier = nxt
-    # карта без суши вовсе — всё глубоко
+    # a map with no land at all - everything is deep
     for y in range(H):
         for x in range(W):
             if dist[y][x] == INF:
@@ -50,14 +50,14 @@ def shore_dist(w):
 
 
 def water_color(d, v=0):
-    """Цвет воды по удалённости от берега: у кромки бирюзовая, дальше тёмно-синяя."""
+    """Water color by distance from the shore: turquoise at the rim, dark blue farther out."""
     t = min(1.0, max(0.0, (d - 1) / 5.0))
     t = t * t * (3 - 2 * t)
     return tuple(int(SHALLOW[i] + (DEEP[i] - SHALLOW[i]) * t) + v for i in range(3))
 
 
 def decorate(big, w, dist, ox, rnd):
-    """Детали поверх изометрической подложки: пена вдоль берега и мокрый песок."""
+    """Details over the isometric backing: foam along the shore and wet sand."""
     for y in range(w.H):
         for x in range(w.W):
             if w.terrain[y][x] != 1 or dist[y][x] != 1:
@@ -71,8 +71,8 @@ def decorate(big, w, dist, ox, rnd):
 
 
 class WaterFX:
-    """Дешёвая анимация воды: короткие блики, мерцающие в своём ритме (рисуются только в кадре),
-    и пена у берега."""
+    """Cheap water animation: short glints twinkling at their own rhythm (drawn only in the frame),
+    and foam at the shore."""
 
     def __init__(self, w, ox, dist):
         rnd = random.Random(11)
@@ -109,16 +109,16 @@ class WaterFX:
             sy = iy - cam_y + top
             drift = math.sin(t * 0.7 + ph) * 3
             if shore:
-                c = (205 + int(45 * s), 232 + int(20 * s), 228 + int(22 * s))       # пена у берега
+                c = (205 + int(45 * s), 232 + int(20 * s), 228 + int(22 * s))       # foam at the shore
                 line(scr, c, (sx + drift, sy), (sx + drift + L * 0.8, sy), 1)
             else:
                 c = shade(base, int(20 + 45 * s))
                 line(scr, c, (sx + drift, sy), (sx + drift + L * s, sy), 1)
 
 
-# ============================================================ рыба
+# ============================================================ fish
 def make_fish(kind, var):
-    """Силуэты рыбы под водой (тёмные спинки) — спрайт с центром в середине клетки."""
+    """Fish silhouettes under water (dark backs) - a sprite centered in the middle of the tile."""
     rnd = random.Random(var * 131 + (7 if kind == 'deep_fish' else 3))
     s = pygame.Surface((48, 30), pygame.SRCALPHA)
     deep = kind == 'deep_fish'
@@ -140,7 +140,7 @@ def make_fish(kind, var):
 
 
 def fish_ripple(scr, n, sx, sy, t):
-    """Расходящиеся кольца и изредка выпрыгивающая рыбка."""
+    """Expanding rings and an occasional jumping fish."""
     ph = (t * 0.55 + n.var * 0.37 + n.tx * 0.13) % 1.0
     r = 4 + ph * 12
     c = (int(120 + 110 * (1 - ph)), int(170 + 70 * (1 - ph)), 230)
@@ -157,13 +157,13 @@ def fish_ripple(scr, n, sx, sy, t):
         pygame.draw.circle(scr, (240, 248, 255), (int(sx + 8), int(sy)), 2, 1)
 
 
-# ============================================================ корабли
+# ============================================================ ships
 class _Proj:
-    """Проекция локальных координат корабля (u — вдоль курса, v — поперёк, z — высота) на экран."""
+    """Projection of the ship's local coordinates (u - along the heading, v - across, z - height) onto the screen."""
 
     def __init__(self, x, y, face, k):
         sx, sy = face
-        a, b = (sx + 2 * sy) / 2, (2 * sy - sx) / 2    # экранное направление → мировое
+        a, b = (sx + 2 * sy) / 2, (2 * sy - sx) / 2    # screen direction -> world
         d = math.hypot(a, b) or 1.0
         self.hx, self.hy = a / d, b / d
         self.px, self.py = -self.hy, self.hx
@@ -176,11 +176,11 @@ class _Proj:
         return (self.x + (wx - wy) * k, self.y + (wx + wy) * 0.5 * k - z * k * 1.6)
 
     def facing(self, nu, nv):
-        """Смотрит ли грань с внешней нормалью (nu, nv) к зрителю (на юго-восток мира)."""
+        """Whether a face with the outer normal (nu, nv) looks toward the viewer (to the south-east of the world)."""
         return (nu * self.hx + nv * self.px) + (nu * self.hy + nv * self.py)
 
     def side_front(self):
-        """+1, если к зрителю обращён борт v > 0, иначе -1."""
+        """+1 if the side v > 0 faces the viewer, otherwise -1."""
         return 1 if self.px + self.py > 0 else -1
 
 
@@ -199,7 +199,7 @@ def _hull(surf, P, L, B, H, wood, deck=DECK, stripe=None):
         u0, v0 = top[i]
         u1, v1 = top[(i + 1) % n]
         eu, ev = u1 - u0, v1 - v0
-        nu, nv = ev, -eu            # внешняя нормаль для обхода по часовой (в локальных координатах)
+        nu, nv = ev, -eu            # outer normal for the clockwise traversal (in local coordinates)
         f = P.facing(nu, nv)
         if f > 0:
             faces.append((f, i))
@@ -216,7 +216,7 @@ def _hull(surf, P, L, B, H, wood, deck=DECK, stripe=None):
     dk = [P(u, v, H) for u, v in top]
     pygame.draw.polygon(surf, deck, dk)
     pygame.draw.polygon(surf, shade(wood, -50), dk, 1)
-    # доски палубы
+    # deck planks
     for t in (-0.45, 0.0, 0.45):
         pygame.draw.line(surf, shade(deck, -22), P(-L * 0.8, B * t, H), P(L * 0.9, B * t * 0.8, H), 1)
 
@@ -232,7 +232,7 @@ def _wake(surf, P, L, B, anim, moving, k):
                 t = (ph + q / 3.0) % 1.0
                 c = P(-L * 0.8 - 26 * t, s * (B * 0.7 + (12 + B * 0.3) * t))
                 pygame.draw.circle(surf, (236, 246, 250), (int(c[0]), int(c[1])), max(1, int(2 * k * (1 - t)) + 1))
-        # бурун у носа
+        # bow wave
         for s in (-1, 1):
             pygame.draw.line(surf, FOAM, P(L * 1.25, 0), P(L * 0.9, s * (B + 3)), 1)
     else:
@@ -304,7 +304,7 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
         L, B, H = 13, 5.5, 5
         _shadow(surf, P, L, B)
         _wake(surf, P, L, B, anim, moving, kk)
-        # сеть за бортом
+        # a net overboard
         ns = -side
         for i in range(5):
             a = P(-L * 0.3 + i * 3, ns * (B + 1), 0)
@@ -343,11 +343,11 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
         _oars(surf, P, L, B, H, anim, moving, -side, 6 if big else 5, kk)
         _hull(surf, P, L, B, H, wood, stripe=color)
         _oars(surf, P, L, B, H, anim, moving, side, 6 if big else 5, kk)
-        # щиты вдоль борта
+        # shields along the side
         for i in range(5):
             c = P(-L * 0.5 + i * L * 0.25, side * B * 0.95, H + 2)
             pygame.draw.circle(surf, shade(color, -10 if i % 2 else 25), (int(c[0]), int(c[1])), max(2, int(2.4 * kk)))
-        # таран на носу
+        # a ram on the bow
         pygame.draw.line(surf, (150, 150, 160), P(L * 1.2, 0, 1), P(L * 1.5, 0, 1), max(2, int(3 * kk)))
         M = 30 if big else 26
         _mast(surf, P, 1, H, M, kk)
@@ -357,7 +357,7 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
             _lateen(surf, P, -L * 0.55, H, 18, 8, SAIL)
         _flag(surf, P, 1, H + M + 1, color, kk)
         if fire:
-            # жаровня и сифон на носу
+            # a brazier and a siphon on the bow
             bx, by = P(L * 0.95, 0, H)
             pygame.draw.rect(surf, (70, 60, 55), (bx - 4, by - 6, 8, 6))
             _fire(surf, P, L * 0.95, H + 6, kk, big=swing > 0 or kind == 'fast_fire_ship')
@@ -372,7 +372,7 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
         _shadow(surf, P, L, B)
         _wake(surf, P, L, B, anim, moving, kk)
         _hull(surf, P, L, B, H, (122, 80, 46), deck=(176, 136, 88), stripe=(210, 180, 90))
-        # кормовая надстройка
+        # the stern superstructure
         top = [(-L * 0.85, -B * 0.7), (-L * 0.4, -B * 0.9), (-L * 0.4, B * 0.9), (-L * 0.85, B * 0.7)]
         pygame.draw.polygon(surf, (132, 88, 52), [P(u, v, H + 7) for u, v in top])
         pygame.draw.polygon(surf, (80, 52, 30), [P(u, v, H + 7) for u, v in top], 1)
@@ -396,7 +396,7 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
             pygame.draw.ellipse(surf, (96, 60, 34), (c[0] - r, c[1] - 2 * r, 2 * r, 2 * r))
             pygame.draw.line(surf, (60, 40, 25), (c[0] - r, c[1] - r * 1.4), (c[0] + r, c[1] - r * 1.4), 1)
             pygame.draw.line(surf, (60, 40, 25), (c[0] - r, c[1] - r * 0.5), (c[0] + r, c[1] - r * 0.5), 1)
-        # фитиль с искрой
+        # a fuse with a spark
         c = P(-1, 0, H)
         t = pygame.time.get_ticks() / 90
         pygame.draw.line(surf, (40, 30, 20), (c[0], c[1] - 8 * kk), (c[0] + 3, c[1] - 13 * kk), 1)
@@ -409,12 +409,12 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
         _shadow(surf, P, L, B)
         _wake(surf, P, L, B, anim, moving, kk)
         _hull(surf, P, L, B, H, (96, 70, 48), deck=(160, 124, 84), stripe=(40, 36, 34))
-        # пушечные порты по борту
+        # gun ports along the side
         for i in range(5):
             u = -L * 0.55 + i * L * 0.27
             c = P(u, side * B * 0.9, H * 0.55)
             pygame.draw.rect(surf, (25, 22, 20), (c[0] - 2, c[1] - 2, 4, 4))
-        # пушка на носу
+        # a gun on the bow
         pygame.draw.line(surf, (50, 50, 55), P(L * 0.8, 0, H + 3), P(L * 1.25, 0, H + 4), max(3, int(4 * kk)))
         for u, M, S in ((L * 0.35, 34, 12), (-L * 0.4, 30, 11)):
             _mast(surf, P, u, H, M, kk)
@@ -425,7 +425,7 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
             for i in range(3):
                 pygame.draw.circle(surf, (200, 196, 190), (int(c[0] + i * 5), int(c[1] - i * 2)), int(4 + i * 2), 0)
         return
-    # неизвестный корабль — простая лодка
+    # unknown ship - a simple boat
     L, B, H = 14, 6, 5
     _wake(surf, P, L, B, anim, moving, kk)
     _hull(surf, P, L, B, H, WOOD)
@@ -433,24 +433,24 @@ def draw_ship(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
     _square_sail(surf, P, 0, H, 20, 8, color, kk)
 
 
-# ============================================================ док
+# ============================================================ dock
 def draw_dock(p, surf, color, s):
-    """Деревянный причал на сваях с сараем и краном. p — gfx.IsoPainter, s — сторона в клетках (3)."""
-    # сваи в воде (видны по передним краям)
+    """A wooden pier on piles with a shed and a crane. p - gfx.IsoPainter, s - the side in tiles (3)."""
+    # piles in the water (visible along the front edges)
     for i in range(7):
         t = 0.2 + (s - 0.4) * i / 6
         for (x, y) in ((t, s - 0.12), (s - 0.12, t)):
             p.box(x - 0.05, y - 0.05, x + 0.05, y + 0.05, 10, (84, 58, 36), z0=-6, top=False)
-    # настил
+    # decking
     p.box(0.1, 0.1, s - 0.1, s - 0.1, 5, (150, 110, 70), z0=4, tex='wood')
     for i in range(1, 12):
         t = 0.1 + (s - 0.2) * i / 12
         p.line((t, 0.1, 9), (t, s - 0.1, 9), (126, 90, 56))
-    # сарай у дальнего угла
+    # a shed at the far corner
     p.box(0.3, 0.3, 1.5, 1.3, 20, (178, 140, 96), z0=9, top=False, tex='wood')
     p.gable(0.3, 0.3, 1.5, 1.3, 29, 14, (120, 82, 50), (178, 140, 96), axis='x')
     p.door(0.9, 1.3, 0.3, 11 + 9)
-    # бочки и сети
+    # barrels and nets
     for (x, y) in ((1.9, 0.5), (2.2, 0.55), (2.05, 0.85)):
         cx, cy = p.P(x, y, 9)
         pygame.draw.ellipse(surf, (110, 72, 40), (cx - 5, cy - 11, 10, 12))
@@ -458,7 +458,7 @@ def draw_dock(p, surf, color, s):
     for i in range(4):
         a = p.P(0.6 + i * 0.25, 2.2, 9)
         pygame.draw.line(surf, (200, 196, 176), a, (a[0] + 4, a[1] + 8), 1)
-    # кран: мачта и стрела с грузом над водой
+    # a crane: a mast and a boom with a load over the water
     base = p.P(2.3, 2.3, 9)
     top = (base[0], base[1] - 44)
     pygame.draw.line(surf, (92, 64, 40), base, top, 4)

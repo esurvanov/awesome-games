@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Мелкая графика мира из 0 A.D. → assets/gen/decals/ (+ assets/gen/nature_extra.json).
+"""Small world graphics from 0 A.D. -> assets/gen/decals/ (+ assets/gen/nature_extra.json).
 
-То, что раньше рисовалось кружками и линиями: рыба и круги на воде, туши животных (по мере разделки),
-пни срубленных деревьев, развалины зданий, огонь и дым горящих зданий, взрывы, снаряды (стрелы, болты,
-дротики, камни, ядра). Модели рендерятся тем же tools/render3d, что и здания; огонь, дым, круги на воде
-и вспышки — кадры офлайн-симуляции частиц на текстурах 0 A.D. (art/textures/particles, параметры —
-по art/particles/*.xml).
+What used to be drawn with circles and lines: fish and rings on the water, animal carcasses (as they are butchered),
+stumps of cut trees, building rubble, fire and smoke of burning buildings, explosions, projectiles (arrows, bolts,
+javelins, stones, cannonballs). The models are rendered by the same tools/render3d as buildings; fire, smoke, rings on the water
+and flashes are frames of an offline particle simulation on 0 A.D. textures (art/textures/particles, parameters -
+from art/particles/*.xml).
 
-  .venv/bin/python tools/build_decals.py                    # всё
-  .venv/bin/python tools/build_decals.py --only fish,fire   # отдельные группы (остальные — из старого индекса)
-  .venv/bin/python tools/build_decals.py --sheet shots/decals.png   # + контактный лист
+  .venv/bin/python tools/build_decals.py                    # everything
+  .venv/bin/python tools/build_decals.py --only fish,fire   # separate groups (the rest - from the old index)
+  .venv/bin/python tools/build_decals.py --sheet shots/decals.png   # + a contact sheet
 
-Результат (пути относительно assets/gen/):
-  nature_extra.json        — индекс: группа → {'file': лист PNG, 'frames': [[x, y, w, h, ax, ay], …], …}
-                             (ax, ay) — пиксель кадра, куда приходится «точка на земле» объекта
-  decals/<группа>.png      — лист кадров группы (RGBA)
-Группы: fish_shore, fish_deep (вариант × кадр), ripple (кадры), carcass_<зверь> (стадия × направление),
-stump (порода × вариант), rubble_<материал> (размер 1..4), flame, smoke, blast (кадры),
-proj_<вид> (16 направлений на экране; камень/ядро — кадры вращения).
-Производные материалы 0 A.D. © Wildfire Games, CC BY-SA 3.0 (см. CREDITS.md).
+The result (paths relative to assets/gen/):
+  nature_extra.json        - the index: group -> {'file': a PNG sheet, 'frames': [[x, y, w, h, ax, ay], ...], ...}
+                             (ax, ay) - the frame pixel where the object's "ground point" falls
+  decals/<group>.png       - the group's frame sheet (RGBA)
+Groups: fish_shore, fish_deep (variant x frame), ripple (frames), carcass_<animal> (stage x direction),
+stump (species x variant), rubble_<material> (size 1..4), flame, smoke, blast (frames),
+proj_<kind> (16 directions on screen; stone/ball - rotation frames).
+Derived 0 A.D. materials (c) Wildfire Games, CC BY-SA 3.0 (see CREDITS.md).
 """
 import argparse
 import json
@@ -42,14 +42,14 @@ OUT = os.path.join(GEN, 'decals')
 INDEX = os.path.join(GEN, 'nature_extra.json')
 PART = assets.art('textures', 'particles')
 
-# масштабы — как у соседних сборщиков (tools/build_nature.py, tools/build_units.py)
-UNITS_PER_TILE = 7.5            # здания и природа: единиц 0 A.D. на клетку
-S_ANIMAL = 0.12                 # звери (как S_ANIMAL в build_units)
-FWD = 90.0                      # модель 0 A.D. смотрит вдоль −Y
+# scales - like the neighboring builders (tools/build_nature.py, tools/build_units.py)
+UNITS_PER_TILE = 7.5            # buildings and nature: 0 A.D. units per cell
+S_ANIMAL = 0.12                 # animals (like S_ANIMAL in build_units)
+FWD = 90.0                      # the 0 A.D. model looks along -Y
 MIRROR = True
-PX_UNIT = camera.ZK / UNITS_PER_TILE     # пикселей экрана на единицу высоты 0 A.D. (≈ 5.2)
+PX_UNIT = camera.ZK / UNITS_PER_TILE     # screen pixels per 0 A.D. height unit (~ 5.2)
 
-# вода игры (game/naval_gfx.py: SHALLOW, DEEP) — рыба подкрашивается толщей воды
+# the game's water (game/naval_gfx.py: SHALLOW, DEEP) - fish are tinted by the water column
 SHALLOW = (72, 150, 190)
 DEEP = (30, 70, 138)
 
@@ -64,7 +64,7 @@ def R():
 
 
 class Frame:
-    """Кадр: RGBA (H, W, 4) uint8 и якорь (ax, ay)."""
+    """A frame: RGBA (H, W, 4) uint8 and the anchor (ax, ay)."""
     __slots__ = ('rgba', 'ax', 'ay')
 
     def __init__(self, rgba, ax, ay):
@@ -83,9 +83,9 @@ def _crop(rgba, ax, ay, thr=2):
     return Frame(np.ascontiguousarray(rgba[y0:y1, x0:x1]), ax - x0, ay - y0)
 
 
-# ================================================================== рыба
+# ================================================================== fish
 def _water(fr, col, k, alpha):
-    """«Под водой»: цвет смешивается с цветом толщи, прозрачность падает."""
+    """'Under water': the color blends with the column's color, the opacity drops."""
     a = fr.rgba.astype(np.float32)
     c = np.array(col, np.float32)
     a[..., :3] = a[..., :3] * (1 - k) + c * k
@@ -102,16 +102,16 @@ def _render_tree_frame(parts, scale, yaw, z0=0.0, ground=False, **kw):
 
 
 def build_fish():
-    """Стайки у берега (fish_generic, три анимации плавания) и крупные рыбы в глубине (fish_single)."""
+    """Schools by the shore (fish_generic, three swimming animations) and large fish in the deep (fish_single)."""
     out = {}
     nfr = 8
-    # у берега: стайка ≈ 0.8 клетки
+    # by the shore: a school ~ 0.8 of a cell
     tree = aa.build('fauna/fish_generic.xml', 'idle', skip=lambda a, ap: 'seagull' in a)
     frames = []
     lo, hi = parts_bounds(aa.evaluate(tree, 0.0), z_min=-1e9)
     s = 1.05 / max(hi[0] - lo[0], hi[1] - lo[1])
-    # анимации стайки, в которых рыбы не собираются в одну точку (у idle_b стайка «схлопывается»)
-    picks = []                      # анимации стайки, которые действительно двигаются (idle_c в 0 A.D. статична)
+    # school animations in which the fish do not gather at one point (with idle_b the school "collapses")
+    picks = []                      # school animations that really move (idle_c in 0 A.D. is static)
     for v in range(3):
         t = aa.build('fauna/fish_generic.xml', 'idle', skip=lambda a, ap: 'seagull' in a, pick=v)
         g0, g1 = aa.evaluate(t, 0.0)[0].geom['pos'], aa.evaluate(t, 0.5)[0].geom['pos']
@@ -124,7 +124,7 @@ def build_fish():
             fr = _render_tree_frame(aa.evaluate(t, k / nfr), s, 35.0 + v * 110.0)
             frames.append(_water(fr, (18, 50, 72), 0.5, 0.92))
     out['fish_shore'] = dict(frames=frames, n=nfr, vars=3, dur=1.4)
-    # глубоководная: две-три крупные рыбы бок о бок (плывут вдоль экрана — так силуэт читается)
+    # deep-water: two or three large fish side by side (they swim across the screen - so the silhouette reads)
     t = aa.build('fauna/fish_single.xml', 'walk')
     frames = []
     for v in range(2):
@@ -141,10 +141,10 @@ def build_fish():
     return out
 
 
-# ================================================================== частицы (офлайн-симуляция)
+# ================================================================== particles (offline simulation)
 def _ptex(name, soft=0.0, gain=1.0):
-    """Текстура частицы; soft > 0 — круглая мягкая маска (у flame*.png непрозрачные углы квадрата);
-    gain — усиление альфы (дым 0 A.D. очень прозрачен: там десятки частиц, у нас — единицы)."""
+    """A particle texture; soft > 0 - a round soft mask (flame*.png has opaque square corners);
+    gain - alpha amplification (0 A.D. smoke is very transparent: there are dozens of particles, ours are a few)."""
     im = Image.open(os.path.join(PART, name)).convert('RGBA')
     if soft or gain != 1.0:
         a = np.asarray(im, np.float32)
@@ -159,7 +159,7 @@ def _ptex(name, soft=0.0, gain=1.0):
 
 
 def _stamp(acc, img, cx, cy, size, angle, color, mode, alpha=1.0, squash=1.0):
-    """Нарисовать частицу (PIL RGBA) в буфер acc (H, W, 4 float, премультиплицированный)."""
+    """Draw a particle (PIL RGBA) into the buffer acc (H, W, 4 float, premultiplied)."""
     sz = max(1, int(round(size)))
     im = img.resize((sz, max(1, int(round(sz * squash)))), Image.BILINEAR)
     if angle:
@@ -176,7 +176,7 @@ def _stamp(acc, img, cx, cy, size, angle, color, mode, alpha=1.0, squash=1.0):
     dst = acc[y0 + sy0:y0 + sy1, x0 + sx0:x0 + sx1]
     col = np.array(color[:3], np.float32)
     if mode == 'add':
-        # аддитивная: вклад цвета = rgb·a
+        # additive: the color contribution = rgb*a
         c = src[..., :3] * col * (src[..., 3:4] * alpha)
         dst[..., :3] += c
         dst[..., 3] += c.max(axis=2)
@@ -187,7 +187,7 @@ def _stamp(acc, img, cx, cy, size, angle, color, mode, alpha=1.0, squash=1.0):
 
 
 def _finish(acc, ss, ax, ay):
-    """Премультиплицированный буфер (сверхвыборка ss) → Frame (прямой альфа-канал)."""
+    """A premultiplied buffer (supersampling ss) -> a Frame (a straight alpha channel)."""
     H, W = acc.shape[:2]
     a = acc.reshape(H // ss, ss, W // ss, ss, 4).mean(axis=(1, 3))
     al = np.clip(a[..., 3:4], 0, 1)
@@ -197,12 +197,12 @@ def _finish(acc, ss, ax, ay):
 
 
 def _periodic(rng, n, fn):
-    """n частиц с параметрами fn(rng) — одинаковые для каждого периода (зацикленная анимация)."""
+    """n particles with parameters fn(rng) - identical for every period (a looped animation)."""
     return [fn(rng) for _ in range(n)]
 
 
 def _loop_frames(ps, F, T, W, H, draw, ss, ax, ay):
-    """Кадры зацикленной системы частиц: частица i живёт в каждом периоде T (t0 + m·T), draw(acc, age, p)."""
+    """Frames of a looped particle system: particle i lives in every period T (t0 + m*T), draw(acc, age, p)."""
     frames = []
     for f in range(F):
         t = f / F * T
@@ -213,7 +213,7 @@ def _loop_frames(ps, F, T, W, H, draw, ss, ax, ay):
                 age = t - (p['t0'] + m * T)
                 if 0 <= age < p['life']:
                     items.append((age, p))
-        items.sort(key=lambda x: -x[0])          # старые (выше) — позади
+        items.sort(key=lambda x: -x[0])          # the old ones (above) - behind
         for age, p in items:
             draw(acc, age, p)
         frames.append(_finish(acc, ss, ax, ay))
@@ -221,14 +221,14 @@ def _loop_frames(ps, F, T, W, H, draw, ss, ax, ay):
 
 
 def build_flame():
-    """Пламя: частицы flame.png (аддитивно), по art/particles/flame.xml (≈20/с, жизнь ~1 с, подъём 2–2.5 ед./с,
-    размер 1–2 ед.), но выше и уже — языки над крышей. Якорь — основание пламени."""
+    """Flame: flame.png particles (additive), after art/particles/flame.xml (~20/s, life ~1 s, rise 2-2.5 units/s,
+    size 1-2 units), but taller and narrower - tongues above the roof. The anchor is the flame's base."""
     ss, F, T = 3, 16, 1.6
     W, H = 50 * ss, 90 * ss
     ax, ay = W // 2, H - 6 * ss
     tex = _ptex('flame.png', soft=0.35)
     rng = np.random.default_rng(7)
-    k = 1.8 * PX_UNIT * ss            # пикселей (сверхвыборки) на единицу 0 A.D.; крупнее 0 A.D. — видно издали
+    k = 1.8 * PX_UNIT * ss            # pixels (of supersampling) per 0 A.D. unit; larger than in 0 A.D. - visible from afar
     ps = _periodic(rng, int(26 * T), lambda r: dict(
         t0=r.uniform(0, T), life=r.uniform(0.7, 1.15), x=r.normal(0, 0.35), vx=r.uniform(-0.25, 0.25),
         vy=r.uniform(3.0, 3.9), size=r.uniform(1.5, 2.3), ang=r.uniform(-0.5, 0.5), va=r.uniform(-0.8, 0.8),
@@ -247,7 +247,7 @@ def build_flame():
 
 
 def build_smoke():
-    """Дым над пожаром: smoke_128a/smoke_64a («over»), тёмно-серый столб, растёт и сносится ветром вправо."""
+    """Smoke over a fire: smoke_128a/smoke_64a ("over"), a dark-grey column, grows and is blown to the right by the wind."""
     ss, F, T = 2, 16, 3.2
     W, H = 80 * ss, 130 * ss
     ax, ay = 24 * ss, H - 6 * ss
@@ -271,8 +271,8 @@ def build_smoke():
 
 
 def build_blast():
-    """Взрыв (снаряды с радиусом, брандеры): вспышка flame_radiant, огненные шары flame.png разлетаются,
-    клубы дыма и пыли, ударное кольцо ring.png по земле. 12 кадров на 1.2 с, якорь — точка удара на земле."""
+    """An explosion (projectiles with a radius, fire ships): a flash_radiant flash, flame.png fireballs fly apart,
+    puffs of smoke and dust, a ring.png shock ring along the ground. 12 frames over 1.2 s, the anchor is the point of impact on the ground."""
     ss, F, T = 2, 12, 1.2
     W, H = 150 * ss, 110 * ss
     ax, ay = W // 2, H - 26 * ss
@@ -288,11 +288,11 @@ def build_blast():
         t = (f + 0.5) / F * T
         u = t / T
         acc = np.zeros((H, W, 4), np.float32)
-        # ударное кольцо по земле
+        # a shock ring along the ground
         if u < 0.6:
             r = (14 + 80 * u) * ss
             _stamp(acc, ring, ax, ay, 2 * r, 0, (1.0, 0.95, 0.85), 'over', 0.55 * (1 - u / 0.6), squash=0.5)
-        # пыль и дым
+        # dust and smoke
         for p in puffs:
             d = p['v'] * (1 - math.exp(-t * 3)) * ss
             x = ax + math.cos(p['a']) * d
@@ -300,11 +300,11 @@ def build_blast():
             c = p['c']
             _stamp(acc, smk if p['c'] > 0.45 else dust, x, y, p['size'] * ss * (0.6 + u), p['ang'] + t,
                    (c * 1.1, c, c * 0.9), 'over', min(1.0, (1 - u) * 2.2) * 0.9)
-        # осколки
+        # fragments
         if u < 0.5:
             _stamp(acc, shr, ax, ay - 14 * ss * u, (30 + 110 * u) * ss, 0.3, (0.55, 0.5, 0.45), 'over',
                    0.9 * (1 - u / 0.5))
-        # огненные шары
+        # fireballs
         for p in balls:
             if u > 0.75:
                 break
@@ -313,7 +313,7 @@ def build_blast():
             y = ay + math.sin(p['a']) * d * 0.5 - p['up'] * t * ss - 8 * ss
             _stamp(acc, fl, x, y, p['size'] * ss * (1 - 0.6 * u), p['ang'], (1.0, 0.85 - 0.3 * u, 0.6 - 0.5 * u),
                    'add', (1 - u / 0.75) ** 0.8)
-        # вспышка
+        # flash
         if u < 0.35:
             _stamp(acc, rad, ax, ay - 10 * ss, (40 + 80 * u) * ss, 0, (1, 1, 1), 'add', 1.2 * (1 - u / 0.35))
         frames.append(_finish(acc, ss, ax, ay))
@@ -321,7 +321,7 @@ def build_blast():
 
 
 def build_ripple():
-    """Круги на воде над рыбой: ring.png, перекрашенный в светлую пену, по земле (сплющен 2:1), 16 кадров."""
+    """Rings on the water above a fish: ring.png recolored into light foam, along the ground (squashed 2:1), 16 frames."""
     ss, F = 3, 16
     W, H = 48 * ss, 26 * ss
     ax, ay = W // 2, H // 2
@@ -337,14 +337,14 @@ def build_ripple():
     return {'ripple': dict(frames=frames, n=F, dur=2.6)}
 
 
-# ================================================================== туши животных
+# ================================================================== animal carcasses
 ANIMALS = {'sheep': 'fauna/sheep1.xml', 'deer': 'fauna/deer.xml', 'boar': 'fauna/boar.xml'}
 MEAT_TINT = (0.72, 0.4, 0.36, 1.0)
 BLOOD_TINT = (0.55, 0.3, 0.3)
 
 
 def _neutral(spr):
-    """Туша ничья: область цвета игрока (маска 0 A.D., у овцы — шерсть) → нейтральная светлая шерсть."""
+    """The carcass is nobody's: the player-color area (the 0 A.D. mask, for a sheep - wool) -> neutral light wool."""
     rgba = spr.rgba.astype(np.float32)
     m = spr.mask.astype(np.float32)[..., None] / 255.0
     lum = rgba[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32)
@@ -359,15 +359,15 @@ def _blood(seed, scale):
 
 
 def build_carcass():
-    """Туша: стадия 0 — последний кадр анимации смерти 0 A.D. (как у юнитов), лужа крови;
-    1 — ободранная туша (тот же силуэт, цвет мяса, меньше) и кусок мяса; 2 — череп и обрезки.
-    8 направлений (как у юнитов: угол d·45°)."""
+    """A carcass: stage 0 - the last frame of the 0 A.D. death animation (like units), a pool of blood;
+    1 - a skinned carcass (the same silhouette, the color of meat, smaller) and a piece of meat; 2 - a skull and scraps.
+    8 directions (like units: the angle d*45 deg)."""
     out = {}
     r = R()
     for kind, actor in ANIMALS.items():
         tree = aa.build(actor, 'death')
         dead = aa.evaluate(tree, 0.999)
-        # только что убитый зверь — живая шкура (у овцы в 0 A.D. есть «разделанная» текстура death — она для стадии 1)
+        # a just-killed animal - a living hide (a sheep in 0 A.D. has a "butchered" death texture - it is for stage 1)
         alive = aa.build(actor, 'idle').textures.get('baseTex')
         fresh = [Part(p.mesh, p.matrix, dict(p.textures, baseTex=alive) if p.mesh == tree.mesh else p.textures,
                       p.material, p.actor, p.decal, p.tags, p.geom) for p in dead]
@@ -393,14 +393,14 @@ def build_carcass():
                     items += Renderer.build_items(_meat(), camera.placement(S_ANIMAL * 0.9, yaw + 70,
                                                                              center=(0.05, 0.22)))
                 else:
-                    # остов: вдоль главной оси лежащей туши (PCA по вершинам позы смерти)
+                    # the skeleton: along the main axis of the lying carcass (PCA over the vertices of the death pose)
                     pts = np.concatenate([it['pos'] for it in Renderer.build_items(dead, place)
                                           if it['kind'] == 'mesh'])[:, :2]
                     c = pts.mean(0)
                     ev, evec = np.linalg.eigh(np.cov((pts - c).T))
                     ax_ = evec[:, 1]
-                    L = 2.0 * np.sqrt(ev[1]) * 1.7                     # длина туши, клеток
-                    ang = math.degrees(math.atan2(ax_[1], ax_[0])) - 90.0   # ось Y рёбер → вдоль туши
+                    L = 2.0 * np.sqrt(ev[1]) * 1.7                     # the carcass length, cells
+                    ang = math.degrees(math.atan2(ax_[1], ax_[0])) - 90.0   # the ribs' Y axis -> along the carcass
                     items += Renderer.build_items(_bones(), camera.placement(L * 0.6 / 1.05, ang,
                                                                               center=tuple(c)),
                                                   tint_fn=lambda p: (0.8, 0.62, 0.55, 1.0))
@@ -414,7 +414,7 @@ def build_carcass():
                 spr = r.render(items, footprint=(0, 0), shadow_scale=0.85, pad=1, decal_clip=(-2, -2, 2, 2))
                 frames.append(_neutral(spr))
         out['carcass_' + kind] = dict(frames=frames, stages=3, dirs=16)
-        print(f'  + туша {kind}: 3×16')
+        print(f'  + carcass {kind}: 3×16')
     return out
 
 
@@ -428,7 +428,7 @@ def _meat():
 
 
 def _bones():
-    """Рёбра и хребет (0 A.D. без модели скелета — тонкие дуги строятся здесь): полуосевшая грудная клетка."""
+    """Ribs and a spine (0 A.D. has no skeleton model - thin arcs are built here): a half-sunken ribcage."""
     pos, nrm = [], []
     rng = np.random.default_rng(2)
 
@@ -458,7 +458,7 @@ def _bones():
 
 
 def _dark_blood(parts):
-    """Кровь темнее и прозрачнее, чем в 0 A.D. (там она на тёмной земле; у нас светлая трава)."""
+    """Blood is darker and more transparent than in 0 A.D. (there it is on dark ground; ours is light grass)."""
     out = []
     for p in parts:
         base = p.textures.get('baseTex')
@@ -478,19 +478,19 @@ def _dark_blood(parts):
     return out
 
 
-# ================================================================== пни
+# ================================================================== stumps
 TREES = {
-    # порода (как в build_nature.TREES): актор, масштаб как у дерева
+    # species (as in build_nature.TREES): the actor, the scale as for the tree
     'oak': 'flora/trees/oak_new.xml', 'beech': 'flora/trees/european_beech.xml',
     'deci': 'flora/trees/temperate_forest_biome_tree.xml', 'birch': 'flora/trees/euro_birch_tree.xml',
     'pine': 'flora/trees/pine.xml', 'fir': 'flora/trees/fir_tree.xml', 'poplar': 'flora/trees/poplar.xml',
 }
-STUMP_H = 0.13                  # высота пня, клеток
-STUMP_R = 0.1                 # радиус пня, клеток (ствол 0 A.D. в масштабе природы тоньше — чуть утолщаем)
+STUMP_H = 0.13                  # stump height, cells
+STUMP_R = 0.1                 # stump radius, cells (a 0 A.D. trunk at the nature scale is thinner - we thicken it slightly)
 
 
 def _ring_tex():
-    """Торец пня: годичные кольца (процедурная текстура для крышки; дерево — по цвету среза)."""
+    """The stump's cut end: growth rings (a procedural texture for the cap; the wood - by the color of the cut)."""
     key = '@stump_rings'
     if key not in assets.GENERATED:
         def gen():
@@ -511,7 +511,7 @@ def _ring_tex():
 
 
 def _trunk_parts(actor, seed=0):
-    """Детали дерева без листвы (alpha-test/прозрачные материалы) — ствол."""
+    """The tree parts without foliage (alpha-test/transparent materials) - the trunk."""
     parts = resolve(actor, seed=seed, prefer=frozenset({'alive', 'idle', 'base'}))
     keep = [p for p in parts if not p.is_decal and not p.alpha_test and 'leaf' not in (p.textures.get('baseTex') or '')]
     return keep or parts
@@ -526,18 +526,18 @@ def _cap(cx, cy, z, rad, n=18):
             uv.append((0.5 + px * 0.5, 0.5 + py * 0.5))
     pos = np.array(pos, np.float32)
     uv = np.array(uv, np.float32)
-    uv[:, 1] = 1 - uv[:, 1]         # build_items переворачивает v
+    uv[:, 1] = 1 - uv[:, 1]         # build_items flips v
     return dict(pos=pos, nrm=np.tile([0, 0, 1.0], (len(pos), 1)).astype(np.float32), uv0=uv, uv1=uv, props={})
 
 
 def _cyl(cx, cy, z0, z1, rad, n=18, jag=None):
-    """Боковая поверхность пня: цилиндр с корой (UV вдоль окружности)."""
+    """The stump's side surface: a cylinder with bark (UV along the circumference)."""
     pos, nrm, uv = [], [], []
     for i in range(n):
         a0, a1 = 2 * math.pi * i / n, 2 * math.pi * (i + 1) / n
         r0 = rad * (1.0 + (jag[i] if jag is not None else 0))
         r1 = rad * (1.0 + (jag[(i + 1) % n] if jag is not None else 0))
-        b0, b1 = r0 * 1.35, r1 * 1.35          # корни: низ шире
+        b0, b1 = r0 * 1.35, r1 * 1.35          # roots: wider at the bottom
         quad = [((cx + math.cos(a0) * b0, cy + math.sin(a0) * b0, z0), (i / n, 1)),
                 ((cx + math.cos(a1) * b1, cy + math.sin(a1) * b1, z0), ((i + 1) / n, 1)),
                 ((cx + math.cos(a1) * r1, cy + math.sin(a1) * r1, z1), ((i + 1) / n, 0.7)),
@@ -553,7 +553,7 @@ def _cyl(cx, cy, z0, z1, rad, n=18, jag=None):
 
 
 def _bark(actor):
-    """Текстура коры дерева (первая непрозрачная деталь)."""
+    """The tree's bark texture (the first opaque part)."""
     for p in _trunk_parts(actor):
         t = p.textures.get('baseTex')
         if t:
@@ -562,7 +562,7 @@ def _bark(actor):
 
 
 def build_stumps():
-    """Пни: цилиндр с корой той же породы (текстура ствола 0 A.D.) и торцом с кольцами, рядом щепа/чурбак."""
+    """Stumps: a cylinder with bark of the same species (the 0 A.D. trunk texture) and a cut end with rings, chips/a log block nearby."""
     out = {}
     r = R()
     frames, names = [], []
@@ -577,7 +577,7 @@ def build_stumps():
             side = Part(None, np.eye(4), {'baseTex': bark}, 'x.xml', 'stump', geom=_cyl(0, 0, -0.02, h, rad, jag=jag))
             top = Part(None, np.eye(4), {'baseTex': _ring_tex()}, 'x.xml', 'stump', geom=_cap(0, 0, h, rad * 1.02))
             items = Renderer.build_items([side, top], np.eye(4))
-            # щепки вокруг (обрубки ветвей 0 A.D. — wrld_wood_*, мелко)
+            # chips around (0 A.D. branch stubs - wrld_wood_*, small)
             if assets.exists('meshes', 'props', 'wrld_wood_a.dae'):
                 for j in range(2):
                     a = rng.uniform(0, 2 * math.pi)
@@ -587,14 +587,14 @@ def build_stumps():
             spr = r.render(items, footprint=(0, 0), shadow_scale=0.8, pad=1)
             frames.append(_spr(spr))
     out['stump'] = dict(frames=frames, species=names, vars=2)
-    print(f'  + пни: {len(names)}×2')
+    print(f'  + stumps: {len(names)}×2')
     return out
 
 
-# ================================================================== развалины
+# ================================================================== rubble
 def build_rubble():
-    """Развалины 0 A.D. (structures/destruct_*: груда камня/обгорелых брёвен + декаль выжженной земли)
-    для размеров 1..4 клетки; якорь — центр основания."""
+    """0 A.D. rubble (structures/destruct_*: a heap of stone/charred logs + a scorched-earth decal)
+    for sizes of 1..4 cells; the anchor is the center of the base."""
     out = {}
     r = R()
     src = {
@@ -620,20 +620,20 @@ def build_rubble():
             spr = r.render(items, footprint=(0, 0), decal_clip=(-h, -h, h, h), shadow_scale=0.9, pad=1)
             frames.append(_spr(spr))
         out['rubble_' + mat] = dict(frames=frames, sizes=[1, 2, 3, 4])
-        print(f'  + развалины {mat}: 4 размера')
+        print(f'  + rubble {mat}: 4 sizes')
     return out
 
 
-# ================================================================== снаряды
+# ================================================================== projectiles
 def _view_dir(theta):
-    """Единичный вектор в плоскости экрана (⊥ направлению взгляда), видимый под экранным углом theta."""
+    """A unit vector in the screen plane (perpendicular to the look direction), seen at the screen angle theta."""
     A = np.array([[camera.HW, -camera.HW, 0], [camera.HH, camera.HH, -camera.ZK], camera.VIEW])
     d = np.linalg.solve(A, np.array([math.cos(theta), math.sin(theta), 0.0]))
     return d / np.linalg.norm(d)
 
 
 def _axis_place(u, length_tiles, lo_z, hi_z, spin=0.0, thick=1.0):
-    """Матрица: ось Z модели (от lo_z к hi_z) → направление u, длина length_tiles клеток, центр — в начале."""
+    """A matrix: the model's Z axis (from lo_z to hi_z) -> the direction u, length length_tiles cells, the center - at the origin."""
     u = np.asarray(u, np.float64)
     a = np.cross(u, camera.VIEW)
     a /= np.linalg.norm(a)
@@ -650,13 +650,13 @@ def _axis_place(u, length_tiles, lo_z, hi_z, spin=0.0, thick=1.0):
 
 
 def build_projectiles(ndir=16):
-    """Стрела, болт, дротик — ndir экранных направлений (0 — вправо, по часовой); камень и ядро — 4 кадра
-    вращения. Длина в пикселях — как у прежних линий (стрела 11, болт 9, дротик 15)."""
+    """An arrow, bolt, javelin - ndir screen directions (0 - right, clockwise); a stone and a cannonball - 4 rotation
+    frames. The length in pixels - as with the former lines (arrow 11, bolt 9, javelin 15)."""
     out = {}
     r = R()
-    px_per_tile = math.hypot(camera.HW, camera.HH)       # примерно: ромб 64×32 → ~36 px на клетку вдоль экрана
+    px_per_tile = math.hypot(camera.HW, camera.HH)       # approximately: a 64x32 diamond -> ~36 px per cell along the screen
     spec = {
-        # длина — в пропорции к юнитам DE (житель ≈ 21 px): стрела ≈ половина роста
+        # the length - in proportion to DE units (villager ~ 21 px): an arrow ~ half the height
         'arrow': ('props/units/weapons/arrow_front.xml', 10, 2.4),
         'bolt': ('props/units/weapons/bolt_tower.xml', 9, 2.0),
         'javelin': ('props/units/weapons/jav_projectile.xml', 12, 2.6),
@@ -674,8 +674,8 @@ def build_projectiles(ndir=16):
             spr = r.render(items, footprint=(0, 0), ground=False, pad=2, crop=False)
             frames.append(_outline(spr))
         out['proj_' + name] = dict(frames=frames, dirs=ndir)
-        print(f'  + снаряд {name}: {ndir} направлений')
-    # камень и ядро
+        print(f'  + projectile {name}: {ndir} directions')
+    # stone and cannonball
     parts = resolve('props/units/weapons/rock.xml')
     lo, hi = parts_bounds(parts, z_min=-1e9)
     for name, dpx, tint in (('stone', 8, None), ('ball', 6, (0.34, 0.33, 0.34, 1.0)), ('shot', 4, (0.34, 0.33, 0.34, 1.0))):
@@ -685,7 +685,7 @@ def build_projectiles(ndir=16):
             mc = ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2)
             M = camera.placement(s, 90.0 * k + 20, center=(0.0, 0.0), model_center=mc,
                                  z0=-(lo[2] + hi[2]) / 2 * s)
-            # кувыркание: поворот вокруг оси X
+            # tumbling: rotation about the X axis
             a = math.radians(70 * k)
             Rx = np.array([[1, 0, 0, 0], [0, math.cos(a), -math.sin(a), 0], [0, math.sin(a), math.cos(a), 0],
                            [0, 0, 0, 1]])
@@ -694,7 +694,7 @@ def build_projectiles(ndir=16):
             spr = r.render(items, footprint=(0, 0), ground=False, pad=1)
             frames.append(_spr(spr))
         out['proj_' + name] = dict(frames=frames, n=4)
-    print('  + снаряды: камень, ядро, пуля')
+    print('  + projectiles: stone, cannonball, bullet')
     return out
 
 
@@ -705,10 +705,10 @@ def _center_m(lo, hi):
 
 
 def _outline(spr, col=(40, 30, 20), alpha=0.55):
-    """Тонкий снаряд на траве теряется: светлее древко и полупрозрачный тёмный контур в 1 px."""
+    """A thin projectile gets lost on the grass: a lighter shaft and a translucent dark 1 px outline."""
     a = spr.rgba.astype(np.float32)
     al = a[..., 3] / 255.0
-    al = np.where(al < 0.12, 0, al)            # пылинки от сверхвыборки не обводим
+    al = np.where(al < 0.12, 0, al)            # we do not outline specks from supersampling
     d = al.copy()
     for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
         d = np.maximum(d, np.roll(np.roll(al, dy, 0), dx, 1))
@@ -721,7 +721,7 @@ def _outline(spr, col=(40, 30, 20), alpha=0.55):
     return _crop(rgba, spr.ox, spr.oy)
 
 
-# ================================================================== упаковка, индекс, лист
+# ================================================================== packing, index, sheet
 def pack(frames, width=1024):
     x = y = rowh = 0
     pos = []
@@ -761,8 +761,8 @@ def save(groups, old):
         g['file'] = 'decals/' + name + '.png'
         g['frames'] = rects
         index[name] = g
-        print(f'    {name:18s} {len(rects):4d} кадров  {sheet.shape[1]}×{sheet.shape[0]}  '
-              f'{os.path.getsize(path) / 1024:5.0f} КБ')
+        print(f'    {name:18s} {len(rects):4d} frames  {sheet.shape[1]}×{sheet.shape[0]}  '
+              f'{os.path.getsize(path) / 1024:5.0f} KB')
     doc = {'version': 1, 'license': 'CC BY-SA 3.0, derived from 0 A.D. (c) Wildfire Games; see CREDITS.md',
            'groups': index}
     with open(INDEX, 'w', encoding='utf-8') as f:
@@ -807,13 +807,13 @@ def contact_sheet(index, png):
         y += max(t.size[1] for t in rw)
     os.makedirs(os.path.dirname(os.path.abspath(png)), exist_ok=True)
     out.save(png)
-    print('лист', png)
+    print('sheet', png)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--only', default='', help='группы через запятую: ' + ','.join(GROUPS))
-    ap.add_argument('--sheet', default='', help='контактный лист PNG')
+    ap.add_argument('--only', default='', help='groups separated by commas: ' + ','.join(GROUPS))
+    ap.add_argument('--sheet', default='', help='a PNG contact sheet')
     a = ap.parse_args()
     only = [x for x in a.only.split(',') if x] or list(GROUPS)
     old = {}
@@ -826,7 +826,7 @@ def main():
         print('==', g)
         res.update(GROUPS[g]())
     index = save(res, old)
-    print(f'готово за {time.time() - t0:.0f} с')
+    print(f'done in {time.time() - t0:.0f} s')
     if a.sheet:
         contact_sheet(index, a.sheet)
 

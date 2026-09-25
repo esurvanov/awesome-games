@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Безоконные проверки цивилизаций: бонусы (выборочно числа), командный бонус союзнику, уникальные юниты
-в замке (характеристики, элита), уникальные технологии, дерево технологий (скрыто в кнопках, ИИ не берёт),
-особые приёмы (залп, лечение берсерка, топтание, «Кочевники», «Анархия»).
+"""Windowless civilization checks: bonuses (numbers selectively), a team bonus to an ally, unique units
+in the castle (stats, elite), unique techs, the tech tree (hidden in the buttons, the AI does not take them),
+special tricks (a volley, the berserk's healing, trampling, "Nomads", "Anarchy").
 
-  .venv/bin/python tools/civ_test.py          # код выхода 0 — всё прошло
+  .venv/bin/python tools/civ_test.py          # exit code 0 - everything passed
 """
 import os
 import random
@@ -47,14 +47,14 @@ def run(w, sec):
 
 
 def castle_for(w, pid):
-    """Готовый замок у старта игрока."""
+    """A ready castle at the player's start."""
     sx, sy = w.starts[pid]
     for r in range(6, 20):
         for dx in range(-r, r + 1):
             for dy in (-r, r):
                 if w.can_place('castle', sx + dx, sy + dy, pid, check_explored=False):
                     return w.place_building('castle', pid, sx + dx, sy + dy, complete=True)
-    raise RuntimeError('нет места для замка')
+    raise RuntimeError('no room for a castle')
 
 
 def spawn(w, kind, owner, x, y):
@@ -63,97 +63,97 @@ def spawn(w, kind, owner, x, y):
     return u
 
 
-# ============================================================ бонусы
+# ============================================================ bonuses
 def test_bonuses():
-    print('Бонусы цивилизаций (выборочно):')
+    print('Civilization bonuses (selectively):')
     civs = [k for k in CIVS if k != 'default']
-    check(len(civs) >= 12, f'цивилизаций {len(civs)} (нужно ≥ 12)')
+    check(len(civs) >= 12, f'civilizations {len(civs)} (>= 12 needed)')
     w = world(['franks', 'britons'])
     f, b = w.players
-    check(f.stat('hp', 'knight', 100) == 120, f'франки: рыцарь 120 ОЗ (есть {f.stat("hp", "knight", 100)})')
-    check(f.cost_of('bld', 'castle')['stone'] == 552, f'франки: замок 552 камня (есть {f.cost_of("bld", "castle")})')
-    check(sum(f.cost_of('tech', 'heavy_plow').values()) == 0, 'франки: тяжёлый плуг даром')
-    check(b.stat('rng', 'archer', 4) == 4, 'британцы: в Тёмные века дальность лучника 4')
+    check(f.stat('hp', 'knight', 100) == 120, f'Franks: knight 120 HP (was {f.stat("hp", "knight", 100)})')
+    check(f.cost_of('bld', 'castle')['stone'] == 552, f'Franks: castle 552 stone (was {f.cost_of("bld", "castle")})')
+    check(sum(f.cost_of('tech', 'heavy_plow').values()) == 0, 'Franks: Heavy Plow for free')
+    check(b.stat('rng', 'archer', 4) == 4, 'Britons: in the Dark Age the archer range is 4')
     age_to(w, b, 2)
-    check(b.stat('rng', 'archer', 4) == 5, f'британцы: в Эпоху замков дальность 5 (есть {b.stat("rng", "archer", 4)})')
-    check(b.cost_of('bld', 'town_center')['wood'] == 138, f'британцы: центр 138 дерева (есть {b.cost_of("bld", "town_center")})')
+    check(b.stat('rng', 'archer', 4) == 5, f'Britons: in the Castle Age range 5 (was {b.stat("rng", "archer", 4)})')
+    check(b.cost_of('bld', 'town_center')['wood'] == 138, f'Britons: center 138 wood (was {b.cost_of("bld", "town_center")})')
     age_to(w, b, 3)
-    check(b.stat('rng', 'crossbowman', 5) == 7, 'британцы: в Имперскую +2 дальность')
+    check(b.stat('rng', 'crossbowman', 5) == 7, 'Britons: in the Imperial Age +2 range')
 
     w = world(['mongols', 'byzantines'])
     m, z = w.players
-    check(abs(m.stat('reload', 'cavalry_archer', 2.0) - 1.6) < 1e-6, 'монголы: конный лучник перезарядка 1.6 с')
-    check(z.cost_of('unit', 'spearman')['food'] == 26, f'византийцы: копейщик 26 еды (есть {z.cost_of("unit", "spearman")})')
+    check(abs(m.stat('reload', 'cavalry_archer', 2.0) - 1.6) < 1e-6, 'Mongols: cavalry archer reload 1.6 s')
+    check(z.cost_of('unit', 'spearman')['food'] == 26, f'Byzantines: spearman 26 food (was {z.cost_of("unit", "spearman")})')
     tc = next(b for b in w.buildings if b.owner == 1 and b.kind == 'town_center')
-    check(abs(tc.max_hp - 2640) < 1, f'византийцы: центр 2640 ОЗ (есть {tc.max_hp})')
+    check(abs(tc.max_hp - 2640) < 1, f'Byzantines: center 2640 HP (was {tc.max_hp})')
     age_to(w, z, 3)
-    check(abs(tc.max_hp - 3360) < 1, f'византийцы: в Имперскую центр 3360 ОЗ (есть {tc.max_hp:.0f})')
+    check(abs(tc.max_hp - 3360) < 1, f'Byzantines: in the Imperial Age center 3360 HP (was {tc.max_hp:.0f})')
 
     w = world(['teutons', 'japanese'])
     t, j = w.players
-    check(t.cost_of('bld', 'farm')['wood'] == 36, 'тевтоны: ферма 36 дерева')
-    check(j.cost_of('bld', 'mill')['wood'] == 50, 'японцы: мельница 50 дерева')
+    check(t.cost_of('bld', 'farm')['wood'] == 36, 'Teutons: farm 36 wood')
+    check(j.cost_of('bld', 'mill')['wood'] == 50, 'Japanese: mill 50 wood')
     age_to(w, j, 1)
-    check(abs(j.stat('reload', 'militia', 2.0) - 2 / 1.33) < 1e-6, 'японцы: пехота с Феодальной бьёт на 33% быстрее')
+    check(abs(j.stat('reload', 'militia', 2.0) - 2 / 1.33) < 1e-6, 'Japanese: infantry from the Feudal Age hits faster by 33%')
     age_to(w, t, 2)
-    check(t.stat('arm_m', 'knight', 2) == 3, 'тевтоны: в Эпоху замков рыцарь +1 ближн. броня')
+    check(t.stat('arm_m', 'knight', 2) == 3, 'Teutons: in the Castle Age knight +1 melee armor')
 
     w = world(['chinese', 'persians'])
     c, p = w.players
     vils = sum(1 for u in w.units if u.owner == 0 and u.kind == 'villager')
-    check(vils == 6 and c.res['food'] == 0 and c.res['wood'] == 150, f'китайцы: 6 жителей, 0 еды, 150 дерева (есть {vils}, {c.res})')
+    check(vils == 6 and c.res['food'] == 0 and c.res['wood'] == 150, f'Chinese: 6 villagers, 0 food, 150 wood (was {vils}, {c.res})')
     w.recount()
-    check(c.cap == 15, f'китайцы: центр даёт 15 населения (есть {c.cap})')
+    check(c.cap == 15, f'Chinese: the center gives 15 population (was {c.cap})')
     age_to(w, c, 1)
-    check(c.cost_of('tech', 'castle')['food'] == 720, f'китайцы: Эпоха замков 720 еды (есть {c.cost_of("tech", "castle")})')
+    check(c.cost_of('tech', 'castle')['food'] == 720, f'Chinese: Castle Age 720 food (was {c.cost_of("tech", "castle")})')
     tc = next(b for b in w.buildings if b.owner == 1 and b.kind == 'town_center')
-    check(tc.max_hp == 4800 and p.res['food'] == 250, 'персы: центр 4800 ОЗ, 250 еды на старте')
+    check(tc.max_hp == 4800 and p.res['food'] == 250, 'Persians: center 4800 HP, 250 food at the start')
     age_to(w, p, 1)
-    check(abs(p.time_of('unit', 'villager') - 25 / 1.1) < 1e-6, 'персы: центр в Феодальную на 10% быстрее')
+    check(abs(p.time_of('unit', 'villager') - 25 / 1.1) < 1e-6, 'Persians: the center in the Feudal Age is faster by 10%')
 
     w = world(['saracens', 'turks'])
     s, tk = w.players
     from game import market
-    check(abs(market.fee(s) - 0.05) < 1e-9, 'сарацины: сбор рынка 5%')
-    check(tk.stat('hp', 'hand_cannoneer', 40) == 50, 'турки: ручная пушка 50 ОЗ')
+    check(abs(market.fee(s) - 0.05) < 1e-9, 'Saracens: market fee 5%')
+    check(tk.stat('hp', 'hand_cannoneer', 40) == 50, 'Turks: hand cannoneer 50 HP')
     age_to(w, tk, 3)
-    check('chemistry' in tk.techs, 'турки: Химия даром в Имперскую эпоху')
-    check(sum(tk.cost_of('tech', 'hussar').values()) == 0, 'турки: Гусар даром')
+    check('chemistry' in tk.techs, 'Turks: Chemistry for free in the Imperial Age')
+    check(sum(tk.cost_of('tech', 'hussar').values()) == 0, 'Turks: Hussar for free')
 
     w = world(['vikings', 'goths'])
     v, g = w.players
     age_to(w, v, 1)
-    check('wheelbarrow' in v.techs, 'викинги: Тачка даром в Феодальную')
+    check('wheelbarrow' in v.techs, 'Vikings: Wheelbarrow for free in the Feudal Age')
     vm = spawn(w, 'militia', 0, 300, 300)
-    check(abs(vm.max_hp - 44) < 1e-6, f'викинги: ополченец 44 ОЗ в Феодальную (есть {vm.max_hp})')
+    check(abs(vm.max_hp - 44) < 1e-6, f'Vikings: militia 44 HP in the Feudal Age (was {vm.max_hp})')
     age_to(w, v, 2)
-    check('hand_cart' in v.techs and abs(vm.max_hp - 46) < 1e-6, f'викинги: Тележка даром, пехота +15% (ОЗ {vm.max_hp})')
-    check(g.cost_of('unit', 'militia')['food'] == 48, 'готы: ополченец 48 еды')
+    check('hand_cart' in v.techs and abs(vm.max_hp - 46) < 1e-6, f'Vikings: Hand Cart for free, infantry +15% (HP {vm.max_hp})')
+    check(g.cost_of('unit', 'militia')['food'] == 48, 'Goths: militia 48 food')
     age_to(w, g, 3)
-    check(g.cost_of('unit', 'militia')['food'] == 39 and g.pop_bonus == 10, 'готы: в Имперскую −35% и +10 населения')
+    check(g.cost_of('unit', 'militia')['food'] == 39 and g.pop_bonus == 10, 'Goths: in the Imperial Age -35% and +10 population')
 
     w = world(['celts', 'spanish'])
     ce, sp = w.players
-    check(abs(ce.stat('gather', 'villager', 1.0, 'wood', 'tree') - 1.15) < 1e-6, 'кельты: лесорубы +15%')
-    check(sp.cost_of('tech', 'iron_casting').get('gold', 0) == 0, 'испанцы: кузница без золота')
-    check(abs(sp.stat('build', 'villager', 1) - 1.3) < 1e-6, 'испанцы: стройка +30%')
+    check(abs(ce.stat('gather', 'villager', 1.0, 'wood', 'tree') - 1.15) < 1e-6, 'Celts: lumberjacks +15%')
+    check(sp.cost_of('tech', 'iron_casting').get('gold', 0) == 0, 'Spanish: the blacksmith without gold')
+    check(abs(sp.stat('build', 'villager', 1) - 1.3) < 1e-6, 'Spanish: construction +30%')
 
 
 def test_team():
-    print('Командный бонус:')
+    print('Team bonus:')
     w = world(['franks', 'britons', 'teutons'], n=3, teams=[0, 0, 1])
     a, b, c = w.players
-    check(a.stat('los', 'knight', 4) == 6, 'франки: сами получают +2 обзор рыцарям')
-    check(b.stat('los', 'knight', 4) == 6, 'союзник франков (британцы): рыцари +2 обзор')
-    check(c.stat('los', 'knight', 4) == 4, 'враг франков: без бонуса')
-    check(abs(a.time_of('unit', 'archer') - 35 / 1.2) < 1e-6, 'франки получают командный бонус британцев (стрельбище)')
+    check(a.stat('los', 'knight', 4) == 6, 'Franks: they themselves get +2 line of sight for knights')
+    check(b.stat('los', 'knight', 4) == 6, 'a Frankish ally (Britons): knights +2 line of sight')
+    check(c.stat('los', 'knight', 4) == 4, 'an enemy of the Franks: no bonus')
+    check(abs(a.time_of('unit', 'archer') - 35 / 1.2) < 1e-6, 'the Franks get the team bonus of the Britons (archery range)')
     w = world(['franks', 'franks', 'teutons'], n=3, teams=[0, 0, 1])
-    check(w.players[0].stat('los', 'knight', 4) == 6, 'два франка в команде: бонус не складывается')
+    check(w.players[0].stat('los', 'knight', 4) == 6, 'two Franks in a team: the bonus does not stack')
 
 
-# ============================================================ уникальное
+# ============================================================ unique
 def test_unique_units():
-    print('Уникальные юниты (замок, характеристики, элита):')
+    print('Unique units (castle, stats, elite):')
     from game.content.civ_units import UNIQUE
     for civ in [k for k in CIVS if k != 'default']:
         other = 'franks' if civ != 'franks' else 'britons'
@@ -165,8 +165,8 @@ def test_unique_units():
         ok, why = w.unit_state(p, uu)
         foreign = UNIQUE[other][0]
         check(ok and p.allows(uu, 'castle') and not w.unit_state(p, foreign)[0],
-              f'{civ}: {UNITS[uu]["name"]} доступен, чужой {UNITS[foreign]["name"]} — нет')
-        check('trebuchet' in cs.d['trains'], f'{civ}: требушет в замке')
+              f'{civ}: {UNITS[uu]["name"]} available, a foreign {UNITS[foreign]["name"]} - no')
+        check('trebuchet' in cs.d['trains'], f'{civ}: a trebuchet in the castle')
         p.res.update(food=5000, wood=5000, gold=5000, stone=5000)
         p.pay(p.cost_of('unit', uu))
         cs.queue.append(('unit', uu))
@@ -174,49 +174,49 @@ def test_unique_units():
         u = next((x for x in w.units if x.owner == 0 and x.kind == uu), None)
         d = UNITS[uu]
         check(u is not None and u.atk() >= d['atk'] and u.d['civ'] == civ,
-              f'{civ}: обучен {d["name"]} ({d["hp"]} ОЗ, {d["atk"]} атака)')
+              f'{civ}: trained {d["name"]} ({d["hp"]} HP, {d["atk"]} attack)')
         ek = 'elite_' + uu
-        check(w.tech_state(p, ek)[0] is False, f'{civ}: элита только в Имперскую')
+        check(w.tech_state(p, ek)[0] is False, f'{civ}: the elite only in the Imperial Age')
         age_to(w, p, 3)
-        check(w.tech_state(p, ek)[0], f'{civ}: элитное улучшение доступно в Имперскую')
+        check(w.tech_state(p, ek)[0], f'{civ}: the elite upgrade is available in the Imperial Age')
         w.apply_tech(p, ek)
         check(u is not None and u.kind == ek and p.current(uu) == ek and UNITS[ek]['hp'] >= d['hp'],
-              f'{civ}: элита → {UNITS[ek]["name"]} ({UNITS[ek]["hp"]} ОЗ)')
-        # уникальные технологии
+              f'{civ}: elite -> {UNITS[ek]["name"]} ({UNITS[ek]["hp"]} HP)')
+        # unique techs
         uts = [t for t, x in TECHS.items() if x.get('civ') == civ and not x.get('upgrade')]
-        check(len(uts) == 2 and {TECHS[t]['age'] for t in uts} == {2, 3}, f'{civ}: две уник. технологии (III и IV)')
+        check(len(uts) == 2 and {TECHS[t]['age'] for t in uts} == {2, 3}, f'{civ}: two unique techs (III and IV)')
         for t in uts:
             n0 = len(p.effects)
             check(w.tech_state(p, t)[0] and not w.tech_state(w.players[1], t)[0] and t in cs.d['techs'],
-                  f'{civ}: {TECHS[t]["name"]} — в замке, только своя')
+                  f'{civ}: {TECHS[t]["name"]} - in the castle, only its own')
             w.apply_tech(p, t)
-            check(len(p.effects) > n0 or TECHS[t].get('on_apply') or t == 'nomads', f'{civ}: {TECHS[t]["name"]} применена')
+            check(len(p.effects) > n0 or TECHS[t].get('on_apply') or t == 'nomads', f'{civ}: {TECHS[t]["name"]} applied')
 
 
 def test_utech_numbers():
-    print('Уникальные технологии (числа):')
+    print('Unique techs (numbers):')
     w = world(['franks', 'chinese'])
     f, c = w.players
     age_to(w, f, 2)
     w.apply_tech(f, 'bearded_axe')
-    check(f.stat('rng', 'throwing_axeman', 3) == 4, 'Бородовидный топор: метатели дальность 4')
+    check(f.stat('rng', 'throwing_axeman', 3) == 4, 'Bearded Axe: throwing axemen range 4')
     age_to(w, c, 3)
     w.apply_tech(c, 'rocketry')
-    check(c.stat('atk', 'chu_ko_nu', 8) == 10, 'Ракеты: чо-ко-ну 10 атака')
+    check(c.stat('atk', 'chu_ko_nu', 8) == 10, 'Rocketry: chu ko nu 10 attack')
     w = world(['persians', 'goths'])
     p, g = w.players
     age_to(w, p, 2)
     w.apply_tech(p, 'kamandaran')
     cst = p.cost_of('unit', 'crossbowman')
-    check(cst.get('gold', 0) == 0 and cst['wood'] == 70, f'Камандаран: арбалетчик 70 дерева без золота ({cst})')
+    check(cst.get('gold', 0) == 0 and cst['wood'] == 70, f'Kamandaran: crossbowman 70 wood without gold ({cst})')
     age_to(w, g, 2)
-    check(not g.allows('huskarl', 'barracks'), 'готы: хускарл в казармах закрыт до Анархии')
+    check(not g.allows('huskarl', 'barracks'), 'Goths: the huskarl in the barracks is closed until Anarchy')
     w.apply_tech(g, 'anarchy')
-    check(g.allows('huskarl', 'barracks'), 'Анархия: хускарл в казармах')
+    check(g.allows('huskarl', 'barracks'), 'Anarchy: the huskarl in the barracks')
 
 
 def test_specials():
-    print('Особые приёмы:')
+    print('Special tricks:')
     w = world(['chinese', 'vikings'])
     cx, cy = w.W // 2 * TILE, w.H // 2 * TILE
     ck = spawn(w, 'chu_ko_nu', 0, cx, cy)
@@ -229,12 +229,12 @@ def test_specials():
         w.events.clear()
         if len(w.projectiles) - n0 >= 3:
             break
-    check(len(w.projectiles) - n0 >= 3, f'чо-ко-ну: залп из 3 стрел (снарядов {len(w.projectiles) - n0})')
+    check(len(w.projectiles) - n0 >= 3, f'chu ko nu: a volley of 3 arrows (projectiles {len(w.projectiles) - n0})')
     bz = spawn(w, 'berserk', 1, cx - 10 * TILE, cy - 10 * TILE)
     bz.hp = 20
     run(w, 3.1)
-    check(bz.hp > 21.5, f'берсерк восстанавливает здоровье ({bz.hp:.1f})')
-    # топтание слона
+    check(bz.hp > 21.5, f'the berserk restores health ({bz.hp:.1f})')
+    # elephant trampling
     w = world(['persians', 'franks'])
     cx, cy = w.W // 2 * TILE, w.H // 2 * TILE
     el = spawn(w, 'war_elephant', 0, cx, cy)
@@ -244,12 +244,12 @@ def test_specials():
     w.damage(a, el, 0)
     el.face = (1, 0)
     UNITS['war_elephant']['on_attack'](el, w, a, 15)
-    check(b.hp < hp_b, f'боевой слон топчет соседей ({hp_b} → {b.hp})')
+    check(b.hp < hp_b, f'the war elephant tramples neighbors ({hp_b} → {b.hp})')
     tc = next(x for x in w.buildings if x.owner == 1)
     UNITS['war_elephant']['on_attack'](el, w, tc, 15)
     UNITS['cataphract']['on_attack'](el, w, tc, 15)
-    check(True, 'топтание по зданию не падает')
-    # Кочевники
+    check(True, 'trampling a building does not fall')
+    # Nomads
     w = world(['mongols', 'franks'])
     m = w.players[0]
     sx, sy = w.starts[0]
@@ -265,12 +265,12 @@ def test_specials():
     w.remove_building(h)
     w.buildings = [x for x in w.buildings if x.alive]
     w.recount()
-    check(m.cap == cap0, f'Кочевники: разрушенный дом не уменьшает лимит ({cap0} → {m.cap})')
+    check(m.cap == cap0, f'Nomads: a destroyed house does not reduce the cap ({cap0} → {m.cap})')
 
 
-# ============================================================ дерево технологий
+# ============================================================ tech tree
 def test_tree_ui_ai():
-    print('Дерево технологий: кнопки и ИИ:')
+    print('Tech tree: buttons and the AI:')
     from game.ui import Game
     from game.ai import AI
     random.seed(4)
@@ -302,18 +302,18 @@ def test_tree_ui_ai():
             g.cmd_page += 1
         acts[kind] = seen
     check('pikeman' not in acts['barracks'] and 'spearman' in acts['barracks'],
-          'турки: в казармах нет Пикинёра (копейщик есть)')
+          'Turks: no Pikeman in the barracks (the spearman is there)')
     check('elite_skirmisher' not in acts['archery_range'] and 'arbalester' not in acts['archery_range'],
-          'турки: нет Элитного застрельщика и Аркебалиста')
+          'Turks: no Elite Skirmisher and Arbalester')
     check('janissary' in acts['castle'] and 'throwing_axeman' not in acts['castle'] and 'trebuchet' in acts['castle'],
-          'турки: в замке янычар и требушет, чужих нет')
-    check('huskarl' not in acts['barracks'], 'турки: хускарла в казармах нет')
+          'Turks: the castle has the janissary and the trebuchet, no foreign ones')
+    check('huskarl' not in acts['barracks'], 'Turks: no huskarl in the barracks')
     g.selected = [next(u for u in w.units if u.owner == 0 and u.kind == 'villager')]
     g.cmd_page = 0
-    # ИИ за турок с огромным запасом: не берёт недоступное
+    # the Turks' AI with a huge reserve: it does not take the unavailable
     ai = AI(w, 0, 2)
     w.ais = [ai]
-    w.time = 2000.0         # экономика «достаточна» — ИИ тратит на армию
+    w.time = 2000.0         # the economy is "sufficient" - the AI spends on the army
     for _ in range(int(90 / DT)):
         w.update(DT)
         w.events.clear()
@@ -321,11 +321,11 @@ def test_tree_ui_ai():
     queued = {n for b in w.buildings if b.owner == 0 for _, n in b.queue}
     trained = {u.kind for u in w.units if u.owner == 0}
     bad = ({'pikeman', 'halberdier', 'elite_skirmisher', 'arbalester', 'paladin'} & (p.techs | queued | trained))
-    check(not bad, f'ИИ-турки не берут недоступное ({sorted(bad)})')
+    check(not bad, f'the Turkish AI does not take the unavailable ({sorted(bad)})')
     uniq = {'janissary', 'elite_janissary'} & (trained | queued)
     uts = {'sipahi', 'artillery', 'elite_janissary'} & (p.techs | p.researching)
-    check(bool(uniq), f'ИИ обучает уникальный юнит в замке ({sorted(uniq)})')
-    check(bool(uts), f'ИИ изучает уникальные технологии ({sorted(uts)})')
+    check(bool(uniq), f'the AI trains a unique unit in the castle ({sorted(uniq)})')
+    check(bool(uts), f'the AI researches unique techs ({sorted(uts)})')
 
 
 def main():
@@ -337,11 +337,11 @@ def main():
     test_tree_ui_ai()
     print()
     if FAILS:
-        print(f'ПРОВАЛЕНО: {len(FAILS)}')
+        print(f'FAILED: {len(FAILS)}')
         for f in FAILS:
             print('  -', f)
         sys.exit(1)
-    print('Все проверки цивилизаций пройдены.')
+    print('All civilization checks passed.')
 
 
 if __name__ == '__main__':

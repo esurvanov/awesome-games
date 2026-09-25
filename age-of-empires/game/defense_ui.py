@@ -1,27 +1,28 @@
-"""Интерфейс обороны (примесь к ui.Game): протяжка стен, ворота, гарнизон, набат, значки.
+"""Defense interface (a mixin of ui.Game): wall dragging, gates, garrison, town bell, icons.
 
-ui.py вызывает отсюда хуки одной строкой; логика — game/defense.py, графика стен — game/wallgfx.py.
+ui.py calls the hooks from here with a single line; logic - game/defense.py, wall graphics - game/wallgfx.py.
 """
 import pygame
 
+from . import i18n
 from .data import TILE, HW, HH, BUILDINGS, RES, shade
 from .world import Unit, Building
 from . import defense, wallgfx, sprites3d
 
 
 class DefenseUI:
-    line_start = None       # клетка начала протяжки стены
-    gate_horiz = True       # предпочтительная ориентация ворот (Tab — повернуть)
+    line_start = None       # the tile where the wall drag started
+    gate_horiz = True       # preferred gate orientation (Tab - rotate)
     _bbox = {}
     _ghost = {}
 
-    # ---- спрайты
+    # ---- sprites
     def wall_sprite(self, kind, owner):
-        """Спрайт стены/ворот по умолчанию (для bsprite: иконки, меню)."""
+        """The default wall/gate sprite (for bsprite: icons, menus)."""
         return wallgfx.kind_sprite(kind, self.pcolor(owner), self.civ_of(owner))
 
     def bsprite_for(self, b):
-        """(surface, ox, oy, bbox) для конкретного здания: стены — с учётом соседей, ворота — открыты ли."""
+        """(surface, ox, oy, bbox) for a specific building: walls - taking neighbors into account, gates - whether open."""
         if not b.d.get('wall'):
             look = getattr(b, '_look', None)
             if look is None:
@@ -39,8 +40,8 @@ class DefenseUI:
         return spr, ox, oy, bb
 
     def draw_wall_build(self, b, sx, sy, spr, ox, oy, bb):
-        """Стена/ворота в стройке: фундамент 0 A.D. под каждой клеткой, растущий сегмент, леса поверх.
-        False — нет пререндеренных спрайтов (рисует процедурный запасной вариант)."""
+        """A wall/gate under construction: a 0 A.D. foundation under each tile, a growing segment, scaffolding on top.
+        False - no pre-rendered sprites (the procedural fallback draws it)."""
         civ = self.civ_of(b.owner)
         fn = sprites3d.wall_build(b.kind, civ, 'fndn')
         sc = sprites3d.wall_build(b.kind, civ, 'scaf')
@@ -76,9 +77,9 @@ class DefenseUI:
             g.set_alpha(150)
         return g
 
-    # ---- размещение
+    # ---- placement
     def place_down(self, pos):
-        """ЛКМ при размещении. True — обработано (стены: начало протяжки; ворота: заложить)."""
+        """Left click while placing. True - handled (walls: the start of a drag; gates: lay it)."""
         kind = self.placing
         d = BUILDINGS[kind]
         if d.get('line'):
@@ -90,7 +91,7 @@ class DefenseUI:
         return False
 
     def place_up(self, pos):
-        """Отпустили ЛКМ после протяжки — заложить линию стены."""
+        """Left button released after a drag - lay the wall line."""
         start, self.line_start = self.line_start, None
         kind = self.placing
         if kind is None or start is None:
@@ -100,7 +101,7 @@ class DefenseUI:
         vils = [u for u in self.selected if isinstance(u, Unit) and u.kind == 'villager' and u.owner == 0]
         placed = defense.place_wall_line(w, kind, 0, start[0], start[1], end[0], end[1], vils)
         if not placed and not defense.wall_plan(w, kind, 0, defense.line_tiles(*start, *end)):
-            w.msg('Здесь строить нельзя', (255, 150, 90))
+            w.msg(i18n.t('msg.cannot_build_here'), (255, 150, 90))
         p = w.players[0]
         if not (self.mods() & pygame.KMOD_SHIFT) or not p.afford(p.cost_of('bld', kind)):
             self.placing = None
@@ -131,11 +132,11 @@ class DefenseUI:
         kind = self.placing
         tx, ty, horiz = self.gate_at(pos)
         if not defense.can_place_gate(w, kind, tx, ty, horiz, 0):
-            w.msg('Здесь строить нельзя', (255, 150, 90))
+            w.msg(i18n.t('msg.cannot_build_here'), (255, 150, 90))
             return
         vils = [u for u in self.selected if isinstance(u, Unit) and u.kind == 'villager' and u.owner == 0]
         if defense.place_gate(w, kind, 0, tx, ty, horiz, vils) is None:
-            w.msg('Не хватает ресурсов', (255, 150, 90))
+            w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
             self.placing = None
             return
         if not (self.mods() & pygame.KMOD_SHIFT) or not p.afford(p.cost_of('bld', kind)):
@@ -150,7 +151,7 @@ class DefenseUI:
         return False
 
     def draw_defense_ghost(self, mp):
-        """Призрак протяжки стены / ворот. True — нарисовано здесь."""
+        """The ghost of a wall drag / gate. True - drawn here."""
         kind = self.placing
         d = BUILDINGS[kind]
         if not (d.get('line') or d.get('gate')):
@@ -184,7 +185,7 @@ class DefenseUI:
             spr, ox, oy = wallgfx.piece_sprite(kind, col, m, self.civ_of(0))
             sx, sy = self.w2s(x * TILE, y * TILE)
             scr.blit(self.ghost_of(spr), (sx - ox, sy - oy))
-        # цена линии у курсора
+        # cost of the line at the cursor
         p = w.players[0]
         cost = p.cost_of('bld', kind)
         cx, cy = mp[0] + 18, mp[1] + 14
@@ -212,7 +213,7 @@ class DefenseUI:
                                     [(q[0] - minx, q[1] - miny) for q in pts])
             self.screen.blit(s, (minx, miny))
 
-    # ---- кнопки
+    # ---- buttons
     def defense_buttons(self, b):
         w = self.world
         p = w.players[0]
@@ -220,13 +221,13 @@ class DefenseUI:
         if b.kind == 'town_center':
             if getattr(p, 'bell', False):
                 items.append(dict(icon=('x', 'clear'), act=('clear',), ok=True,
-                                  tip=['Всё чисто', {}, 'Жители — к прежним делам']))
+                                  tip=[i18n.t('def.all_clear'), {}, i18n.t('def.all_clear_desc')]))
             else:
                 items.append(dict(icon=('x', 'bell'), act=('bell',), ok=True,
-                                  tip=['Набат', {}, 'Жители — в укрытие']))
+                                  tip=[i18n.t('def.bell'), {}, i18n.t('def.bell_desc')]))
         if b.garrison:
             items.append(dict(icon=('x', 'eject'), act=('eject', b), ok=True,
-                              tip=['Выпустить', {}, f'Внутри: {len(b.garrison)}']))
+                              tip=[i18n.t('def.eject'), {}, i18n.t('def.inside', n=len(b.garrison))]))
         return items
 
     def defense_press(self, act):
@@ -273,10 +274,10 @@ class DefenseUI:
             pygame.draw.polygon(ic, (120, 150, 200), pts)
             pygame.draw.polygon(ic, (40, 50, 80), pts, 2)
 
-    # ---- приказ «в гарнизон»
+    # ---- the "garrison" order
     def garrison_command(self, units, target, wx, wy):
-        """ПКМ по своему зданию с гарнизоном. DE: житель с ношей несёт её на склад (внутрь — с Alt),
-        житель с пустыми руками заходит внутрь и без Alt. True — приказ отдан."""
+        """Right click on your own building with a garrison. DE: a villager carrying a load takes it to the storage (inside - with Alt),
+        a villager with empty hands goes inside even without Alt. True - the order was given."""
         w = self.world
         if not isinstance(target, Building) or target.owner != 0 or defense.capacity(target) <= 0:
             return False
@@ -290,7 +291,7 @@ class DefenseUI:
             return False
         room = defense.capacity(target) - len(target.garrison)
         if room <= 0:
-            w.msg('Нет места', (255, 150, 90))
+            w.msg(i18n.t('msg.no_room'), (255, 150, 90))
             return True
         cands.sort(key=lambda u: u.dist_to(target))
         for u in cands[:room]:
@@ -301,7 +302,7 @@ class DefenseUI:
         w.emit('command', wx, wy, 0, 'garrison')
         return True
 
-    # ---- гарнизон на экране и в панели
+    # ---- garrison on screen and in the panel
     def draw_garrison_badge(self, b, sx, top):
         n = len(b.garrison)
         x, y = int(sx), int(top) - 18

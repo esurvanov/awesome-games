@@ -1,40 +1,46 @@
-"""Горячие клавиши с переназначением (Настройки → «Горячие клавиши»).
+"""Hotkeys with remapping (Settings -> "Hotkeys").
 
-  key_for(action, default=None) -> код клавиши pygame
-      Назначенная игроком клавиша действия; иначе default (если передан), иначе — клавиша по умолчанию
-      из ACTIONS. Ввод игры может спрашивать так: `if k == keymap.key_for('pause', pygame.K_p)`.
-  matches(action, key) -> bool — нажатая клавиша относится к действию (с учётом запасных клавиш).
-  translate(key) — для ввода игры (screens.overlay_event): назначенная клавиша → клавиша по умолчанию.
-  set_key(action, key) / reset() — сохранить в settings.json ('keys': {действие: имя клавиши}).
-Имена клавиш хранятся строками pygame.key.name() — файл читается человеком.
+  key_for(action, default=None) -> a pygame key code
+      The key assigned by the player to the action; otherwise default (if passed), otherwise - the default key
+      from ACTIONS. Game input can ask like this: `if k == keymap.key_for('pause', pygame.K_p)`.
+  matches(action, key) -> bool - the pressed key belongs to the action (taking spare keys into account).
+  translate(key) - for game input (screens.overlay_event): the assigned key -> the default key.
+  set_key(action, key) / reset() - save to settings.json ('keys': {action: key name}).
+Key names are stored as pygame.key.name() strings - the file is human-readable.
 """
 import pygame
 
+from . import i18n
 from . import settings
 
-# (действие, подпись, клавиша по умолчанию, запасные клавиши) — порядок = порядок в списке настроек
+# (action, locale caption key, default key, spare keys) - order = the order in the settings list
 ACTIONS = [
-    ('menu', 'Меню игры', 'f10', ()),
-    ('help', 'Управление (справка)', 'f1', ()),
-    ('civ', 'Карточка цивилизации', 'f2', ()),
-    ('pause', 'Пауза', 'f3', ('p', 'pause')),
-    ('score', 'Счёт игроков', 'f4', ()),
-    ('objectives', 'Задачи', 'f5', ()),
-    ('quick_save', 'Быстрое сохранение', 'f7', ()),
-    ('quick_load', 'Быстрая загрузка', 'f8', ()),
-    ('idle_villager', 'Праздный житель', '.', ()),
-    ('idle_military', 'Праздный воин', ',', ()),
-    ('town_center', 'Городской центр', 'h', ()),
-    ('go_selected', 'К выделенному', 'space', ()),
-    ('delete', 'Удалить', 'delete', ()),
-    ('speed_up', 'Быстрее', '=', ('+', '[+]')),
-    ('speed_down', 'Медленнее', '-', ('[-]',)),
-    ('music', 'Музыка вкл/выкл', 'm', ()),
-    ('sfx', 'Звуки вкл/выкл', 'n', ()),
+    ('menu', 'keys.menu', 'f10', ()),
+    ('help', 'keys.help', 'f1', ()),
+    ('civ', 'keys.civ', 'f2', ()),
+    ('pause', 'keys.pause', 'f3', ('p', 'pause')),
+    ('score', 'keys.score', 'f4', ()),
+    ('objectives', 'keys.objectives', 'f5', ()),
+    ('quick_save', 'keys.quick_save', 'f7', ()),
+    ('quick_load', 'keys.quick_load', 'f8', ()),
+    ('idle_villager', 'keys.idle_villager', '.', ()),
+    ('idle_military', 'keys.idle_military', ',', ()),
+    ('town_center', 'keys.town_center', 'h', ()),
+    ('go_selected', 'keys.go_selected', 'space', ()),
+    ('delete', 'keys.delete', 'delete', ()),
+    ('speed_up', 'keys.speed_up', '=', ('+', '[+]')),
+    ('speed_down', 'keys.speed_down', '-', ('[-]',)),
+    ('music', 'keys.music', 'm', ()),
+    ('sfx', 'keys.sfx', 'n', ()),
 ]
-LABEL = {a: lbl for a, lbl, _, _ in ACTIONS}
+LABEL = {a: lbl for a, lbl, _, _ in ACTIONS}     # locale keys; the caption is label(action)
 DEFAULT = {a: k for a, _, k, _ in ACTIONS}
 ALT = {a: alt for a, _, _, alt in ACTIONS}
+
+
+def label(action):
+    """The action's caption in the player's language."""
+    return i18n.t(LABEL.get(action, action))
 
 
 def _code(name):
@@ -45,7 +51,7 @@ def _code(name):
 
 
 def name_for(action):
-    """Имя назначенной клавиши (строка pygame)."""
+    """The name of the assigned key (a pygame string)."""
     return (settings.get('keys') or {}).get(action) or DEFAULT.get(action, '')
 
 
@@ -64,7 +70,7 @@ def matches(action, key):
     if key == key_for(action):
         return True
     if (settings.get('keys') or {}).get(action):
-        return False            # переназначено — запасные клавиши по умолчанию больше не действуют
+        return False            # remapped - the spare default keys no longer work
     return any(_code(n) == key for n in ALT.get(action, ()))
 
 
@@ -73,9 +79,9 @@ def default_code(action):
 
 
 def translate(key):
-    """Переназначение для ввода игры: нажатая клавиша → код клавиши по умолчанию её действия (если действие
-    переназначено на неё), 'swallow' — клавиша по умолчанию действия, которое переназначено на другую,
-    None — не трогать. Так ввод, написанный под клавиши по умолчанию, слушается настроек."""
+    """Remapping for game input: the pressed key -> the default key code of its action (if the action
+    is remapped to it), 'swallow' - the default key of an action that is remapped to another key,
+    None - leave alone. This way input written for default keys obeys the settings."""
     keys = settings.get('keys') or {}
     if not keys:
         return None
@@ -90,8 +96,8 @@ def translate(key):
 
 
 def set_key(action, key):
-    """Назначить клавишу (код pygame). Если клавиша уже занята другим действием — у того
-    действия меняются местами (как в DE: без двух действий на одной клавише)."""
+    """Assign a key (a pygame code). If the key is already taken by another action, that
+    action's keys are swapped (as in DE: no two actions on one key)."""
     keys = dict(settings.get('keys') or {})
     kn = pygame.key.name(key)
     old = name_for(action)
@@ -107,9 +113,9 @@ def reset():
 
 
 def pretty(kn):
-    """Имя клавиши для подписи: 'f10' → 'F10', 'space' → 'Пробел'."""
-    t = {'space': 'Пробел', 'delete': 'Delete', 'backspace': 'Backspace', 'return': 'Enter', 'escape': 'Esc',
-         'tab': 'Tab', 'pause': 'Pause'}
-    if kn in t:
-        return t[kn]
+    """A key name for a caption: 'f10' -> 'F10', 'space' -> "Space" in the player's language."""
+    names = {'space': i18n.t('key.space'), 'delete': 'Delete', 'backspace': 'Backspace', 'return': 'Enter',
+             'escape': 'Esc', 'tab': 'Tab', 'pause': 'Pause'}
+    if kn in names:
+        return names[kn]
     return kn.upper() if len(kn) <= 3 else kn.capitalize()

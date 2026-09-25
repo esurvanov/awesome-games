@@ -1,8 +1,8 @@
-"""Пререндеренные спрайты из 3D-моделей 0 A.D. и мода Millennium A.D. (assets/gen/, собираются tools/build_sprites.py).
+"""Pre-rendered sprites from 3D models of 0 A.D. and the Millennium A.D. mod (assets/gen/, built by tools/build_sprites.py).
 
-Если папки нет или атлас не читается — `available()` возвращает False и игра рисует процедурную графику.
-Всё грузится лениво и кэшируется: здания — по (вид, группа цивилизации, цвет, стадия), природа — по файлу.
-Цвет игрока: пиксель × (1 − m·(1 − цвет)), m — маска из альфа-канала текстуры 0 A.D. (0 — не красим).
+If the folder is missing or the atlas is unreadable - `available()` returns False and the game draws procedural graphics.
+Everything loads lazily and is cached: buildings - by (kind, civilization group, color, stage), nature - by file.
+Player color: pixel x (1 - m*(1 - color)), m - a mask from the alpha channel of the 0 A.D. texture (0 - not painted).
 """
 import collections
 import json
@@ -54,14 +54,14 @@ def _load(rel, alpha=True):
     return s
 
 
-# Цвет игрока (DE): по маске пиксель заменяется цветом игрока той же яркости, что у текстуры, —
-#   out = lerp(base, c·(TA + TB·L) + TD·L·255, m),  L — яркость пикселя (0…1), m — маска (0…1).
-# Прежнее «base × c» давало тёмные бурые пятна (ткань в текстурах 0 A.D. — бурая, ≈ (105, 94, 76)).
-TA, TB, TD = 0.40, 0.85, 0.30      # подобрано по DE: фиолетовый на рыцаре ≈ (112, 45, 150), DE (107, 50, 141)
+# Player color (DE): by the mask a pixel is replaced by the player's color of the same brightness as the texture's -
+#   out = lerp(base, c*(TA + TB*L) + TD*L*255, m),  L - the pixel's brightness (0...1), m - the mask (0...1).
+# The former "base x c" gave dark brown blotches (the cloth in 0 A.D. textures is brown, ~ (105, 94, 76)).
+TA, TB, TD = 0.40, 0.85, 0.30      # tuned to DE: purple on the knight ~ (112, 45, 150), DE (107, 50, 141)
 
 
 def _mask_rgb(mk):
-    """Маска как непрозрачная 32-битная поверхность RGB (для BLEND_RGB_*)."""
+    """The mask as an opaque 32-bit RGB surface (for BLEND_RGB_*)."""
     if mk.get_bitsize() != 32 or mk.get_flags() & pygame.SRCALPHA:
         m = pygame.Surface(mk.get_size())
         m.blit(mk.convert() if pygame.display.get_surface() is not None else mk, (0, 0))
@@ -70,7 +70,7 @@ def _mask_rgb(mk):
 
 
 def _tint_aux(base, mk):
-    """(яркость L, 255 − маска) для перекраски; считать один раз на лист."""
+    """(brightness L, 255 - mask) for recoloring; compute once per sheet."""
     gray = pygame.Surface(base.get_size())
     gray.blit(pygame.transform.grayscale(base), (0, 0))
     inv = pygame.Surface(mk.get_size())
@@ -80,7 +80,7 @@ def _tint_aux(base, mk):
 
 
 def recolor(base, mk, gray, inv, color):
-    """base (RGBA) с областью маски mk, перекрашенной в color с сохранением яркости (gray, inv — _tint_aux)."""
+    """base (RGBA) with the mask area mk recolored to color while keeping brightness (gray, inv - _tint_aux)."""
     t = gray.copy()
     t.fill(tuple(min(255, int(c * TB + 255 * TD)) for c in color), special_flags=pygame.BLEND_RGB_MULT)
     t.fill(tuple(int(c * TA) for c in color), special_flags=pygame.BLEND_RGB_ADD)
@@ -92,7 +92,7 @@ def recolor(base, mk, gray, inv, color):
 
 
 def _tinted(rec, color):
-    """RGBA-спрайт записи атласа, перекрашенный в цвет игрока по маске."""
+    """An RGBA sprite of an atlas entry, recolored to the player's color by the mask."""
     base = _load(rec['file'])
     if not rec.get('mask') or color is None:
         return base
@@ -100,7 +100,7 @@ def _tinted(rec, color):
     return recolor(base, mk, *_tint_aux(base, mk), color)
 
 
-# ------------------------------------------------------------------ здания
+# ------------------------------------------------------------------ buildings
 def civ_group(civ):
     a = atlas() or {}
     cg = a.get('civ_groups', {})
@@ -120,14 +120,14 @@ def building_rec(kind, civ):
 
 
 def variants(kind, civ):
-    """Число вариантов модели здания (дома: 2–3, выбираются по клетке)."""
+    """The number of variants of a building model (houses: 2-3, chosen by tile)."""
     rec = building_rec(kind, civ)
     return len(rec.get('variants') or ()) or 1 if rec else 1
 
 
 def building(kind, civ, color, stage=None, var=0, land=None):
-    """(surface, ox, oy) готового здания (stage=None) или стадии стройки 0..2; None — нет спрайта.
-    var — номер варианта модели (дома), land — (dx, dy) сторона берега у дока."""
+    """(surface, ox, oy) of a finished building (stage=None) or construction stage 0..2; None - no sprite.
+    var - the model variant number (houses), land - (dx, dy) the shore side of a dock."""
     rec = building_rec(kind, civ)
     if rec is None:
         return None
@@ -147,7 +147,7 @@ def building(kind, civ, color, stage=None, var=0, land=None):
     return hit
 
 
-# ------------------------------------------------------------------ природа
+# ------------------------------------------------------------------ nature
 def _nat_list(kind):
     a = atlas()
     if a is None:
@@ -161,8 +161,8 @@ def _hash(x, y, s=0):
 
 
 def tree(tx, ty, var):
-    """(surface, ox, oy) дерева на клетке: породы растут пятнами (клетки 7×7), внутри пятна — смесь вариантов
-    (порода — game.terrain.tree_species: под хвойными — хвойная подстилка)."""
+    """(surface, ox, oy) of a tree on a tile: species grow in patches (7x7 tiles), inside a patch - a mix of variants
+    (species - game.terrain.tree_species: under conifers - a conifer floor)."""
     trees = _nat_list('trees')
     if not trees:
         return None
@@ -176,14 +176,14 @@ def tree(tx, ty, var):
     return hit
 
 
-# Листва DE (de_forest_town.jpg): тон ≈ 85–92°, насыщенность ≈ 0.5, яркость ≈ 0.36; у наших деревьев
-# (свет 0 A.D.) — 62–82°, 0.65–0.8, 0.2–0.5 — желтят. Поправка при загрузке: тон к GREEN_H, мягче насыщенность.
+# DE foliage (de_forest_town.jpg): hue ~ 85-92 deg, saturation ~ 0.5, brightness ~ 0.36; our trees'
+# (0 A.D. light) - 62-82 deg, 0.65-0.8, 0.2-0.5 - look yellowish. Correction on load: hue toward GREEN_H, saturation softer.
 GREEN_H, GREEN_K, GREEN_S, GREEN_V = 90.0, 0.7, 0.82, 1.15
 _green = {}
 
 
 def _greener(surf):
-    """Копия спрайта дерева с листвой, сдвинутой от жёлтого к зелёному (кора и тени почти не меняются)."""
+    """A copy of a tree sprite with the foliage shifted from yellow to green (bark and shadows barely change)."""
     import numpy as np
     out = surf.copy()
     rgb = pygame.surfarray.pixels3d(out)
@@ -192,12 +192,12 @@ def _greener(surf):
     mx = a.max(axis=2)
     mn = a.min(axis=2)
     d = mx - mn
-    # тон в градусах только для зеленовато-жёлтых пикселей (максимум — зелёный канал или красный близко)
+    # hue in degrees only for greenish-yellow pixels (the maximum is the green channel or red close to it)
     with np.errstate(divide='ignore', invalid='ignore'):
         h = np.nan_to_num(np.where(mx == g, 120.0 + 60.0 * (b - r) / d, 60.0 * ((g - b) / d % 6)))
     sat = np.where(mx > 0, d / np.maximum(mx, 1e-6), 0.0)
     leaf = (d > 0.04) & (h >= 40.0) & (h <= 115.0) & (g >= r * 0.8)
-    w = np.clip((sat - 0.15) / 0.25, 0.0, 1.0) * leaf           # серые/бурые пиксели (кора) — без сдвига
+    w = np.clip((sat - 0.15) / 0.25, 0.0, 1.0) * leaf           # grey/brown pixels (bark) - no shift
     h2 = h + (GREEN_H - h) * GREEN_K * w
     s2 = sat * (1.0 + (GREEN_S - 1.0) * w)
     v2 = np.minimum(1.0, mx * (1.0 + (GREEN_V - 1.0) * w))
@@ -220,7 +220,7 @@ def _greener(surf):
 
 
 def cliff(var):
-    """(surface, ox, oy) глыбы обрыва (tools/build_nature.py build_cliffs) или None."""
+    """(surface, ox, oy) of a cliff boulder (tools/build_nature.py build_cliffs) or None."""
     lst = _nat_list('cliffs')
     if not lst:
         return None
@@ -235,12 +235,12 @@ def _nat_sprite(rec, color=None):
     return hit
 
 
-_NODE_STAGE = (1.0, 0.86, 0.72)          # масштаб жилы по стадии: > 66 %, > 33 %, остаток (DE: n_mine_*_66 / _33)
+_NODE_STAGE = (1.0, 0.86, 0.72)          # the ore vein's scale by stage: > 66 %, > 33 %, the remainder (DE: n_mine_*_66 / _33)
 _node_st = {}
 
 
 def node(kind, var, stage=0):
-    """(surface, ox, oy) ресурса; stage 1..2 — истощённая жила (меньше груда, как в DE на 66 % и 33 %)."""
+    """(surface, ox, oy) of a resource; stage 1..2 - a depleted vein (a smaller pile, as in DE at 66 % and 33 %)."""
     lst = _nat_list(kind)
     if not lst:
         return None
@@ -253,14 +253,14 @@ def node(kind, var, stage=0):
         surf, ox, oy = base
         k = _NODE_STAGE[min(stage, 2)]
         w, h = max(1, round(surf.get_width() * k)), max(1, round(surf.get_height() * k))
-        # масштаб вокруг центра клетки на земле (ox, oy + 16): груда оседает на месте
+        # scale around the tile's center on the ground (ox, oy + 16): the pile settles in place
         cx, cy = ox, oy + 16
         hit = _node_st[key] = (pygame.transform.smoothscale(surf, (w, h)), round(cx * k), round(cy * k) - 16)
     return hit
 
 
 def animal(kind, var, face, color=None):
-    """Статичный спрайт животного; face — направление (fx, fy) в координатах мира."""
+    """A static animal sprite; face - the direction (fx, fy) in world coordinates."""
     an = _nat_list('animals')
     if not an or not an.get(kind):
         return None
@@ -271,7 +271,7 @@ def animal(kind, var, face, color=None):
 
 
 def farm(level):
-    """Поле 3×3: level 0 — пашня, 4 — полный урожай."""
+    """A 3x3 field: level 0 - plowed, 4 - a full harvest."""
     lst = _nat_list('farm')
     if not lst:
         return None
@@ -279,7 +279,7 @@ def farm(level):
 
 
 def icon_rec(kind):
-    """Запись для иконки природного ресурса (первое дерево, первая шахта…)."""
+    """An entry for a natural resource icon (the first tree, the first mine...)."""
     if kind == 'tree':
         t = _nat_list('trees')
         if t:
@@ -288,7 +288,7 @@ def icon_rec(kind):
     return node(kind, 0)
 
 
-# ------------------------------------------------------------------ террейн
+# ------------------------------------------------------------------ terrain
 def terrain_tile(name):
     a = atlas()
     if a is None:
@@ -302,10 +302,10 @@ def terrain_tile(name):
     return t
 
 
-# смешение типов земли, рельеф и свет склонов — game/terrain_gfx.py
+# terrain type blending, relief and slope light - game/terrain_gfx.py
 
 
-# ------------------------------------------------------------------ стены
+# ------------------------------------------------------------------ walls
 _WALL = {}
 
 
@@ -319,8 +319,8 @@ def _wall_set(kind, civ):
 
 
 def wall_piece(kind, civ, color, mask, dirs):
-    """Сегмент стены 1×1 из «рукавов» к соседям и столба: (surface, ox, oy) или None.
-    dirs — список направлений (dx, dy) по битам маски (порядок game.defense.DIR8)."""
+    """A 1x1 wall segment from "arms" toward neighbors and a post: (surface, ox, oy) or None.
+    dirs - a list of directions (dx, dy) by the mask bits (the order of game.defense.DIR8)."""
     ws = _wall_set(kind, civ)
     if ws is None:
         return None
@@ -349,7 +349,7 @@ def wall_piece(kind, civ, color, mask, dirs):
 
 
 def wall_build(kind, civ, part):
-    """Спрайт стройки сегмента стены: part = 'fndn' (фундамент) | 'scaf' (леса); (surface, ox, oy) или None."""
+    """A wall-segment construction sprite: part = 'fndn' (foundation) | 'scaf' (scaffolding); (surface, ox, oy) or None."""
     ws = _wall_set(kind, civ)
     if ws is None or part not in ws:
         return None
@@ -366,9 +366,9 @@ def gate(kind, civ, color, horiz, opened):
     return _nat_sprite(rec, color)
 
 
-# ------------------------------------------------------------------ юниты (tools/build_units.py)
-# Листы кадров грузятся лениво: индекс — при первом юните в кадре, лист набора — при первом его кадре,
-# перекраска в цвет игрока — покадрово при первом показе (кэш по (набор, кадр, цвет)).
+# ------------------------------------------------------------------ units (tools/build_units.py)
+# Frame sheets are loaded lazily: the index - at the first unit in a frame, a set's sheet - at its first frame,
+# recoloring to the player's color - frame by frame on first display (cache by (set, frame, color)).
 _uidx = None
 _utried = False
 _usets = {}
@@ -391,7 +391,7 @@ def units_index():
 
 
 class USet:
-    """Набор кадров одной модели: анимации × направления (16, у старых сборок 8) × кадры."""
+    """A set of frames of one model: animations x directions (16, 8 in old builds) x frames."""
     __slots__ = ('name', 'rec', 'anims', 'h', 'bh', 'sheet', 'mask', 'rects', 'tinted', 'plain', 'ndir')
 
     def __init__(self, name, rec):
@@ -399,7 +399,7 @@ class USet:
         self.rec = rec
         self.anims = rec['anims']
         self.h = rec.get('h') or 40
-        # «рост тела» — до макушки (у копейщиков h — до наконечника копья): полоска здоровья, выбор
+        # "body height" - to the crown (for spearmen h - to the spear tip): the health bar, selection
         self.bh = rec.get('bh') or self.h
         self.ndir = rec.get('dirs') or 8
         self.sheet = None
@@ -420,7 +420,7 @@ class USet:
             self.mask = _mask_rgb(mk)
 
     def frame(self, i, color):
-        """(surface, ax, ay) кадра i, перекрашенного в color (None — без перекраски)."""
+        """(surface, ax, ay) of frame i recolored to color (None - no recoloring)."""
         key = (i, color)
         hit = self.tinted.get(key)
         if hit is not None:
@@ -431,30 +431,30 @@ class USet:
         if self.mask is None or color is None:
             surf = base
         else:
-            if color == (255, 255, 255):          # вспышка попадания: весь силуэт светлее
+            if color == (255, 255, 255):          # hit flash: the whole silhouette is lighter
                 surf = base.copy()
                 surf.fill((90, 90, 90), special_flags=pygame.BLEND_RGB_ADD)
             else:
                 mk = self.mask.subsurface((x, y, w, h))
-                surf = recolor(base, mk, *_tint_aux(base, mk), color)      # кадр кэшируется ниже
+                surf = recolor(base, mk, *_tint_aux(base, mk), color)      # the frame is cached below
         if len(self.tinted) > _UT_MAX:
             self.tinted.clear()
         hit = self.tinted[key] = (surf, ax, ay)
         return hit
 
     def face(self, fx, fy):
-        """Номер направления набора по вектору взгляда (fx, fy) в координатах мира."""
+        """The set's direction number by the look vector (fx, fy) in world coordinates."""
         return face_dir(fx, fy, self.ndir)
 
     def index(self, anim, d, k):
-        """d — номер направления набора (см. face)."""
+        """d - the set's direction number (see face)."""
         a = self.anims[anim]
         n = a['n']
         return a['i0'] + (d % self.ndir) * n + (k % n)
 
 
 def unit_set(kind, civ, female=False):
-    """USet для вида юнита (или 'animal_<вид>') и цивилизации владельца; None — нет спрайтов."""
+    """USet for a unit kind (or 'animal_<kind>') and the owner's civilization; None - no sprites."""
     key = (kind, civ, female)
     s = _uset_of.get(key, 0)
     if s != 0:
@@ -476,21 +476,21 @@ def unit_set(kind, civ, female=False):
 
 
 def face_dir(fx, fy, n=8):
-    """Номер направления 0..n−1 (угол d·360°/n в координатах мира) по вектору взгляда."""
+    """Direction number 0..n-1 (angle d*360/n deg in world coordinates) by the look vector."""
     return int(round(math.atan2(fy, fx) * (n / math.tau))) % n
 
 
-# ------------------------------------------------------------------ фоновая подгрузка листов юнитов
-# Первый показ нового вида юнита стоил ~60 мс (чтение PNG + convert_alpha целого листа в кадре). Листы видов,
-# которые игроки могут обучать сейчас, заранее декодируются в фоновом потоке (PIL → байты RGBA), а в главном
-# потоке превращаются в поверхности полосами — не дольше бюджета (≈2 мс) за кадр (pygame — только в главном).
+# ------------------------------------------------------------------ background preloading of unit sheets
+# The first display of a new unit kind cost ~60 ms (reading a PNG + convert_alpha of the whole sheet in a frame). The sheets of kinds
+# that players can train right now are decoded in advance in a background thread (PIL -> RGBA bytes), and in the main
+# thread they are turned into surfaces in strips - no longer than the budget (~2 ms) per frame (pygame - only in the main one).
 _pre_q = queue.Queue()
 _pre_ready = collections.deque()
 _pre_seen = set()
 _pre_thread = [None]
-_STRIP = 24             # строк листа за один шаг копирования
-# пока поток декодирует PNG, главный поток не копирует полосы: иначе каждая отдача GIL (blit) ждёт поток
-# до интервала переключения (5 мс) и бюджет кадра срывается
+_STRIP = 24             # sheet rows per copy step
+# while the thread decodes a PNG, the main thread does not copy strips: otherwise every GIL release (blit) waits for the thread
+# up to the switch interval (5 ms) and the frame budget is blown
 _pre_busy = threading.Lock()
 
 
@@ -521,16 +521,16 @@ def _pre_worker():
                     im = im.convert('RGB')
                     job.msize, job.mask = im.size, im.tobytes()
         except (OSError, ValueError):
-            job = None               # не вышло — лист загрузится обычным путём при первом показе
+            job = None               # failed - the sheet will load the usual way on the first display
         finally:
             _pre_busy.release()
         if job is not None:
             _pre_ready.append(job)
-        time.sleep(0.02)             # листы по одному, между ними — несколько кадров игры
+        time.sleep(0.02)             # sheets one at a time, several game frames between them
 
 
 def request(kind, civ, female=False):
-    """Поставить лист вида в очередь фоновой подгрузки (если ещё не загружен)."""
+    """Put a kind's sheet in the background preload queue (if not yet loaded)."""
     s = unit_set(kind, civ, female)
     if s is None or s.sheet is not None or s.name in _pre_seen:
         return
@@ -553,7 +553,7 @@ def _strips(job, data, size, rows_done, surf, mode, bpp, t_end):
 
 
 def pump(budget=0.002):
-    """Главный поток, раз в кадр: превращает готовые байты в поверхности, не дольше budget секунд."""
+    """The main thread, once per frame: turns ready bytes into surfaces, no longer than budget seconds."""
     if not _pre_ready or not _pre_busy.acquire(blocking=False):
         return
     try:
@@ -568,7 +568,7 @@ def _pump(budget):
     while _pre_ready and time.perf_counter() < t_end:
         job = _pre_ready[0]
         s = job.uset
-        if s.sheet is not None:             # успел загрузиться обычным путём
+        if s.sheet is not None:             # managed to load the usual way
             _pre_ready.popleft()
             continue
         if job.surf is None:
@@ -576,7 +576,7 @@ def _pump(budget):
             if disp:
                 fmt = fmt.convert_alpha()
             job.surf = pygame.Surface(job.size, pygame.SRCALPHA, fmt)
-            return                          # создание большой поверхности — отдельный шаг (кадр)
+            return                          # creating a large surface is a separate step (a frame)
         if job.row < job.size[1]:
             job.row = _strips(job, job.sheet, job.size, job.row, job.surf, 'RGBA', 4, t_end)
             continue
@@ -590,10 +590,10 @@ def _pump(budget):
             continue
         s.rects = job.rects
         s.mask = job.msurf
-        s.sheet = job.surf                  # последним: _ensure() смотрит на sheet
+        s.sheet = job.surf                  # last: _ensure() looks at sheet
         _pre_ready.popleft()
 
 
 def preload_pending():
-    """Сколько листов ещё в работе (для тестов)."""
+    """How many sheets are still in progress (for tests)."""
     return _pre_q.qsize() + len(_pre_ready)

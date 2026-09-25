@@ -1,51 +1,52 @@
-"""Настройки игры (экран «Настройки», 5 вкладок) — один файл ~/.cache/khroniki/settings.json.
+"""Game settings (the "Settings" screen, 5 tabs) - one file ~/.cache/khroniki/settings.json.
 
-Тот же файл пишет звук (game/sound.py: music, sfx, music_vol, sfx_vol, voice_vol) — сохранение всегда
-дописывает поверх уже лежащих ключей, чужие ключи не теряются.
+The same file is written by the sound (game/sound.py: music, sfx, music_vol, sfx_vol, voice_vol) - saving always
+writes over the keys already there, other keys are not lost.
 
 API:
-  get(key, default=None)  — значение (из файла или DEFAULTS)
-  put(key, value)         — записать и сохранить
-  data()                  — весь словарь (живой; после правки — save())
-Ключи: см. DEFAULTS. Интерфейс (hud.py) читает 'show_hotkeys'; клавиши — game/keymap.py ('keys').
+  get(key, default=None)  - the value (from the file or DEFAULTS)
+  put(key, value)         - write and save
+  data()                  - the whole dict (live; after editing - save())
+Keys: see DEFAULTS. The interface (hud.py) reads 'show_hotkeys'; keys - game/keymap.py ('keys').
 """
 import json
 import os
 
-# KHRONIKI_HOME — другая папка (проверки не трогают настоящие настройки игрока)
+# KHRONIKI_HOME - another folder (checks do not touch the player's real settings)
 HOME = os.environ.get('KHRONIKI_HOME') or os.path.join(os.path.expanduser('~'), '.cache', 'khroniki')
 PATH = os.path.join(HOME, 'settings.json')
 
 DEFAULTS = {
-    # Игра
-    'game_speed': 1.7,          # скорость новой партии по умолчанию (1.0 / 1.5 / 1.7 / 2.0)
-    'scroll_speed': 1.0,        # множитель скорости прокрутки камеры (0.5–2.0)
-    'edge_scroll': True,        # прокрутка краем экрана
-    'wheel_zoom': True,         # колесо мыши — масштаб (DE); выкл. — колесо двигает карту
-    'autosave': 0,              # минут между автосохранениями (0 — выкл.)
-    # Графика
+    # Game
+    'language': None,           # language code (game/i18n.py LANGS); None - detect by the system locale
+    'game_speed': 1.7,          # the default speed of a new match (1.0 / 1.5 / 1.7 / 2.0)
+    'scroll_speed': 1.0,        # camera scroll speed multiplier (0.5-2.0)
+    'edge_scroll': True,        # scrolling by the screen edge
+    'wheel_zoom': True,         # mouse wheel - zoom (DE); off - the wheel moves the map
+    'autosave': 0,              # minutes between autosaves (0 - off)
+    # Graphics
     'fullscreen': False,
     'fps_limit': 60,
-    'live_menu_bg': True,       # фон меню — снимок настоящего города
-    # Интерфейс
-    'show_hotkeys': False,      # буквы горячих клавиш на кнопках панели (hud.py: hud_opt)
-    'show_score': True,         # счёт игроков над мини-картой (F4)
-    'global_queue': True,       # общая очередь производства (панель над командами)
-    'tooltip_scale': 100,       # размер подсказок, %
-    'cursor_soft': None,        # программный курсор (чёткий на Retina): None — авто (Retina → вкл.)
-    'hp_bars': 'selected',      # полоски здоровья: 'selected' | 'always'
-    'team_colors': False,       # цвета «свой / союзник / враг» вместо цветов игроков
-    'player_name': 'Игрок',
-    # Звук (основные ключи ведёт sound.py)
+    'live_menu_bg': True,       # menu background - a snapshot of a real town
+    # Interface
+    'show_hotkeys': False,      # hotkey letters on the panel buttons (hud.py: hud_opt)
+    'show_score': True,         # player score above the minimap (F4)
+    'global_queue': True,       # the global production queue (a panel above the commands)
+    'tooltip_scale': 100,       # tooltip size, %
+    'cursor_soft': None,        # software cursor (crisp on Retina): None - auto (Retina -> on)
+    'hp_bars': 'selected',      # health bars: 'selected' | 'always'
+    'team_colors': False,       # "own / ally / enemy" colors instead of the players' colors
+    'player_name': '',          # empty - "Player" in the player's language (i18n.player_name())
+    # Sound (the main keys are driven by sound.py)
     'voice_vol': 0.8,
-    # Горячие клавиши: действие → имя клавиши pygame (см. keymap.ACTIONS)
+    # Hotkeys: action -> a pygame key name (see keymap.ACTIONS)
     'keys': {},
-    # последняя настройка лобби
+    # the last lobby setup
     'lobby': None,
 }
 
 _data = None
-_dirty = set()              # ключи, изменённые через put() (только их пишем поверх файла)
+_dirty = set()              # keys changed through put() (only they are written over the file)
 
 
 def _load():
@@ -87,7 +88,7 @@ def put(key, value):
 
 
 def save():
-    """Записать поверх файла, сохранив ключи, которые пишут другие (звук)."""
+    """Write over the file, keeping the keys that others write (sound)."""
     try:
         cur = {}
         try:

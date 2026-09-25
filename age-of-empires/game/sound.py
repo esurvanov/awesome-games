@@ -1,14 +1,14 @@
-"""Звук: записанные эффекты и музыка 0 A.D. (assets/audio, CC BY-SA 3.0), процедурные — как замена,
-позиционирование по камере, туман войны, ограничение частоты.
+"""Sound: recorded effects and music from 0 A.D. (assets/audio, CC BY-SA 3.0), procedural ones - as a replacement,
+positioning by the camera, fog of war, rate limiting.
 
-Интерфейс (ui.Game):
-  sound.pre_init()               — до pygame.init()
-  self.audio = sound.Audio()     — после
-  self.audio.handle(e)           — клавиши M / N, значок динамика и окно громкости (True — событие съедено)
-  self.audio.update(self, dt)    — каждый кадр: события мира (game.events) → звуки, музыка по режиму
-  self.audio.draw_popup(scr)     — поверх кадра: окно громкости (если открыто)
-Файлы грузятся в фоновом потоке; без папки assets/audio звуки и музыка процедурные (нужен numpy).
-Всё молча отключается, если нет аудиоустройства."""
+Interface (ui.Game):
+  sound.pre_init()               - before pygame.init()
+  self.audio = sound.Audio()     - after
+  self.audio.handle(e)           - keys M / N, the speaker icon and the volume window (True - the event was consumed)
+  self.audio.update(self, dt)    - every frame: world events (game.events) -> sounds, music by mode
+  self.audio.draw_popup(scr)     - over the frame: the volume window (if open)
+Files are loaded in a background thread; without the assets/audio folder the sounds and music are procedural (numpy is needed).
+Everything is silently disabled if there is no audio device."""
 import io
 import json
 import math
@@ -26,14 +26,14 @@ try:
     import numpy as np
     from . import synth as S
     from . import music
-except ImportError:          # без numpy — только записанные звуки
+except ImportError:          # without numpy - only recorded sounds
     np = S = music = None
 
 SETTINGS = os.path.join(os.environ.get('KHRONIKI_HOME') or os.path.join(os.path.expanduser('~'), '.cache', 'khroniki'),
                         'settings.json')
 
 
-# ============================================================ эффекты (моно, float)
+# ============================================================ effects (mono, float)
 def _clang(v):
     r = S.rng(100 + v)
     f = (660, 780, 900, 720)[v % 4] * r.uniform(0.97, 1.03)
@@ -45,7 +45,7 @@ def _clang(v):
     click = S.spectral(r.standard_normal(n), S.band(1500, 6000)) * S.perc(n, 0.006, 0.0005)
     thud = np.sin(S.phase_of(S.glide(160, 90, n, 0.03), n)) * S.perc(n, 0.05)
     x = 0.45 * metal + 0.5 * click + 0.6 * thud
-    if v % 2:                                      # второй, более слабый удар (клинок о щит)
+    if v % 2:                                      # a second, weaker blow (a blade on a shield)
         x = S.mix([(0, x, 1.0), (0.055, 0.5 * metal * S.perc(n, 0.08), 0.8)], n)
     return S.spectral(x, S.lp(6500, 2))
 
@@ -97,7 +97,7 @@ def _arrow(v):
     t = S.tvec(n)
     env = np.sin(np.pi * np.clip(t / 0.3, 0, 1)) ** 2 * np.exp(-t / 0.2)
     whoosh = S.spectral(r.standard_normal(n), S.bp(1300 + 250 * v, 1.4)) * env
-    tw = S.pluck(140 + 15 * v, 0.3, 0.2, v) * np.exp(-S.tvec(S.n_of(0.3)) / 0.06)     # тетива
+    tw = S.pluck(140 + 15 * v, 0.3, 0.2, v) * np.exp(-S.tvec(S.n_of(0.3)) / 0.06)     # bowstring
     return S.mix([(0, tw, 0.8), (0.015, whoosh, 0.5)], n)
 
 
@@ -141,12 +141,12 @@ def _destroy(v):
     rumble = S.spectral(S.brown(n, r), S.lp(600)) * S.perc(n, 0.55, 0.01)
     boom = np.sin(S.phase_of(S.glide(70, 32, n, 0.2), n)) * S.perc(n, 0.35)
     x = rumble + 0.8 * boom
-    for _ in range(14):                  # треск ломающихся балок
+    for _ in range(14):                  # the crack of breaking beams
         off = r.uniform(0, 0.9) ** 1.5
         m = S.n_of(0.12)
         c = _wood([r.uniform(250, 600), r.uniform(700, 1500)], [0.04, 0.02], m, r, r.uniform(900, 2500), 0.9)
         x = S.mix([(0, x, 1.0), (off, c, 0.25 * math.exp(-off * 1.5))], n)
-    for _ in range(4):                   # падающие обломки
+    for _ in range(4):                   # falling debris
         off = r.uniform(0.5, 1.3)
         x = S.mix([(0, x, 1.0), (off, _thud(int(r.integers(9))), 0.25)], n)
     return S.tail(x * (1 - 0.3 * np.clip(t - 1.2, 0, 1)), 0.2)
@@ -206,7 +206,7 @@ def _mono(st):
 
 
 def _build_done(v):
-    notes = (74, 78, 81, 86)                           # ре мажорное трезвучие вверх
+    notes = (74, 78, 81, 86)                           # a D major triad upward
     parts = [(i * 0.09, S.bell(S.midi_hz(m), 1.4, i, soft=0.5), 0.8 - 0.1 * i) for i, m in enumerate(notes)]
     return S.reverb(S.mix(parts), 1.2, 0.25, 11)
 
@@ -225,7 +225,7 @@ def _tech_done(v):
 
 
 def _fanfare(line, harm, tempo, seed, drums=True):
-    """Фанфара: мелодия трубы + вторая труба (терция/квинта ниже) + литавры."""
+    """A fanfare: a trumpet melody + a second trumpet (a third/fifth below) + timpani."""
     parts = []
     t = 0.0
     for (m, d), h in zip(line, harm):
@@ -243,7 +243,7 @@ def _age_up(v):
     line = [(62, 0.5), (62, 0.5), (69, 1), (66, 0.5), (69, 0.5), (74, 3)]
     harm = [57, 57, 62, 62, 66, 69]
     parts, end = _fanfare(line, harm, 0.3, 21)
-    for i in range(10):                     # дробь литавр под последнюю ноту
+    for i in range(10):                     # a timpani roll under the last note
         parts.append((end - 0.9 + i * 0.05, S.drum(110, 70, 0.1, 0.3, i), 0.15 + 0.03 * i))
     parts.append((end - 0.9, S.jingle(0.6, 5, 5), 0.12))
     parts.append((end - 0.9, S.bell(S.midi_hz(74), 2.0, 4, soft=0.4), 0.3))
@@ -256,7 +256,7 @@ def _age_other(v):
 
 
 def _alert(v):
-    """Боевой рог: низкая нота с подъездом, короткий + длинный сигнал."""
+    """A war horn: a low note with a run-up, a short + a long signal."""
     f = S.midi_hz(43)
     a = S.brass(f, 0.4, 31, bright=1.0, scoop=0.08, vib=0.0)
     b = S.brass(f, 1.2, 32, bright=1.0, scoop=0.06, vib=0.003)
@@ -417,9 +417,9 @@ def _defeat_other(v):
     return S.reverb(S.spectral(S.mix(parts), S.lp(1500, 2)), 1.8, 0.35, 20)
 
 
-# ---- гарнизон, набат, улучшения зданий
+# ---- garrison, town bell, building upgrades
 def _door(v):
-    """Тяжёлая дверь захлопнулась: глухой деревянный удар + щелчок засова."""
+    """A heavy door slammed: a dull wooden thud + the click of a bolt."""
     r = S.rng(2600 + v)
     k = (1.0, 0.92, 1.08)[v % 3]
     n = S.n_of(0.32)
@@ -430,7 +430,7 @@ def _door(v):
 
 
 def _eject(v):
-    """Выход из здания: скрип двери, затем топот нескольких ног."""
+    """Leaving a building: a door creak, then the tramp of several feet."""
     r = S.rng(2700 + v)
     parts = [(0, _creak(v + 11, 0.3), 0.45), (0.22, _door(v), 0.6)]
     for i in range(4):
@@ -441,14 +441,14 @@ def _eject(v):
 
 
 def _town_bell(v):
-    """Набат: большой колокол и колокол поменьше звонят попеременно («бам-бом») три раза."""
-    lo, hi = S.midi_hz(50), S.midi_hz(55)         # ре и соль малой октавы — тяжёлый медный звон
+    """Town bell: a big bell and a smaller one ring alternately ("bam-bom") three times."""
+    lo, hi = S.midi_hz(50), S.midi_hz(55)         # D and G of the small octave - a heavy brass ring
     parts = []
     for i in range(6):
         f = lo if i % 2 == 0 else hi
         g = 0.95 if i % 2 == 0 else 0.75
         parts.append((i * 0.42, S.bell(f, 2.6, 60 + i, soft=0.15), g * (1 - 0.05 * i)))
-        # удар языка — короткий металлический щелчок в атаке
+        # the clapper's strike - a short metallic click in the attack
         m = S.n_of(0.03)
         clk = S.spectral(S.rng(70 + i).standard_normal(m), S.bp(2600, 1.2)) * S.perc(m, 0.005)
         parts.append((i * 0.42, clk, 0.25))
@@ -457,7 +457,7 @@ def _town_bell(v):
 
 
 def _upgrade(v):
-    """Перестройка укрепления: удары по камню и светлый звон готовности."""
+    """Rebuilding a fortification: blows on stone and a bright ring of completion."""
     r = S.rng(2800 + v)
     parts = []
     for i in range(3):
@@ -470,9 +470,9 @@ def _upgrade(v):
     return S.reverb(S.mix(parts), 1.0, 0.2, 62)
 
 
-# ---- рынок и торговля
+# ---- market and trade
 def _coin(r, f=None):
-    """Одна монета: короткий «дзинь» из негармонических парциалов."""
+    """One coin: a short "ding" from inharmonic partials."""
     f = f or r.uniform(3300, 4800)
     n = S.n_of(0.14)
     t = S.tvec(n)
@@ -488,7 +488,7 @@ def _coins(v, n_coins=4, spread=0.22, seed=2900, purse=True):
     parts = []
     for i in range(n_coins):
         parts.append((r.uniform(0, spread) + i * 0.02, _coin(r), r.uniform(0.5, 1.0)))
-    if purse:                                          # кошель лёг на прилавок
+    if purse:                                          # a purse landed on the counter
         m = S.n_of(0.12)
         bag = S.spectral(r.standard_normal(m), S.lp(600)) * S.perc(m, 0.03, 0.002)
         parts.append((0, bag, 0.8))
@@ -500,7 +500,7 @@ def _market(v):
 
 
 def _tribute(v):
-    """Дань: пересыпаются монеты, в конце — светлый аккорд колокольчиков."""
+    """Tribute: coins pour, at the end - a bright chord of little bells."""
     parts = [(0, _coins(v, 12, 0.6, 3000, purse=True), 1.0)]
     for i, m in enumerate((79, 83, 86)):
         parts.append((0.55 + i * 0.06, S.chime(S.midi_hz(m), 0.7), 0.3))
@@ -508,7 +508,7 @@ def _tribute(v):
 
 
 def _trade(v):
-    """Повозка пришла домой: скрип колёс, стук и звон выручки."""
+    """A cart came home: the creak of wheels, a knock and the ring of the takings."""
     r = S.rng(3100 + v)
     parts = [(0, _creak(v + 20, 0.45), 0.5),
              (0.3, _wood([120, 280], [0.07, 0.04], S.n_of(0.2), r, 700), 0.6),
@@ -517,20 +517,20 @@ def _trade(v):
 
 
 def _reseed(v):
-    """Пересев фермы: лопата в землю и шорох зерна."""
+    """Farm reseeding: a shovel into the ground and the rustle of grain."""
     r = S.rng(3200 + v)
     n = S.n_of(0.2)
     dig = S.spectral(r.standard_normal(n), S.lp(800)) * S.perc(n, 0.05, 0.004)
     return S.mix([(0, dig, 1.0), (0.12, _rustle(v + 30, 1500, 5000, 0.3, 8), 0.5)])
 
 
-# ---- монахи: неземной аккорд (своё звучание — «хор» на гласной и мягкий орган)
+# ---- monks: an unearthly chord (its own sound - a "choir" on a vowel and a soft organ)
 def _choir(notes, dur, seed, vowel='oh', att=0.5, rel=0.6):
     parts = []
     for i, m in enumerate(notes):
         n = S.n_of(dur)
         t = S.tvec(n)
-        f0 = S.midi_hz(m) * (1 + 0.004 * np.sin(S.TAU * (4.8 + 0.3 * i) * t + i))     # живое вибрато
+        f0 = S.midi_hz(m) * (1 + 0.004 * np.sin(S.TAU * (4.8 + 0.3 * i) * t + i))     # living vibrato
         x = S.voice(f0, n, S.VOWELS[vowel], 0.04, seed + i)
         x = x / (np.abs(x).max() + 1e-9) + 0.5 * np.sin(S.phase_of(S.midi_hz(m) * 1.002, n))
         parts.append((0, x * S.ramp(n, att, rel), 1.0 / len(notes)))
@@ -538,14 +538,14 @@ def _choir(notes, dur, seed, vowel='oh', att=0.5, rel=0.6):
 
 
 def _convert_start(v):
-    """Монах начал обращение: тихое нарастающее облако голосов (ми минор с ноной)."""
+    """A monk began converting: a quiet swelling cloud of voices (E minor with a ninth)."""
     notes = ((64, 71, 78, 67), (62, 69, 76, 65))[v % 2]
     x = _choir(notes, 1.5, 3300 + 10 * v, 'oh', att=1.0, rel=0.4)
     return S.reverb(S.spectral(x, S.lp(3000, 2)), 2.0, 0.4, 64)
 
 
 def _convert(v):
-    """Обращение свершилось: аккорд раскрывается в светлый мажор, сверху — звон."""
+    """The conversion is done: the chord opens into a bright major, with a ring on top."""
     x = _choir((60, 67, 76, 79, 84), 2.0, 3400 + v, 'ha', att=0.08, rel=1.2)
     parts = [(0, S.spectral(x, S.lp(3800, 2)), 1.0)]
     for i, m in enumerate((88, 91, 96)):
@@ -553,9 +553,9 @@ def _convert(v):
     return S.reverb(S.mix(parts), 2.4, 0.45, 65)
 
 
-# ---- осада, взрывы
+# ---- siege, explosions
 def _ratchet(v):
-    """Сборка/разборка требушета: трещотка храповика и скрип рамы."""
+    """Packing/unpacking a trebuchet: a ratchet's clatter and the creak of the frame."""
     r = S.rng(3500 + v)
     parts = []
     for i in range(9):
@@ -567,21 +567,21 @@ def _ratchet(v):
 
 
 def _blast(v):
-    """Разрыв снаряда: короткий удар, грохот и разлёт комьев земли."""
+    """A shell burst: a short blow, a rumble and a scatter of clods of earth."""
     r = S.rng(3600 + v)
     n = S.n_of(1.0)
     boom = np.sin(S.phase_of(S.glide(120, 40, n, 0.08), n)) * S.perc(n, 0.18)
     crack = S.spectral(r.standard_normal(n), S.band(250, 2200)) * S.perc(n, 0.035, 0.0005)
     rumble = S.spectral(S.brown(n, r), S.lp(500)) * S.perc(n, 0.28, 0.004)
     x = boom + 0.35 * crack + 1.0 * rumble
-    for _ in range(5):                                  # падающие комья
+    for _ in range(5):                                  # falling clods
         off = r.uniform(0.18, 0.6)
         x = S.mix([(0, x, 1.0), (off, _thud(int(r.integers(9))), 0.15)], n)
     return S.tail(x, 0.1)
 
 
 def _explode(v):
-    """Подрыв брандера: большой взрыв, всплеск и шипение воды."""
+    """A fire ship's detonation: a big explosion, a splash and the hiss of water."""
     r = S.rng(3700 + v)
     n = S.n_of(2.0)
     t = S.tvec(n)
@@ -594,9 +594,9 @@ def _explode(v):
     return S.tail(x * (1 - 0.4 * np.clip(t - 1.4, 0, 1)), 0.15)
 
 
-# ---- корабли
+# ---- ships
 def _plank(v):
-    """Шаги по сходням: глухой удар по доскам и скрип."""
+    """Steps on a gangplank: a dull knock on planks and a creak."""
     r = S.rng(3800 + v)
     k = (1.0, 0.9, 1.1)[v % 3]
     parts = [(0, _wood([110 * k, 240 * k, 520 * k], [0.08, 0.05, 0.025], S.n_of(0.3), r, 800, 0.5), 1.0),
@@ -616,16 +616,16 @@ def _splash(v, dur=0.45, lo=700, hi=6000):
 
 
 def _unload(v):
-    """Высадка: доски сходней, затем плеск у берега."""
+    """Landing: the gangplank's boards, then a splash by the shore."""
     return S.mix([(0, _plank(v + 3), 1.0), (0.3, _splash(v, 0.4), 0.45)])
 
 
 def _fish(v):
-    """Рыбацкий корабль: сеть шлёпает по воде."""
+    """A fishing ship: a net slaps the water."""
     return _splash(v + 5, 0.35, 900, 7000)
 
 
-# имя → (построитель, число вариантов, пиковый уровень)
+# name -> (builder, number of variants, peak level)
 SFX = {
     'hit_melee': (_clang, 4, 0.55), 'hit_arrow': (_arrow_hit, 3, 0.5), 'hit_siege': (_siege_hit, 2, 0.8),
     'hit_thud': (_thud, 3, 0.45), 'hit_bld': (_hit_bld, 3, 0.55),
@@ -645,7 +645,7 @@ SFX = {
     'cmd_vil': (_cmd_vil, 3, 0.35), 'cmd_inf': (_cmd_inf, 3, 0.45), 'cmd_arch': (_cmd_arch, 3, 0.3),
     'cmd_cav': (_cmd_cav, 2, 0.45), 'cmd_siege': (_cmd_siege, 2, 0.35), 'cmd_attack': (_cmd_attack, 3, 0.45),
     'victory': (_victory, 1, 0.85), 'defeat': (_defeat, 1, 0.85), 'defeat_other': (_defeat_other, 1, 0.6),
-    # события, появившиеся после звуковой системы (гарнизон, рынок, монахи, осада, флот)
+    # events that appeared after the sound system (garrison, market, monks, siege, navy)
     'garrison': (_door, 3, 0.5), 'eject': (_eject, 2, 0.5), 'bell': (_town_bell, 1, 0.8),
     'upgrade': (_upgrade, 1, 0.55), 'market': (_market, 3, 0.45), 'tribute': (_tribute, 1, 0.5),
     'trade': (_trade, 2, 0.5), 'reseed': (_reseed, 2, 0.35),
@@ -656,14 +656,14 @@ SFX = {
 
 
 def render_sfx(name, v):
-    """Готовый сигнал эффекта (моно или стерео float), нормированный к своему пиковому уровню."""
+    """A ready effect signal (mono or stereo float), normalized to its own peak level."""
     fn, _, peak = SFX[name]
     x = S.normalize(fn(v), peak)
     env = np.abs(x) if x.ndim == 1 else np.abs(x).max(axis=1)
     loud = np.nonzero(env > 0.002)[0]
     end = min(len(x), int(loud[-1]) + S.n_of(0.02)) if len(loud) else len(x)
     x = x[:end].copy()
-    nr = min(end, S.n_of(0.02))                 # хвост реверберации гасим без щелчка
+    nr = min(end, S.n_of(0.02))                 # the reverb tail is faded without a click
     ramp = np.linspace(1, 0, nr)
     x[end - nr:] *= ramp if x.ndim == 1 else ramp[:, None]
     return x
@@ -679,12 +679,12 @@ def wav_bytes(x, channels=2):
     return buf.getvalue()
 
 
-# ============================================================ записанные звуки (0 A.D.)
+# ============================================================ recorded sounds (0 A.D.)
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'audio')
 
 
 def load_manifest(base=None):
-    """assets/audio/manifest.json → dict (или {} — тогда звуки процедурные)."""
+    """assets/audio/manifest.json -> dict (or {} - then the sounds are procedural)."""
     try:
         with open(os.path.join(base or AUDIO_DIR, 'manifest.json'), encoding='utf-8') as f:
             m = json.load(f)
@@ -693,8 +693,8 @@ def load_manifest(base=None):
         return {}
 
 
-# точное имя звука → более общее (цепочка заканчивается процедурным эффектом из SFX):
-# так при отсутствии файлов у любого события остаётся голос
+# an exact sound name -> a more general one (the chain ends with a procedural effect from SFX):
+# so if files are missing every event still has a voice
 FALLBACK = {
     'hit_pierce': 'hit_melee', 'hit_shot': 'hit_arrow', 'hit_ram': 'hit_siege',
     'arrow_jav': 'arrow', 'arrow_gun': 'arrow', 'fire_bolt': 'arrow', 'fire_siege': 'arrow', 'fire_cannon': 'blast',
@@ -709,7 +709,7 @@ FALLBACK = {
     'cmd_move_f': 'cmd_vil', 'cmd_gather_f': 'cmd_vil', 'cmd_build_f': 'cmd_vil', 'cmd_garrison_f': 'cmd_vil',
     'cmd_cav_attack': 'cmd_cav', 'cmd_elephant': 'cmd_cav', 'cmd_siege_attack': 'cmd_siege', 'cmd_ship': 'cmd_siege',
 }
-# вид здания → суффикс файлов done_* / selb_*
+# building kind -> the suffix of the done_* / selb_* files
 BKEY = {'lumber_camp': 'camp', 'mining_camp': 'camp', 'guard_tower': 'tower', 'keep': 'tower',
         'palisade_wall': 'wall', 'stone_wall': 'wall', 'palisade_gate': 'gate'}
 TRAIN = {'vil': 'train_vil', 'inf': 'train_inf', 'arch': 'train_inf', 'siege': 'train_inf', 'cav': 'train_cav',
@@ -731,12 +731,12 @@ def fallback_of(name):
 
 def bkey(kind, sel=False):
     if sel and kind == 'archery_range':
-        return 'barracks'            # у 0 A.D. нет отдельного звука выбора стрельбища
+        return 'barracks'            # 0 A.D. has no separate selection sound for the archery range
     return BKEY.get(kind, kind)
 
 
 def runtime_names():
-    """Все имена, которые может запросить Audio (для проверки покрытия и процедурной замены)."""
+    """All the names that Audio may request (to check coverage and the procedural replacement)."""
     names = set(FALLBACK) | set(TRAIN.values()) | set(RES_SEL.values())
     names |= {'done_' + bkey(k) for k in BUILDINGS} | {'selb_' + bkey(k, True) for k in BUILDINGS}
     names |= {'work_' + w for w in ('chop', 'mine', 'farm', 'forage', 'butcher', 'build', 'fish')}
@@ -747,8 +747,8 @@ def runtime_names():
     return names
 
 
-# ============================================================ правила воспроизведения
-# группа → (минимальный интервал между запусками, сек; максимум одновременно)
+# ============================================================ playback rules
+# group -> (minimum interval between starts, s; maximum simultaneous)
 RULES = {
     'hit_melee': (0.07, 4), 'hit_arrow': (0.06, 3), 'hit_siege': (0.15, 2), 'hit_thud': (0.09, 2), 'hit_bld': (0.1, 2),
     'arrow': (0.08, 3), 'fire': (0.15, 2), 'death': (0.12, 3), 'destroy': (0.3, 2),
@@ -765,7 +765,7 @@ RULES = {
 GROUP = {'victory': 'jingle', 'defeat': 'jingle', 'alert_city': 'alert', 'defeat_ally': 'defeat_other',
          'hit_pierce': 'hit_melee', 'hit_shot': 'hit_arrow', 'hit_ram': 'hit_siege',
          'arrow_jav': 'arrow', 'arrow_gun': 'arrow', 'fire_bolt': 'fire', 'fire_siege': 'fire', 'fire_cannon': 'fire'}
-# звуки, для которых новый запуск обрывает предыдущий («голос» выбранного отряда)
+# sounds for which a new start cuts off the previous one (the "voice" of the selected squad)
 REPLACE = {'voice'}
 BUILDING_SEL = {'town_center': 'sel_bell', 'barracks': 'sel_inf', 'archery_range': 'sel_arch', 'stable': 'sel_cav',
                 'blacksmith': 'sel_anvil', 'siege_workshop': 'sel_siege', 'castle': 'sel_horn', 'tower': 'sel_horn'}
@@ -773,15 +773,15 @@ CLS_KEY = {'vil': 'vil', 'inf': 'inf', 'arch': 'arch', 'cav': 'cav', 'siege': 's
 GLOBAL_GAIN = {'alert': 0.9, 'age_up': 0.9, 'age_other': 0.55, 'victory': 1.0, 'defeat': 1.0, 'jingle': 1.0,
                'defeat_other': 0.7, 'build_done': 0.6, 'train_done': 0.55, 'tech_done': 0.6,
                'bell': 0.85, 'market': 0.6, 'tribute': 0.6, 'convert': 0.45}
-# громкость записанных эффектов по группам (файлы выровнены к одной громкости при сборке —
-# здесь баланс между собой: удары и работа тише оповещений)
+# volume of the recorded effects by group (the files were leveled to one loudness at build time -
+# here is the balance among them: blows and work are quieter than notifications)
 SAMPLE_GAIN = {'hit_melee': 0.5, 'hit_arrow': 0.45, 'hit_siege': 0.75, 'hit_thud': 0.45, 'hit_bld': 0.45,
                'arrow': 0.35, 'fire': 0.6, 'death': 0.5, 'destroy': 0.85, 'blast': 0.7, 'explode': 0.85,
                'work_chop': 0.35, 'work_mine': 0.3, 'work_farm': 0.3, 'work_forage': 0.3, 'work_butcher': 0.3,
                'work_fish': 0.3, 'work_build': 0.35, 'place': 0.5, 'reseed': 0.4, 'voice': 0.7, 'click': 0.45,
                'garrison': 0.5, 'eject': 0.5, 'market': 0.55, 'trade': 0.5, 'pack': 0.5, 'board': 0.5,
                'unload': 0.5, 'convert_start': 0.45}
-# события с местом на карте: чужие в тумане войны не слышны
+# events with a place on the map: those of others in the fog of war are not heard
 POSITIONAL = ('hit', 'death', 'destroy', 'arrow', 'work', 'place', 'garrison', 'eject', 'bell', 'upgrade', 'trade',
               'reseed', 'convert_start', 'convert', 'pack', 'blast', 'explode', 'board', 'unload')
 
@@ -799,12 +799,12 @@ def group_of(name):
 
 
 def is_female(u):
-    """Пол жителя для голоса и крика: постоянный для юнита, ~40 % — женщины."""
+    """A villager's gender for the voice and scream: constant per unit, ~40 % are female."""
     return getattr(u, 'kind', None) == 'villager' and (id(u) // 64) % 5 < 2
 
 
 def pre_init():
-    """До pygame.init(): 44.1 кГц, 16 бит, стерео, небольшой буфер (задержка ~23 мс)."""
+    """Before pygame.init(): 44.1 kHz, 16 bit, stereo, a small buffer (latency ~23 ms)."""
     try:
         pygame.mixer.pre_init(44100, -16, 2, 1024)
     except Exception:
@@ -834,7 +834,7 @@ def save_settings(d):
     try:
         cur = {}
         try:
-            with open(SETTINGS) as f:          # сохраняем чужие ключи файла настроек
+            with open(SETTINGS) as f:          # we keep the other keys of the settings file
                 cur = json.load(f)
             if not isinstance(cur, dict):
                 cur = {}
@@ -848,7 +848,7 @@ def save_settings(d):
         pass
 
 
-# ============================================================ окно громкости
+# ============================================================ volume window
 POP_W, POP_H = 214, 80
 ON_C, OFF_C, RED = (225, 210, 175), (120, 105, 85), (220, 90, 70)
 
@@ -877,12 +877,12 @@ class Audio:
     def __init__(self):
         self.settings = load_settings()
         self.ok = False
-        self.sfx = {}                 # имя → [Sound]
-        self.gain = {}                # имя → множитель громкости (записанные звуки)
-        self.playing = {}             # группа → [(канал, звук)]
-        self.last = {}                # группа → время последнего запуска
+        self.sfx = {}                 # name -> [Sound]
+        self.gain = {}                # name -> a volume multiplier (recorded sounds)
+        self.playing = {}             # group -> [(channel, sound)]
+        self.last = {}                # group -> the time of the last start
         self.last_var = {}
-        self.combat = 0.0             # накал боя рядом с игроком (для музыки)
+        self.combat = 0.0             # intensity of fighting near the player (for the music)
         self.music = None
         self.icon_rect = None
         self.popup = False
@@ -892,7 +892,7 @@ class Audio:
         self.seen = None
         self.sfx_time = 0.0
         self.loaded = False
-        self.stats = {}               # имя → сколько раз прозвучало (для проверок)
+        self.stats = {}               # name -> how many times it sounded (for checks)
         self.t0 = time.perf_counter()
         self.man = load_manifest()
         try:
@@ -910,7 +910,7 @@ class Audio:
             if tp is not None and tp.ok:
                 self.music = tp
                 pygame.mixer.set_reserved(0)
-            elif music is not None:                 # нет файлов — процедурная музыка
+            elif music is not None:                 # no files - procedural music
                 pygame.mixer.set_reserved(4)
                 chs = [pygame.mixer.Channel(i) for i in range(4)]
                 self.music = music.MusicPlayer(pygame, [(chs[0], chs[1]), (chs[2], chs[3])])
@@ -924,7 +924,7 @@ class Audio:
             return
         threading.Thread(target=self._load, daemon=True).start()
 
-    # ---- подготовка эффектов (в фоне: основной поток не ждёт)
+    # ---- preparing effects (in the background: the main thread does not wait)
     def _load(self):
         t = time.perf_counter()
         sm = self.man.get('sfx', {}) if isinstance(self.man.get('sfx'), dict) else {}
@@ -939,7 +939,7 @@ class Audio:
             if snds:
                 self.gain[name] = SAMPLE_GAIN.get(group_of(name), 0.8)
                 self.sfx[name] = snds
-        # процедурная замена — только для того, чего нет среди файлов (или для всего, если папки нет)
+        # procedural replacement - only for what is missing among the files (or for everything if there is no folder)
         if S is not None:
             if not self.sfx:
                 need = ['click', 'sel_vil', 'cmd_vil'] + [k for k in SFX if k not in ('click', 'sel_vil', 'cmd_vil')]
@@ -961,7 +961,7 @@ class Audio:
         self.loaded = True
 
     def resolve(self, names):
-        """Первое готовое имя из списка; если ни одного — идём по цепочкам замен (FALLBACK)."""
+        """The first ready name from the list; if there is none - go through the replacement chains (FALLBACK)."""
         if isinstance(names, str):
             names = (names,)
         for n in names:
@@ -977,7 +977,7 @@ class Audio:
                 k = fallback_of(k)
         return None
 
-    # ---- настройки
+    # ---- settings
     def toggle_music(self):
         self.settings['music'] = not self.settings['music']
         if self.music:
@@ -998,7 +998,7 @@ class Audio:
         if key == 'music' and self.music:
             self.music.volume = v
 
-    # ---- окно громкости: [♪] ──●── 50 %   [🔈] ────●─ 80 %
+    # ---- volume window: [music] --*-- 50 %   [speaker] ----*- 80 %
     def _pop_layout(self):
         if not self.icon_rect:
             return None
@@ -1018,7 +1018,7 @@ class Audio:
             self.set_volume(key, (px - tr.x) / tr.w)
 
     def handle(self, e):
-        """Клавиши M (музыка), N (эффекты), значок динамика (окно громкости). True — событие съедено."""
+        """Keys M (music), N (effects), the speaker icon (the volume window). True - the event was consumed."""
         if e.type == pygame.KEYDOWN:
             if e.key in (pygame.K_m, pygame.K_n) and not (pygame.key.get_mods() & (pygame.KMOD_CTRL | pygame.KMOD_META)):
                 if e.key == pygame.K_m:
@@ -1056,22 +1056,22 @@ class Audio:
                             elif tr.inflate(10, 8).collidepoint(e.pos):
                                 self.drag = key
                                 self._slide(key, e.pos[0])
-                    elif e.button in (4, 5):                       # колесо над окном
+                    elif e.button in (4, 5):                       # wheel over the window
                         for key, (ib, tr) in lay[1].items():
                             if ib.union(tr).inflate(0, 8).collidepoint(e.pos):
                                 self.set_volume(key, self.settings[key + '_vol'] + (0.05 if e.button == 4 else -0.05))
                                 save_settings(self.settings)
                     return True
-                self.popup = False                                 # клик мимо — закрыть, клик не теряется
+                self.popup = False                                 # a click elsewhere - close, the click is not lost
                 return False
         if e.type == pygame.MOUSEWHEEL and self.popup and self.pop_rect and \
                 self.pop_rect.collidepoint(pygame.mouse.get_pos()):
             return True
         return False
 
-    # ---- значок динамика
+    # ---- speaker icon
     def draw_icon(self, scr, x, y, size=20):
-        """Динамик с волнами (звук) и нотой (музыка); выключенное перечёркнуто. Клик — окно громкости."""
+        """A speaker with waves (sound) and a note (music); a disabled one is crossed out. A click - the volume window."""
         r = pygame.Rect(x, y, size + 22, size)
         self.icon_rect = r
         sfx_on, mus_on = self.settings['sfx'] and self.ok, self.settings['music'] and self.ok
@@ -1083,7 +1083,7 @@ class Audio:
         return r
 
     def draw_popup(self, scr):
-        """Окно громкости под значком: две строки «значок-переключатель + ползунок + %»."""
+        """The volume window under the icon: two rows "toggle icon + slider + %"."""
         if not self.popup:
             self.pop_rect = None
             return
@@ -1117,7 +1117,7 @@ class Audio:
             t = self.font.render(f'{int(round(v * 100))}%', True, ON_C if on else OFF_C)
             scr.blit(t, t.get_rect(midright=(r.right - 8, ty)))
 
-    # ---- воспроизведение
+    # ---- playback
     def play(self, names, left=1.0, right=None, force=False, glob=False):
         if not self.ok or not self.settings['sfx']:
             return None
@@ -1146,7 +1146,7 @@ class Audio:
             return None
         if glob:
             left = right = GLOBAL_GAIN.get(g, GLOBAL_GAIN.get(name, 0.7))
-        vol = self.settings.get('voice_vol', 0.8) if g == 'voice' else self.settings['sfx_vol']   # голоса — свой ползунок
+        vol = self.settings.get('voice_vol', 0.8) if g == 'voice' else self.settings['sfx_vol']   # voices - their own slider
         k = vol * self.gain.get(name, 1.0) * random.uniform(0.88, 1.0)
         ch.play(s)
         ch.set_volume(min(1.0, left * k), min(1.0, (left if right is None else right) * k))
@@ -1163,7 +1163,7 @@ class Audio:
         self.play('click', 0.8)
 
     def spatial(self, game, x, y):
-        """(левый, правый) по положению на экране или None, если далеко за краем."""
+        """(left, right) by screen position or None if far beyond the edge."""
         sx, sy = game.w2s(x, y)
         hx, hy = SCREEN_W / 2, (SCREEN_H - PANEL_H - TOP_H) / 2
         dx, dy = (sx - hx) / hx, (sy - TOP_H - hy) / hy
@@ -1181,7 +1181,7 @@ class Audio:
             self.play(name, lr[0] * gain, lr[1] * gain)
         return lr
 
-    # ---- события мира → звуки
+    # ---- world events -> sounds
     def process(self, game, events):
         w = game.world
         human = getattr(w, 'human', 0)
@@ -1196,7 +1196,7 @@ class Audio:
             if typ == 'game_over':
                 win = owner is not None and owner == me.team
                 if self.music and hasattr(self.music, 'stinger') and self.settings['music']:
-                    self.music.stinger(win)            # пьеса победы/поражения вместо короткого сигнала
+                    self.music.stinger(win)            # the victory/defeat piece instead of a short signal
                 else:
                     if self.music:
                         self.music.silence()
@@ -1205,7 +1205,7 @@ class Audio:
             mine = owner == human
             friendly = mine or (isinstance(owner, int) and 0 <= owner < len(w.players) and w.allied(human, owner))
             if typ in POSITIONAL and not friendly and hasattr(w, 'visible_px') and not w.visible_px(x, y):
-                continue                                   # в тумане войны не слышно
+                continue                                   # not audible in the fog of war
             if typ == 'hit':
                 name = self.hit_name(kind, ev[5] if len(ev) > 5 else None)
                 lr = self.play_at(game, name, x, y)
@@ -1243,31 +1243,31 @@ class Audio:
                     self.play_global('alert_city' if kind in BUILDINGS else 'alert')
                     self.combat += 0.4
             elif typ == 'flare':
-                if friendly:                               # сигнал союзника (или свой) — слышен везде
+                if friendly:                               # an ally's (or own) signal - audible everywhere
                     self.play_global(['flare', 'alert'])
             elif typ == 'defeat':
                 if not mine:
                     self.play_global('defeat_ally' if friendly else 'defeat_other')
             elif typ == 'bell':
-                # свой (и союзный) набат слышен везде — это тревога; чужой — только рядом
+                # own (and allied) town bell is audible everywhere - it is an alarm; another's - only nearby
                 if friendly:
                     self.play_global('bell')
                     self.combat += 0.3
                 else:
                     self.play_at(game, 'bell', x, y, 0.7)
             elif typ in ('market', 'reseed'):
-                if mine:                                   # отклик на своё действие (ИИ торгует молча)
+                if mine:                                   # a response to own action (the AI trades silently)
                     if typ == 'market':
                         self.play_global('market')
                     else:
                         self.play_at(game, 'reseed', x, y)
             elif typ == 'tribute':
-                if mine or kind == human:                  # отправили мы или прислали нам
+                if mine or kind == human:                  # sent by us or sent to us
                     self.play_global('tribute')
             elif typ == 'convert':
                 old = ev[5] if len(ev) > 5 else None
                 lr = self.play_at(game, 'convert', x, y)
-                if lr is None and human in (owner, old):   # нашего обратили (или мы) за краем экрана
+                if lr is None and human in (owner, old):   # ours was converted (or we converted) beyond the screen edge
                     self.play_global('convert')
                 if old == human:
                     self.combat += 0.2
@@ -1280,10 +1280,10 @@ class Audio:
     @staticmethod
     def hit_name(attacker, target):
         if attacker in BUILDINGS:
-            return 'hit_arrow'              # стрелы башен, центров, замков
+            return 'hit_arrow'              # arrows of towers, centers, castles
         d = UNITS.get(attacker)
         if d is None:
-            return 'hit_thud'               # звери
+            return 'hit_thud'               # animals
         cls, ac, shot = d['cls'], d.get('ac', ()), d.get('shot')
         if cls == 'siege':
             if 'ram' in ac:
@@ -1311,7 +1311,7 @@ class Audio:
     def arrow_name(kind):
         d = UNITS.get(kind)
         if d is None:
-            return 'arrow'                  # здания
+            return 'arrow'                  # buildings
         shot = d.get('shot')
         if d['cls'] == 'siege' or d.get('siege'):
             if shot == 'bolt':
@@ -1338,7 +1338,7 @@ class Audio:
         return 'death'
 
     def voice(self, game, typ, kind):
-        """Отклик на выбор/приказ: короткая фраза на латыни (0 A.D.), у коней/слонов/машин — свой звук."""
+        """A response to a selection/order: a short phrase in Latin (0 A.D.), for horses/elephants/machines - their own sound."""
         sel = [e for e in getattr(game, 'selected', []) if getattr(e, 'alive', True)]
         human = getattr(game.world, 'human', 0)
         own = sel and getattr(sel[0], 'owner', -1) == human
@@ -1360,7 +1360,7 @@ class Audio:
                 verb = {'attack': 'attack', 'gather': 'gather', 'work': 'build', 'garrison': 'garrison',
                         'heal': 'heal'}.get(kind, 'move')
                 names = [f'cmd_{verb}{sx}', f'cmd_move{sx}']
-            # процедурная замена — прежние «голоса» классов
+            # procedural replacement - the former class "voices"
             names.append('cmd_attack' if kind == 'attack' and cls != 'vil' else 'cmd_' + CLS_KEY.get(cls, 'vil'))
             self.play(names, 0.8)
             return
@@ -1389,7 +1389,7 @@ class Audio:
         else:
             self.click()
 
-    # ---- кадр
+    # ---- frame
     def update(self, game, dt):
         if not self.ok:
             return
@@ -1402,7 +1402,7 @@ class Audio:
                     try:
                         self.process(game, ev)
                     except Exception:
-                        pass            # звук никогда не должен ронять игру
+                        pass            # a sound must never crash the game
         self.combat = min(2.0, self.combat) * math.exp(-dt / 5.0)
         if self.music:
             try:

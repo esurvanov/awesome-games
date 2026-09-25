@@ -1,8 +1,8 @@
-"""Процедурная графика цивилизаций: уникальные юниты (обычные и элитные) и гербы.
+"""Procedural civilization graphics: unique units (regular and elite) and coats of arms.
 
-Всё рисуется кодом (pygame.draw) — никаких чужих изображений. Функции юнитов возвращают art с сигнатурой
+Everything is drawn by code (pygame.draw) - no third-party images. Unit functions return art with the signature
 UNITS[kind]['art']: art(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving).
-Гербы — draw_emblem(surf, rect, spec): щит с делением поля и фигурой (spec — CIVS[civ]['emblem']).
+Coats of arms are draw_emblem(surf, rect, spec): a shield with a field division and a charge (spec is CIVS[civ]['emblem']).
 """
 import math
 import os
@@ -40,9 +40,9 @@ def _poly(surf, c, pts, outline=None):
         pygame.draw.polygon(surf, outline, pts, 1)
 
 
-# ============================================================ пеший
+# ============================================================ infantry
 def _foot(surf, color, x, y, face, anim, k, moving, skin=SKIN, torso=None, legs=None, sc=1.0):
-    """Тело пешего воина (ноги, торс, голова). Возвращает (P, hx) — точки уже с учётом масштаба sc."""
+    """Body of a foot soldier (legs, torso, head). Returns (P, hx) - points already scaled by sc."""
     hx = 1 if face[0] >= 0 else -1
     bob = math.sin(anim) * 1.0 * k if moving else 0
     kk = k * sc
@@ -74,22 +74,22 @@ def _round_shield(surf, P, hx, kk, color, big=False, front=False, pattern=None):
 
 
 def axeman(elite):
-    """Метатель топоров: шлем с наносником, франциска в поднятой руке, запасной топор на поясе."""
+    """Throwing axeman: helmet with a nasal guard, a francisca in the raised hand, a spare axe on the belt."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving)
         lw = max(1, int(2 * kk))
         if elite:
             _round_shield(surf, P, hx, kk, shade(color, -25), pattern='quarter')
-        # пояс и запасной топорик
+        # belt and a spare hatchet
         pygame.draw.line(surf, (90, 60, 35), P(-4.5, -5), P(4.5, -5), max(1, int(1.5 * kk)))
         pygame.draw.line(surf, WOOD, P(-2 * hx, -5), P(-3 * hx, -1), lw)
         pygame.draw.polygon(surf, STEEL, [P(-3 * hx, -2), P(-5.5 * hx, -3), P(-5 * hx, 0)])
-        # шлем
+        # helmet
         pygame.draw.ellipse(surf, IRON, (*P(-3.8, -20), int(7.6 * kk), int(5.8 * kk)))
         pygame.draw.line(surf, IRON_D, P(1.6 * hx, -17), P(1.6 * hx, -13.5), max(1, int(1.2 * kk)))
         if elite:
             pygame.draw.line(surf, shade(color, 50), P(-3 * hx, -20.5), P(2 * hx, -21.5), max(2, int(2 * kk)))
-        # рука с топором: замах назад → бросок вперёд
+        # axe arm: wind-up back -> throw forward
         s = swing / 0.3 if swing > 0 else 0
         hand = P((3 - 6 * (1 - s)) * hx if s < 0.5 else 6 * hx, -13 + 5 * s)
         sh = P(2 * hx, -10)
@@ -107,25 +107,25 @@ def axeman(elite):
 
 
 def longbow(elite):
-    """Длинный лук: капюшон, лук выше человека, колчан за спиной."""
+    """Longbowman: hood, a bow taller than a man, a quiver on the back."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving, torso=(96, 120, 64) if not elite else None)
         lw = max(1, int(2 * kk))
-        # колчан
+        # quiver
         pygame.draw.line(surf, (110, 70, 40), P(-4 * hx, -14), P(-6 * hx, -4), max(2, int(3 * kk)))
         for i in range(3):
             pygame.draw.line(surf, WHITE, P((-4 - i * 0.6) * hx, -14 - i * 0.3), P((-3.5 - i * 0.6) * hx, -16.5),
                              1)
         if elite:
-            # стёганка поверх: пояс в цвет, шапель
+            # padded coat over it: a belt in player color, a kettle hat
             pygame.draw.line(surf, shade(color, -50), P(-4.5, -6), P(4.5, -6), max(1, int(1.5 * kk)))
             pygame.draw.ellipse(surf, IRON, (*P(-5.5, -18.5), int(11 * kk), int(3.2 * kk)))
             pygame.draw.ellipse(surf, IRON_D, (*P(-3, -21), int(6 * kk), int(4 * kk)))
         else:
-            # капюшон в цвет игрока с хвостом
+            # hood in player color with a tail
             pygame.draw.ellipse(surf, shade(color, -30), (*P(-4, -20), int(8 * kk), int(6 * kk)))
             pygame.draw.line(surf, shade(color, -30), P(-3 * hx, -17), P(-6 * hx, -13), max(1, int(2 * kk)))
-        # высокий лук: от колена до макушки и выше
+        # tall bow: from the knee to the crown and above
         s = swing / 0.3 if swing > 0 else 0
         bx, by = P((7 + s) * hx, -12)
         r = pygame.Rect(0, 0, int((8 - 2 * s) * kk), int(30 * kk))
@@ -148,7 +148,7 @@ def _rider_pts(x, y, k, anim, moving, camel=False):
 
 
 def mangudai(elite):
-    """Мангудай: низкорослая степная лошадка, меховая шапка с цветным верхом, лук."""
+    """Mangudai: a small steppe horse, a fur hat with a colored top, a bow."""
     from .content import _army_art as aa
     base = aa.rider(horse=(176, 140, 90) if not elite else (150, 118, 80), bard='cloth' if elite else None,
                     head='skin', weapon='bow')
@@ -157,9 +157,9 @@ def mangudai(elite):
         base(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving)
         hx = 1 if face[0] >= 0 else -1
         P, by, ry, hy = _rider_pts(x, y, k, anim, moving)
-        # грива
+        # mane
         pygame.draw.line(surf, (60, 44, 30), P(9 * hx, by - 4), P(12 * hx, by - 6), max(1, int(2 * k)))
-        # шапка: цветной конус и меховой околыш
+        # hat: a colored cone and a fur brim
         _poly(surf, shade(color, 10), [P(-2.8, hy - 2), P(0.5 * hx, hy - 8.5), P(2.8, hy - 2)])
         pygame.draw.ellipse(surf, FUR, (*P(-4.2, hy - 3.6), int(8.4 * k), int(3.4 * k)))
         pygame.draw.ellipse(surf, shade(FUR, -40), (*P(-4.2, hy - 3.6), int(8.4 * k), int(3.4 * k)), 1)
@@ -170,7 +170,7 @@ def mangudai(elite):
 
 
 def cataphract(elite):
-    """Катафракт: конь в чешуйчатой броне до колен, всадник в остроконечном шлеме с бармицей, копьё."""
+    """Cataphract: a horse in scale armor down to the knees, a rider in a pointed helmet with an aventail, a spear."""
     from .content import _army_art as aa
     base = aa.rider(horse=(84, 74, 68), bard='plate', head='helm', weapon='lance', big=elite)
 
@@ -180,16 +180,16 @@ def cataphract(elite):
         P, by, ry, hy = _rider_pts(x, y, k, anim, moving)
         sc = 1.1 if elite else 1.0
         scale = GOLD if elite else (190, 192, 204)
-        # чешуя на корпусе и груди коня
+        # scales on the horse's body and chest
         for row in range(2):
             for i in range(-4, 5):
                 cx, cy = P(i * 2.1 * sc, by + 3 + row * 2.6)
                 pygame.draw.arc(surf, scale, (cx - int(1.3 * k), cy - int(1.3 * k), int(2.6 * k), int(2.6 * k)),
                                 math.pi, 2 * math.pi, 1)
-        # чешуйчатый нагрудник у шеи
+        # scale breastplate at the neck
         _poly(surf, shade(color, -30), [P(7 * hx * sc, by + 1), P(12 * hx * sc, by - 4), P(13 * hx * sc, by + 2),
                                         P(9 * hx * sc, by + 6)], scale)
-        # всадник: чешуйчатая броня на торсе, шлем-шишак с бармицей
+        # rider: scale armor on the torso, a spiked helmet with an aventail
         for i in (-2.5, 0, 2.5):
             pygame.draw.arc(surf, scale, (*P(i - 1.3, ry - 1), int(2.6 * k), int(2.6 * k)), math.pi, 2 * math.pi, 1)
         _poly(surf, IRON, [P(-3.3, hy - 1), P(0, hy - 7), P(3.3, hy - 1)], IRON_D)
@@ -201,22 +201,22 @@ def cataphract(elite):
 
 
 def teutonic(elite):
-    """Тевтонский рыцарь: полный доспех, ведёрный шлем, сюрко в цвет игрока с крестом, двуручный меч."""
+    """Teutonic Knight: full plate armor, a bucket helm, a surcoat in player color with a cross, a two-handed sword."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         sc = 1.12 if elite else 1.06
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving, torso=IRON, legs=IRON_D, sc=sc)
         lw = max(1, int(2 * kk))
         if elite:
             _poly(surf, WHITE, [P(-4 * hx, -13), P(-9 * hx, 0, False), P(-2 * hx, -2)], (150, 150, 150))
-        # сюрко
+        # surcoat
         _poly(surf, color, [P(-3.6, -12), P(3.6, -12), P(4.6, -2), P(-4.6, -2)], shade(color, -80))
         cc = WHITE if sum(color) < 360 else (30, 30, 34)
         pygame.draw.line(surf, cc, P(0, -11), P(0, -4), max(1, int(1.6 * kk)))
         pygame.draw.line(surf, cc, P(-2.5, -8.5), P(2.5, -8.5), max(1, int(1.6 * kk)))
-        # наплечники
+        # pauldrons
         for sx in (-4.5, 4.5):
             pygame.draw.circle(surf, IRON, P(sx, -11.5), max(1, int(2.2 * kk)))
-        # ведёрный шлем
+        # bucket helm
         pygame.draw.rect(surf, IRON, (*P(-3.9, -20.5), int(7.8 * kk), int(7.5 * kk)),
                          border_radius=max(1, int(1.5 * kk)))
         pygame.draw.rect(surf, IRON_D, (*P(-3.9, -20.5), int(7.8 * kk), int(7.5 * kk)), 1,
@@ -224,10 +224,10 @@ def teutonic(elite):
         pygame.draw.line(surf, (30, 30, 36), P(-2.5 + hx, -17), P(2.5 + hx, -17), max(1, int(kk)))
         pygame.draw.line(surf, (30, 30, 36), P(1 * hx, -17), P(1 * hx, -14.5), max(1, int(kk)))
         if elite:
-            # корона-навершие
+            # crown finial
             _poly(surf, GOLD, [P(-3.5, -20.5), P(-3, -23.5), P(-1.2, -21.5), P(0, -24.5), P(1.2, -21.5),
                                P(3, -23.5), P(3.5, -20.5)])
-        # двуручный меч
+        # two-handed sword
         s = swing / 0.3 if swing > 0 else 0
         hand = P(5 * hx, -8)
         tip = P((16 + s * 5) * hx, -27 + s * 19)
@@ -240,26 +240,26 @@ def teutonic(elite):
 
 
 def samurai(elite):
-    """Самурай: шлем кабуто с золотым полумесяцем, ламеллярный доспех, изогнутый меч; у элиты — флажок на спине."""
+    """Samurai: a kabuto helmet with a golden crescent, lamellar armor, a curved sword; the elite has a banner on the back."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving, legs=(40, 36, 40))
         if elite:
-            # сасимоно — узкий флажок на шесте
+            # sashimono - a narrow banner on a pole
             pygame.draw.line(surf, WOOD_D, P(-3 * hx, -8), P(-3 * hx, -30), max(1, int(1.3 * kk)))
             _poly(surf, color, [P(-3 * hx, -30), P(-8 * hx, -30), P(-8 * hx, -21), P(-3 * hx, -21)], shade(color, -80))
             pygame.draw.circle(surf, WHITE, P(-5.5 * hx, -25.5), max(1, int(1.4 * kk)))
-        # ламели: тёмные полосы на торсе
+        # lamellae: dark stripes on the torso
         for yy in (-10.5, -8, -5.5):
             pygame.draw.line(surf, shade(color, -70), P(-4.5, yy), P(4.5, yy), 1)
-        # наплечники-содэ
+        # sode shoulder guards
         for sx in (-5, 5):
             pygame.draw.rect(surf, shade(color, -40), (*P(sx - 1.6, -12), int(3.2 * kk), int(4.5 * kk)))
-        # кабуто: чёрный купол, широкий назатыльник, полумесяц
+        # kabuto: a black dome, a wide neck guard, a crescent
         pygame.draw.ellipse(surf, (40, 38, 44), (*P(-4, -20.5), int(8 * kk), int(5.5 * kk)))
         pygame.draw.polygon(surf, (40, 38, 44), [P(-5.5, -16), P(5.5, -16), P(4, -17.5), P(-4, -17.5)])
         pygame.draw.arc(surf, GOLD, (*P(-3.6, -25), int(7.2 * kk), int(6 * kk)), math.pi * 1.05, math.pi * 1.95,
                         max(1, int(1.5 * kk)))
-        # катана двумя руками: тонкий слегка изогнутый клинок
+        # katana in both hands: a thin, slightly curved blade
         s = swing / 0.3 if swing > 0 else 0
         hand = P(4 * hx, -9)
         ang = math.radians(-70 + 110 * s)
@@ -277,7 +277,7 @@ def samurai(elite):
 
 
 def chukonu(elite):
-    """Чо-ко-ну: широкая коническая шляпа, многозарядный арбалет с магазином."""
+    """Chu Ko Nu: a wide conical hat, a repeating crossbow with a magazine."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving)
         lw = max(1, int(2 * kk))
@@ -285,13 +285,13 @@ def chukonu(elite):
             for yy in (-10.5, -7.5):
                 pygame.draw.line(surf, shade(color, -60), P(-4.5, yy), P(4.5, yy), 1)
             pygame.draw.line(surf, GOLD, P(-4.5, -5), P(4.5, -5), max(1, int(1.5 * kk)))
-        # шляпа
+        # hat
         hat = (200, 170, 100) if not elite else (70, 60, 50)
         _poly(surf, hat, [P(-7, -17), P(0, -22.5), P(7, -17)], shade(hat, -60))
         if elite:
             pygame.draw.line(surf, (215, 40, 40), P(0, -22.5), P(0, -25), max(1, int(2 * kk)))
             pygame.draw.circle(surf, (215, 40, 40), P(0, -25), max(1, int(1.5 * kk)))
-        # арбалет: ложе, дуга, магазин сверху; при выстреле — рычаг вперёд
+        # crossbow: stock, bow, magazine on top; on firing - the lever goes forward
         s = swing / 0.3 if swing > 0 else 0
         a, b = P(0, -9), P(12 * hx, -10)
         pygame.draw.line(surf, (110, 78, 45), a, b, max(2, int(2.5 * kk)))
@@ -309,8 +309,8 @@ def chukonu(elite):
 
 
 def elephant(elite):
-    """Боевой слон: огромный, с бивнями и хоботом; на спине — башенка-хауда с навесом в цвет игрока,
-    погонщик на шее и лучник в башенке. У элиты — золочёные налобник и попона."""
+    """War Elephant: huge, with tusks and a trunk; on the back a howdah tower with a canopy in player color,
+    a mahout on the neck and an archer in the tower. The elite has a gilded frontlet and caparison."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         hx = 1 if face[0] >= 0 else -1
         bob = math.sin(anim * 0.7) * 0.8 * k if moving else 0
@@ -319,23 +319,23 @@ def elephant(elite):
         skin = (128, 124, 122)
         dark = shade(skin, -45)
         _shadow(surf, x - 22 * k * sc, y - 5 * k, 44 * k * sc, 13 * k)
-        # ноги-колонны
+        # pillar legs
         for i, lx in enumerate((-11, -6, 6, 11)):
             off = math.sin(anim * 0.7 + i * 1.6) * 1.8 if moving else 0
             c = dark if i in (0, 2) else skin
             pygame.draw.line(surf, c, P(lx * sc, -10), P(lx * sc + off, 1, False), max(3, int(5 * k)))
-        # туловище
+        # body
         body = (*P(-17 * sc, -26), int(34 * k * sc), int(20 * k))
         pygame.draw.ellipse(surf, skin, body)
-        # попона
+        # caparison
         cloth = color
         pygame.draw.ellipse(surf, cloth, (*P(-12 * sc, -24), int(24 * k * sc), int(14 * k)))
         trim = GOLD if elite else shade(color, 60)
         pygame.draw.ellipse(surf, trim, (*P(-12 * sc, -24), int(24 * k * sc), int(14 * k)), max(1, int(1.5 * k)))
         pygame.draw.ellipse(surf, shade(skin, -70), body, 1)
-        # хвост
+        # tail
         pygame.draw.line(surf, dark, P(-17 * hx * sc, -20), P(-19 * hx * sc, -12), max(1, int(1.5 * k)))
-        # голова, ухо, хобот, бивни
+        # head, ear, trunk, tusks
         hx0 = 16 * sc
         pygame.draw.circle(surf, skin, P(hx0 * hx, -22), int(7 * k))
         pygame.draw.ellipse(surf, shade(skin, -18), (*P((hx0 - 6) * hx - 4.5, -27), int(9 * k), int(11 * k)))
@@ -351,12 +351,12 @@ def elephant(elite):
         if elite:
             _poly(surf, GOLD, [P((hx0 - 2) * hx, -28), P((hx0 + 5) * hx, -26), P((hx0 + 4) * hx, -20),
                                P((hx0 - 1) * hx, -22)], shade(GOLD, -70))
-        # погонщик на шее
+        # mahout on the neck
         mx, my = (hx0 - 6) * hx, -31
         pygame.draw.circle(surf, (230, 225, 210), P(mx, my), int(2.8 * k))
         pygame.draw.circle(surf, SKIN, P(mx, my - 4.5), int(2.2 * k))
         pygame.draw.ellipse(surf, WHITE, (*P(mx - 2.4, my - 7.4), int(4.8 * k), int(2.6 * k)))
-        # хауда: деревянный короб, лучник, навес
+        # howdah: a wooden box, an archer, a canopy
         _poly(surf, WOOD, [P(-8, -35), P(7, -35), P(6, -26), P(-7, -26)], WOOD_D)
         for i in range(-6, 7, 3):
             pygame.draw.line(surf, WOOD_D, P(i, -35), P(i * 0.93, -26), 1)
@@ -375,7 +375,7 @@ def elephant(elite):
 
 
 def mameluke(elite):
-    """Мамлюк: тёмный верблюд, всадник в тюрбане со шлемом-шишаком, кривая сабля и круглый щит."""
+    """Mameluke: a dark camel, a rider in a turban with a spiked helmet, a curved sabre and a round shield."""
     from .content import _army_art as aa
     base = aa.rider(horse=(150, 112, 70) if not elite else (120, 88, 58), bard='cloth' if elite else None,
                     head='turban', weapon='none', camel=True)
@@ -384,13 +384,13 @@ def mameluke(elite):
         base(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving)
         hx = 1 if face[0] >= 0 else -1
         P, by, ry, hy = _rider_pts(x, y, k, anim, moving, camel=True)
-        # шишак над тюрбаном
+        # spike above the turban
         _poly(surf, GOLD if elite else IRON, [P(-1.6, hy - 3.2), P(0, hy - 7.5), P(1.6, hy - 3.2)])
-        # щит на левой руке
+        # shield on the left arm
         sx, sy = P(-4 * hx, ry + 1)
         pygame.draw.circle(surf, shade(color, -30), (sx, sy), max(2, int(3.2 * k)))
         pygame.draw.circle(surf, GOLD if elite else (200, 180, 120), (sx, sy), max(2, int(3.2 * k)), 1)
-        # сабля: дуга
+        # sabre: an arc
         s = swing * 20
         hand = P(3 * hx, ry)
         a0 = math.radians(-60 + s * 4)
@@ -402,19 +402,19 @@ def mameluke(elite):
 
 
 def janissary(elite):
-    """Янычар: высокий белый колпак, длинный кафтан в цвет игрока, длинное ружьё с дымом при выстреле."""
+    """Janissary: a tall white cap, a long kaftan in player color, a long gun with smoke when firing."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving)
-        # полы кафтана
+        # kaftan skirts
         _poly(surf, shade(color, -15), [P(-4.5, -6), P(4.5, -6), P(5.5, -1), P(-5.5, -1)], shade(color, -80))
         pygame.draw.line(surf, GOLD if elite else (220, 200, 150), P(-4.8, -6), P(4.8, -6), max(1, int(1.5 * kk)))
-        # колпак-бёрк: высокий, загнут назад
+        # bork cap: tall, bent backwards
         _poly(surf, WHITE, [P(-3.4, -17.5), P(3.4, -17.5), P(2 - 4 * hx, -26), P(-1 - 5 * hx, -25)],
               (170, 165, 150))
         pygame.draw.rect(surf, GOLD if elite else (200, 180, 120), (*P(-3.6, -18.5), int(7.2 * kk), int(2 * kk)))
         if elite:
             pygame.draw.line(surf, (245, 245, 240), P(0, -19), P(1.5 * hx, -28), max(2, int(2.2 * kk)))
-        # ружьё
+        # gun
         s = swing / 0.3 if swing > 0 else 0
         a, b = P(-2 * hx, -9), P(15 * hx, -12)
         pygame.draw.line(surf, (110, 78, 45), a, P(5 * hx, -10.2), max(2, int(2.5 * kk)))
@@ -429,12 +429,12 @@ def janissary(elite):
 
 
 def berserk(elite):
-    """Берсерк: без шлема (у элиты — шлем с очками), рыжие волосы и борода, мех на плечах,
-    широкий топор и круглый щит."""
+    """Berserk: no helmet (the elite has a helmet with spectacles), red hair and beard, fur on the shoulders,
+    a broad axe and a round shield."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving, legs=(80, 66, 50))
         _round_shield(surf, P, hx, kk, shade(color, -10), pattern='spiral')
-        # мех на плечах
+        # fur on the shoulders
         pygame.draw.ellipse(surf, FUR, (*P(-5.5, -13.5), int(11 * kk), int(4 * kk)))
         hair = (205, 110, 45)
         pygame.draw.polygon(surf, hair, [P(-1 + 1 * hx, -13), P(2.5 * hx, -13), P(1 * hx, -9.5)])
@@ -444,7 +444,7 @@ def berserk(elite):
         else:
             for i in range(-3, 4):
                 pygame.draw.line(surf, hair, P(i * 1.1, -17.5), P(i * 1.6, -20.5 + abs(i) * 0.4), max(1, int(kk)))
-        # топор: замах сверху
+        # axe: overhead swing
         s = swing / 0.3 if swing > 0 else 0
         hand = P(4 * hx, -9)
         ang = math.radians(-100 + 120 * s)
@@ -463,16 +463,16 @@ def berserk(elite):
 
 
 def huskarl(elite):
-    """Хускарл: большой круглый щит спереди (стрелы не берут), шлем с наносником, кольчуга, меч."""
+    """Huskarl: a large round shield in front (arrows cannot pierce it), a helmet with a nasal guard, mail, a sword."""
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving, torso=(150, 150, 158) if elite else None)
-        # шлем
+        # helmet
         _poly(surf, IRON, [P(-3.8, -16.5), P(0, -21.5), P(3.8, -16.5)], IRON_D)
         pygame.draw.line(surf, IRON_D, P(1.4 * hx, -17), P(1.4 * hx, -13.5), max(1, int(1.2 * kk)))
-        # меч за щитом
+        # sword behind the shield
         s = swing / 0.3 if swing > 0 else 0
         pygame.draw.line(surf, STEEL, P(4 * hx, -9), P((10 + s * 3) * hx, -18 + s * 11), max(1, int(2 * kk)))
-        # щит спереди: большой, в цвет игрока, с узором
+        # shield in front: large, in player color, with a pattern
         sx, sy = P(4.5 * hx, -8)
         r = int((5.8 if elite else 5.2) * kk)
         pygame.draw.circle(surf, color, (sx, sy), r)
@@ -486,19 +486,19 @@ def huskarl(elite):
 
 
 def woad(elite):
-    """Вайдовый воин: синяя раскраска, известковые торчащие волосы, клетчатый килт в цвет игрока, меч."""
+    """Woad Raider: blue paint, lime-spiked hair, a checkered kilt in player color, a sword."""
     blue = (120, 150, 200)
 
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         P, hx, kk = _foot(surf, color, x, y, face, anim, k, moving, skin=blue, torso=blue, legs=(90, 110, 160))
-        # узоры на груди
+        # patterns on the chest
         pygame.draw.arc(surf, (40, 60, 130), (*P(-3, -11), int(6 * kk), int(6 * kk)), 0.5, 5.5, 1)
-        # килт
+        # kilt
         _poly(surf, color, [P(-5, -6), P(5, -6), P(6, -1), P(-6, -1)], shade(color, -80))
         for i in (-3, 0, 3):
             pygame.draw.line(surf, shade(color, 60), P(i, -6), P(i * 1.2, -1), 1)
         pygame.draw.line(surf, shade(color, -60), P(-5.5, -3.5), P(5.5, -3.5), 1)
-        # волосы
+        # hair
         for i in range(-3, 4):
             pygame.draw.line(surf, (235, 225, 190), P(i * 0.9, -17.5), P(i * 1.9, -22 + abs(i) * 0.5),
                              max(1, int(1.3 * kk)))
@@ -514,7 +514,7 @@ def woad(elite):
 
 
 def conquistador(elite):
-    """Конкистадор: вороной конь, шлем-морион с гребнем и загнутыми полями, ружьё."""
+    """Conquistador: a black horse, a morion helmet with a crest and upturned brim, a gun."""
     from .content import _army_art as aa
     base = aa.rider(horse=(46, 40, 38), bard='plate' if elite else None, head='skin', weapon='none')
 
@@ -522,15 +522,15 @@ def conquistador(elite):
         base(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving)
         hx = 1 if face[0] >= 0 else -1
         P, by, ry, hy = _rider_pts(x, y, k, anim, moving)
-        # кираса
+        # cuirass
         pygame.draw.circle(surf, IRON, P(0, ry), int(3.2 * k))
-        # морион
+        # morion
         pygame.draw.arc(surf, STEEL, (*P(-5, hy - 3), int(10 * k), int(5 * k)), 0, math.pi, max(1, int(1.6 * k)))
         pygame.draw.ellipse(surf, STEEL, (*P(-2.8, hy - 5.5), int(5.6 * k), int(4 * k)))
         pygame.draw.line(surf, IRON_D, P(-1.8, hy - 6.5), P(1.8, hy - 6.5), max(1, int(1.4 * k)))
         if elite:
             pygame.draw.line(surf, shade(color, 60), P(0, hy - 6), P(-4 * hx, hy - 10), max(2, int(2 * k)))
-        # ружьё наперевес
+        # gun at the ready
         s = swing / 0.3 if swing > 0 else 0
         b = P(15 * hx, ry - 4)
         pygame.draw.line(surf, (110, 78, 45), P(-1 * hx, ry + 1), P(5 * hx, ry - 1), max(2, int(2.4 * k)))
@@ -543,9 +543,9 @@ def conquistador(elite):
     return art
 
 
-# ============================================================ гербы
+# ============================================================ coats of arms
 def _shield_poly(r):
-    """Контур щита (рыцарский «треугольный» щит с выпуклыми нижними краями) внутри прямоугольника r."""
+    """Shield outline (a knightly "triangular" shield with convex lower edges) inside the rectangle r."""
     x, y, w, h = r
     top = h * 0.5
     pts = [(x, y), (x + w, y)]
@@ -624,7 +624,7 @@ def _cross(surf, cx, cy, s, c, pattee=True):
 
 
 def _bird(surf, cx, cy, s, c, double=False):
-    """Геральдическая птица с раскрытыми крыльями (двуглавая — double)."""
+    """A heraldic bird with spread wings (double-headed - double)."""
     o = shade(c, -100)
     for sg in (-1, 1):
         wing = [(cx + sg * s * 0.15, cy - s * 0.15), (cx + sg * s * 1.0, cy - s * 0.75), (cx + sg * s * 0.95, cy - s * 0.35),
@@ -709,7 +709,7 @@ def _swords(surf, cx, cy, s, c):
 
 
 def _mon(surf, cx, cy, s, c, bg):
-    """Круглый гербовый знак: круг и пять лепестков."""
+    """A round heraldic sign: a circle and five petals."""
     pygame.draw.circle(surf, c, (int(cx), int(cy)), int(s))
     pygame.draw.circle(surf, bg, (int(cx), int(cy)), int(s * 0.82))
     for i in range(5):
@@ -719,7 +719,7 @@ def _mon(surf, cx, cy, s, c, bg):
 
 
 def _dragon(surf, cx, cy, s, c):
-    """Свернувшийся змей-дракон: S-образное тело с гребнем и головой."""
+    """A coiled dragon-snake: an S-shaped body with a crest and a head."""
     pts = []
     for i in range(24):
         t = i / 23
@@ -776,9 +776,9 @@ CHARGES = {'lily3': None, 'crown': _crown, 'cross': _cross, 'eagle': _bird, 'eag
 
 
 def draw_emblem(surf, rect, spec, outline=(30, 24, 18)):
-    """Герб: spec = dict(field=(c1, c2), div='plain'|'pale'|'fess'|'quarterly'|'bend'|'chevron'|'bordure'|'chief',
+    """Coat of arms: spec = dict(field=(c1, c2), div='plain'|'pale'|'fess'|'quarterly'|'bend'|'chevron'|'bordure'|'chief',
     charge='lily3'|'crown'|'cross'|'eagle'|'eagle2'|'crescent'|'crescent_star'|'sun'|'bow'|'axes'|'swords'|'mon'|
-    'dragon'|'triskele'|'tower'|'raven'|'star', metal=цвет фигуры)."""
+    'dragon'|'triskele'|'tower'|'raven'|'star', metal=color of the charge)."""
     rect = pygame.Rect(rect)
     w, h = rect.size
     tmp = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -807,7 +807,7 @@ def draw_emblem(surf, rect, spec, outline=(30, 24, 18)):
     poly = _shield_poly((1, 1, w - 2, h - 2))
     pygame.draw.polygon(mask, (255, 255, 255, 255), poly)
     tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    # блик сверху слева
+    # highlight at the top left
     hl = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.polygon(hl, (255, 255, 255, 38), [(2, 2), (w * 0.5, 2), (2, h * 0.5)])
     hl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
@@ -823,7 +823,7 @@ _EMB = {}
 
 
 def emblem(spec_key, spec, w, h):
-    """Кэшированная картинка герба."""
+    """Cached coat-of-arms image."""
     key = (spec_key, w, h)
     img = _EMB.get(key)
     if img is None:

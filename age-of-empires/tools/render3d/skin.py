@@ -1,16 +1,16 @@
-"""Скелетная анимация 0 A.D.: скелет, скин-контроллер и анимации из COLLADA — свой лёгкий разбор ElementTree
-(pycollada падает на ~35 % файлов анимаций), скиннинг на CPU (numpy, линейное смешивание).
+"""0 A.D. skeletal animation: a skeleton, a skin controller and animations from COLLADA - our own light ElementTree parsing
+(pycollada fails on ~35 % of animation files), CPU skinning (numpy, linear blending).
 
-  sm = skinned('skeletal/new/m_pants.dae')       # меш со скином (или None — меш без контроллера)
+  sm = skinned('skeletal/new/m_pants.dae')       # a mesh with a skin (or None - a mesh without a controller)
   an = animation('biped/infantry/spearman/walk_relax_shield.dae')
-  W  = pose(sm['skel'], an, t)                    # мировые матрицы узлов скелета меша в момент t (с)
-  g  = deform(sm, W)                              # {'pos', 'nrm', 'uv0', 'uv1'} — как assets.mesh()
-  prop_points(sm['skel'], W)                      # {'weapon_R': 4×4, ...} — точки пропов в этой позе
+  W  = pose(sm['skel'], an, t)                    # world matrices of the mesh skeleton's nodes at moment t (s)
+  g  = deform(sm, W)                              # {'pos', 'nrm', 'uv0', 'uv1'} - like assets.mesh()
+  prop_points(sm['skel'], W)                      # {'weapon_R': 4x4, ...} - the prop points in this pose
 
-Семантика — как у конвертера 0 A.D.: кость меша j получает матрицу W_anim[j] · IBM_j (IBM — обратная матрица
-привязки), вершины заранее умножены на bind_shape_matrix. Кости сопоставляются по имени (sid/name) узлов;
-узлы меша, которых нет в анимации, наследуют позу родителя с собственной локальной матрицей покоя.
-Кэш разбора — .npz в assets/0ad_raw/_cache/{skin,anim}/.
+The semantics are as in the 0 A.D. converter: mesh bone j gets the matrix W_anim[j] * IBM_j (IBM - the inverse bind
+matrix), the vertices are pre-multiplied by bind_shape_matrix. Bones are matched by the nodes' name (sid/name);
+mesh nodes that are not in the animation inherit the parent's pose with their own local rest matrix.
+The parsing cache - .npz in assets/0ad_raw/_cache/{skin,anim}/.
 """
 import hashlib
 import os
@@ -57,7 +57,7 @@ def _node_local(el):
 
 
 def _scene_nodes(root):
-    """Узлы сцены в порядке обхода (родитель раньше детей): names, ids, parent, rest (N,4,4), ctrl_url."""
+    """Scene nodes in traversal order (a parent before children): names, ids, parent, rest (N,4,4), ctrl_url."""
     names, ids, parent, rest, ctrl = [], [], [], [], []
     sc = root.find(f'{NS}scene/{NS}instance_visual_scene')
     vs_id = (sc.get('url') or '')[1:] if sc is not None else None
@@ -96,9 +96,9 @@ def _cache_path(kind, path):
     return os.path.join(assets.CACHE, kind, key + '.npz')
 
 
-# ------------------------------------------------------------------ меш со скином
+# ------------------------------------------------------------------ a mesh with a skin
 def skinned(rel):
-    """`meshes/<rel>` со скин-контроллером → dict или None (нет файла / нет контроллера)."""
+    """`meshes/<rel>` with a skin controller -> a dict or None (no file / no controller)."""
     if rel in _SKIN:
         return _SKIN[rel]
     path = assets.art('meshes', rel)
@@ -120,7 +120,7 @@ def skinned(rel):
     try:
         res = _load_skinned(path)
     except Exception as e:
-        print('  ! скин не читается:', rel, type(e).__name__, str(e)[:100])
+        print('  ! the skin is unreadable:', rel, type(e).__name__, str(e)[:100])
         res = None
     os.makedirs(os.path.dirname(cp), exist_ok=True)
     if res is None:
@@ -157,7 +157,7 @@ def _load_skinned(path):
     if ctrl is None:
         return None
     names, ids, parent, rest, ctrls = _scene_nodes(root)
-    # контроллер, реально подключённый в сцене
+    # the controller actually connected in the scene
     used = [c for c in ctrls if c]
     if used:
         ctrl = root.find(f".//{NS}controller[@id='{used[0]}']") or ctrl
@@ -199,7 +199,7 @@ def _load_skinned(path):
             continue
         jidx[i, :len(order)] = js[order]
         jw[i, :len(order)] = ws[order] / s
-    # геометрия: треугольники подряд, индексы позиций → веса
+    # geometry: triangles in a row, position indices -> weights
     d = collada.Collada(path, ignore=[collada.common.DaeUnsupportedError, collada.common.DaeBrokenRefError])
     g = next((x for x in d.geometries if x.id == geom_id), None)
     if g is None:
@@ -245,9 +245,9 @@ def _load_skinned(path):
                 skel=dict(names=names, parent=parent, rest=rest, conv=_up_conv(root)))
 
 
-# ------------------------------------------------------------------ анимации
+# ------------------------------------------------------------------ animations
 def animation(rel):
-    """`animation/<rel>` → dict: names, parent, rest (узлы файла), dur (с), chan {индекс узла: (times, mats)}."""
+    """`animation/<rel>` -> a dict: names, parent, rest (the file's nodes), dur (s), chan {node index: (times, mats)}."""
     if rel in _ANIM:
         return _ANIM[rel]
     path = assets.art('animation', rel)
@@ -270,7 +270,7 @@ def animation(rel):
     try:
         res = _load_anim(path)
     except Exception as e:
-        print('  ! анимация не читается:', rel, type(e).__name__, str(e)[:100])
+        print('  ! the animation is unreadable:', rel, type(e).__name__, str(e)[:100])
         res = None
     if res is not None:
         os.makedirs(os.path.dirname(cp), exist_ok=True)
@@ -296,7 +296,7 @@ def _load_anim(path):
     by_id = {}
     for k, i in enumerate(ids):
         if i:
-            by_id.setdefault(i, k)      # в некоторых файлах скелет продублирован — берём первый
+            by_id.setdefault(i, k)      # in some files the skeleton is duplicated - take the first
     chan = {}
     dur = 0.0
     for an in root.iter(f'{NS}animation'):
@@ -324,7 +324,7 @@ def _load_anim(path):
             dur = max(dur, float(t[-1]))
     conv = _up_conv(root)
     if conv is not None and len(rest):
-        # корень сцены Y-вверх → Z-вверх (поворачиваем только корневые узлы)
+        # the scene root Y-up -> Z-up (we rotate only the root nodes)
         for k in range(len(rest)):
             if parent[k] < 0:
                 rest[k] = conv @ rest[k]
@@ -335,7 +335,7 @@ def _load_anim(path):
 
 
 def _orth(m):
-    """Убирает «дрейф» линейной интерполяции: вращение → ближайшее ортогональное с сохранением масштаба."""
+    """Removes the "drift" of linear interpolation: a rotation -> the nearest orthogonal one keeping the scale."""
     r = m[..., :3, :3]
     u, s, vt = np.linalg.svd(r)
     q = u @ vt
@@ -346,7 +346,7 @@ def _orth(m):
 
 
 def sample_local(an, t):
-    """Локальные матрицы всех узлов файла анимации в момент t (циклически обрезается по длительности)."""
+    """The local matrices of all nodes of an animation file at moment t (cyclically clipped by the duration)."""
     L = an['rest'].copy()
     for k, (ts, ms) in an['chan'].items():
         if len(ts) == 1 or t <= ts[0]:
@@ -372,8 +372,8 @@ def world(names, parent, local):
 
 
 def pose(skel, an, t):
-    """Мировые матрицы узлов скелета skel ({names, parent, rest}) под анимацией an в момент t.
-    an=None — поза покоя файла меша."""
+    """World matrices of the nodes of skeleton skel ({names, parent, rest}) under animation an at moment t.
+    an=None - the rest pose of the mesh file."""
     names, parent, rest = skel['names'], skel['parent'], skel['rest']
     if an is None:
         W = world(names, parent, rest)
@@ -397,7 +397,7 @@ def pose(skel, an, t):
 
 
 def deform(sm, W):
-    """Скиннинг меша sm позой W (из pose) → {'pos', 'nrm', 'uv0', 'uv1', 'props': {}}."""
+    """Skinning the mesh sm with the pose W (from pose) -> {'pos', 'nrm', 'uv0', 'uv1', 'props': {}}."""
     idx = {n: i for i, n in enumerate(sm['skel']['names'])}
     J = len(sm['joints'])
     S = np.zeros((J, 4, 4))
@@ -406,10 +406,10 @@ def deform(sm, W):
         S[j] = (W[i] if i is not None else np.eye(4)) @ sm['ibm'][j]
     conv = sm['skel'].get('conv')
     if conv is not None:
-        # W уже в Z-вверх; вершины и IBM — в осях файла
+        # W is already Z-up; the vertices and IBM are in the file's axes
         pass
     ji, jw = sm['jidx'], sm['jw']
-    M = np.einsum('nk,nkij->nij', jw.astype(np.float64), S[ji])          # (N,4,4) смешанные матрицы
+    M = np.einsum('nk,nkij->nij', jw.astype(np.float64), S[ji])          # (N,4,4) blended matrices
     p = sm['pos'].astype(np.float64)
     pos = np.einsum('nij,nj->ni', M[:, :3, :3], p) + M[:, :3, 3]
     nrm = np.einsum('nij,nj->ni', M[:, :3, :3], sm['nrm'].astype(np.float64))
@@ -422,7 +422,7 @@ def orthonormal(m):
 
 
 def prop_points(skel, W):
-    """{имя точки: 4×4} — узлы 'prop-X' / 'prop_X' скелета в позе W."""
+    """{point name: 4x4} - the skeleton's 'prop-X' / 'prop_X' nodes in the pose W."""
     out = {}
     for i, n in enumerate(skel['names']):
         if n.startswith('prop-') or n.startswith('prop_'):

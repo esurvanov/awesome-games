@@ -1,41 +1,41 @@
-"""Рельеф как в AoE II DE: высоты 0–7, обрывы, мелководье, типы земли (без pygame — это часть мира).
+"""Relief as in AoE II DE: heights 0-7, cliffs, shallows, ground types (no pygame - this is part of the world).
 
-Коды клеток world.terrain:  0 — суша, 1 — вода, 2 — мелководье (ходят пешие, не плавают корабли, строить
-нельзя), 3 — обрыв (непроходим). Проходимость для пеших — чётный код (t & 1 == 0).
+The world.terrain cell codes:  0 - land, 1 - water, 2 - shallows (foot units walk, ships do not sail, building
+is not allowed), 3 - a cliff (impassable). Passability for foot units - an even code (t & 1 == 0).
 
-Высота хранится в вершинах клеток: world.hz[(H+1)][(W+1)] — пиксели экрана (уровень × ZL); по клетке —
-билинейно, как её рисует земля (game/terrain_gfx.py). Целый уровень клетки (0..7, для правил боя и
-стройки) — world.elev[ty*W + tx] = округлённое среднее четырёх углов.
+Height is stored at the cell vertices: world.hz[(H+1)][(W+1)] - screen pixels (level x ZL); across a cell -
+bilinearly, the way the ground draws it (game/terrain_gfx.py). The integer level of a cell (0..7, for the combat and
+building rules) - world.elev[ty*W + tx] = the rounded mean of the four corners.
 
-Единый способ «точка мира → экран с высотой» для всего кода отрисовки:
-  terrain.ZL                    — пикселей экрана на уровень (16 = HH: у классики 24 px при клетке 96 px, у нас 64)
-  World.z_at(x, y)              — высота земли под точкой мира (логические px) в пикселях экрана
-  World.elev(tx, ty)            — целый уровень клетки
-  data.to_iso(x, y, ox, z)      — мир → изометрическая карта, поднятая на z пикселей
-  Game.w2s(x, y, z=None)        — мир → экран; z по умолчанию — высота земли в точке
-  Game.s2w(sx, sy)              — экран → мир с учётом рельефа (точка земли под курсором)
+A single way of "world point -> screen with height" for all drawing code:
+  terrain.ZL                    - screen pixels per level (16 = HH: 24 px in the classic at a 96 px tile, ours 64)
+  World.z_at(x, y)              - the ground height under a world point (logical px) in screen pixels
+  World.elev(tx, ty)            - the integer level of a cell
+  data.to_iso(x, y, ox, z)      - world -> the isometric map, raised by z pixels
+  Game.w2s(x, y, z=None)        - world -> screen; z by default - the ground height at the point
+  Game.s2w(sx, sy)              - screen -> world taking relief into account (the ground point under the cursor)
 """
 import math
 import random
 
 from .data import TILE, HH
 
-ZL = HH                 # пикселей экрана на уровень высоты
+ZL = HH                 # screen pixels per height level
 MAX_LEVEL = 7
-SLOPE = 0.7             # предел разницы соседних вершин (уровней на клетку): склоны не «складываются»
-BUILD_SLOPE = 0.5       # здание: перепад высот углов основания ≤ ½ уровня (спрайт на средней высоте: углы
-                        # расходятся со склоном ≤ ~8 px; при 1.0 было до 14.7 px — 09 · №27)
-HEIGHT_BONUS = 0.25     # ±25 % урона сверху вниз / снизу вверх (AoE II DE)
+SLOPE = 0.7             # the limit of the difference between neighboring vertices (levels per tile): slopes do not "fold"
+BUILD_SLOPE = 0.5       # a building: the height difference of the base corners <= 1/2 level (the sprite stands at the average height: the corners
+                        # diverge from the slope by <= ~8 px; at 1.0 it was up to 14.7 px - 09 #27)
+HEIGHT_BONUS = 0.25     # +-25 % damage from top to bottom / from bottom to top (AoE II DE)
 
 LAND, WATER, SHALLOW, CLIFF = 0, 1, 2, 3
 
-# типы земли (world.ground) — для текстур и смешения; порядок смешения — PRIORITY (выше — поверх)
+# ground types (world.ground) - for textures and blending; the blending order is PRIORITY (higher - on top)
 GROUNDS = ('grass', 'grass2', 'grass3', 'dirt', 'dirt2', 'dirt3', 'forest', 'pine', 'sand', 'beach',
            'shallow', 'water', 'rocky')
 G = {n: i for i, n in enumerate(GROUNDS)}
 PRIORITY = ('water', 'shallow', 'beach', 'sand', 'grass', 'grass2', 'grass3', 'dirt3', 'dirt2', 'dirt', 'rocky',
             'pine', 'forest')
-# цвет миникарты по типу (как в AoE2: трава зелёная, земля охра, лес тёмно-зелёный, песок светлый)
+# the minimap color by type (as in AoE2: grass green, earth ochre, forest dark green, sand light)
 MM_COLOR = {'grass': (98, 150, 62), 'grass2': (90, 140, 56), 'grass3': (112, 152, 64), 'dirt': (178, 142, 76),
             'dirt2': (190, 160, 96), 'dirt3': (140, 140, 70), 'forest': (40, 92, 36), 'pine': (36, 84, 40),
             'sand': (196, 180, 120), 'beach': (206, 190, 132), 'shallow': (96, 170, 180), 'water': (40, 90, 160),
@@ -51,12 +51,12 @@ def _hash(x, y, s=0):
 
 
 def tree_species(tx, ty, names=None):
-    """Порода дерева на клетке: пятна 7×7 одной породы с примесью. names — доступные породы (по умолчанию все)."""
+    """The tree species on a tile: 7x7 patches of one species with an admixture. names - the available species (by default all)."""
     names = [(n, w) for n, w in _SPECIES_W if names is None or n in names]
     if not names:
         return None
     rx, ry = tx // 7, ty // 7
-    if _hash(tx, ty, 5) % 4 == 0:           # границы пятен чуть неровные
+    if _hash(tx, ty, 5) % 4 == 0:           # the patch borders are slightly uneven
         rx, ry = (tx + 3) // 7, (ty + 3) // 7
     tot = sum(w for _, w in names)
     r = _hash(rx, ry, 1) % tot
@@ -66,14 +66,14 @@ def tree_species(tx, ty, names=None):
             sp = n
             break
         r -= w
-    if _hash(tx, ty, 9) % 5 == 0:          # примесь другой породы
+    if _hash(tx, ty, 9) % 5 == 0:          # an admixture of another species
         sp = names[_hash(tx, ty, 11) % len(names)][0]
     return sp
 
 
-# ============================================================ состояние мира
+# ============================================================ world state
 def ensure(w):
-    """Плоский рельеф по умолчанию (старые сохранения, миры тестов до генерации)."""
+    """Flat relief by default (old saves, test worlds before generation)."""
     W, H = w.W, w.H
     if getattr(w, 'hz', None) is None or len(w.hz) != H + 1:
         w.hz = [[0.0] * (W + 1) for _ in range(H + 1)]
@@ -86,11 +86,11 @@ def ensure(w):
     if not hasattr(w, 'relief'):
         w.relief = False
     if not getattr(w, 'theme', None):
-        w.theme = 'grass'           # пейзаж (game/themes.py); старые сохранения — прежний облик
+        w.theme = 'grass'           # landscape (game/themes.py); old saves - the former look
 
 
 def z_at(w, x, y):
-    """Высота земли (px экрана) под точкой мира (x, y в логических px) — билинейно по вершинам."""
+    """The ground height (screen px) under a world point (x, y in logical px) - bilinear across the vertices."""
     if not w.relief:
         return 0.0
     fx = x / TILE
@@ -126,7 +126,7 @@ def elev_px(w, x, y):
 
 
 def footprint_range(w, tx, ty, sw, sh):
-    """(min, max) высоты углов клеток основания (уровни)."""
+    """(min, max) of the heights of the corners of the base cells (levels)."""
     lo, hi = 1e9, -1e9
     for y in range(max(0, ty), min(w.H, ty + sh) + 1):
         row = w.hz[y]
@@ -142,7 +142,7 @@ def footprint_range(w, tx, ty, sw, sh):
 
 
 def slope_ok(w, tx, ty, sw, sh=None):
-    """Можно ли ставить здание: перепад высот по основанию ≤ BUILD_SLOPE уровня."""
+    """Whether a building can be placed: the height difference across the base <= BUILD_SLOPE levels."""
     if not w.relief:
         return True
     lo, hi = footprint_range(w, tx, ty, sw, sw if sh is None else sh)
@@ -150,7 +150,7 @@ def slope_ok(w, tx, ty, sw, sh=None):
 
 
 def height_mult(w, att, target):
-    """Множитель урона за высоту: ×1.25 сверху вниз, ×0.75 снизу вверх (разница целых уровней клеток)."""
+    """The damage multiplier for height: x1.25 from top to bottom, x0.75 from bottom to top (the difference of the cells' integer levels)."""
     if not w.relief:
         return 1.0
     ax, ay = att.center()
@@ -165,7 +165,7 @@ def height_mult(w, att, target):
 
 
 def footprint_z(w, tx, ty, sw, sh):
-    """Средняя высота углов основания (px) — на ней стоит здание (кэш: рельеф неизменен)."""
+    """The average height of the base corners (px) - the building stands at it (cached: the relief does not change)."""
     if not w.relief:
         return 0.0
     cache = w.__dict__.get('_bz')
@@ -189,8 +189,8 @@ def building_z(w, b):
 
 
 def ground_at(w, ix, iy, ox):
-    """Экран без сдвига камеры (ix, iy — изометрия, поднятая рельефом) → точка земли мира (x, y).
-    Ищем точку столбца, у которой iy_плоск − z = iy: итерация iy_плоск = iy + z (склоны < 1 → сходится)."""
+    """A screen without the camera offset (ix, iy - isometry raised by the relief) -> a world ground point (x, y).
+    We look for the point of the column whose iy_flat - z = iy: the iteration iy_flat = iy + z (slopes < 1 -> it converges)."""
     ix -= ox
     if not w.relief:
         return (ix + 2 * iy) * 0.5, (2 * iy - ix) * 0.5
@@ -207,7 +207,7 @@ def ground_at(w, ix, iy, ox):
     return (ix + 2 * fy) * 0.5, (2 * fy - ix) * 0.5
 
 
-# ============================================================ генерация
+# ============================================================ generation
 def _rng(w, starts, salt):
     s = w.W * 7919 + salt * 104729 + len(starts) * 31 + sum(len(x) for x in (w.map_type,))
     for i, (x, y) in enumerate(starts):
@@ -216,7 +216,7 @@ def _rng(w, starts, salt):
 
 
 def _noise(W, H, cell, rng):
-    """Плавный шум значений (H строк × W столбцов, 0..1)."""
+    """Smooth value noise (H rows x W columns, 0..1)."""
     gw, gh = W // cell + 3, H // cell + 3
     g = [[rng.random() for _ in range(gw)] for _ in range(gh)]
     out = []
@@ -240,7 +240,7 @@ def _noise(W, H, cell, rng):
 
 
 def _labels(W, H, ok):
-    """Компоненты связности (по сторонам) клеток, где ok[i] истинно: список меток (-1 — не та клетка), число."""
+    """Connected components (by sides) of cells where ok[i] is true: a list of labels (-1 - the wrong cell), the count."""
     lab = [-1] * (W * H)
     n = 0
     for s in range(W * H):
@@ -268,8 +268,8 @@ def _labels(W, H, ok):
 
 
 def gen_shallows(w, starts):
-    """Мелководье: часть кромки озёр и берегов (пешие переходят, корабли — нет). Проливы не перекрываются,
-    острова не соединяются, связность воды не рвётся."""
+    """Shallows: part of the rim of lakes and shores (foot units cross, ships do not). Straits are not blocked,
+    islands are not joined, the connectivity of the water is not broken."""
     rng = _rng(w, starts, 1)
     W, H = w.W, w.H
     T = w.terrain
@@ -298,7 +298,7 @@ def gen_shallows(w, starts):
             if water_lab[i] in pond:
                 conv.append(i)
                 continue
-            # кромка: суша по стороне; вокруг достаточно воды (не узкий пролив); рядом только одна суша
+            # rim: land by a side; enough water around (not a narrow strait); only one land nearby
             nb = [flat[i + 1], flat[i - 1], flat[i + W], flat[i - W]]
             if LAND not in nb:
                 continue
@@ -321,7 +321,7 @@ def gen_shallows(w, starts):
         return 0
     for i in conv:
         flat[i] = SHALLOW
-    # отрезанные мелководьем лужицы воды — тоже мелководье
+    # puddles of water cut off by the shallows - shallows too
     lab2, _ = _labels(W, H, [t == WATER for t in flat])
     size2 = {}
     for v in lab2:
@@ -331,13 +331,13 @@ def gen_shallows(w, starts):
         if v >= 0 and size2[v] < 12 and wsize[water_lab[i]] > size2[v]:
             flat[i] = SHALLOW
             conv.append(i)
-    # проверка: суша не сливается (острова), вода не делится (кроме целиком обмелевших прудов)
+    # check: land does not merge (islands), water does not split (except ponds that became fully shallow)
     _, nl2 = _labels(W, H, [t != WATER for t in flat])
     _, nw2 = _labels(W, H, [t == WATER for t in flat])
     if nl2 != nl or nw2 > nw - len(pond):
         if nl2 != nl:
             return 0
-        # делится вода — оставляем только пруды
+        # the water splits - keep only the ponds
         conv = [i for i in conv if water_lab[i] in pond]
     for i in conv:
         T[i // W][i % W] = SHALLOW
@@ -347,7 +347,7 @@ def gen_shallows(w, starts):
 
 
 def _wet_vertices(w):
-    """Вершины, касающиеся воды/мелководья или края карты — высота 0."""
+    """Vertices touching water/shallows or the map edge - height 0."""
     W, H = w.W, w.H
     T = w.terrain
     wet = [[False] * (W + 1) for _ in range(H + 1)]
@@ -363,7 +363,7 @@ def _wet_vertices(w):
 
 
 def _lipschitz(h, S, W1, H1, rows=None):
-    """Верхняя огибающая: h[v] ≤ h[u] + S·расстояние (два прохода, 8 соседей)."""
+    """The upper envelope: h[v] <= h[u] + S*distance (two passes, 8 neighbors)."""
     D = S * 1.4142
     for y in range(H1):
         r = h[y]
@@ -398,33 +398,33 @@ def _lipschitz(h, S, W1, H1, rows=None):
 
 
 def water_rise(w):
-    """Карта с морем: суша поднимается от берега, пляж шире (старое «прибрежье», острова, море DE)."""
+    """A map with a sea: land rises from the shore, the beach is wider (the old "coast", islands, the DE sea)."""
     from . import maps
     return w.map_type != 'land' and maps.is_water(w.map_type)
 
 
 def gen_heights(w, starts):
-    """Холмы шумом: равнины и пологие холмы до 4–6 уровней; вокруг стартов — ровные площадки; у воды и
-    края карты — 0; на прибрежных картах суша поднимается от берега."""
+    """Hills by noise: plains and gentle hills up to 4-6 levels; around the starts - flat sites; by the water and
+    the map edge - 0; on coastal maps the land rises from the shore."""
     rng = _rng(w, starts, 2)
     W, H = w.W, w.H
     W1, H1 = W + 1, H + 1
     amp = {'land': 1.0, 'coast': 0.85, 'islands': 0.55}.get(w.map_type, 1.0)
     opts = getattr(w, 'gen_opts', None) or {}
-    share = opts.get('hill_share')          # карты DE: доля клеток на холмах (Arabia 11–31 %)
-    coastal = water_rise(w) and share is None   # старое «прибрежье»: суша поднимается от берега
+    share = opts.get('hill_share')          # DE maps: the share of cells on hills (Arabia 11-31 %)
+    coastal = water_rise(w) and share is None   # the old "coast": land rises from the shore
     n1 = _noise(W1, H1, 12, rng)
     n2 = _noise(W1, H1, 6, rng)
     n3 = _noise(W1, H1, 21, rng)
     wet = _wet_vertices(w)
-    # расстояние от воды (в вершинах) — прибрежные карты поднимаются от берега
+    # the distance from water (in vertices) - coastal maps rise from the shore
     INF = 10 ** 6
     dist = [[0 if wet[y][x] and 0 < x < W and 0 < y < H else INF for x in range(W1)] for y in range(H1)]
     if coastal:
         _lipschitz(dist, 1.0, W1, H1)
     h = [[0.0] * W1 for _ in range(H1)]
     if share is not None:
-        # порог шума под заданную долю холмов: верхние share·k вершин поднимаются, склоны расширят их
+        # the noise threshold for the given share of hills: the top share*k vertices rise, slopes will widen them
         raw = [[(0.62 * n1[y][x] + 0.38 * n2[y][x]) * min(1.0, max(0.0, (n3[y][x] - 0.12) * 2.0))
                 for x in range(W1)] for y in range(H1)]
         flat = sorted(v for r in raw for v in r)
@@ -439,12 +439,12 @@ def gen_heights(w, starts):
             else:
                 v = 0.62 * n1[y][x] + 0.38 * n2[y][x]
                 hill = max(0.0, v - 0.46) / 0.54
-                mask = min(1.0, max(0.0, (n3[y][x] - 0.22) * 2.5))       # где холмы вообще есть
-                lv = hill * 11.0 * mask * amp       # склоны ограничит SLOPE: холмы с ровным верхом, как в AoE2
+                mask = min(1.0, max(0.0, (n3[y][x] - 0.22) * 2.5))       # where hills exist at all
+                lv = hill * 11.0 * mask * amp       # slopes will be limited by SLOPE: hills with flat tops, as in AoE2
             if coastal and dist[y][x] < INF:
                 lv += min(2.2, max(0.0, dist[y][x] - 2) * 0.16)
             h[y][x] = lv
-    # ровные площадки у стартов (центр — на своём уровне, не выше 2)
+    # flat sites at the starts (the center - at its own level, not above 2)
     for sx, sy in starts:
         cx, cy = sx + 0.5, sy + 0.5
         P = float(min(2, int(round(h[min(H, sy)][min(W, sx)]))))
@@ -468,7 +468,7 @@ def gen_heights(w, starts):
 
 
 def _recount(w):
-    """Пересчитать целые уровни клеток и признак рельефа по вершинам."""
+    """Recompute the integer levels of cells and the relief flag from the vertices."""
     W, H = w.W, w.H
     em = bytearray(W * H)
     for y in range(H):
@@ -481,15 +481,15 @@ def _recount(w):
 
 
 def set_heights(w, fn):
-    """Задать высоты вершин функцией fn(x, y) → уровень (для тестов и сценариев), затем сгладить склоны."""
+    """Set the vertex heights by the function fn(x, y) -> level (for tests and scenarios), then smooth the slopes."""
     h = [[float(fn(x, y)) for x in range(w.W + 1)] for y in range(w.H + 1)]
     w.hz = [[v * ZL for v in r] for r in h]
     _recount(w)
 
 
 def flatten(w, x0, y0, x1, y1, level=0):
-    """Сделать ровным прямоугольник клеток [x0, x1) × [y0, y1) на уровне level; окрестность сглаживается
-    (склоны не круче SLOPE). Для тестов и площадок."""
+    """Make the rectangle of cells [x0, x1) x [y0, y1) flat at the level level; the surroundings are smoothed
+    (slopes no steeper than SLOPE). For tests and sites."""
     W1, H1 = w.W + 1, w.H + 1
     h = [[v / ZL for v in r] for r in w.hz]
     for y in range(max(0, y0), min(H1, y1 + 1)):
@@ -501,13 +501,13 @@ def flatten(w, x0, y0, x1, y1, level=0):
 
 
 def gen_cliffs(w, starts):
-    """Обрывы: 1–N отрезков по склонам холмов вдалеке от стартов; каждый проверяется — карта не делится."""
+    """Cliffs: 1-N segments along hill slopes far from the starts; each is checked - the map is not split."""
     rng = _rng(w, starts, 3)
     W, H = w.W, w.H
     T, occ = w.terrain, w.occ
     w.cliffs = []
     opts = getattr(w, 'gen_opts', None) or {}
-    if rng.random() < opts.get('no_cliff', 0.25):             # на части карт обрывов нет
+    if rng.random() < opts.get('no_cliff', 0.25):             # on some maps there are no cliffs
         return 0
     n = len(starts)
     want = {'land': rng.randint(2, 3 + n), 'coast': rng.randint(1, 2 + n // 2),
@@ -541,7 +541,7 @@ def gen_cliffs(w, starts):
         return 0 <= x < W and 0 <= y < H and not T[y][x] & 1 and occ[y][x] is None
 
     def connected(cells):
-        """Все проходимые соседи отрезка связаны между собой (сначала — в окне вокруг, иначе — по карте)."""
+        """All the passable neighbors of a segment are connected to each other (first - in the surrounding window, otherwise - across the map)."""
         cs = set(cells)
         ring = set()
         for x, y in cells:
@@ -577,7 +577,7 @@ def gen_cliffs(w, starts):
     for _ in range(want * 12):
         if placed >= want:
             break
-        # старт — на склоне (самый крутой из нескольких случайных), вдоль горизонтали
+        # start - on a slope (the steepest of several random ones), along the contour line
         best = None
         for _ in range(12):
             x, y = rng.randrange(4, W - 4), rng.randrange(4, H - 4)
@@ -600,7 +600,7 @@ def gen_cliffs(w, starts):
                 break
             if c not in cells:
                 if cells and abs(c[0] - cells[-1][0]) + abs(c[1] - cells[-1][1]) == 2:
-                    # диагональный шаг — добавляем угловую клетку, чтобы линия была сплошной
+                    # a diagonal step - add a corner cell so that the line is solid
                     k = (c[0], cells[-1][1])
                     if ok_cell(*k):
                         cells.append(k)
@@ -627,12 +627,12 @@ def gen_cliffs(w, starts):
     return placed
 
 
-CLIFF_STEP = 1.3        # на сколько уровней верхняя сторона обрыва выше нижней
+CLIFF_STEP = 1.3        # by how many levels the upper side of a cliff is higher than the lower
 
 
 def _cliff_step(w, cells, gx, gy):
-    """Ступень у обрыва (как в AoE2: обрыв разделяет уровни): сторона, куда земля поднимается, выше на
-    CLIFF_STEP у самой стены и плавно сходит на нет за 4 клетки и за концами отрезка."""
+    """A step at a cliff (as in AoE2: a cliff separates levels): the side where the ground rises is higher by
+    CLIFF_STEP right at the wall and fades smoothly over 4 tiles and beyond the segment's ends."""
     (ax, ay), (bx, by) = cells[0], cells[-1]
     dx, dy = bx - ax, by - ay
     L = math.hypot(dx, dy) or 1.0
@@ -668,8 +668,8 @@ def _cliff_step(w, cells, gx, gy):
 
 
 def gen_ground(w, starts):
-    """Типы земли по клеткам: трава трёх оттенков пятнами, земля у стартов и шахт, пятна сухой земли,
-    лесная подстилка под деревьями (хвойная — под соснами/елями), песок у воды, камни под обрывами."""
+    """Ground types by cell: grass of three shades in patches, earth by the starts and mines, patches of dry earth,
+    forest floor under trees (conifer - under pines/firs), sand by the water, stones under cliffs."""
     rng = _rng(w, starts, 4)
     W, H = w.W, w.H
     T = w.terrain
@@ -687,11 +687,11 @@ def gen_ground(w, starts):
             if t == SHALLOW:
                 gr[i] = G['shallow']
                 continue
-            g = 'grass'             # оттенки травы — плавными пятнами при отрисовке (terrain_gfx)
+            g = 'grass'             # grass shades - in smooth patches at draw time (terrain_gfx)
             if n3[y][x] > 0.7 and n4[y][x] > 0.5:
                 g = 'dirt3' if n3[y][x] < 0.78 or n1[y][x] < 0.55 else 'dirt2'
             gr[i] = G[g]
-    # земля вокруг стартов (фундамент центра) и шахт
+    # earth around the starts (the foundation of the center) and mines
     for sx, sy in starts:
         for y in range(sy - 8, sy + 9):
             for x in range(sx - 8, sx + 9):
@@ -708,12 +708,12 @@ def gen_ground(w, starts):
                     x, y = nd.tx + dx, nd.ty + dy
                     if 0 <= x < W and 0 <= y < H and T[y][x] == LAND and (dx == dy == 0 or rng.random() < 0.8):
                         gr[y * W + x] = G['dirt2'] if nd.kind == 'gold' else G['dirt3']
-    from . import themes            # пейзаж: породы деревьев и хвойная подстилка под ними
+    from . import themes            # landscape: tree species and the conifer floor under them
     for nd in w.nodes:
         if nd.kind == 'tree' and 0 <= nd.tx < W and 0 <= nd.ty < H:
             sp = themes.tree_species(w, nd.tx, nd.ty)
             gr[nd.ty * W + nd.tx] = G['pine'] if themes.is_conifer(w, sp) else G['forest']
-    # песок у воды (пляж — у моря шире)
+    # sand by the water (the beach is wider by the sea)
     wide = water_rise(w)
     for y in range(H):
         for x in range(W):

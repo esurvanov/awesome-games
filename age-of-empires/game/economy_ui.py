@@ -1,9 +1,10 @@
-"""Интерфейс экономики: кнопки рынка (купить/продать/дань), очередь пересева на мельнице, панели.
+"""Economy interface: market buttons (buy/sell/tribute), the reseed queue at the mill, panels.
 
-Кнопки — обычные пункты для Game.layout_buttons: icon=('draw', fn(game, rect, ok)), act=('call', fn(game)).
+The buttons are ordinary items for Game.layout_buttons: icon=('draw', fn(game, rect, ok)), act=('call', fn(game)).
 """
 import pygame
 
+from . import i18n
 from .data import RES_NAME, shade
 from . import market as mk
 
@@ -24,7 +25,7 @@ def _shift_n(game):
     return 5 if game.mods() & pygame.KMOD_SHIFT else 1
 
 
-# ------------------------------------------------------------ рынок
+# ------------------------------------------------------------ market
 def _trade_btn(r, buying):
     def draw(game, rect, ok):
         p = game.world.players[0]
@@ -41,7 +42,7 @@ def _trade_btn(r, buying):
         fn = mk.buy if buying else mk.sell
         done = sum(1 for _ in range(_shift_n(game)) if fn(w, p, r))
         if not done:
-            w.msg('Не хватает ресурсов', (255, 150, 90))
+            w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
     return draw, act
 
 
@@ -63,7 +64,7 @@ def _tribute_btn(ally, r):
         p = w.players[0]
         done = sum(1 for _ in range(_shift_n(game)) if mk.tribute(w, p, ally, r))
         if not done:
-            w.msg('Не хватает ресурсов', (255, 150, 90))
+            w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
     return draw, act
 
 
@@ -76,12 +77,12 @@ def market_buttons(game, b, p):
             if buying:
                 cost = {'gold': mk.buy_price(p, r)}
                 ok = p.res['gold'] >= cost['gold']
-                tip = [f'Купить: {RES_NAME[r].lower()}', cost, f'+{mk.LOT}', ('dim', 'Shift — ×5')]
+                tip = [i18n.t('eco.buy', res=RES_NAME[r].lower()), cost, f'+{mk.LOT}', ('dim', i18n.t('eco.shift_x5'))]
             else:
                 cost = {r: mk.LOT}
                 ok = p.res[r] >= mk.LOT
-                tip = [f'Продать: {RES_NAME[r].lower()}', cost, f'+{mk.sell_price(p, r)} золота',
-                       ('dim', 'Shift — ×5')]
+                tip = [i18n.t('eco.sell', res=RES_NAME[r].lower()), cost,
+                       f'+{mk.sell_price(p, r)} {RES_NAME["gold"].lower()}', ('dim', i18n.t('eco.shift_x5'))]
             items.append(dict(icon=('draw', draw), act=('call', act), ok=ok, tip=tip))
     for q in w.players:
         if q.id == p.id or not q.alive or not w.allied(p.id, q.id):
@@ -90,13 +91,13 @@ def market_buttons(game, b, p):
             draw, act = _tribute_btn(q.id, r)
             cost = {r: mk.tribute_cost(p)}
             items.append(dict(icon=('draw', draw), act=('call', act), ok=p.res[r] >= cost[r],
-                              tip=[f'Дань → {q.name}', cost, f'+{mk.LOT} {RES_NAME[r].lower()}',
-                                   ('dim', f'Сбор {int(round(mk.tribute_fee(p) * 100))}%')]))
+                              tip=[i18n.t('eco.tribute_to', name=q.name), cost, f'+{mk.LOT} {RES_NAME[r].lower()}',
+                                   ('dim', i18n.t('win.fee', n=int(round(mk.tribute_fee(p) * 100))))]))
     return items
 
 
 def market_panel(game, b, x, y):
-    """Цены рынка: ресурс, покупка ▲, продажа ▼ и полоска уровня цены."""
+    """Market prices: the resource, buy ▲, sell ▼ and a price level bar."""
     if b.owner != 0:
         return
     p = game.world.players[0]
@@ -119,7 +120,7 @@ def market_panel(game, b, x, y):
         game.text(f'{trading}/{len(carts)}', (x + 478, y), 'b', anchor='midleft')
 
 
-# ------------------------------------------------------------ мельница: пересев
+# ------------------------------------------------------------ mill: reseeding
 def _farm_icon(game, rect, sign):
     img = game.icon('b', 'farm', 0, 42)
     game.screen.blit(img, img.get_rect(center=(rect.centerx - 4, rect.centery + 2)))
@@ -133,7 +134,7 @@ def _farm_icon(game, rect, sign):
 def _reseed_add(game):
     w = game.world
     if not mk.queue_reseed(w, w.players[0], _shift_n(game)):
-        w.msg('Не хватает ресурсов', (255, 150, 90))
+        w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
 
 
 def _reseed_del(game):
@@ -150,10 +151,10 @@ def mill_buttons(game, b, p):
         g.text(str(n), (rect.x + 5, rect.bottom - 12), 'b', (255, 235, 150), anchor='midleft')
 
     items = [dict(icon=('draw', draw_add), act=('call', _reseed_add), ok=p.afford(cost),
-                  tip=['Пересев фермы', cost, 'Ферма восстановится сама', ('dim', f'В очереди: {n}. Shift — ×5')])]
+                  tip=[i18n.t('eco.reseed'), cost, i18n.t('eco.reseed_desc'), ('dim', i18n.t('eco.queued', n=n))])]
     if n:
         items.append(dict(icon=('draw', lambda g, rect, ok: _farm_icon(g, rect, -1)), act=('call', _reseed_del),
-                          ok=True, tip=['Отменить пересев', {}, 'Вернуть дерево']))
+                          ok=True, tip=[i18n.t('eco.reseed_cancel'), {}, i18n.t('eco.reseed_cancel_desc')]))
     return items
 
 
@@ -166,7 +167,7 @@ def mill_panel(game, b, x, y):
     game.text(f'×{n}', (x + 32, y), 'b', (255, 235, 150) if n else (170, 160, 140), anchor='midleft')
 
 
-# ------------------------------------------------------------ торговая повозка
+# ------------------------------------------------------------ trade cart
 def cart_panel(game, u, x, y):
     if u.carry >= 1:
         game.res_icon('gold', x + 8, y + 30)

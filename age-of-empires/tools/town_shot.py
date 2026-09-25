@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Безоконный «город» цивилизации для проверки графики глазами: все здания, дома-варианты, стройка,
-стены с воротами (готовые и в лесах), док у берега, жители и армия.
+"""A windowless civilization "town" for checking graphics by eye: all buildings, house variants, construction,
+walls with gates (finished and scaffolded), a dock at the shore, villagers and an army.
 
   .venv/bin/python tools/town_shot.py --civs franks,byzantines --out shots/town
-Файлы: town_<civ>.png (город), army_<civ>.png (войска той же цивилизации).
+Files: town_<civ>.png (the town), army_<civ>.png (the troops of the same civilization).
 """
 import argparse
 import os
@@ -22,7 +22,7 @@ from game.ui import Game  # noqa: E402
 from game.world import Unit  # noqa: E402
 from game import naval  # noqa: E402
 
-LAYOUT = [  # (вид, dx, dy, готово)
+LAYOUT = [  # (kind, dx, dy, ready)
     ('town_center', 0, 0, True), ('house', -5, -1, True), ('house', -5, 2, True), ('house', -3, 5, True),
     ('house', 0, 5, True), ('house', 2, 5, False), ('mill', 5, 0, True), ('lumber_camp', 5, 3, True),
     ('barracks', -9, -5, True), ('archery_range', -5, -5, True), ('stable', -1, -5, True),
@@ -77,7 +77,7 @@ def town(g, civ, out):
         b = w.place_building(kind, 0, tx, ty, done)
         if not done:
             b.progress = 0.55
-    # стены: линия каменной стены с воротами и отрезок в стройке
+    # walls: a stone wall line with a gate and a segment under construction
     from game import defense
     y = cy - 8
     try:
@@ -94,9 +94,9 @@ def town(g, civ, out):
             if b.kind == 'palisade_wall' and b.ty == y:
                 b.progress = 1.0
                 b.hp = b.max_hp
-    except Exception as e:          # стены — не главное для снимка
-        print('  стены:', e)
-    # док: ближайшее подходящее место у воды
+    except Exception as e:          # walls are not the main thing for the shot
+        print('  walls:', e)
+    # dock: the nearest suitable spot at the water
     best = None
     for yy in range(max(0, cy - 30), min(w.H - 3, cy + 30)):
         for xx in range(max(0, cx - 30), min(w.W - 3, cx + 30)):
@@ -115,7 +115,7 @@ def town(g, civ, out):
     g.selected = []
     g.draw()
     pygame.image.save(g.screen, os.path.join(out, f'town_{civ}.png'))
-    print('сохранено', os.path.join(out, f'town_{civ}.png'))
+    print('saved', os.path.join(out, f'town_{civ}.png'))
     if best:
         _, xx, yy = best
         w.place_building('dock', 0, xx, yy, True)
@@ -132,8 +132,8 @@ def town(g, civ, out):
         g.center_on((xx + 1.5) * TILE, (yy + 1.5) * TILE)
         g.draw()
         pygame.image.save(g.screen, os.path.join(out, f'dock_{civ}.png'))
-        print('сохранено', os.path.join(out, f'dock_{civ}.png'), 'док', (xx, yy), naval.dock_land(w, xx, yy, 3), xx2)
-    # доки у берегов всех четырёх направлений (проверка поворота спрайта)
+        print('saved', os.path.join(out, f'dock_{civ}.png'), 'dock', (xx, yy), naval.dock_land(w, xx, yy, 3), xx2)
+    # docks at the shores of all four directions (a sprite rotation check)
     tiles = []
     for want in ((1, 0), (0, 1), (-1, 0), (0, -1)):
         spot = None
@@ -181,7 +181,7 @@ def army(g, civ, out, ranks=False):
     kinds += list(civ_ui.unique_units(civ))
     before = set(map(id, w.units))
     if ranks:
-        kinds = RANKS          # линии рангов (ранены — видны полоски здоровья над головой)
+        kinds = RANKS          # rank lines (wounded - health bars are visible over the head)
     for i, k in enumerate(kinds):
         x, y = cx - 6 + (i % 7) * 2.6, cy - 4 + (i // 7) * 3.2
         for j in range(3 if k == 'villager' else 1):
@@ -193,8 +193,8 @@ def army(g, civ, out, ranks=False):
     g.draw()
     fn = os.path.join(out, f'{"ranks" if ranks else "army"}_{civ}.png')
     pygame.image.save(g.screen, fn)
-    print('сохранено', fn)
-    w.units[:] = [u for u in w.units if id(u) in before]      # следующий снимок — на чистом месте
+    print('saved', fn)
+    w.units[:] = [u for u in w.units if id(u) in before]      # the next shot - on a clean spot
 
 
 def main():
@@ -202,7 +202,7 @@ def main():
     ap.add_argument('--out', default='shots/town')
     ap.add_argument('--civs', default='franks')
     ap.add_argument('--no-army', action='store_true')
-    ap.add_argument('--ranks', action='store_true', help='ещё снимок линий рангов (ranks_<civ>.png)')
+    ap.add_argument('--ranks', action='store_true', help='one more shot of the rank lines (ranks_<civ>.png)')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     g = Game()

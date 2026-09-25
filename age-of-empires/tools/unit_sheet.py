@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Контактные листы юнитов из assets/gen/units/ (см. tools/build_units.py) — для проверки глазами.
+"""Contact sheets of units from assets/gen/units/ (see tools/build_units.py) - for checking by eye.
 
-  .venv/bin/python tools/unit_sheet.py --out shots/units                 # лист на каждый набор
+  .venv/bin/python tools/unit_sheet.py --out shots/units                 # a sheet per set
   .venv/bin/python tools/unit_sheet.py --out shots/units --sets vil_m.britons,knight.britons --anims walk,attack
-  .venv/bin/python tools/unit_sheet.py --out shots/units --overview      # один кадр каждого набора на одном листе
-  .venv/bin/python tools/unit_sheet.py --out shots/units --lines         # ранги линий бок о бок по группам, корабли
+  .venv/bin/python tools/unit_sheet.py --out shots/units --overview      # one frame of each set on one sheet
+  .venv/bin/python tools/unit_sheet.py --out shots/units --lines         # rank lines side by side by group, ships
 
-Лист набора: блок на анимацию; строки — 8 направлений (0 — взгляд вдоль +X мира, по часовой на экране),
-столбцы — кадры. Жёлтый крестик — точка «ног» (якорь), красная линия — высота для полоски здоровья.
-Цвет игрока — синий (как у игрока 1).
+A set's sheet: a block per animation; rows - 8 directions (0 - looking along the world's +X, clockwise on screen),
+columns - frames. The yellow cross is the "feet" point (the anchor), the red line is the health bar height.
+The player color is blue (like player 1).
 """
 import argparse
 import json
@@ -162,8 +162,8 @@ def _cell(sheet, fr, rec, anim, d, k, zoom):
 
 
 def lines(idx, out, groups=None):
-    """Линии рангов: строки — группы цивилизаций, столбцы — ранги (кадр ходьбы и атаки, 1× и 2×).
-    Красная черта — высота полоски здоровья (bh)."""
+    """Rank lines: rows - civilization groups, columns - ranks (a walk and an attack frame, 1x and 2x).
+    The red dash is the health bar height (bh)."""
     groups = groups or ['caro', 'anglo', 'norse', 'rus', 'byz', 'umay', 'han']
     cache = {}
     paths = []
@@ -173,7 +173,7 @@ def lines(idx, out, groups=None):
         for g in groups:
             names = tuple((idx['units'].get(k) or {}).get(g) or (idx['units'].get(k) or {}).get('*') for k in kinds)
             if names in seen:
-                continue            # у группы те же наборы, что у предыдущей (общие юниты '*')
+                continue            # the group has the same sets as the previous one (shared units '*')
             seen.add(names)
             tiles = []
             for kind in kinds:
@@ -203,7 +203,7 @@ def lines(idx, out, groups=None):
                     x += cw
                 dr.text((2, t.size[1] - 12), name[:24], fill=(255, 255, 255))
                 tiles.append(t)
-            row, x = [], 0          # длинные строки переносятся
+            row, x = [], 0          # long lines wrap
             for t in tiles:
                 if row and x + t.size[0] > 1900:
                     rows.append(row)
@@ -231,7 +231,7 @@ def lines(idx, out, groups=None):
 
 
 def ships(idx, out):
-    """Корабли: 8 кадров хода (вёсла, паруса) в направлениях 1 и 3."""
+    """Ships: 8 frames of movement (oars, sails) in directions 1 and 3."""
     names = sorted(n for n in idx['sets'] if n.startswith('ship.'))
     rows = []
     for n in names:
@@ -265,18 +265,18 @@ def main(argv=None):
     ap.add_argument('--sets', default='')
     ap.add_argument('--anims', default='')
     ap.add_argument('--overview', action='store_true')
-    ap.add_argument('--lines', action='store_true', help='линии рангов по группам + корабли')
+    ap.add_argument('--lines', action='store_true', help='rank lines by group + ships')
     a = ap.parse_args(argv)
     idx = load_index()
     os.makedirs(a.out, exist_ok=True)
     if a.lines:
         for p in lines(idx, a.out) + [ships(idx, a.out)]:
-            print('лист', p)
+            print('sheet', p)
         return
     if a.overview:
         p = os.path.join(a.out, 'overview.png')
         overview(idx).save(p)
-        print('лист', p)
+        print('sheet', p)
         return
     want = [s for s in a.sets.split(',') if s]
     anims = [s for s in a.anims.split(',') if s] or None
@@ -287,7 +287,7 @@ def main(argv=None):
         if im is not None:
             p = os.path.join(a.out, f'{name}.png')
             im.save(p)
-            print('лист', p)
+            print('sheet', p)
 
 
 if __name__ == '__main__':

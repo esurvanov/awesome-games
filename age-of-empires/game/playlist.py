@@ -1,26 +1,26 @@
-"""Музыка из файлов (0 A.D., assets/audio/music): потоковое воспроизведение через pygame.mixer.music.
+"""Music from files (0 A.D., assets/audio/music): streaming playback through pygame.mixer.music.
 
-Режимы: меню (тема по кругу) → партия (мирный плейлист вперемешку) ⇄ бой (боевые пьесы) → итог
-(короткая пьеса победы или поражения, затем тишина до меню).
+Modes: menu (the theme on a loop) -> match (a peaceful playlist in random order) <-> battle (battle pieces) -> result
+(a short victory or defeat piece, then silence until the menu).
 
-Бой включается, когда накал рядом с игроком (Audio.combat) переходит верхний порог, и выключается
-только после того, как накал продержался ниже нижнего порога CALM_HOLD секунд и боевая пьеса
-отыграла не меньше BATTLE_MIN — поэтому музыка не «мигает» от одиночных стычек.
+Battle starts when the intensity near the player (Audio.combat) crosses the upper threshold, and stops
+only after the intensity has stayed below the lower threshold for CALM_HOLD seconds and the battle piece
+has played for at least BATTLE_MIN - so the music does not "flicker" from isolated skirmishes.
 
-Поток у SDL один, поэтому смена пьесы — это быстрое затухание старой и плавное вступление новой;
-громкость ведём сами каждый кадр (встроенный fadeout в pygame блокирует или конфликтует с set_volume).
-Конец пьесы ловим заранее по длительности из манифеста, чтобы следующая вступала без паузы."""
+SDL has only one stream, so changing a piece is a quick fade-out of the old one and a smooth entry of the new one;
+we drive the volume ourselves every frame (pygame's built-in fadeout blocks or conflicts with set_volume).
+The end of a piece is caught in advance by the duration from the manifest, so the next one enters without a pause."""
 import os
 import random
 import time
 
-BATTLE_ON = 0.9          # накал, с которого начинается боевая музыка
-BATTLE_OFF = 0.25        # ниже — «затишье»
-CALM_HOLD = 14.0         # сколько секунд затишья нужно, чтобы вернуться к мирной музыке
-BATTLE_MIN = 35.0        # боевая пьеса играет не меньше стольких секунд
+BATTLE_ON = 0.9          # the intensity at which battle music starts
+BATTLE_OFF = 0.25        # below - a "lull"
+CALM_HOLD = 14.0         # how many seconds of lull are needed to return to peaceful music
+BATTLE_MIN = 35.0        # a battle piece plays for at least this many seconds
 FADE_OUT = 1.6
 FADE_IN = 2.2
-LEAD = 2.5               # за сколько секунд до конца пьесы начинать переход к следующей
+LEAD = 2.5               # how many seconds before the end of a piece to start the transition to the next
 
 
 class Playlist:
@@ -36,15 +36,15 @@ class Playlist:
         if not self.queue:
             self.queue = self.items[:]
             self.rnd.shuffle(self.queue)
-            if len(self.queue) > 1 and self.queue[0] == self.last:     # без повтора на стыке кругов
+            if len(self.queue) > 1 and self.queue[0] == self.last:     # no repeat at the seam of the loops
                 self.queue.append(self.queue.pop(0))
         self.last = self.queue.pop(0)
         return self.last
 
 
 class TrackPlayer:
-    """Тот же интерфейс, что у процедурного music.MusicPlayer: enabled, volume, update(mode, dt, накал),
-    silence(); плюс stinger(победа) и поля для отчёта (cur, kind)."""
+    """The same interface as the procedural music.MusicPlayer: enabled, volume, update(mode, dt, intensity),
+    silence(); plus stinger(victory) and report fields (cur, kind)."""
 
     def __init__(self, pg, base_dir, manifest):
         self.pg = pg
@@ -61,24 +61,24 @@ class TrackPlayer:
         self.volume = 0.5
         self.enabled = True
         self.mode = None            # 'menu' | 'play'
-        self.kind = None            # что играет/должно играть: menu | peace | battle | victory | defeat | None
-        self.cur = None             # путь играющей пьесы
-        self.pending = None         # (путь, loops) — ждёт, пока старая затихнет
-        self.level = 0.0            # огибающая громкости 0..1
+        self.kind = None            # what is playing/should be playing: menu | peace | battle | victory | defeat | None
+        self.cur = None             # the path of the playing piece
+        self.pending = None         # (path, loops) - waits until the old one fades
+        self.level = 0.0            # volume envelope 0..1
         self.target = 0.0
         self.started = 0.0
         self.battle_since = 0.0
         self.calm = 0.0
-        self.hold = False           # после конца партии: итог сыгран, дальше тишина
-        self.log = []               # (время, событие) — для проверок
+        self.hold = False           # after the end of the match: the result has been played, then silence
+        self.log = []               # (time, event) - for checks
 
     @property
     def ok(self):
         return bool(self.lists['menu'].items or self.lists['peace'].items)
 
-    # ---- низкий уровень
+    # ---- low level
     def _switch(self, path, loops=0):
-        """Запросить смену пьесы: текущая затухает, затем стартует новая."""
+        """Request a piece change: the current one fades, then the new one starts."""
         if path is None:
             self.pending = None
             self.target = 0.0
@@ -108,14 +108,14 @@ class TrackPlayer:
         self.pending = None
         self.target = 0.0
 
-    # ---- события
+    # ---- events
     def silence(self):
         self.stop()
         self.hold = True
         self.kind = None
 
     def stinger(self, win):
-        """Конец партии: короткая пьеса победы/поражения (один раз), затем тишина."""
+        """End of the match: a short victory/defeat piece (once), then silence."""
         self.hold = True
         self.kind = 'victory' if win else 'defeat'
         p = self.lists[self.kind].next()
@@ -132,7 +132,7 @@ class TrackPlayer:
             self.battle_since = time.monotonic()
             self.calm = 0.0
 
-    # ---- кадр
+    # ---- frame
     def update(self, mode, dt, intensity):
         now = time.monotonic()
         if mode != self.mode:
@@ -160,10 +160,10 @@ class TrackPlayer:
                 elif self.cur is not None and self.pending is None and self.target > 0:
                     d = self.dur.get(self.cur, 0)
                     if (d and now - self.started > d - LEAD) or not self.mm.get_busy():
-                        self._choose(self.kind)             # следующая из того же списка
+                        self._choose(self.kind)             # the next one from the same list
                 elif self.cur is None and self.pending is None:
                     self._choose(self.kind)
-        # огибающая
+        # envelope
         if self.target > self.level:
             self.level = min(self.target, self.level + dt / FADE_IN)
         elif self.target < self.level:

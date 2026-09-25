@@ -1,42 +1,43 @@
-"""Экономика рынка: торговля ресурсами, дань союзникам, торговые повозки, очередь пересева ферм.
+"""Market economy: resource trading, tribute to allies, trade carts, the farm reseed queue.
 
-Правила — как в классической исторической RTS:
-  * у каждого игрока свои цены на еду, дерево и камень (за 100 единиц), в начале по 100 золота;
-    покупка стоит цена × (1 + сбор), продажа приносит цена × (1 − сбор), сбор 30% (Гильдии — 15%);
-    каждая покупка 100 единиц поднимает цену ресурса на 3, продажа — опускает на 3; цена в пределах 20…9999;
-  * дань союзнику — порциями по 100, отправитель платит сбор 30% сверху (Чеканка монет — без сбора);
-    нужен готовый рынок;
-  * торговая повозка ходит между своим рынком и другим (своим или союзным) рынком; у чужого рынка
-    получает золото, дома сдаёт его. Золото за рейс = 0.46 × d × (d / L + 0.3), d — расстояние между
-    рынками в клетках, L — сторона карты; с союзным рынком +25%;
-  * пересев ферм: на мельнице заранее оплачивают пересевы (цена фермы); когда ферма с фермером
-    истощается, на её месте сразу закладывается новая, и фермер её строит и продолжает работу.
+The rules are as in the classic historical RTS:
+  * every player has their own prices for food, wood and stone (per 100 units), initially 100 gold each;
+    buying costs price x (1 + fee), selling yields price x (1 - fee), the fee is 30% (Guilds - 15%);
+    every purchase of 100 units raises the resource price by 3, a sale lowers it by 3; the price stays within 20...9999;
+  * tribute to an ally - in portions of 100, the sender pays a 30% fee on top (Coinage - no fee);
+    a completed market is needed;
+  * a trade cart goes between its own market and another (own or allied) market; at the other market
+    it receives gold, at home it hands it in. Gold per trip = 0.46 x d x (d / L + 0.3), d - the distance between
+    the markets in tiles, L - the map side; with an allied market +25%;
+  * farm reseeding: reseeds are paid for in advance at the mill (the farm's cost); when a farm with a farmer
+    is exhausted, a new one is laid in its place at once, and the farmer builds it and continues working.
 
-События мира (World.emit):
-  'market'   x, y, владелец, 'buy' | 'sell', ресурс
-  'tribute'  x, y, отправитель, получатель, ресурс, количество
-  'trade'    x, y, владелец, вид юнита, золото (повозка сдала золото)
-  'reseed'   x, y, владелец, 'farm'
+World events (World.emit):
+  'market'   x, y, owner, 'buy' | 'sell', resource
+  'tribute'  x, y, sender, receiver, resource, amount
+  'trade'    x, y, owner, unit kind, gold (a cart handed in gold)
+  'reseed'   x, y, owner, 'farm'
 """
 import math
 
+from . import i18n
 from .data import TILE, RES_NAME
 
-GOODS = ('food', 'wood', 'stone')     # чем торгуют на рынке (за золото)
+GOODS = ('food', 'wood', 'stone')     # what is traded at the market (for gold)
 BASE_PRICE = 100
 PRICE_STEP = 3
 PRICE_MIN, PRICE_MAX = 20, 9999
-LOT = 100                             # партия покупки/продажи/дани
-FEE = 0.30                            # сбор рынка (стат 'market_fee')
-TRIBUTE_FEE = 0.30                    # сбор за дань (стат 'tribute_fee')
+LOT = 100                             # the portion of a purchase/sale/tribute
+FEE = 0.30                            # market fee (stat 'market_fee')
+TRIBUTE_FEE = 0.30                    # tribute fee (stat 'tribute_fee')
 TRADE_K = 0.46
 ALLY_BONUS = 1.25
-MIN_TRADE_DIST = 10                   # клеток между рынками
+MIN_TRADE_DIST = 10                   # tiles between the markets
 
 
-# ------------------------------------------------------------ цены
+# ------------------------------------------------------------ prices
 def prices(p):
-    """Базовые цены игрока {ресурс: золота за 100} (создаются при первом обращении)."""
+    """The player's base prices {resource: gold per 100} (created on first access)."""
     m = p.__dict__.get('market_price')
     if m is None:
         m = p.market_price = {r: BASE_PRICE for r in GOODS}
@@ -48,12 +49,12 @@ def fee(p):
 
 
 def buy_price(p, r):
-    """Сколько золота стоит купить 100 единиц r."""
+    """How much gold it costs to buy 100 units of r."""
     return int(round(prices(p)[r] * (1 + fee(p))))
 
 
 def sell_price(p, r):
-    """Сколько золота дают за 100 единиц r."""
+    """How much gold is given for 100 units of r."""
     return int(prices(p)[r] * (1 - fee(p)))
 
 
@@ -71,7 +72,7 @@ def _market_of(w, pid):
 
 
 def buy(w, p, r):
-    """Купить 100 единиц r за золото. True — сделка прошла."""
+    """Buy 100 units of r for gold. True - the deal went through."""
     if r not in GOODS or not has_market(w, p.id):
         return False
     cost = buy_price(p, r)
@@ -86,7 +87,7 @@ def buy(w, p, r):
 
 
 def sell(w, p, r):
-    """Продать 100 единиц r за золото."""
+    """Sell 100 units of r for gold."""
     if r not in GOODS or not has_market(w, p.id) or p.res[r] < LOT:
         return False
     gain = sell_price(p, r)
@@ -98,18 +99,18 @@ def sell(w, p, r):
     return True
 
 
-# ------------------------------------------------------------ дань
+# ------------------------------------------------------------ tribute
 def tribute_fee(p):
     return max(0.0, p.stat('tribute_fee', 'market', TRIBUTE_FEE))
 
 
 def tribute_cost(p, amt=LOT):
-    """Сколько заплатит отправитель за amt единиц дани."""
+    """How much the sender will pay for amt units of tribute."""
     return int(round(amt * (1 + tribute_fee(p))))
 
 
 def tribute(w, p, to, r, amt=LOT):
-    """Отправить союзнику to (id) amt единиц r. Нужен готовый рынок."""
+    """Send the ally to (id) amt units of r. A completed market is needed."""
     q = w.players[to]
     if to == p.id or not q.alive or not w.allied(p.id, to) or not has_market(w, p.id):
         return False
@@ -121,27 +122,27 @@ def tribute(w, p, to, r, amt=LOT):
     b = _market_of(w, p.id)
     w.emit('tribute', *b.center(), p.id, to, r, amt)
     if to == w.human:
-        w.msg(f'{p.name}: дань {amt} ({RES_NAME[r].lower()})', (170, 230, 150))
+        w.msg(i18n.t('msg.tribute_from', name=p.name, n=amt, res=RES_NAME[r].lower()), (170, 230, 150))
     elif p.id == w.human:
-        w.msg(f'Дань → {q.name}: {amt} ({RES_NAME[r].lower()})', (170, 230, 150))
+        w.msg(i18n.t('msg.tribute_sent', name=q.name, n=amt, res=RES_NAME[r].lower()), (170, 230, 150))
     return True
 
 
-# ------------------------------------------------------------ торговля повозками
+# ------------------------------------------------------------ trading with carts
 def market_dist(a, b):
-    """Расстояние между центрами рынков в клетках."""
+    """The distance between the markets' centers in tiles."""
     (ax, ay), (bx, by) = a.center(), b.center()
     return math.hypot(ax - bx, ay - by) / TILE
 
 
 def trade_gold(w, home, dest):
-    """Золото за один рейс между рынками home и dest."""
+    """Gold for one trip between the markets home and dest."""
     d = market_dist(home, dest)
     g = TRADE_K * d * (d / max(w.W, w.H) + 0.3)
     if dest.owner != home.owner:
         g *= ALLY_BONUS
     if home.p is not None:
-        g = home.p.stat('trade', 'trade_cart', g)     # бонусы цивилизаций к золоту торговли ('mul')
+        g = home.p.stat('trade', 'trade_cart', g)     # civilization bonuses to trade gold ('mul')
     return g
 
 
@@ -151,7 +152,7 @@ def can_trade_with(w, u, m):
 
 
 def pick_home(w, u, dest):
-    """Свой рынок для повозки: ближайший к ней, кроме dest."""
+    """An own market for a cart: the nearest one to it, other than dest."""
     best, bd = None, 1e18
     for b in w.buildings:
         if b.owner == u.owner and b.kind == 'market' and b.complete and b.alive and b is not dest:
@@ -162,14 +163,14 @@ def pick_home(w, u, dest):
 
 
 def start_trade(w, u, dest):
-    """Отправить повозку торговать с рынком dest. Возвращает причину отказа или ''."""
+    """Send a cart to trade with the market dest. Returns the reason for refusal or ''."""
     if not can_trade_with(w, u, dest):
-        return 'Нужен рынок: свой или союзный'
+        return i18n.t('msg.trade_need_market')
     home = pick_home(w, u, dest)
     if home is None:
-        return 'Нужен второй рынок'
+        return i18n.t('msg.trade_need_second')
     if market_dist(home, dest) < MIN_TRADE_DIST:
-        return 'Рынки слишком близко'
+        return i18n.t('msg.trade_too_close')
     u.release()
     u.trade_home = home
     u.trade_dest = dest
@@ -180,7 +181,7 @@ def start_trade(w, u, dest):
 
 
 def do_trade(u, w, dt):
-    """Состояние 'trade' (регистрируется в world.UNIT_STATES)."""
+    """The 'trade' state (registered in world.UNIT_STATES)."""
     home = getattr(u, 'trade_home', None)
     dest = getattr(u, 'trade_dest', None)
     if not can_trade_with(w, u, dest):
@@ -216,7 +217,7 @@ def do_trade(u, w, dt):
 
 
 def trade_command(u, w, target, wx, wy):
-    """Приказ правой кнопкой для повозки: рынок — торговать, иначе — идти."""
+    """A right-click order for a cart: a market - trade, otherwise - move."""
     if target is not None and getattr(target, 'kind', None) == 'market' and getattr(target, 'complete', False):
         why = start_trade(w, u, target)
         if not why:
@@ -228,13 +229,13 @@ def trade_command(u, w, target, wx, wy):
     return 'move'
 
 
-# ------------------------------------------------------------ пересев ферм
+# ------------------------------------------------------------ farm reseeding
 def reseeds(p):
     return p.__dict__.get('reseeds', 0)
 
 
 def queue_reseed(w, p, n=1):
-    """Оплатить n пересевов (цена фермы каждый). Возвращает, сколько получилось."""
+    """Pay for n reseeds (the farm's cost each). Returns how many succeeded."""
     done = 0
     for _ in range(n):
         if not p.pay(p.cost_of('bld', 'farm')):
@@ -256,7 +257,7 @@ def cancel_reseed(w, p, n=1):
 
 
 def farm_expired(w, farm, farmer):
-    """Ферма истощилась (уже убрана с карты). Если есть оплаченный пересев и фермер — заложить новую."""
+    """A farm is exhausted (already removed from the map). If there is a paid reseed and a farmer - lay a new one."""
     p = w.players[farm.owner]
     if reseeds(p) <= 0 or farmer is None or not farmer.alive or farmer.owner != farm.owner:
         return None

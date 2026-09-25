@@ -1,8 +1,8 @@
-"""Гарнизон (правила оригинала): вместимость и кто может сесть. Логика — game/defense.py.
+"""Garrison (rules of the original): capacity and who may enter. Logic - game/defense.py.
 
-Городской центр — 15 (жители, пехота, стрелки), сторожевые башни — 5, замок — 20 (все сухопутные).
-Каждый житель или стрелок внутри добавляет зданию стрелу. Мин. дальность башен и замка — 1 клетка
-(снимается «Бойницами», см. towers.py).
+Town center - 15 (villagers, infantry, ranged units), watch towers - 5, castle - 20 (all land units).
+Every villager or ranged unit inside adds an arrow to the building. Min. range of towers and castle - 1 tile
+(removed by "Arrowslits", see towers.py).
 """
 from ..data import BUILDINGS
 

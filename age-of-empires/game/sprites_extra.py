@@ -1,8 +1,8 @@
-"""Мелкая графика мира из 0 A.D. (assets/gen/decals/, индекс assets/gen/nature_extra.json — tools/build_decals.py):
-рыба и круги на воде, туши, пни, развалины, огонь и дым, взрывы, снаряды.
+"""Small world graphics from 0 A.D. (assets/gen/decals/, the index assets/gen/nature_extra.json - tools/build_decals.py):
+fish and circles on the water, carcasses, stumps, rubble, fire and smoke, explosions, projectiles.
 
-Каждая функция возвращает (surface, ax, ay) — кадр и пиксель «точки на земле» в нём (рисовать в sx − ax, sy − ay)
-или None, если спрайтов нет (тогда игра рисует прежнюю процедурную графику).
+Each function returns (surface, ax, ay) - a frame and the pixel of the "point on the ground" in it (draw at sx - ax, sy - ay)
+or None if there are no sprites (then the game draws the former procedural graphics).
 """
 import json
 import math
@@ -40,7 +40,7 @@ def group(name):
 
 
 def frame(name, i):
-    """(surface, ax, ay) кадра i группы name; None — нет группы."""
+    """(surface, ax, ay) of frame i of group name; None - no such group."""
     key = (name, i)
     hit = _frames.get(key)
     if hit is not None:
@@ -61,7 +61,7 @@ def frame(name, i):
 
 
 def faded(name, i, alpha):
-    """Кадр с общей прозрачностью alpha (0..255, квантуется по 16) — для угасающих развалин, пней, рыбы."""
+    """A frame with an overall transparency alpha (0..255, quantized by 16) - for fading rubble, stumps, fish."""
     a = max(0, min(255, int(alpha))) & ~15
     if a >= 240:
         return frame(name, i)
@@ -85,9 +85,9 @@ def blit(scr, fr, sx, sy):
         scr.blit(s, (int(sx) - ax, int(sy) - ay))
 
 
-# ------------------------------------------------------------------ рыба и вода
+# ------------------------------------------------------------------ fish and water
 def fish(kind, var, t, alpha=255):
-    """Кадр рыбы: kind 'shore_fish' | 'deep_fish'; анимация плавания зациклена."""
+    """A fish frame: kind 'shore_fish' | 'deep_fish'; the swimming animation is looped."""
     name = 'fish_deep' if kind == 'deep_fish' else 'fish_shore'
     g = group(name)
     if g is None:
@@ -104,10 +104,10 @@ def ripple(t):
     return frame('ripple', int(t / g['dur'] * g['n']) % g['n'])
 
 
-# ------------------------------------------------------------------ туши
+# ------------------------------------------------------------------ carcasses
 def carcass(kind, frac, fx, fy):
-    """Туша по доле оставшегося мяса frac: > 2/3 — целая, > 1/3 — разделанная, иначе — остов;
-    направление — по взгляду (fx, fy) и числу направлений группы (16, у старых сборок 8)."""
+    """A carcass by the share of meat left frac: > 2/3 - whole, > 1/3 - butchered, otherwise - a skeleton;
+    the direction - by the look (fx, fy) and the group's number of directions (16, 8 in old builds)."""
     name = 'carcass_' + kind
     g = group(name)
     if g is None:
@@ -117,7 +117,7 @@ def carcass(kind, frac, fx, fy):
     return frame(name, st * g['dirs'] + face_dir(fx, fy, g['dirs']))
 
 
-# ------------------------------------------------------------------ пни
+# ------------------------------------------------------------------ stumps
 _SPECIES_W = (('oak', 5), ('beech', 3), ('deci', 3), ('birch', 2), ('pine', 3), ('fir', 3), ('poplar', 1))
 
 
@@ -127,7 +127,7 @@ def _hash(x, y, s=0):
 
 
 def species(tx, ty):
-    """Порода дерева клетки — та же раскладка пятнами, что у game.sprites3d.tree."""
+    """The tile's tree species - the same patch layout as game.sprites3d.tree."""
     rx, ry = tx // 7, ty // 7
     if _hash(tx, ty, 5) % 4 == 0:
         rx, ry = (tx + 3) // 7, (ty + 3) // 7
@@ -154,7 +154,7 @@ def stump(tx, ty, alpha=255):
     return faded('stump', si * g['vars'] + _hash(tx, ty, 3) % g['vars'], alpha)
 
 
-# ------------------------------------------------------------------ развалины, огонь, взрыв
+# ------------------------------------------------------------------ rubble, fire, explosion
 WOOD = frozenset({'house', 'mill', 'lumber_camp', 'mining_camp', 'farm', 'dock', 'palisade_wall', 'palisade_gate',
                   'stable'})
 
@@ -186,17 +186,17 @@ def smoke(t, phase=0.0, alpha=255):
 
 
 def blast(age):
-    """Кадр взрыва через age секунд; None — взрыв закончился (или нет спрайтов)."""
+    """An explosion frame after age seconds; None - the explosion is over (or there are no sprites)."""
     g = group('blast')
     if g is None or age < 0 or age >= g['dur']:
         return None
     return frame('blast', int(age / g['dur'] * g['n']))
 
 
-# ------------------------------------------------------------------ снаряды
+# ------------------------------------------------------------------ projectiles
 def projectile(shape, dx, dy, t=0.0):
-    """Снаряд, летящий по экрану в направлении (dx, dy): 'arrow' | 'bolt' | 'javelin' — по направлению,
-    'stone' | 'ball' | 'shot' — кувыркающийся камень/ядро."""
+    """A projectile flying across the screen in the direction (dx, dy): 'arrow' | 'bolt' | 'javelin' - by direction,
+    'stone' | 'ball' | 'shot' - a tumbling stone/cannonball."""
     name = 'proj_' + shape
     g = group(name)
     if g is None:

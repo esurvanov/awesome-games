@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Безоконная проверка звука (SDL dummy):
-  1) у каждого события/имени, которое может запросить Audio, есть файл в assets/audio (или назван
-     процедурный запасной), все файлы манифеста существуют и загружаются;
-  2) все типы событий мира (emit(...) в game/) проходят через Audio и дают звук;
-  3) «жаркий бой» 6 с реального времени (≈40 ударов, 10 выстрелов, 2 смерти за кадр) — сколько звуков
-     каждого вида реально запущено (ограничение частоты: без лавины);
-  4) музыка: меню → мирный плейлист → бой (гистерезис) → затишье → мир → пьеса победы.
-Запуск: .venv/bin/python tools/audio_check.py [--no-assets]   (--no-assets: как без папки assets/audio —
-процедурная замена). Код выхода 1 — если что-то не так."""
+"""A windowless sound check (SDL dummy):
+  1) every event/name that Audio may request has a file in assets/audio (or a named
+     procedural fallback), all manifest files exist and load;
+  2) all world event types (emit(...) in game/) pass through Audio and produce a sound;
+  3) a "hot battle" of 6 s of real time (~40 hits, 10 shots, 2 deaths per frame) - how many sounds
+     of each kind were actually started (rate limiting: no avalanche);
+  4) music: menu -> a peaceful playlist -> battle (hysteresis) -> lull -> peace -> a victory piece.
+Run: .venv/bin/python tools/audio_check.py [--no-assets]   (--no-assets: as without the assets/audio folder -
+a procedural replacement). Exit code 1 - if anything is wrong."""
 import os
 import random
 import re
@@ -110,7 +110,7 @@ def fresh(au):
 
 def main():
     if '--no-assets' in sys.argv:
-        sound.AUDIO_DIR = os.path.join(ROOT, 'assets', 'нет-такой-папки')
+        sound.AUDIO_DIR = os.path.join(ROOT, 'assets', 'no-such-folder')
     sound.pre_init()
     pygame.init()
     t = time.perf_counter()
@@ -118,37 +118,37 @@ def main():
     t_init = (time.perf_counter() - t) * 1000
     while not au.loaded and time.perf_counter() - t < 20:
         time.sleep(0.02)
-    print(f'Audio(): {t_init:.0f} мс в основном потоке; эффекты в фоне за {au.sfx_time:.2f} с, '
-          f'{len(au.sfx)} имён, {sum(len(v) for v in au.sfx.values())} звуков; музыка: {type(au.music).__name__}')
+    print(f'Audio(): {t_init:.0f} ms in the main thread; effects in the background in {au.sfx_time:.2f} s, '
+          f'{len(au.sfx)} names, {sum(len(v) for v in au.sfx.values())} sounds; music: {type(au.music).__name__}')
     bad = []
     man = au.man
-    # ---- 1. файлы и покрытие
+    # ---- 1. files and coverage
     for p in man.get('files', {}):
         if not os.path.exists(os.path.join(sound.AUDIO_DIR, p)):
-            bad.append('нет файла ' + p)
+            bad.append('no file ' + p)
     for n in sorted(sound.runtime_names()):
         r = au.resolve(n)
-        src = 'файл' if r in man.get('sfx', {}) else 'процедурный' if r in sound.SFX else None
+        src = 'file' if r in man.get('sfx', {}) else 'procedural' if r in sound.SFX else None
         if r is None:
-            bad.append('нет звука для ' + n)
-        elif src != 'файл':
+            bad.append('no sound for ' + n)
+        elif src != 'file':
             print(f'  {n:<18} → {r} ({src})')
-    print(f'имён событий: {len(sound.runtime_names())}; без файла — перечислены выше (если есть)')
-    # ---- 2. все типы событий
+    print(f'event names: {len(sound.runtime_names())}; without a file - listed above (if any)')
+    # ---- 2. all event types
     g = G()
     types = emitted_types()
     missing = types - set(SAMPLE_EVENTS) - {'select', 'command'}
     if missing:
-        bad.append('нет примера события: ' + ', '.join(sorted(missing)))
+        bad.append('no event example: ' + ', '.join(sorted(missing)))
     for typ in sorted(SAMPLE_EVENTS):
         for ev in SAMPLE_EVENTS[typ]:
             fresh(au)
             before = sum(au.stats.values())
             au.process(g, [ev])
             if typ == 'game_over' and getattr(au.music, 'kind', None) in ('victory', 'defeat'):
-                continue                   # итог звучит пьесой музыки
+                continue                   # the result sounds as a music piece
             if sum(au.stats.values()) == before:
-                bad.append(f'тишина: {ev}')
+                bad.append(f'silence: {ev}')
     for kind in ['villager', 'militia', 'archer', 'knight', 'war_elephant', 'ram', 'galley', 'monk']:
         g.selected = [U(kind)]
         for cmd in ('move', 'attack', 'gather', 'work', 'garrison'):
@@ -156,12 +156,12 @@ def main():
             before = sum(au.stats.values())
             au.voice(g, 'command', cmd)
             if sum(au.stats.values()) == before:
-                bad.append(f'тишина: приказ {cmd} для {kind}')
+                bad.append(f'silence: order {cmd} for {kind}')
         fresh(au)
         before = sum(au.stats.values())
         au.voice(g, 'select', kind)
         if sum(au.stats.values()) == before:
-            bad.append(f'тишина: выбор {kind}')
+            bad.append(f'silence: selection {kind}')
     g.selected = []
     for kind in list(BUILDINGS) + ['tree', 'gold', 'stone', 'berries', 'sheep', 'boar']:
         fresh(au)
@@ -169,10 +169,10 @@ def main():
         g.selected = [U(kind)]
         au.voice(g, 'select', kind)
         if sum(au.stats.values()) == before:
-            bad.append(f'тишина: выбор {kind}')
-    print(f'типы событий в коде: {len(types)} ({", ".join(sorted(types))}); все дали звук: '
-          f'{"да" if not [b for b in bad if b.startswith("тишина")] else "нет"}')
-    # ---- 3. жаркий бой
+            bad.append(f'silence: selection {kind}')
+    print(f'event types in the code: {len(types)} ({", ".join(sorted(types))}); all produced a sound: '
+          f'{"yes" if not [b for b in bad if b.startswith("silence")] else "no"}')
+    # ---- 3. hot battle
     fresh(au)
     au.stats.clear()
     rnd = random.Random(1)
@@ -202,20 +202,20 @@ def main():
         time.sleep(max(0.0, t0 + (f + 1) / fps - time.perf_counter()))
     secs = time.perf_counter() - t0
     tot = sum(au.stats.values())
-    print(f'\nбой: {ev_count} событий за {secs:.1f} с → {tot} звуков ({tot / secs:.1f}/с)')
+    print(f'\nbattle: {ev_count} events in {secs:.1f} s -> {tot} sounds ({tot / secs:.1f}/s)')
     groups = {}
     for n, c in sorted(au.stats.items()):
         groups.setdefault(sound.group_of(n), []).append(f'{n}×{c}')
     for gname, lst in sorted(groups.items()):
         c = sum(int(s.split('×')[1]) for s in lst)
         gap = sound.RULES.get(gname, (0.05, 2))[0]
-        print(f'  {gname:<12} {c:>4} ({c / secs:4.1f}/с, предел {1 / gap:4.1f}/с)  {" ".join(lst)}')
+        print(f'  {gname:<12} {c:>4} ({c / secs:4.1f}/s, limit {1 / gap:4.1f}/s)  {" ".join(lst)}')
         if c / secs > 1 / gap + 0.5:
-            bad.append(f'лавина {gname}')
+            bad.append(f'avalanche {gname}')
     if tot / secs > 80:
-        bad.append('слишком много звуков в секунду')
-    print(f'накал боя для музыки: {au.combat:.2f}')
-    # ---- 4. музыка (ускоренный гистерезис)
+        bad.append('too many sounds per second')
+    print(f'battle intensity for the music: {au.combat:.2f}')
+    # ---- 4. music (accelerated hysteresis)
     m = au.music
     if isinstance(m, playlist.TrackPlayer):
         playlist.BATTLE_MIN, playlist.CALM_HOLD = 2.0, 1.0
@@ -232,21 +232,21 @@ def main():
 
         run('menu', 0.6, 0)
         run('play', 0.6, 0)
-        run('play', 0.3, 0.5)              # стычка ниже порога — мир
-        run('play', 0.6, 1.2)              # бой
-        run('play', 0.5, 0.1)              # затишье, но бой ещё идёт (минимум по времени)
-        run('play', 2.5, 0.1)              # затишье выдержано — мир
+        run('play', 0.3, 0.5)              # a skirmish below the threshold - peace
+        run('play', 0.6, 1.2)              # battle
+        run('play', 0.5, 0.1)              # a lull, but the battle is still on (a minimum in time)
+        run('play', 2.5, 0.1)              # the lull has held - peace
         m.stinger(True)
         run('play', 0.6, 0)
         for s in seq:
-            print(f'  режим {s[0]:<5} накал {s[1]:<4} → {s[2]!s:<8} «{s[3]}» играет={s[4]}')
+            print(f'  mode {s[0]:<5} intensity {s[1]:<4} → {s[2]!s:<8} «{s[3]}" plays={s[4]}')
         kinds = [s[2] for s in seq]
         want = ['menu', 'peace', 'peace', 'battle', 'battle', 'peace', 'victory']
         if kinds != want:
-            bad.append(f'музыка: {kinds} ≠ {want}')
+            bad.append(f'music: {kinds} ≠ {want}')
     pygame.quit()
     if bad:
-        print('\nОШИБКИ:\n  ' + '\n  '.join(bad))
+        print('\nERRORS:\n  ' + '\n  '.join(bad))
         sys.exit(1)
     print('\nok')
 

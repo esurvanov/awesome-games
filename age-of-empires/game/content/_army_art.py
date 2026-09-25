@@ -1,7 +1,7 @@
-"""Процедурная графика армии: пехота, стрелки, всадники, осадные орудия, монах; университет и монастырь.
+"""Procedural army graphics: infantry, ranged units, horsemen, siege weapons, the monk; the university and monastery.
 
-Всё рисуется кодом (pygame.draw). Модуль не грузится автоматически (имя с «_»), его импортируют
-army_*.py. Функции юнитов имеют сигнатуру UNITS[kind]['art']:
+Everything is drawn by code (pygame.draw). The module is not loaded automatically (its name starts with "_"), it is imported by
+army_*.py. Unit functions have the signature UNITS[kind]['art']:
     art(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving)
 """
 import math
@@ -33,9 +33,9 @@ def _shadow(surf, x, y, w, h):
     gfx.shadow(surf, x, y, w, h)
 
 
-# ============================================================ пехота и пешие стрелки
+# ============================================================ infantry and foot ranged units
 def foot(helmet='iron', weapon='sword', shield=False, plate=False, plume=False, cape=False):
-    """Фабрика: пеший воин (тело — gfx.draw_foot), поверх — своё оружие, шлем, латы."""
+    """Factory: a foot soldier (body - gfx.draw_foot), with its own weapon, helmet, armor on top."""
     base_helmet = helmet if helmet in ('hat', 'iron', 'crest', 'hood') else 'iron'
     base_weapon = weapon if weapon in ('tool', 'sword', 'longsword', 'spear', 'bow', 'javelin') else None
 
@@ -54,28 +54,28 @@ def foot(helmet='iron', weapon='sword', shield=False, plate=False, plume=False, 
             pygame.draw.ellipse(surf, IRON, (*P(-3.6, -12), int(7.2 * k), int(7 * k)))
             pygame.draw.ellipse(surf, IRON_D, (*P(-3.6, -12), int(7.2 * k), int(7 * k)), 1)
             pygame.draw.line(surf, shade(color, 20), P(-3.5, -7), P(3.5, -7), max(1, int(1.5 * k)))
-        # шлемы
-        if helmet == 'great':      # глухой ведёрный шлем
+        # helmets
+        if helmet == 'great':      # closed bucket helm
             pygame.draw.rect(surf, IRON, (*P(-3.8, -20), int(7.6 * k), int(7 * k)), border_radius=max(1, int(2 * k)))
             pygame.draw.line(surf, (40, 40, 48), P(-2.5 + hx, -16), P(2.5 + hx, -16), max(1, int(k)))
             if plume:
                 pygame.draw.line(surf, shade(color, 40), P(0, -20), P(-4 * hx, -25), max(2, int(2.5 * k)))
                 pygame.draw.circle(surf, shade(color, 60), P(-4 * hx, -25), max(1, int(2 * k)))
-        elif helmet == 'kettle':   # шляпа-шлем с широкими полями
+        elif helmet == 'kettle':   # hat-helmet with a wide brim
             pygame.draw.ellipse(surf, IRON, (*P(-5.5, -18.5), int(11 * k), int(3.5 * k)))
             pygame.draw.ellipse(surf, IRON_D, (*P(-3, -21), int(6 * k), int(4 * k)))
-        elif helmet == 'cap':      # стёганая шапка арбалетчика
+        elif helmet == 'cap':      # padded crossbowman's cap
             pygame.draw.ellipse(surf, (150, 120, 80), (*P(-3.8, -20), int(7.6 * k), int(5 * k)))
             pygame.draw.line(surf, shade(color, 30), P(-3.5, -16.5), P(3.5, -16.5), max(1, int(k)))
-        elif helmet == 'brim':     # широкополая шляпа с пером (ручная пушка)
+        elif helmet == 'brim':     # wide-brimmed hat with a feather (hand cannon)
             pygame.draw.ellipse(surf, (60, 48, 40), (*P(-6, -18.5), int(12 * k), int(3.5 * k)))
             pygame.draw.ellipse(surf, (70, 56, 46), (*P(-3.2, -21.5), int(6.4 * k), int(4 * k)))
             pygame.draw.line(surf, shade(color, 50), P(2 * hx, -20), P(-3 * hx, -24), max(1, int(1.5 * k)))
-        elif helmet == 'sallet':   # салад с назатыльником
+        elif helmet == 'sallet':   # sallet with a neck guard
             pygame.draw.ellipse(surf, IRON, (*P(-4, -20.5), int(8 * k), int(6 * k)))
             pygame.draw.line(surf, IRON_D, P(-4 * hx, -16), P(-6 * hx, -14), max(1, int(1.5 * k)))
         hand = P(5 * hx, -8)
-        # оружие
+        # weapons
         if weapon == 'greatsword':
             tip = P((17 + s * 4) * hx, -26 + s * 17)
             pygame.draw.line(surf, STEEL, hand, tip, max(2, int(2.5 * k)))
@@ -117,7 +117,7 @@ def foot(helmet='iron', weapon='sword', shield=False, plate=False, plume=False, 
                     pygame.draw.circle(surf, (225, 225, 225), (bx + int((3 + i * 3) * k * hx), by - int(i * 2 * k)),
                                        max(1, int((2.5 + i) * k)))
                 pygame.draw.circle(surf, (255, 200, 80), (bx + int(2 * k * hx), by), max(1, int(1.5 * k)))
-        elif weapon == 'bigbow':      # лук побольше (для лучников в доспехе)
+        elif weapon == 'bigbow':      # a larger bow (for archers in armor)
             bx, by = P(6 * hx, -11)
             r = pygame.Rect(0, 0, int(9 * k), int(19 * k))
             r.center = (bx, by)
@@ -128,7 +128,7 @@ def foot(helmet='iron', weapon='sword', shield=False, plate=False, plume=False, 
 
 
 def monk(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
-    """Монах: длинная ряса, пояс в цвет игрока, тонзура, посох; при обращении/лечении — сияние."""
+    """Monk: a long robe, a belt in player color, a tonsure, a staff; when converting/healing - a glow."""
     hx = 1 if face[0] >= 0 else -1
     bob = math.sin(anim) * 0.8 * k if moving else 0
     P = _pt(x, y, k, bob)
@@ -154,9 +154,9 @@ def monk(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, c
         surf.blit(glow, (tx - int(13 * k), ty - int(13 * k)))
 
 
-# ============================================================ всадники
+# ============================================================ horsemen
 def rider(horse=(110, 76, 48), bard=None, head='helm', weapon='sword', camel=False, plume=False, big=False):
-    """Фабрика всадника. bard: None | 'cloth' | 'plate' | 'gold'; head: 'skin' | 'helm' | 'great' | 'gold' |
+    """Horseman factory. bard: None | 'cloth' | 'plate' | 'gold'; head: 'skin' | 'helm' | 'great' | 'gold' |
     'turban' | 'cap'; weapon: 'sword' | 'lance' | 'sabre' | 'bow'."""
 
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
@@ -175,7 +175,7 @@ def rider(horse=(110, 76, 48), bard=None, head='helm', weapon='sword', camel=Fal
         pygame.draw.ellipse(surf, horse, body)
         if camel:
             pygame.draw.circle(surf, shade(horse, 12), P(-2, by - 1), int(4.5 * k))
-            # длинная изогнутая шея
+            # long curved neck
             pygame.draw.line(surf, horse, P(8 * hx, by + 3), P(13 * hx, by - 6), max(3, int(4 * k)))
             pygame.draw.line(surf, horse, P(13 * hx, by - 6), P(17 * hx, by - 7), max(3, int(3.5 * k)))
             pygame.draw.circle(surf, horse, P(17 * hx, by - 7), int(2.8 * k))
@@ -193,7 +193,7 @@ def rider(horse=(110, 76, 48), bard=None, head='helm', weapon='sword', camel=Fal
             pygame.draw.ellipse(surf, trim, (*P(-10 * sc, by + 1), int(20 * k * sc), int(9 * k)), max(1, int(1.5 * k)))
             pygame.draw.polygon(surf, trim, [P(9 * hx * sc, by - 2), P(13 * hx * sc, by - 6), P(15 * hx * sc, by - 3)])
         pygame.draw.ellipse(surf, shade(horse, -70), body, 1)
-        # всадник
+        # rider
         ry = by - 4
         pygame.draw.circle(surf, color, P(0, ry), int(4.6 * k))
         pygame.draw.circle(surf, shade(color, -80), P(0, ry), int(4.6 * k), 1)
@@ -235,14 +235,14 @@ def rider(horse=(110, 76, 48), bard=None, head='helm', weapon='sword', camel=Fal
             a0 = -math.pi / 2 if hx > 0 else math.pi / 2
             pygame.draw.arc(surf, (130, 85, 40), r, a0, a0 + math.pi, lw)
             pygame.draw.line(surf, (220, 220, 220), (bx, r.top), (bx, r.bottom), 1)
-            # колчан
+            # quiver
             pygame.draw.line(surf, (110, 70, 40), P(-4 * hx, ry - 4), P(-6 * hx, ry + 3), max(2, int(2.5 * k)))
         elif weapon != 'none':
             pygame.draw.line(surf, STEEL, P(3 * hx, ry), P(10 * hx, ry - 6 + s * 0.4), lw)
     return art
 
 
-# ============================================================ осадные орудия
+# ============================================================ siege weapons
 def _wheel(surf, c, r, k):
     pygame.draw.circle(surf, (60, 45, 30), c, int(r * k))
     pygame.draw.circle(surf, (110, 90, 60), c, int(r * k), max(1, int(k)))
@@ -250,7 +250,7 @@ def _wheel(surf, c, r, k):
 
 
 def ram(roof='hide', big=False):
-    """Таран: 'plank' — доски, 'hide' — обтянут шкурами (Таран в кожухе), 'iron' — окован (Осадный таран)."""
+    """Ram: 'plank' - planks, 'hide' - covered with hides (Capped Ram), 'iron' - iron-bound (Siege Ram)."""
 
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         hx = 1 if face[0] >= 0 else -1
@@ -288,8 +288,8 @@ def ram(roof='hide', big=False):
 
 
 def mangonel(level=0):
-    """Катапульта с рычагом и ложкой: 0 — мангонель, 1 — онагр (больше, пучок канатов), 2 — осадный онагр
-    (окован железом)."""
+    """Catapult with a lever and a bucket: 0 - mangonel, 1 - onager (larger, a bundle of ropes), 2 - siege onager
+    (iron-bound)."""
 
     def art(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
         hx = 1 if face[0] >= 0 else -1
@@ -300,14 +300,14 @@ def mangonel(level=0):
         L = 12 * sc
         pygame.draw.rect(surf, frame, (*P(-L, -8), int(2 * L * k), int(5 * k)))
         pygame.draw.rect(surf, shade(frame, -50), (*P(-L, -8), int(2 * L * k), int(5 * k)), 1)
-        # стойки
+        # supports
         pygame.draw.line(surf, shade(frame, -20), P(-2 * hx, -8), P(2 * hx, -18), max(2, int(3 * k)))
         pygame.draw.line(surf, shade(frame, -20), P(4 * hx, -8), P(2 * hx, -18), max(2, int(3 * k)))
         pygame.draw.line(surf, shade(frame, 20), P(-3 * hx, -18), P(6 * hx, -18), max(2, int(2.5 * k)))
         if level >= 1:
             pygame.draw.ellipse(surf, ROPE, (*P(-5, -10), int(10 * k), int(5 * k)))
             pygame.draw.ellipse(surf, shade(ROPE, -60), (*P(-5, -10), int(10 * k), int(5 * k)), 1)
-        # рычаг: в покое откинут назад, при выстреле — вперёд
+        # lever: at rest it is thrown back, on firing - forward
         s = swing / 0.3 if swing > 0 else 0
         ang = math.radians(200 - 110 * s) if hx > 0 else math.radians(-20 + 110 * s)
         ln = (16 + 2 * level) * k
@@ -331,11 +331,11 @@ def scorpion(heavy=False):
         hx = 1 if face[0] >= 0 else -1
         P = _pt(x, y, k, 0)
         _shadow(surf, x - 12 * k, y - 4 * k, 24 * k, 8 * k)
-        # тележка
+        # cart
         pygame.draw.rect(surf, WOOD, (*P(-9, -6), int(18 * k), int(4 * k)))
         pygame.draw.line(surf, color, P(-9, -3), P(9, -3), max(1, int(2 * k)))
         pygame.draw.line(surf, WOOD_D, P(0, -6), P(0, -12), max(2, int(3 * k)))
-        # ложе и дуга баллисты
+        # ballista stock and bow
         s = swing / 0.3 if swing > 0 else 0
         a, b = P(-8 * hx, -12), P(11 * hx, -15)
         pygame.draw.line(surf, (110, 78, 45), a, b, max(2, int(3 * k)))
@@ -360,7 +360,7 @@ def scorpion(heavy=False):
 
 
 def bombard(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False):
-    """Бомбарда: толстый железный ствол на двухколёсном лафете."""
+    """Bombard: a thick iron barrel on a two-wheeled carriage."""
     hx = 1 if face[0] >= 0 else -1
     P = _pt(x, y, k, 0)
     _shadow(surf, x - 15 * k, y - 4 * k, 30 * k, 9 * k)
@@ -389,7 +389,7 @@ def bombard(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0
 
 def trebuchet_packed(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None,
                      moving=False):
-    """Свёрнутый требушет: длинная повозка с уложенным рычагом и противовесом."""
+    """Packed trebuchet: a long wagon with the lever and counterweight laid down."""
     hx = 1 if face[0] >= 0 else -1
     P = _pt(x, y, k, 0)
     _shadow(surf, x - 20 * k, y - 5 * k, 40 * k, 11 * k)
@@ -407,21 +407,21 @@ def trebuchet_packed(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0
 
 def trebuchet_up(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None,
                  moving=False):
-    """Разложенный требушет: высокая A-рама, длинный рычаг, ящик-противовес, праща."""
+    """Deployed trebuchet: a tall A-frame, a long lever, a counterweight box, a sling."""
     hx = 1 if face[0] >= 0 else -1
     P = _pt(x, y, k, 0)
     _shadow(surf, x - 20 * k, y - 6 * k, 40 * k, 13 * k)
-    # основание
+    # base
     pygame.draw.line(surf, WOOD_D, P(-18, -2), P(18, -2), max(3, int(4 * k)))
     pygame.draw.line(surf, WOOD_D, P(-8, 2), P(8, -6), max(2, int(3 * k)))
-    # A-рама
+    # A-frame
     top = P(0, -34)
     for bx in (-11, 11):
         pygame.draw.line(surf, WOOD, P(bx, -2), top, max(3, int(4 * k)))
     pygame.draw.line(surf, WOOD, P(-6, -18), P(6, -18), max(2, int(3 * k)))
-    # рычаг: в покое — длинное плечо вниз-назад, при выстреле — вверх-вперёд
+    # lever: at rest the long arm points down-back, on firing - up-forward
     s = swing / 0.3 if swing > 0 else 0
-    ang = math.radians(-35 + 115 * s)     # от горизонтали, положительный — вверх вперёд
+    ang = math.radians(-35 + 115 * s)     # from the horizontal, positive is up and forward
     tx, ty = top
     L1, L2 = 30 * k, 10 * k
     ex = tx + math.cos(ang) * L1 * hx
@@ -435,19 +435,19 @@ def trebuchet_up(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, 
     if s < 0.5:
         pygame.draw.circle(surf, (140, 135, 125), (int(ex + 3 * k * hx), int(ey + 9 * k)), int(2.5 * k))
     pygame.draw.circle(surf, IRON_D, top, max(2, int(2.5 * k)))
-    # флажок цвета игрока
+    # a player-color pennant
     fx, fy = P(-11 * hx, -2)
     pygame.draw.line(surf, (70, 50, 35), (fx, fy), (fx, fy - int(14 * k)), 1)
     pygame.draw.polygon(surf, color, [(fx, fy - int(14 * k)), (fx + int(8 * k * hx), fy - int(11 * k)),
                                       (fx, fy - int(8 * k))])
 
 
-# ============================================================ здания
+# ============================================================ buildings
 def university(p, surf, color, s):
-    """Университет 4×4: башня-обсерватория с куполом (сзади), корпус с колоннадой, книга-эмблема."""
+    """University 4x4: an observatory tower with a dome (behind), a hall with a colonnade, a book emblem."""
     from .. import gfx
     p.box(0.1, 0.1, s - 0.1, s - 0.1, 6, (170, 162, 148))
-    # башня с куполом — за корпусом, поэтому рисуется первой
+    # the domed tower is behind the hall, so it is drawn first
     p.box(0.5, 0.5, 1.4, 1.4, 74, gfx.STONE, z0=6, top=True, tex='stone')
     p.window_l(0.95, 1.4, 58, 0.14, 9)
     p.window_r(1.4, 0.95, 58, 0.14, 9)
@@ -457,12 +457,12 @@ def university(p, surf, color, s):
     pygame.draw.circle(surf, (130, 156, 184), (cx - 5, cy - 7), 5)
     pygame.draw.circle(surf, (60, 80, 100), (cx, cy), 17, 1, draw_top_right=True, draw_top_left=True)
     pygame.draw.line(surf, (40, 50, 60), (cx - 1, cy - 14), (cx + 9, cy - 22), 4)
-    # корпус
+    # hall
     p.box(0.4, 1.5, s - 0.4, s - 0.9, 34, gfx.PLASTER, z0=6, top=False, tex='stone')
     p.box(1.5, 0.4, s - 0.4, 1.5, 34, gfx.PLASTER, z0=6, top=False, tex='stone')
     p.gable(1.5, 0.4, s - 0.4, s - 0.9, 40, 18, gfx.ROOF_SLATE, gfx.PLASTER, axis='x')
     p.gable(0.4, 1.5, 1.5, s - 0.9, 40, 18, gfx.ROOF_SLATE, gfx.PLASTER, axis='x')
-    # колоннада по фасаду
+    # colonnade along the facade
     for i in range(6):
         xm = 0.7 + i * (s - 1.4) / 5
         p.box(xm - 0.07, s - 0.9, xm + 0.07, s - 0.76, 30, (236, 228, 210), z0=6, top=False)
@@ -470,7 +470,7 @@ def university(p, surf, color, s):
     p.door(s / 2, s - 0.9, 0.5, 20, (70, 50, 34))
     for ym in (1.8, 2.6):
         p.window_r(s - 0.4, ym, 20)
-    # эмблема: раскрытая книга
+    # emblem: an open book
     ex, ey = p.P(s / 2, s - 0.72, 52)
     ex, ey = int(ex), int(ey)
     pygame.draw.circle(surf, color, (ex, ey), 8)
@@ -483,11 +483,11 @@ def university(p, surf, color, s):
 
 
 def monastery(p, surf, color, s):
-    """Монастырь 3×3: колокольня (сзади), длинный неф с черепичной крышей, круглое окно-роза."""
+    """Monastery 3x3: a bell tower (behind), a long nave with a tiled roof, a round rose window."""
     from .. import gfx
     p.poly([(0.1, 0.1), (s - 0.1, 0.1), (s - 0.1, s - 0.1), (0.1, s - 0.1)], (150, 140, 118), outline=False)
     wall = (206, 192, 160)
-    # колокольня
+    # bell tower
     p.box(0.3, 0.25, 1.0, 0.95, 64, gfx.STONE, top=False, tex='stone')
     bx, by = p.P(1.0, 0.6, 52)
     pygame.draw.rect(surf, (40, 34, 30), (int(bx) - 4, int(by) - 8, 8, 11))
@@ -496,7 +496,7 @@ def monastery(p, surf, color, s):
     pygame.draw.rect(surf, (40, 34, 30), (int(bx) - 4, int(by) - 8, 8, 11))
     p.hip(0.3, 0.25, 1.0, 0.95, 64, 24, gfx.ROOF_SLATE, ov=0.05)
     p.flag(0.65, 0.6, 88, color, 14)
-    # неф
+    # nave
     p.box(0.35, 1.0, s - 0.35, s - 0.35, 30, wall, top=False, tex='stone')
     p.box(1.0, 0.35, s - 0.35, 1.0, 30, wall, top=False, tex='stone')
     p.gable(1.0, 0.35, s - 0.35, s - 0.35, 30, 22, gfx.ROOF_RED, wall, axis='y')

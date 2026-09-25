@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Безоконные проверки управления по сверке с AoE2 DE (docs/research/01_controls.md): у каждой проверки —
-номер кванта. Печатает ok / FAIL, код выхода 1 — если что-то не так.
+"""Windowless controls checks against AoE2 DE (docs/research/01_controls.md): every check has
+a quantum number. Prints ok / FAIL, exit code 1 - if anything is wrong.
 
   SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python tools/controls_test.py
 """
@@ -96,7 +96,7 @@ def clear_field(w, cx, cy, r):
 
 
 def cursor_checks(g, w, tc, vils, fx, fy):
-    """docs/research/08_cursor.md: остриё = точка прицела у каждого файла; состояние — по тому, что под мышью."""
+    """docs/research/08_cursor.md: the tip = the aim point for every file; the state - by what is under the mouse."""
     import json
     from PIL import Image
     from game import uiskin
@@ -115,7 +115,7 @@ def cursor_checks(g, w, tc, vils, fx, fy):
             tip = min(pts, key=lambda p: (p[0] + p[1], p[1]))
         if max(abs(tip[0] - hx), abs(tip[1] - hy)) > 1 or im.size != (32, 32):
             bad.append((kind, fn, tip, (hx, hy), im.size))
-    check('L1', not bad, f'остриё = точка прицела (±1 px), 32×32 у всех {len(uiskin.CURSOR_FILES)} курсоров'
+    check('L1', not bad, f'the tip = the aim point (+-1 px), 32x32 for all {len(uiskin.CURSOR_FILES)} cursors'
           + (f' — {bad}' if bad else ''))
     vil = vils[0]
     g.selected = [vil]
@@ -129,31 +129,31 @@ def cursor_checks(g, w, tc, vils, fx, fy):
     g.draw()
     tp = g.w2s(*tree.center())
     tp = (int(tp[0]), int(tp[1] - 20))
-    check('L2', g.cursor_kind(tp) == 'tree', 'житель над деревом — топор')
+    check('L2', g.cursor_kind(tp) == 'tree', 'a villager over a tree - an axe')
     g.center_on(*tc.center())
     g.draw()
     cp = g.w2s(*tc.center())
     cp = (int(cp[0]), int(cp[1]))
     vil.carry = 0
-    check('L3', g.cursor_kind(cp) == 'garrison', 'житель без ноши над центром — гарнизон (без Alt, DE)')
+    check('L3', g.cursor_kind(cp) == 'garrison', 'a villager without a load over the center - garrison (no Alt, DE)')
     vil.carry = 5
-    check('L3', g.cursor_kind(cp) == 'drop', 'житель с ношей над центром — сдать ресурс')
+    check('L3', g.cursor_kind(cp) == 'drop', 'a villager with a load over the center - drop off the resource')
     vil.carry = 0
     g.order_mode = 'flare'
-    check('L4', g.cursor_kind(cp) == 'flare', 'режим сигнала — рог')
+    check('L4', g.cursor_kind(cp) == 'flare', 'signal mode - a horn')
     for mode in ('patrol', 'guard', 'follow', 'amove', 'aground'):
         g.order_mode = mode
-        check('L4', g.cursor_kind(cp) == mode, f'режим приказа {mode} — свой курсор')
+        check('L4', g.cursor_kind(cp) == mode, f'order mode {mode} - its own cursor')
     g.order_mode = None
     g.selected = [tc]
-    check('L5', g.cursor_kind(cp) == 'rally', 'выбран центр — флаг точки сбора')
+    check('L5', g.cursor_kind(cp) == 'rally', 'a center is selected - the rally point flag')
     g.selected = [vil]
     g.placing = 'house'
-    check('L6', g.cursor_kind(cp) == 'no', 'закладка на занятом месте — «нельзя»')
+    check('L6', g.cursor_kind(cp) == 'no', 'placing on an occupied spot - "no"')
     g.placing = None
     g.selected = []
-    check('L7', g.cursor_kind((10, 5)) == 'arrow', 'над панелью — стрелка')
-    # программный курсор: рисуется в точке мыши минус прицел (проверка на поверхности)
+    check('L7', g.cursor_kind((10, 5)) == 'arrow', 'over a panel - an arrow')
+    # software cursor: drawn at the mouse point minus the aim point (checked on the surface)
     cur = g.cursors
     cur.set_soft(True)
     cur.set('tree')
@@ -164,13 +164,13 @@ def cursor_checks(g, w, tc, vils, fx, fy):
         ok_soft = rec is not None and rec[1:] == (1, 1)
     except Exception:
         ok_soft = False
-    check('L8', ok_soft, 'программный курсор: картинка 32 px, прицел (1, 1)')
+    check('L8', ok_soft, 'software cursor: a 32 px picture, the aim point (1, 1)')
     cur.set_soft(False)
     del surf
 
 
 def zoom_checks(g, w, fx, fy):
-    """D1: колесо — масштаб вокруг курсора; выбор, рамка, закладка, мини-карта — верны при любом масштабе."""
+    """D1: the wheel - zoom around the cursor; selection, box, placement, minimap - correct at any zoom."""
     from game.data import HW, HH
     g.selected = []
     g.placing = None
@@ -178,7 +178,7 @@ def zoom_checks(g, w, fx, fy):
     g.zoom = g.zoom_to = 1.0
     z0 = g.zoom
     ev(g, pygame.MOUSEWHEEL, x=0, y=1, flipped=False, precise_x=0.0, precise_y=1.0, touch=False)
-    check('D1', g.zoom_to > z0, f'колесо ↑ → ближе (цель {g.zoom_to})')
+    check('D1', g.zoom_to > z0, f'wheel up -> closer (target {g.zoom_to})')
     g.zoom_to = 1.0
     anchor = (300, TOP_H + 200)
     before = g.s2w(*anchor)
@@ -187,13 +187,13 @@ def zoom_checks(g, w, fx, fy):
         g.zoom_tick(DT)
     after = g.s2w(*anchor)
     check('D1', abs(g.zoom - 0.7) < 1e-6 and math.hypot(after[0] - before[0], after[1] - before[1]) < 2,
-          f'плавно к 0.7, точка под курсором на месте (сдвиг {math.hypot(after[0] - before[0], after[1] - before[1]):.2f})')
+          f'smoothly to 0.7, the point under the cursor stays in place (shift {math.hypot(after[0] - before[0], after[1] - before[1]):.2f})')
     ev(g, pygame.MOUSEWHEEL, x=0, y=0, flipped=False, precise_x=0.0, precise_y=0.4, touch=False)
-    check('D1', abs(g.zoom_to - 0.7) < 1e-6, 'трекпад: доля «зарубки» не меняет масштаб')
+    check('D1', abs(g.zoom_to - 0.7) < 1e-6, 'trackpad: a fraction of a "notch" does not change the zoom')
     ev(g, pygame.MOUSEWHEEL, x=0, y=0, flipped=False, precise_x=0.0, precise_y=-0.4, touch=False)
     cx0 = g.cam_x
     ev(g, pygame.MOUSEWHEEL, x=-2, y=0, flipped=False, precise_x=-2.0, precise_y=0.0, touch=False)
-    check('D1', g.cam_x > cx0 and abs(g.zoom_to - 0.7) < 1e-6, 'трекпад вбок → прокрутка, не масштаб')
+    check('D1', g.cam_x > cx0 and abs(g.zoom_to - 0.7) < 1e-6, 'trackpad sideways -> scrolling, not zoom')
     for z in (0.7, 1.4):
         g.zoom = g.zoom_to = z
         g.center_on(fx, fy)
@@ -205,37 +205,37 @@ def zoom_checks(g, w, fx, fy):
         g.draw()
         sx, sy = g.w2s(a.x, a.y)
         wx, wy = g.s2w(sx, sy)
-        check('D1', math.hypot(wx - a.x, wy - a.y) < 0.5, f'×{z}: экран ↔ мир сходятся')
+        check('D1', math.hypot(wx - a.x, wy - a.y) < 0.5, f'×{z}: screen <-> world agree')
         e = g.entity_at((int(sx), int(sy - 14 * z)))
-        check('D1', e is a, f'×{z}: щелчок по фигурке выбирает её')
+        check('D1', e is a, f'×{z}: a click on the figure selects it')
         e2 = g.entity_at((int(sx), int(sy - 80 * z)))
-        check('D1', e2 is not a, f'×{z}: щелчок выше головы — мимо')
+        check('D1', e2 is not a, f'×{z}: a click above the head - a miss')
         bx, by = g.w2s(b.x, b.y)
         r = pygame.Rect(0, 0, 60, 60)
         r.center = (int(bx), int(by - 10 * z))
         g.drag = r.topleft
         MODS[0] = 0
         g.on_lup(r.bottomright)
-        check('D1', g.selected == [b], f'×{z}: рамка выбирает только юнита в рамке {[(s.kind, round(s.x - b.x), round(s.y - b.y)) for s in g.selected]}')
+        check('D1', g.selected == [b], f'×{z}: the box selects only the unit in the box {[(s.kind, round(s.x - b.x), round(s.y - b.y)) for s in g.selected]}')
         g.placing = 'house'
         for tx, ty in ((int(fx // TILE) - 4, int(fy // TILE) + 3), (int(fx // TILE) + 2, int(fy // TILE) - 5)):
             pos = g.w2s((tx + 1) * TILE, (ty + 1) * TILE)
-            check('D1', g.place_tile((int(pos[0]), int(pos[1]))) == (tx, ty), f'×{z}: закладка — клетка под курсором')
-        g.draw()                            # тень-призрак на холсте
+            check('D1', g.place_tile((int(pos[0]), int(pos[1]))) == (tx, ty), f'×{z}: placement - the cell under the cursor')
+        g.draw()                            # a ghost shadow on the canvas
         g.placing = None
         mm = g.mm_rect()
         g.minimap_jump(mm.center)
         c = g.w2s(*g.mm_to_world(mm.center))
         check('D1', abs(c[0] - SCREEN_W / 2) < 3 and abs(c[1] - (TOP_H + VIEW_H / 2)) < 3,
-              f'×{z}: мини-карта → точка в центре вида')
+              f'×{z}: minimap -> the point at the center of the view')
         vis_w = g.view_w() / ((w.W + w.H) * HW)
         check('D1', abs(vis_w - SCREEN_W / z / ((w.W + w.H) * HW)) < 1e-9 and abs(g.view_h() - VIEW_H / z) < 1e-9,
-              f'×{z}: рамка камеры на мини-карте ×{1 / z:.2f}')
+              f'×{z}: the camera frame on the minimap x{1 / z:.2f}')
         g.cam_x = g.cam_y = 1e9
         g.clamp_cam()
         br = g.s2w(SCREEN_W, TOP_H + VIEW_H)
         check('D1', g.cam_x + g.view_w() <= (w.W + w.H) * HW + 1 and g.cam_y + g.view_h() <= (w.W + w.H) * HH + 1,
-              f'×{z}: камера не выходит за карту (угол {br[0] / TILE:.0f},{br[1] / TILE:.0f})')
+              f'×{z}: the camera does not leave the map (corner {br[0] / TILE:.0f},{br[1] / TILE:.0f})')
         w.units.remove(a)
         w.units.remove(b)
     g.zoom = g.zoom_to = 1.0
@@ -268,31 +268,31 @@ def main():
     g.center_on(fx, fy)
     g.draw()
 
-    print('A · выбор')
+    print('A - selection')
     army = [spawn(g, 'militia' if i % 2 else 'archer', fx - 4 * TILE + (i % 10) * 18, fy - 3 * TILE + (i // 10) * 18)
             for i in range(80)]
     MODS[0] = 0
     ev(g, pygame.MOUSEBUTTONDOWN, pos=(0, TOP_H + 1), button=1)
     ev(g, pygame.MOUSEBUTTONUP, pos=(SCREEN_W - 1, TOP_H + VIEW_H - 1), button=1)
-    check('A4', len(g.selected) == 60, f'рамка по 80+ юнитам → {len(g.selected)} (лимит 60)')
+    check('A4', len(g.selected) == 60, f'a box over 80+ units -> {len(g.selected)} (limit 60)')
     ys = [g.w2s(u.x, u.y)[1] for u in g.selected]
-    check('A5', ys == sorted(ys), 'рамка набирает сверху вниз')
-    check('A6', all(isinstance(s, Unit) for s in g.selected), 'в рамке только юниты')
-    # A3: свой против чужого
+    check('A5', ys == sorted(ys), 'the box selects top to bottom')
+    check('A6', all(isinstance(s, Unit) for s in g.selected), 'only units in the box')
+    # A3: own against foreign
     en = spawn(g, 'militia', army[5].x + 4, army[5].y + 2, owner=1)
     g.draw()
     e = g.entity_at(screen_of(g, en, 14))
-    check('A3', e is not None and e.owner == 0, 'щелчок в наложение своего и врага → свой')
+    check('A3', e is not None and e.owner == 0, 'a click on an overlap of own and an enemy -> own')
     w.units.remove(en)
-    # A10: Ctrl+щелчок — добавить/убрать
+    # A10: Ctrl+click - add/remove
     g.selected = [army[0]]
     g.last_click = (0, None)
     lclick(g, screen_of(g, army[33]), pygame.KMOD_CTRL)
     n1 = len(g.selected)
     g.last_click = (0, None)
     lclick(g, screen_of(g, army[33]), pygame.KMOD_CTRL)
-    check('A10', n1 == 2 and len(g.selected) == 1, f'Ctrl+щелчок добавляет ({n1}) и убирает ({len(g.selected)})')
-    # A8: двойной щелчок — линия (ополченец + воин), ≤ 60
+    check('A10', n1 == 2 and len(g.selected) == 1, f'Ctrl+click adds ({n1}) and removes ({len(g.selected)})')
+    # A8: double click - a line (militia + man-at-arms), <= 60
     for u in army[1::4]:
         u.set_kind('man_at_arms')
     g.selected = []
@@ -303,8 +303,8 @@ def main():
     lclick(g, pos)
     kinds = {s.kind for s in g.selected}
     check('A8', kinds == {'militia', 'man_at_arms'} and len(g.selected) <= 60,
-          f'двойной щелчок по линии → {sorted(kinds)}, {len(g.selected)}')
-    # A11: иконки выбора
+          f'double click on a line -> {sorted(kinds)}, {len(g.selected)}')
+    # A11: selection icons
     g.selected = [army[0], army[2], army[1], army[3]]
     MODS[0] = pygame.KMOD_CTRL
     g.panel_select(army[0])
@@ -317,52 +317,52 @@ def main():
     g.panel_select(army[0])
     ok3 = all(s.kind != army[0].kind for s in g.selected)
     MODS[0] = 0
-    check('A11', ok1 and ok2 and ok3, 'иконки: Ctrl — убрать, Shift — только вид, Ctrl+Shift — убрать вид')
+    check('A11', ok1 and ok2 and ok3, 'icons: Ctrl - remove, Shift - only the kind, Ctrl+Shift - remove the kind')
     for u in army:
         u.alive = False
     w.units = [u for u in w.units if u.alive]
     g.selected = []
 
-    print('B · группы')
+    print('B - groups')
     m1 = spawn(g, 'militia', fx, fy)
     m2 = spawn(g, 'militia', fx + 20, fy)
     g.selected = [m1, tc]
     key(g, pygame.K_1, pygame.KMOD_CTRL)
-    check('B2', set(g.groups.get(1, [])) == {m1, tc}, 'Ctrl+1 [юнит + ЦГ] → оба в группе')
+    check('B2', set(g.groups.get(1, [])) == {m1, tc}, 'Ctrl+1 [unit + TC] -> both in the group')
     g.selected = [m2]
     key(g, pygame.K_0, pygame.KMOD_CTRL)
-    check('B1', g.groups.get(0) == [m2], 'Ctrl+0 → группа 0')
+    check('B1', g.groups.get(0) == [m2], 'Ctrl+0 -> group 0')
     g.selected = [m2]
     key(g, pygame.K_1, pygame.KMOD_SHIFT)
-    check('B4', set(g.selected) == {m1, m2, tc}, 'Shift+1 → группа добавлена к выбору')
+    check('B4', set(g.selected) == {m1, m2, tc}, 'Shift+1 -> the group is added to the selection')
     g.selected = [m1]
     key(g, pygame.K_3, pygame.KMOD_CTRL | pygame.KMOD_ALT)
     g.selected = []
     key(g, pygame.K_3, pygame.KMOD_ALT)
     check('B5', g.groups.get(13) == [m1] and g.selected == [m1] and 1 not in [g.group_of(m1)],
-          'Alt+3 → группа 13 (юнит — только в одной группе)')
+          'Alt+3 -> group 13 (a unit - in only one group)')
     g.center_on(tcx, tcy)
     key(g, pygame.K_0, pygame.KMOD_CTRL | pygame.KMOD_SHIFT)
     c = g.w2s(m2.x, m2.y)
-    check('B5', abs(c[0] - SCREEN_W / 2) < 40, 'Ctrl+Shift+0 → выбор и камера к группе')
+    check('B5', abs(c[0] - SCREEN_W / 2) < 40, 'Ctrl+Shift+0 -> select and the camera to the group')
     g.draw()
-    check('A12', g.group_of(m1) == 13, 'номер группы над юнитом (рисуется controls_draw)')
+    check('A12', g.group_of(m1) == 13, 'group number above a unit (drawn by controls_draw)')
 
-    print('C · поиск и переходы')
+    print('C - search and jumps')
     for u in w.units:
         if u.owner == 0:
             u.stop()
     g.selected = []
     key(g, pygame.K_COMMA)
-    check('C2', len(g.selected) == 1 and g.selected[0].kind == 'militia', ', → праздный военный')
+    check('C2', len(g.selected) == 1 and g.selected[0].kind == 'militia', ', -> idle military')
     key(g, pygame.K_PERIOD, pygame.KMOD_SHIFT)
     nv = len([u for u in w.units if u.owner == 0 and u.kind == 'villager' and u.state == 'idle'])
-    check('C3', len(g.selected) == nv and nv > 1, f'Shift+. → все праздные жители ({len(g.selected)})')
+    check('C3', len(g.selected) == nv and nv > 1, f'Shift+. -> all idle villagers ({len(g.selected)})')
     key(g, pygame.K_COMMA, pygame.KMOD_CTRL)
-    check('C3', {s.kind for s in g.selected} == {'militia'} and len(g.selected) == 2, 'Ctrl+, → все праздные военные')
+    check('C3', {s.kind for s in g.selected} == {'militia'} and len(g.selected) == 2, 'Ctrl+, -> all idle military')
     m1.cmd_move(fx, fy + 3 * TILE)
     key(g, pygame.K_COMMA, pygame.KMOD_SHIFT)
-    check('C3', len(g.selected) == 2, 'Shift+, → все военные')
+    check('C3', len(g.selected) == 2, 'Shift+, -> all military')
     m1.stop()
     tc2 = w.place_building('town_center', 0, ftx + 4, fty - 10, complete=True)
     g.selected = []
@@ -370,57 +370,57 @@ def main():
     a = g.selected[:]
     key(g, pygame.K_h)
     b = g.selected[:]
-    check('C4', a != b and {a[0], b[0]} == {tc, tc2}, 'H — центры по кругу')
+    check('C4', a != b and {a[0], b[0]} == {tc, tc2}, 'H - centers in a circle')
     key(g, pygame.K_h, pygame.KMOD_CTRL | pygame.KMOD_SHIFT)
-    check('C4', set(g.selected) == {tc, tc2}, 'Ctrl+Shift+H — все центры')
+    check('C4', set(g.selected) == {tc, tc2}, 'Ctrl+Shift+H - all centers')
     brk = w.place_building('barracks', 0, ftx - 8, fty + 6, complete=True)
     g.center_on(tcx, tcy)
     key(g, pygame.K_b, pygame.KMOD_CTRL)
     c = g.w2s(*brk.center())
-    check('C5', g.selected == [brk] and abs(c[0] - SCREEN_W / 2) < 60, 'Ctrl+B → к казарме')
+    check('C5', g.selected == [brk] and abs(c[0] - SCREEN_W / 2) < 60, 'Ctrl+B -> to the barracks')
     cam = (g.cam_x, g.cam_y)
     g.center_on(tcx, tcy)
     g.cam_prev = cam
     key(g, pygame.K_BACKSPACE)
-    check('C8', (g.cam_x, g.cam_y) == cam, 'Backspace → прошлый вид')
+    check('C8', (g.cam_x, g.cam_y) == cam, 'Backspace -> the previous view')
     alive_before = [s for s in g.selected]
-    check('C8', all(s.alive for s in alive_before), 'Backspace никого не убивает')
+    check('C8', all(s.alive for s in alive_before), 'Backspace kills nobody')
     w.emit('attack_alert', fx + 5 * TILE, fy, 0, 'villager')
     run(g, DT)
     g.center_on(tcx, tcy)
     key(g, pygame.K_HOME)
     c = g.w2s(fx + 5 * TILE, fy)
-    check('C7', abs(c[0] - SCREEN_W / 2) < 60, 'Home → к последнему событию')
+    check('C7', abs(c[0] - SCREEN_W / 2) < 60, 'Home -> to the last event')
     tc2.alive = False
     w.buildings.remove(tc2)
     for y in range(tc2.ty, tc2.ty + tc2.h):
         for x in range(tc2.tx, tc2.tx + tc2.w):
             w.occ[y][x] = None
 
-    print('K · пауза')
+    print('K - pause')
     g.selected = []
     key(g, pygame.K_ESCAPE)
-    check('K8', not g.paused, 'Esc при пустом выборе — без паузы')
+    check('K8', not g.paused, 'Esc with an empty selection - no pause')
     key(g, pygame.K_F3)
-    check('K8', g.paused, 'F3 — пауза')
+    check('K8', g.paused, 'F3 - pause')
     key(g, pygame.K_F3)
 
-    print('H · удаление')
+    print('H - deletion')
     d1 = spawn(g, 'militia', fx - 40, fy)
     d2 = spawn(g, 'militia', fx - 60, fy)
     d3 = spawn(g, 'militia', fx - 80, fy)
     g.selected = [d1, d2, d3]
     key(g, pygame.K_DELETE)
-    check('H1', not d1.alive and d2.alive and d3.alive, 'Del — удаляет одного')
+    check('H1', not d1.alive and d2.alive and d3.alive, 'Del - deletes one')
     key(g, pygame.K_DELETE, pygame.KMOD_SHIFT)
-    check('H1', not d2.alive and not d3.alive, 'Shift+Del — всех выбранных')
+    check('H1', not d2.alive and not d3.alive, 'Shift+Del - all selected')
     house = w.place_building('house', 0, ftx - 6, fty - 6, complete=True)
     g.selected = [house]
     key(g, pygame.K_DELETE)
-    check('H1', not house.alive, 'Del — сносит своё здание')
+    check('H1', not house.alive, 'Del - demolishes an own building')
     w.update(DT)
 
-    print('F · ремонт')
+    print('F - repair')
     house = w.place_building('house', 0, ftx - 6, fty - 6, complete=True)
     house.hp = house.max_hp * 0.4
     v = vils[0]
@@ -432,9 +432,9 @@ def main():
     hp0 = house.hp
     run(g, 12)
     rate = (house.hp - hp0) / 12
-    check('F3', ok and house.hp > hp0, f'житель → раненый дом: ремонт (+{house.hp - hp0:.0f} ОЗ)')
-    check('F3', p.res['wood'] < wood0, f'ремонт тратит дерево ({wood0 - p.res["wood"]})')
-    check('L2', g.cursor_kind(screen_of(g, spawn(g, 'militia', -999, -999))) in ('arrow', 'repair'), 'курсор')
+    check('F3', ok and house.hp > hp0, f'villager -> a damaged house: repair (+{house.hp - hp0:.0f} HP)')
+    check('F3', p.res['wood'] < wood0, f'repair spends wood ({wood0 - p.res["wood"]})')
+    check('L2', g.cursor_kind(screen_of(g, spawn(g, 'militia', -999, -999))) in ('arrow', 'repair'), 'cursor')
     ram = spawn(g, 'ram', fx + 3 * TILE, fy + 3 * TILE)
     ram.hp = ram.max_hp * 0.3
     v2 = vils[1]
@@ -444,18 +444,18 @@ def main():
     rh = ram.hp
     run(g, 6)
     rrate = (ram.hp - rh) / 6
-    check('F4', v2.state == 'repair' and 0 < rrate < rate * 0.6, f'житель → таран: ремонт медленнее ({rrate:.1f} ОЗ/с)')
+    check('F4', v2.state == 'repair' and 0 < rrate < rate * 0.6, f'villager -> a ram: repair is slower ({rrate:.1f} HP/s)')
     ram.alive = False
     for u in (v, v2):
         u.stop()
 
-    print('G · приказы')
+    print('G - orders')
     m = spawn(g, 'militia', fx, fy)
     g.selected = [m]
     rcmd(g, fx + 4 * TILE, fy)
     rcmd(g, fx + 4 * TILE, fy + 4 * TILE, mod=pygame.KMOD_SHIFT)
     rcmd(g, fx, fy + 4 * TILE, mod=pygame.KMOD_SHIFT)
-    check('G1', m.orders and len(m.orders) == 2, 'Shift+ПКМ ×2 → 2 точки в очереди')
+    check('G1', m.orders and len(m.orders) == 2, 'Shift+right click x2 -> 2 points in the queue')
     visited = set()
     t = 0
     while t < 25 and len(visited) < 3:
@@ -464,16 +464,16 @@ def main():
         for i, pt in enumerate([(fx + 4 * TILE, fy), (fx + 4 * TILE, fy + 4 * TILE), (fx, fy + 4 * TILE)]):
             if math.hypot(m.x - pt[0], m.y - pt[1]) < TILE:
                 visited.add(i)
-    check('G1', visited == {0, 1, 2}, f'точки пройдены по порядку ({sorted(visited)})')
-    # стоп — G
+    check('G1', visited == {0, 1, 2}, f'the points were passed in order ({sorted(visited)})')
+    # stop - G
     g.selected = [m]
     m.cmd_move(fx + 6 * TILE, fy)
     key(g, pygame.K_g)
-    check('G8', m.state == 'idle', 'G — стоп у военных')
+    check('G8', m.state == 'idle', 'G - stop for military units')
     bts = {b['key']: b['act'] for b in g.get_buttons()}
     check('K1', bts.get('Q') == ('omode', 'patrol') and bts.get('A') == ('stance', 'aggressive')
-          and bts.get('G') == ('stop', None), 'сетка армии: Q патруль, A агрессивная, G стоп')
-    # строй и общая скорость
+          and bts.get('G') == ('stop', None), 'the army grid: Q patrol, A aggressive, G stop')
+    # formation and shared speed
     sc = spawn(g, 'scout', fx - 2 * TILE, fy)
     ar = spawn(g, 'archer', fx - 2 * TILE, fy + 20)
     mi = spawn(g, 'militia', fx - 2 * TILE, fy + 40)
@@ -481,7 +481,7 @@ def main():
     g.selected = grp
     rcmd(g, fx + 8 * TILE, fy + 20)
     fs = {u.form_speed for u in grp}
-    check('G3', len(fs) == 1 and abs(fs.pop() - mi.speed()) < 1e-6, 'строй идёт со скоростью самого медленного')
+    check('G3', len(fs) == 1 and abs(fs.pop() - mi.speed()) < 1e-6, 'the formation moves at the speed of the slowest')
     arr = {}
     t = 0
     while t < 30 and len(arr) < 3:
@@ -491,36 +491,36 @@ def main():
             if u not in arr and u.state == 'idle':
                 arr[u] = t
     spread = max(arr.values()) - min(arr.values()) if len(arr) == 3 else 99
-    check('G3', spread < 3.0, f'пришли вместе (разброс {spread:.1f} с)')
+    check('G3', spread < 3.0, f'arrived together (spread {spread:.1f} s)')
     dx = [(u.x - fx) for u in grp]
-    check('G4', dx[0] > dx[2] > dx[1], f'линия: конница впереди, за ней пехота, стрелки сзади {[round(d) for d in dx]}')
+    check('G4', dx[0] > dx[2] > dx[1], f'line: cavalry in front, then infantry, ranged units behind {[round(d) for d in dx]}')
     sq = [spawn(g, 'archer' if i < 4 else 'militia', fx + i * 16, fy + 3 * TILE) for i in range(12)]
     g.selected = sq
     key(g, pygame.K_x)
-    check('G2', all(getattr(u, 'formation', '') == 'box' for u in sq), 'X — строй «коробка»')
+    check('G2', all(getattr(u, 'formation', '') == 'box' for u in sq), 'X - the "box" formation')
     slots = orders.layout(sq, fx, fy, 'box')
     cxm = sum(x for _, x, _ in slots) / len(slots)
     cym = sum(y for _, _, y in slots) / len(slots)
     rin = max(math.hypot(x - cxm, y - cym) for u, x, y in slots if u.kind == 'archer')
     rout = min(math.hypot(x - cxm, y - cym) for u, x, y in slots if u.kind == 'militia')
-    check('G2', rin < rout, 'коробка: стрелки внутри, пехота снаружи')
+    check('G2', rin < rout, 'box: ranged units inside, infantry outside')
     for f in ('line', 'staggered', 'flank'):
         sl = orders.layout(sq, fx, fy, f)
         pts = {(round(x), round(y)) for _, x, y in sl}
-        check('G2', len(pts) == len(sq), f'строй {f}: у каждого своё место')
+        check('G2', len(pts) == len(sq), f'formation {f}: everyone has their own place')
     for u in sq:
         u.alive = False
-    # стойки
+    # supports
     tgt = spawn(g, 'militia', fx + 6 * TILE, fy - 6 * TILE, owner=1)
     tgt.stance = 'no_attack'
     guard = spawn(g, 'archer', fx + 6 * TILE - 5 * TILE, fy - 6 * TILE)
     guard.stance = 'stand_ground'
     run(g, 3)
     check('G5', guard.state == 'idle' and math.hypot(guard.x - (fx + TILE), guard.y - (fy - 6 * TILE)) < 8,
-          'стоять на месте: враг вне дальности — не идёт')
+          'stand ground: an enemy out of range - it does not go')
     tgt.x -= 1.5 * TILE
     run(g, 2)
-    check('G5', guard.state == 'attack', 'стоять на месте: враг в дальности — стреляет')
+    check('G5', guard.state == 'attack', 'stand ground: an enemy in range - it shoots')
     tgt.alive = False
     na = spawn(g, 'militia', fx - 6 * TILE, fy - 6 * TILE)
     g.selected = [na]
@@ -528,7 +528,7 @@ def main():
     foe = spawn(g, 'militia', na.x + 10, na.y, owner=1)
     foe.cmd_attack(na)
     run(g, 2)
-    check('G5', na.stance == 'no_attack' and na.state == 'idle', 'F — «не атаковать»: не отвечает на удары')
+    check('G5', na.stance == 'no_attack' and na.state == 'idle', 'F - "no attack": it does not answer blows')
     foe.alive = False
     na.alive = False
     df = spawn(g, 'militia', fx - 6 * TILE, fy + 6 * TILE)
@@ -541,22 +541,22 @@ def main():
     bait.cmd_move(df.x + 16 * TILE, df.y)
     run(g, 12)
     check("G5", engaged and math.hypot(df.x - home[0], df.y - home[1]) < 1.5 * TILE,
-          f'оборонительная: погнался недалеко и вернулся на место ({engaged}, '
-          f'{math.hypot(df.x - home[0], df.y - home[1]) / TILE:.1f} кл., {df.state})')
+          f'defensive: it chased a short way and returned to its place ({engaged}, '
+          f'{math.hypot(df.x - home[0], df.y - home[1]) / TILE:.1f} tiles, {df.state})')
     bait.alive = False
     df.alive = False
-    # атака с ходу
+    # attack-move
     am = spawn(g, 'militia', fx - 6 * TILE, fy)
     vic = spawn(g, 'villager', fx - 2 * TILE, fy + 10, owner=1)
     g.selected = [am]
     key(g, pygame.K_r)
-    check('G6', g.order_mode == 'amove', 'R — режим «атака с ходу»')
+    check('G6', g.order_mode == 'amove', 'R - the "attack-move" mode')
     g.order_click(g.w2s(fx + 4 * TILE, fy))
     run(g, 20, lambda: not vic.alive)
-    check('G6', not vic.alive, 'атака с ходу: убил врага по пути')
+    check('G6', not vic.alive, 'attack-move: killed an enemy on the way')
     run(g, 15, lambda: am.mission is None and am.state == 'idle')
-    check('G6', math.hypot(am.x - (fx + 4 * TILE), am.y - fy) < 2 * TILE, 'атака с ходу: дошёл до точки')
-    # патруль
+    check('G6', math.hypot(am.x - (fx + 4 * TILE), am.y - fy) < 2 * TILE, 'attack-move: reached the point')
+    # patrol
     pt = spawn(g, 'scout', fx, fy + 6 * TILE)
     g.selected = [pt]
     key(g, pygame.K_q)
@@ -564,27 +564,27 @@ def main():
     g.order_click(g.w2s(fx + 5 * TILE, fy + 6 * TILE))
     MODS[0] = 0
     g.order_click(g.w2s(fx + 5 * TILE, fy + 9 * TILE))
-    check('G6', pt.mission and pt.mission[0] == 'patrol' and len(pt.mission[1]) == 3, 'патруль по 2 точкам + старт')
+    check('G6', pt.mission and pt.mission[0] == 'patrol' and len(pt.mission[1]) == 3, 'patrol over 2 points + start')
     seen = set()
     t = 0
     while t < 30:
         run(g, 0.2)
         t += 0.2
         seen.add(pt.mission[2])
-    check('G6', seen == {0, 1, 2}, f'патруль ходит по кругу (точки {sorted(seen)})')
-    # охрана и следование
+    check('G6', seen == {0, 1, 2}, f'the patrol goes in a circle (points {sorted(seen)})')
+    # guard and follow
     vip = spawn(g, 'villager', fx - 3 * TILE, fy - 3 * TILE)
     gd = spawn(g, 'militia', fx - 6 * TILE, fy - 3 * TILE)
     g.selected = [gd]
     key(g, pygame.K_w)
     g.order_click(screen_of(g, vip), target=vip)
-    check('G6', gd.mission and gd.mission[0] == 'guard', 'W — охранять жителя')
+    check('G6', gd.mission and gd.mission[0] == 'guard', 'W - guard a villager')
     run(g, 4)
-    check('G6', math.hypot(gd.x - vip.x, gd.y - vip.y) < 3 * TILE, 'охрана держится рядом')
+    check('G6', math.hypot(gd.x - vip.x, gd.y - vip.y) < 3 * TILE, 'the guard stays close')
     raider = spawn(g, 'militia', vip.x + 2 * TILE, vip.y, owner=1)
     raider.stance = 'no_attack'
     run(g, 2)
-    check('G6', gd.state == 'attack' and gd.target is raider, 'охрана бьёт врага у охраняемого')
+    check('G6', gd.state == 'attack' and gd.target is raider, 'the guard hits an enemy near the guarded one')
     raider.alive = False
     fl = spawn(g, 'militia', fx - 6 * TILE, fy + 3 * TILE)
     g.selected = [fl]
@@ -592,12 +592,12 @@ def main():
     g.order_click(screen_of(g, vip), target=vip)
     vip.cmd_move(vip.x + 6 * TILE, vip.y + 2 * TILE)
     run(g, 14)
-    check('G6', math.hypot(fl.x - vip.x, fl.y - vip.y) < 3 * TILE, 'E — следует за жителем')
-    # атака по земле
+    check('G6', math.hypot(fl.x - vip.x, fl.y - vip.y) < 3 * TILE, 'E - follows a villager')
+    # attack ground
     mg = spawn(g, 'mangonel', fx - 3 * TILE, fy + 8 * TILE)
     g.selected = [mg]
     bts = {b['key']: b['act'] for b in g.get_buttons()}
-    check('G7', bts.get('T') == ('omode', 'aground'), 'T — «атака по земле» у мангонели')
+    check('G7', bts.get('T') == ('omode', 'aground'), 'T - "attack ground" for a mangonel')
     key(g, pygame.K_t)
     g.order_click(g.w2s(fx + 3 * TILE, fy + 8 * TILE))
     n0 = len(w.projectiles)
@@ -611,9 +611,9 @@ def main():
     run(g, 6)
     Projectile.__init__ = orig
     check('G7', mg.state == 'aground' and any(s.point and s.target is None for s in shots),
-          f'мангонель бьёт по земле (снарядов {len(shots)}, было {n0})')
+          f'the mangonel hits the ground (projectiles {len(shots)}, was {n0})')
     mg.alive = False
-    # расталкивание своих
+    # pushing apart own units
     stand = spawn(g, 'militia', fx + 2 * TILE, fy - 9 * TILE)
     walker = spawn(g, 'militia', fx - 2 * TILE, fy - 9 * TILE)
     walker.cmd_move(fx + 6 * TILE, fy - 9 * TILE)
@@ -621,29 +621,29 @@ def main():
     ok = run(g, 12, lambda: walker.state == 'idle')
     moved = math.hypot(stand.x - s0[0], stand.y - s0[1])
     check('G9', ok and abs(walker.y - (fy - 9 * TILE)) < 8 and moved > 3,
-          f'идущий проходит, стоящий свой уступает дорогу (отошёл на {moved:.0f} px)')
+          f'a walking one passes, a standing own one gives way (stepped aside by {moved:.0f} px)')
     for u in list(w.units):
         if u.owner == 0 and u.kind != 'villager':
             u.alive = False
     w.units = [u for u in w.units if u.alive]
 
-    print('I · точки сбора')
+    print('I - rally points')
     tower = w.place_building('tower', 0, ftx + 3, fty - 5, complete=True)
     g.selected = [brk]
     rcmd(g, *tower.center(), tower)
     nu = w.spawn(brk, 'militia')
-    check('I2', nu.state == 'garrison' and nu.target is tower, 'сбор на башню → новые в гарнизон')
+    check('I2', nu.state == 'garrison' and nu.target is tower, 'rally on a tower -> new ones into the garrison')
     g.selected = [tc]
     rcmd(g, *tc.center(), tc)
     nv = w.spawn(tc, 'villager')
-    check('I2', nv.state == 'garrison', 'сбор ЦГ на себя → житель в гарнизон')
+    check('I2', nv.state == 'garrison', 'a center rallied on itself -> a villager into the garrison')
     g.selected = [brk]
     rcmd(g, fx, fy)
     rcmd(g, fx + 3 * TILE, fy, mod=pygame.KMOD_SHIFT)
     nu2 = w.spawn(brk, 'militia')
-    check('I3', brk.rally_pts and nu2.orders and nu2.orders[-1][0] == 'rally', 'Shift+ПКМ — вторая точка сбора')
+    check('I3', brk.rally_pts and nu2.orders and nu2.orders[-1][0] == 'rally', 'Shift+right click - a second rally point')
 
-    print('J · закладка')
+    print('J - placement')
     b1v, b2v = spawn(g, 'villager', fx, fy), spawn(g, 'villager', fx, fy)
     for u in (b1v, b2v):
         u.x, u.y = fx, fy
@@ -662,32 +662,32 @@ def main():
     MODS[0] = 0
     g.placing = None
     check('J2', len(placed) == 2 and all(u.target is placed[0] for u in (b1v, b2v)),
-          'Shift-закладка: сначала первый дом')
+          'Shift placement: the first house first')
     run(g, 60, lambda: placed[1].complete)
-    check('J2', placed[0].complete and placed[1].complete, 'потом второй — оба построены по порядку')
+    check('J2', placed[0].complete and placed[1].complete, 'then the second - both built in order')
     g.placing = 'gate'
     h0 = g.gate_horiz
     MODS[0] = pygame.KMOD_CTRL
     ev(g, pygame.MOUSEWHEEL, x=0, y=1, flipped=False, precise_x=0.0, precise_y=1.0, touch=False)
     MODS[0] = 0
-    check('J5', g.gate_horiz != h0, 'Ctrl+колесо поворачивает ворота')
+    check('J5', g.gate_horiz != h0, 'Ctrl+wheel rotates the gate')
     g.placing = None
 
-    print('E · сигнал')
+    print('E - signal')
     mm = g.mm_rect()
     w.events.clear()
     lclick(g, mm.center, pygame.KMOD_ALT)
-    check('E3', g.flares and any(e[0] == 'flare' for e in w.events), 'Alt+ЛКМ по мини-карте — сигнал + звук')
+    check('E3', g.flares and any(e[0] == 'flare' for e in w.events), 'Alt+left click on the minimap - a signal + sound')
     g.draw()
 
-    print('L · курсор')
+    print('L - cursor')
     cursor_checks(g, w, tc, vils, fx, fy)
 
-    print('D · масштаб колесом')
+    print('D - wheel zoom')
     zoom_checks(g, w, fx, fy)
 
     print()
-    print(f'ИТОГ: ok {len(OKS)}, FAIL {len(FAILS)}' + (f' — {sorted(set(FAILS))}' if FAILS else ''))
+    print(f'RESULT: ok {len(OKS)}, FAIL {len(FAILS)}' + (f' — {sorted(set(FAILS))}' if FAILS else ''))
     sys.exit(1 if FAILS else 0)
 
 

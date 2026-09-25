@@ -1,8 +1,8 @@
-"""Технологии университета из модулей обороны.
+"""University techs from the defense modules.
 
-Университет может регистрировать другой модуль (или заглушка zz_university_stub.py, если его нет):
-at_university() сразу добавляет технологии, если здание уже есть, и в любом случае запоминает их —
-zz_university_stub.py (грузится последним) привязывает запомненное ещё раз (add_techs не дублирует).
+Another module (or the zz_university_stub.py stub if there is none) may register the University:
+at_university() adds the techs at once if the building already exists, and in any case remembers them -
+zz_university_stub.py (loaded last) attaches the remembered ones once more (add_techs does not duplicate).
 """
 from ..data import BUILDINGS
 

@@ -1,29 +1,29 @@
-"""Перекраска одежды тел людей при сборке спрайтов (docs/research/06_units_recognition.md, R1/R2).
+"""Recoloring the clothing of human bodies when building sprites (docs/research/06_units_recognition.md, R1/R2).
 
-У всех людей 0 A.D. / Millennium A.D. тела — меши skeletal/new/* с одним скелетом. Текстуры одежды у них
-«лоскутные» (одни и те же куски UV покрывают грудь, спину и бока), поэтому узор по UV не нарисовать. Вместо этого
-тело делится на две детали:
-  • исходная — голова/шея/кисти/стопы и всё, что стиль не трогает, с исходной текстурой после R2;
-  • одежда — треугольники торса, подола, рук, ног (по весам скина: кость с наибольшим весом) с новой
-    развёрткой: u — угол вокруг оси тела (0.5 — середина груди, 0/1 — середина спины), v — высота в позе
-    привязки, по полосам: [0, .5) — торс и подол (z 1.0…3.9), [.5, .75) — руки, [.75, 1) — ноги.
-    Текстура — узор стиля (цвет игрока — альфа 0, как у 0 A.D.), AO и нормали — от исходного меша.
+All 0 A.D. / Millennium A.D. humans have bodies - skeletal/new/* meshes with one skeleton. Their clothing textures are
+"patchwork" (the same pieces of UV cover the chest, back and sides), so a pattern cannot be drawn by UV. Instead
+the body is split into two parts:
+  * the original - head/neck/hands/feet and everything the style does not touch, with the original texture after R2;
+  * the clothing - the triangles of the torso, hem, arms, legs (by the skin weights: the bone with the highest weight) with a new
+    unwrap: u - the angle around the body's axis (0.5 - the middle of the chest, 0/1 - the middle of the back), v - the height in the
+    bind pose, in bands: [0, .5) - the torso and hem (z 1.0...3.9), [.5, .75) - arms, [.75, 1) - legs.
+    The texture is the style's pattern (the player color - alpha 0, as in 0 A.D.), AO and normals - from the original mesh.
 
-  стиль        торс и подол                          руки            ноги
-  'tabard'     цвет игрока, белая полоса спереди/сзади  лён           нейтральные
-  'surcoat'    цвет игрока, белая кайма                 как было      нейтральные
-  'white'      белый, крест цвета игрока                лён           нейтральные
-  'quarter'    шахматка 2×2 (цвет игрока / белый)       лён           нейтральные
-  'bands'      горизонтальные полосы                    цвет игрока   полосатые
-  'apron'      льняная рубаха, фартук цвета игрока      лён           цвет игрока
-  'dress'      светлое платье, фартук цвета игрока      лён           (платье)
-  'stole'      светлая ряса, стола цвета игрока         ряса          (ряса)
-  'bare'       голый торс                               кожа          цвет игрока
-  'vest'       кожаный жилет                            цвет игрока   цвет игрока
-  'gambeson'   белая стёганка                           цвет игрока   цвет игрока
-  'robe'       белый халат, кушак цвета игрока          белый         белый (янычар)
-  'plain'      только R2
-Во всех стилях R2: насыщенная красная и бирюзовая ткань исходной текстуры вне маски игрока → лён.
+  style        torso and hem                          arms            legs
+  'tabard'     player color, a white stripe front/back  linen         neutral
+  'surcoat'    player color, a white trim               as it was     neutral
+  'white'      white, a cross in player color           linen         neutral
+  'quarter'    a 2x2 checkerboard (player color / white) linen        neutral
+  'bands'      horizontal stripes                       player color  striped
+  'apron'      a linen shirt, an apron in player color  linen         player color
+  'dress'      a light dress, an apron in player color  linen         (a dress)
+  'stole'      a light robe, a stole in player color    robe          (a robe)
+  'bare'       a bare torso                             skin          player color
+  'vest'       a leather vest                           player color  player color
+  'gambeson'   a white gambeson                         player color  player color
+  'robe'       a white robe, a sash in player color     white         white (a janissary)
+  'plain'      only R2
+In all styles R2: the saturated red and teal cloth of the original texture outside the player mask -> linen.
 """
 import math
 
@@ -32,7 +32,7 @@ import numpy as np
 from . import assets, skin
 
 LINEN = (226, 220, 204)
-PLAYER = (205, 205, 210)          # подложка под цвет игрока (перекраска берёт яркость)
+PLAYER = (205, 205, 210)          # a backing under the player color (the recoloring takes the brightness)
 SKIN = (212, 164, 128)
 PANTS = (110, 94, 76)
 ROBE = (206, 194, 166)
@@ -44,9 +44,9 @@ REG = {'spine': 'torso', 'spine1': 'torso', 'chest': 'torso', 'neck': 'neck', 'h
        'forearm_L': 'arm', 'forearm_R': 'arm', 'hand_L': 'hand', 'hand_R': 'hand',
        'thigh_L': 'thigh', 'thigh_R': 'thigh', 'knee_L': 'leg', 'knee_R': 'leg', 'leg_L': 'leg', 'leg_R': 'leg',
        'foot_L': 'foot', 'foot_R': 'foot'}
-KNEE = 1.35                       # ниже — ноги (штаны), выше — подол
+KNEE = 1.35                       # below - legs (trousers), above - the hem
 
-# стиль → (узор торса, руки, ноги); руки/ноги: цвет | 'player' | None (исходная текстура) | 'bands'
+# style -> (the torso pattern, arms, legs); arms/legs: a color | 'player' | None (the original texture) | 'bands'
 STYLES = {
     'tabard': ('tabard', LINEN, PANTS),
     'surcoat': ('surcoat', None, PANTS),
@@ -62,7 +62,7 @@ STYLES = {
     'robe': ('robe', WHITE, WHITE),
     'plain': (None, None, None),
 }
-TW, TH = 128, 256                 # текстура узора
+TW, TH = 128, 256                 # the pattern texture
 V_TORSO, V_ARM, V_LEG = (0.0, 0.5), (0.5, 0.75), (0.75, 1.0)
 Z_TORSO, Z_ARM, Z_LEG = (1.0, 3.9), (2.0, 3.7), (0.0, 1.6)
 
@@ -71,13 +71,13 @@ def applies(mesh, material):
     return bool(mesh) and mesh.startswith('skeletal/new/') and 'player' in (material or '')
 
 
-# ------------------------------------------------------------------ классы треугольников
+# ------------------------------------------------------------------ triangle classes
 _CLS = {}
 
 
 def classes(mesh):
-    """Для меша: (класс треугольника (T,) — 0 прочее, 1 торс/подол, 2 руки, 3 ноги; u, v исходной позы (N,)
-    по вершинам треугольников, в долях своей полосы)."""
+    """For a mesh: (the triangle class (T,) - 0 other, 1 torso/hem, 2 arms, 3 legs; u, v of the original pose (N,)
+    per triangle vertices, in shares of its own band)."""
     if mesh in _CLS:
         return _CLS[mesh]
     sm = skin.skinned(mesh)
@@ -102,10 +102,10 @@ def classes(mesh):
             cls[t] = 2
         elif top == 'leg' or (top == 'thigh' and zc <= KNEE):
             cls[t] = 3
-    # угол вокруг оси тела: 0.5 — перед (−Y), 0/1 — спина
+    # the angle around the body's axis: 0.5 - front (-Y), 0/1 - back
     th = np.arctan2(P[:, 0], -P[:, 1]) / (2 * math.pi) + 0.5
     u = th.copy()
-    # треугольник через шов на спине: подтянуть малые u к большим (текстура повторяется по u)
+    # a triangle across the seam on the back: pull small u up to large ones (the texture repeats along u)
     uu = u.reshape(-1, 3)
     wrap = (uu.max(1) - uu.min(1)) > 0.5
     uu[wrap] = np.where(uu[wrap] < 0.5, uu[wrap] + 1.0, uu[wrap])
@@ -117,12 +117,12 @@ def classes(mesh):
 
 def _band(z, zr, vr):
     f = np.clip((z - zr[0]) / (zr[1] - zr[0]), 0.0, 1.0)
-    # v растёт вниз по текстуре: верх тела — меньшее v
+    # v grows downward along the texture: the top of the body - the smaller v
     return vr[0] + (1.0 - f) * (vr[1] - vr[0]) * 0.999 + 0.0005
 
 
 def split(mesh, style, geom):
-    """Геометрия тела в позе → [(geom, роль)]: роль 'orig' (исходная текстура) или 'cloth' (узор стиля)."""
+    """The body geometry in a pose -> [(geom, role)]: the role 'orig' (the original texture) or 'cloth' (the style pattern)."""
     st = STYLES.get(style)
     c = classes(mesh)
     if st is None or c is None or st[0] is None:
@@ -146,16 +146,16 @@ def split(mesh, style, geom):
     zz = z[k]
     v = np.where(vc == 1, _band(zz, Z_TORSO, V_TORSO), np.where(vc == 2, _band(zz, Z_ARM, V_ARM),
                                                                  _band(zz, Z_LEG, V_LEG)))
-    uv = np.stack([u[k], 1.0 - v], 1).astype(np.float32)     # как у COLLADA: v снизу вверх
+    uv = np.stack([u[k], 1.0 - v], 1).astype(np.float32)     # as in COLLADA: v from bottom to top
     g = {kk: (vv[k] if kk != 'props' else vv) for kk, vv in geom.items()}
     g['uv0'] = uv
     out.append((g, 'cloth'))
     return out
 
 
-# ------------------------------------------------------------------ текстуры
+# ------------------------------------------------------------------ textures
 def orig_key(tex):
-    """R2 для исходной текстуры тела."""
+    """R2 for the body's original texture."""
     k = f'@r2|{tex}'
     if k not in assets.GENERATED:
         def gen(tex=tex):
@@ -192,7 +192,7 @@ def _hsv(rgb):
 
 
 def neutralize(rgb, keep):
-    """R2: насыщенный красный (±15° от 0) и бирюза (160–205°) вне keep → лён/серый со складками."""
+    """R2: saturated red (+-15 deg from 0) and teal (160-205 deg) outside keep -> linen/grey with folds."""
     h, s, v = _hsv(rgb / 255.0)
     red = ((h < 14) | (h > 335)) & (s > 0.42) & (v > 0.18)
     teal = (h > 160) & (h < 205) & (s > 0.25)
@@ -208,15 +208,15 @@ def neutralize(rgb, keep):
 
 
 def pattern(style):
-    """Текстура узора стиля (TH×TW RGBA): u — угол (0.5 — перед), v — полосы торс/руки/ноги."""
+    """The style pattern's texture (TH x TW RGBA): u - the angle (0.5 - front), v - the torso/arms/legs bands."""
     torso, arms, legs = STYLES[style]
     img = np.zeros((TH, TW, 4), np.float32)
     img[..., 3] = 255
     uu = (np.arange(TW) + 0.5) / TW
     vv = (np.arange(TH) + 0.5) / TH
     U, V = np.meshgrid(uu, vv)
-    ang = (U - 0.5) * 2 * math.pi                      # 0 — перед, ±π — спина
-    fr = np.cos(ang)                                   # 1 — перед, −1 — спина
+    ang = (U - 0.5) * 2 * math.pi                      # 0 - front, +-pi - back
+    fr = np.cos(ang)                                   # 1 - front, -1 - back
     side = np.abs(np.sin(ang))
     player = np.zeros((TH, TW), bool)
 
@@ -234,14 +234,14 @@ def pattern(style):
     bA = (V >= V_ARM[0]) & (V < V_ARM[1])
     bL = V >= V_LEG[0]
     z = np.where(bT, zof(V_TORSO, Z_TORSO), np.where(bA, zof(V_ARM, Z_ARM), zof(V_LEG, Z_LEG)))
-    stripe = side < 0.2                                 # вертикальная полоса по середине груди и спины
+    stripe = side < 0.2                                 # a vertical stripe along the middle of the chest and back
     if torso == 'tabard':
         fill(bT, PLAYER, True)
         fill(bT & stripe, LINEN)
-        fill(bT & (z < 1.55), LINEN)                    # белый подол
+        fill(bT & (z < 1.55), LINEN)                    # a white hem
     elif torso == 'surcoat':
         fill(bT, PLAYER, True)
-        fill(bT & (z > 2.3) & (z < 2.45), LINEN)        # белый пояс
+        fill(bT & (z > 2.3) & (z < 2.45), LINEN)        # a white belt
         fill(bT & (z < 1.5), LINEN)
     elif torso == 'white':
         fill(bT, LINEN)
@@ -257,18 +257,18 @@ def pattern(style):
     elif torso == 'apron':
         fill(bT, LINEN)
         fill(bT & (fr > 0.35) & (z < 2.4), PLAYER, True)
-        fill(bT & (z > 2.3) & (z < 2.42), LEATHER)       # пояс
+        fill(bT & (z > 2.3) & (z < 2.42), LEATHER)       # belt
     elif torso == 'dress':
         fill(bT, LINEN)
         fill(bT & (fr > 0.3) & (z < 2.45), PLAYER, True)
-        fill(bT & (z > 2.95) & (z < 3.3), PLAYER, True)  # корсаж
+        fill(bT & (z > 2.95) & (z < 3.3), PLAYER, True)  # bodice
     elif torso == 'stole':
         fill(bT, ROBE)
         fill(bT & stripe & (z > 1.1), PLAYER, True)
-        fill(bT & (z > 3.25), PLAYER, True)             # оплечье
+        fill(bT & (z > 3.25), PLAYER, True)             # shoulder piece
     elif torso == 'bare':
         fill(bT, SKIN)
-        fill(bT & (z < 2.35), PLAYER, True)             # килт/штаны
+        fill(bT & (z < 2.35), PLAYER, True)             # kilt/trousers
         fill(bT & (z >= 2.25) & (z < 2.4), LEATHER)
     elif torso == 'vest':
         fill(bT, LEATHER)
@@ -278,7 +278,7 @@ def pattern(style):
         fill(bT & (z > 2.3) & (z < 2.42), LEATHER)
     elif torso == 'robe':
         fill(bT, WHITE)
-        fill(bT & (z > 2.2) & (z < 2.5), PLAYER, True)  # кушак
+        fill(bT & (z > 2.2) & (z < 2.5), PLAYER, True)  # sash
     for band, spec, zr in ((bA, arms, Z_ARM), (bL, legs, Z_LEG)):
         if spec is None:
             continue
@@ -293,7 +293,7 @@ def pattern(style):
             fill(band & (fr > 0.3), PLAYER, True)
         else:
             fill(band, spec)
-    # складки ткани: вертикальные полосы и шум — чтобы не было «пластика»
+    # cloth folds: vertical stripes and noise - so it is not "plastic"
     rs = np.random.RandomState(11)
     folds = 1.0 + 0.07 * np.sin(U * 2 * math.pi * 9 + rs.rand() * 6) + (rs.rand(TH, TW) - 0.5) * 0.06
     img[..., :3] *= folds[..., None]

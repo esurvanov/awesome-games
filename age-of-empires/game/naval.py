@@ -1,29 +1,30 @@
-"""Вода: типы карт, морская проходимость и поиск пути, корабли, транспорт, рыба, доки.
+"""Water: map types, naval passability and pathfinding, ships, transport, fish, docks.
 
-Морской домен проходимости отдельный от сухопутного (World.passable / World.find_path не трогаются):
-  water_ok(w, x, y)        — клетка воды, свободная (или занятая доком — в док корабли заходят);
-  find_path_water(...)     — A* только по воде (как World.find_path, но свой домен);
-  nearest_water_tile(...)  — ближайшая водная клетка (опционально — в той же акватории);
-  comps(w)                 — компоненты связности суши и воды (карта статична, считается один раз);
-  shores(w)                — пары (клетка суши, соседняя клетка воды) с номерами компонент — берег.
-Корабли — класс Ship(Unit): тот же набор приказов, но движение, поиск цели, рыбалка и выгрузка — по воде.
-Сухопутные юниты в воду не заходят никогда; через воду их возит транспорт (order_board / Ship.cmd_unload).
-Типы карт: MAP_TYPES — 'land' (материк с озёрами), 'coast' (море в центре), 'islands' (острова команд).
+The naval passability domain is separate from the land one (World.passable / World.find_path are not touched):
+  water_ok(w, x, y)        - a water tile, free (or occupied by a dock - ships enter the dock);
+  find_path_water(...)     - A* over water only (like World.find_path, but its own domain);
+  nearest_water_tile(...)  - the nearest water tile (optionally - in the same body of water);
+  comps(w)                 - connected components of land and water (the map is static, computed once);
+  shores(w)                - pairs (a land tile, a neighboring water tile) with component numbers - the shore.
+Ships are the class Ship(Unit): the same set of orders, but movement, target search, fishing and unloading are over water.
+Land units never enter water; a transport carries them across water (order_board / Ship.cmd_unload).
+Map types: MAP_TYPES - 'land' (a continent with lakes), 'coast' (a sea in the center), 'islands' (team islands).
 """
 import heapq
 import math
 import random
 
+from . import i18n
 from .data import TILE, DIRS, BUILDINGS, NODE_DEFS
 from .world import Unit, Building, Node, Projectile
 from . import maps
 
-MAP_TYPES = maps.ALL           # список карт — game/maps.py (новые по правилам DE + старые land/coast)
+MAP_TYPES = maps.ALL           # the map list - game/maps.py (new ones by DE rules + the old land/coast)
 MAP_NAMES = maps.NAMES
 FISH = tuple(k for k, d in NODE_DEFS.items() if d.get('water'))
 
 
-# ============================================================ домен воды
+# ============================================================ water domain
 def water_ok(w, x, y):
     if not (0 <= x < w.W and 0 <= y < w.H) or w.terrain[y][x] != 1:
         return False
@@ -32,7 +33,7 @@ def water_ok(w, x, y):
 
 
 def water_free(w, x, y):
-    """Вода без всего (для появления и высадки кораблей)."""
+    """Water without anything (for ships to appear and land)."""
     return 0 <= x < w.W and 0 <= y < w.H and w.terrain[y][x] == 1 and w.occ[y][x] is None
 
 
@@ -41,7 +42,7 @@ def water_px(w, x, y):
 
 
 def comps(w):
-    """(lc, wc, wsize): номера компонент суши / воды для каждой клетки (-1 — не тот тип), размеры акваторий."""
+    """(lc, wc, wsize): land / water component numbers for each tile (-1 - the wrong type), sizes of the bodies of water."""
     c = getattr(w, '_naval_comps', None)
     if c is None:
         c = w._naval_comps = _compute_comps(w)
@@ -101,7 +102,7 @@ def same_land(w, a, b):
 
 
 def shores(w):
-    """Список (лx, лy, вx, вy, компонента суши, компонента воды): суша, соседняя (по стороне) с водой."""
+    """A list of (lx, ly, wx, wy, land component, water component): land adjacent (by a side) to water."""
     s = getattr(w, '_naval_shores', None)
     if s is None:
         lc, wc, _ = comps(w)
@@ -122,7 +123,7 @@ def shores(w):
 def ship_comp(w, s):
     tx, ty = s.tile()
     c = water_comp(w, tx, ty)
-    if c < 0:   # на краю дока / берега — берём соседнюю воду
+    if c < 0:   # at the edge of a dock / shore - take the neighboring water
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)):
             c = water_comp(w, tx + dx, ty + dy)
             if c >= 0:
@@ -152,8 +153,8 @@ def nearest_water_tile(w, tx, ty, maxr=16, comp=None, free=False):
 
 
 def find_path_water(w, start, goals, hx, hy, limit=4000):
-    """A* по воде (8 направлений, без срезания углов о сушу). Если цели не достичь —
-    путь к ближайшей по эвристике достигнутой клетке (как World.find_path)."""
+    """A* over water (8 directions, no corner cutting across land). If the target cannot be reached -
+    a path to the reached tile nearest by the heuristic (like World.find_path)."""
     W, H = w.W, w.H
     sx, sy = start
     s = sy * W + sx
@@ -186,7 +187,7 @@ def find_path_water(w, start, goals, hx, hy, limit=4000):
         h = max(ex, ey) + 0.414 * min(ex, ey)
         if h < besth:
             besth, best = h, c
-        # прямые соседи считаем один раз; диагональ — только если открыты обе прилегающие прямые
+        # straight neighbors are counted once; a diagonal - only if both adjacent straights are open
         e, wv, so, no = ok(x + 1, y), ok(x - 1, y), ok(x, y + 1), ok(x, y - 1)
         orth = {(1, 0): e, (-1, 0): wv, (0, 1): so, (0, -1): no}
         for ddx, ddy, cost in DIRS:
@@ -213,8 +214,8 @@ def find_path_water(w, start, goals, hx, hy, limit=4000):
 
 
 def path_to_entity_water(w, u, e, rng=None):
-    """Путь корабля к сущности: цели — клетки своей акватории, откуда e в пределах rng клеток
-    (по умолчанию — вплотную). Если таких нет — пустой путь (цель недосягаема с воды)."""
+    """A ship's path to an entity: the goals are tiles of its own body of water from which e is within rng tiles
+    (by default - point blank). If there are none - an empty path (the target is unreachable from the water)."""
     comp = ship_comp(w, u)
     if isinstance(e, Unit):
         cx, cy = e.x / TILE, e.y / TILE
@@ -238,7 +239,7 @@ def path_to_entity_water(w, u, e, rng=None):
 
 
 def can_reach(w, s, t, extra=1.0):
-    """Может ли корабль s подойти на дистанцию атаки к t: есть ли вода его акватории в пределах досягаемости."""
+    """Whether ship s can approach to attack distance of t: is there water of its body of water within reach."""
     comp = ship_comp(w, s)
     r = (s.rng_tiles() if s.d['rng'] > 0 else 0.6) + extra
     if isinstance(t, Unit):
@@ -257,9 +258,9 @@ def can_reach(w, s, t, extra=1.0):
     return False
 
 
-# ============================================================ здания на воде
+# ============================================================ buildings on water
 def can_place_water(w, kind, tx, ty, pid, check_explored=True):
-    """Док: все клетки — свободная вода, и хотя бы одна клетка по стороне от него — суша."""
+    """A dock: all tiles are free water, and at least one tile along a side of it is land."""
     s = BUILDINGS[kind]['size']
     for y in range(ty, ty + s):
         for x in range(tx, tx + s):
@@ -283,7 +284,7 @@ def can_place_water(w, kind, tx, ty, pid, check_explored=True):
 
 
 def dock_land(w, tx, ty, s):
-    """Сторона дока (dx, dy), где больше всего суши вдоль основания: туда смотрит «дом» спрайта."""
+    """The side of the dock (dx, dy) with the most land along the base: the sprite's "house" faces there."""
     best, bn = (-1, 0), -1
     for d, cells in (((0, -1), [(x, ty - 1) for x in range(tx, tx + s)]),
                      ((-1, 0), [(tx - 1, y) for y in range(ty, ty + s)]),
@@ -323,7 +324,7 @@ def spawn_ship(w, b, kind):
     for y in range(b.ty - 1, b.ty + b.h + 1):
         for x in range(b.tx - 1, b.tx + b.w + 1):
             if not (b.tx <= x < b.tx + b.w and b.ty <= y < b.ty + b.h) and water_free(w, x, y):
-                # к открытой воде (побольше акватория), затем «снизу», как у зданий на суше
+                # toward open water (a larger body of water), then "from below", like buildings on land
                 cand.append((-comps(w)[2].get(water_comp(w, x, y), 0), -(y - b.ty) * 2 - (x - b.tx), x, y))
     if cand:
         cand.sort()
@@ -346,7 +347,7 @@ def spawn_ship(w, b, kind):
     return s
 
 
-# ============================================================ поиск рыбы
+# ============================================================ fish search
 def fish_reachable(w, n, comp):
     for dy in (-1, 0, 1):
         for dx in (-1, 0, 1):
@@ -368,22 +369,22 @@ def find_fish(w, s, x, y, radius):
     return best
 
 
-# ============================================================ корабль
+# ============================================================ ship
 class Ship(Unit):
     naval = True
 
     def __init__(self, kind, owner, x, y, world):
         super().__init__(kind, owner, x, y, world)
         self.w = world
-        self.cargo = []             # пассажиры транспорта (вне World.units, alive=False, aboard=корабль)
-        self.to_load = []           # кого ждём на посадку
+        self.cargo = []             # transport passengers (outside World.units, alive=False, aboard=the ship)
+        self.to_load = []           # whom we wait for to board
         self.load_t = 0.0
         self.unload_pt = None
         self.landing = None
-        self.ignore = {}            # id цели → до какого времени её не трогать (недосягаема с воды)
-        self.prog = (0.0, 1e18)     # замер продвижения к цели: (время, дистанция)
+        self.ignore = {}            # id of a target -> until when not to touch it (unreachable from the water)
+        self.prog = (0.0, 1e18)     # progress-toward-target measurement: (time, distance)
 
-    # ---- характеристики
+    # ---- stats
     def capacity(self):
         return self.p.stat('carry', self.kind, self.d.get('carry', 15))
 
@@ -393,14 +394,14 @@ class Ship(Unit):
     def release(self):
         Unit.release(self)
         if not self.alive and self.cargo:
-            # транспорт затонул — пассажиры гибнут
+            # the transport sank - the passengers die
             for c in self.cargo:
                 c.aboard = None
                 c.alive = False
                 self.w.emit('death', self.x, self.y, c.owner, c.kind)
             self.cargo = []
 
-    # ---- приказы
+    # ---- orders
     def cmd_gather(self, t):
         if not self.d.get('fisher') or not isinstance(t, Node) or t.kind not in FISH:
             self.cmd_move(*t.center())
@@ -415,7 +416,7 @@ class Ship(Unit):
         pass
 
     def cmd_unload(self, x, y):
-        """Плыть к берегу у точки (x, y) и высадить пассажиров."""
+        """Sail to the shore near the point (x, y) and unload the passengers."""
         self.release()
         self.state = 'unload'
         self.target = None
@@ -430,7 +431,7 @@ class Ship(Unit):
         Unit.cmd_attack(self, t)
         self.prog = (self.w.time, 1e18)
 
-    # ---- движение (только вода)
+    # ---- movement (water only)
     def step_toward(self, w, px, py, dt):
         dx, dy = px - self.x, py - self.y
         d = math.hypot(dx, dy)
@@ -489,7 +490,7 @@ class Ship(Unit):
             self.step_toward(w, cx, cy, dt)
         return False
 
-    # ---- обновление
+    # ---- update
     def update(self, w, dt):
         if self.to_load:
             self.load_tick(w)
@@ -557,7 +558,7 @@ class Ship(Unit):
                 self.state = 'idle'
             return
         d = self.dist_to(t)
-        # продвигаемся ли к цели? раз в 3 с: если нет и цель вне досягаемости с воды — бросаем
+        # are we making progress toward the target? every 3 s: if not and the target is out of reach from the water - give up
         pt, pd = self.prog
         if w.time - pt > 3.0:
             if d > self.rng_px() and d > pd - 6 and not (t.naval if isinstance(t, Unit) else False) \
@@ -569,7 +570,7 @@ class Ship(Unit):
         rng = 6 if blast else self.rng_px()
         minr = self.d.get('minrng', 0) * TILE
         if minr and d < minr:
-            # слишком близко для пушек — отходим
+            # too close for cannons - back off
             ang = math.atan2(self.y - t.center()[1], self.x - t.center()[0])
             self.step_toward(w, self.x + math.cos(ang) * TILE, self.y + math.sin(ang) * TILE, dt)
             return
@@ -596,7 +597,7 @@ class Ship(Unit):
         w.emit('arrow', self.x, self.y, self.owner, self.kind)
 
     def explode(self, w):
-        """Подрыв: урон всем не-союзникам в радиусе (корабли, юниты, здания), сам тонет."""
+        """Detonation: damage to all non-allies in the radius (ships, units, buildings), the ship itself sinks."""
         R = self.d['blast'] * TILE
         for o in list(w.units):
             if o is self or not o.alive or w.allied(o.owner, self.owner):
@@ -610,7 +611,7 @@ class Ship(Unit):
         w.decals.append(['blast', self.x, self.y, self.owner, w.time])
         w.damage(self, self, self.hp + 1)
 
-    # ---- рыбалка
+    # ---- fishing
     def gather_target_valid(self, t):
         return t is not None and t.alive and isinstance(t, Node) and t.kind in FISH
 
@@ -683,7 +684,7 @@ class Ship(Unit):
         self.state = 'idle'
         self.target = None
 
-    # ---- транспорт
+    # ---- transport
     def load_tick(self, w):
         cap = self.cargo_cap()
         keep = []
@@ -698,7 +699,7 @@ class Ship(Unit):
 
     def board(self, w, u):
         u.stop()
-        u.alive = False             # вне мира, пока плывёт (из World.units уберёт общий фильтр)
+        u.alive = False             # outside the world while it sails (the general filter will remove it from World.units)
         u.aboard = self
         u.path = []
         self.cargo.append(u)
@@ -735,7 +736,7 @@ class Ship(Unit):
                     self.landing = None
 
     def unload(self, w, lx, ly):
-        """Высадить всех на свободную сушу рядом с (lx, ly) и отправить к точке приказа."""
+        """Unload everyone onto free land near (lx, ly) and send them to the order point."""
         comp = land_comp(w, lx, ly)
         spots = []
         for r in range(0, 5):
@@ -771,8 +772,8 @@ class Ship(Unit):
 
 
 def landing_spot(w, s, x, y):
-    """Где пристать для высадки у точки (x, y): (суша x, y, вода x, y) — берег акватории корабля,
-    ближайший к точке (и на том же острове, если точка на суше)."""
+    """Where to dock for unloading near the point (x, y): (land x, y, water x, y) - the shore of the ship's body of water
+    nearest to the point (and on the same island if the point is on land)."""
     comp = ship_comp(w, s)
     tx, ty = int(x // TILE), int(y // TILE)
     lc = land_comp(w, tx, ty)
@@ -787,7 +788,7 @@ def landing_spot(w, s, x, y):
 
 
 def order_board(w, units, ship):
-    """Посадка: транспорт идёт к берегу у отряда, отряд — к транспорту; кто подошёл — садится."""
+    """Boarding: the transport goes to the shore by the squad, the squad - to the transport; those who arrive board."""
     units = [u for u in units if not u.naval and u.alive and u.owner == ship.owner]
     room = ship.cargo_cap() - len(ship.cargo)
     if not units or room <= 0:
@@ -817,7 +818,7 @@ def order_board(w, units, ship):
     return True
 
 
-# ============================================================ столкновения кораблей
+# ============================================================ ship collisions
 def separate_ships(w):
     ships = [u for u in w.units if u.naval]
     if len(ships) < 2:
@@ -845,7 +846,7 @@ def separate_ships(w):
     for s, k in zip(ships, keys):
         nb = nbc[k]
         if nb is None:
-            continue                # рядом никого — толкаться не с кем
+            continue                # nobody nearby - nobody to jostle with
         px = py = 0.0
         for o in nb:
             if o is s:
@@ -870,10 +871,10 @@ def separate_ships(w):
                 s.x, s.y = nx, ny
 
 
-# ============================================================ генерация карты
+# ============================================================ map generation
 def gen_water(w, starts, slot_ang, R):
-    """Вырезать воду до расстановки ресурсов. coast — море в центре, одинаково далеко от всех;
-    islands — всё вода, у каждого игрока свой остров (союзники соединены перешейком)."""
+    """Carve out water before resources are placed. coast - a sea in the center, equally far from everyone;
+    islands - all water, each player has their own island (allies are joined by an isthmus)."""
     W, H = w.W, w.H
     mx, my = (W - 1) / 2, (H - 1) / 2
     n = len(starts)
@@ -888,7 +889,7 @@ def gen_water(w, starts, slot_ang, R):
                     0.7 * math.sin(n * 2 * a + ph[2])
                 if math.hypot(x - mx, y - my) < r + random.uniform(-0.4, 0.4):
                     T[y][x] = 1
-        # у каждого игрока — одинаковая бухта, сдвинутая вбок от направления на центр
+        # every player gets an identical bay, shifted sideways from the direction to the center
         off = random.choice((-1, 1)) * random.uniform(0.35, 0.6)
         for a in slot_ang:
             b = a + off / 3
@@ -901,11 +902,11 @@ def gen_water(w, starts, slot_ang, R):
         for y in range(H):
             for x in range(W):
                 T[y][x] = 1
-        # радиус острова — чтобы между чужими островами оставался пролив
+        # the island's radius - so that a strait remains between foreign islands
         D = min((math.hypot(starts[i][0] - starts[j][0], starts[i][1] - starts[j][1])
                  for i in range(n) for j in range(i + 1, n)
                  if w.players[i].team != w.players[j].team), default=60)
-        SH = 5                                  # остров чуть сдвинут от края к центру карты
+        SH = 5                                  # the island is shifted slightly from the edge toward the center of the map
         Ri = max(13.0, min(24.0, D / 2 - SH - 5))
         for pid, (sx0, sy0) in enumerate(starts):
             a0 = slot_ang[pid]
@@ -918,7 +919,7 @@ def gen_water(w, starts, slot_ang, R):
                     r = Ri + 1.5 * math.sin(3 * a + ph[0]) + 1.0 * math.sin(5 * a + ph[1])
                     if math.hypot(x - sx, y - sy) < r:
                         T[y][x] = 0
-        # перешейки между союзниками
+        # isthmuses between allies
         for i in range(n):
             for j in range(i + 1, n):
                 if w.players[i].team != w.players[j].team:
@@ -931,12 +932,12 @@ def gen_water(w, starts, slot_ang, R):
                         for x in range(int(cx) - 5, int(cx) + 6):
                             if 0 <= x < W and 0 <= y < H and math.hypot(x - cx, y - cy) < 4.5:
                                 T[y][x] = 0
-        # вода по краю карты (острова не упираются в край)
+        # water along the map edge (islands do not touch the edge)
         for y in range(H):
             for x in range(W):
                 if min(x, y, W - 1 - x, H - 1 - y) < 2:
                     T[y][x] = 1
-    # одиночные клетки воды/суши сглаживаем
+    # single water/land tiles are smoothed out
     for _ in range(2):
         for y in range(1, H - 1):
             for x in range(1, W - 1):
@@ -945,7 +946,7 @@ def gen_water(w, starts, slot_ang, R):
                     T[y][x] = 0
                 elif T[y][x] == 0 and s >= 3:
                     T[y][x] = 1
-    # стартовую площадку не заливаем
+    # the starting site is not flooded
     for sx, sy in starts:
         for y in range(sy - 6, sy + 7):
             for x in range(sx - 6, sx + 7):
@@ -954,8 +955,8 @@ def gen_water(w, starts, slot_ang, R):
 
 
 def place_fish(w, starts, fwd):
-    """Рыба — поровну каждому игроку: стайки у берега и глубоководная рыба подальше в море.
-    Направления одинаковы относительно «вперёд» (к центру карты), как и у остальных ресурсов."""
+    """Fish - equally for each player: schools by the shore and deep-water fish farther out to sea.
+    The directions are the same relative to "forward" (toward the center of the map), like the other resources."""
     n = len(starts)
 
     def put(kind, x, y):
@@ -975,7 +976,7 @@ def place_fish(w, starts, fwd):
                                            for dx in (-2, -1, 0, 1, 2) for dy in (-2, -1, 0, 1, 2))
 
     def ray(pid, rel):
-        """Первая клетка воды по лучу от старта (и сам угол)."""
+        """The first water tile along the ray from the start (and the corner itself)."""
         sx, sy = starts[pid]
         a = fwd[pid] + rel
         for d in range(5, 40):
@@ -999,7 +1000,7 @@ def place_fish(w, starts, fwd):
                 continue
             x0, y0, a = r
             _shore_school(x0, y0, k_shore, put, coast_tile)
-            # глубоководная — дальше по тому же лучу, через 3–4 клетки друг от друга
+            # deep-water - farther along the same ray, 3-4 tiles apart
             placed, nxt = 0, 4
             for d in range(4, 24):
                 if placed >= 2:
@@ -1015,7 +1016,7 @@ def place_fish(w, starts, fwd):
 
 
 def _shore_school(x0, y0, k, put, coast_tile):
-    """Стайка у берега: k клеток кромки, ближайших к (x0, y0)."""
+    """A school by the shore: the k rim tiles nearest to (x0, y0)."""
     cand = sorted(((x - x0) ** 2 + (y - y0) ** 2, x, y) for y in range(y0 - 4, y0 + 5)
                   for x in range(x0 - 4, x0 + 5) if coast_tile(x, y))
     placed = 0
@@ -1027,13 +1028,13 @@ def _shore_school(x0, y0, k, put, coast_tile):
 
 
 def _place_fish_sea(w, starts, fwd, put, coast_tile, open_tile):
-    """Море в центре: лучи из центра карты под одинаковыми углами к каждому игроку —
-    у берега перед игроком стайки, в открытом море глубоководная рыба."""
+    """A sea in the center: rays from the center of the map at equal angles to each player -
+    schools by the shore in front of the player, deep-water fish in the open sea."""
     mx, my = (w.W - 1) / 2, (w.H - 1) / 2
     n = len(starts)
     s = random.choice((-1, 1))
     for pid in range(n):
-        base = fwd[pid] + math.pi          # угол игрока, если смотреть из центра
+        base = fwd[pid] + math.pi          # the player's angle as seen from the center
         for rel, k in ((s * 0.22, 3), (-s * 0.3, 3), (s * 0.55, 2)):
             a = base + rel
             last = None
@@ -1046,7 +1047,7 @@ def _place_fish_sea(w, starts, fwd, put, coast_tile, open_tile):
                 continue
             x0, y0, dmax = last
             _shore_school(x0, y0, k, put, coast_tile)
-        # глубоководная: две-три рыбы в открытом море перед игроком
+        # deep-water: two or three fish in the open sea in front of the player
         for rel, frac in ((0.0, 0.62), (s * 0.4, 0.45), (-s * 0.5, 0.75)):
             a = base + rel
             last = 0
@@ -1062,12 +1063,12 @@ def _place_fish_sea(w, starts, fwd, put, coast_tile, open_tile):
                     break
 
 
-# ============================================================ интерфейс: приказы, кнопки
+# ============================================================ interface: orders, buttons
 def ui_command(g, w, units, wx, wy, target):
-    """Приказы с участием кораблей (ПКМ). True — приказ обработан здесь."""
+    """Orders involving ships (right click). True - the order was handled here."""
     ships = [u for u in units if u.naval]
     land = [u for u in units if not u.naval]
-    # сухопутные юниты → ПКМ по своему транспорту: посадка
+    # land units -> right click on their own transport: boarding
     if land and isinstance(target, Ship) and target.owner == 0 and target.cargo_cap() > 0:
         if order_board(w, land, target):
             g.markers.append((wx, wy, (120, 200, 255), w.time))
@@ -1100,7 +1101,7 @@ def ui_command(g, w, units, wx, wy, target):
 
 
 def _land_part(g, w, land, wx, wy, target):
-    """Смешанный выбор: корабли уже получили приказ, сухопутным — обычный путь интерфейса."""
+    """Mixed selection: the ships already got the order, the land units - the interface's usual way."""
     keep = g.selected
     g.selected = land
     try:
@@ -1111,13 +1112,13 @@ def _land_part(g, w, land, wx, wy, target):
 
 
 def unit_buttons(w, units):
-    """Доп. кнопки для выбранных кораблей: высадка у ближайшего берега."""
+    """Extra buttons for selected ships: unloading at the nearest shore."""
     items = []
     tr = [u for u in units if u.naval and u.cargo]
     if tr:
         n = sum(len(u.cargo) for u in tr)
         items.append(dict(icon=('unload', n), act=('unload', None), ok=True,
-                          tip=['Высадить', {}, f'На ближайший берег: {n}']))
+                          tip=[i18n.t('naval.unload'), {}, i18n.t('naval.unload_desc', n=n)]))
     return items
 
 

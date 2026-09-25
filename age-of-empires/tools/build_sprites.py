@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Сборка спрайтов из 3D-моделей 0 A.D. → assets/gen/ (PNG + atlas.json).
+"""Building sprites from 0 A.D. 3D models -> assets/gen/ (PNG + atlas.json).
 
-Нужны скачанные сырые ассеты (tools/fetch_0ad.py → assets/0ad_raw/). Рендер — tools/render3d.
+The downloaded raw assets are needed (tools/fetch_0ad.py -> assets/0ad_raw/). Rendering - tools/render3d.
 
-  .venv/bin/python tools/build_sprites.py                 # всё
+  .venv/bin/python tools/build_sprites.py                 # everything
   .venv/bin/python tools/build_sprites.py --only buildings --groups brit,han
-  .venv/bin/python tools/build_sprites.py --sheets shots/sheets    # + контактные листы для проверки глазами
+  .venv/bin/python tools/build_sprites.py --sheets shots/sheets    # + contact sheets for checking by eye
 
-Что получается (все пути — относительно assets/gen/):
-  atlas.json            — индекс: группы цивилизаций, здания (якоря, маски, стадии стройки), природа, террейн
-  buildings/<группа>/<вид>.png        — готовое здание, RGBA; <вид>.m.png — маска цвета игрока (L8)
-  buildings/<группа>/<вид>.c<N>.png   — стадии стройки 0..2 (фундамент, треть, две трети)
-  nature/*.png          — деревья, пни, кусты, шахты, рыба, животные (8 направлений)
-  terrain/*.png         — изометрические плитки текстур земли (бесшовные, период P×P клеток)
-Производные материалы 0 A.D. © Wildfire Games, CC BY-SA 3.0 (см. CREDITS.md).
+What comes out (all paths are relative to assets/gen/):
+  atlas.json            - the index: civilization groups, buildings (anchors, masks, construction stages), nature, terrain
+  buildings/<group>/<kind>.png        - a finished building, RGBA; <kind>.m.png - the player color mask (L8)
+  buildings/<group>/<kind>.c<N>.png   - construction stages 0..2 (foundation, a third, two thirds)
+  nature/*.png          - trees, stumps, bushes, mines, fish, animals (8 directions)
+  terrain/*.png         - isometric tiles of ground textures (seamless, a period of P x P cells)
+Derived 0 A.D. materials (c) Wildfire Games, CC BY-SA 3.0 (see CREDITS.md).
 """
 import argparse
 import json
@@ -33,9 +33,9 @@ from tools.render3d.actor import actor_exists  # noqa: E402
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 OUT = os.path.join(REPO, 'assets', 'gen')
 
-# ---------------------------------------------------------------- цивилизации → наборы архитектуры
-# Средневековые наборы — из мода Millennium A.D. (tools/fetch_millennium.py; пути акторов те же, что в
-# 0 A.D.: мод перекрывает public), недостающие виды — из 0 A.D. Ханьский набор — из 0 A.D.
+# ---------------------------------------------------------------- civilizations -> architecture sets
+# Medieval sets - from the Millennium A.D. mod (tools/fetch_millennium.py; the actor paths are the same as in
+# 0 A.D.: the mod overrides public), missing kinds - from 0 A.D. The Han set - from 0 A.D.
 GROUPS = ['caro', 'teut', 'anglo', 'celt', 'norse', 'rus', 'byz', 'hisp', 'umay', 'han']
 CIV_GROUP = {
     'franks': 'caro', 'teutons': 'teut', 'britons': 'anglo', 'celts': 'celt', 'vikings': 'norse',
@@ -46,10 +46,10 @@ CIV_GROUP = {
 }
 _C, _A, _N, _R, _B, _U = ('structures/carolingian/', 'structures/anglo/', 'structures/norse/', 'structures/rus/',
                           'structures/byzantines/', 'structures/umayyads/')
-_G0 = 'structures/germans/'          # 0 A.D. (германцы): стрельбище, мастерская, большой зал
-# вид → актор (или список вариантов для домов: (актор, номер варианта модели))
+_G0 = 'structures/germans/'          # 0 A.D. (Germans): the archery range, workshop, great hall
+# kind -> actor (or a list of variants for houses: (actor, model variant number))
 MED = {
-    'caro': {  # франки: каролингский фахверк, романская церковь, кольцевая крепость
+    'caro': {  # Franks: Carolingian half-timbering, a Romanesque church, a ring fort
         'town_center': _C + 'civil_centre', 'house': [(_C + 'house', 0), (_C + 'house', 1), (_A + 'house', 2)],
         'mill': _C + 'farmstead', 'lumber_camp': _C + 'storehouse', 'mining_camp': _C + 'storehouse',
         'barracks': _C + 'jarls_hold', 'archery_range': _A + 'barracks', 'stable': _A + 'stables',
@@ -57,7 +57,7 @@ MED = {
         'keep': _A + 'defense_tower', 'siege_workshop': _G0 + 'workshop', 'castle': _C + 'fortress',
         'monastery': _C + 'church', 'market': _C + 'market', 'university': _C + 'lorsch_abbey',
         'dock': _C + 'dock_base'},
-    'teut': {  # тевтоны: каролингская база, каменные замок и башни
+    'teut': {  # Teutons: a Carolingian base, a stone castle and towers
         'town_center': _C + 'civil_centre', 'house': [(_C + 'house', 1), (_R + 'house', 0), (_C + 'house', 0)],
         'mill': _C + 'farmstead', 'lumber_camp': _C + 'storehouse', 'mining_camp': _C + 'storehouse',
         'barracks': _R + 'barracks', 'archery_range': _G0 + 'range', 'stable': _A + 'stables',
@@ -65,7 +65,7 @@ MED = {
         'keep': _B + 'wall_tower_sq', 'siege_workshop': _G0 + 'workshop', 'castle': _B + 'fortress',
         'monastery': _C + 'lorsch_abbey', 'market': _C + 'market', 'university': _C + 'church',
         'dock': _C + 'dock_base'},
-    'anglo': {  # бритты: англосаксонские соломенные крыши, частокол с каменной башней
+    'anglo': {  # Britons: Anglo-Saxon thatched roofs, a palisade with a stone tower
         'town_center': _A + 'civil_center', 'house': [(_A + 'house', 0), (_A + 'house', 1), (_A + 'house', 3)],
         'mill': _A + 'farmstead', 'lumber_camp': _A + 'storehouse', 'mining_camp': _A + 'storehouse',
         'barracks': _A + 'barracks', 'archery_range': _G0 + 'range', 'stable': _A + 'stables',
@@ -73,7 +73,7 @@ MED = {
         'keep': _A + 'defense_tower', 'siege_workshop': _G0 + 'workshop', 'castle': _A + 'fortress',
         'monastery': _A + 'temple', 'market': _A + 'market', 'university': _C + 'lorsch_abbey',
         'dock': _A + 'dock'},
-    'celt': {  # кельты: англосаксонская/норманнская смесь
+    'celt': {  # Celts: an Anglo-Saxon/Norman mix
         'town_center': _C + 'jarls_hold', 'house': [(_A + 'house', 2), (_A + 'house', 1), (_N + 'house', 0)],
         'mill': _A + 'farmstead', 'lumber_camp': _N + 'storehouse', 'mining_camp': _N + 'storehouse',
         'barracks': _A + 'barracks', 'archery_range': _G0 + 'range', 'stable': _A + 'stables',
@@ -81,7 +81,7 @@ MED = {
         'keep': _A + 'defense_tower', 'siege_workshop': _G0 + 'workshop', 'castle': _A + 'fortress',
         'monastery': _A + 'temple', 'market': _A + 'market', 'university': _G0 + 'great_hall',
         'dock': _A + 'dock'},
-    'norse': {  # викинги: длинные дома, кольцевая крепость (Треллеборг)
+    'norse': {  # Vikings: longhouses, a ring fort (Trelleborg)
         'town_center': _N + 'jarls_hold', 'house': [(_N + 'house', 0), (_N + 'longhouse', 0), (_N + 'house', 0)],
         'mill': _A + 'farmstead', 'lumber_camp': _N + 'storehouse', 'mining_camp': _N + 'storehouse',
         'barracks': _N + 'barracks', 'archery_range': _N + 'longhouse', 'stable': _A + 'stables',
@@ -89,7 +89,7 @@ MED = {
         'keep': _A + 'defense_tower', 'siege_workshop': _G0 + 'workshop', 'castle': _C + 'fortress',
         'monastery': _N + 'temple', 'market': _N + 'market', 'university': _G0 + 'great_hall',
         'dock': _N + 'dock_base'},
-    'rus': {  # готы: восточноевропейское дерево (срубы, шатровые башни)
+    'rus': {  # Goths: Eastern European timber (log cabins, tent-roofed towers)
         'town_center': _R + 'civic_center', 'house': [(_R + 'house', 0), (_R + 'house', 0), (_R + 'house', 0)],
         'mill': _R + 'farmstead', 'lumber_camp': _R + 'storehouse', 'mining_camp': _R + 'storehouse',
         'barracks': _R + 'barracks', 'archery_range': _R + 'hunting_lodge', 'stable': _R + 'stables',
@@ -97,7 +97,7 @@ MED = {
         'keep': _A + 'defense_tower', 'siege_workshop': _G0 + 'workshop', 'castle': _R + 'fortress',
         'monastery': _R + 'temple', 'market': _R + 'market', 'university': _R + 'trading_post',
         'dock': _R + 'dock'},
-    'byz': {  # византийцы: кирпич с черепицей, купольный храм
+    'byz': {  # Byzantines: brick with tiles, a domed church
         'town_center': _B + 'civic_center', 'house': [(_B + 'house', 0), (_B + 'house', 1), (_B + 'house', 3)],
         'mill': _B + 'farmstead', 'lumber_camp': _B + 'storehouse', 'mining_camp': _B + 'storehouse',
         'barracks': _B + 'barracks', 'archery_range': _B + 'range', 'stable': _B + 'stable',
@@ -105,7 +105,7 @@ MED = {
         'keep': _B + 'defense_tower_02', 'siege_workshop': _B + 'armory', 'castle': _B + 'fortress',
         'monastery': _B + 'temple_02', 'market': _B + 'market', 'university': _B + 'library',
         'dock': _B + 'dock'},
-    'hisp': {  # испанцы: романская церковь, алькасар, черепица
+    'hisp': {  # Spanish: a Romanesque church, an alcazar, tiles
         'town_center': _B + 'civic_center', 'house': [(_B + 'house', 2), (_B + 'house', 4), (_U + 'house', 0)],
         'mill': _B + 'farmstead', 'lumber_camp': _U + 'storehouse', 'mining_camp': _U + 'storehouse',
         'barracks': _B + 'barracks_02', 'archery_range': _B + 'range', 'stable': _U + 'stables',
@@ -113,7 +113,7 @@ MED = {
         'keep': _U + 'defense_tower', 'siege_workshop': _B + 'armory', 'castle': _U + 'fortress',
         'monastery': _C + 'church', 'market': _U + 'market', 'university': _B + 'library',
         'dock': _B + 'dock'},
-    'umay': {  # персы, сарацины, турки: омейядская архитектура (мечеть, крепость, купола)
+    'umay': {  # Persians, Saracens, Turks: Umayyad architecture (a mosque, a fortress, domes)
         'town_center': _U + 'civic_center', 'house': [(_U + 'house', 0), (_U + 'house', 1), (_U + 'house', 3)],
         'mill': _U + 'farmstead', 'lumber_camp': _U + 'storehouse', 'mining_camp': _U + 'storehouse',
         'barracks': _U + 'military_colony', 'archery_range': _B + 'range', 'stable': _U + 'stables',
@@ -125,7 +125,7 @@ MED = {
 SETS = {'han': ['han']}
 FLAG = {'han': 'han'}
 
-# наш вид → имена акторов 0 A.D. (первый найденный в цепочке наборов группы)
+# our kind -> 0 A.D. actor names (the first one found in the chain of the group's sets)
 KIND_ACTORS = {
     'town_center': ['civic_centre', 'civic_center', 'civil_centre'],
     'house': ['house'],
@@ -146,7 +146,7 @@ KIND_ACTORS = {
     'university': ['academy', 'hall'],
     'dock': ['dock'],
 }
-# точечные замены: (группа, вид) → полный путь актора
+# one-off replacements: (group, kind) -> the actor's full path
 OVERRIDE = {
     ('han', 'guard_tower'): 'structures/han/tower_great.xml',
     ('han', 'university'): 'structures/han/academy.xml',
@@ -154,19 +154,19 @@ OVERRIDE = {
 SIZE = {'town_center': 4, 'house': 2, 'mill': 2, 'lumber_camp': 2, 'mining_camp': 2, 'farm': 3, 'barracks': 3,
         'archery_range': 3, 'stable': 3, 'blacksmith': 3, 'tower': 1, 'guard_tower': 1, 'keep': 1,
         'siege_workshop': 4, 'castle': 4, 'monastery': 3, 'university': 4, 'market': 4, 'dock': 3}
-# Заполнение основания (как в AoE II DE: здание занимает весь участок, ширина спрайта ≈ 0.98–1.05 ширины ромба).
-# Масштаб — наименьший из двух: ширина габарита на экране (dx + dy)/2 = WFILL·n и длинная сторона ≤ OVER·n
-# (вытянутые модели 0 A.D. иначе либо мелкие, либо далеко вылезают за участок). FILL — поправка по виду.
+# Base filling (as in AoE II DE: a building occupies the whole site, the sprite's width ~ 0.98-1.05 of the diamond's width).
+# The scale is the smaller of two: the footprint's width on the screen (dx + dy)/2 = WFILL*n and the long side <= OVER*n
+# (elongated 0 A.D. models would otherwise be either small or stick far out of the site). FILL - a per-kind correction.
 WFILL = 1.0
 OVER = 1.2
 FILL = {'tower': 1.0, 'guard_tower': 1.05, 'keep': 1.1, 'castle': 1.05, 'dock': 0.97,
-        # модель меньше основания — пусто у переднего угла (09 · №26): университет −29 px, монастырь −21,
-        # норманнский центр −26; ключ (группа, вид) точнее вида
+        # the model is smaller than the base - empty at the front corner (09 - #26): university -29 px, monastery -21,
+        # Norman center -26; the key (group, kind) is more precise than the kind
         ('anglo', 'university'): 1.34, ('caro', 'university'): 1.34, ('teut', 'university'): 1.34,
         ('caro', 'monastery'): 1.3, ('hisp', 'monastery'): 1.3, ('teut', 'monastery'): 1.3, ('anglo', 'monastery'): 1.3,
         ('celt', 'monastery'): 1.3, ('norse', 'town_center'): 1.3}
-YAW = {}                    # (группа, вид) или вид → поворот модели, градусы
-# ящики, дрова, камни у складов: (актор, x, y (клетки основания), поворот, множитель масштаба)
+YAW = {}                    # (group, kind) or kind -> the model's rotation, degrees
+# crates, firewood, stones by the storehouses: (actor, x, y (base cells), rotation, scale multiplier)
 EXTRAS = {
     'lumber_camp': [('props/special/eyecandy/woodcord.xml', 1.55, 1.25, 90, 1.0),
                     ('props/special/eyecandy/wood_pile.xml', 1.2, 1.7, 0, 1.0),
@@ -179,7 +179,7 @@ EXTRAS = {
 }
 FLAG_SCALE = 1.4
 FLAG_TEX = '@flag_cloth'
-# предел высоты (клетки высоты, 1 ≈ 39 px): узкие высокие модели иначе вырастают над картой
+# height limit (height cells, 1 ~ 39 px): narrow tall models would otherwise grow above the map
 MAX_H = {'tower': 2.3, 'guard_tower': 2.6, 'keep': 2.9, 'house': 1.85}
 
 
@@ -188,7 +188,7 @@ def _xml(a):
 
 
 def _variant_pick(actor, i):
-    """Выбор i-го варианта модели в первой группе актора, где вариантов с мешем больше одного."""
+    """Choosing the i-th model variant in the first group of the actor that has more than one variant with a mesh."""
     from tools.render3d.actor import _actor_root
     root = _actor_root(actor)
     if root is None:
@@ -201,13 +201,13 @@ def _variant_pick(actor, i):
 
 
 def building_actor(group, kind):
-    """→ актор (путь) или None; для домов см. building_variants."""
+    """-> an actor (a path) or None; for houses see building_variants."""
     v = building_variants(group, kind)
     return v[0][0] if v else None
 
 
 def building_variants(group, kind):
-    """→ [(актор, pick | None), …]: у домов — 2–3 варианта (разные модели), у прочих — один."""
+    """-> [(actor, pick | None), ...]: for houses - 2-3 variants (different models), for others - one."""
     if group in MED:
         spec = MED[group].get(kind)
         if spec is None:
@@ -218,7 +218,7 @@ def building_variants(group, kind):
         for a, *rest in spec:
             a = _xml(a)
             if not actor_exists(a):
-                print(f'  ! нет актора {a}')
+                print(f'  ! no actor {a}')
                 continue
             pick = _variant_pick(a, rest[0]) if rest and rest[0] is not None else None
             out.append((a, pick))
@@ -234,7 +234,7 @@ def building_variants(group, kind):
     return []
 
 
-# ---------------------------------------------------------------- вывод
+# ---------------------------------------------------------------- output
 def save_png(path, arr, mode=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im = Image.fromarray(arr, mode) if mode else Image.fromarray(arr)
@@ -246,7 +246,7 @@ def rel(path):
 
 
 def save_sprite(spr, base):
-    """Sprite → base.png (+ base.m.png, если есть цвет игрока). Возвращает запись атласа."""
+    """Sprite -> base.png (+ base.m.png, if there is a player color). Returns the atlas entry."""
     save_png(base + '.png', spr.rgba)
     rec = {'file': rel(base + '.png'), 'ox': int(spr.ox), 'oy': int(spr.oy),
            'w': int(spr.rgba.shape[1]), 'h': int(spr.rgba.shape[0])}
@@ -256,13 +256,13 @@ def save_sprite(spr, base):
     return rec
 
 
-# ---------------------------------------------------------------- здания
+# ---------------------------------------------------------------- buildings
 def _flag_prop(group):
     return {'props/special/common/garrison_flag': FLAG_SCALE}
 
 
 def _roof_flag(parts):
-    """Флаг цвета игрока на самой высокой точке здания — у акторов без точки 'garrisoned'."""
+    """A player-color flag at the highest point of the building - for actors without a 'garrisoned' point."""
     best = None
     for p in parts:
         if p.is_decal:
@@ -282,8 +282,8 @@ def _roof_flag(parts):
 
 
 def _seat_flags(parts):
-    """Точка гарнизона в 0 A.D. часто висит над крышей (там флаг поднимается над юнитами) — опускаем
-    древко на крышу под ним; если под флагом ничего нет — переносим на самую высокую точку."""
+    """The garrison point in 0 A.D. often hangs above the roof (there the flag rises above the units) - we lower
+    the pole onto the roof under it; if there is nothing under the flag - we move it to the highest point."""
     vs = []
     for p in parts:
         if p.is_decal or 'garrison_flag' in p.actor:
@@ -310,7 +310,7 @@ def _seat_flags(parts):
             p.matrix[:3, 3] = v[i] - [0, 0, 0.3]
 
 
-# детали на земле, которые в игре не нужны (мощёные площади под зданием): подстроки пути актора / меша
+# ground details that are not needed in the game (paved squares under a building): substrings of the actor / mesh path
 SKIP_GROUND = ('plaza', 'pavement', 'paving', 'podium_floor', 'marble_floor')
 
 
@@ -319,18 +319,18 @@ def _skip_ground(actor, ap):
 
 
 def _body_bounds(parts, yaw):
-    """Габарит модели (без флага) после поворота на yaw: (lo, hi) в координатах модели."""
+    """The model's footprint (without the flag) after rotating by yaw: (lo, hi) in model coordinates."""
     from tools.render3d import Part
     pl0 = camera.placement(1.0, yaw)
     body = [Part(p.mesh, pl0 @ p.matrix, p.textures, p.material, p.actor, p.decal)
             for p in parts if 'garrison_flag' not in p.actor]
-    # без низких деталей у земли (стога, телеги, мостовые): иначе центр основания уезжает к ним
+    # without low details at the ground (haystacks, carts, pavements): otherwise the base's center drifts toward them
     lo, hi = parts_bounds(body)
     return parts_bounds(body, z_min=max(lo[2], 0.0) + 0.12 * (hi[2] - max(lo[2], 0.0)))
 
 
 def fill_scale(lo, hi, n, kind, group=None):
-    """Масштаб модели, при котором она заполняет основание n×n (см. WFILL, OVER, FILL)."""
+    """The model scale at which it fills an n x n base (see WFILL, OVER, FILL)."""
     dx, dy = max(hi[0] - lo[0], 1e-3), max(hi[1] - lo[1], 1e-3)
     f = FILL.get((group, kind), FILL.get(kind, 1.0))
     return f * min(WFILL * 2 * n / (dx + dy), OVER * n / max(dx, dy))
@@ -346,8 +346,8 @@ def building_items(r, group, kind, actor, pick=None, yaw=None):
         _seat_flags(parts)
     for p in parts:
         if 'garrison_flag' in p.actor:
-            # светлое полотнище: цвет игрока читается одинаково у всех наборов (у германского и ханьского
-            # флагов полотнище тёмное или текстуры нет)
+            # a light cloth: the player color reads the same in all sets (in the Germanic and Han
+            # flags the cloth is dark or there is no texture)
             p.textures = dict(p.textures, baseTex=FLAG_TEX)
             p.tags = set(p.tags) | {'bright'}
     if yaw is None:
@@ -370,7 +370,7 @@ def building_items(r, group, kind, actor, pick=None, yaw=None):
 
 
 def clip_items(items, box):
-    """Выкидывает треугольники, центр которых вне прямоугольника box (клетки) — мусор лесов за основанием."""
+    """Discards the triangles whose center is outside the rectangle box (cells) - the debris of scaffolding beyond the base."""
     x0, y0, x1, y1 = box
     out = []
     for it in items:
@@ -390,7 +390,7 @@ def clip_items(items, box):
 
 
 def foundation_items(n, s, place_center, yaw, ext_units):
-    """Фундамент и леса 0 A.D. подходящего размера, в том же масштабе, что и здание."""
+    """A 0 A.D. foundation and scaffolding of a suitable size, at the same scale as the building."""
     k = int(max(1, min(9, round(ext_units / 4.0))))
     items_f, items_s = [], []
     for kk in (k, k - 1, k + 1, 4, 3):
@@ -409,7 +409,7 @@ def foundation_items(n, s, place_center, yaw, ext_units):
 
 
 def land_dir(items, n):
-    """Сторона основания (dx, dy), к которой прижата «высокая» часть модели (дом дока — к берегу)."""
+    """The side of the base (dx, dy) to which the model's "tall" part is pressed (a dock's house - toward the shore)."""
     P = np.concatenate([it['pos'] for it in items if it['kind'] == 'mesh'])
     z = P[:, 2]
     hi = P[z > np.percentile(z, 70)]
@@ -463,21 +463,21 @@ DOCK_YAWS = (0.0, 90.0, 180.0, 270.0)
 
 
 def build_buildings(r, groups, atlas, stages=True, kinds=None):
-    """kinds — только эти виды (остальные записи группы сохраняются); None — все."""
+    """kinds - only these kinds (the group's other entries are kept); None - all."""
     bl = atlas.setdefault('buildings', {})
     for g0 in [g for g in bl if g not in GROUPS]:
-        del bl[g0]                      # наборы, на которые больше не ссылается ни одна цивилизация
+        del bl[g0]                      # sets that no civilization refers to anymore
     done = {}
 
     def one(g, kind, actor, pick, yaw, base, stg):
         key = (actor, kind, yaw, repr(pick), stg)
         if key in done:
-            print(f'  = {g}/{kind} ← {actor} (как у {done[key]["file"]})')
+            print(f'  = {g}/{kind} ← {actor} (like {done[key]["file"]})')
             return done[key]
         t = time.time()
         rec = render_building(r, g, kind, actor, base, stg, pick, yaw)
         done[key] = rec
-        print(f'  + {g}/{kind} ← {actor} {pick or ""} {yaw:g}°  {rec["w"]}×{rec["h"]}  {time.time() - t:.2f} с')
+        print(f'  + {g}/{kind} ← {actor} {pick or ""} {yaw:g}°  {rec["w"]}×{rec["h"]}  {time.time() - t:.2f} s')
         return rec
 
     for g in groups:
@@ -490,17 +490,17 @@ def build_buildings(r, groups, atlas, stages=True, kinds=None):
                 continue
             vs = building_variants(g, kind)
             if not vs:
-                print(f'  - {g}/{kind}: нет актора')
+                print(f'  - {g}/{kind}: no actor')
                 continue
             base = os.path.join(OUT, 'buildings', g, kind)
             yaw0 = YAW.get((g, kind), YAW.get(kind, 0.0))
             rec = dict(one(g, kind, vs[0][0], vs[0][1], yaw0, base, stages))
             if len(vs) > 1:
-                # варианты модели (дома): в игре выбираются по клетке; стадии стройки — общие
+                # model variants (houses): in the game chosen by cell; the construction stages are shared
                 var = [rec] + [one(g, kind, a, pk, yaw0, f'{base}.v{i}', False) for i, (a, pk) in enumerate(vs[1:], 1)]
                 rec['variants'] = [{k: v for k, v in x.items() if k not in ('stages', 'variants', 'dirs')} for x in var]
             if kind == 'dock':
-                # док в 4 поворотах: в игре берётся тот, у которого «дом» смотрит на берег
+                # a dock in 4 rotations: in the game the one whose "house" looks at the shore is taken
                 dirs = {}
                 for i, yw in enumerate(DOCK_YAWS):
                     rr = rec if yw == yaw0 else one(g, kind, vs[0][0], vs[0][1], yw, f'{base}.r{i}', stages)
@@ -509,11 +509,11 @@ def build_buildings(r, groups, atlas, stages=True, kinds=None):
             bl[g][kind] = rec
 
 
-# ---------------------------------------------------------------- стены и ворота
-# Сегмент стены 1×1 собирается в игре из «рукавов» к соседям (8 направлений, от центра клетки до края)
-# и столба в центре (если стена не прямая). Рукав — середина длинной стены 0 A.D., отсечённая плоскостями.
+# ---------------------------------------------------------------- walls and gates
+# A 1x1 wall segment is assembled in the game from "arms" toward the neighbors (8 directions, from the cell's center to the edge)
+# and a post in the center (if the wall is not straight). An arm - the middle of a long 0 A.D. wall, cut off by planes.
 _W0 = 'structures/germans/wooden_wall_'
-_WS = {  # набор стен → (длинная стена, башня, ворота)
+_WS = {  # a wall set -> (a long wall, a tower, a gate)
     'caro': (_C + 'wall_long', _C + 'wall_tower', _C + 'wall_gate'),
     'anglo': (_A + 'wall_long', _A + 'wall_tower', _A + 'wall_gate'),
     'norse': (_N + 'wall_long', _N + 'wall_tower', _N + 'wall_gate'),
@@ -524,7 +524,7 @@ _WS = {  # набор стен → (длинная стена, башня, во�
     'han': ('structures/han/wall_long', 'structures/han/wall_tower', 'structures/han/wall_gate'),
     'wood': (_W0 + 'long', _W0 + 'tower', _W0 + 'gate'),
 }
-# группа → {каменная стена, частокол} → набор
+# group -> {a stone wall, a palisade} -> a set
 WALL_SETS = {
     'caro': {'stone': 'caro', 'palisade': 'wood'},
     'teut': {'stone': 'byz_s', 'palisade': 'wood'},
@@ -537,7 +537,7 @@ WALL_SETS = {
     'umay': {'stone': 'pers', 'palisade': 'wood'},
     'han': {'stone': 'han', 'palisade': 'wood'},
 }
-WALL_UPT = 9.4               # единиц 0 A.D. на клетку (длинная стена ≈ 36.6 ед. = 4 клетки ворот)
+WALL_UPT = 9.4               # 0 A.D. units per cell (a long wall ~ 36.6 units = 4 gate cells)
 POST_W = {'stone': 0.72, 'palisade': 0.62}
 DIRS8 = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
 
@@ -566,10 +566,10 @@ def _render_walls(r, long_a, tower_a, gate_a, wkind, base):
     sp = POST_W[wkind] / max(hi[0] - lo[0], hi[1] - lo[1])
     place = camera.placement(sp, 0.0, center=(0.5, 0.5), model_center=((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2))
     rec['post'] = save_sprite(r.render(Renderer.build_items(tp, place), footprint=(1, 1)), f'{base}_post')
-    # ворота: 4 клетки вдоль x (h) или y (v), закрытые (0) и открытые (1)
+    # gates: 4 cells along x (h) or y (v), closed (0) and open (1)
     gp = resolve(gate_a, seed=0)
     lo, hi = parts_bounds(gp)
-    # масштаб стен (в 0 A.D. ворота и стены одного набора соразмерны), но длина — 3.6..4.3 клетки
+    # the walls' scale (in 0 A.D. the gates and walls of one set are proportionate), but the length is 3.6..4.3 cells
     ln = max(hi[0] - lo[0], 1e-3)
     sg = min(max(s, 3.6 / ln), 4.3 / ln)
     zt = hi[2] * sg
@@ -585,7 +585,7 @@ def _render_walls(r, long_a, tower_a, gate_a, wkind, base):
                 pp = [p for p in gp if 'door' not in p.mesh and 'gate_roof' not in p.actor]
             items = Renderer.build_items(pp, place)
             if opened and pp is gp:
-                # створки — посередине проёма: вырезаем их коробкой
+                # the leaves are in the middle of the opening: cut them out with a box
                 a0, a1 = GATE_CUT
                 if horiz:
                     cut = ((a0, -0.5, -1.0), (a1, 1.5, zt * GATE_CUT_H))
@@ -598,7 +598,7 @@ def _render_walls(r, long_a, tower_a, gate_a, wkind, base):
             spr_rec = save_sprite(spr, f'{base}_gate_{key}')
             spr_rec['w_tiles'], spr_rec['h_tiles'] = fp
             rec['gate'][key] = spr_rec
-    # стройка: фундамент 1×1 и леса 1×1 (в игре — под и поверх растущего сегмента)
+    # construction: a 1x1 foundation and 1x1 scaffolding (in the game - under and over the growing segment)
     zw = parts_bounds(parts)[1][2] * s
     fa = 'structures/fndn_1x1pal.xml' if wkind == 'palisade' else 'structures/fndn_1x1.xml'
     fp_ = resolve(fa, seed=0, prefer=frozenset({'base', 'idle'}))
@@ -632,11 +632,11 @@ def build_walls(r, groups, atlas):
             if (wkind, st) not in done:
                 t = time.time()
                 done[(wkind, st)] = render_walls(r, st, wkind, os.path.join(OUT, 'walls', f'{wkind}_{st}'))
-                print(f'  + стены {wkind}/{st}  {time.time() - t:.2f} с')
+                print(f'  + walls {wkind}/{st}  {time.time() - t:.2f} s')
             wl[g][wkind] = done[(wkind, st)]
 
 
-# ---------------------------------------------------------------- контактные листы (проверка глазами)
+# ---------------------------------------------------------------- contact sheets (checking by eye)
 def contact_sheet(atlas, group, out_png, color=(45, 115, 235), stages=True, width=2400):
     from PIL import ImageDraw
     recs = atlas['buildings'].get(group, {})
@@ -664,7 +664,7 @@ def contact_sheet(atlas, group, out_png, color=(45, 115, 235), stages=True, widt
             d.polygon([(ox, oy), (ox + n * 32, oy + n * 16), (ox, oy + n * 32), (ox - n * 32, oy + n * 16)],
                       outline=(255, 255, 0))
             bg.alpha_composite(im, (15, 15))
-            # человечек 24 px для масштаба
+            # a 24 px little figure for scale
             d = ImageDraw.Draw(bg)
             fx, fy = ox - n * 32 - 6, oy + n * 16 + 8
             d.rectangle((fx - 3, fy - 18, fx + 3, fy - 6), fill=color)
@@ -693,11 +693,11 @@ def contact_sheet(atlas, group, out_png, color=(45, 115, 235), stages=True, widt
         y += max(t.size[1] for t in rw)
     os.makedirs(os.path.dirname(out_png), exist_ok=True)
     sheet.save(out_png)
-    print('лист', out_png)
+    print('sheet', out_png)
 
 
 def prune(atlas):
-    """Удаляет из buildings/ и walls/ файлы, на которые атлас больше не ссылается (старые наборы)."""
+    """Removes from buildings/ and walls/ the files that the atlas no longer refers to (the old sets)."""
     used = set()
 
     def walk(x):
@@ -723,7 +723,7 @@ def prune(atlas):
             if dp != root and not os.listdir(dp):
                 os.rmdir(dp)
     if n:
-        print(f'удалено устаревших файлов: {n}')
+        print(f'obsolete files removed: {n}')
 
 
 def load_atlas():
@@ -739,7 +739,7 @@ def save_atlas(atlas):
     atlas['civ_groups'] = CIV_GROUP
     atlas['license'] = ('Derived from 0 A.D. (c) Wildfire Games and Millennium A.D. (c) The Council of Modders, '
                         'Fallen Empire Studio, Scion Development; CC BY-SA 3.0; see CREDITS.md')
-    os.makedirs(OUT, exist_ok=True)          # assets/gen/LICENSE.md хранится в репозитории (атрибуция)
+    os.makedirs(OUT, exist_ok=True)          # assets/gen/LICENSE.md is kept in the repository (attribution)
     with open(os.path.join(OUT, 'atlas.json'), 'w') as f:
         json.dump(atlas, f, ensure_ascii=False, indent=1, sort_keys=True)
 
@@ -748,15 +748,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--only', default='buildings,walls,nature,terrain,cliffs')
     ap.add_argument('--groups', default=','.join(GROUPS))
-    ap.add_argument('--kinds', default='', help='только эти виды зданий / группы природы (trees,nodes,animals)')
-    ap.add_argument('--ss', type=int, default=3, help='сверхвыборка')
+    ap.add_argument('--kinds', default='', help='only these building kinds / nature groups (trees,nodes,animals)')
+    ap.add_argument('--ss', type=int, default=3, help='supersampling')
     ap.add_argument('--no-stages', action='store_true')
-    ap.add_argument('--sheets', default='', help='папка для контактных листов')
+    ap.add_argument('--sheets', default='', help='folder for contact sheets')
     a = ap.parse_args()
     only = set(a.only.split(','))
     groups = [g for g in a.groups.split(',') if g]
     if not os.path.isdir(assets.ART):
-        sys.exit(f'нет сырых ассетов: {assets.ART} (запустите tools/fetch_0ad.py)')
+        sys.exit(f'no raw assets: {assets.ART} (run tools/fetch_0ad.py)')
     t0 = time.time()
     r = Renderer(ss=a.ss)
     atlas = load_atlas()
@@ -787,7 +787,7 @@ def main():
         if 'nature' in atlas:
             from tools import build_nature
             build_nature.contact_sheet(atlas, OUT, os.path.join(a.sheets, 'nature.png'))
-    print(f'готово за {time.time() - t0:.1f} с')
+    print(f'done in {time.time() - t0:.1f} s')
 
 
 if __name__ == '__main__':

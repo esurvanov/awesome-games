@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Постановочные снимки мелкой графики мира (tools/build_decals.py → game/sprites_extra.py).
+"""Staged screenshots of small world graphics (tools/build_decals.py -> game/sprites_extra.py).
 
   .venv/bin/python tools/decal_shot.py --out shots/decals
-Файлы: coast.png — берег с рыбой (у берега и в глубине); land.png — туши на трёх стадиях разделки,
-пни, развалины разных размеров (свежие догорают), горящие здания, лучники и метатели в бою, взрыв;
-zoom_*.png — те же места крупно (×2).
+Files: coast.png - a shore with fish (by the shore and in the deep); land.png - carcasses at three stages of butchering,
+stumps, rubble of different sizes (fresh ones still burn), burning buildings, archers and throwers in battle, an explosion;
+zoom_*.png - the same places large (x2).
 """
 import argparse
 import os
@@ -34,7 +34,7 @@ def reveal(w):
 def save(g, path, zoom_at=None):
     g.draw()
     pygame.image.save(g.screen, path)
-    print('сохранено', path)
+    print('saved', path)
     if zoom_at:
         x, y = zoom_at
         r = pygame.Rect(0, 0, SCREEN_W // 2, VIEW_H // 2)
@@ -43,7 +43,7 @@ def save(g, path, zoom_at=None):
         z = pygame.transform.scale(g.screen.subsurface(r).copy(), (r.w * 2, r.h * 2))
         zp = os.path.join(os.path.dirname(path), 'zoom_' + os.path.basename(path))
         pygame.image.save(z, zp)
-        print('сохранено', zp)
+        print('saved', zp)
 
 
 def run(w, sec):
@@ -71,7 +71,7 @@ def main():
     w.ais = []
     reveal(w)
     run(w, 0.5)
-    # ---------------------------------------------------------------- берег
+    # ---------------------------------------------------------------- shore
     sx, sy = w.starts[0]
     fish = [n for n in w.nodes if n.kind in ('shore_fish', 'deep_fish')]
     if fish:
@@ -83,20 +83,20 @@ def main():
             d = min(deep, key=lambda n: abs(n.tx - f.tx) + abs(n.ty - f.ty))
             g.center_on((d.tx + 0.5) * TILE, (d.ty + 0.5) * TILE)
             save(g, os.path.join(a.out, 'deep.png'), (SCREEN_W // 2, TOP_H + VIEW_H // 2))
-    # ---------------------------------------------------------------- суша у центра
+    # ---------------------------------------------------------------- land by the center
     tc = next(b for b in w.buildings if b.owner == 0 and b.kind == 'town_center')
     cx, cy = tc.tx + 2, tc.ty + 2
-    # горящие здания: центр (< 25 %) и ближайший дом (< 50 %)
+    # burning buildings: the center (< 25 %) and the nearest house (< 50 %)
     tc.hp = tc.max_hp * 0.2
     for b in w.buildings:
         if b.owner == 0 and b.kind == 'house':
             b.hp = b.max_hp * 0.4
-    # развалины: 4 размера, разного возраста (свежие ещё горят)
+    # rubble: 4 sizes, of different ages (fresh ones still burn)
     spots = [(cx - 9, cy + 4, 1, 'tower', 2.0), (cx - 8, cy + 6, 2, 'house', 4.0), (cx - 5, cy + 7, 3, 'barracks', 14.0),
              (cx - 2, cy + 8, 4, 'castle', 21.0)]
     for tx, ty, s, kind, age in spots:
         w.decals.append(['rubble', tx, ty, s, w.time - age, kind])
-    # туши: целая, разделанная, остов (и охотники рядом)
+    # carcasses: whole, butchered, a skeleton (and hunters nearby)
     for i, (kind, frac) in enumerate((('deer', 1.0), ('boar', 0.55), ('sheep', 0.2), ('deer', 0.5), ('sheep', 0.9))):
         x, y = (cx + 4 + i * 1.3) * TILE, (cy - 3 + (i % 2) * 1.1) * TILE
         an = Animal(kind, x, y, w)
@@ -108,7 +108,7 @@ def main():
         v = Unit('villager', 0, x - 12, y + 10, w)
         w.units.append(v)
         v.cmd_gather(an)
-    # пни: вырубаем деревья ближе всего к центру
+    # stumps: cut the trees nearest to the center
     trees = sorted((n for n in w.nodes if n.kind == 'tree'), key=lambda n: abs(n.tx - cx) + abs(n.ty - cy))
     for n in trees[:10]:
         w.deplete(n)
@@ -117,11 +117,11 @@ def main():
         v = Unit('villager', 0, vx, vy, w)
         w.units.append(v)
         v.cmd_gather(n)
-    # бой: лучники, арбалетчики и метатели против врага, мангонель
+    # battle: archers, crossbowmen and throwers against an enemy, a mangonel
     foes = []
     tgt = w.place_building('barracks', 1, cx + 9, cy + 6, complete=True)
     if tgt is not None:
-        tgt.hp = tgt.max_hp * 0.45          # горит
+        tgt.hp = tgt.max_hp * 0.45          # burning
         foes.append(tgt)
     for i in range(3):
         e = Unit('militia', 1, (cx + 13) * TILE, (cy + 5 + i) * TILE, w)
@@ -141,12 +141,12 @@ def main():
     for i, u in enumerate(shooters):
         u.cmd_attack(foes[0] if i % 3 else foes[i % len(foes)])
     t = 0.0
-    while t < 6.0 and len(w.projectiles) < 6:      # снимок, когда в воздухе больше всего снарядов
+    while t < 6.0 and len(w.projectiles) < 6:      # a screenshot when there are the most projectiles in the air
         w.update(0.034)
         w.events.clear()
         t += 0.034
-    run(w, 0.3)                                      # снаряды — на середине пути
-    print('снарядов в полёте:', len(w.projectiles))
+    run(w, 0.3)                                      # projectiles - halfway
+    print('projectiles in flight:', len(w.projectiles))
     w.decals.append(['blast', (cx + 8) * TILE, (cy + 8) * TILE, 0, w.time - 0.2])
     reveal(w)
     g.center_on((cx + 1) * TILE, (cy + 3) * TILE)

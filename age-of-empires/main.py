@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Хроники Королевств — историческая RTS. Запуск: .venv/bin/python main.py"""
+"""Chronicles of Kingdoms - a historical RTS. Launch: .venv/bin/python main.py"""
 from game.ui import Game
 
 

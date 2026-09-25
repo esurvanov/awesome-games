@@ -1,7 +1,7 @@
-"""Доступ к сырым ассетам 0 A.D.: пути, текстуры (DDS/PNG → numpy RGBA), COLLADA-меши с кэшем.
+"""Access to raw 0 A.D. assets: paths, textures (DDS/PNG -> numpy RGBA), COLLADA meshes with a cache.
 
-Все пути — относительно `assets/0ad_raw/public/art/`. Кэш (конвертированные текстуры и меши в .npz)
-лежит в `assets/0ad_raw/_cache/` — он в .gitignore, как и сами сырые ассеты.
+All paths are relative to `assets/0ad_raw/public/art/`. The cache (converted textures and meshes in .npz)
+lies in `assets/0ad_raw/_cache/` - it is in .gitignore, like the raw assets themselves.
 """
 import hashlib
 import os
@@ -12,27 +12,27 @@ from PIL import Image
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 RAW = os.environ.get('OAD_RAW') or os.path.join(REPO, 'assets', '0ad_raw')
 if not os.path.isdir(RAW):
-    # рабочее дерево git (worktree) без скачанных ассетов — берём из основной копии репозитория
+    # a git working tree (worktree) without downloaded assets - take them from the main copy of the repository
     _main = os.path.abspath(os.path.join(REPO, '..', '..', '..', 'assets', '0ad_raw'))
     if os.path.isdir(_main):
         RAW = _main
 ART = os.path.join(RAW, 'public', 'art')
 CACHE = os.path.join(RAW, '_cache')
 
-# Мод Millennium A.D. (tools/fetch_millennium.py): его файлы перекрывают public, как в движке 0 A.D.
+# The Millennium A.D. mod (tools/fetch_millennium.py): its files override public, as in the 0 A.D. engine
 MIL = os.environ.get('MIL_RAW') or os.path.join(REPO, 'assets', 'millenniumad_raw')
 if not os.path.isdir(MIL):
     _main = os.path.abspath(os.path.join(REPO, '..', '..', '..', 'assets', 'millenniumad_raw'))
     if os.path.isdir(_main):
         MIL = _main
 MIL_ART = os.path.join(MIL, '_repo', 'art')
-# порядок поиска: мод → public 0 A.D. → файлы public, докачанные для мода
+# search order: the mod -> 0 A.D. public -> the public files downloaded additionally for the mod
 ROOTS = [r for r in (MIL_ART, ART, os.path.join(MIL, 'public_deps', 'public', 'art')) if os.path.isdir(r)] or [ART]
 _ART_CACHE = {}
 
 
 def art(*parts):
-    """Путь к файлу под art/ с приоритетом модов (первый существующий; иначе — путь в public)."""
+    """The path of a file under art/ with mod priority (the first existing one; otherwise - the path in public)."""
     rel = os.path.join(*parts)
     hit = _ART_CACHE.get(rel)
     if hit is None:
@@ -47,7 +47,7 @@ def art(*parts):
 
 
 def mod_of(path):
-    """'millenniumad' | 'public' — из какого мода взят файл (для лицензий/отчётов)."""
+    """'millenniumad' | 'public' - which mod the file was taken from (for licenses/reports)."""
     return 'millenniumad' if path.startswith(MIL) else 'public'
 
 
@@ -55,14 +55,14 @@ def exists(*parts):
     return os.path.exists(art(*parts))
 
 
-# ------------------------------------------------------------------ текстуры
+# ------------------------------------------------------------------ textures
 _TEX = {}
 
 
 def texture(rel):
-    """RGBA uint8 (H, W, 4) текстуры скина `textures/skins/<rel>` (или абсолютного пути под art/).
+    """RGBA uint8 (H, W, 4) of the skin texture `textures/skins/<rel>` (or an absolute path under art/).
 
-    DDS декодируется Pillow и кэшируется в PNG. Отсутствующая текстура → None."""
+    DDS is decoded by Pillow and cached as PNG. A missing texture -> None."""
     if rel in _TEX:
         return _TEX[rel]
     if rel in GENERATED:
@@ -70,7 +70,7 @@ def texture(rel):
         return _TEX[rel]
     img = None
     root, ext = os.path.splitext(rel)
-    # в акторах встречаются .png, которые в репозитории лежат как .dds, и наоборот
+    # actors contain .png files that lie in the repository as .dds, and vice versa
     names = [rel] + [root + e for e in ('.png', '.dds', '.tga') if e != ext]
     cands = [n if os.path.isabs(n) else art('textures', 'skins', n) for n in names]
     for p in cands:
@@ -98,7 +98,7 @@ def texture(rel):
 
 
 def _flag_cloth():
-    """Полотнище флага гарнизона (кельтское) с высветленной тканью: в спрайте цвет игрока — чистый и яркий."""
+    """The garrison flag cloth (Celtic) with lightened fabric: in the sprite the player color is clean and bright."""
     a = texture('props/garrison_celt_1.png')
     if a is None:
         return None
@@ -109,17 +109,17 @@ def _flag_cloth():
     return a
 
 
-# Сгенерированные текстуры: имя → функция без аргументов, возвращающая RGBA
+# Generated textures: a name -> a function without arguments that returns RGBA
 GENERATED = {'@flag_cloth': _flag_cloth}
 
 
-# ------------------------------------------------------------------ меши COLLADA
+# ------------------------------------------------------------------ COLLADA meshes
 _MESH = {}
 _MESH_VER = 4
 
 
 def _orthonormal(m):
-    """Точка крепления: только поворот + сдвиг (как в PMD 0 A.D.: позиция + кватернион)."""
+    """An attachment point: only rotation + translation (as in the 0 A.D. PMD: a position + a quaternion)."""
     m = np.array(m, dtype=np.float64)
     r = m[:3, :3]
     u, _, vt = np.linalg.svd(r)
@@ -132,9 +132,9 @@ def _orthonormal(m):
 
 
 def mesh(rel):
-    """Меш `meshes/<rel>` → dict: pos (N,3) float32 — треугольники подряд, nrm (N,3), uv0 (N,2), uv1 (N,2),
-    props {имя_точки: 4×4}. Координаты — как в файле (Z вверх), с применёнными трансформами узлов.
-    None — если файла нет или он не читается."""
+    """The mesh `meshes/<rel>` -> dict: pos (N,3) float32 - triangles one after another, nrm (N,3), uv0 (N,2), uv1 (N,2),
+    props {point_name: 4x4}. Coordinates are as in the file (Z up), with the node transforms applied.
+    None - if there is no file or it is unreadable."""
     if rel in _MESH:
         return _MESH[rel]
     path = art('meshes', rel)
@@ -153,8 +153,8 @@ def mesh(rel):
         return res
     try:
         res = _load_collada(path)
-    except Exception as e:     # битый файл — пропускаем деталь
-        print('  ! меш не читается:', rel, type(e).__name__, str(e)[:80])
+    except Exception as e:     # a broken file - skip the part
+        print('  ! the mesh is unreadable:', rel, type(e).__name__, str(e)[:80])
         res = None
     if res is not None:
         os.makedirs(os.path.dirname(cp), exist_ok=True)
@@ -183,7 +183,7 @@ def _load_collada(path):
         v = (np.c_[v, np.ones(len(v))] @ mat.T)[:, :3]
         if t.normal is not None and t.normal_index is not None:
             n = np.asarray(t.normal, dtype=np.float64)[t.normal_index.reshape(-1)]
-            n = n @ np.linalg.inv(mat[:3, :3])      # (M^-1)^T · n, в строчной записи
+            n = n @ np.linalg.inv(mat[:3, :3])      # (M^-1)^T * n, in row notation
         else:
             tri = v.reshape(-1, 3, 3)
             fn = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
@@ -202,7 +202,7 @@ def _load_collada(path):
         U1.append(uvs[1])
 
     props = {}
-    # сцену обходим сами (ElementTree): pycollada молча теряет instance_geometry с «битым» материалом
+    # we walk the scene ourselves (ElementTree): pycollada silently loses an instance_geometry with a "broken" material
     import xml.etree.ElementTree as ET
     ns = '{http://www.collada.org/2005/11/COLLADASchema}'
     geoms = {g.id: g for g in d.geometries}
@@ -249,8 +249,8 @@ def _load_collada(path):
                 c = ctrls.get((ch.get('url') or '')[1:])
                 geom = getattr(c, 'geometry', None)
                 if geom is not None:
-                    # скиннинг: поза привязки (bind shape); трансформ узла контроллера не применяется,
-                    # как и в конвертере 0 A.D.
+                    # skinning: the bind pose (bind shape); the controller node's transform is not applied,
+                    # as in the 0 A.D. converter
                     bsm = np.asarray(getattr(c, 'bind_shape_matrix', np.eye(4)), dtype=np.float64).reshape(4, 4)
                     for pr in geom.primitives:
                         add_prim(pr, bsm)
@@ -269,7 +269,7 @@ def _load_collada(path):
     nrm = np.concatenate(N).astype(np.float32)
     up = (d.assetInfo.upaxis or 'Z_UP').upper()
     if up == 'Y_UP':
-        # (x, y, z) Y-вверх → Z-вверх: (x, -z, y)
+        # (x, y, z) Y-up -> Z-up: (x, -z, y)
         conv = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]], dtype=np.float32)
         pos = pos @ conv.T
         nrm = nrm @ conv.T

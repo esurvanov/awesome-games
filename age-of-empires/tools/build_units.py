@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""Юниты из анимированных моделей 0 A.D. → листы спрайтов assets/gen/units/ (+ units/index.json).
+"""Units from animated 0 A.D. models -> sprite sheets assets/gen/units/ (+ units/index.json).
 
-Нужны сырые ассеты (tools/fetch_0ad.py → assets/0ad_raw/). Скиннинг и анимации — tools/render3d/skin.py,
-акторы с анимациями — tools/render3d/animactor.py, рендер — tools/render3d/renderer.py.
+The raw assets are needed (tools/fetch_0ad.py -> assets/0ad_raw/). Skinning and animations - tools/render3d/skin.py,
+actors with animations - tools/render3d/animactor.py, rendering - tools/render3d/renderer.py.
 
-  .venv/bin/python tools/build_units.py                         # всё (параллельно, несколько процессов)
+  .venv/bin/python tools/build_units.py                         # everything (in parallel, several processes)
   .venv/bin/python tools/build_units.py --only vil_m.britons,sheep --jobs 1
-  .venv/bin/python tools/build_units.py --list                  # набор моделей и сопоставление видам юнитов
-  .venv/bin/python tools/build_units.py --sheets shots/units    # контактные листы (tools/unit_sheet.py)
+  .venv/bin/python tools/build_units.py --list                  # the set of models and the mapping to unit kinds
+  .venv/bin/python tools/build_units.py --sheets shots/units    # contact sheets (tools/unit_sheet.py)
 
-Результат (пути относительно assets/gen/):
-  units/index.json          — индекс: наборы (анимации, число кадров, длительность, шаг, высота),
-                              сопоставление (вид юнита, группа цивилизаций) → набор
-  units/<набор>.png         — лист кадров RGBA: [анимация][направление 0..15][кадр]
-  units/<набор>.m.png       — маска цвета игрока (L8), та же раскладка
-  units/<набор>.json        — прямоугольники кадров [x, y, w, h, ax, ay] (ax, ay — точка «ног» в кадре)
-Модели для портретов/значков (те же правки, одежда, доп. детали, что в листах):
-  unit_spec(kind, group)                          → (имя набора, описание)
-  posed_parts(kind, group, anim, frac, female)    → dict(parts, scale, place(d), name, spec)
-  render_pose(kind, group, anim, frac, d)         → Sprite кадра как в листе (с R8)
-Направление d: взгляд вдоль угла d·22.5° в координатах мира (0 — +X, 4 — +Y); число — 'dirs' в записи набора.
-Производные материалы 0 A.D. © Wildfire Games, CC BY-SA 3.0 (см. CREDITS.md).
+The result (paths relative to assets/gen/):
+  units/index.json          - the index: sets (animations, frame counts, duration, step, height),
+                              the mapping (unit kind, civilization group) -> set
+  units/<set>.png           - a frame sheet RGBA: [animation][direction 0..15][frame]
+  units/<set>.m.png         - the player color mask (L8), the same layout
+  units/<set>.json          - frame rectangles [x, y, w, h, ax, ay] (ax, ay - the "feet" point in the frame)
+Models for portraits/icons (the same adjustments, clothing, extra parts as in the sheets):
+  unit_spec(kind, group)                          -> (set name, description)
+  posed_parts(kind, group, anim, frac, female)    -> dict(parts, scale, place(d), name, spec)
+  render_pose(kind, group, anim, frac, d)         -> a frame Sprite as in the sheet (with R8)
+Direction d: the look along the angle d*22.5 deg in world coordinates (0 - +X, 4 - +Y); the count - 'dirs' in the set's entry.
+Derived 0 A.D. materials (c) Wildfire Games, CC BY-SA 3.0 (see CREDITS.md).
 """
 import argparse
 import json
@@ -35,26 +35,26 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 OUT = os.path.join(REPO, 'assets', 'gen', 'units')
-TILE_PX = 32                    # game.data.TILE: пикселей мира на клетку
+TILE_PX = 32                    # game.data.TILE: world pixels per cell
 
-# ---------------------------------------------------------------- масштаб (клеток на единицу 0 A.D.)
-# Пропорции AoE II DE (docs/research/04_graphics.md, кванты 7, 8, 12): житель ≈ 0.33 ширины клетки ростом
-# (21 px при клетке 64 px), рыцарь ≈ 0.58 (≈ 37 px); раньше было 0.73 и 0.94 — фигурки в 2.2 и 1.6 раза крупнее.
-S_INF = 0.122                   # пехота: человек 0 A.D. ≈ 4.2 ед. → ≈ 21 px ростом
-S_CAV = 0.12                    # конница: рыцарь ≈ 1.5 роста пехотинца (DE: 45–50 px против 31, квант 12)
-S_ANIMAL = 0.12                 # звери: в тех же пропорциях к людям, что и раньше
-S_SIEGE = 0.8                   # осадные машины: множитель длины (таран DE ≈ 1.2 клетки)
-NDIR = 16                       # направлений взгляда, как в DE (квант 25)
-RENDER_VER = 3                  # версия освещения/масштаба: смена пересобирает всё при --resume
-FWD = 90.0                      # модель 0 A.D. смотрит вдоль −Y: поворот, чтобы d=0 смотрело вдоль +X
-MIRROR = True                   # COLLADA правая система, экран — левая: без отражения щит в правой руке
+# ---------------------------------------------------------------- scale (cells per 0 A.D. unit)
+# AoE II DE proportions (docs/research/04_graphics.md, quanta 7, 8, 12): a villager ~ 0.33 of a cell's width tall
+# (21 px at a 64 px cell), a knight ~ 0.58 (~ 37 px); it used to be 0.73 and 0.94 - figures 2.2 and 1.6 times larger.
+S_INF = 0.122                   # infantry: a 0 A.D. man ~ 4.2 units -> ~ 21 px tall
+S_CAV = 0.12                    # cavalry: a knight ~ 1.5 of an infantryman's height (DE: 45-50 px against 31, quantum 12)
+S_ANIMAL = 0.12                 # animals: in the same proportions to people as before
+S_SIEGE = 0.8                   # siege machines: a length multiplier (a DE ram ~ 1.2 cells)
+NDIR = 16                       # look directions, as in DE (quantum 25)
+RENDER_VER = 3                  # lighting/scale version: a change rebuilds everything on --resume
+FWD = 90.0                      # the 0 A.D. model looks along -Y: rotate so that d=0 looks along +X
+MIRROR = True                   # COLLADA is right-handed, the screen is left-handed: without mirroring the shield is in the right hand
 
-# ---------------------------------------------------------------- анимации
-# (наше имя, имя анимации 0 A.D., выборы вариантов, кадров, 'loop' | 'once' | 'static')
-# R9: живой покой (дыхание, переминание) — 10 кадров на цикл, как у DE (у машин и кораблей — 1 кадр)
+# ---------------------------------------------------------------- animations
+# (our name, the 0 A.D. animation name, variant choices, frames, 'loop' | 'once' | 'static')
+# R9: a living idle (breathing, shifting from foot to foot) - 10 frames per cycle, like DE (for machines and ships - 1 frame)
 A_IDLE = ('idle', 'idle', (), 10, 'loop')
-# кадров на цикл (квант 26–28): DE — ходьба 30, атака 30–60, смерть 30; у нас 16–20 — ближе к DE при
-# разумном объёме (листы 256 цветов, всего assets/gen ≲ 300 МБ)
+# frames per cycle (quanta 26-28): DE - walk 30, attack 30-60, death 30; ours 16-20 - closer to DE with
+# a reasonable size (256-color sheets, assets/gen in total <~ 300 MB)
 A_WALK = ('walk', 'walk', (), 20, 'loop')
 A_DEATH = ('death', 'death', (), 16, 'once')
 MELEE = [A_IDLE, A_WALK, ('attack', 'attack_melee', (), 20, 'loop'), A_DEATH]
@@ -85,10 +85,10 @@ ANIMAL = {
     'wolf': [A_IDLE, A_WALK, A_RUN, ('attack', 'attack_melee', (), 16, 'loop'), A_DEATH],
 }
 
-# ---------------------------------------------------------------- группы цивилизаций
-# группа зданий (game.sprites3d.civ_group) → группа юнитов → папки units/<…> 0 A.D. по порядку поиска
-# Средневековые юниты — из мода Millennium A.D. (папки units/caro, anglo, norse, rus, byzantines, umayyads),
-# недостающие роли — из 0 A.D. (последняя папка цепочки: мирные жители-мужчины, арбалетчик).
+# ---------------------------------------------------------------- civilization groups
+# building group (game.sprites3d.civ_group) -> unit group -> 0 A.D. units/<...> folders in search order
+# Medieval units - from the Millennium A.D. mod (folders units/caro, anglo, norse, rus, byzantines, umayyads),
+# missing roles - from 0 A.D. (the last folder of the chain: male civilians, a crossbowman).
 BUILD_TO_UNIT = {'caro': 'caro', 'teut': 'caro', 'anglo': 'anglo', 'celt': 'anglo', 'norse': 'norse', 'rus': 'rus',
                  'byz': 'byz', 'hisp': 'caro', 'umay': 'umay', 'han': 'han'}
 UGROUPS = {
@@ -100,7 +100,7 @@ UGROUPS = {
     'umay': ['umayyads', 'byzantines', 'achaemenids'],
     'han': ['han'],
 }
-# роль → (имена акторов в папке по порядку, запасной актор вне цепочки, анимации, масштаб)
+# role -> (actor names in a folder in order, a fallback actor outside the chain, animations, scale)
 ROLES = {
     'vil_m': (['citizen_male'], 'units/britons/citizen_male.xml', VIL, S_INF),
     'vil_f': (['female_citizen', 'citizen_female'], 'units/caro/female_citizen.xml', VIL, S_INF),
@@ -129,15 +129,15 @@ ROLES = {
                       'camelry_archer_b_m'], 'units/caro/cavalry_archer_e_m.xml', RANGED, S_CAV),
     'monk': (['healer', 'priest', 'healer_b'], 'units/caro/healer.xml', MONK, S_INF),
 }
-# группы, где у роли свой актор вне цепочки папок
+# groups where a role has its own actor outside the folder chain
 ROLE_GROUP = {
     ('scout', 'han'): 'units/han/cavalry_spearman_b_m.xml',
     ('cav_a', 'han'): 'units/han/cavalry_spearman_b_m.xml',
     ('monk', 'anglo'): 'units/caro/healer.xml',
     ('monk', 'norse'): 'units/caro/healer.xml',
 }
-# мирные жители-мужчины: в Millennium A.D. их нет — нейтральные крестьяне 0 A.D. с «средневековыми» головными
-# уборами (соломенная шляпа, капюшон, меховая шапка, тюрбан) по группе
+# male civilians: there are none in Millennium A.D. - neutral 0 A.D. peasants with "medieval" headgear
+# (a straw hat, a hood, a fur cap, a turban) by group
 _HV = 'props/units/helmets/'
 VIL_M = {
     'caro': ('units/britons/citizen_male.xml', {'helmet': _HV + 'hele_straw_01.xml'}),
@@ -150,10 +150,10 @@ VIL_M = {
                                                     'helmet>#baseTex': '@tex/white'}),
     'han': ('units/han/citizen_male.xml', {}),
 }
-TRADER = {'umay': 'trader.umay', 'han': 'trader.han'}          # остальные — trader.byz (повозка)
+TRADER = {'umay': 'trader.umay', 'han': 'trader.han'}          # the rest - trader.byz (a cart)
 
-# ---------------------------------------------------------------- ранги (AoE2): чем выше ранг, тем тяжелее вид
-# Шлемы по культуре папки актора: 'H:<тип>' в override заменяется на актор шлема.
+# ---------------------------------------------------------------- ranks (AoE2): the higher the rank, the heavier the kind
+# Helmets by the actor folder's culture: 'H:<type>' in an override is replaced by the helmet actor.
 _H = 'props/units/helmets/'
 HELM = {
     '*': {'cap': _H + 'rus_cap_b.xml', 'nasal': _H + 'norse_helmet.xml', 'heavy': _H + 'caro_cavalry_helmet.xml',
@@ -167,15 +167,15 @@ HELM = {
     'rus': {'nasal': _H + 'rus_helmet.xml', 'heavy': _H + 'rus_helmet_c.xml'},
     'norse': {'heavy': _H + 'norse_huscarl_iron.xml'},
 }
-PLATE = 'skeletal/imp/lorica_segmentata_01_01.png'          # «латы»: блестящие стальные полосы
+PLATE = 'skeletal/imp/lorica_segmentata_01_01.png'          # "plate": shiny steel strips
 BIGSWORD = ('props/units/weapons/norse_sword.xml', (1.8, 1.8, 1.8))
-# шлемы-«подписи» (procmesh): крупнее натуральных, чтобы читались в 21 px
+# "signature" helmets (procmesh): larger than natural so they read at 21 px
 KETTLE, KABUTO, GREATHELM, MORION = ('@kettle', 1.35), ('@kabuto', 1.5), ('@greathelm', 1.25), ('@morion', 1.35)
 SW = 'biped/infantry/swordsman/'
 TWO_H = {'#anim:idle': SW + 'idle_relax_2h.dae', '#anim:walk': 'biped/infantry/spearman/walk_relax.dae',
          '#anim:attack_melee': SW + 'attack_melee_2h_01.dae', 'shield': None, 'shield_arm': None,
          'weapon_R': '@greatsword', 'sheath_L': None}
-# стрелки идут шагом (а не бегом «трусцой», растянутым до нашей скорости): ноги не скользят, темп естественный
+# ranged units walk (not "jog" stretched to our speed): feet do not slide, the pace is natural
 W_RANGED = 'biped/infantry/spearman/walk_relax.dae'
 XB = 'biped/infantry/crossbowman/'
 NU = 'props/units/weapons/crossbow/han_nu.xml'
@@ -184,25 +184,25 @@ XBOW = {'weapon_R': (NU, 2.2), 'weapon_bow': None, '#anim:idle': XB + 'idle_read
 PIKE = ('props/units/weapons/spear_long.xml', (2.2, 2.2, 1.5))
 SPEAR = ('props/units/weapons/spear_long.xml', (2.2, 2.2, 1.1))
 HORSE_ARMOR = 'props/horse/cav_armor_caro.xml'
-# попона цвета игрока (заменяет прежние накидки/броню коня) + маска на морду
+# a caparison in player color (replaces the former capes/horse armor) + a mask on the muzzle
 CAPARISON = {'root': 'props/horse/cav_armor_byzantine_cloth_player.xml', 'root+': 'props/horse/cav_rein_leather.xml',
              'head': 'props/horse/cav_mask_byzantine_cloth_player.xml'}
-# R3: каплевидный щит (латник), «гербовый» (короче — длинный мечник)
+# R3: a kite shield (man-at-arms), a "heraldic" one (shorter - the long swordsman)
 def kite(pattern='bands', k=1.15, pt='shield_arm'):
-    """Каплевидный щит с гербом цвета игрока (procmesh '@shield/kite_*') на точке pt."""
+    """A kite shield with a player-color crest (procmesh '@shield/kite_*') at the point pt."""
     return {pt: ('props/units/shields/byza_kite.xml', k), pt + '>#baseTex': '@shield/kite_' + pattern,
             ('shield' if pt == 'shield_arm' else 'shield_arm'): None}
 
 
 HEATER_K = (1.15, 1.15, 0.85)
-# R5: древко двумя руками, без щита (анимации пикинёра 0 A.D.)
+# R5: the shaft in two hands, no shield (the 0 A.D. pikeman animations)
 PK = 'biped/infantry/pikeman/'
 POLE = {'#anim:idle': PK + 'idle_relax_01.dae', '#anim:walk': PK + 'walk_relax.dae',
         '#anim:attack_melee': PK + 'attack_melee_01.dae', 'shield': None, 'shield_arm': None}
 NOSHIELD = {'shield': None, 'shield_arm': None}
 SH = 'props/shields/'
 
-# R6: всадник с мечом/саблей (анимации «generic» 0 A.D.: меч наготове, удар сверху; со щитом — *_shield_*)
+# R6: a rider with a sword/sabre (0 A.D. "generic" animations: sword at the ready, an overhead strike; with a shield - *_shield_*)
 RCG = 'biped/rider/cavalry/generic/'
 SWORD = ('props/units/weapons/caro_infantry_sword.xml', 1.75)
 SABRE = ('props/units/weapons/byza_paramerion.xml', 1.8)
@@ -225,21 +225,21 @@ def cav_sword(weapon, shield=None, helmet=None, paint=None):
     return ov
 
 
-# луки всадников крупнее (иначе конный лучник ≠ всадник только по цвету)
+# riders' bows are larger (otherwise a cavalry archer differs from a rider only by color)
 RIDER_K = {'units/': 1.12}
 BOWS = {'props/units/weapons/bow': 1.7, 'props/units/weapons/xion_bow': 1.7, 'props/units/weapons/norse_bow': 1.7}
 
-# R1: стиль одежды (tools/render3d/paint.py) по роли; у видов — ключ '#paint' в правках
+# R1: the clothing style (tools/render3d/paint.py) by role; for kinds - the '#paint' key in the overrides
 PAINT = {
     'vil_f': 'dress', 'vil_m': 'apron', 'monk': 'stole',
 }
-# R14: инструменты жителей крупнее (топор, кирка, мотыга, молоток, нож, корзина) — читаются в 21 px
+# R14: villagers' tools are larger (an axe, pick, hoe, hammer, knife, basket) - they read at 21 px
 TOOLS = {'props/units/tools/basket': 1.35, 'props/units/tools/': 2.3, 'props/units/weapons/dagger': 2.6,
 }
 
-# вид → (роль-цепочка акторов, правки)
+# kind -> (the role chain of actors, overrides)
 RANKS = {
-    # ополченец DE: кожаный жилет, дубина/булава в опущенной руке, без щита
+    # DE militia: a leather vest, a club/mace in a lowered hand, no shield
     'militia': ('sword_b', dict(NOSHIELD, helmet='H:cap', root=None, sheath_L=None, weapon_R=(
         'props/units/weapons/caro_mace.xml', 2.3), **{'#paint': 'vest'})),
     'man_at_arms': ('sword_b', dict(kite('bands'), helmet='H:nasal', **{'#paint': 'tabard'})),
@@ -262,7 +262,7 @@ RANKS = {
     'elite_skirmisher': ('skirm_e', {'#anim:walk': W_RANGED, 'helmet': 'H:nasal', '#paint': 'quarter',
                                      'shield_arm': ('props/units/shields/caro_leather.xml', 0.85),
                                      'shield_arm>#baseTex': SH + 'caro/lenticular/lenticular_petal_player_white.png'}),
-    # R6: скаут-линия и рыцари — всадник с мечом (DE), без копья; R7 — броня/попона коня; R3 — каплевидный щит
+    # R6: the scout line and knights - a rider with a sword (DE), no lance; R7 - the horse's armor/caparison; R3 - a kite shield
     'scout': ('scout', dict(cav_sword(SWORD, helmet='H:cap', paint='tabard'), **{'#sel': ('tan', 'beige')})),
     'light_cavalry': ('cav_a', dict(cav_sword(SABRE, helmet='H:nasal', paint='surcoat'),
                                     **{'rider>root+': CAPE_R, '#sel': ('black', 'maneless_black')})),
@@ -282,13 +282,13 @@ RANKS = {
 }
 
 
-# верблюд: шаг вместо рыси (рысь, растянутая до нашей скорости, выглядела замедленной), всадник сидит спокойно
+# camel: a walk instead of a trot (a trot stretched to our speed looked slowed down), the rider sits calmly
 CAMEL_WALK = {'#anim:walk': 'quadraped/camel_walk.dae',
               'rider>#anim:walk': 'biped/rider/camelry/archer/idle_relax_01.dae'}
 
 
 def resolve_override(ov, actor):
-    """'H:<тип>' → шлем культуры папки актора."""
+    """'H:<type>' -> the helmet of the actor folder's culture."""
     if 'camelry' in actor:
         ov = dict(CAMEL_WALK, **(ov or {}))
     if not ov:
@@ -305,7 +305,7 @@ def resolve_override(ov, actor):
     return out
 
 
-# ---------------------------------------------------------------- огнестрел (процедурные пропы, tools/render3d/procmesh.py)
+# ---------------------------------------------------------------- firearms (procedural props, tools/render3d/procmesh.py)
 GUN = {'weapon_R': '@musket', 'weapon_bow': None, 'back': None, 'sheath_L': '@powderhorn',
        '#anim:idle': XB + 'idle_ready_01.dae', '#anim:attack_ranged': (XB + 'attack_ranged.dae', 0.8),
        '#anim:walk': W_RANGED}
@@ -316,38 +316,38 @@ CAV_GUN = {'rider>weapon_R': '@musket', 'rider>weapon_bow': None, 'rider>back': 
            'rider>#baseTex': 'skeletal/caro/elite/chainmail_scale1a.png',
            'rider>#anim:attack_ranged': (RC + 'crossbowman/attack_ranged_back.dae', 0.8),
            'rider>#anim:idle': RC + 'crossbowman/idle_relax_01.dae'}
-# отличие элитных уникальных юнитов: гребень/плюмаж цвета игрока (поверх своего шлема)
+# the difference of elite unique units: a crest/plume in player color (over their own helmet)
 PLUME = (_H + 'rome_apulo_itallic_e1.xml', 1.3)
 ELITE_INF = {'helmet+': '@plume_player'}
 ELITE_CAV = {'rider>helmet+': '@plume_player'}
-# верблюжьи всадники с саблей: анимации всадника «generic»
+# camel riders with a sabre: the "generic" rider animations
 CAMEL_SWORD = {'rider>weapon_R': ('props/units/weapons/byza_paramerion.xml', 1.5), 'rider>shield': None,
                'rider>#anim:attack_melee': 'biped/rider/cavalry/generic/attack_melee_shield_01.dae',
-               # белый тюрбан (DE: у верблюжьих всадников и мамлюков)
+               # a white turban (DE: for camel riders and mamelukes)
                'rider>helmet': (_H + 'achae_kidaris_tied.xml', (1.2, 1.2, 1.1)), 'rider>helmet>#baseTex': '@tex/white'}
 
-# осадные: R12 — брусья/обмотки цвета игрока (доли габарита модели, см. extra_parts)
+# siege: R12 - beams/wrappings in player color (shares of the model's footprint, see extra_parts)
 RAILS = [('box', '@tex/player', (0.14, 0.12, 0.03, 0.22, 0.88, 0.11)),
          ('box', '@tex/player', (0.78, 0.12, 0.03, 0.86, 0.88, 0.11))]
 ROPES = [('cyl_y', '@tex/player', (0.12, 0.42, 0.25, 0.3, 0.58, 0.45)),
          ('cyl_y', '@tex/player', (0.7, 0.42, 0.25, 0.88, 0.58, 0.45))]
 NOCREW = {'operator_L': None, 'operator_R': None}
 
-# наборы вне групп: имя → dict(actor, anims, scale | length, …)
+# sets outside groups: name -> dict(actor, anims, scale | length, ...)
 GLOBAL = {
     'trader.byz': dict(actor='units/byzantines/trader.xml', anims=CART, scale=S_CAV, paint='tabard'),
     'trader.han': dict(actor='units/han/trader.xml', anims=CART, scale=S_CAV, paint='tabard'),
     'trader.umay': dict(actor='units/umayyads/trader.xml', anims=CART, scale=S_CAV, paint='tabard'),
-    # ручница: ствол ×1.5, шапель, полосатые штаны (DE)
+    # hand cannoneer: barrel x1.5, a kettle hat, striped trousers (DE)
     'gun': dict(actor='units/caro/infantry_archer_b.xml', anims=RANGED, scale=S_INF, seed=1, paint='bands',
                 override=dict(GUN, weapon_R=('@handcannon', 2.0), helmet=KETTLE)),
-    # янычар: белый халат с кушаком цвета игрока, высокая белая шапка, мушкет крупнее
+    # janissary: a white robe with a sash in player color, a tall white cap, a larger musket
     'janissary': dict(actor='units/umayyads/infantry_archer_b.xml', anims=RANGED, scale=S_INF, seed=9, paint='robe',
                       override=dict(GUN, weapon_R=('@musket', 1.7), **JAN_HAT)),
     'janissary_e': dict(actor='units/umayyads/infantry_archer_e.xml', anims=RANGED, scale=S_INF * 1.03, seed=9,
                         paint='robe', override=dict(GUN, weapon_R=('@musket_dark', 1.7), **JAN_HAT),
                         sel=('scale1a',)),
-    # конкистадор: морион, аркебуза, без щита
+    # conquistador: a morion, an arquebus, no shield
     'conquistador': dict(actor='units/caro/cavalry_archer_b_m.xml', anims=RANGED, scale=S_CAV, paint='quarter',
                          override=dict(CAV_GUN, **{'rider>weapon_R': ('@musket', 1.7), 'rider>helmet': MORION})),
     'conquistador_e': dict(actor='units/caro/cavalry_archer_b_m.xml', anims=RANGED, scale=S_CAV * 1.03,
@@ -355,7 +355,7 @@ GLOBAL = {
                            override=dict(CAV_GUN, **{'root+': HORSE_ARMOR, 'rider>helmet': MORION,
                                                      'rider>helmet+': '@plume_player',
                                                      'rider>weapon_R': ('@musket', 1.7)})),
-    # верблюжий всадник: сабля + круглый щит сине-белый, тюрбан
+    # camel rider: a sabre + a round blue-and-white shield, a turban
     'camel': dict(actor='units/umayyads/camelry_archer_b_m.xml', anims=MELEE, scale=S_CAV, paint='tabard',
                   override=dict(CAMEL_WALK, **CAMEL_SWORD, rider='units/umayyads/cavalry_spearman_b_r.xml',
                                 **{'rider>shield_arm': ('props/units/shields/umay_round_b.xml', 1.1),
@@ -364,67 +364,67 @@ GLOBAL = {
                     override=dict(CAMEL_WALK, **CAMEL_SWORD, rider='units/umayyads/cavalry_spearman_e_r.xml',
                                   **{'rider>shield_arm': ('props/units/shields/umay_round_e.xml', 1.15),
                                      'rider>shield_arm>#baseTex': SH + 'caro/lenticular/lenticular_petal_player_white.png'})),
-    # мамлюк: белый халат и тюрбан, большая сабля, без щита; верблюд светлый
+    # mameluke: a white robe and turban, a big sabre, no shield; a light camel
     'mameluke': dict(actor='units/umayyads/camelry_archer_a_m.xml', anims=MELEE, scale=S_CAV * 1.03, paint='robe',
                      override={**CAMEL_WALK, **CAMEL_SWORD, 'rider': 'units/umayyads/cavalry_spearman_a_r.xml',
                                'rider>weapon_R': ('props/units/weapons/byza_paramerion.xml', 1.8),
                                'rider>helmet': (_H + 'achae_kidaris_tied.xml', (1.2, 1.2, 1.3)),
                                'rider>helmet>#baseTex': '@tex/white', 'rider>root': None}),
-    # боевой слон: башенка-хауда с воином, попона
+    # war elephant: a howdah tower with a warrior, a caparison
     'elephant': dict(actor='fauna/elephant_asian.xml', anims=MELEE, scale=0.118, paint='tabard',
                      override={'rider1': 'units/achaemenids/cavalry_archer_b_r.xml',
                                'turret': 'props/units/elephant/howdah_cart_01.xml',
                                'turret+': 'units/achaemenids/cavalry_archer_b_r.xml'}),
-    # метатель топоров (франк): крупный топор, полосатые штаны, шлем
+    # throwing axeman (Frank): a large axe, striped trousers, a helmet
     'axe_thrower': dict(actor='units/caro/infantry_javelinist_b.xml', anims=RANGED, scale=S_INF, paint='bands',
                         override={'weapon_R': ('props/units/weapons/norse_axe.xml', 2.4), '#anim:walk': W_RANGED,
                                   'ammo': None, 'helmet': 'H:nasal'}),
-    # берсерк: голый торс, меч и круглый щит
+    # berserk: a bare torso, a sword and a round shield
     'berserk': dict(actor='units/norse/champion_berserker.xml', anims=MELEE, scale=S_INF, paint='bare',
                     override={'weapon_R': ('props/units/weapons/norse_sword.xml', 1.4), '#anim:idle': SW + 'idle_ready_shield_01.dae',
                               '#anim:walk': SW + 'walk_relax_shield.dae',
                               '#anim:attack_melee': SW + 'attack_melee_shield_01.dae',
                               'shield_arm>#baseTex': SH + 'caro/lenticular/lenticular_chiro_player_white.png',
                               'root': None, 'root+': 'props/units/capes/cape_med_pelt.xml'}),
-    # хускарл: огромный круглый щит сине-белый, меч, наносный шлем
+    # huskarl: a huge round blue-and-white shield, a sword, a nasal helmet
     'huskarl': dict(actor='units/norse/champion_huscarl.xml', anims=MELEE, scale=S_INF, seed=2, paint='tabard',
                     override={'weapon_R': ('props/units/weapons/norse_sword.xml', 1.3), 'back': None,
                               'shield_arm': ('props/units/shields/norse_player_colour.xml', 1.45),
                               'shield_arm>#baseTex': SH + 'iron_swirl_white.png',
                               '#anim:idle': SW + 'idle_relax_shield_01.dae', '#anim:walk': SW + 'walk_relax_shield.dae',
                               '#anim:attack_melee': SW + 'attack_melee_shield_01.dae'}),
-    # тевтонский рыцарь: ведёрный шлем, двуручный меч, белый плащ с крестом цвета игрока
+    # Teutonic knight: a bucket helm, a two-handed sword, a white cloak with a cross in player color
     'teuton': dict(actor='units/caro/champion_infantry.xml', anims=MELEE, scale=S_INF * 1.04, seed=3, paint='white',
                    override=dict(TWO_H, helmet=GREATHELM, root=None,
                                  **{'root+': ('props/units/capes/cape_long_player.xml', 1.0),
                                     'root+>#baseTex': '@tex/linen'})),
-    # вайдовый налётчик: голый торс, длинные волосы, меч
+    # woad raider: a bare torso, long hair, a sword
     'woad': dict(actor='units/britons/infantry_swordsman_c.xml', anims=MELEE, scale=S_INF, seed=4, paint='bare',
                  override=dict(NOSHIELD, helmet=None, root=None, head='props/units/heads/new/head_celt_fanatic.xml',
                                weapon_R=('props/units/weapons/norse_sword.xml', 1.35), sheath_01_R=None,
                                **{'#anim:idle': SW + 'idle_ready_2h.dae', '#anim:walk': SW + 'walk_ready_2h.dae',
                                   '#anim:attack_melee': SW + 'attack_melee_2h_01.dae'})),
-    # самурай: кабуто с рогами, катана двумя руками
+    # samurai: a kabuto with horns, a katana in both hands
     'samurai': dict(actor='units/han/infantry_swordsman_c.xml', anims=MELEE, scale=S_INF, seed=5, paint='surcoat',
                     override=dict(TWO_H, helmet=KABUTO, weapon_R=('@katana', 1.3), root=None)),
-    # чу-ко-ну: магазинный арбалет-коробка
+    # chu ko nu: a magazine crossbow box
     'chukonu': dict(actor='units/han/infantry_crossbowman_b.xml', anims=RANGED, scale=S_INF, seed=6, paint='tabard',
                     override={'#anim:walk': W_RANGED,
                               'weapon_R': ('props/units/weapons/crossbow/han_liannu.xml', 2.4)}),
-    # длинный лучник: лук выше роста, белый табард с гербом
+    # longbowman: a bow taller than he is, a white tabard with a crest
     'longbow': dict(actor='units/caro/infantry_archer_e.xml', anims=RANGED, scale=S_INF * 1.03, seed=7, paint='white',
                     override={'#anim:walk': W_RANGED, 'weapon_bow': ('props/units/weapons/norse_bow.xml', 2.0),
                               'helmet': None}),
-    # мангудай: меховая шапка с плюмажем, бурый конь, кожаный доспех
+    # mangudai: a fur hat with a plume, a brown horse, leather armor
     'mangudai': dict(actor='units/han/cavalry_archer_b_m.xml', anims=RANGED, scale=S_CAV, seed=8, paint='vest',
                      prop_scale=BOWS,
                      override={'rider>helmet': _H + 'rus_cap_fur.xml', 'rider>helmet+': '@plume_player'}),
-    # катафракт: конь в ламеллярной броне, всадник в чешуе, копьё, без щита
+    # cataphract: a horse in lamellar armor, a rider in scale, a spear, no shield
     'cataphract': dict(actor='units/byzantines/cavalry_spearman_e_m.xml', anims=MELEE, scale=S_CAV, paint='tabard',
                        override={'root+': 'props/horse/cav_armor_umayyad_lamellar.xml', 'rider>shield_arm': None,
                                  'rider>shield': None}),
-    # осадные машины: длина вписывается в length клеток
-    # тараны (R10, R12): синие брусья основания, видимое бревно / голова барана спереди
+    # siege machines: the length fits into length cells
+    # rams (R10, R12): blue base beams, a visible log / ram head in front
     'ram_log': dict(actor='structures/germans/siege_ram.xml', anims=RAM, length=1.5,
                     extras=RAILS + [('cyl_y', '@tex/wood', (0.4, -0.16, 0.2, 0.6, 0.35, 0.42))]),
     'ram_capped': dict(actor='structures/celts/siege_ram.xml', anims=RAM, length=1.55,
@@ -434,7 +434,7 @@ GLOBAL = {
                       extras=RAILS + [('ram_head', '@tex/steel', (0.36, -0.18, 0.12, 0.64, 0.08, 0.42)),
                                       ('box', '@tex/steel', (0.2, 0.25, 0.6, 0.8, 0.45, 0.75)),
                                       ('box', '@tex/steel', (0.2, 0.6, 0.45, 0.8, 0.75, 0.62))]),
-    # мангонель-линия (DE — торсион с ложкой): рама онагра, крупнее с рангом (R11), обмотки цвета игрока (R12)
+    # mangonel line (DE - a torsion machine with a spoon): an onager frame, larger with rank (R11), wrappings in player color (R12)
     'mangonel': dict(actor='units/romans/siege_onager.xml', anims=SIEGE, length=1.95, extras=ROPES),
     'onager': dict(actor='units/romans/siege_onager.xml', anims=SIEGE, length=2.15, seed=1,
                    extras=ROPES + [('box', '@tex/steel', (0.0, 0.3, 0.0, 1.0, 0.36, 0.1))]),
@@ -444,7 +444,7 @@ GLOBAL = {
                                      ('box', '@tex/iron', (-0.03, 0.05, 0.0, 1.03, 0.95, 0.05))]),
     'onager_han': dict(actor='units/han/siege_mangonel.xml', anims=SIEGE, length=1.9),
     'onager_han_s': dict(actor='units/han/siege_mangonel.xml', anims=SIEGE, length=2.3),
-    # скорпион без расчёта (DE — машина одна), тяжёлый — крупнее, со сталью
+    # scorpion without a crew (DE - one machine), the heavy one is larger, with steel
     'scorpio': dict(actor='units/romans/siege_scorpio.xml', anims=SIEGE, length=1.2,
                     override=NOCREW, extras=[('box', '@tex/player', (0.0, 0.45, 0.62, 1.0, 0.55, 0.72))]),
     'ballista': dict(actor='units/romans/siege_scorpio.xml', anims=SIEGE, length=1.5, seed=1,
@@ -452,19 +452,19 @@ GLOBAL = {
                                               ('box', '@tex/steel', (0.05, 0.2, 0.55, 0.95, 0.3, 0.66)),
                                               ('box', '@tex/steel', (0.3, 0.0, 0.5, 0.7, 0.1, 0.62))]),
     'bombard': dict(actor='@bombard', anims=SIEGE, length=1.35),
-    # требушет (R11): без лошадей в сложенном виде, крупнее ×1.65 (DE ≈ 3.3 роста пехотинца)
+    # trebuchet (R11): without horses when packed, larger x1.65 (DE ~ 3.3 of an infantryman's height)
     'treb_packed': dict(actor='units/caro/siege_trebuchet_packed.xml', anims=CART, length=3.0,
                         override={'horse_l': None, 'horse_r': None},
                         extras=[('box', '@tex/player', (0.1, 0.35, 0.55, 0.9, 0.42, 0.8))]),
     'treb_up': dict(actor='units/caro/siege_trebuchet.xml', anims=SIEGE, length=3.3,
                     extras=[('box', '@tex/player', (0.3, 0.4, 0.3, 0.7, 0.6, 0.34))]),
-    # животные
+    # animals
     'sheep': dict(actor='fauna/sheep1.xml', anims=ANIMAL['sheep'], scale=S_ANIMAL),
     'deer': dict(actor='fauna/deer.xml', anims=ANIMAL['deer'], scale=S_ANIMAL),
     'boar': dict(actor='fauna/boar.xml', anims=ANIMAL['boar'], scale=S_ANIMAL),
     'wolf': dict(actor='fauna/wolf.xml', anims=ANIMAL['wolf'], scale=S_ANIMAL),
 }
-# элитные уникальные юниты: базовый набор + отличительная деталь
+# elite unique units: the base set + a distinguishing part
 for _n in ('axe_thrower', 'berserk', 'huskarl', 'teuton', 'woad', 'samurai', 'chukonu', 'longbow'):
     GLOBAL[_n + '_e'] = dict(GLOBAL[_n], override=dict(GLOBAL[_n].get('override') or {}, **ELITE_INF),
                              scale=GLOBAL[_n]['scale'] * 1.03)
@@ -473,14 +473,14 @@ for _n in ('mangudai', 'cataphract', 'mameluke'):
                              scale=GLOBAL[_n]['scale'] * 1.03)
 GLOBAL['elephant_e'] = dict(GLOBAL['elephant'], scale=0.124,
                             override=dict(GLOBAL['elephant']['override'], **{'rider1>helmet': (PLUME[0], 1.8)}))
-# корабли: набор по «морскому стилю» группы
+# ships: a set by the group's "naval style"
 SHIP_STYLE = {'caro': 'north', 'anglo': 'north', 'norse': 'north', 'rus': 'north', 'byz': 'med', 'umay': 'med',
               'han': 'han'}
 _NS, _BS = 'structures/norse/', 'structures/byzantines/'
 SHIPS = {
-    # вид: {стиль: (актор, длина в клетках[, доработка из SHIP_X])}. R13: у каждого класса свой силуэт, как в DE —
-    # рыбак — лодка с косым парусом, транспорт — под тентом, галера → дромон → высокий галеон, брандер с сифоном,
-    # подрывные — лодки с бочками пороха
+    # kind: {style: (actor, length in cells[, a refinement from SHIP_X])}. R13: each class has its own silhouette, as in DE -
+    # a fisher - a boat with a lateen sail, a transport - under a canopy, a galley -> a dromon -> a tall galleon, a fire ship with a siphon,
+    # demolition ships - boats with barrels of gunpowder
     'fishing_ship': {'*': (_BS + 'fishing_boat.xml', 1.25, 'lateen'), 'han': ('structures/han/fishing_ship.xml', 1.25)},
     'transport_ship': {'*': (_NS + 'knarr.xml', 1.8, 'tent'), 'han': ('structures/han/merchant_ship.xml', 1.8)},
     'galley': {'*': (_BS + 'warship_light.xml', 1.9), 'han': ('structures/han/trireme.xml', 1.9)},
@@ -492,7 +492,7 @@ SHIPS = {
     'heavy_demolition_ship': {'*': ('structures/germans/ship_scout.xml', 1.55, 'barrels')},
     'cannon_galleon': {'*': ('structures/han/towership.xml', 2.3, 'guns')},
 }
-# доработки кораблей: правки дерева и доп. детали (доли габарита, см. extra_parts)
+# ship refinements: tree edits and extra parts (shares of the footprint, see extra_parts)
 SHIP_X = {
     'guns': dict(override={'root+': ('@ship_cannons', (28.8, 18.0, 32.4))}),
     'lateen': dict(override={'sail': None},
@@ -502,9 +502,9 @@ SHIP_X = {
     'tent': dict(override={'root': None},
                  extras=[('tent', '@tex/linen', (0.12, 0.22, 0.45, 0.88, 0.8, 1.35)),
                          ('box', '@tex/player', (0.1, 0.48, 0.44, 0.9, 0.54, 1.37))]),
-    'galleon': dict(extras=[('box', '@tex/wood', (0.25, 0.8, 0.06, 0.75, 0.98, 0.19)),       # кормовая надстройка
-                            ('box', '@tex/wood', (0.3, 0.02, 0.06, 0.7, 0.14, 0.16)),         # носовая
-                            ('cyl_z', '@tex/wood', (0.485, 0.2, 0.1, 0.515, 0.22, 0.8)),     # вторая мачта
+    'galleon': dict(extras=[('box', '@tex/wood', (0.25, 0.8, 0.06, 0.75, 0.98, 0.19)),       # the stern superstructure
+                            ('box', '@tex/wood', (0.3, 0.02, 0.06, 0.7, 0.14, 0.16)),         # bow
+                            ('cyl_z', '@tex/wood', (0.485, 0.2, 0.1, 0.515, 0.22, 0.8)),     # the second mast
                             ('box', '@tex/linen', (0.14, 0.2, 0.36, 0.86, 0.225, 0.74)),
                             ('box', '@tex/player', (0.14, 0.198, 0.5, 0.86, 0.228, 0.58))]),
     'barrels': dict(extras=[('barrels', '@tex/wood', (0.25, 0.25, 0.3, 0.75, 0.75, 0.8)),
@@ -514,7 +514,7 @@ SHIP_X = {
 }
 SHIP_ALIAS = {'fire_ship': 'fire_galley', 'fast_fire_ship': 'fire_galley'}
 
-# вид юнита → роль (по группам) или глобальный набор; военные линии — RANKS (свой набор на каждый ранг)
+# unit kind -> role (by group) or a global set; military lines - RANKS (a separate set for each rank)
 KIND_ROLE = {'villager': 'vil_m', 'monk': 'monk', 'trade_cart': 'trader'}
 KIND_GLOBAL = {
     'hand_cannoneer': 'gun', 'camel_rider': 'camel', 'heavy_camel_rider': 'camel_h',
@@ -537,7 +537,7 @@ KIND_GLOBAL = {
     'woad_raider': 'woad', 'elite_woad_raider': 'woad_e',
     'conquistador': 'conquistador', 'elite_conquistador': 'conquistador_e',
 }
-# у некоторых групп своя модель для глобального вида (осада Хань)
+# some groups have their own model for a global kind (Han siege)
 KIND_GROUP_GLOBAL = {('mangonel', 'han'): 'onager_han', ('onager', 'han'): 'onager_han',
                      ('siege_onager', 'han'): 'onager_han_s'}
 
@@ -552,7 +552,7 @@ def role_actor(role, group):
     if a:
         return a
     names, fb, _, _ = ROLES[role]
-    for folder in UGROUPS[group]:           # своя папка важнее порядка имён
+    for folder in UGROUPS[group]:           # its own folder matters more than the name order
         for n in names:
             p = f'units/{folder}/{n}.xml'
             if _actor_exists(p):
@@ -561,7 +561,7 @@ def role_actor(role, group):
 
 
 def plan():
-    """→ (sets: {имя: spec}, mapping: {вид: {группа юнитов: имя набора}})."""
+    """-> (sets: {name: spec}, mapping: {kind: {unit group: set name}})."""
     sets, mapping = {}, {}
 
     def add_role(role, group, kind=None, ov=None):
@@ -628,7 +628,7 @@ def plan():
             sets[name] = dict(actor=actor, anims=SHIP, length=ln, ship=True,
                               **SHIP_X.get(rec[2] if len(rec) > 2 else None, {}))
             mp[g] = name
-    # всадник крупнее коня (как у DE: фигура всадника читается над головой коня)
+    # the rider is larger than the horse (as in DE: the rider's figure reads above the horse's head)
     for sp in sets.values():
         if any(w in sp['actor'] for w in ('cavalry_', 'camelry_')):
             sp['prop_scale'] = dict(RIDER_K, **(sp.get('prop_scale') or {}))
@@ -640,13 +640,13 @@ def plan():
     return sets, mapping
 
 
-# ---------------------------------------------------------------- модели для портретов и превью
+# ---------------------------------------------------------------- models for portraits and previews
 _PLAN = None
 
 
 def unit_spec(kind, group='caro', female=False):
-    """(имя набора, описание) для вида юнита (как в игре: 'knight', 'villager', 'animal_sheep'…) и группы
-    юнитов (UGROUPS: caro, anglo, norse, rus, byz, umay, han; '*' — любая)."""
+    """(set name, description) for a unit kind (as in the game: 'knight', 'villager', 'animal_sheep'...) and a unit
+    group (UGROUPS: caro, anglo, norse, rus, byz, umay, han; '*' - any)."""
     global _PLAN
     if _PLAN is None:
         _PLAN = plan()
@@ -659,10 +659,10 @@ def unit_spec(kind, group='caro', female=False):
 
 
 def posed_parts(kind, group='caro', anim='idle', frac=0.0, female=False):
-    """Готовые детали модели юнита в позе: dict(parts — list[Part] в координатах модели (ед. 0 A.D., Z вверх,
-    взгляд вдоль −Y), scale — клеток на единицу модели как в листах спрайтов, name, spec, place(d) — матрица
-    размещения для направления d из 16, как у спрайтов). anim — наше имя анимации ('idle', 'walk', 'attack',
-    'chop', …), frac — доля цикла 0..1. Для портретов: Renderer.build_items(parts, place) → Renderer.render."""
+    """The ready parts of a unit model in a pose: dict(parts - a list[Part] in model coordinates (0 A.D. units, Z up,
+    looking along -Y), scale - cells per model unit as in the sprite sheets, name, spec, place(d) - a placement
+    matrix for direction d of 16, like the sprites'). anim - our animation name ('idle', 'walk', 'attack',
+    'chop', ...), frac - the cycle share 0..1. For portraits: Renderer.build_items(parts, place) -> Renderer.render."""
     from tools.render3d import animactor as aa
     name, spec = unit_spec(kind, group, female)
     rec = next((a for a in spec['anims'] if a[0] == anim), None) or spec['anims'][0]
@@ -675,14 +675,14 @@ def posed_parts(kind, group='caro', anim='idle', frac=0.0, female=False):
 
 
 def render_pose(kind, group='caro', anim='idle', frac=0.0, d=3, female=False, renderer=None):
-    """Один кадр как в листах (с R8): Sprite(rgba, mask, ox, oy). d — направление из 16 (3 — к зрителю)."""
+    """One frame as in the sheets (with R8): Sprite(rgba, mask, ox, oy). d - a direction of 16 (3 - toward the viewer)."""
     from tools.render3d import Renderer
     pp = posed_parts(kind, group, anim, frac, female)
     r = renderer or _renderer()
     return shoot(r, Renderer.build_items(pp['parts'], pp['place'](d)), pp['spec'])
 
 
-# ---------------------------------------------------------------- рендер набора
+# ---------------------------------------------------------------- rendering a set
 _R = None
 
 
@@ -695,7 +695,7 @@ def _renderer():
 
 
 def _measure_speed(tree, info, n=24):
-    """Скорость «ног» в анимации ходьбы (ед. 0 A.D. за цикл): вершины у земли движутся назад со скоростью тела."""
+    """The speed of the "feet" in the walk animation (0 A.D. units per cycle): vertices at the ground move back at the body's speed."""
     from tools.render3d import skin
     if not tree.mesh:
         return 0.0
@@ -717,13 +717,13 @@ def _measure_speed(tree, info, n=24):
             vs.append(np.median(b[c, 1] - a[c, 1]))
     if not vs:
         return 0.0
-    v = float(np.median(vs))            # за шаг кадра, вдоль +Y (назад)
+    v = float(np.median(vs))            # per frame step, along +Y (backward)
     return max(0.0, v * n)
 
 
 def _calm_sails(node, seed):
-    """Паруса кораблей в пути: анимация 'move' у византийских и ханьских парусов 0 A.D./Millennium сворачивает
-    полотнище в нашем рендере (кости не совпадают) — берём их лёгкое колыхание 'idle'; норманнские — как есть."""
+    """Ships' sails while sailing: the 'move' animation of Byzantine and Han sails in 0 A.D./Millennium folds
+    the cloth in our render (the bones do not match) - we take their light 'idle' swaying; Norman ones - as they are."""
     from tools.render3d import animactor as aa
     for _, ch, _ in node.props:
         if 'sail' in ch.actor and 'norse' not in ch.actor and ch.anim:
@@ -733,7 +733,7 @@ def _calm_sails(node, seed):
 
 
 def _head_top(items):
-    """Высота верха головы над ногами (px экрана) по деталям-головам (props/units/heads/…); 0 — голов нет."""
+    """The height of the top of the head above the feet (screen px) by the head parts (props/units/heads/...); 0 - no heads."""
     from tools.render3d import camera
     top = 0.0
     for it in items:
@@ -752,11 +752,11 @@ def _skip(spec):
     return (lambda a, ap: 'garrison_flag' in a or 'fish_' in ap) if spec.get('ship') else None
 
 
-# ---------------------------------------------------------------- доп. детали машин и кораблей (R10, R12, R13)
-# spec['extras'] — [(форма, текстура, (fx0, fy0, fz0, fx1, fy1, fz1)), …]: коробка/цилиндр в долях габарита модели
-# в позе покоя (x — ширина, y — длина, −y — нос/перёд, z — высота). Формы: 'box', 'cyl_y' (цилиндр вдоль длины),
-# 'ram_head' (голова барана на конце бревна), 'tent' (полуцилиндр-тент вдоль длины), 'sail_lat' (косой парус),
-# 'barrels' (бочки пороха рядами), 'siphon' (огнемётная труба).
+# ---------------------------------------------------------------- extra parts of machines and ships (R10, R12, R13)
+# spec['extras'] - [(shape, texture, (fx0, fy0, fz0, fx1, fy1, fz1)), ...]: a box/cylinder in shares of the model's footprint
+# in the rest pose (x - width, y - length, -y - bow/front, z - height). Shapes: 'box', 'cyl_y' (a cylinder along the length),
+# 'ram_head' (a ram's head at the end of a log), 'tent' (a half-cylinder awning along the length), 'sail_lat' (a lateen sail),
+# 'barrels' (barrels of gunpowder in rows), 'siphon' (a flamethrower pipe).
 _BOUNDS = {}
 
 
@@ -772,7 +772,7 @@ def spec_bounds(spec):
 
 
 def extra_parts(spec):
-    """Детали из spec['extras'] (в координатах модели) — добавляются к кадру после evaluate."""
+    """Parts from spec['extras'] (in model coordinates) - added to the frame after evaluate."""
     ex = spec.get('extras')
     if not ex:
         return []
@@ -790,7 +790,7 @@ def extra_parts(spec):
 
 
 def spec_scale(spec):
-    """Масштаб набора: задан (scale) или по длине модели в позе покоя (length, клеток)."""
+    """A set's scale: given (scale) or by the model's length in the rest pose (length, cells)."""
     from tools.render3d import parts_bounds
     from tools.render3d import animactor as aa
     scale = spec.get('scale')
@@ -804,7 +804,7 @@ def spec_scale(spec):
 
 
 def spec_tree(spec, a0, sel=()):
-    """Дерево ANode набора для анимации 0 A.D. a0 (с выборами вариантов sel)."""
+    """A set's ANode tree for the 0 A.D. animation a0 (with the variant choices sel)."""
     from tools.render3d import animactor as aa
     xsel = tuple(spec.get('sel') or ())
     return aa.build(spec['actor'], a0, sel=tuple(sel) + xsel, seed=spec.get('seed', 0),
@@ -812,14 +812,14 @@ def spec_tree(spec, a0, sel=()):
                     prop_scale=spec.get('prop_scale'))
 
 
-# R8 (docs/research/06_units_recognition.md): DE светлее и спокойнее — яркость V ≈ 0.52, насыщенность ≈ 0.40,
-# светлота ≈ 98, почти чёрных пикселей мало. Подъём теней (гамма) + множитель яркости + меньше насыщенности.
+# R8 (docs/research/06_units_recognition.md): DE is lighter and calmer - brightness V ~ 0.52, saturation ~ 0.40,
+# lightness ~ 98, few nearly black pixels. Lifting the shadows (gamma) + a brightness multiplier + less saturation.
 GRADE = dict(gamma=0.85, gain=1.0, sat=0.8)
-GRADE_MACHINE = dict(gamma=0.88, gain=1.05, sat=0.9)      # машины и корабли (дерево): мягче
+GRADE_MACHINE = dict(gamma=0.88, gain=1.05, sat=0.9)      # machines and ships (wood): softer
 
 
 def grade(rgba, g=None):
-    """R8: цветокоррекция кадра юнита (прямой альфа, тень — чёрная полупрозрачная — не трогается)."""
+    """R8: color correction of a unit frame (a straight alpha, the shadow - black translucent - is not touched)."""
     g = g or GRADE
     a = rgba[..., 3]
     body = a > 0
@@ -830,14 +830,14 @@ def grade(rgba, g=None):
     lum = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
     rgb = lum[..., None] + (rgb - lum[..., None]) * g['sat']
     out = rgba.copy()
-    # тень на земле — чёрные пиксели с неполной альфой: их не высветляем
+    # the shadow on the ground - black pixels with partial alpha: we do not lighten them
     obj = body & ~((rgba[..., :3].max(-1) < 8) & (a < 250))
     out[..., :3] = np.where(obj[..., None], np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8), rgba[..., :3])
     return out
 
 
 def shoot(r, items, spec):
-    """Кадр набора: рендер + R8 (для людей и зверей)."""
+    """A set's frame: the render + R8 (for people and animals)."""
     spr = r.render(items, footprint=(0, 0), shadow_scale=0.85, pad=1)
     g = spec.get('grade') or (GRADE_MACHINE if spec.get('ship') or spec.get('length') else GRADE)
     spr.rgba = grade(spr.rgba, g)
@@ -845,21 +845,21 @@ def shoot(r, items, spec):
 
 
 def render_set(name, spec, out=OUT, verbose=True):
-    """Рендерит набор → файлы; возвращает запись индекса."""
+    """Renders a set -> files; returns the index entry."""
     from tools.render3d import Renderer
     from tools.render3d import animactor as aa, procmesh
     r = _renderer()
     t0 = time.time()
     seed = spec.get('seed', 0)
     scale = spec_scale(spec)
-    frames = []            # (Sprite, ...) по порядку: анимация → направление → кадр
+    frames = []            # (Sprite, ...) in order: animation -> direction -> frame
     anims = {}
     height = 0
-    body = 0               # верх головы (без шлема с гребнем, копий, знамён) — для полоски здоровья
+    body = 0               # the top of the head (without a crested helmet, spears, banners) - for the health bar
     for (aname, a0, sel, n, mode) in spec['anims']:
         tree = spec_tree(spec, a0, sel)
         if tree is None:
-            print('  ! нет актора', spec['actor'])
+            print('  ! no actor', spec['actor'])
             return None
         if spec.get('ship') and aname == 'walk':
             _calm_sails(tree, seed)
@@ -867,9 +867,9 @@ def render_set(name, spec, out=OUT, verbose=True):
         found = info['name'] if info else None
         if info is None or found not in _ACCEPT.get(a0, {a0}):
             if spec.get('ship') and aname == 'walk':
-                continue        # корабль без вёсел и парусов с анимацией — в пути тот же кадр, что в покое
+                continue        # a ship without oars and sails with an animation - while sailing the same frame as at rest
             if aname in ('idle', 'walk') or aname.startswith('carry_'):
-                n = 1           # нет анимации (машина, корабль) — один неподвижный кадр
+                n = 1           # no animation (a machine, a ship) - one still frame
             else:
                 continue
         dur = info['dur'] if info else 1.0
@@ -882,7 +882,7 @@ def render_set(name, spec, out=OUT, verbose=True):
             v = _measure_speed(tree, info) if info else 0.0
             if procmesh.is_proc(spec['actor']):
                 v = procmesh.stride(spec['actor'])
-            # шаг: сколько пикселей мира проходит юнит за цикл анимации
+            # step: how many world pixels a unit covers per animation cycle
             rec['stride'] = round(v * scale * TILE_PX, 2)
         for d in range(NDIR):
             place = _place(scale, d)
@@ -901,13 +901,13 @@ def render_set(name, spec, out=OUT, verbose=True):
                     ys = np.nonzero(spr.rgba[..., 3] > 160)[0]
                     if len(ys):
                         height = max(height, spr.oy - int(ys.min()))
-                    if not spec.get('ship'):        # у кораблей голова гребца — не «макушка» (09 · №25)
+                    if not spec.get('ship'):        # for ships the oarsman's head is not a "crown" (09 - #25)
                         body = max(body, _head_top(items))
         anims[aname] = rec
     rects, sheet, mask = pack(frames)
     base = os.path.join(out, name)
     os.makedirs(out, exist_ok=True)
-    # палитра 256 цветов (с прозрачностью) — в ~4 раза меньше RGBA при почти неотличимой картинке
+    # a 256-color palette (with transparency) - ~ 4 times smaller than RGBA with a nearly indistinguishable picture
     Image.fromarray(sheet).quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(
         base + '.png', optimize=True)
     has_mask = mask.max() > 8
@@ -917,24 +917,24 @@ def render_set(name, spec, out=OUT, verbose=True):
            'meta': f'units/{name}.json', 'anims': anims, 'h': int(height), 'scale': round(scale, 4),
            'bh': int(body) if body > 0 else int(height), 'dirs': NDIR,
            'actor': spec['actor']}
-    # запись индекса и отпечаток описания рядом с кадрами: --resume пропускает уже собранное
+    # the index entry and the description's fingerprint next to the frames: --resume skips what is already built
     with open(base + '.json', 'w', encoding='utf-8') as f:
         json.dump({'frames': rects, 'rec': rec, 'spec': spec_hash(spec)}, f, separators=(',', ':'))
     if verbose:
         sz = os.path.getsize(base + '.png') + (os.path.getsize(base + '.m.png') if has_mask else 0)
-        print(f'  + {name:28s} {len(frames):4d} кадров  {sheet.shape[1]}×{sheet.shape[0]}  '
-              f'{sz / 1024:6.0f} КБ  {time.time() - t0:5.1f} с', flush=True)
+        print(f'  + {name:28s} {len(frames):4d} frames  {sheet.shape[1]}×{sheet.shape[0]}  '
+              f'{sz / 1024:6.0f} KB  {time.time() - t0:5.1f} s', flush=True)
     return rec
 
 
 def spec_hash(spec):
-    """Отпечаток описания набора (актор, правки, анимации, масштаб) — чтобы узнать, что лист уже собран."""
+    """A fingerprint of a set's description (actor, overrides, animations, scale) - to know that the sheet is already built."""
     import hashlib
     return hashlib.md5(json.dumps([spec, NDIR, RENDER_VER], sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
 def _built(name, spec):
-    """Запись индекса уже собранного набора с тем же описанием (или None)."""
+    """The index entry of an already built set with the same description (or None)."""
     base = os.path.join(OUT, name)
     try:
         with open(base + '.json', encoding='utf-8') as f:
@@ -956,7 +956,7 @@ _ACCEPT = {
 
 
 def pack(frames, width=1024):
-    """Полочная упаковка кадров (в исходном порядке) → (rects [x, y, w, h, ax, ay], RGBA, маска L)."""
+    """Shelf packing of frames (in the original order) -> (rects [x, y, w, h, ax, ay], RGBA, mask L)."""
     x = y = rowh = 0
     pos = []
     maxw = 0
@@ -981,25 +981,25 @@ def pack(frames, width=1024):
     return rects, sheet, mask
 
 
-# ---------------------------------------------------------------- параллельная сборка
+# ---------------------------------------------------------------- parallel build
 def _job(args):
     name, spec = args
     try:
         return name, render_set(name, spec)
-    except Exception as e:           # один сломанный набор не валит сборку
+    except Exception as e:           # one broken set does not break the build
         import traceback
         traceback.print_exc()
-        print('  ! набор не собран:', name, type(e).__name__, e, flush=True)
+        print('  ! set not built:', name, type(e).__name__, e, flush=True)
         return name, None
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--only', default='', help='имена наборов через запятую (остальные берутся из индекса)')
+    ap.add_argument('--only', default='', help='set names separated by commas (the rest are taken from the index)')
     ap.add_argument('--jobs', type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
     ap.add_argument('--list', action='store_true')
-    ap.add_argument('--resume', action='store_true', help='не пересобирать наборы, чьё описание не менялось')
-    ap.add_argument('--sheets', default='', help='папка для контактных листов')
+    ap.add_argument('--resume', action='store_true', help='do not rebuild sets whose description has not changed')
+    ap.add_argument('--sheets', default='', help='folder for contact sheets')
     a = ap.parse_args()
     sets, mapping = plan()
     if a.list:
@@ -1025,7 +1025,7 @@ def main():
                 results[n] = rec
             else:
                 rest.append((n, sp))
-        print(f'уже собрано: {len(results)}, собрать: {len(rest)}')
+        print(f'already built: {len(results)}, to build: {len(rest)}')
         todo = rest
     if a.jobs > 1 and len(todo) > 1:
         import multiprocessing as mp
@@ -1050,7 +1050,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     with open(idx_path, 'w', encoding='utf-8') as f:
         json.dump(index, f, ensure_ascii=False, indent=1)
-    # лишние файлы от старых сборок
+    # extra files from old builds
     keep = set()
     for v in index['sets'].values():
         keep |= {os.path.basename(v['file']), os.path.basename(v['meta'])}
@@ -1060,7 +1060,7 @@ def main():
         if fn != 'index.json' and fn not in keep:
             os.remove(os.path.join(OUT, fn))
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))
-    print(f'готово: {len(index["sets"])} наборов, {total / 1e6:.1f} МБ, {time.time() - t0:.0f} с')
+    print(f'done: {len(index["sets"])} sets, {total / 1e6:.1f} MB, {time.time() - t0:.0f} s')
     if a.sheets:
         from tools.unit_sheet import main as sheet_main
         sheet_main(['--out', a.sheets])

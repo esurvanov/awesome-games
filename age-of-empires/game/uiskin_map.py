@@ -1,18 +1,18 @@
-"""Таблицы соответствия: наши юниты / здания / технологии → портреты 0 A.D. (CC BY-SA 3.0, Wildfire Games).
+"""Correspondence tables: our units / buildings / techs -> 0 A.D. portraits (CC BY-SA 3.0, Wildfire Games).
 
-Пути — относительно `session/portraits/` в 0 A.D. и `assets/ui/portraits/` у нас (там лежат уменьшенные копии,
-см. tools/build_ui_assets.py). Для юнитов — список кандидатов по имени файла; ищется сначала в папках
-«своей» группы цивилизации, затем во всех остальных по порядку FALLBACK_DIRS. Нет ни одного — остаётся
-наша процедурная иконка.
+The paths are relative to `session/portraits/` in 0 A.D. and to `assets/ui/portraits/` in ours (reduced copies
+lie there, see tools/build_ui_assets.py). For units - a list of candidates by file name; searched first in the folders
+of "its own" civilization group, then in all the others in the order FALLBACK_DIRS. If there is none - our
+procedural icon remains.
 
-Словарь «предмет DE → наш значок» (docs/research/05_ui_recognition.md): здания-символы, технологии, эпохи,
-верхние кнопки — 'de/<имя>' (tools/ui_icon_art.py: переназначенные и составные портреты 0 A.D., свой рисунок);
-здания-«картинки» (дом, мельница, замок, башни, стены, ворота, ферма) — 'scenic/<группа>/<вид>' (рендер наших
-моделей на небе, tools/build_portraits.py); портреты юнитов в кадре DE — 'units3d/<вид>.<группа юнитов>'
-(tools/build_portraits.py --units --install), если есть, — раньше портретов 0 A.D.
+The dictionary "DE item -> our icon" (docs/research/05_ui_recognition.md): symbol buildings, techs, ages,
+the top buttons - 'de/<name>' (tools/ui_icon_art.py: reassigned and composite 0 A.D. portraits, our own drawing);
+"picture" buildings (house, mill, castle, towers, walls, gates, farm) - 'scenic/<group>/<kind>' (a render of our
+models against the sky, tools/build_portraits.py); portraits of units in the DE frame - 'units3d/<kind>.<unit group>'
+(tools/build_portraits.py --units --install), if present, - before the 0 A.D. portraits.
 """
 
-# наши цивилизации → папки юнитов 0 A.D. (в порядке предпочтения)
+# our civilizations -> 0 A.D. unit folders (in order of preference)
 CIV_DIRS = {
     'britons': ('brit', 'gaul', 'celt'),
     'celts': ('gaul', 'brit', 'celt'),
@@ -74,7 +74,7 @@ UNIT_PORTRAITS = {
     'cannon_galleon': ('ship_siege',),
     'fire_galley': _FIRESHIP, 'fire_ship': _FIRESHIP, 'fast_fire_ship': _FIRESHIP,
     'demolition_ship': ('ship_ram', 'ship_scout'), 'heavy_demolition_ship': ('ship_ram', 'ship_scout'),
-    # уникальные
+    # unique ones
     'longbowman': ('champion_ranged', 'infantry_archer'),
     'throwing_axeman': ('infantry_axeman',),
     'woad_raider': ('champion_fanatic', 'champion_swordsman_carnyx'),
@@ -90,7 +90,7 @@ UNIT_PORTRAITS = {
     'war_elephant': ('champion_elephant',),
     'mameluke': ('camel_swordsman', 'champion_cavalry'),
 }
-# элитные версии — как обычные
+# elite versions - the same as the regular ones
 for _k in list(UNIT_PORTRAITS):
     UNIT_PORTRAITS.setdefault('elite_' + _k, UNIT_PORTRAITS[_k])
 
@@ -100,7 +100,7 @@ GAIA_PORTRAITS = {
     'stone': 'gaia/geology_stone', 'shore_fish': 'gaia/fauna_fish', 'deep_fish': 'gaia/fauna_fish',
 }
 
-# цивилизация → группа архитектуры (как tools/build_sprites.CIV_GROUP) → группа юнитов (build_units.BUILD_TO_UNIT)
+# civilization -> architecture group (like tools/build_sprites.CIV_GROUP) -> unit group (build_units.BUILD_TO_UNIT)
 CIV_GROUP = {
     'franks': 'caro', 'teutons': 'teut', 'britons': 'anglo', 'celts': 'celt', 'vikings': 'norse',
     'goths': 'rus', 'byzantines': 'byz', 'spanish': 'hisp',
@@ -110,14 +110,14 @@ CIV_GROUP = {
 UNIT_GROUP = {'caro': 'caro', 'teut': 'caro', 'anglo': 'anglo', 'celt': 'anglo', 'norse': 'norse', 'rus': 'rus',
               'byz': 'byz', 'hisp': 'caro', 'umay': 'umay', 'han': 'han'}
 DEFAULT_GROUP = 'caro'
-# здания-«картинки» DE (на фоне неба): вид здания → вид значка scenic/<группа>/…
+# DE "picture" buildings (against the sky): building kind -> the icon kind scenic/<group>/...
 SCENIC_BUILDINGS = {'house': 'house', 'mill': 'mill', 'castle': 'castle', 'tower': 'tower',
                     'guard_tower': 'guard_tower', 'keep': 'keep', 'farm': 'farm', 'palisade_wall': 'palisade_wall',
                     'palisade_gate': 'palisade_gate', 'stone_wall': 'stone_wall', 'gate': 'gate'}
-# технологии, у которых в DE картинка здания (башни, стена)
+# techs that have a building picture in DE (towers, the wall)
 SCENIC_TECHS = {'guard_tower': 'guard_tower', 'keep': 'keep'}
 _D = 'de/'
-# здания-символы DE (предмет на чёрном)
+# DE symbol buildings (an object on black)
 DE_BUILDINGS = {'barracks': _D + 'barracks', 'stable': _D + 'stable', 'siege_workshop': _D + 'siege_workshop',
                 'dock': _D + 'dock', 'lumber_camp': _D + 'lumber_camp', 'mining_camp': _D + 'mining_camp',
                 'market': _D + 'market', 'university': _D + 'university', 'town_center': _D + 'town_center'}
@@ -163,7 +163,7 @@ TECH_PORTRAITS = {
     'guard_tower': _T + 'crenelations', 'keep': _T + 'column', 'murder_holes': _T + 'murder_holes',
     'arrowslits': _T + 'arrow_accuracy', 'masonry': _T + 'masonry_rubble', 'architecture': _T + 'architecture',
     'fortified_wall': _T + 'wall', 'treadmill_crane': _T + 'engineering',
-    # уникальные
+    # unique ones
     'bearded_axe': _T + 'battle_axe', 'chivalry': _T + 'horseshoe_gold', 'yeomen': _T + 'arrow_accuracy',
     'warwolf': _T + 'torsion_springs', 'nomads': _T + 'breeding_herd', 'drill': _T + 'cavalry_speed',
     'greek_fire': _T + 'flaming_munitions', 'logistica': _T + 'spear_buttspike', 'ironclad': _T + 'armor_plates_gold',
@@ -176,7 +176,7 @@ TECH_PORTRAITS = {
     'supremacy': _T + 'laurel_wreath',
 }
 EXTRA_PORTRAITS = [_T + 'cartography', _T + 'carnyx']
-# технологии по словарю DE (перекрывают TECH_PORTRAITS, если файл собран)
+# techs by the DE dictionary (override TECH_PORTRAITS if the file is built)
 DE_TECHS = {k: _D + k for k in (
     'loom', 'wheelbarrow', 'hand_cart', 'double_bit', 'bow_saw', 'two_man_saw', 'gold_mining', 'gold_shaft',
     'stone_mining', 'stone_shaft', 'horse_collar', 'heavy_plow', 'crop_rotation', 'coinage', 'caravan', 'guilds',
@@ -188,7 +188,7 @@ DE_TECHS = {k: _D + k for k in (
     'siege_engineers', 'masonry', 'architecture', 'fortified_wall', 'murder_holes', 'arrowslits',
     'treadmill_crane')}
 DE_TECHS.update({'feudal': _D + 'age_btn_1', 'castle': _D + 'age_btn_2', 'imperial': _D + 'age_btn_3'})
-# уникальные технологии DE — корона: серебряная (эпоха замков), золотая (имперская)
+# DE unique techs - a crown: silver (Castle Age), gold (Imperial)
 CROWN = {2: _D + 'crown_silver', 3: _D + 'crown_gold'}
 AGE_PORTRAITS = [_D + 'age_0', _D + 'age_1', _D + 'age_2', _D + 'age_3']
 AGE_PORTRAITS_0AD = [_T + 'village_phase', _T + 'town_phase', _T + 'city_phase', _T + 'imperial_phase']

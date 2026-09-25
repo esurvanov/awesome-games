@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Безоконные скриншоты цивилизаций: меню с выбором, лист уникальных юнитов, карточка в игре, бой уникальных.
+"""Windowless civilization screenshots: the picker menu, a sheet of unique units, an in-game card, a battle of unique units.
 
   .venv/bin/python tools/civ_shot.py --out shots/civ
-Файлы: menu_civ.png, units_civ.png (обычные и элитные, покой и замах), emblems.png, overlay.png, battle_civ.png.
+Files: menu_civ.png, units_civ.png (regular and elite, idle and swing), emblems.png, overlay.png, battle_civ.png.
 """
 import argparse
 import os
@@ -41,7 +41,7 @@ def unit_sheet(path, k=2.4):
         gfx.draw_unit(sheet, kd, col, cx + cw * 0.73, cy + ch - 24, face=(-1, 0), swing=0.2, k=k)
         sheet.blit(font.render(UNITS[kd]['name'], True, (255, 255, 255)), (cx + 5, cy + ch - 18))
     pygame.image.save(sheet, path)
-    print('сохранено', path)
+    print('saved', path)
 
 
 def emblem_sheet(path):
@@ -56,37 +56,37 @@ def emblem_sheet(path):
         civ_art.draw_emblem(sheet, (x, y, 90, 108), spec)
         sheet.blit(font.render(civ_ui.civ_name(key), True, (255, 240, 210)), (x, y + 114))
     pygame.image.save(sheet, path)
-    print('сохранено', path)
+    print('saved', path)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--out', default='shots/civ')
-    ap.add_argument('--civ', default='persians', help='цивилизация для карточки и боя')
+    ap.add_argument('--civ', default='persians', help='civilization for the card and the battle')
     ap.add_argument('--enemy', default='teutons')
     ap.add_argument('--seed', type=int, default=2)
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     random.seed(a.seed)
     g = Game()
-    # меню: курсор над гербом выбранной цивилизации
+    # menu: the cursor over the selected civilization's crest
     g.menu_cfg['civ'] = a.civ
     r = next(r for r, act, v in civ_ui.menu_items() if v == 'franks')
     pygame.mouse.set_pos(r.center)
     g.draw_menu()
     pygame.image.save(g.screen, os.path.join(a.out, 'menu_civ.png'))
-    print('сохранено', os.path.join(a.out, 'menu_civ.png'))
+    print('saved', os.path.join(a.out, 'menu_civ.png'))
     unit_sheet(os.path.join(a.out, 'units_civ.png'))
     emblem_sheet(os.path.join(a.out, 'emblems.png'))
-    # игра: карточка цивилизации
+    # game: the civilization card
     g.new_game(1, 1, civs=[a.civ, a.enemy])
     w = g.world
     g.help = 'civ'
     g.draw()
     pygame.image.save(g.screen, os.path.join(a.out, 'overlay.png'))
-    print('сохранено', os.path.join(a.out, 'overlay.png'))
+    print('saved', os.path.join(a.out, 'overlay.png'))
     g.help = False
-    # замок: кнопки уникального юнита, элиты и технологий
+    # castle: buttons of the unique unit, elite and techs
     p = w.players[0]
     for t in ('feudal', 'castle', 'imperial'):
         w.apply_tech(p, t)
@@ -105,9 +105,9 @@ def main():
         if bt:
             g.draw_tooltip(bt)
         pygame.image.save(g.screen, os.path.join(a.out, 'castle.png'))
-        print('сохранено', os.path.join(a.out, 'castle.png'))
+        print('saved', os.path.join(a.out, 'castle.png'))
         g.selected = []
-    # бой уникальных юнитов посреди карты (видно всё)
+    # a battle of unique units in the middle of the map (everything visible)
     w.ais = []
     cx, cy = w.W // 2 * TILE, w.H // 2 * TILE
     for y in range(w.H // 2 - 8, w.H // 2 + 8):
@@ -149,7 +149,7 @@ def main():
     g.selected = [u for u in mine if u.alive][:1]
     g.draw()
     pygame.image.save(g.screen, os.path.join(a.out, 'battle_civ.png'))
-    print('сохранено', os.path.join(a.out, 'battle_civ.png'))
+    print('saved', os.path.join(a.out, 'battle_civ.png'))
     pygame.quit()
 
 

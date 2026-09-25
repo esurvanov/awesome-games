@@ -1,16 +1,16 @@
-"""Сохранение и загрузка партии (F10 → «Сохранить» / «Загрузить», «Одиночная игра» → «Загрузить игру»).
+"""Saving and loading a match (F10 -> "Save" / "Load", "Single Player" -> "Load Game").
 
-Формат файла `~/.cache/khroniki/saves/<слот>.sav` — два подряд записанных pickle:
-  1) заголовок (dict): name, date, civ, time, map, players, version — читается без загрузки мира
-     (список слотов);
-  2) тело: {'world': World, 'random': состояние random, 'serial': Node.serial, 'ui': {камера, скорость…}}.
-Рядом лежит миниатюра `<слот>.png` (снимок экрана в момент сохранения).
+The file format `~/.cache/khroniki/saves/<slot>.sav` - two consecutively written pickles:
+  1) a header (dict): name, date, civ, time, map, players, version - readable without loading the world
+     (the list of slots);
+  2) the body: {'world': World, 'random': the random state, 'serial': Node.serial, 'ui': {camera, speed...}}.
+Next to it lies a thumbnail `<slot>.png` (a screenshot at the moment of saving).
 
-Мир — граф объектов (юниты ↔ здания ↔ игроки ↔ ИИ ↔ мир); pickle сохраняет его целиком со всеми
-перекрёстными ссылками. Статические таблицы (UNITS, BUILDINGS, TECHS, CIVS…), на которые ссылаются
-объекты (u.d, эффекты игрока, функции контента), в файл не пишутся: они заменяются «адресом» в таблице
-(persistent_id) и при загрузке берутся из текущих таблиц. Поверхности pygame и модули не сохраняются
-(заменяются на None) — кэши отрисовки пересобираются сами.
+The world is a graph of objects (units <-> buildings <-> players <-> AI <-> world); pickle saves it entirely with all
+the cross references. The static tables (UNITS, BUILDINGS, TECHS, CIVS...) that objects refer to
+(u.d, a player's effects, content functions) are not written to the file: they are replaced by an "address" in a table
+(persistent_id) and taken from the current tables on load. pygame surfaces and modules are not saved
+(replaced by None) - the drawing caches rebuild themselves.
 """
 import io
 import os
@@ -26,8 +26,8 @@ SAVE_DIR = os.path.join(os.environ.get('KHRONIKI_HOME') or os.path.join(os.path.
 VERSION = 1
 AUTOSAVE = 'autosave'
 
-_REG = None          # id(объект таблицы) → адрес
-_KEEP = []           # сами объекты (чтобы id не переиспользовались)
+_REG = None          # id(table object) -> address
+_KEEP = []           # the objects themselves (so that ids are not reused)
 
 
 def _tables():
@@ -37,7 +37,7 @@ def _tables():
 
 
 def _registry():
-    """Все dict/list/функции внутри статических таблиц data.py — с адресом (имя таблицы, ключи…)."""
+    """All dicts/lists/functions inside the static data.py tables - with an address (table name, keys...)."""
     global _REG
     if _REG is not None:
         return _REG
@@ -84,7 +84,7 @@ class _Pickler(pickle.Pickler):
             return ('T', p)
         mod = type(obj).__module__ or ''
         if mod.startswith('pygame'):
-            return ('N',)           # поверхности, шрифты, звуки — не сохраняем
+            return ('N',)           # surfaces, fonts, sounds - not saved
         if isinstance(obj, types.ModuleType):
             return ('M', obj.__name__)
         if isinstance(obj, types.FunctionType) and obj.__name__ == '<lambda>':
@@ -112,7 +112,7 @@ def loads(b):
     return _Unpickler(io.BytesIO(b)).load()
 
 
-# ============================================================ слоты
+# ============================================================ slots
 def slot_path(slot, ext='.sav'):
     safe = ''.join(c if c.isalnum() or c in '-_' else '_' for c in str(slot))[:40] or 'save'
     return os.path.join(SAVE_DIR, safe + ext)
@@ -127,8 +127,8 @@ def meta_of(world, name):
 
 
 def save_world(world, slot, name=None, ui=None, thumb=None):
-    """Записать партию в слот. ui — словарь состояния интерфейса (камера, скорость…);
-    thumb — pygame.Surface для миниатюры. Возвращает путь к файлу."""
+    """Write a match to a slot. ui - a dict of the interface state (camera, speed...);
+    thumb - a pygame.Surface for the thumbnail. Returns the file path."""
     from .world import Node
     os.makedirs(SAVE_DIR, exist_ok=True)
     body = {'world': world, 'random': random.getstate(), 'serial': Node.serial, 'ui': ui or {}}
@@ -150,7 +150,7 @@ def save_world(world, slot, name=None, ui=None, thumb=None):
 
 
 def load_world(slot):
-    """(мир, ui-словарь, заголовок). Восстанавливает и состояние random."""
+    """(world, ui dict, header). Also restores the random state."""
     from .world import Node
     with open(slot_path(slot), 'rb') as f:
         meta = pickle.load(f)
@@ -162,7 +162,7 @@ def load_world(slot):
 
 
 def list_slots():
-    """[(слот, заголовок, путь к миниатюре или None)] — новые сверху."""
+    """[(slot, header, thumbnail path or None)] - newest on top."""
     out = []
     try:
         names = os.listdir(SAVE_DIR)

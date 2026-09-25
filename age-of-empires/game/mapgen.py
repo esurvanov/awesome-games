@@ -1,17 +1,17 @@
-"""Генератор случайных карт по правилам AoE II DE (свой код по числам из скриптов карт DE —
-docs/research/07_maps.md; ни текстов, ни файлов DE в игре нет).
+"""A random map generator by the rules of AoE II DE (our own code from the numbers in DE's map scripts -
+docs/research/07_maps.md; no DE texts or files are in the game).
 
-Общее для всех карт (как в DE):
-  • размер — match.MAP_SIZE (120/144/168/200/220/240), число объектов масштабируется по площади (×W·H/10 000);
-  • старты — на круге радиуса 33–38 % стороны со случайным поворотом, союзники рядом («Команды рядом»);
-  • набор игрока — одинаковые количества на одинаковых расстояниях (от центра ЦГ до ближайшей клетки
-    группы), направления у каждого свои (как set_place_for_every_player + min/max_distance_to_players);
-  • леса игрока и рощи — сплошные пятна, края карты открыты (кроме карт, где лес — основа);
-  • волки (≥ 32 клеток от игроков), реликвии, одиночные деревья у центра.
-Рецепты карт — функции _arabia, _arena, _black_forest, _nomad, _islands, _mediterranean.
+Common to all maps (as in DE):
+  * size - match.MAP_SIZE (120/144/168/200/220/240), object counts scale with the area (x W*H/10 000);
+  * starts - on a circle of radius 33-38 % of the side with a random rotation, allies nearby ("Team Together");
+  * the player's set - identical amounts at identical distances (from the center of the TC to the nearest tile
+    of the group), each with its own directions (like set_place_for_every_player + min/max_distance_to_players);
+  * player forests and groves - solid patches, the map edges are open (except maps where the forest is the base);
+  * wolves (>= 32 tiles from players), relics, single trees near the center.
+Map recipes are the functions _arabia, _arena, _black_forest, _nomad, _islands, _mediterranean.
 
-Точка входа: generate(w) — из World.gen_map для карт из maps.MAPS (кроме старых 'land' / 'coast').
-Случайность — модуль random (World(...) после random.seed(n) воспроизводим).
+Entry point: generate(w) - from World.gen_map for maps from maps.MAPS (except the old 'land' / 'coast').
+Randomness - the random module (World(...) after random.seed(n) is reproducible).
 """
 import math
 import random
@@ -21,14 +21,14 @@ from . import terrain, maps
 from .world import Node, Unit, Animal
 
 LAND, WATER, SHALLOW, CLIFF = 0, 1, 2, 3
-# флаги сетки занятости генератора
+# flags of the generator's occupancy grid
 F_FOREST, F_RES, F_CLEAR, F_WALL = 1, 2, 4, 8
 
-# DE: радиус круга стартов (доля стороны) по размеру карты — Arabia.rms (tiny 32–34 %, … huge 38 %)
+# DE: the radius of the start circle (a fraction of the side) by map size - Arabia.rms (tiny 32-34 %, ... huge 38 %)
 RADIUS = ((120, 0.33), (144, 0.34), (168, 0.35), (200, 0.36), (220, 0.37), (240, 0.38))
-# DE: реликвий по размеру карты (5/5/5/7/8/9)
+# DE: relics by map size (5/5/5/7/8/9)
 RELICS = ((120, 5), (144, 5), (168, 5), (200, 7), (220, 8), (240, 9))
-STRAGGLER_WOOD = 125        # одиночное дерево (dat 410)
+STRAGGLER_WOOD = 125        # a single tree (dat 410)
 
 
 def _by_size(table, W):
@@ -43,7 +43,7 @@ def circle_radius(W, extra=0.0):
     return W * (_by_size(RADIUS, W) + extra)
 
 
-# ============================================================ генератор
+# ============================================================ generator
 class Gen:
     def __init__(self, w):
         self.w = w
@@ -57,7 +57,7 @@ class Gen:
         self.angs = []
         self.fwd = []
 
-    # ---------------------------------------------------------------- базовое
+    # ---------------------------------------------------------------- basics
     def inb(self, x, y, m=0):
         return m <= x < self.W - m and m <= y < self.H - m
 
@@ -71,7 +71,7 @@ class Gen:
         return min(math.hypot(x - sx, y - sy) for sx, sy in self.starts)
 
     def near_flag(self, x, y, r, f):
-        """Есть ли клетка с флагом f в радиусе r (квадрат окрестности)."""
+        """Whether there is a tile with flag f within radius r (a square neighborhood)."""
         W, H = self.W, self.H
         fl = self.flags
         for yy in range(max(0, y - r), min(H, y + r + 1)):
@@ -93,7 +93,7 @@ class Gen:
         return self.inb(x, y) and self.T[y][x] == LAND and self.w.occ[y][x] is None
 
     def land_id(self, x, y):
-        """Номер компоненты суши (для островов: ресурс игрока — на его острове)."""
+        """The land component number (for islands: the player's resource - on his island)."""
         lab = self._land_lab
         return lab[y * self.W + x] if lab is not None else 0
 
@@ -104,9 +104,9 @@ class Gen:
         ok = [self.T[i // W][i % W] != WATER for i in range(W * H)]
         self._land_lab, _ = terrain._labels(W, H, ok)
 
-    # ---------------------------------------------------------------- старты
+    # ---------------------------------------------------------------- starts
     def place_starts(self, frac_extra=0.0, radius=None, jitter=1.0):
-        """Круг со случайным поворотом; союзники — на соседних местах круга."""
+        """A circle with a random rotation; allies - in neighboring places of the circle."""
         w, n = self.w, self.n
         R = radius if radius is not None else circle_radius(self.W, frac_extra)
         base = random.uniform(0, math.tau)
@@ -124,16 +124,16 @@ class Gen:
         self.fwd = [a + math.pi for a in self.angs]
         self.R = R
         w.starts = self.starts
-        for sx, sy in self.starts:            # площадка центра: без леса и куч
+        for sx, sy in self.starts:            # the center's site: no forest and no piles
             for y in range(sy - 4, sy + 5):
                 for x in range(sx - 4, sx + 5):
                     if self.inb(x, y):
                         self.setf(x, y, F_CLEAR)
 
-    # ---------------------------------------------------------------- формы
+    # ---------------------------------------------------------------- shapes
     def grow(self, seed, k, ok, clump=0.75):
-        """Сплошное пятно из k клеток от seed (DE: create_terrain с clumping_factor): чаще растёт туда,
-        где у клетки больше соседей пятна — края неровные, но без дыр."""
+        """A solid patch of k tiles from seed (DE: create_terrain with clumping_factor): grows more often to where
+        a tile has more neighbors in the patch - the edges are uneven but without holes."""
         if not ok(*seed):
             return []
         cells = [seed]
@@ -167,8 +167,8 @@ class Gen:
         return cells
 
     def blob(self, seed, k, ok, aspect=(1.0, 2.5), rough=0.35):
-        """Пятно из k клеток неровной вытянутой формы (лесополоса / пруд / островок): эллипс со случайным
-        поворотом и шумной кромкой; клетки берутся по «радиусу» от центра и только связно с уже взятыми."""
+        """A patch of k tiles of an uneven elongated shape (a forest belt / pond / islet): an ellipse with a random
+        rotation and a noisy rim; tiles are taken by "radius" from the center and only connected to those already taken."""
         if not ok(*seed):
             return []
         asp = random.uniform(*aspect)
@@ -193,7 +193,7 @@ class Gen:
         got = {seed}
         cells = [seed]
         pending = [c for c in cand if (c[1], c[2]) != seed]
-        for _ in range(6):                  # несколько проходов: клетка берётся, когда у неё есть сосед в пятне
+        for _ in range(6):                  # several passes: a tile is taken when it has a neighbor in the patch
             rest = []
             for r, x, y in pending:
                 if len(cells) >= k:
@@ -211,7 +211,7 @@ class Gen:
         return cells
 
     def tight(self, cx, cy, k, ok):
-        """Плотная куча (DE set_tight_grouping): k ближайших к центру клеток с небольшим разбросом, связная."""
+        """A tight pile (DE set_tight_grouping): the k tiles nearest to the center with a small spread, connected."""
         cand = []
         r = int(math.sqrt(k)) + 2
         for dy in range(-r, r + 1):
@@ -231,7 +231,7 @@ class Gen:
             gs.add((x, y))
         return got if len(got) == k else None
 
-    # ---------------------------------------------------------------- объекты
+    # ---------------------------------------------------------------- objects
     def put_node(self, kind, x, y, amount=None):
         nd = Node(kind, x, y)
         if amount is not None:
@@ -242,7 +242,7 @@ class Gen:
         return nd
 
     def res_ok(self, x, y, gap=3, forest_gap=2):
-        """Клетка под кучу ресурса: суша, свободна, не у воды, в стороне от других куч и леса."""
+        """A tile for a resource pile: land, free, not by the water, away from other piles and forest."""
         if not self.inb(x, y, 2) or self.T[y][x] != LAND or self.w.occ[y][x] is not None:
             return False
         if self.flag(x, y) & (F_CLEAR | F_WALL):
@@ -254,8 +254,8 @@ class Gen:
         return not self.near_water(x, y, 1)
 
     def spot(self, pid, dmin, dmax, ok, own=0.0, edge=3, tries=160, ang=None):
-        """Случайная точка на расстоянии [dmin, dmax] от старта pid, ближе к нему, чем к чужим
-        (own — запас в клетках), на той же суше. None — не нашлось."""
+        """A random point at a distance [dmin, dmax] from the start of pid, closer to it than to others'
+        (own - a margin in tiles), on the same land. None - not found."""
         sx, sy = self.starts[pid]
         home = self.land_id(sx, sy)
         for _ in range(tries):
@@ -275,7 +275,7 @@ class Gen:
         return None
 
     def pile(self, pid, kind, k, d, spread=1.5, gap=3, own=2.0, edge=4, amount=None, land_any=False):
-        """Куча k клеток ресурса игрока pid: ближайшая клетка — на расстоянии d ± spread от старта."""
+        """A pile of k tiles of player pid's resource: the nearest tile is at a distance d +- spread from the start."""
         sx, sy = self.starts[pid]
 
         def ok(x, y):
@@ -307,7 +307,7 @@ class Gen:
         return None
 
     def herd(self, pid, kind, k, d, spread=2.0, owner=-1, gap=2):
-        """Стадо k животных (овцы, олени) на расстоянии d ± spread; кабан — k = 1."""
+        """A herd of k animals (sheep, deer) at a distance d +- spread; a boar - k = 1."""
         sx, sy = self.starts[pid]
 
         def ok(x, y):
@@ -337,7 +337,7 @@ class Gen:
         self.w.animals.append(a)
         return a
 
-    # ---------------------------------------------------------------- лес
+    # ---------------------------------------------------------------- forest
     def forest_ok(self, x, y, keep=None):
         if not self.inb(x, y) or self.T[y][x] != LAND or self.w.occ[y][x] is not None:
             return False
@@ -358,7 +358,7 @@ class Gen:
         return cells
 
     def player_forests(self, cnt, size, dist, keep=8.5):
-        """Леса игрока (DE PLAYER_FOREST): cnt = (от, до) лесов по size = (от, до) клеток на dist = (от, до)."""
+        """Player forests (DE PLAYER_FOREST): cnt = (from, to) forests of size = (from, to) tiles at dist = (from, to)."""
         k = random.randint(*cnt)
         sizes = [random.randint(*size) for _ in range(k)]
         for pid in range(self.n):
@@ -377,7 +377,7 @@ class Gen:
                     break
 
     def groves(self, count, size, keep=15, sep=10):
-        """Рощи по карте вдали от игроков (DE: N рощ по M клеток, avoid players)."""
+        """Groves across the map far from players (DE: N groves of M tiles, avoid players)."""
         placed = []
         for _ in range(count):
             for _ in range(60):
@@ -392,7 +392,7 @@ class Gen:
         return placed
 
     def stragglers(self, k=5, dmin=5.5, dmax=8.5):
-        """Одиночные деревья у центра (DE stragglers.inc: 5 штук, ≥ 5 клеток от ЦГ, 125 дерева)."""
+        """Single trees near the center (DE stragglers.inc: 5 of them, >= 5 tiles from the TC, 125 wood)."""
         for pid, (sx, sy) in enumerate(self.starts):
             got = []
             for _ in range(200):
@@ -410,9 +410,9 @@ class Gen:
                 self.put_node('tree', x, y, STRAGGLER_WOOD)
                 got.append((x, y))
 
-    # ---------------------------------------------------------------- стандартный набор игрока
+    # ---------------------------------------------------------------- the player's standard set
     def package(self, pk):
-        """pk — список (вид, число, расстояние[, опции]); порядок — как в DE: сначала крупное."""
+        """pk - a list of (kind, count, distance[, options]); the order is as in DE: the big ones first."""
         for item in pk:
             kind, k, d = item[:3]
             opt = item[3] if len(item) > 3 else {}
@@ -425,9 +425,9 @@ class Gen:
                     kk = random.randint(*k) if isinstance(k, tuple) else k
                     self.herd(pid, kind, kk, d, **opt)
 
-    # ---------------------------------------------------------------- дальние объекты
+    # ---------------------------------------------------------------- far objects
     def scatter(self, what, count, min_players, sep, ok=None, edge=10):
-        """count объектов what(x, y) по карте: ≥ min_players от всех стартов, ≥ sep друг от друга."""
+        """count objects what(x, y) across the map: >= min_players from all starts, >= sep from each other."""
         placed = []
         ok = ok or (lambda x, y: self.free_land(x, y) and not self.flag(x, y) & (F_FOREST | F_RES | F_WALL))
         for i in range(count):
@@ -464,16 +464,16 @@ class Gen:
         ok = (lambda x, y: self.free_land(x, y) and not self.flag(x, y) & (F_FOREST | F_RES | F_WALL)
               and not (open_r and self.near_flag(x, y, open_r, F_FOREST)))
         got = self.scatter(put, k, min_players, sep, ok=ok, edge=6)
-        if len(got) < k:        # не влезли — ближе к игрокам (но не у самого центра)
+        if len(got) < k:        # did not fit - closer to the players (but not right at the center)
             got += self.scatter(put, k - len(got), min_players * 0.6, sep * 0.6, ok=ok, edge=4)
         return got
 
     def far_piles(self, kind, k, d, spread=5, edge=10):
-        """Дальняя куча (DE: 3 золота на 46, ≥ 10 от края) — по одной на игрока."""
+        """A far pile (DE: 3 gold at 46, >= 10 from the edge) - one per player."""
         for pid in range(self.n):
             self.pile(pid, kind, k, d, spread=spread, own=-6.0, edge=edge)
 
-    # ---------------------------------------------------------------- старт: ЦГ, жители, разведчик
+    # ---------------------------------------------------------------- start: TC, villagers, scout
     def start_units(self, tc=True):
         w = self.w
         for pid, (cx, cy) in enumerate(self.starts):
@@ -486,7 +486,7 @@ class Gen:
                 spots = [(cx + 3 * ox, cy), (cx, cy + 3 * oy), (cx + 3 * ox, cy + 3 * oy)]
                 scout = (cx - 3 * ox, cy + 3 * oy)
             else:
-                # кочевье: три жителя вразброс вдоль круга стартов (DE nomad: далеко друг от друга)
+                # nomad: three villagers scattered along the start circle (DE nomad: far from each other)
                 a = self.angs[pid]
                 spots = [(cx, cy)]
                 for s in (-1, 1):
@@ -500,9 +500,9 @@ class Gen:
             tx, ty = w.nearest_free_tile(*scout)
             w.units.append(Unit('scout', pid, (tx + 0.5) * TILE, (ty + 0.5) * TILE, w))
 
-    # ---------------------------------------------------------------- вода
+    # ---------------------------------------------------------------- water
     def pond(self, cx, cy, k):
-        """Пруд из k клеток (DE: create_land/terrain WATER малый)."""
+        """A pond of k tiles (DE: create_land/terrain WATER small)."""
         def ok(x, y):
             return self.inb(x, y, 3) and self.T[y][x] == LAND and self.dstart(x, y) > 16 and \
                 not self.flag(x, y) & (F_CLEAR | F_WALL)
@@ -512,7 +512,7 @@ class Gen:
         return cells
 
     def fish(self, shore=(2, 3), deep=3, dmax=40, extra_deep=0):
-        """Рыба поровну: shore = (стаек, рыб в стайке) у ближайшего берега, deep — глубоководная подальше."""
+        """Fish equally: shore = (schools, fish per school) at the nearest shore, deep - deep-water fish farther out."""
         w = self.w
         W, H = self.W, self.H
         T = self.T
@@ -541,7 +541,7 @@ class Gen:
                 for x in range(max(0, sx - dmax), min(W, sx + dmax + 1)):
                     d = math.hypot(x - sx, y - sy)
                     if 7 <= d <= dmax and coast(x, y) and self.dstart(x, y) >= d - 0.5:
-                        # берег своей суши (острова)
+                        # the shore of one's own land (islands)
                         if any(self.inb(x + dx, y + dy) and T[y + dy][x + dx] == LAND and
                                self.land_id(x + dx, y + dy) == home for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
                             ring.append((d + random.uniform(0, 6), x, y))
@@ -565,7 +565,7 @@ class Gen:
                         put('shore_fish', cx, cy)
                 schools.append((x, y))
             taken += schools
-            # глубоководная: открытая вода подальше от берега, поровну
+            # deep-water: open water farther from the shore, equally
             deep_c = []
             for y in range(max(0, sy - dmax - 8), min(H, sy + dmax + 9), 1):
                 for x in range(max(0, sx - dmax - 8), min(W, sx + dmax + 9), 1):
@@ -582,7 +582,7 @@ class Gen:
                 put('deep_fish', x, y)
                 taken.append((x, y))
                 got += 1
-        # общие глубоководные рыбы в открытом море
+        # shared deep-water fish in the open sea
         for _ in range(extra_deep):
             for _ in range(200):
                 x, y = random.randrange(3, W - 3), random.randrange(3, H - 3)
@@ -591,7 +591,7 @@ class Gen:
                     taken.append((x, y))
                     break
 
-    # ---------------------------------------------------------------- рельеф и итог
+    # ---------------------------------------------------------------- relief and result
     def relief(self, share, peak=(4, 7), cliffs=(0, 0), no_cliff=0.2, pond_shallows=True):
         w = self.w
         w.gen_opts = dict(hill_share=share, peak=random.randint(*peak), cliffs=random.randint(*cliffs),
@@ -602,14 +602,14 @@ class Gen:
     def finish(self, dirt=True):
         w = self.w
         terrain.gen_cliffs(w, self.starts)
-        terrain.gen_ground(w, self.starts if dirt else [])       # кочевье: у точки старта земли нет
+        terrain.gen_ground(w, self.starts if dirt else [])       # nomad: there is no land at the start point
         paint_roads(w, getattr(self, 'roads', ()))
         w._naval_comps = None
         w._naval_shores = None
 
 
 def paint_roads(w, cells):
-    """Дороги (Black Forest: к союзникам) — земля светлее травы."""
+    """Roads (Black Forest: to allies) - ground lighter than grass."""
     if not cells:
         return
     g = terrain.G['dirt2']
@@ -618,8 +618,8 @@ def paint_roads(w, cells):
             w.ground[y * w.W + x] = g
 
 
-# ============================================================ рецепты карт
-# Набор игрока Arabia (DE starting_resources.inc, herdable*.inc, lureable.inc): (вид, число, расстояние)
+# ============================================================ map recipes
+# The Arabia player set (DE starting_resources.inc, herdable*.inc, lureable.inc): (kind, count, distance)
 PK_ARABIA = [
     ('gold', 7, 12), ('stone', 5, 16), ('berries', 6, 12),
     ('gold', 4, 22), ('stone', 4, 22), ('gold', 4, 28),
@@ -632,7 +632,7 @@ PK_ARABIA = [
 
 def _arabia(g):
     g.place_starts()
-    if random.random() < 0.15:              # DE: пруд в 15 % игр, до 2 маленьких
+    if random.random() < 0.15:              # DE: a pond in 15 % of games, up to 2 small ones
         for _ in range(random.randint(1, 2)):
             c = g.scatter(lambda x, y: None, 1, 24, 0, edge=14)
             if c:
@@ -671,7 +671,7 @@ def _arena(g):
     W, H = g.W, g.H
     h = 19 if g.W < 150 else 20
     regions = [_octagon(sx, sy, h, 3) for sx, sy in g.starts]
-    # кольцо стены: клетка внутри, у которой сосед по стороне снаружи (край карты — не стена)
+    # the wall ring: a tile inside that has an outside neighbor across a side (the map edge is not a wall)
     wall = [[] for _ in range(g.n)]
     owner_of = {}
     for pid, (sx, sy) in enumerate(g.starts):
@@ -691,27 +691,27 @@ def _arena(g):
     inside_any = [[any(r(x, y) for r in regions) for x in range(W)] for y in range(H)]
     for (x, y) in owner_of:
         g.setf(x, y, F_WALL)
-    # у стены изнутри и снаружи — проход (без леса и куч)
+    # at the wall inside and outside - a passage (no forest and no piles)
     for (x, y) in owner_of:
         for dy in (-2, -1, 0, 1, 2):
             for dx in (-2, -1, 0, 1, 2):
                 if g.inb(x + dx, y + dy):
                     g.setf(x + dx, y + dy, F_CLEAR)
     g.relief(random.uniform(0.06, 0.16), peak=(3, 5), cliffs=(0, 0), no_cliff=1.0)
-    # набор игрока — внутри стен
+    # the player's set - inside the walls
     for item in PK_ARENA[:4]:
         kind, k, d = item[:3]
         for pid in range(g.n):
             g.pile(pid, kind, k, d, spread=2.0, own=2.0, edge=3)
-    # лес внутри стены у задней стороны (DE Arena: у каждого свой лес за базой)
+    # forest inside the wall at the back side (DE Arena: everyone has their own forest behind the base)
     for pid, (sx, sy) in enumerate(g.starts):
         back = g.angs[pid]
         for rel in (-0.9, 0.9):
             a = back + rel
             x, y = int(round(sx + math.cos(a) * (h - 5))), int(round(sy + math.sin(a) * (h - 5)))
             g.forest((x, y), random.randint(45, 70), keep=7)
-    # за стенами — сплошной лес; открытый центр
-    Rc = g.R * random.uniform(0.9, 1.02)        # открытый центр доходит до стен (DE: поляна-крест)
+    # beyond the walls - solid forest; an open center
+    Rc = g.R * random.uniform(0.9, 1.02)        # the open center reaches the walls (DE: a cross-shaped clearing)
     ph = [random.uniform(0, math.tau) for _ in range(3)]
     for y in range(H):
         for x in range(W):
@@ -724,7 +724,7 @@ def _arena(g):
                 continue
             if g.T[y][x] == LAND and w.occ[y][x] is None:
                 g.put_node('tree', x, y)
-    # дорожки к центру от ворот — не нужны: ворота смотрят в открытый центр
+    # paths to the center from the gates are not needed: the gates face the open center
     for pid in range(g.n):
         g.pile(pid, 'gold', 4, h + 7, spread=3, own=0.0, edge=4)
         g.pile(pid, 'stone', 4, h + 7, spread=3, own=0.0, edge=4)
@@ -738,14 +738,14 @@ def _arena(g):
 
 
 def _arena_walls(g, wall):
-    """Каменные стены (готовые) и ворота 4 клетки на стороне к центру карты."""
+    """Stone walls (ready-made) and a 4-tile gate on the side facing the center of the map."""
     w = g.w
     from . import defense
     for pid, cells in enumerate(wall):
         sx, sy = g.starts[pid]
         fx, fy = math.cos(g.fwd[pid]), math.sin(g.fwd[pid])
         cs = set(cells)
-        # ворота: 4 клетки прямой стороны, ближайшие к лучу «вперёд»
+        # gate: 4 tiles of the straight side nearest to the "forward" ray
         best = None
         for x, y in cells:
             for horiz in (True, False):
@@ -770,7 +770,7 @@ def _arena_walls(g, wall):
             if all(w.occ[y][x] is None and w.terrain[y][x] == LAND for x, y in run):
                 w.place_building('gate', pid, run[0][0], run[0][1], complete=True,
                                  size=(4, 1) if horiz else (1, 4))
-    w.buildings.sort(key=lambda b: not defense.is_wall(b))     # стены — после центров (порядок отрисовки)
+    w.buildings.sort(key=lambda b: not defense.is_wall(b))     # walls - after the centers (drawing order)
 
 
 def _black_forest(g):
@@ -795,7 +795,7 @@ def _black_forest(g):
                 r = rc + 2.5 * math.sin(3 * a + p[0]) + 1.6 * math.sin(5 * a + p[1]) + 1.0 * math.sin(7 * a + p[2])
                 if math.hypot(x - sx, y - sy) <= r:
                     clear[y * W + x] = 1
-    # центр: поляна (+ пруд в половине игр)
+    # center: a clearing (+ a pond in half of the games)
     disc(g.mx, g.my, 9 + g.n * 0.7)
     roads = []
 
@@ -813,9 +813,9 @@ def _black_forest(g):
             if road:
                 roads.append((int(round(cx)), int(round(cy))))
 
-    for pid, s in enumerate(g.starts):          # просека 3 клетки от каждого к центру
+    for pid, s in enumerate(g.starts):          # a 3-tile lane from each to the center
         lane(s, (g.mx, g.my), 4.2)
-    for i in range(g.n):                        # дороги к союзникам-соседям
+    for i in range(g.n):                        # roads to neighboring allies
         for j in range(i + 1, g.n):
             if w.players[i].team == w.players[j].team:
                 lane(g.starts[i], g.starts[j], 3.2, road=True)
@@ -823,13 +823,13 @@ def _black_forest(g):
     if random.random() < 0.5:
         g.pond(int(g.mx), int(g.my), 32)
     g.relief(random.uniform(0.18, 0.3), peak=(5, 7), cliffs=(0, 1), no_cliff=0.6)
-    # набор игрока — на поляне
+    # the player's set - in the clearing
     for kind, k, d in (('gold', 7, 12), ('stone', 5, 14), ('berries', 6, 12), ('gold', 4, 16),
                        ('stone', 4, 20), ('gold', 4, 21)):
         for pid in range(g.n):
             g.pile(pid, kind, k, d, spread=2.0)
     g.stragglers()
-    # всё, что не поляна и не просека, — лес
+    # everything that is not a clearing or a lane is forest
     for y in range(H):
         for x in range(W):
             if clear[y * W + x] or g.T[y][x] != LAND or w.occ[y][x] is not None:
@@ -839,9 +839,9 @@ def _black_forest(g):
             if g.near_flag(x, y, 1, F_RES):
                 continue
             g.put_node('tree', x, y)
-    # на полянах — пара «островков» леса у игрока (DE: player forests в поляне)
+    # in the clearings - a couple of forest "islets" near the player (DE: player forests in the clearing)
     g.player_forests((1, 2), (25, 45), (12, rc - 2), keep=9)
-    # дальние кучи @36 — в лесных карманах (лес вокруг вырубается)
+    # far piles @36 - in forest pockets (the forest around is cut down)
     for kind, k in (('gold', 4), ('stone', 4)):
         for pid in range(g.n):
             _pocket_pile(g, pid, kind, k, 36)
@@ -869,7 +869,7 @@ def _clear_trees(g, cx, cy, r):
 
 
 def _dig(g, x, y, tx, ty):
-    """Тропа шириной ≈ 2 от кармана к старту — до первой клетки поляны (без деревьев вокруг)."""
+    """A path ~2 wide from a pocket to the start - up to the first clearing tile (no trees around)."""
     L = max(1, int(math.hypot(tx - x, ty - y)))
     for i in range(4, L):
         cx = int(round(x + (tx - x) * i / L))
@@ -880,7 +880,7 @@ def _dig(g, x, y, tx, ty):
 
 
 def _pocket_pile(g, pid, kind, k, d):
-    """Куча в лесу: карман радиусом 3 вокруг неё, соединённый с ближайшей поляной короткой просекой."""
+    """A pile in the forest: a pocket of radius 3 around it, connected to the nearest clearing by a short lane."""
     sx, sy = g.starts[pid]
     for _ in range(80):
         a = random.uniform(0, math.tau)
@@ -921,7 +921,7 @@ def _pocket_herd(g, pid, kind, d):
 def _nomad(g):
     w = g.w
     W, H = g.W, g.H
-    # вода по краю карты (DE nomad: 25–40 % карты), суша в центре; игроки ближе к воде
+    # water along the map edge (DE nomad: 25-40 % of the map), land in the center; players closer to the water
     E = W * random.uniform(0.075, 0.1)
     ph = [random.uniform(0, math.tau) for _ in range(4)]
     for y in range(H):
@@ -932,17 +932,17 @@ def _nomad(g):
             if e < E + wob:
                 g.T[y][x] = WATER
     g.place_starts(frac_extra=0.0)
-    for sx, sy in g.starts:                  # у кочевья старт не у самой воды
+    for sx, sy in g.starts:                  # for nomad the start is not right at the water
         for y in range(sy - 7, sy + 8):
             for x in range(sx - 7, sx + 8):
                 if g.inb(x, y, 1) and math.hypot(x - sx, y - sy) < 7.5:
                     g.T[y][x] = LAND
     g.label_land()
-    if random.random() < 0.5:                # пруд в половине игр
+    if random.random() < 0.5:                # a pond in half of the games
         g.pond(int(g.mx), int(g.my), int(0.04 * W * H / 4))
     g.label_land()
     g.relief(random.uniform(0.12, 0.25), cliffs=(0, 2), no_cliff=0.5)
-    # ресурсы — вокруг точки игрока, но дальше, чем обычно (центра нет: сам выбираешь место)
+    # resources - around the player's point, but farther than usual (there is no center: you choose the place yourself)
     for kind, k, d in (('gold', 7, 15), ('stone', 5, 18), ('berries', 6, 14), ('gold', 4, 24), ('stone', 4, 26),
                        ('gold', 4, 30)):
         for pid in range(g.n):
@@ -957,20 +957,20 @@ def _nomad(g):
     g.wolves(per_area=2)
     g.relics(min_players=26, sep=18)
     g.finish(dirt=False)
-    for p in w.players:                      # на центр: дерева как в DE (275 сверху)
+    for p in w.players:                      # on the center: wood as in DE (275 on top)
         p.res['wood'] += 275
 
 
 def _islands(g):
     W, H = g.W, g.H
     n = g.n
-    area = 0.40 * W * H / n                  # суша игроков — 35 % карты (+ кромка, срезанная краем)
+    area = 0.40 * W * H / n                  # the players' land - 35 % of the map (+ a rim cut off by the edge)
     r0 = math.sqrt(area / math.pi)
-    # пролив между островами ≥ 7 клеток
+    # a strait between the islands >= 7 tiles
     R = circle_radius(W, 0.01)
     chord = 2 * R * math.sin(math.pi / n) if n > 1 else W
     r0 = min(r0 * 1.08, (chord - 8) / 2 / 1.18)
-    R = min(R, W / 2 - r0 * 0.6 - 3)             # остров может упираться в край карты (кромка воды 3)
+    R = min(R, W / 2 - r0 * 0.6 - 3)             # an island may touch the map edge (a water rim of 3)
     for y in range(H):
         for x in range(W):
             g.T[y][x] = WATER
@@ -984,7 +984,7 @@ def _islands(g):
                 if math.hypot(x - sx, y - sy) < r and min(x, y, W - 1 - x, H - 1 - y) >= 3:
                     g.T[y][x] = LAND
     _smooth(g)
-    # нейтральные островки с золотом и камнем (DE: 1–2 % карты)
+    # neutral islets with gold and stone (DE: 1-2 % of the map)
     small = []
     for i in range(max(3, n + 1 + int(g.scale))):
         for _ in range(200):
@@ -1005,7 +1005,7 @@ def _islands(g):
                        ('gold', 3, 19), ('stone', 3, 19)):
         for pid in range(n):
             g.pile(pid, kind, k, d, spread=2.5, own=None)
-    # лес: 450 клеток на остров в 9 рощах (×площадь острова / эталон 100²·35 %/2)
+    # forest: 450 tiles per island in 9 groves (x the island area / the reference 100^2*35 %/2)
     k_isl = area / (0.35 * 10000 / 2)
     per = max(20, int(450 * min(1.6, k_isl) / 9))
     for pid in range(n):
@@ -1030,7 +1030,7 @@ def _islands(g):
 
 
 def _isle_ok(g, a, b, r0):
-    """Клетка нейтрального островка: вода вдали от островов игроков (пролив ≥ 5 клеток)."""
+    """A tile of a neutral islet: water far from the players' islands (a strait >= 5 tiles)."""
     if not g.inb(a, b, 4) or g.T[b][a] != WATER:
         return False
     if min(math.hypot(a - sx, b - sy) for sx, sy in g.starts) < r0 * 1.25 + 6:
@@ -1039,7 +1039,7 @@ def _isle_ok(g, a, b, r0):
 
 
 def _relics_any(g, ok):
-    """Реликвии на островах: сначала нейтральные островки, затем дальние стороны островов игроков."""
+    """Relics on islands: first the neutral islets, then the far sides of the players' islands."""
     try:
         from . import relics
     except ImportError:
@@ -1071,14 +1071,14 @@ def _smooth(g):
 def _mediterranean(g):
     W, H = g.W, g.H
     g.place_starts(frac_extra=0.0)
-    # море: 80 % внутренней области (кромка ≈ 14 % стороны), от стартов — не ближе 12 клеток
+    # sea: 80 % of the inner area (rim ~ 14 % of the side), no closer than 12 tiles from the starts
     half = W / 2 - W * 0.14
     ph = [random.uniform(0, math.tau) for _ in range(5)]
     amp = [random.uniform(0.04, 0.09), random.uniform(0.03, 0.06), random.uniform(0.01, 0.03)]
     for y in range(H):
         for x in range(W):
             dx, dy = abs(x - g.mx) / half, abs(y - g.my) / half
-            rr = (dx ** 3 + dy ** 3) ** (1 / 3)            # скруглённый квадрат (море повторяет форму карты)
+            rr = (dx ** 3 + dy ** 3) ** (1 / 3)            # a rounded square (the sea follows the shape of the map)
             a = math.atan2(y - g.my, x - g.mx)
             lim = 1.0 - amp[0] * (1 + math.sin(3 * a + ph[0])) - amp[1] * (1 + math.sin(5 * a + ph[1])) - \
                 amp[2] * (1 + math.sin(11 * a + ph[2]))
@@ -1088,7 +1088,7 @@ def _mediterranean(g):
     g.label_land()
     g.relief(random.uniform(0.1, 0.2), cliffs=(0, 2), no_cliff=0.5)
     g.package(PK_ARABIA[:6])
-    # лес: 9 % суши в 12 рощах + леса игроков поменьше
+    # forest: 9 % of the land in 12 groves + smaller player forests
     g.player_forests((2, 3), (45, 80), (9, 20))
     land = sum(row.count(LAND) for row in g.T)
     k = int(round(12 * g.scale))
@@ -1104,7 +1104,7 @@ def _mediterranean(g):
 
 
 def _theme(w, mt):
-    """Пейзаж: Arabia — 1 из пула (как 11 биомов DE), у остальных — свой."""
+    """Landscape: Arabia - 1 of a pool (like DE's 11 biomes), the others have their own."""
     forced = w.settings.get('theme') if hasattr(w, 'settings') else None
     try:
         from . import themes
@@ -1123,7 +1123,7 @@ RECIPES = {'arabia': _arabia, 'arena': _arena, 'black_forest': _black_forest, 'n
 
 
 def generate(w):
-    """Сгенерировать карту w.map_type (из RECIPES) в пустом мире w."""
+    """Generate the map w.map_type (from RECIPES) in an empty world w."""
     g = Gen(w)
     w.theme = _theme(w, w.map_type)
     RECIPES.get(w.map_type, _arabia)(g)

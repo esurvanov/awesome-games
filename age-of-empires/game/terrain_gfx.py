@@ -1,16 +1,16 @@
-"""Земля с рельефом: смешение типов по маскам (как blendomatic AoE2), подъём по высотам и свет склонов.
+"""Ground with relief: blending of types by masks (like AoE2's blendomatic), lifting by heights and slope light.
 
-Порядок сборки статической поверхности земли (Game.build_terrain):
-  1) плоская изометрия: вода (цвет по глубине) — как раньше;
-  2) paint_ground — каждая клетка суши своей текстурой (ромб, текстура — функция точки мира, поэтому
-     швов нет), затем поверх — «наплывы» соседей с большим приоритетом (PRIORITY в game/terrain.py):
-     маска на сторону (4) и на угол (4) с шумным краем, шум периодичен с периодом текстуры (4 клетки) —
-     готовые наплывы кэшируются по (тип, сторона, x mod 4, y mod 4);
-  3) пена и прочие детали воды (naval_gfx.decorate);
-  4) relief — вертикальный сдвиг каждого столбца пикселей на высоту земли (обратное отображение по
-     монотонному столбцу) и умножение на свет склона (нормаль · солнце справа-сверху, как у рендера
-     спрайтов tools/render3d/camera.py SUN). Плоские участки пропускаются блоками.
-Сдвиг тумана — тот же, в разрешении тумана (fog_rows).
+The order of assembling the static ground surface (Game.build_terrain):
+  1) flat isometry: water (color by depth) - as before;
+  2) paint_ground - every land cell with its own texture (a diamond, the texture is a function of the world point, so
+     there are no seams), then on top - "overlaps" of neighbors with a higher priority (PRIORITY in game/terrain.py):
+     a mask per side (4) and per corner (4) with a noisy edge, the noise is periodic with the texture's period (4 cells) -
+     ready overlaps are cached by (type, side, x mod 4, y mod 4);
+  3) foam and other water details (naval_gfx.decorate);
+  4) relief - a vertical shift of each pixel column by the ground height (an inverse mapping over a
+     monotonic column) and multiplication by the slope light (normal . the sun at the upper right, like the sprite
+     renderer tools/render3d/camera.py SUN). Flat areas are skipped in blocks.
+The fog shift is the same, at the fog resolution (fog_rows).
 """
 import math
 import random
@@ -21,29 +21,29 @@ import pygame
 from .data import TILE, HW, HH
 from . import terrain as tr
 
-ZK = 32 * math.sqrt(2) * math.cos(math.radians(30))     # px экрана на клетку высоты у рендера спрайтов (≈39.2)
+ZK = 32 * math.sqrt(2) * math.cos(math.radians(30))     # screen px per height cell at the sprite renderer (~39.2)
 SUN = np.array([0.5, -0.55, 1.5], np.float32)
 SUN /= np.linalg.norm(SUN)
-LIGHT_K = 1.15          # яркость на единицу крутизны к солнцу / от солнца (склоны DE заметно контрастны)
+LIGHT_K = 1.15          # brightness per unit of steepness toward / away from the sun (DE slopes are noticeably contrasty)
 LIGHT_STEEP = 0.15
-S = 4                   # шаг грубой сетки сдвига (px)
+S = 4                   # the step of the coarse shift grid (px)
 
-# текстура атласа для типа земли (с запасными)
+# the atlas texture for a ground type (with fallbacks)
 TEX = {'grass': ('grass',), 'grass2': ('grass2', 'grass'), 'grass3': ('grass3', 'grass'), 'dirt': ('dirt',),
        'dirt2': ('dirt2', 'dirt'), 'dirt3': ('dirt3', 'grass3', 'grass'), 'forest': ('forest',),
        'pine': ('pine', 'forest'), 'sand': ('sand',), 'beach': ('beach', 'sand'), 'shallow': ('shallow', 'sand'),
        'rocky': ('rocky', 'dirt')}
-SHALLOW_TINT = ((88, 200, 220), 0.74)      # мелководье: песок дна под бирюзовой водой (цвет воды у берега)
-BLEED = {'edge': 0.30, 'corner': 0.34}      # насколько тип с большим приоритетом заходит в соседа (клетки)
+SHALLOW_TINT = ((88, 200, 220), 0.74)      # shallows: the sand of the bottom under turquoise water (the water color by the shore)
+BLEED = {'edge': 0.30, 'corner': 0.34}      # how far a type with a higher priority enters its neighbor (cells)
 JITTER = 0.75
 SOFT = 0.12
 
 _DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1))
 
 
-# ============================================================ маски клетки
+# ============================================================ cell masks
 def _diamond():
-    """Локальные координаты мира (u, v) пикселей ромба 64×32 (массивы (x, y)) и маска «внутри клетки»."""
+    """Local world coordinates (u, v) of the pixels of a 64x32 diamond (arrays (x, y)) and the "inside the cell" mask."""
     i = np.arange(2 * HW, dtype=np.float32)[:, None] + 0.5 - HW
     j = np.arange(2 * HH, dtype=np.float32)[None, :] + 0.5
     u = (i / HW + j / HH) * 0.5
@@ -53,7 +53,7 @@ def _diamond():
 
 
 def _periodic_noise(n, cells, rng):
-    """Бесшовный шум n×n (период = размер), 0..1."""
+    """Seamless n x n noise (the period = the size), 0..1."""
     g = rng.random((cells, cells)).astype(np.float32)
     t = np.arange(n, dtype=np.float32) * cells / n
     i0 = t.astype(int)
@@ -67,15 +67,15 @@ def _periodic_noise(n, cells, rng):
 
 class _Painter:
     def __init__(self, tiles):
-        """tiles — {тип земли: Surface изометрической плитки (период 4 клетки)}."""
+        """tiles - {ground type: a Surface of an isometric tile (a period of 4 cells)}."""
         self.U, self.V, self.IN = _diamond()
         rng = np.random.default_rng(17)
         nz = _periodic_noise(256, 12, rng) * 0.65 + _periodic_noise(256, 28, rng) * 0.35
-        self.nz = nz                          # [gy, gx] на 4×4 клетки, 64 отсчёта на клетку
+        self.nz = nz                          # [gy, gx] over 4x4 cells, 64 samples per cell
         self.src = {}
         for g, surf in tiles.items():
             a = pygame.surfarray.array3d(surf)
-            self.src[g] = np.tile(a, (2, 2, 1))          # 2×2 плитки: вырезки без переноса
+            self.src[g] = np.tile(a, (2, 2, 1))          # 2x2 tiles: cut-outs without wrapping
         self.tw = {g: s.get_width() for g, s in tiles.items()}
         self.base = {}
         self.ovl = {}
@@ -123,7 +123,7 @@ class _Painter:
 
 
 def load_tiles(tile_fn):
-    """Плитки текстур по типам земли (tile_fn(name) → Surface | None); None — текстур нет."""
+    """Texture tiles by ground types (tile_fn(name) -> Surface | None); None - no textures."""
     out = {}
     for g, names in TEX.items():
         t = None
@@ -148,12 +148,12 @@ def load_tiles(tile_fn):
     return out
 
 
-_AS_GRASS = ('grass2', 'grass3')       # оттенки травы — не отдельные клетки, а плавные пятна (paint_grass_tones)
+_AS_GRASS = ('grass2', 'grass3')       # grass shades are not separate cells but smooth patches (paint_grass_tones)
 
 
 def paint_ground(big, w, ox, tiles):
-    """Клетки суши и мелководья — текстурой своего типа; плавные оттенки травы; по краям — наплывы
-    соседей с большим приоритетом (сторона/угол, шумный край)."""
+    """Land and shallows cells - with the texture of their own type; smooth grass shades; at the edges - overlaps of
+    neighbors with a higher priority (a side/corner, a noisy edge)."""
     p = _Painter(tiles)
     W, H = w.W, w.H
     gr = w.ground
@@ -199,9 +199,9 @@ def paint_ground(big, w, ox, tiles):
                 name = names[ng]
                 for d in ds:
                     if d[0] and d[1] and ((d[0], 0) in ds or (0, d[1]) in ds):
-                        continue                # угол уже закрыт наплывами со сторон
+                        continue                # the corner is already covered by overlaps from the sides
                     blit(p.overlay(name, d, a, b), (x0, y0))
-    # рябь на мелководье
+    # ripples on the shallows
     rnd = random.Random(23)
     shallow = tr.G['shallow']
     for ty in range(H):
@@ -233,7 +233,7 @@ def _smooth_noise(W, H, cell, seed):
 
 
 def _iso_mask(a, size):
-    """Поле по клеткам (H, W) 0..1 → альфа-маска изометрии размера size (поворот и сжатие, как миникарта)."""
+    """A per-cell field (H, W) 0..1 -> an isometric alpha mask of size size (rotation and squeeze, like the minimap)."""
     H, W = a.shape
     s = pygame.image.frombuffer(np.ascontiguousarray(np.repeat((np.clip(a, 0, 1) * 255).astype(np.uint8)[..., None],
                                                                3, axis=2)).tobytes(), (W, H), 'RGB')
@@ -243,11 +243,11 @@ def _iso_mask(a, size):
 
 
 def paint_grass_tones(big, w, ox, tiles):
-    """Оттенки травы (grass2 — темнее, grass3 — суше) плавными пятнами по траве вдали от других типов."""
+    """Grass shades (grass2 - darker, grass3 - drier) in smooth patches over grass far from other types."""
     W, H = w.W, w.H
     g = np.frombuffer(bytes(w.ground), np.uint8).reshape(H, W)
     grassy = np.isin(g, [tr.G['grass'], tr.G['grass2'], tr.G['grass3']]).astype(np.float32)
-    # только глубоко внутри травы: наплывы соседних типов кладутся позже поверх
+    # only deep inside the grass: overlaps of neighboring types are laid on top later
     inner = grassy.copy()
     inner[1:, :] *= grassy[:-1, :]
     inner[:-1, :] *= grassy[1:, :]
@@ -266,7 +266,7 @@ def paint_grass_tones(big, w, ox, tiles):
         m = _iso_mask(a, qs)
         layer = pygame.Surface((tw, th), pygame.SRCALPHA)
         tw0, th0 = tile.get_size()
-        x0 = ox % tw0 - tw0                      # та же привязка к миру, что у вырезок _Painter
+        x0 = ox % tw0 - tw0                      # the same world anchoring as the _Painter cut-outs
         for y in range(0, th, th0):
             for x in range(x0, tw, tw0):
                 layer.blit(tile, (x, y))
@@ -277,25 +277,25 @@ def paint_grass_tones(big, w, ox, tiles):
         big.blit(layer, (0, 0))
 
 
-# ============================================================ рельеф и свет
+# ============================================================ relief and light
 def _vertex_light(hz):
-    """Множитель света в вершинах: 1 — ровная земля, > 1 — склон к солнцу, < 1 — от солнца.
-    Как карты освещения AoE2: яркость линейно по крутизне вдоль горизонтального направления солнца
-    (справа-сверху экрана), с небольшим вкладом крутизны вообще (любой склон чуть темнее равнины)."""
-    h = hz / ZK                               # высота в клетках
+    """The light multiplier at vertices: 1 - flat ground, > 1 - a slope toward the sun, < 1 - away from it.
+    Like AoE2's lighting maps: brightness linear in steepness along the sun's horizontal direction
+    (the upper right of the screen), with a small contribution of steepness in general (any slope is slightly darker than a plain)."""
+    h = hz / ZK                               # height in cells
     gx = np.zeros_like(h)
     gy = np.zeros_like(h)
     gx[:, 1:-1] = (h[:, 2:] - h[:, :-2]) * 0.5
     gy[1:-1, :] = (h[2:, :] - h[:-2, :]) * 0.5
     lx, ly = SUN[0], SUN[1]
     k = 1.0 / math.hypot(lx, ly)
-    toward = -(gx * lx + gy * ly) * k         # > 0 — склон повёрнут к солнцу
+    toward = -(gx * lx + gy * ly) * k         # > 0 - the slope faces the sun
     steep = np.sqrt(gx * gx + gy * gy)
     return np.clip(1.0 + LIGHT_K * toward - LIGHT_STEEP * steep, 0.5, 1.45)
 
 
 def _bilinear(grid, fx, fy):
-    """Выборка сетки вершин (H+1, W+1) в точках (fx, fy) (клетки), за краем — край."""
+    """Sampling the vertex grid (H+1, W+1) at the points (fx, fy) (cells), beyond the edge - the edge."""
     Hh, Ww = grid.shape
     fx = np.clip(fx, 0, Ww - 1.001)
     fy = np.clip(fy, 0, Hh - 1.001)
@@ -309,14 +309,14 @@ def _bilinear(grid, fx, fy):
 
 
 def _to_tiles(ix, iy, ox):
-    """Изометрия (плоская) → клетки мира."""
+    """Isometry (flat) -> world cells."""
     x = (ix - ox + 2 * iy) * 0.5
     y = (2 * iy - (ix - ox)) * 0.5
     return x / TILE, y / TILE
 
 
 class Relief:
-    """Грубая сетка обратного сдвига: для экранной точки (x, sy) — строка плоской изометрии iy = sy + D."""
+    """A coarse inverse-shift grid: for a screen point (x, sy) - the flat-isometry row iy = sy + D."""
 
     def __init__(self, w, ox, tw, th):
         self.tw, self.th = tw, th
@@ -343,7 +343,7 @@ class Relief:
         self.L = _bilinear(light, fx, fy).astype(np.float32)
 
     def apply(self, surf, block=64):
-        """Сдвинуть и осветить поверхность земли на месте (сверху вниз: строки берутся только снизу)."""
+        """Shift and light the ground surface in place (top to bottom: rows are taken only from below)."""
         if self.flat:
             return
         arr = pygame.surfarray.pixels3d(surf)           # (x, y, 3)
@@ -370,7 +370,7 @@ class Relief:
                 ix0 = np.minimum(cx.astype(np.int32), dblk.shape[1] - 2)
                 fy = (ry - iy0)[None, :]
                 fx = (cx - ix0)[:, None]
-                # (x, y) порядок как у pixels3d
+                # (x, y) order as in pixels3d
                 Dt = dblk.T
                 Lt = lblk.T
                 d = (Dt[ix0][:, iy0] * (1 - fx) + Dt[ix0 + 1][:, iy0] * fx) * (1 - fy) + \
@@ -381,7 +381,7 @@ class Relief:
                 src = np.minimum(sf.astype(np.int32), th - 2)
                 f = np.clip(sf - src, 0, 1)[..., None]
                 xi = np.arange(x0, x1)[:, None]
-                # между двумя строками — линейно (иначе на склонах видны повторы строк)
+                # between two rows - linear (otherwise row repeats are visible on slopes)
                 px = arr[xi, src].astype(np.float32)
                 px += (arr[xi, src + 1] - px) * f
                 px *= lt[..., None]
@@ -390,7 +390,7 @@ class Relief:
         del arr
 
     def fog_rows(self, fw, fh, fs):
-        """Для тумана в разрешении 1/fs: исходная строка (fw, fh) каждого пикселя тумана (или None)."""
+        """For fog at 1/fs resolution: the source row (fw, fh) of each fog pixel (or None)."""
         if self.flat:
             return None
         k = fs // S
@@ -404,7 +404,7 @@ class Relief:
 
 
 def warp_fog(fog, rows):
-    """Сдвинуть альфу тумана вверх по рельефу (rows — из Relief.fog_rows)."""
+    """Shift the fog alpha up along the relief (rows - from Relief.fog_rows)."""
     if rows is None:
         return
     a = pygame.surfarray.pixels_alpha(fog)
@@ -416,12 +416,12 @@ def warp_fog(fog, rows):
     del a
 
 
-# ============================================================ миникарта
+# ============================================================ minimap
 def minimap_colors(w, water_color, depth, de=False):
-    """Цвета клеток по типу земли, выше — светлее (как у AoE2), вода — по глубине.
-    de=False — подложка мира под текстуры (прежняя палитра, в ней же видна вода мира);
-    de=True — миникарта в палитре AoE II DE с учётом пейзажа (game/themes.py): трава #00A900,
-    вода #004ABB, мелководье #305DB6, утёс #714B33."""
+    """Cell colors by ground type, lighter at higher levels (as in AoE2), water - by depth.
+    de=False - the world backing under the textures (the former palette, in which the world's water is visible too);
+    de=True - the minimap in the AoE II DE palette taking the landscape into account (game/themes.py): grass #00A900,
+    water #004ABB, shallows #305DB6, cliff #714B33."""
     from . import themes
     W, H = w.W, w.H
     out = []

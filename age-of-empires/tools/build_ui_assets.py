@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Собирает графику интерфейса из скачанных материалов 0 A.D. (assets/0ad_raw, см. tools/fetch_0ad.py)
-в assets/ui/ (хранится в git): только используемые картинки, DDS → PNG, портреты уменьшены до 128×128.
-Шрифты (Linux Biolinum, GNU FreeSans) — в assets/fonts/; PT Serif и Cormorant SC (OFL, Google Fonts) хранятся
-в assets/fonts/ в репозитории и здесь не трогаются. Значки по словарю DE — tools/ui_icon_art.py (вызывается в конце);
-здания-«картинки», приказы и портреты в кадре DE — tools/build_portraits.py (отдельно, нужен рендер 3D).
+"""Builds the interface graphics from the downloaded 0 A.D. materials (assets/0ad_raw, see tools/fetch_0ad.py)
+into assets/ui/ (stored in git): only the pictures in use, DDS -> PNG, portraits reduced to 128x128.
+Fonts (Linux Biolinum, GNU FreeSans) - into assets/fonts/; PT Serif and Cormorant SC (OFL, Google Fonts) are stored
+in assets/fonts/ in the repository and are not touched here. Icons by the DE dictionary - tools/ui_icon_art.py (called at the end);
+"picture" buildings, orders and portraits in the DE frame - tools/build_portraits.py (separately, a 3D render is needed).
 
-Материалы 0 A.D. © Wildfire Games, CC BY-SA 3.0; результат — производная работа под той же лицензией
-(см. CREDITS.md и assets/ui/LICENSE.md).
+0 A.D. materials (c) Wildfire Games, CC BY-SA 3.0; the result is a derived work under the same license
+(see CREDITS.md and assets/ui/LICENSE.md).
 
   .venv/bin/python tools/build_ui_assets.py
 """
@@ -22,7 +22,7 @@ sys.path.insert(0, ROOT)
 from game import uiskin_map as M  # noqa: E402
 
 RAW = os.path.join(ROOT, 'assets', '0ad_raw')
-if not os.path.isdir(RAW):          # из рабочей копии (git worktree) — основной репозиторий рядом
+if not os.path.isdir(RAW):          # from a working copy (git worktree) - the main repository is nearby
     alt = os.path.abspath(os.path.join(ROOT, '..', '..', '..', 'assets', '0ad_raw'))
     RAW = alt if os.path.isdir(alt) else RAW
 TEX = os.path.join(RAW, 'public', 'art', 'textures')
@@ -43,7 +43,7 @@ def save(img, rel):
 
 
 def nine(folder):
-    """Собрать 9 кусков кнопки 0 A.D. в один шаблон 272×80 (рамка 8 px)."""
+    """Assemble the 9 pieces of a 0 A.D. button into one 272x80 template (an 8 px frame)."""
     parts = {n: load(f'{folder}/{n}.png') for n in (
         'top_left_corner', 'top_edge', 'top_right_corner', 'left_edge', 'center', 'right_edge',
         'bottom_left_corner', 'bottom_edge', 'bottom_right_corner')}
@@ -61,7 +61,7 @@ def nine(folder):
 
 
 def gold_frame():
-    """Тонкая золотая рамка 0 A.D. (уголки 4×4 + линии) → шаблон 72×72, рамка 4 px, центр прозрачный."""
+    """A thin golden 0 A.D. frame (corners 4x4 + lines) -> a 72x72 template, a 4 px frame, a transparent center."""
     b = 'global/border/'
     img = Image.new('RGBA', (72, 72))
     h, v = load(b + 'line_horiz.png'), load(b + 'line_vert.png')
@@ -76,13 +76,13 @@ def gold_frame():
 
 def main():
     if not os.path.isdir(UI):
-        sys.exit(f'нет {UI}: сначала tools/fetch_0ad.py')
-    # LICENSE.md рядом не трогаем; portraits/{de,scenic,orders,units3d} — свои сборки (ui_icon_art, build_portraits)
+        sys.exit(f'no {UI}: run tools/fetch_0ad.py first')
+    # we do not touch LICENSE.md nearby; portraits/{de,scenic,orders,units3d} - their own builds (ui_icon_art, build_portraits)
     for sub in ('skin', 'icons', 'cursors', 'portraits/structures', 'portraits/technologies', 'portraits/units',
                 'portraits/gaia'):
         if os.path.isdir(os.path.join(OUT, sub)):
             shutil.rmtree(os.path.join(OUT, sub))
-    # ---- обвязка
+    # ---- trim
     for st in ('base', 'over', 'pressed'):
         save(nine(f'global/button/button_brown/{st}'), f'skin/btn_{st}.png')
     save(gold_frame(), 'skin/goldline.png')
@@ -104,12 +104,12 @@ def main():
     }
     for src, dst in simple.items():
         save(load(src), dst)
-    save(load('tipdisplay/parchment.png').crop((0, 0, 316, 386)), 'skin/parchment.png')   # лист без пустого поля
-    # гербовые диски (фон меню)
+    save(load('tipdisplay/parchment.png').crop((0, 0, 316, 386)), 'skin/parchment.png')   # a sheet without an empty margin
+    # crest discs (the menu background)
     for n in ('brit', 'celt', 'germ', 'goth', 'iber', 'rome', 'han', 'achae'):
         save(load(f'session/icons/bkg/background_circle_{n}.png').resize((320, 320), Image.LANCZOS),
              f'skin/disc_{n}.png')
-    # ---- значки
+    # ---- icons
     for r in ('food', 'wood', 'stone', 'metal', 'population'):
         save(load(f'session/icons/resources/{r}.png').resize((48, 48), Image.LANCZOS), f'icons/{r}.png')
     save(load('session/icons/resources/time_small.png'), 'icons/time.png')
@@ -121,7 +121,7 @@ def main():
             im = im.resize((64, 64), Image.LANCZOS)
         save(im, f'icons/{n}.png')
     save(load('session/icons/idle.dds'), 'icons/idle.png')
-    # ---- курсоры (+ точка прицела из .txt). docs/research/08_cursor.md: остриё = точка прицела.
+    # ---- cursors (+ the aim point from .txt). docs/research/08_cursor.md: the tip = the aim point.
     hot = {}
     cur_dir = os.path.join(TEX, 'cursors')
     for n in ('action-build', 'action-repair', 'action-garrison', 'action-patrol', 'action-guard',
@@ -132,11 +132,11 @@ def main():
         save(load(n + '.png', cur_dir), f'cursors/{n}.png')
         txt = os.path.join(cur_dir, n + '.txt')
         hot[n] = [int(v) for v in open(txt).read().split()[:2]] if os.path.exists(txt) else [1, 1]
-    # стрелка 0 A.D. в файле остриём вниз-влево (остриё в (0, 31)) — переворачиваем: остриё ↖ в (0, 0)
+    # the 0 A.D. arrow is stored in the file with the tip down-left (the tip at (0, 31)) - flip it: the tip up-left at (0, 0)
     arrow = ImageOps.flip(load('arrow-default-down.png', cur_dir))
     save(arrow, 'cursors/arrow-default-down.png')
     hot['arrow-default-down'] = [0, 0]
-    # мечи 64×64 с рисунком 23×23: вырезать рамку и растянуть на весь курсор 32 (иначе меч 11 px), остриё в (1, 1)
+    # 64x64 swords with a 23x23 drawing: cut out the box and stretch it to the whole 32 cursor (otherwise the sword is 11 px), the tip at (1, 1)
     for n in ('action-attack', 'action-attack-move'):
         im = load(n + '.png', cur_dir)
         bb = im.getchannel('A').point(lambda v: 255 if v > 30 else 0).getbbox()
@@ -147,19 +147,19 @@ def main():
         out.alpha_composite(im, (1, 1))
         save(out, f'cursors/{n}.png')
         hot[n] = [1, 1]
-    # прицел — в центре рисунка: «нельзя» (крест) и «по земле» (мишень)
+    # the aim point - at the center of the drawing: "no" (a cross) and "on the ground" (a target)
     for n in ('cursor-no', 'action-target'):
         im = load(n + '.png', cur_dir)
         save(im, f'cursors/{n}.png')
         bb = im.getchannel('A').point(lambda v: 255 if v > 30 else 0).getbbox()
         hot[n] = [(bb[0] + bb[2] - 1) // 2, (bb[1] + bb[3] - 1) // 2]
-    # свои курсоры DE (tools/ui_icon_art.py: de_*) — предмет без стрелки, рабочий конец в (1, 1)
+    # our own DE cursors (tools/ui_icon_art.py: de_*) - an object without an arrow, the working end at (1, 1)
     for n in ('tree', 'gold', 'stone', 'berries', 'farm', 'meat', 'fish', 'drop', 'heal', 'repair', 'attack',
               'amove', 'flare', 'rally', 'board', 'unload', 'follow'):
         hot[f'de_{n}'] = [1, 1]
     with open(os.path.join(OUT, 'cursors', 'hotspots.json'), 'w') as f:
         json.dump(hot, f, indent=1, sort_keys=True)
-    # ---- портреты
+    # ---- portraits
     pdir = os.path.join(UI, 'session', 'portraits')
     need = set(M.BUILDING_PORTRAITS.values()) | set(M.GAIA_PORTRAITS.values()) | set(M.TECH_PORTRAITS.values())
     need |= set(M.AGE_PORTRAITS_0AD) | set(M.EXTRA_PORTRAITS)
@@ -181,18 +181,18 @@ def main():
             im = im.resize((PORTRAIT, PORTRAIT), Image.LANCZOS)
         save(im, f'portraits/{rel}.png')
     if miss:
-        print('нет портретов:', ', '.join(miss))
-    # ---- шрифты
+        print('no portraits:', ', '.join(miss))
+    # ---- fonts
     os.makedirs(FONTS, exist_ok=True)
     fsrc = os.path.join(RAW, 'mod', 'fonts')
     for fn in ('LinBiolinum_Rah.ttf', 'LinBiolinum_RBah.ttf', 'FreeSans.ttf', 'FreeSansBold.ttf',
                'LibBiolinum-LICENSE.txt', 'FreeFont-LICENSE.txt'):
         shutil.copy(os.path.join(fsrc, fn), os.path.join(FONTS, fn))
-    # ---- значки по словарю DE (переназначенные, составные, процедурные), курсоры-инструменты, рамки культур
+    # ---- icons by the DE dictionary (reassigned, composite, procedural), tool cursors, culture frames
     from tools import ui_icon_art
     ui_icon_art.build()
     total = sum(os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(OUT) for f in fs)
-    print(f'assets/ui: {sum(len(fs) for _, _, fs in os.walk(OUT))} файлов, {total / 1e6:.1f} МБ')
+    print(f'assets/ui: {sum(len(fs) for _, _, fs in os.walk(OUT))} files, {total / 1e6:.1f} MB')
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-"""Экран игры: камера в изометрии, отрисовка, ввод, панели."""
+"""The game screen: the isometric camera, drawing, input, panels."""
 import math
 import random
 import time
@@ -6,8 +6,8 @@ from operator import itemgetter
 
 import pygame
 
-from .data import (TITLE, TILE, HW, HH, SCREEN_W, SCREEN_H, TOP_H, PANEL_H, VIEW_H,
-                   FPS, GAME_SPEED, PLAYER_COLORS, COLOR_NAMES, AGE_NAMES, NODE_DEFS,
+from .data import (TILE, HW, HH, SCREEN_W, SCREEN_H, TOP_H, PANEL_H, VIEW_H,
+                   FPS, GAME_SPEED, PLAYER_COLORS, AGE_NAMES, NODE_DEFS,
                    FARM_FOOD, ANIMALS, UNITS, BUILDINGS, TECHS, AGE_TECHS, HOTKEYS, shade, to_iso, from_iso,
                    as_tuple)
 from .world import World, Unit, Building, Node, Animal
@@ -22,29 +22,29 @@ from .hud import HudUI, MM_RECT
 from .menu import MenuUI
 from .lobby import LobbyUI
 from .screens import ScreensUI
-from . import uiskin
+from . import i18n, uiskin
 from . import settings as gsettings
 
 SPEEDS = [1.0, 1.5, GAME_SPEED, 2.0, 3.0]
-ZOOMS = (0.6, 0.7, 0.8, 0.9, 1.0, 1.12, 1.25, 1.4, 1.6)     # ступени масштаба колесом (1.0 — обычный)
-FOG_S = 8          # во сколько раз туман грубее экрана
-UNIT_K = 1.15      # масштаб фигурок
+ZOOMS = (0.6, 0.7, 0.8, 0.9, 1.0, 1.12, 1.25, 1.4, 1.6)     # wheel zoom steps (1.0 - normal)
+FOG_S = 8          # how many times the fog is coarser than the screen
+UNIT_K = 1.15      # figure scale
 
-_DEPTH_KEY = itemgetter(0, 1)      # порядок отрисовки: глубина, затем тип (ресурс, здание, юнит, зверь)
+_DEPTH_KEY = itemgetter(0, 1)      # drawing order: depth, then type (resource, building, unit, animal)
 
-# кэш фигурок юнитов (см. Game.draw_unit_w): ключ позы → (поверхность, сдвиг x, сдвиг y)
+# the unit figure cache (see Game.draw_unit_w): pose key -> (surface, x offset, y offset)
 _USPR = {}
 _UCANVAS = []
 _TAU = math.tau
 _ANIM_Q = 16 / math.tau
-_U_OX, _U_OY, _U_W, _U_H = 56, 98, 112, 112        # точка «ног» и размер черновика (самый большой — требушет)
-# 8 направлений взгляда; x никогда не 0 — от знака x зависит, в какую сторону смотрит фигурка
+_U_OX, _U_OY, _U_W, _U_H = 56, 98, 112, 112        # the "feet" point and the size of the scratch surface (the largest is the trebuchet)
+# 8 look directions; x is never 0 - the figure's facing depends on the sign of x
 _DIRS8 = [(math.cos(i * math.tau / 8), math.sin(i * math.tau / 8)) for i in range(8)]
 _DIRS8 = [(0.01 if abs(x) < 1e-9 else x, y) for x, y in _DIRS8]
 
 
 def _solid_rect(spr):
-    """Рамка непрозрачной части спрайта (без полупрозрачной падающей тени)."""
+    """The bounding box of the opaque part of a sprite (without the translucent cast shadow)."""
     try:
         return spr.get_bounding_rect(min_alpha=128)
     except TypeError:
@@ -52,9 +52,9 @@ def _solid_rect(spr):
 
 
 def _qface(fx, fy):
-    """Номер ближайшего из 8 направлений с тем же знаком x, что у (fx, fy)."""
+    """The number of the nearest of the 8 directions with the same sign of x as (fx, fy)."""
     i = round(math.atan2(fy, fx) * (8 / math.tau)) % 8
-    if fx < 0:                      # вертикальные направления 2 и 6 «смотрят вправо» — сдвинуть влево
+    if fx < 0:                      # the vertical directions 2 and 6 "look right" - shift to the left
         if i == 2:
             i = 3
         elif i == 6:
@@ -62,13 +62,13 @@ def _qface(fx, fy):
     return i
 
 
-# ---- юниты из 3D-моделей (game/sprites3d.py USet): выбор анимации и кадра по состоянию юнита
+# ---- units from 3D models (game/sprites3d.py USet): choosing the animation and frame by the unit's state
 _GATHER_ANIM = {'tree': 'chop', 'gold': 'mine', 'stone': 'mine', 'farm': 'farm', 'berries': 'forage',
                 'hunt': 'butcher', 'fish': 'forage'}
 
 
 def _female(u):
-    """Жительница или житель: стабильно для объекта (по его адресу)."""
+    """A female or male villager: stable for the object (by its address)."""
     return u.kind == 'villager' and (id(u) >> 5) & 1 == 1
 
 
@@ -77,12 +77,12 @@ def _uset(u, civ):
 
 
 def _loop_k(a, t, u):
-    """Кадр зацикленной анимации в реальном темпе; у каждого юнита своя фаза."""
+    """A frame of a looped animation at real pace; every unit has its own phase."""
     return int((t / (a['dur'] or 1.0) + ((id(u) >> 4) % 97) / 97.0) * a['n'])
 
 
 def unit_pose(u, us, t, moving):
-    """(имя анимации, номер кадра) для юнита u с набором кадров us в игровое время t."""
+    """(animation name, frame number) for unit u with the frame set us at game time t."""
     A = us.anims
     st = u.state
     if moving:
@@ -99,7 +99,7 @@ def unit_pose(u, us, t, moving):
             return name, 0
         stride = a.get('stride') or 0
         if stride > 4:
-            # шаг синхронизирован с пройденным путём: anim растёт на 12 в секунду движения
+            # the step is synchronized with the distance covered: anim grows by 12 per second of movement
             ph = u.anim * (u.d['speed'] * TILE / 12.0) / stride
         else:
             ph = t / (a['dur'] or 1.0)
@@ -139,7 +139,7 @@ def unit_pose(u, us, t, moving):
             return 'build', _loop_k(a, t, u)
     a = A.get('idle')
     if a is not None and a['n'] > 1:
-        return 'idle', _loop_k(a, t, u)          # живой покой: дыхание, переминание (свой темп у каждого)
+        return 'idle', _loop_k(a, t, u)          # lively idle: breathing, shifting from foot to foot (each with its own pace)
     return 'idle', 0
 
 
@@ -166,7 +166,7 @@ _MASKS = {}
 
 
 def _mask(surf, thr):
-    """Маска непрозрачной части спрайта (без падающей тени: её альфа ≈ 107), кэш по поверхности."""
+    """The mask of the opaque part of a sprite (without the cast shadow: its alpha ~ 107), cached by surface."""
     m = _MASKS.get(surf)
     if m is None:
         if len(_MASKS) > 6000:
@@ -175,7 +175,7 @@ def _mask(surf, thr):
     return m
 
 
-# туман: байт видимости/разведки (0 или 1) → альфа
+# fog: the visibility/exploration byte (0 or 1) -> alpha
 _FOG_VIS = bytes([0, 255] + [255] * 254)
 _FOG_EXP = bytes([0, 130] + [130] * 254)
 
@@ -188,18 +188,19 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         sound.pre_init()
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED)
-        pygame.display.set_caption(TITLE)
+        pygame.display.set_caption(i18n.t('app.title'))
         self.clock = pygame.time.Clock()
-        self.fonts = uiskin.game_fonts()      # PT Serif (числа, имена), Cormorant SC (заголовки), FreeSans (текст)
+        self.fonts = uiskin.game_fonts()      # PT Serif (numbers, names), Cormorant SC (headings), FreeSans (text)
         self.cursors = uiskin.Cursors()
         self.tcache = {}
+        i18n.on_change(self.on_language)
         self.trees = [gfx.make_tree(i) for i in range(6)]
         self.node_spr = {
             'gold': [gfx.make_rocks((228, 188, 42), i, True) for i in range(4)],
             'stone': [gfx.make_rocks((150, 150, 158), i) for i in range(4)],
             'berries': [gfx.make_bush(i) for i in range(3)],
         }
-        for k, d in NODE_DEFS.items():      # ресурсы из контента со своим спрайтом (рыба)
+        for k, d in NODE_DEFS.items():      # resources from content with their own sprite (fish)
             if d.get('sprite'):
                 self.node_spr[k] = [d['sprite'](i) for i in range(3)]
         self.bspr = {}
@@ -209,21 +210,21 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.world = None
         self.running = True
         self.help = False
-        self.menu_cfg = {}          # лобби (game/lobby.py): слоты игроков и параметры партии
+        self.menu_cfg = {}          # the lobby (game/lobby.py): player slots and match parameters
         self.cmd_page = 0
         self.cmd_key = None
         self.audio = sound.Audio()
-        self.zoom = self.zoom_to = 1.0     # масштаб мира (колесо мыши)
+        self.zoom = self.zoom_to = 1.0     # world scale (the mouse wheel)
         self.zoom_anchor = None
         self.wheel_acc = 0.0
-        self._cv = False                    # идёт отрисовка мира на холст (w2s/s2w — в координатах холста)
+        self._cv = False                    # the world is being drawn onto the canvas (w2s/s2w - in canvas coordinates)
         self._canvas = None
-        self.drawn_u = []                   # (rect холста, юнит/зверь, кадр) — щелчок по пикселям тела
-        self._urect = {}                    # id(юнита) → rect кадра на холсте (последний кадр)
-        self._bbc = {}                      # id(кадра) → рамка непрозрачных пикселей (полоска здоровья, эллипс)
-        self.apply_startup_settings()       # screens.py: курсоры, полный экран (settings.json)
+        self.drawn_u = []                   # (canvas rect, unit/animal, frame) - a click by the body's pixels
+        self._urect = {}                    # id(unit) -> the frame's rect on the canvas (the last frame)
+        self._bbc = {}                      # id(frame) -> the bounding box of opaque pixels (health bar, ellipse)
+        self.apply_startup_settings()       # screens.py: cursors, full screen (settings.json)
 
-    # ============================================================ спрайты
+    # ============================================================ sprites
     def pcolor(self, owner):
         w = self.world
         if w is not None and 0 <= owner < len(w.players):
@@ -231,7 +232,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return PLAYER_COLORS[owner]
 
     def relation(self, owner):
-        """'me' | 'ally' | 'enemy' | 'gaia' — отношение владельца к игроку-человеку."""
+        """'me' | 'ally' | 'enemy' | 'gaia' - the owner's relation to the human player."""
         if owner == 0:
             return 'me'
         if owner < 0:
@@ -245,8 +246,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return 'default'
 
     def blook(self, kind, owner, tx, ty):
-        """(вариант модели, сторона берега) здания на клетке (tx, ty): дома — 2–3 модели по хешу клетки,
-        док — «дом» к берегу."""
+        """(model variant, shore side) of the building on the cell (tx, ty): houses - 2-3 models by the cell's hash,
+        a dock - its "house" toward the shore."""
         var = 0
         if kind == 'house':
             n = sprites3d.variants(kind, self.civ_of(owner))
@@ -259,10 +260,10 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return var, land
 
     def bsprite(self, kind, owner, stage=None, var=0, land=None):
-        """(surface, ox, oy, bbox) — ox,oy: верхний угол основания внутри спрайта.
-        Здания берутся из пререндеренных 3D-моделей (game/sprites3d.py) по цивилизации владельца,
-        без них — процедурная графика. stage 0..2 — стадия стройки (None, если такой картинки нет).
-        var — вариант модели (дома), land — сторона берега (доки), см. blook()."""
+        """(surface, ox, oy, bbox) - ox,oy: the top corner of the base inside the sprite.
+        Buildings are taken from pre-rendered 3D models (game/sprites3d.py) by the owner's civilization,
+        without them - procedural graphics. stage 0..2 - the construction stage (None if there is no such picture).
+        var - the model variant (houses), land - the shore side (docks), see blook()."""
         col = self.pcolor(owner)
         civ = self.civ_of(owner)
         key = (kind, col, civ, stage, var, land)
@@ -281,7 +282,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 spr, ox, oy = self.wall_sprite(kind, owner)
             else:
                 spr, ox, oy = gfx.make_building_sprite(kind, col)
-            # рамка без полупрозрачной тени (для полоски здоровья, иконок и значков)
+            # a box without the translucent shadow (for the health bar, icons and badges)
             self.bspr[key] = (spr, ox, oy, _solid_rect(spr))
         return self.bspr[key]
 
@@ -308,7 +309,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         ic = self.icons.get(key)
         if ic is not None:
             return ic
-        ic = self.skin_icon(typ, name, owner, size)      # портрет 0 A.D. (hud.py), иначе — процедурный
+        ic = self.skin_icon(typ, name, owner, size)      # a 0 A.D. portrait (hud.py), otherwise a procedural one
         if ic is not None:
             self.icons[key] = ic
             return ic
@@ -325,7 +326,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             sc = min((size - 2) / sw, (size - 2) / sh)
             img = pygame.transform.smoothscale(spr, (max(1, int(sw * sc)), max(1, int(sh * sc))))
             if sprites3d.available():
-                img.fill((16, 15, 12), special_flags=pygame.BLEND_RGB_ADD)    # рендер темноват для плашки
+                img.fill((16, 15, 12), special_flags=pygame.BLEND_RGB_ADD)    # the render is a bit dark for a plate
             ic.blit(img, img.get_rect(center=(size // 2, size // 2)))
         elif typ == 't':
             t = TECHS[name]
@@ -333,7 +334,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             pygame.draw.rect(ic, bg, (3, 3, size - 6, size - 6), border_radius=6)
             pygame.draw.rect(ic, shade(bg, 60), (3, 3, size - 6, size - 6), 2, border_radius=6)
             if t.get('upgrade'):
-                # улучшение линии: фигурка нового юнита и стрелка вверх
+                # a line upgrade: a figure of the new unit and an up arrow
                 gfx.draw_unit(ic, t['upgrade'][1], self.pcolor(owner), size * 0.45, size * 0.84, k=size / 32 * UNITS[t['upgrade'][1]].get('icon_k', 1.0))
                 ax, ay = size * 0.78, size * 0.3
                 pygame.draw.polygon(ic, (255, 230, 120), [(ax, ay - 7), (ax - 6, ay), (ax - 2, ay), (ax - 2, ay + 7),
@@ -357,8 +358,28 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.icons[key] = ic
         return ic
 
+    def on_language(self, code=None):
+        """Language change (Settings -> Game): fonts (Latin <-> ideographs) and all caches with text - anew."""
+        uiskin.reset_fonts()
+        self.fonts = uiskin.game_fonts()
+        self.tcache.clear()
+        self.icons.clear()                       # tech plates with letters
+        for attr in ('_credits', '_nothing', '_panel_bg'):
+            if hasattr(self, attr):
+                setattr(self, attr, None)
+        if getattr(self, 'world', None) is not None and getattr(self, 'hud_reset', None) and self.state == 'play':
+            f = self.fonts
+            f.setdefault('n', uiskin.font('antiqua', 18, True))
+            f.setdefault('age', uiskin.font('antiqua', 18, True))
+            f.setdefault('tip', uiskin.font('antiqua', 13, True))
+            f.setdefault('tipb', uiskin.font('antiqua', 15, True))
+        try:
+            pygame.display.set_caption(i18n.t('app.title'))
+        except pygame.error:
+            pass
+
     def text(self, s, pos, font='m', color=(240, 235, 220), anchor='topleft', sh=True):
-        if self.ink:                    # на пергаменте (hud.py): светлое — в тёмные чернила, без тени
+        if self.ink:                    # on parchment (hud.py): light - into dark ink, no shadow
             sh = False
             if 0.3 * color[0] + 0.59 * color[1] + 0.11 * color[2] > 140:
                 color = (int(color[0] * 0.3), int(color[1] * 0.26), int(color[2] * 0.2))
@@ -380,15 +401,15 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.screen.blit(img, r)
         return r
 
-    # ============================================================ новая игра
+    # ============================================================ new game
     def new_game(self, diff, opponents=1, ally=False, ai_human=False, map_type='land', civ='random', civs=None,
                  teams=None, colors=None, levels=None, settings=None):
-        """opponents — число компьютерных игроков (1–7); ally — игрок 1 в вашей команде (при ≥2 противниках),
-        иначе все компьютеры в одной команде против вас. ai_human — ИИ играет и за вас (для инструментов).
-        map_type — тип карты (naval.MAP_TYPES). civ — ваша цивилизация ('random' — случайная);
-        civs — цивилизации всех игроков (иначе у компьютеров — случайные).
-        teams / colors — команда (0…) и номер цвета (PLAYER_COLORS) каждого игрока (лобби);
-        levels — уровень ИИ 0–5 по игрокам (match.AI_LEVELS); settings — параметры партии (game/match.py)."""
+        """opponents - the number of computer players (1-7); ally - player 1 is on your team (with >= 2 opponents),
+        otherwise all computers are on one team against you. ai_human - the AI plays for you too (for tools).
+        map_type - the map type (naval.MAP_TYPES). civ - your civilization ('random' - random);
+        civs - the civilizations of all players (otherwise the computers' are random).
+        teams / colors - the team (0...) and the color number (PLAYER_COLORS) of each player (lobby);
+        levels - the AI level 0-5 per player (match.AI_LEVELS); settings - match parameters (game/match.py)."""
         self.last_start = dict(diff=diff, opponents=opponents, ally=ally, ai_human=ai_human, map_type=map_type,
                                civ=civ, civs=civs, teams=teams, colors=colors, levels=levels, settings=settings)
         self.make_world(**self.last_start)
@@ -396,7 +417,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
 
     def make_world(self, diff, opponents=1, ally=False, ai_human=False, map_type='land', civ='random', civs=None,
                    teams=None, colors=None, levels=None, settings=None):
-        """Создать мир партии (без подготовки экрана — см. attach_world)."""
+        """Create the match's world (without preparing the screen - see attach_world)."""
         n = 1 + max(1, min(7, opponents))
         if not teams or len(teams) < n:
             teams = [0] + [1] * (n - 1)
@@ -409,13 +430,13 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         for pid, ci in enumerate((colors or [])[:n]):
             w.players[pid].color = PLAYER_COLORS[ci]
             if pid:
-                w.players[pid].name = COLOR_NAMES[ci]
+                w.players[pid].name_key = 'color.' + i18n.COLOR_KEYS[ci]
         w.ais = [AI(w, pid, diff, level=(levels[pid] if levels and pid < len(levels) else None))
                  for pid in range(0 if ai_human else 1, n)]
         return w
 
     def attach_world(self, w=None, ui=None):
-        """Подготовить экран к миру self.world (новая партия или загруженная): земля, камера, состояние."""
+        """Prepare the screen for the world self.world (a new match or a loaded one): ground, camera, state."""
         if w is not None:
             self.world = w
         w = self.world
@@ -462,7 +483,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.cam_y = ui.get('cam_y', self.cam_y)
             self.speed = ui.get('speed', self.speed)
             self.clamp_cam()
-            self.restore_groups(ui.get('groups'))       # screens.py: группы Ctrl+цифра
+            self.restore_groups(ui.get('groups'))       # screens.py: Ctrl+digit groups
         self.state = 'play'
 
     def build_terrain(self):
@@ -472,11 +493,11 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         small = pygame.Surface((MAP_W, MAP_H))
         rnd = random.Random(5)
         depth = naval_gfx.shore_dist(w)
-        # подложка мира: тип земли, выше — светлее; вода — по глубине (её цвет — вода мира)
+        # the world backing: ground type, lighter at higher levels; water - by depth (its color - the world's water)
         for y, row in enumerate(terrain_gfx.minimap_colors(w, naval_gfx.water_color, depth)):
             for x, c in enumerate(row):
                 small.set_at((x, y), c)
-        # миникарта — в палитре DE с учётом пейзажа (game/themes.py)
+        # the minimap - in the DE palette taking the landscape into account (game/themes.py)
         mm = pygame.Surface((MAP_W, MAP_H))
         for y, row in enumerate(terrain_gfx.minimap_colors(w, naval_gfx.water_color, depth, de=True)):
             for x, c in enumerate(row):
@@ -488,7 +509,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         big = pygame.Surface((ISO_TW, ISO_TH))
         big.fill((0, 0, 0))
         big.blit(iso, (0, 0))
-        # детали травы и воды (с текстурной землёй из 0 A.D. — только блики на воде)
+        # grass and water details (with the textured 0 A.D. ground - only glints on the water)
         textured = sprites3d.available() and sprites3d.terrain_tile('grass') is not None
         for _ in range(26000):
             x = rnd.uniform(0, MAP_W * TILE)
@@ -511,22 +532,22 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 ix, iy = to_iso(x, y, self.iso_ox)
                 c = rnd.choice(((230, 220, 90), (240, 240, 240), (200, 120, 200)))
                 pygame.draw.circle(big, c, (int(ix), int(iy)), 1)
-        tiles = terrain_gfx.load_tiles(map_assets.tile_fn(w)) if textured else None     # пейзаж партии
+        tiles = terrain_gfx.load_tiles(map_assets.tile_fn(w)) if textured else None     # the match's landscape
         if tiles:
-            # типы земли по клеткам со смешением по маскам (game/terrain_gfx.py)
+            # ground types by cell with blending by masks (game/terrain_gfx.py)
             terrain_gfx.paint_ground(big, w, self.iso_ox, tiles)
         naval_gfx.decorate(big, w, depth, self.iso_ox, rnd)
-        # рельеф: подъём по высотам и свет склонов; тот же сдвиг — для тумана
+        # relief: lifting by heights and slope light; the same shift - for the fog
         relief = terrain_gfx.Relief(w, self.iso_ox, ISO_TW, ISO_TH)
         relief.apply(big)
         self.fog_rows = relief.fog_rows(ISO_TW // FOG_S, ISO_TH // FOG_S, FOG_S)
         self.terrain_surf = big.convert()
         self.water_fx = naval_gfx.WaterFX(w, self.iso_ox, depth)
 
-    # ============================================================ камера
-    # Масштаб (DE, колесо мыши): мир рисуется при масштабе 1.0 на «холст» размером вид/zoom и растягивается
-    # на экран. Координаты холста — прежние (w2c); w2s/s2w — экранные (с учётом zoom), а во время отрисовки
-    # мира (self._cv) — координаты холста, так что весь код рисования не знает о масштабе.
+    # ============================================================ camera
+    # Zoom (DE, mouse wheel): the world is drawn at scale 1.0 onto a "canvas" of the size view/zoom and stretched
+    # onto the screen. Canvas coordinates are the former ones (w2c); w2s/s2w are screen ones (taking zoom into account), and while
+    # the world is being drawn (self._cv) - canvas coordinates, so all the drawing code does not know about the scale.
     def view_w(self):
         return SCREEN_W / self.zoom
 
@@ -543,11 +564,11 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.cam_y = iy - self.view_h() / 2
         self.clamp_cam()
 
-    # Высота (game/terrain.py): точка мира поднимается на h = world.z_at(x, y) пикселей (или на явное h —
-    # здания стоят на средней высоте основания). Это единственный путь «мир → экран» (как data.to_iso(…, z)).
+    # Height (game/terrain.py): a world point is raised by h = world.z_at(x, y) pixels (or by an explicit h -
+    # buildings stand at the base's average height). This is the only "world -> screen" path (like data.to_iso(..., z)).
     def w2c(self, x, y, h=None):
-        """Мир → холст (масштаб 1.0; верх мира — на TOP_H), с подъёмом на высоту земли.
-        Камера — целая (как у земли, blit с int(cam)): объекты и земля в одной сетке."""
+        """World -> canvas (scale 1.0; the top of the world - at TOP_H), raised by the ground height.
+        The camera is an integer (like the ground, blit with int(cam)): objects and ground are on one grid."""
         if h is None:
             h = self.world.z_at(x, y)
         return x - y + self.iso_ox - int(self.cam_x), (x + y) * 0.5 - h - int(self.cam_y) + TOP_H
@@ -562,24 +583,24 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return (x - y + self.iso_ox - cx) * z, ((x + y) * 0.5 - h - cy) * z + TOP_H
 
     def s2w(self, sx, sy):
-        """Экран → точка земли под курсором (с учётом рельефа)."""
+        """Screen -> the ground point under the cursor (taking relief into account)."""
         if not self._cv:
             sx, sy = self.to_canvas((sx, sy))
         return terrain.ground_at(self.world, sx + int(self.cam_x), sy - TOP_H + int(self.cam_y), self.iso_ox)
 
     def b2s(self, b):
-        """Верхний угол основания здания на экране — на средней высоте основания."""
+        """The top corner of a building's base on the screen - at the base's average height."""
         return self.w2s(b.tx * TILE, b.ty * TILE, terrain.building_z(self.world, b))
 
     def to_canvas(self, pos):
-        """Экран → холст."""
+        """Screen -> canvas."""
         z = self.zoom
         if z == 1.0:
             return pos[0], pos[1]
         return pos[0] / z, TOP_H + (pos[1] - TOP_H) / z
 
     def set_zoom(self, z, anchor=None):
-        """Масштаб z вокруг точки экрана anchor (точка мира под ней остаётся на месте)."""
+        """Zoom z around the screen point anchor (the world point under it stays in place)."""
         z = max(ZOOMS[0], min(ZOOMS[-1], z))
         ax, ay = anchor if anchor is not None else (SCREEN_W / 2, TOP_H + VIEW_H / 2)
         ix = self.cam_x + ax / self.zoom
@@ -590,7 +611,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.clamp_cam()
 
     def zoom_step(self, n, anchor=None):
-        """Шаг по лестнице ZOOMS (n > 0 — ближе). Плавный переход — в update (zoom_tick)."""
+        """A step along the ZOOMS ladder (n > 0 - closer). The smooth transition is in update (zoom_tick)."""
         cur = self.zoom_to
         i = min(range(len(ZOOMS)), key=lambda j: abs(ZOOMS[j] - cur))
         i = max(0, min(len(ZOOMS) - 1, i + n))
@@ -601,7 +622,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if self.zoom == self.zoom_to:
             return
         z, t = self.zoom, self.zoom_to
-        # экспоненциально к цели (≈0.12 с), в логарифме — одинаково быстро в обе стороны
+        # exponentially toward the target (~0.12 s), in the logarithm - equally fast both ways
         k = 1.0 - math.exp(-dt / 0.045)
         nz = math.exp(math.log(z) + (math.log(t) - math.log(z)) * k)
         if abs(nz - t) < 0.004:
@@ -609,8 +630,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.set_zoom(nz, self.zoom_anchor)
 
     def on_wheel(self, e):
-        """Колесо: ↑/↓ — масштаб вокруг курсора (DE); сдвиг вбок (трекпад) — прокрутка."""
-        if self.ctl_wheel(e):           # Ctrl+колесо — поворот ворот
+        """Wheel: up/down - zoom around the cursor (DE); a sideways shift (trackpad) - scrolling."""
+        if self.ctl_wheel(e):           # Ctrl+wheel - rotate the gate
             return
         if not gsettings.get('wheel_zoom', True):
             self.cam_x -= e.x * 40 / self.zoom
@@ -624,12 +645,12 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if getattr(e, 'flipped', False):
             dy = -dy
         self.wheel_acc = (self.wheel_acc if (self.wheel_acc > 0) == (dy > 0) else 0.0) + dy
-        n = int(self.wheel_acc)         # трекпад шлёт доли — шаг на каждую полную «зарубку»
+        n = int(self.wheel_acc)         # a trackpad sends fractions - a step per every full "notch"
         if n:
             self.wheel_acc -= n
             self.zoom_step(n, pygame.mouse.get_pos())
 
-    # ============================================================ цикл
+    # ============================================================ loop
     def run(self):
         while self.running:
             dt = min(self.clock.tick(int(gsettings.get('fps_limit', FPS) or FPS)) / 1000.0, 0.05)
@@ -638,23 +659,23 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             if self.state == 'menu':
                 self.draw_menu()
             elif self.state == 'loading':
-                self.loading_frame()        # screens.py: экран загрузки (мир строится по шагам)
+                self.loading_frame()        # screens.py: the loading screen (the world is built in steps)
             elif self.state == 'stats':
-                self.draw_stats()           # screens.py: достижения после партии
+                self.draw_stats()           # screens.py: the achievements after the match
             else:
                 self.update(dt)
-                self.after_update(dt)       # screens.py: автосохранение
+                self.after_update(dt)       # screens.py: autosave
                 self.draw()
             self.update_cursor()
             self.audio.update(self, dt)
             self.audio.draw_popup(self.screen)
-            self.cursors.draw(self.screen)      # программный курсор — последним, по текущему положению мыши
+            self.cursors.draw(self.screen)      # the software cursor - last, by the current mouse position
             pygame.display.flip()
         pygame.quit()
 
     def update(self, dt):
         w = self.world
-        # события мира за кадр (звук/эффекты подключатся здесь)
+        # world events per frame (sound/effects hook in here)
         self.events = w.events[:]
         w.events.clear()
         self.ctl_update()
@@ -670,7 +691,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
 
     def scroll(self, dt):
         keys = pygame.key.get_pressed()
-        # скорость прокрутки на экране — одна при любом масштабе
+        # the on-screen scroll speed is the same at any zoom
         sp = 1000 * dt * float(gsettings.get('scroll_speed', 1.0)) / self.zoom
         mx, my = pygame.mouse.get_pos()
         focused = pygame.mouse.get_focused() and gsettings.get('edge_scroll', True)
@@ -684,7 +705,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.cam_y += sp
         self.clamp_cam()
 
-    # ============================================================ ввод
+    # ============================================================ input
     def on_event(self, e):
         if e.type == pygame.QUIT:
             self.running = False
@@ -692,23 +713,23 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if self.audio.handle(e):
             return
         if self.state == 'menu':
-            self.menu_event(e)          # menu.py: главное меню, настройка партии, авторы
+            self.menu_event(e)          # menu.py: the main menu, match setup, credits
             return
         if self.state in ('loading', 'stats'):
-            self.screen_event(e)        # screens.py: экран загрузки, достижения
+            self.screen_event(e)        # screens.py: the loading screen, achievements
             return
         w = self.world
         if w.winner is not None and not self.gameover_seen:
-            self.gameover_event(e)      # screens.py: «Победа/Поражение» → достижения
+            self.gameover_event(e)      # screens.py: "Victory/Defeat" -> achievements
             return
-        if self.overlay_event(e):       # screens.py: окна F10 (сохранение, загрузка, настройки…)
+        if self.overlay_event(e):       # screens.py: F10 windows (save, load, settings...)
             return
         if e.type == pygame.KEYDOWN:
             self.on_key(e)
         elif e.type == pygame.MOUSEBUTTONDOWN:
             if self.help:
                 if e.button == 1:
-                    self.overlay_click(e.pos)       # hud.py: меню партии / закрыть помощь
+                    self.overlay_click(e.pos)       # hud.py: the match menu / close help
                 else:
                     self.help = False
                 return
@@ -737,7 +758,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return pygame.key.get_mods()
 
     def on_key(self, e):
-        if self.hud_key(e):             # hud.py: чат, F4 счёт, F5 древо, F11 часы, PgUp история
+        if self.hud_key(e):             # hud.py: chat, F4 score, F5 tree, F11 clock, PgUp history
             return
         k = e.key
         if k == pygame.K_F1:
@@ -749,9 +770,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if k == pygame.K_F10:
             self.help = False if self.help == 'menu' else 'menu'
             return
-        if self.ctl_key(k):             # controls.py: группы, праздные, переходы, Del, Backspace, F3
+        if self.ctl_key(k):             # controls.py: groups, idle, jumps, Del, Backspace, F3
             return
-        if k == pygame.K_ESCAPE:        # DE: Esc не ставит паузу (пауза — F3)
+        if k == pygame.K_ESCAPE:        # DE: Esc does not pause (pause - F3)
             self.line_start = None
             if self.help:
                 self.help = False
@@ -782,9 +803,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                     return
 
     def in_view(self, pos):
-        return self.hud_view(pos)       # мир виден и между нижними панелями (hud.py)
+        return self.hud_view(pos)       # the world is visible between the bottom panels too (hud.py)
 
-    # ---- мини-карта (ромб)
+    # ---- minimap (diamond)
     def mm_rect(self):
         return MM_RECT
 
@@ -810,12 +831,12 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
     def minimap_jump(self, pos):
         self.center_on(*self.mm_to_world(pos))
 
-    # ---- мышь
+    # ---- mouse
     def on_ldown(self, pos):
-        if self.hud_click(pos):         # hud.py: верх, панели, мини-карта, окна, сигнал
+        if self.hud_click(pos):         # hud.py: top, panels, minimap, windows, signal
             return
         if self.order_mode:
-            self.order_click(pos)       # controls.py: патруль, охрана, следование, атака с ходу / по земле
+            self.order_click(pos)       # controls.py: patrol, guard, follow, attack-move / attack ground
             return
         if self.placing:
             if not self.place_down(pos):
@@ -841,12 +862,12 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             now = pygame.time.get_ticks()
             dbl = now - self.last_click[0] < 350 and e is self.last_click[1]
             self.last_click = (now, e)
-            self.click_select(e, shift, ctrl, dbl)      # controls.py: Shift/Ctrl — добавить/убрать, двойной — линия
+            self.click_select(e, shift, ctrl, dbl)      # controls.py: Shift/Ctrl - add/remove, double - a line
             if e is not None:
                 w.emit('select', *e.center(), 0, e.kind)
         else:
             r = pygame.Rect(min(x0, pos[0]), min(y0, pos[1]), abs(pos[0] - x0), abs(pos[1] - y0))
-            first = self.box_select(r, shift)           # controls.py: сверху вниз, до 60
+            first = self.box_select(r, shift)           # controls.py: top to bottom, up to 60
             if first is not None:
                 w.emit('select', first.x, first.y, 0, first.kind)
 
@@ -857,9 +878,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
     def entity_at(self, pos):
         w = self.world
         spos = pos
-        pos = self.to_canvas(pos)       # сравнение с фигурками и спрайтами — в координатах холста (масштаб 1)
-        # юниты и звери — по непрозрачным пикселям нарисованного кадра (DE: щелчок по телу), спереди назад;
-        # свой в наложении важнее чужого (09 · №41–45)
+        pos = self.to_canvas(pos)       # comparison with figures and sprites - in canvas coordinates (scale 1)
+        # units and animals - by the opaque pixels of the drawn frame (DE: a click on the body), front to back;
+        # an own unit in an overlap outweighs a foreign one (09 - #41-45)
         px, py = int(pos[0]), int(pos[1])
         enemy = None
         for rect, u, surf in reversed(self.drawn_u):
@@ -884,7 +905,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             sx, sy = self.w2c(u.x, u.y)
             us = None if isinstance(u, Animal) else _uset(u, self.civ_of(u.owner))
             if us is not None:
-                # запас: столбик «радиус × рост» вокруг ног, но не дальше ±4 px от нарисованного кадра
+                # margin: a "radius x height" column around the feet, but no farther than +-4 px from the drawn frame
                 fr = urect.get(id(u))
                 if fr is not None:
                     fr = pygame.Rect(sx + fr[0], sy + fr[1], fr[2], fr[3])
@@ -897,7 +918,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 if fr is not None or (-8 <= up <= h + 4 and abs(pos[0] - sx) <= hw):
                     d = abs(pos[0] - sx) + abs(up - h * 0.5) * 0.3
                     if u.owner != 0:
-                        d += 1e5        # DE: свой юнит в наложении всегда важнее чужого
+                        d += 1e5        # DE: an own unit in an overlap always outweighs a foreign one
                     if d < bd:
                         bd, best = d, u
                 continue
@@ -909,11 +930,11 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                     bd, best = d, u
         if best:
             return best
-        # спрайты зданий и ресурсов — спереди назад, по пикселям
+        # sprites of buildings and resources - front to back, by pixels
         for rect, ent, surf in reversed(self.drawn):
             if rect.collidepoint(pos):
                 lx, ly = int(pos[0] - rect.x), int(pos[1] - rect.y)
-                if surf.get_at((lx, ly))[3] > 120:      # полупрозрачная тень не ловит щелчок
+                if surf.get_at((lx, ly))[3] > 120:      # a translucent shadow does not catch a click
                     return ent
         wx, wy = self.s2w(*spos)
         tx, ty = int(wx // TILE), int(wy // TILE)
@@ -924,7 +945,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return None
 
     def on_rdown(self, pos):
-        if self.order_mode:             # ПКМ отменяет режим приказа
+        if self.order_mode:             # right click cancels the order mode
             self.order_mode = None
             self.order_pts = []
             return
@@ -932,13 +953,13 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.placing = None
             self.line_start = None
             return
-        if self.hud_rclick(pos):        # hud.py: ПКМ по мини-карте — приказ, по панелям — ничего
+        if self.hud_rclick(pos):        # hud.py: right click on the minimap - an order, on the panels - nothing
             return
         wx, wy = self.s2w(*pos)
         self.command(wx, wy, self.entity_at(pos))
 
     def command(self, wx, wy, target):
-        """ПКМ по карте / мини-карте. Shift — приказ в очередь (точки маршрута, цепочки дел)."""
+        """Right click on the map / minimap. Shift - an order into the queue (waypoints, chains of tasks)."""
         units = [u for u in self.selected if isinstance(u, Unit) and u.owner == 0 and u.alive]
         queue = self.queue_mode()
         if not queue:
@@ -955,7 +976,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         o = self.o
         if units and naval.ui_command(self, w, units, wx, wy, target):
             return
-        # юниты со своим приказом (торговая повозка): d['command'](unit, world, цель, x, y)
+        # units with their own order (the trade cart): d['command'](unit, world, target, x, y)
         special = [u for u in units if u.d.get('command')]
         if special:
             for u in special:
@@ -968,7 +989,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if units:
             if isinstance(target, Animal):
                 for u in units:
-                    if target.den is not None:          # волк: не добыча — только бить
+                    if target.den is not None:          # a wolf: not game - only to be hit
                         o(u, ('attack', target) if not target.dead else ('move', target.x, target.y))
                     elif u.kind == 'villager':
                         o(u, ('gather', target))
@@ -979,9 +1000,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 self.markers.append((wx, wy, (120, 255, 120), w.time))
                 w.emit('command', wx, wy, 0, 'gather')
                 return
-            if self.relic_command(units, target, wx, wy):       # монахи: реликвия (game/relics.py)
+            if self.relic_command(units, target, wx, wy):       # monks: a relic (game/relics.py)
                 return
-            if self.repair_command(units, target, wx, wy):      # controls.py: ремонт жителями
+            if self.repair_command(units, target, wx, wy):      # controls.py: repair by villagers
                 return
             if self.garrison_command(units, target, wx, wy):
                 return
@@ -1033,7 +1054,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.markers.append((wx, wy, (255, 255, 255), w.time))
             w.emit('command', wx, wy, 0, 'move')
         else:
-            # точка сбора всех выбранных зданий; Shift — ещё одна точка (DE: несколько точек сбора)
+            # the rally point of all selected buildings; Shift - one more point (DE: several rally points)
             for b in [s for s in self.selected if isinstance(s, Building) and s.owner == 0 and s.d.get('trains')]:
                 new = target if target is not None else (wx, wy)
                 if self._queue and b.rally is not None:
@@ -1045,9 +1066,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 self.markers.append((wx, wy, (255, 220, 90), w.time))
 
     def group_move(self, units, wx, wy):
-        self.form_move(units, wx, wy)           # controls.py: строй и общая скорость
+        self.form_move(units, wx, wy)           # controls.py: formation and shared speed
 
-    # ---- стройка
+    # ---- construction
     def place_tile(self, pos):
         wx, wy = self.s2w(*pos)
         s = BUILDINGS[self.placing]['size']
@@ -1059,29 +1080,29 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         kind = self.placing
         tx, ty = self.place_tile(pos)
         if not w.can_place(kind, tx, ty, 0):
-            w.msg('Здесь строить нельзя', (255, 150, 90))
+            w.msg(i18n.t('msg.cannot_build_here'), (255, 150, 90))
             return
         if not p.pay(p.cost_of('bld', kind)):
-            w.msg('Не хватает ресурсов', (255, 150, 90))
+            w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
             self.placing = None
             return
         b = w.place_building(kind, 0, tx, ty)
         shift = self.mods() & pygame.KMOD_SHIFT
         for u in self.selected:
             if isinstance(u, Unit) and u.kind == 'villager' and u.owner == 0:
-                # Shift: стройки — по порядку закладки (очередь), первая — сразу
+                # Shift: constructions - in the order of laying (a queue), the first one - at once
                 q = bool(shift) and (u.state == 'build' or any(it[0] == 'build' for it in (u.orders or ())))
                 orders.issue(u, w, ('build', b), queue=q)
         if not (self.mods() & pygame.KMOD_SHIFT) or not p.afford(p.cost_of('bld', kind)):
             self.placing = None
 
-    # ---- кнопки
-    # Сетка команд 5×3 (горячие клавиши HOTKEYS). Если пунктов больше, чем влезает, последняя
-    # ячейка — кнопка «страница» (листает), а постоянные кнопки (стоп) стоят перед ней на каждой странице.
+    # ---- buttons
+    # The 5x3 command grid (hotkeys HOTKEYS). If there are more items than fit, the last
+    # cell is a "page" button (it flips), and the permanent buttons (stop) stand before it on every page.
     GRID = 15
 
     def layout_buttons(self, items, fixed=()):
-        """items / fixed — списки dict(icon, act, ok, tip[, slot]). Возвращает кнопки с rect и key (hud.grid_layout)."""
+        """items / fixed - lists of dict(icon, act, ok, tip[, slot]). Returns buttons with rect and key (hud.grid_layout)."""
         return self.grid_layout(items, fixed)
 
     def get_buttons(self):
@@ -1090,7 +1111,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         sel = [e for e in self.selected if e.alive and e.owner == 0]
         if not sel:
             return []
-        # сменился выбор — листаем с первой страницы
+        # the selection changed - flip from the first page
         key = (sel[0].kind, isinstance(sel[0], Unit))
         if key != self.cmd_key:
             self.cmd_key = key
@@ -1099,30 +1120,30 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         items = []
         if units:
             if self.army_selection(units):
-                # армия: сетка DE (приказы, стойки, стоп, строи) — controls.py
+                # army: the DE grid (orders, stances, stop, formations) - controls.py
                 extra = naval.unit_buttons(w, units)
                 packs = [u for u in units if u.d.get('pack')]
                 if packs:
                     goal = not all(u.packed for u in packs)
                     extra.append(dict(icon=('x', 'treb_pack' if goal else 'treb_up'),
                                       act=('pack', goal), ok=True,
-                                      tip=['Свернуть' if goal else 'Развернуть', {},
-                                           'Чтобы ехать' if goal else 'Чтобы стрелять']))
+                                      tip=[i18n.t('hud.pack') if goal else i18n.t('hud.unpack'), {},
+                                           i18n.t('hud.pack_desc') if goal else i18n.t('hud.unpack_desc')]))
                 return self.army_buttons(units, extra)
             vil = any(u.kind == 'villager' for u in units)
             if vil:
-                items += self.villager_items(p)     # hud.py: страницы «экономика» / «военные» (DE)
+                items += self.villager_items(p)     # hud.py: the "economy" / "military" pages (DE)
                 if self.build_page:
                     return self.layout_buttons(items)
             items += naval.unit_buttons(w, units)
             packs = [u for u in units if u.d.get('pack')]
             if packs:
-                # требушет: свернуть (чтобы ехать) / развернуть (чтобы стрелять)
+                # trebuchet: pack (to move) / unpack (to fire)
                 items.append(dict(icon=('x', 'treb_pack'), act=('pack', True), ok=True,
-                                  tip=['Свернуть', {}, 'Чтобы ехать']))
+                                  tip=[i18n.t('hud.pack'), {}, i18n.t('hud.pack_desc')]))
                 items.append(dict(icon=('x', 'treb_up'), act=('pack', False), ok=True,
-                                  tip=['Развернуть', {}, 'Чтобы стрелять']))
-            stop = dict(icon=('stop', None), act=('stop', None), ok=True, tip=['Стоп', {}, 'Остановить'])
+                                  tip=[i18n.t('hud.unpack'), {}, i18n.t('hud.unpack_desc')]))
+            stop = dict(icon=('stop', None), act=('stop', None), ok=True, tip=[i18n.t('hud.stop'), {}, i18n.t('hud.stop_desc')])
             if vil:
                 stop['slot'] = 9
             return self.layout_buttons(items, [stop])
@@ -1132,12 +1153,12 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         for base_kind in b.d.get('trains', []):
             uk = p.current(base_kind)
             if not p.allows(base_kind, b.kind) or not p.allows(uk):
-                continue        # чужие уникальные юниты и недоступное цивилизации — не показываем
+                continue        # foreign unique units and what the civilization cannot use - not shown
             d = UNITS[uk]
             cost = p.cost_of('unit', uk)
             can, why = w.unit_state(p, uk)
             locked = not can
-            tip = [d['name'], cost, d['desc'], ('dim', 'Shift — сразу 5')]
+            tip = [d['name'], cost, d['desc'], ('dim', i18n.t('hud.shift_5'))]
             if locked:
                 tip.append(('red', why))
             items.append(dict(icon=('u', uk), act=('train', b, uk), ok=not locked and p.afford(cost) and len(b.queue) < 15,
@@ -1148,7 +1169,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             if tk in AGE_TECHS and TECHS[tk]['age'] != p.age and tk not in p.researching:
                 continue
             t = TECHS[tk]
-            # следующая ступень цепочки (req) появляется, когда предыдущая изучена или изучается
+            # the next step of a chain (req) appears when the previous one is researched or being researched
             if any(r not in p.techs and r not in p.researching for r in as_tuple(t.get('req', ()))):
                 continue
             cost = p.cost_of('tech', tk)
@@ -1158,17 +1179,17 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 tip.append(('red', why))
             items.append(dict(icon=('t', tk), act=('research', b, tk), ok=ok and p.afford(cost), tip=tip))
         items += self.defense_buttons(b)
-        extra = b.d.get('buttons')     # кнопки из контента: fn(game, здание, игрок) → пункты (рынок, мельница)
+        extra = b.d.get('buttons')     # buttons from content: fn(game, building, player) -> items (market, mill)
         if extra:
             items += extra(self, b, p)
-        return self.layout_buttons(self.building_slots(b, p, items))    # hud.py: места кнопок как в DE
+        return self.layout_buttons(self.building_slots(b, p, items))    # hud.py: button places as in DE
 
     def press_button(self, bt):
         self.audio.click()
         w = self.world
         p = w.players[0]
         act = bt['act']
-        if self.army_press(act) or self.defense_press(act):     # controls.py: стоп, стойки, строи, приказы
+        if self.army_press(act) or self.defense_press(act):     # controls.py: stop, stances, formations, orders
             return
         if act[0] == 'page':
             self.cmd_page += 1
@@ -1177,9 +1198,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         elif act[0] == 'place':
             d = BUILDINGS[act[1]]
             if w.build_age(p, act[1]) > p.age:
-                w.msg(f'Нужна {AGE_NAMES[d["age"]]}', (255, 150, 90))
+                w.msg(i18n.t('msg.need_age', age=AGE_NAMES[d['age']]), (255, 150, 90))
             elif not p.afford(p.cost_of('bld', act[1])):
-                w.msg('Не хватает ресурсов', (255, 150, 90))
+                w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
             else:
                 self.placing = act[1]
         elif act[0] == 'unload':
@@ -1195,7 +1216,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 if len(b.queue) >= 15:
                     break
                 if not p.pay(p.cost_of('unit', uk)):
-                    w.msg('Не хватает ресурсов', (255, 150, 90))
+                    w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
                     break
                 b.queue.append(('unit', uk))
         elif act[0] == 'research':
@@ -1204,18 +1225,18 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             if not ok:
                 w.msg(why, (255, 150, 90))
             elif not p.pay(p.cost_of('tech', tk)):
-                w.msg('Не хватает ресурсов', (255, 150, 90))
+                w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
             else:
                 b.queue.append(('tech', tk))
                 p.researching.add(tk)
 
-    # ============================================================ отрисовка
+    # ============================================================ drawing
     _PRELOAD_EVERY = 1.5
 
     def preload_units(self):
-        """Листы спрайтов видов, которые игроки могут обучать сейчас, — в фоновую подгрузку (без рывка при
-        первом появлении юнита). Раз в _PRELOAD_EVERY секунд реального времени; преобразование в поверхности —
-        sprites3d.pump() не дольше 2 мс за кадр."""
+        """Sheets of sprites of kinds that players can train right now - into background preloading (without a hitch on
+        a unit's first appearance). Once per _PRELOAD_EVERY seconds of real time; conversion into surfaces -
+        sprites3d.pump() no longer than 2 ms per frame."""
         now = time.perf_counter()
         if now >= getattr(self, '_preload_t', 0.0):
             self._preload_t = now + self._PRELOAD_EVERY
@@ -1244,20 +1265,20 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         self.draw_world()
         self.draw_top()
         self.draw_panel()
-        controls_draw.draw_panel_overlay(self)     # сигналы на мини-карте, подсказка режима приказа
+        controls_draw.draw_panel_overlay(self)     # signals on the minimap, the order-mode hint
         self.draw_messages()
-        self.draw_overlays()            # hud.py: окна (цели, чат, дипломатия, древо), справка, меню партии
+        self.draw_overlays()            # hud.py: windows (objectives, chat, diplomacy, tree), help, the match menu
         if self.world.winner is not None:
             self.draw_gameover()
         elif self.paused:
-            self.text('ПАУЗА', (SCREEN_W // 2, TOP_H + 60), 'xl', (255, 240, 200), anchor='center')
+            self.text(i18n.t('keys.pause').upper(), (SCREEN_W // 2, TOP_H + 60), 'xl', (255, 240, 200), anchor='center')
 
     def diamond(self, tx, ty, w, h):
         return [self.w2s(tx * TILE, ty * TILE), self.w2s((tx + w) * TILE, ty * TILE),
                 self.w2s((tx + w) * TILE, (ty + h) * TILE), self.w2s(tx * TILE, (ty + h) * TILE)]
 
     def draw_world(self):
-        """Мир под панелями. При масштабе ≠ 1 — на холст вид/zoom (в прежних координатах), затем растянуть."""
+        """The world under the panels. At a scale != 1 - onto a canvas view/zoom (in the former coordinates), then stretched."""
         z = self.zoom
         mp = pygame.mouse.get_pos()
         if z == 1.0:
@@ -1271,21 +1292,21 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             real = self.screen
             self.screen, self._cv = cv, True
             try:
-                if self.iso_tw < cw or self.iso_th < ch:     # карта меньше вида — поля вокруг чёрные
+                if self.iso_tw < cw or self.iso_th < ch:     # the map is smaller than the view - the margins around are black
                     cv.fill((0, 0, 0))
                 self._draw_world_at(cv, cw, ch, self.to_canvas(mp))
             finally:
                 self.screen, self._cv = real, False
             dst = real.subsurface((0, TOP_H, SCREEN_W, SCREEN_H - TOP_H))
-            # отдаление — сглаживая (иначе рябит); приближение — тоже сглаживая, это дёшево (холст меньше экрана).
-            # Растягиваем ровно в z раз (иначе у края экрана объекты уезжают на ≤1.2 px от w2s)
+            # zooming out - with smoothing (otherwise it shimmers); zooming in - with smoothing too, it is cheap (the canvas is smaller than the screen).
+            # Stretch exactly by a factor z (otherwise near the screen edge objects drift by <= 1.2 px from w2s)
             sw, sh = int(round(cw * z)), int(round(ch * z))
             if (sw, sh) == dst.get_size():
                 pygame.transform.smoothscale(cv.subsurface((0, TOP_H, cw, ch)), dst.get_size(), dst)
             else:
                 dst.fill((0, 0, 0))
                 dst.blit(pygame.transform.smoothscale(cv.subsurface((0, TOP_H, cw, ch)), (sw, sh)), (0, 0))
-        # рамка выделения — в экранных координатах, поверх растянутого мира
+        # the selection box - in screen coordinates, over the stretched world
         if self.drag:
             r = pygame.Rect(min(self.drag[0], mp[0]), min(self.drag[1], mp[1]),
                             abs(mp[0] - self.drag[0]), abs(mp[1] - self.drag[1]))
@@ -1295,7 +1316,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 self.screen.set_clip(None)
 
     def _draw_world_at(self, scr, vw, wh, cmp):
-        """Мир на scr: ширина вида vw, высота wh (ниже TOP_H); cmp — курсор в координатах scr."""
+        """The world on scr: view width vw, height wh (below TOP_H); cmp - the cursor in scr coordinates."""
         w = self.world
         self._vw, self._vh = vw, wh
         view = pygame.Rect(0, TOP_H, vw, wh)
@@ -1311,7 +1332,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         def onscr(sx, sy):
             return vx0 < sx < vx1 and vy0 < sy < vy1
 
-        # следы на земле
+        # traces on the ground
         for d in w.decals:
             if d[0] == 'rubble':
                 tx, ty, s = d[1], d[2], d[3]
@@ -1342,7 +1363,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 if a < 1.2 and w.visible_px(x, y):
                     sx, sy = self.w2s(x, y)
                     if sprites_extra.group('blast') is not None:
-                        continue                # кадры взрыва — поверх объектов, после снарядов
+                        continue                # explosion frames - over objects, after projectiles
                     r = 10 + a * 60
                     pygame.draw.ellipse(scr, (255, 200, 90) if a < 0.3 else (230, 230, 220),
                                         (sx - r, sy - r / 2, 2 * r, r), 3)
@@ -1356,7 +1377,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                     sx, sy = self.w2s(x, y)
                     pygame.draw.ellipse(scr, shade(self.pcolor(owner), -60), (sx - 8, sy - 3, 16, 6))
                     pygame.draw.circle(scr, (225, 215, 195), (int(sx + 7), int(sy - 1)), 2)
-        # фермы — слой земли
+        # farms - the ground layer
         sel = set(id(e) for e in self.selected)
         for b in w.buildings:
             if b.kind != 'farm' or not b.seen:
@@ -1371,7 +1392,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 pygame.draw.polygon(scr, (255, 255, 255), self.diamond(b.tx, b.ty, b.w, b.h), 1)
             if not b.complete:
                 self.hpbar(sx - 30, sy + 40, 60, b.progress, 0)
-        # объекты по глубине
+        # objects by depth
         items = []
         W = w.W
         arow = w.amat[0]
@@ -1399,18 +1420,18 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             sx, sy = self.w2s(a.x, a.y)
             if onscr(sx, sy):
                 items.append((a.x + a.y - (40 if a.dead else 0), 3, a, sx, sy))
-        for r in getattr(w, 'relics', ()):      # реликвии на земле (game/relics.py) — где разведано
+        for r in getattr(w, 'relics', ()):      # relics on the ground (game/relics.py) - where explored
             if r.carrier is None and r.holder is None and exp[r.ty * W + r.tx]:
                 sx, sy = self.w2s(r.x, r.y)
                 if onscr(sx, sy):
                     items.append((r.x + r.y, 0, r, sx, sy))
-        for c in w.cliffs:                  # обрывы — скальные глыбы по клеткам (game/terrain.py)
+        for c in w.cliffs:                  # cliffs - rock boulders by cells (game/terrain.py)
             if exp[c[1] * W + c[0]]:
                 sx, sy = self.w2s((c[0] + 0.5) * TILE, (c[1] + 0.5) * TILE)
                 if onscr(sx, sy):
                     items.append(((c[0] + c[1] + 1) * TILE, 0, c, sx, sy))
         items.sort(key=_DEPTH_KEY)
-        drawn_units = []           # (сколько объектов уже в self.drawn, (спрайт, x, y), цвет) — для силуэтов
+        drawn_units = []           # (how many objects are already in self.drawn, (sprite, x, y), color) - for silhouettes
         for _, typ, e, sx, sy in items:
             if typ == 0:
                 if e.__class__ is tuple:
@@ -1465,7 +1486,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                                 col, UNIT_K)
         if drawn_units:
             self.draw_silhouettes(drawn_units)
-        # снаряды
+        # projectiles
         for pr in w.projectiles:
             if pr.delay > 0 or not w.visible_px(pr.x, pr.y):
                 continue
@@ -1480,21 +1501,21 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             d = math.hypot(dx, dy) or 1
             shape = getattr(pr, 'shape', None)
             if arc > 3 and not getattr(pr, 'ball', False) and shape not in ('stone', 'ball'):
-                # тень стрелы на земле (DE: p_arrow_shadow) — короткий тёмный штрих под снарядом
+                # the arrow's shadow on the ground (DE: p_arrow_shadow) - a short dark stroke under the projectile
                 ux, uy = dx / d * 4, dy / d * 4
                 pygame.draw.line(scr, (52, 44, 28), (x - ux, y - uy), (x + ux, y + uy), 2)
             y -= arc + 10
             if self.draw_projectile(pr, shape, x, y, prog, total, tx, ty):
                 continue
             if getattr(pr, 'ball', False) or shape in ('stone', 'ball'):
-                # камень мангонеля/требушета, ядро пушки или корабля
+                # a mangonel/trebuchet stone, a cannon or ship cannonball
                 r = 4 if shape == 'stone' else (3 if getattr(pr, 'ball', False) else 2)
                 pygame.draw.circle(scr, (60, 55, 50) if shape != 'stone' else (120, 112, 100), (int(x), int(y)), r)
                 continue
             L = 12 if pr.javelin else 7 if shape == 'bolt' else 9
             pygame.draw.line(scr, (60, 40, 25), (x - dx / d * L, y - dy / d * L), (x, y), 2)
             pygame.draw.line(scr, (230, 230, 230), (x - dx / d * 2, y - dy / d * 2), (x, y), 1)
-        # взрывы — поверх объектов
+        # explosions - over objects
         if sprites_extra.group('blast') is not None:
             for d in w.decals:
                 if d[0] == 'blast' and w.time - d[4] < 1.2 and w.visible_px(d[1], d[2]):
@@ -1502,7 +1523,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                     if onscr(sx, sy):
                         sprites_extra.blit(scr, sprites_extra.blast(w.time - d[4]), sx, sy)
         self.draw_fog()
-        # полоски здоровья
+        # health bars
         for u in w.units:
             if (id(u) in sel or u.hp < u.max_hp) and (arow[u.owner] or w.visible_px(u.x, u.y)):
                 sx, sy = self.w2s(u.x, u.y)
@@ -1515,13 +1536,13 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             spr, ox, oy, bb = self.bsprite_for(b)
             bw = min(90, max(b.w, b.h) * 30)
             self.hpbar(sx - bw / 2, max(TOP_H + 2, sy - oy + bb.top - 8), bw, b.hp / b.max_hp, b.owner)
-        # маркеры приказов
+        # order markers
         for (mx, my, c, t) in self.markers:
             a = (w.time - t) / 1.0
             r = int(12 * (1 - a)) + 3
             sx, sy = self.w2s(mx, my)
             pygame.draw.ellipse(scr, c, (sx - r, sy - r / 2, 2 * r, r), 2)
-        # точка сбора
+        # rally point
         for s in self.selected:
             if isinstance(s, Building) and s.owner == 0 and s.rally is not None:
                 r = s.rally
@@ -1532,8 +1553,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 pygame.draw.line(scr, (80, 60, 40), b2, (b2[0], b2[1] - 18), 2)
                 pygame.draw.polygon(scr, self.pcolor(0), [(b2[0], b2[1] - 18), (b2[0] + 11, b2[1] - 14),
                                                              (b2[0], b2[1] - 10)])
-        controls_draw.draw_world_overlay(self)     # номера групп, флажки маршрута, патруль, сигналы
-        # размещение здания
+        controls_draw.draw_world_overlay(self)     # group numbers, route flags, patrol, signals
+        # building placement
         if self.placing:
             if self.in_view(pygame.mouse.get_pos()):
                 self.draw_ghost(cmp)
@@ -1553,7 +1574,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         ghost = spr.copy()
         ghost.set_alpha(150)
         scr.blit(ghost, (sx - ox, sy - oy))
-        pts = self.diamond(tx, ty, s, s)          # углы — на своей высоте (ромб по склону)
+        pts = self.diamond(tx, ty, s, s)          # the corners - at their own height (a diamond along the slope)
         minx = min(p[0] for p in pts)
         miny = min(p[1] for p in pts)
         ov = pygame.Surface((int(max(p[0] for p in pts) - minx) + 2, int(max(p[1] for p in pts) - miny) + 2),
@@ -1574,8 +1595,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.fog_full_ver = w.fog_version
             n = MAP_W * MAP_H
             buf = bytearray(n * 4)
-            # строим «видимость» (255 — видно, 130 — разведано), за пределами карты она 0 → сплошная тьма;
-            # без цикла по клеткам: байты 0/1 → 0/255 и 0/130, затем побитовое ИЛИ (255 | 130 == 255)
+            # we build the "visibility" (255 - visible, 130 - explored), beyond the map it is 0 -> solid darkness;
+            # without a loop over cells: bytes 0/1 -> 0/255 and 0/130, then a bitwise OR (255 | 130 == 255)
             a = int.from_bytes(bytes(w.vis).translate(_FOG_VIS), 'little') | \
                 int.from_bytes(bytes(w.explored).translate(_FOG_EXP), 'little')
             buf[3::4] = a.to_bytes(n, 'little')
@@ -1585,7 +1606,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             fog = pygame.Surface((self.iso_tw // FOG_S, self.iso_th // FOG_S), pygame.SRCALPHA)
             fog.fill((0, 0, 0, 255))
             fog.blit(pygame.transform.smoothscale(rot, fog.get_size()), (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
-            terrain_gfx.warp_fog(fog, getattr(self, 'fog_rows', None))       # туман поднят по рельефу
+            terrain_gfx.warp_fog(fog, getattr(self, 'fog_rows', None))       # fog raised along the relief
             self.fog_full = fog
             self.fog_view = None
         rx, ry = int(self.cam_x // FOG_S), int(self.cam_y // FOG_S)
@@ -1609,7 +1630,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         pygame.draw.rect(self.screen, c, (x, y, int(wdt * frac), 3))
 
     def draw_fish(self, n, sx, sy, selected):
-        """Рыба из 0 A.D.: стайка/крупные рыбы под водой, над ними расходятся круги; истощаясь, бледнеет."""
+        """A 0 A.D. fish: a school/large fish under water, rings spread above them; fading as it is depleted."""
         t = self.world.time + n.var * 0.37 + n.tx * 0.13
         full = NODE_DEFS[n.kind].get('amount') or 1
         fr = sprites_extra.fish(n.kind, n.var + n.tx + n.ty, t, 110 + 145 * min(1.0, n.amount / full))
@@ -1620,7 +1641,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             pygame.draw.polygon(scr, (255, 255, 255), self.diamond(n.tx, n.ty, 1, 1), 1)
         sprites_extra.blit(scr, sprites_extra.ripple(t), sx, sy)
         sprites_extra.blit(scr, fr, sx, sy)
-        # щелчок ловится по ромбу клетки (рыба полупрозрачна — попиксельно по ней не попасть)
+        # a click is caught by the cell's diamond (the fish is translucent - it cannot be hit by pixels)
         pk = _FISH_PICK[0]
         if pk is None:
             pk = _FISH_PICK[0] = pygame.Surface((56, 28), pygame.SRCALPHA)
@@ -1630,14 +1651,14 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
 
     @staticmethod
     def node_stage(n):
-        """Стадия истощения жилы золота/камня: 0 — > 66 % запаса, 1 — > 33 %, 2 — меньше."""
+        """The depletion stage of a gold/stone vein: 0 - > 66 % of the stock, 1 - > 33 %, 2 - less."""
         if n.kind not in ('gold', 'stone'):
             return 0
         f = n.amount / (NODE_DEFS[n.kind].get('amount') or 1)
         return 0 if f > 0.66 else 1 if f > 0.33 else 2
 
     def draw_cliff(self, c, sx, sy):
-        """Глыба обрыва на клетке (tx, ty, вариант); без атласа — процедурная скала."""
+        """A cliff boulder on the cell (tx, ty, variant); without the atlas - a procedural rock."""
         r3 = sprites3d.cliff(c[2])
         if r3 is not None:
             spr, ox, oy = r3
@@ -1659,7 +1680,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             sprites3d.node(n.kind, n.var, self.node_stage(n)) if n.kind in ('gold', 'stone', 'berries') else None
         if r3 is not None:
             spr, ox, oy = r3
-            pos = (int(sx - ox), int(sy - HH - oy))      # (ox, oy) — верхний угол ромба клетки
+            pos = (int(sx - ox), int(sy - HH - oy))      # (ox, oy) - the top corner of the cell's diamond
         elif n.kind == 'tree':
             spr = self.trees[n.var]
             ax, ay = gfx.TREE_ANCHOR
@@ -1705,7 +1726,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             pass
         elif not b.d.get('wall') and self.bsprite(b.kind, b.owner, min(2, int(b.progress * 3)), 0,
                                                   self.blook(b.kind, b.owner, b.tx, b.ty)[1]) is not None:
-            # стадии стройки из 3D: фундамент → треть в лесах → две трети в лесах
+            # construction stages from 3D: foundation -> a third in scaffolding -> two thirds in scaffolding
             st, sox, soy, _ = self.bsprite(b.kind, b.owner, min(2, int(b.progress * 3)), 0,
                                            self.blook(b.kind, b.owner, b.tx, b.ty)[1])
             scr.blit(st, (sx - sox, sy - soy))
@@ -1732,11 +1753,11 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             self.drawn.append((pygame.Rect(x, y, *spr.get_size()), b, spr))
             self.hpbar(sx - 30, pts[2][1] - 8, 60, b.progress, 0)
 
-    # ---- мелкая графика из 0 A.D. (game/sprites_extra.py); False — спрайтов нет, рисуем по-старому
-    RUBBLE_LIFE, RUBBLE_FADE, RUBBLE_BURN = 60.0, 10.0, 9.0      # DE: развалины 60 с (world.DECAL_LIFE)
+    # ---- small graphics from 0 A.D. (game/sprites_extra.py); False - no sprites, draw the old way
+    RUBBLE_LIFE, RUBBLE_FADE, RUBBLE_BURN = 60.0, 10.0, 9.0      # DE: rubble 60 s (world.DECAL_LIFE)
 
     def draw_rubble(self, d, sx, sy):
-        """Развалины: груда по размеру и материалу здания, первые секунды догорает, в конце тает."""
+        """Rubble: a heap by the building's size and material, for the first seconds it still burns, at the end it melts away."""
         age = self.world.time - d[4]
         kind = d[5] if len(d) > 5 else None
         s = d[3]
@@ -1759,8 +1780,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return True
 
     def draw_fire(self, b, sx, top, height):
-        """Горящее здание, 3 стадии как в DE: ≤ 75 % здоровья — малый огонь, ≤ 50 % — средний с дымом,
-        ≤ 25 % — сильный (у центра 6 очагов)."""
+        """A burning building, 3 stages as in DE: <= 75 % health - a small fire, <= 50 % - a medium one with smoke,
+        <= 25 % - a strong one (the center has 6 seats of fire)."""
         if sprites_extra.group('flame') is None:
             return False
         t = self.world.time
@@ -1784,7 +1805,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return True
 
     def draw_carcass(self, e, fx, fy, sx, sy):
-        """Туша убитого зверя: целая → разделанная → остов по мере того, как с неё берут мясо."""
+        """A killed animal's carcass: whole -> butchered -> a skeleton as meat is taken from it."""
         full = ANIMALS.get(e.kind, {}).get('food') or 1
         fr = sprites_extra.carcass(e.kind, e.amount / full, fx, fy)
         if fr is None:
@@ -1792,16 +1813,16 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         sprites_extra.blit(self.screen, fr, sx, sy)
         return True
 
-    # ---- кадр юнита: рамка, высота, список щелчка
+    # ---- a unit's frame: box, height, the click list
     def note_unit(self, u, spr, x, y, sx, sy):
-        """Запомнить нарисованный кадр юнита (щелчок по пикселям тела, запас ±4 px): rect на холсте и его
-        сдвиг от точки ног (юнит мог сдвинуться между кадром и щелчком)."""
+        """Remember a unit's drawn frame (a click by the body's pixels, a margin of +-4 px): the rect on the canvas and its
+        offset from the feet point (the unit could have moved between the frame and the click)."""
         r = pygame.Rect(x, y, spr.get_width(), spr.get_height())
         self.drawn_u.append((r, u, spr))
         self._urect[id(u)] = (x - sx, y - sy, r.w, r.h)
 
     def frame_bbox(self, spr):
-        """Рамка непрозрачных пикселей кадра (кэш по поверхности — кадры наборов живут в кэше USet)."""
+        """The bounding box of a frame's opaque pixels (cached by surface - the sets' frames live in the USet cache)."""
         k = id(spr)
         bb = self._bbc.get(k)
         if bb is None:
@@ -1811,7 +1832,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return bb
 
     def unit_frame(self, u):
-        """(кадр, ax, ay) юнита в текущей позе или None (нет 3D-набора)."""
+        """(frame, ax, ay) of a unit in its current pose or None (no 3D set)."""
         us = _uset(u, self.civ_of(u.owner))
         if us is None:
             return None
@@ -1821,8 +1842,8 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return us.frame(us.index(name, us.face(*u.face), k), self.pcolor(u.owner))
 
     def unit_top(self, u, pad=6):
-        """Высота макушки над точкой ног в текущем кадре (полоска здоровья, номер группы): по рамке кадра
-        этого направления, а не по максимуму набора (09 · №24–25: требушет +30, рыболов в парусе)."""
+        """The height of the crown above the feet point in the current frame (health bar, group number): by the box of this
+        direction's frame, not by the set's maximum (09 - #24-25: trebuchet +30, a fisher in a sail)."""
         fr = self.unit_frame(u)
         if fr is None:
             return u.d.get('bar') or u.d.get('bar_h') or (36 if u.cls == 'cav' else 30)
@@ -1833,14 +1854,14 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return ay - bb.top + pad
 
     def draw_projectile(self, pr, shape, x, y, prog, total, tx, ty):
-        """Снаряд-спрайт: стрела/болт/дротик повёрнуты по касательной к дуге полёта, камни и ядра кувыркаются."""
+        """A projectile sprite: an arrow/bolt/javelin is rotated along the tangent to the flight arc, stones and cannonballs tumble."""
         if getattr(pr, 'ball', False):
             key = 'ball'
         elif shape == 'ball':
             key = 'shot'
         else:
             key = shape if shape in ('stone', 'bolt', 'javelin') else 'arrow'
-        # касательная к экранной траектории: прямая от старта к цели минус дуга sin(π·prog)·A
+        # the tangent to the screen trajectory: the straight line from the start to the target minus the arc sin(pi*prog)*A
         x0, y0 = self.w2s(pr.sx, pr.sy)
         x1, y1 = self.w2s(tx, ty)
         amp = min(40, total * 0.2)
@@ -1852,11 +1873,11 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         sprites_extra.blit(self.screen, fr, x, y)
         return True
 
-    BODY_HOLD, BODY_FADE = 285.0, 15.0        # DE: тело ≈ 300 с (world.DECAL_LIFE)
+    BODY_HOLD, BODY_FADE = 285.0, 15.0        # DE: a body ~ 300 s (world.DECAL_LIFE)
 
     def draw_body(self, u, x, y, owner, age, onscr):
-        """Павший юнит: анимация смерти, затем последний кадр лежит и тает. Машины и корабли без
-        анимации смерти оседают и растворяются. True — нарисовано (или уже растаяло)."""
+        """A fallen unit: the death animation, then the last frame lies and melts. Machines and ships without a
+        death animation settle and dissolve. True - drawn (or already melted)."""
         us = _uset(u, self.civ_of(owner))
         if us is None:
             return False
@@ -1888,7 +1909,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         return True
 
     def ship_wake(self, u, us, sx, sy):
-        """Пенный след за идущим кораблём (под спрайтом)."""
+        """A foam trail behind a moving ship (under the sprite)."""
         fx, fy = u.face
         ex, ey = fx - fy, (fx + fy) / 2
         L = us.h * 0.9 + 10
@@ -1900,7 +1921,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             pygame.draw.ellipse(self.screen, (225, 238, 245), (cx - r, cy - r / 2, 2 * r, r), 1)
 
     def shot_fx(self, u, us, sx, sy):
-        """Вспышка выстрела у огнестрельных юнитов и пушечных кораблей, струя огня у брандеров."""
+        """A muzzle flash for firearm units and cannon ships, a jet of fire for fire ships."""
         d = u.d
         fire = d.get('fire')
         if not (fire or d.get('shot') == 'ball' or d.get('siege')):
@@ -1916,9 +1937,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         elif d.get('siege'):
             reach, lift = us.h * 0.55 + 6, us.h * 0.45
         elif u.cls == 'cav':
-            reach, lift = bh * 0.55, bh * 0.86         # мушкет всадника у плеча
+            reach, lift = bh * 0.55, bh * 0.86         # a rider's musket at the shoulder
         else:
-            reach, lift = bh * 0.6, bh * 0.84           # дуло аркебузы/ручной пушки у плеча, на длину ствола вперёд
+            reach, lift = bh * 0.6, bh * 0.84           # the muzzle of an arquebus/hand cannon at the shoulder, a barrel length forward
         x0, y0 = sx + ex * reach, sy + ey * reach * (0.8 if u.naval else 0.5) - lift
         scr = self.screen
         if fire:
@@ -1926,13 +1947,13 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             pygame.draw.line(scr, (255, 150, 40), (x0, y0), (x1, y1), 5)
             pygame.draw.line(scr, (255, 235, 140), (x0, y0), (x1, y1), 2)
             return
-        # дым: клубы расходятся от дула и поднимаются
+        # smoke: puffs spread from the muzzle and rise
         for i in range(3):
             r = int(3 + (1 - a) * 8 + i * 2)
             c = int(170 + 60 * a)
             pygame.draw.circle(scr, (c, c - 4, c - 10), (int(x0 + ex * i * 5), int(y0 - i * 3 * (1 - a))), r)
         if a > 0.55:
-            # вспышка: вытянутый вдоль ствола язык пламени + белое ядро
+            # flash: a tongue of flame elongated along the barrel + a white core
             k = (a - 0.55) / 0.45
             L = 6 + 10 * k
             px, py = -ey, ex
@@ -1950,14 +1971,14 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             col = (255, 255, 255)
         us = _uset(u, self.civ_of(u.owner))
         if us is not None:
-            # корабль в покое не обновляет _px — у него «идёт» = приказ движения
+            # a ship at rest does not update _px - for it "moving" = a move order
             moving = moving if u.naval else (u.x != u._px or u.y != u._py)
             name, k = unit_pose(u, us, self.world.time, moving)
             fx, fy = u.face
             spr, ax, ay = us.frame(us.index(name, us.face(fx, fy), k), col)
             x, y = int(sx) - ax, int(sy) - ay
             if selected:
-                # эллипс выбора: у машин и кораблей начало модели 0 A.D. не в центре тела — по центру кадра
+                # selection ellipse: for machines and ships the origin of the 0 A.D. model is not at the body's center - by the frame's center
                 ex = sx
                 if u.naval or u.cls == 'siege':
                     bb = self.frame_bbox(spr)
@@ -1983,12 +2004,12 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         if u.naval:
             gfx.draw_unit(scr, u.look(), col, sx, sy, face, u.anim, u.swing, UNIT_K, carry, moving)
             return
-        # фигурка из кэша: поза квантуется (8 направлений, 16 фаз шага, 10 ступеней замаха) — рисуем
-        # фигурку один раз в отдельную поверхность и дальше только копируем (иначе ~20 вызовов draw на юнит)
+        # a figure from the cache: the pose is quantized (8 directions, 16 step phases, 10 swing steps) - we draw
+        # the figure once onto a separate surface and then only copy it (otherwise ~20 draw calls per unit)
         qf = _qface(face[0], face[1])
         qa = round((u.anim % _TAU) * _ANIM_Q) % 16 if moving else 0
         sw = u.swing
-        qs = -int(-sw // 0.03) if sw > 0 else 0          # вверх: любой замах > 0 остаётся замахом
+        qs = -int(-sw // 0.03) if sw > 0 else 0          # upward: any swing > 0 stays a swing
         key = (u.look(), col, qf, qa, qs, carry, moving)
         hit = _USPR.get(key)
         if hit is None:
@@ -1997,9 +2018,9 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
         scr.blit(spr, (int(sx) + dx, int(sy) + dy))
 
     def draw_silhouettes(self, drawn_units):
-        """Юниты за зданиями и деревьями (DE): там, где тело юнита закрыто спрайтом, нарисованным позже
-        (ближе к зрителю), — полупрозрачный силуэт цвета игрока. Пересечения ищутся по рамкам (C-уровень,
-        Rect.collidelistall), попиксельно — только у действительно перекрытых юнитов; маски кэшируются."""
+        """Units behind buildings and trees (DE): where a unit's body is covered by a sprite drawn later
+        (closer to the viewer) - a translucent silhouette in the player's color. Intersections are found by boxes (C level,
+        Rect.collidelistall), per pixel - only for units that are really overlapped; masks are cached."""
         rects, occ = [], []
         for i, (r, e, spr) in enumerate(self.drawn):
             if isinstance(e, Building) or (isinstance(e, Node) and e.kind == 'tree'):
@@ -2017,7 +2038,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
             for h in hits:
                 j, ospr = occ[h]
                 if j < i0:
-                    continue            # нарисовано раньше юнита — позади него
+                    continue            # drawn before the unit - behind it
                 if um is None:
                     um = _mask(spr, 150)
                 r = rects[h]
@@ -2030,7 +2051,7 @@ class Game(ScreensUI, HudUI, MenuUI, LobbyUI, DefenseUI, ControlsUI):
                 scr.blit(cover.to_surface(setcolor=(*col, 150), unsetcolor=(0, 0, 0, 0)), (x, y))
 
     def draw_messages(self):
-        # слева под значками групп, на тёмной подложке (DE)
+        # on the left under the group icons, on a dark backing (DE)
         w = self.world
         y = TOP_H + 44
         for (txt, t, col) in w.messages:

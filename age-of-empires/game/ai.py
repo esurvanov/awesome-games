@@ -1,12 +1,12 @@
-"""Компьютерный противник.
+"""Computer opponent.
 
-План развития по эпохам и уровню сложности (PROFILES): сколько жителей держать в каждой эпохе, при скольких
-жителях и не раньше какой минуты переходить в следующую, сколько производственных зданий и центров,
-когда строить замок, когда и какой силой нападать. Центры обучают жителей без перерыва; дома — с запасом по
-темпу производства; жители распределяются по ресурсам по потребностям на ближайшие ~2 минуты (жители,
-эпоха, армия, стройка, камень на замок, технология, на которую копим). Излишки — на рынок (eco_ai).
-Армия: состав и технологии — ai_army.ArmyPlanner, война (волны, цели, отступление, зачистка) — ai_war.WarPlanner,
-оборона (частокол, набат, гарнизон) — ai_defense, флот — naval_ai.
+Development plan per age and difficulty level (PROFILES): how many villagers to keep in each age, at how many
+villagers and not before which minute to advance to the next age, how many production buildings and town centers,
+when to build a castle, when and with what force to attack. Town centers train villagers without pause; houses are built
+with a margin over the production rate; villagers are split across resources by needs for the next ~2 minutes (villagers,
+age, army, construction, stone for the castle, the tech being saved for). Surpluses go to the market (eco_ai).
+Army: composition and techs are in ai_army.ArmyPlanner, war (waves, targets, retreat, sweep) in ai_war.WarPlanner,
+defense (palisade, town bell, garrison) in ai_defense, navy in naval_ai.
 """
 import math
 import random
@@ -20,7 +20,7 @@ from .ai_army import ArmyPlanner, line_of
 from .ai_war import WarPlanner
 
 M = 60.0
-# Уровни сложности: 0 — лёгкий, 1 — нормальный, 2 — сложный. Кортежи по эпохам (0 — Тёмные века … 3 — Имперская).
+# Difficulty levels: 0 - easy, 1 - normal, 2 - hard. Tuples are per age (0 - Dark Age ... 3 - Imperial).
 PROFILES = {
     0: dict(vils=(18, 25, 32, 40), age_vils=(18, 25, 32), age_min=(15 * M, 31 * M, 52 * M), tc_extra=(0, 0),
             first_attack=25 * M, ratio=1.6, wave_min=(99, 99, 10, 14), wave_gap=480, army_vils=(99, 18, 24, 28),
@@ -54,9 +54,9 @@ def _stronger(base, **ch):
     return d
 
 
-# 6 уровней как в AoE2 DE (лобби, match.AI_LEVELS): Легчайший · Стандартный · Средний · Сложный · Сложнейший · Экстрим.
-# 0 = прежний «лёгкий», 2 = «нормальный», 3 = «сложный»; 1 — середина между ними; 4–5 — сильнее «сложного»
-# (раньше в атаку, чаще волны, больше жителей и производства; бонус добычи — match.LEVEL_GATHER).
+# 6 levels as in AoE2 DE (lobby, match.AI_LEVELS): Easiest · Standard · Moderate · Hard · Hardest · Extreme.
+# 0 = the former "easy", 2 = "normal", 3 = "hard"; 1 is between them; 4-5 are stronger than "hard"
+# (attack earlier, more frequent waves, more villagers and production; gather bonus is match.LEVEL_GATHER).
 LEVELS = [
     PROFILES[0],
     _lerp(PROFILES[0], PROFILES[1], 0.5),
@@ -70,16 +70,16 @@ LEVELS = [
               min_army=(0, 0, 18, 45), tech_gap=(0, 20, 35, 35), workshops=(0, 0, 2, 3), castles=(0, 0, 1, 3)),
 ]
 LEVEL_OF_DIFF = {0: 0, 1: 2, 2: 3}
-TIER_OF_LEVEL = (0, 0, 1, 2, 2, 2)      # для старых проверок «diff >= 1 / 2» в ai_*.py, naval_ai.py
+TIER_OF_LEVEL = (0, 0, 1, 2, 2, 2)      # for the old "diff >= 1 / 2" checks in ai_*.py, naval_ai.py
 
 PROD = ('barracks', 'archery_range', 'stable')
 DROPS = ('lumber_camp', 'mill', 'mining_camp')
 
 
-# ============================================================ ИИ
+# ============================================================ AI
 class AI:
     def __init__(self, w, pid, diff, level=None):
-        """diff — прежние 3 уровня (0–2); level — уровень DE 0–5 (важнее diff, если задан)."""
+        """diff - the old 3 levels (0-2); level - the DE level 0-5 (takes precedence over diff when set)."""
         self.w = w
         self.pid = pid
         self.p = w.players[pid]
@@ -95,28 +95,28 @@ class AI:
         self.attacking = False
         self.rebalance_t = 20.0
         self.tower_done = False
-        self.target = None          # игрок, на которого идёт (или пойдёт) атака
+        self.target = None          # the player being attacked (or about to be)
         self.age_need = 99
         self.threat = False
         self.base = None
-        self.want = None            # доли жителей по ресурсам (plan_want), пересчёт раз в 3 с
+        self.want = None            # villager shares per resource (plan_want), recomputed every 3 s
         self.want_t = 0.0
-        self.goal = {}              # цена технологии, на которую копим (research)
-        self.blocked = {}           # цена зданий плана, на которые не хватило (construct), и когда это было
+        self.goal = {}              # cost of the tech being saved for (research)
+        self.blocked = {}           # cost of planned buildings that could not be afforded (construct), and when that happened
         self.blocked_t = -99.0
-        self.save_t = None          # с какого времени копим на эпоху
-        self.mtech_t = 0.0          # раньше этого времени новую военную технологию не начинаем
-        self.bad_nodes = {}         # id(ресурса) → до какого времени не брать (недоступен — житель застрял)
-        self.vtrack = {}            # id(жителя) → (x, y, груз, время) — поиск застрявших
+        self.save_t = None          # since when we have been saving for the age
+        self.mtech_t = 0.0          # no new military tech is started before this time
+        self.bad_nodes = {}         # id(resource) -> until when not to pick it (unreachable - a villager got stuck)
+        self.vtrack = {}            # id(villager) -> (x, y, load, time) - stuck-villager detection
         self.stuck_t = 5.0
-        # на водных картах — морская часть ИИ (game/naval_ai.py)
+        # on water maps - the naval part of the AI (game/naval_ai.py)
         self.naval = None
         from . import maps
         if maps.is_water(getattr(w, 'map_type', 'land')):
             from .naval_ai import NavalAI
             self.naval = NavalAI(self)
-        self.army = ArmyPlanner(self)       # состав армии, военные технологии, осада, монахи
-        self.war = WarPlanner(self)         # волны атаки, цели, отступление, зачистка
+        self.army = ArmyPlanner(self)       # army composition, military techs, siege, monks
+        self.war = WarPlanner(self)         # attack waves, targets, retreat, sweep
 
     def update(self, dt):
         self.tick -= dt
@@ -132,7 +132,7 @@ class AI:
         tcs = [b for b in blds if b.kind == 'town_center' and b.complete]
         tc = tcs[0] if tcs else None
         if tc is None and vils and not any(b.kind == 'town_center' for b in blds):
-            self.nomad_tc(vils)                 # кочевье (или центр потерян): сначала — новый центр
+            self.nomad_tc(vils)                 # nomad start (or the center was lost): a new center first
             blds = [b for b in w.buildings if b.owner == self.pid]
         base = tc or (blds[0] if blds else None)
         if base is None:
@@ -156,7 +156,7 @@ class AI:
         if self.naval is not None:
             self.naval.update(vils, ships, blds, reserve, tc)
 
-    # ---- эпохи
+    # ---- ages
     def age_reserve(self, vils, done, tcs):
         p, w = self.p, self.w
         if any(a in p.researching for a in AGE_TECHS) or p.age >= min(3, getattr(w, 'max_age', 3)):
@@ -168,7 +168,7 @@ class AI:
             return {}
         cost = p.cost_of('tech', name)
         if w.time < self.prof['age_min'][p.age]:
-            return dict(cost)           # вот-вот можно — копим
+            return dict(cost)           # almost affordable - keep saving
         ok, _ = w.tech_state(p, name)
         host = min(tcs, key=lambda b: len(b.queue)) if tcs else None
         if ok and host is not None and p.afford(cost) and len(host.queue) <= 1:
@@ -178,9 +178,9 @@ class AI:
             return {}
         return dict(cost)
 
-    # ---- экономика: доли жителей по ресурсам
+    # ---- economy: villager shares per resource
     def plan_want(self, nv, reserve, tcs, count):
-        """Доли жителей по ресурсам из потребностей на ближайшие ~2 минуты."""
+        """Villager shares per resource from the needs of the next ~2 minutes."""
         p, prof, age = self.p, self.prof, self.p.age
         need = dict.fromkeys(RES, 0.0)
         H = 120.0
@@ -196,12 +196,12 @@ class AI:
         if spend and nv >= prof['army_vils'][age] - 4:
             for r, f in self.army.expected_cost().items():
                 need[r] += spend * f
-        # дерево: дома, стройка и фермы — когда природной еды у центра (овцы, олени, ягоды) не хватит
+        # wood: houses, construction and farms - for when the natural food near the center (sheep, deer, berries) runs out
         need['wood'] += (170, 300, 400, 400)[age] + 30 * max(0, len(tcs) - 1)
         fv = int((0.55 if age == 0 else 0.45) * nv)
         farms_need = max(0, fv - count['farm'] - int(self.natural_food() / 250))
         need['wood'] += 60 * min(8, farms_need)
-        # здания из плана, на которые сейчас не хватает (в т. ч. нужные для следующей эпохи)
+        # buildings from the plan that cannot be afforded right now (including those needed for the next age)
         if self.w.time - self.blocked_t < 15:
             for r, v in self.blocked.items():
                 need[r] += v
@@ -210,7 +210,7 @@ class AI:
         want = {}
         for r in RES:
             want[r] = max(0.0, need[r] - p.res[r]) + 0.25 * need[r]
-        # долгие цели: камень на замок (копим с Феодальной, когда экономика уже развёрнута), центры в Замках
+        # long-term goals: stone for the castle (saved from the Feudal Age, once the economy is up), town centers in the Castle Age
         if age >= 1 and prof['castles'][2] and count['castle'] < prof['castles'][max(2, age)] and \
                 (age >= 2 or (prof['stone_early'] and nv >= prof['age_vils'][1] - 2)):
             eta = 420.0 if age == 1 else 90.0
@@ -230,8 +230,8 @@ class AI:
             tot = sum(frac.values()) or 1.0
             frac = {r: v / tot for r, v in frac.items()}
         if self.naval is not None:
-            self.naval.adjust_want(frac, nv)     # рыбацкие корабли кормят — больше жителей на дерево
-        # чего с избытком на складе — туда меньше жителей
+            self.naval.adjust_want(frac, nv)     # fishing ships provide food - more villagers can go to wood
+        # what is in surplus in the stockpile - fewer villagers go there
         for k in RES:
             extra = p.res[k] - reserve.get(k, 0)
             if extra > max(300.0, 1.5 * need[k]):
@@ -244,7 +244,7 @@ class AI:
         return {k: v / tot for k, v in frac.items()}
 
     def natural_food(self):
-        """Сколько еды осталось у главного центра без ферм: овцы, туши, олени, кабаны, ягоды, рыба у берега."""
+        """How much food is left near the main center without farms: sheep, carcasses, deer, boars, berries, shore fish."""
         w = self.w
         bx, by = self.base.center()
         R = 14 * TILE
@@ -269,7 +269,7 @@ class AI:
         p, w = self.p, self.w
         nq = sum(1 for tc in tcs for q in tc.queue if q[1] == 'villager')
         vcost = p.cost_of('unit', 'villager')
-        # на эпоху копим, не останавливая жителей; стоп — только когда еды почти хватает (или в Тёмные века)
+        # save for the age without stopping villager production; stop only when food is nearly enough (or in the Dark Age)
         vres = None
         if reserve and len(vils) >= self.age_need and \
                 (p.age == 0 or p.res['food'] >= 0.65 * reserve.get('food', 0)):
@@ -323,7 +323,7 @@ class AI:
                     break
 
     def unstick(self, vils):
-        """Жители, застрявшие у недоступного ресурса (путь перекрыт) — к другому ресурсу."""
+        """Villagers stuck at an unreachable resource (path blocked) go to another resource."""
         w = self.w
         self.stuck_t -= 0.5
         if self.stuck_t > 0:
@@ -352,7 +352,7 @@ class AI:
             self.bad_nodes = {k: t for k, t in self.bad_nodes.items() if t > now}
 
     def find_res(self, v, kind, x, y, radius):
-        """World.find_resource, но без ресурсов, к которым жители не смогли пройти."""
+        """World.find_resource, but skipping resources that villagers could not reach."""
         n = self.w.find_resource(v, kind, x, y, radius)
         if n is None or self.bad_nodes.get(id(n), 0) < self.w.time:
             return n
@@ -370,7 +370,7 @@ class AI:
         w = self.w
         bx, by = self.base.center()
         if r == 'food':
-            # туши и свои овцы у центра, затем олени рядом
+            # carcasses and own sheep near the center, then deer nearby
             for a in w.animals:
                 if a.alive and a.dead and a.amount > 0 and math.hypot(a.x - bx, a.y - by) < 10 * TILE:
                     if sum(1 for o in w.units if o.target is a) < 5:
@@ -406,7 +406,7 @@ class AI:
             fcost = self.p.cost_of('bld', 'farm')
             if self.p.afford(fcost):
                 spot = None
-                # вокруг центров (свободные места), у мельниц, затем дальше от главного центра
+                # around centers (free spots), near mills, then farther from the main center
                 for c in [b for b in w.buildings if b.owner == self.pid and b.kind == 'town_center' and b.complete]:
                     cx, cy = c.center()
                     spot = self.find_spot('farm', int(cx // TILE), int(cy // TILE), 2, 7, margin=False)
@@ -438,7 +438,7 @@ class AI:
                 return True
         return False
 
-    # ---- стройка
+    # ---- construction
     def find_spot(self, kind, cx, cy, rmin, rmax, margin=True):
         w = self.w
         s = BUILDINGS[kind]['size']
@@ -471,8 +471,8 @@ class AI:
         return True
 
     def nearest_node(self, kind, x, y, maxd=30):
-        # Ресурсы только исчезают (новые узлы — лишь при генерации карты, счётчик Node.serial),
-        # поэтому ближайший остаётся ближайшим, пока жив: кэш по (вид, точка, радиус).
+        # Resources only disappear (new nodes appear only during map generation, counter Node.serial),
+        # so the nearest one stays the nearest while it lives: cache keyed by (kind, point, radius).
         key = (kind, x, y, maxd)
         cache = self.__dict__.setdefault('_nn_cache', {})
         hit = cache.get(key)
@@ -497,7 +497,7 @@ class AI:
         return False
 
     def enemy_dir(self):
-        """Единичный вектор от базы к цели (для замка, точки сбора)."""
+        """Unit vector from the base to the target (for the castle, rally point)."""
         bx, by = self.base.center()
         if self.target is None:
             return 0.0, 0.0
@@ -515,7 +515,7 @@ class AI:
         nv = len(vils)
         age = p.age
         building_now = [b for b in blds if not b.complete and b.kind not in ('farm',) and not b.d.get('wall')]
-        # дома: запас населения по темпу производства (центры + занятые военные здания)
+        # houses: population margin by production rate (centers + busy military buildings)
         houses_wip = sum(1 for b in building_now if b.kind == 'house')
         producers = sum(1 for b in blds if b.complete and b.queue and b.d.get('trains')) + \
             sum(1 for b in blds if b.kind == 'town_center' and b.complete)
@@ -527,7 +527,7 @@ class AI:
                 if spot:
                     self.start_build('house', spot, vils, 1)
                     return
-        # брошенные стройки — вернуть строителя
+        # abandoned constructions - send a builder back
         for b in building_now:
             if not any(v.state == 'build' and v.target is b for v in vils):
                 free = [v for v in vils if v.state in ('idle', 'gather') and self.vil_task(v) in (None, 'wood')]
@@ -540,8 +540,8 @@ class AI:
         plan = []
         castles_want = prof['castles'][age]
         if count['castle'] < castles_want:
-            plan.append(('castle', True, None))           # замок — первым делом в эпоху замков
-        # здания, без которых не перейти в следующую эпоху — как только жителей почти хватает
+            plan.append(('castle', True, None))           # castle - the first thing in the Castle Age
+        # buildings without which the next age cannot be reached - as soon as there are almost enough villagers
         if 1 <= age < 3 and nv >= prof['age_vils'][age] - 5:
             need, cnt = AGE_REQ[AGE_TECHS[age]]
             have = [k for k in need if count[k]]
@@ -602,7 +602,7 @@ class AI:
                 continue
             if kind != 'castle' and cost.get('stone') and castle_cost and \
                     p.res['stone'] - cost['stone'] < castle_cost['stone']:
-                continue            # камень копится на замок
+                continue            # stone is being saved for the castle
             if near == 'far':
                 spot = self.tc_spot(btx, bty)
             elif near is not None:
@@ -616,7 +616,7 @@ class AI:
             else:
                 spot = self.find_spot(kind, btx, bty, 5, 16)
             if spot is None and near is None:
-                # у центра тесно (фермы, дома, частокол) — подальше; места нет совсем — не держим план
+                # the center is crowded (farms, houses, palisade) - go farther out; no room at all - drop the plan
                 spot = self.far_spot(kind, btx, bty)
             if spot:
                 if kind == 'tower':
@@ -626,7 +626,7 @@ class AI:
                 return
 
     def far_spot(self, kind, btx, bty):
-        """Место подальше от центра (17–30 клеток); неудачные поиски не повторяем чаще раза в 20 с."""
+        """A spot away from the center (17-30 tiles); failed searches are not repeated more often than once per 20 s."""
         fs = self.__dict__.setdefault('_far_fail', {})
         if self.w.time < fs.get(kind, -99):
             return None
@@ -636,7 +636,7 @@ class AI:
         return spot
 
     def prod_plan(self, count, nv):
-        """Следующее производственное здание (казармы/стрельбище/конюшня) по весам армии."""
+        """Next production building (barracks/archery range/stable) by army weights."""
         p, prof = self.p, self.prof
         age = p.age
         total = prof['prod'][age]
@@ -646,7 +646,7 @@ class AI:
         pref = self.army.prod_pref()
         opts = [k for k in PROD if BUILDINGS[k]['age'] <= age and p.allows(k)]
         if age >= 1:
-            # в Феодальную — хотя бы по одному стрельбищу и конюшне (нужны для Эпохи замков)
+            # in the Feudal Age - at least one archery range and one stable (needed for the Castle Age)
             for k in ('archery_range', 'stable'):
                 if k in opts and count[k] < 1:
                     return [(k, True, None)]
@@ -654,7 +654,7 @@ class AI:
         return [(best, True, None)]
 
     def tc_spot(self, btx, bty):
-        """Место для нового центра: у золота/леса подальше от главного центра."""
+        """A spot for a new center: near gold/forest, away from the main center."""
         w = self.w
         cands = []
         for n in w.nodes:
@@ -671,7 +671,7 @@ class AI:
         return self.find_spot('town_center', btx, bty, 12, 20)
 
     def nomad_tc(self, vils):
-        """Нет центра (карта «Кочевье»): место у золота и ягод рядом с жителями, строят все."""
+        """No center (Nomad map): a spot near gold and berries close to the villagers; everyone builds."""
         w, p = self.w, self.p
         if not p.afford(p.cost_of('bld', 'town_center')):
             return
@@ -689,7 +689,7 @@ class AI:
             d = math.hypot(n.tx - vx, n.ty - vy)
             if d > 26:
                 continue
-            # у золота и ягод сразу: чем больше рядом еды и золота, тем лучше
+            # right next to gold and berries: the more food and gold nearby, the better
             if best is None or d < best[0]:
                 best = (d, n)
         tx, ty = (best[1].tx, best[1].ty) if best else (int(vx), int(vy))
@@ -709,40 +709,40 @@ class AI:
         for v in cands[:nb]:
             v.cmd_build(b)
 
-    # ---- армия
+    # ---- army
     def train(self, vils, army, blds, reserve, tc):
         w, p = self.w, self.p
         econ_ok = len(vils) >= self.prof['army_vils'][p.age] or w.time > 2400 or self.threat
-        # технологии — первыми; на первую нужную (не дороже SAVE_MAX) армия копит, а не тратит всё на юнитов
+        # techs first; the army saves for the first needed one (no more than SAVE_MAX) instead of spending everything on units
         goal = self.research(blds, reserve)
         self.goal = goal
         own = Counter(line_of(a.kind) for a in army)
-        # пока жителей мало — армия не съедает еду на следующего жителя
+        # while villagers are few - the army does not eat the food meant for the next villager
         vres = {'food': 50} if len(vils) < self.max_vils and not self.threat else {}
-        # запас на эпоху первые полторы минуты сдерживает армию лишь наполовину — войска нужны и во время
-        # накопления; дальше — полностью, чтобы переход не откладывался бесконечно
+        # the age reserve holds the army back by only half for the first minute and a half - troops are needed during
+        # saving too; after that fully, so the advance is not postponed forever
         if not reserve:
             self.save_t = None
         elif self.save_t is None:
             self.save_t = w.time
         half = {k: v // 2 for k, v in reserve.items()} if reserve and w.time - self.save_t < 90 else reserve
-        keep = cost_add(cost_add(half, vres), goal) if not self.threat else {}      # напали — все ресурсы на войска
+        keep = cost_add(cost_add(half, vres), goal) if not self.threat else {}      # attacked - all resources go to troops
         if len(army) < self.prof['min_army'][p.age]:
-            # минимальное войско (давление, защита) важнее технологий; запас на эпоху — лишь наполовину
+            # the minimum army (pressure, defense) matters more than techs; the age reserve applies by only half
             keep = cost_add({k: v // 2 for k, v in reserve.items()}, vres)
-        # камень копится на замок — армия его не трогает (у юнитов камня почти нет), но и дерево на замок не нужно
+        # stone is saved for the castle - the army does not touch it (units hardly cost any stone), and the castle needs no wood either
         if econ_ok:
             self.army.train(blds, keep, own)
 
-    SAVE_MAX = 900      # на технологию дороже этого (сумма ресурсов) армия не копит
+    SAVE_MAX = 900      # the army does not save for a tech more expensive than this (sum of resources)
 
     def research(self, blds, reserve):
-        """Изучить одну технологию, если хватает; иначе вернуть цену той, на которую стоит копить."""
+        """Research one tech if affordable; otherwise return the cost of the one worth saving for."""
         w, p = self.w, self.p
-        # экономические основы, затем военные (кузница, улучшения линий — ai_army.ArmyPlanner.tech_order)
+        # economic basics, then military ones (blacksmith, line upgrades - ai_army.ArmyPlanner.tech_order)
         eco = ['loom', 'wheelbarrow', 'double_bit', 'horse_collar', 'gold_mining']
-        # военные технологии — не чаще раза в prof['tech_gap'] с (уникальные — без ограничения),
-        # иначе они съедают всё и здания армии простаивают
+        # military techs - no more often than once per prof['tech_gap'] s (unique ones are unrestricted),
+        # otherwise they eat everything and the army buildings sit idle
         mil_ok = w.time >= self.mtech_t
         order = eco + [t for t in self.army.tech_order(blds) if mil_ok or TECHS[t].get('civ')]
         goal = {}
@@ -754,7 +754,7 @@ class AI:
             if host is None:
                 continue
             cost = p.cost_of('tech', name)
-            # улучшения линий и уникальные технологии сразу усиливают армию — не ждут накопления на эпоху
+            # line upgrades and unique techs strengthen the army at once - they do not wait for the age reserve
             civ_t = bool(TECHS[name].get('civ'))
             need = cost if TECHS[name].get('upgrade') or civ_t else cost_add(cost, reserve)
             if p.afford(need) and (name != 'loom' or w.time > 120):
@@ -770,7 +770,7 @@ class AI:
         return goal
 
     def pick_target(self, base):
-        """Цель атаки: враг, которого уже бьют союзные ИИ, иначе ближайший живой враждебный игрок."""
+        """Attack target: an enemy that allied AIs are already attacking, otherwise the nearest living hostile player."""
         w = self.w
         bx, by = base.center()
         cands = [p for p in w.players if w.hostile(self.pid, p.id)]
@@ -785,7 +785,7 @@ class AI:
                                                    w.starts[p.id][1] * TILE - by)).id
 
     def nearest_enemy_thing(self, x, y, buildings_only=False, owner=None):
-        """Ближайший враждебный юнит/здание; owner — только этого игрока."""
+        """Nearest hostile unit/building; owner - only that player's."""
         w = self.w
         hrow = w.hmat[self.pid]
         best, bd = None, 1e18
@@ -810,7 +810,7 @@ class AI:
             if a.kind == 'sheep' and a.owner == self.pid and not a.dead and a.state == 'idle':
                 if math.hypot(a.x - bx, a.y - by) > 5 * TILE:
                     a.cmd_move(bx + random.uniform(-2, 2) * TILE, by + 3 * TILE + random.uniform(-1, 1) * TILE)
-        # разведчик в начале обходит окрестности и собирает овец
+        # at the start the scout circles the surroundings and collects sheep
         if w.time < 600:
             for s in army:
                 if s.kind == 'scout' and s.state == 'idle':
@@ -825,8 +825,8 @@ class AI:
         self.herd(army)
         my_blds = [b for b in w.buildings if b.owner == self.pid and b.kind != 'farm' and not b.d.get('wall')]
         hrow = w.hmat[self.pid]
-        # враги (не корабли — они забота флота и башен, naval_ai) ближе 7 клеток к любому своему зданию;
-        # кандидаты — из сетки юнитов вокруг каждого здания, порядок — как в w.units
+        # enemies (not ships - those are for the navy and towers, naval_ai) closer than 7 tiles to any own building;
+        # candidates come from the unit grid around each building, the order matches w.units
         R = 7 * TILE
         near = set()
         hmask = w.hostile_mask(hrow)
@@ -836,7 +836,7 @@ class AI:
                 if u not in near and hrow[u.owner] and not u.naval and b.dist_px(u.x, u.y) < R:
                     near.add(u)
         threats = [u for u in w.units if u in near] if near else []
-        # одинокий разведчик у базы — не повод снимать армию с атаки
+        # a lone scout near the base is no reason to pull the army off an attack
         self.threat = bool(threats) and not all(u.kind == 'scout' for u in threats)
         if not self.threat and self.war.state in ('march', 'engage'):
             threats = []

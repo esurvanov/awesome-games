@@ -1,30 +1,31 @@
-"""Реликвии (как в AoE II DE): лежат на карте ничьими, их нельзя уничтожить. Монах поднимает реликвию
-(пока несёт — не лечит и не обращает), относит в свой монастырь; каждая реликвия в монастыре приносит
-владельцу 0.5 золота в игровую секунду. Монах погиб — реликвия падает на землю; монастырь разрушен —
-реликвии выпадают вокруг него. Победа по реликвиям не включена.
+"""Relics (as in AoE II DE): they lie on the map owned by nobody and cannot be destroyed. A monk picks up a relic
+(while carrying it - he neither heals nor converts), takes it to his monastery; each relic in a monastery brings its
+owner 0.5 gold per game second. The monk died - the relic falls to the ground; the monastery is destroyed -
+the relics fall out around it. Relic victory is not enabled.
 
 API:
-  spawn(w, tx, ty)            — положить реликвию на клетку (или ближайшую свободную); → Relic
-  on_ground(w)                — реликвии на земле
-  held(w, b)                  — сколько реликвий в здании b
-  cmd_pick(u, w, r)           — монах: поднять реликвию r (приказ orders 'relic')
-  cmd_deposit(u, w, b)        — монах с реликвией: отнести в монастырь b (приказ orders 'relic_in')
-  tick(w, dt)                 — доход, выпадение, простая логика ИИ (WORLD_HOOKS['tick'])
-  draw_ground / draw_carried  — отрисовка (game/ui.py); panel — строка в панели монастыря
-Состояние мира: w.relics — список Relic (есть у мира после первого spawn; getattr(w, 'relics', ())).
+  spawn(w, tx, ty)            - put a relic on a tile (or the nearest free one); -> Relic
+  on_ground(w)                - relics on the ground
+  held(w, b)                  - how many relics are in building b
+  cmd_pick(u, w, r)           - a monk: pick up relic r (the order orders 'relic')
+  cmd_deposit(u, w, b)        - a monk with a relic: carry it to monastery b (the order orders 'relic_in')
+  tick(w, dt)                 - income, dropping, simple AI logic (WORLD_HOOKS['tick'])
+  draw_ground / draw_carried  - drawing (game/ui.py); panel - a line in the monastery panel
+World state: w.relics - a list of Relic (the world has it after the first spawn; getattr(w, 'relics', ())).
 """
 import math
 
+from . import i18n
 from .data import TILE, UNITS, BUILDINGS, WORLD_HOOKS
 
-GOLD_PER_S = 0.5            # AoE2 DE: золота в игровую секунду на реликвию
-AI_T = 3.0                  # ИИ думает о реликвиях раз в столько секунд
-AI_LEVEL = 2                # с какого уровня ИИ (0…5) монахи собирают реликвии
-REACH = 6                   # px: монах берёт реликвию, подойдя вплотную
+GOLD_PER_S = 0.5            # AoE2 DE: gold per game second per relic
+AI_T = 3.0                  # the AI thinks about relics once every this many seconds
+AI_LEVEL = 2                # from which AI level (0...5) monks collect relics
+REACH = 6                   # px: a monk takes a relic once he is right next to it
 
 
 class Relic:
-    """Реликвия. На земле — carrier и holder None; у монаха — carrier; в монастыре — holder."""
+    """A relic. On the ground - carrier and holder are None; with a monk - carrier; in a monastery - holder."""
     kind = 'relic'
     owner = -1
     w = h = 1
@@ -61,7 +62,7 @@ def _list(w):
 
 
 def spawn(w, tx, ty):
-    """Реликвия на клетке (tx, ty); если клетка занята/непроходима — на ближайшей свободной."""
+    """A relic on tile (tx, ty); if the tile is occupied/impassable - on the nearest free one."""
     if not w.passable(tx, ty) or w.occ[ty][tx] is not None:
         tx, ty = w.nearest_free_tile(tx, ty)
     r = Relic((tx + 0.5) * TILE, (ty + 0.5) * TILE)
@@ -81,7 +82,7 @@ def _monastery_ok(u, b):
     return b is not None and b.alive and b.kind == 'monastery' and b.complete and b.owner == u.owner
 
 
-# ============================================================ приказы монаха
+# ============================================================ monk orders
 def cmd_pick(u, w, r):
     if not u.d.get('monk') or u.relic is not None or r is None or not r.free:
         return False
@@ -115,8 +116,8 @@ def _st_pick(u, w, dt):
         r.x, r.y = u.x, u.y
         u.state, u.target = 'idle', None
         if u.owner == w.human:
-            w.msg('Монах поднял реликвию — отнесите её в монастырь', (255, 230, 150))
-        # сразу к ближайшему своему монастырю, если он есть (как делает DE при приказе с Shift — упрощённо)
+            w.msg(i18n.t('msg.relic_picked'), (255, 230, 150))
+        # straight to the nearest own monastery, if there is one (as DE does on a Shift order - simplified)
         b = nearest_monastery(w, u)
         if b is not None and u.owner != w.human:
             cmd_deposit(u, w, b)
@@ -136,7 +137,7 @@ def _st_deposit(u, w, dt):
         u.relic = None
         u.state, u.target = 'idle', None
         if b.owner == w.human:
-            w.msg(f'Реликвия в монастыре: +{GOLD_PER_S:g} золота/с', (255, 230, 150))
+            w.msg(i18n.t('msg.relic_stored', n=f'{GOLD_PER_S:g}'), (255, 230, 150))
 
 
 def nearest_monastery(w, u):
@@ -149,9 +150,9 @@ def nearest_monastery(w, u):
     return best
 
 
-# ============================================================ мир
+# ============================================================ world
 def _drop(w, r, x, y, k=0):
-    """Положить реликвию на землю у точки (x, y) px; k — номер при выпадении нескольких (разнести)."""
+    """Put a relic on the ground at the point (x, y) px; k - a number when several fall out (to spread them)."""
     tx, ty = int(x // TILE), int(y // TILE)
     if k:
         a = k * 2.39996
@@ -177,10 +178,10 @@ def tick(w, dt):
         if c is not None:
             if c.alive or c.inside is not None:
                 r.x, r.y = c.x, c.y
-                if c.relic is not r:        # монаха обратили/сбросили состояние — вернуть связь
+                if c.relic is not r:        # the monk was converted/reset its state - restore the link
                     c.relic = r
             else:
-                _drop(w, r, c.x, c.y)       # монах погиб — реликвия на земле
+                _drop(w, r, c.x, c.y)       # the monk died - the relic is on the ground
                 c.relic = None
             continue
         b = r.holder
@@ -191,7 +192,7 @@ def tick(w, dt):
                 _drop(w, r, cx, cy + (b.h / 2 + 0.6) * TILE, k)
             elif 0 <= b.owner < len(players):
                 players[b.owner].res['gold'] += GOLD_PER_S * dt
-    # ИИ: один свободный монах идёт за ближайшей реликвией, монах с реликвией — в монастырь
+    # AI: one free monk goes for the nearest relic, a monk with a relic - to the monastery
     t = w.__dict__.get('_relic_ai_t', 0.0) - dt
     if t <= 0:
         t = AI_T
@@ -235,9 +236,9 @@ def _ai(w):
             cmd_pick(best[1], w, best[2])
 
 
-# ============================================================ отрисовка
+# ============================================================ drawing
 def _chest(k=1.0):
-    """Процедурная реликвия: золотой ларец на носилках (≈ 22×18 px при k=1)."""
+    """A procedural relic: a golden casket on a litter (~ 22x18 px at k=1)."""
     import pygame
     W, H = int(24 * k) + 2, int(20 * k) + 2
     s = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -260,7 +261,7 @@ _SPR = {}
 
 
 def sprite(small=False):
-    """(surface, ax, ay) — точка (ax, ay) спрайта ставится на землю."""
+    """(surface, ax, ay) - the point (ax, ay) of the sprite is placed on the ground."""
     key = small
     hit = _SPR.get(key)
     if hit is None:
@@ -278,7 +279,7 @@ def sprite(small=False):
                 surf = pygame.transform.smoothscale(surf, (max(1, int(surf.get_width() * k)),
                                                            max(1, int(surf.get_height() * k))))
                 ox, oy = ox * k, oy * k
-            # спрайт природы: (ox, oy) — верхний угол ромба клетки; земля — центр ромба (+16)
+            # a nature sprite: (ox, oy) - the top corner of the tile's diamond; the ground - the center of the diamond (+16)
             hit = (surf, int(ox), int(oy) + 16)
         else:
             hit = _chest(0.7 if small else 1.0)
@@ -300,13 +301,13 @@ def draw_carried(g, u, sx, sy):
 
 
 def panel(g, b, x, y):
-    """Строка в панели монастыря: реликвии и доход."""
+    """A line in the monastery panel: relics and income."""
     n = held(g.world, b)
     if n:
-        g.text(f'Реликвии: {n}  (+{n * GOLD_PER_S:g} зол./с)', (x, y), 'bs', (120, 80, 10), anchor='midleft')
+        g.text(i18n.t('relic.panel', n=n, gold=f'{n * GOLD_PER_S:g}'), (x, y), 'bs', (120, 80, 10), anchor='midleft')
 
 
-# ============================================================ регистрация
+# ============================================================ registration
 def register():
     m = UNITS.get('monk')
     if m is not None:

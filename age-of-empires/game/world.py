@@ -1,4 +1,4 @@
-"""Симуляция: игроки, ресурсы, здания, юниты, снаряды, карта."""
+"""Simulation: players, resources, buildings, units, projectiles, the map."""
 import heapq
 import math
 import random
@@ -6,17 +6,18 @@ import random
 from .data import (TILE, MAP_SIZES, RES, START_RES, PLAYER_COLORS, PLAYER_NAMES, AGE_NAMES, NODE_DEFS,
                    FARM_RATE, FARM_FOOD, CARRY, ANIMALS, UNITS, BUILDINGS, BUILDING_ARMOR, TECHS, AGE_TECHS, AGE_REQ,
                    CIVS, WORLD_HOOKS, as_tuple)
+from . import i18n
 from . import match
 from . import terrain
 from . import stats as gstats
 
 
-# ============================================================ игрок
+# ============================================================ player
 _TAGS = {}
 
 
 def unit_tags(kind):
-    """Классы брони юнита/здания: основной cls + дополнительные из 'ac' (см. data.py, «классы брони»)."""
+    """Armor classes of a unit/building: the main cls + extra ones from 'ac' (see data.py, "armor classes")."""
     t = _TAGS.get(kind)
     if t is None:
         d = UNITS.get(kind) or BUILDINGS.get(kind)
@@ -28,8 +29,8 @@ def unit_tags(kind):
 
 
 def _entity_cls(kind):
-    """Классы для фильтров модификаторов: юниты — cls + 'ac' из UNITS, здания — 'bld' (+ 'ac'),
-    технологии — 'tech'. Всегда кортеж."""
+    """Classes for modifier filters: units - cls + 'ac' from UNITS, buildings - 'bld' (+ 'ac'),
+    techs - 'tech'. Always a tuple."""
     if kind in UNITS or kind in BUILDINGS:
         return unit_tags(kind)
     if kind in TECHS:
@@ -41,7 +42,7 @@ _BONUS_KEY = {}
 
 
 def _bonus_key(c):
-    """Имя стата-модификатора бонуса против класса c: 'bonus:cav' и т. п."""
+    """The name of the stat modifier of the bonus against class c: 'bonus:cav' and so on."""
     k = _BONUS_KEY[c] = 'bonus:' + c
     return k
 
@@ -76,9 +77,9 @@ _BANS = {}
 
 
 def civ_bans(civ, full=False):
-    """Недоступное цивилизации: её 'disabled', уникальное чужих цивилизаций ('civ' в записи), пары
-    (здание, юнит) из 'banned_at'; плюс всё, что от недоступного зависит (улучшения линий, цепочки req).
-    full=True — «полное дерево технологий» (лобби): только уникальное чужих цивилизаций."""
+    """What is unavailable to a civilization: its 'disabled', other civilizations' unique items ('civ' in the entry), the
+    (building, unit) pairs from 'banned_at'; plus everything that depends on the unavailable (line upgrades, req chains).
+    full=True - the "full tech tree" (lobby): only other civilizations' unique items."""
     b = _BANS.get((civ, full))
     if b is None:
         c = CIVS.get(civ, CIVS['default'])
@@ -106,13 +107,27 @@ def civ_bans(civ, full=False):
 
 
 class Player:
+    @property
+    def name(self):
+        key = self.__dict__.get('name_key')
+        if key:
+            return i18n.t(key)
+        return self.__dict__.get('_name') or self.__dict__.get('name') or ''
+
+    @name.setter
+    def name(self, v):
+        self.name_key = None
+        self._name = v
+
     def __init__(self, pid, team=None, name=None, color=None, is_ai=False, civ='default'):
         self.id = pid
         self.team = pid if team is None else team
-        self.name = name or PLAYER_NAMES[pid]
+        # name: as given, otherwise a locale key ("You" / color) - translated on display (language change, saves)
+        self.name_key = None if name else ('player.you' if pid == 0 else 'color.' + i18n.COLOR_KEYS[pid % 8])
+        self._name = name or PLAYER_NAMES[pid]
         self.color = color or PLAYER_COLORS[pid]
         self.is_ai = is_ai
-        self.alive = True           # False — побеждён (нет ни центра, ни жителей)
+        self.alive = True           # False - defeated (no center and no villagers)
         self.res = dict(START_RES)
         self.age = 0
         self.techs = set()
@@ -121,15 +136,15 @@ class Player:
         self.cap = 0
         self.gathered = {k: 0.0 for k in RES}
         self.kills = 0
-        self.kill_value = 0         # стоимость убитого и разрушенного (военный счёт)
-        self.effects = []           # все активные модификаторы (технологии + цивилизация + сложность)
-        self._mc = {}               # кэш (stat, kind, res, src) → (add, mul)
-        self.ver = 0                # растёт при каждом изменении эффектов (ключ для кэшей характеристик)
-        self.alias = {}             # линии улучшений: базовый вид → текущий (militia → man_at_arms)
-        self.banned = set()         # недоступное цивилизации: виды юнитов/технологий/зданий, (здание, юнит)
-        self.pop_bonus = 0          # + к лимиту населения (и к потолку 200)
-        self.pop_keep = 0           # + к лимиту без подъёма потолка («Кочевники»: население разрушенных домов)
-        self.pop_extra = {}         # здание → доп. население (центр у некоторых цивилизаций)
+        self.kill_value = 0         # the cost of what was killed and destroyed (the military score)
+        self.effects = []           # all active modifiers (techs + civilization + difficulty)
+        self._mc = {}               # cache (stat, kind, res, src) -> (add, mul)
+        self.ver = 0                # grows on every change of effects (a key for the stat caches)
+        self.alias = {}             # upgrade lines: base kind -> current (militia -> man_at_arms)
+        self.banned = set()         # what is unavailable to the civilization: kinds of units/techs/buildings, (building, unit)
+        self.pop_bonus = 0          # + to the population cap (and to the ceiling of 200)
+        self.pop_keep = 0           # + to the cap without raising the ceiling ("Nomads": the population of destroyed houses)
+        self.pop_extra = {}         # building -> extra population (the center for some civilizations)
         self.civ = None
         self.set_civ(civ)
 
@@ -137,11 +152,11 @@ class Player:
     def defeated(self):
         return not self.alive
 
-    # ---- модификаторы
+    # ---- modifiers
     def set_civ(self, civ):
-        """Цивилизация = постоянные эффекты с начала партии (CIVS в data.py), стартовые ресурсы,
-        недоступные юниты/технологии ('disabled' + уникальное чужих цивилизаций, см. civ_bans).
-        'random' (или неизвестная) — случайная из доступных."""
+        """A civilization = permanent effects from the start of the match (CIVS in data.py), starting resources,
+        unavailable units/techs ('disabled' + other civilizations' unique items, see civ_bans).
+        'random' (or unknown) - a random one from the available."""
         if civ not in CIVS or civ == 'random':
             civ = random.choice([k for k in CIVS if k != 'default'] or ['default'])
         self.civ = civ
@@ -153,7 +168,7 @@ class Player:
         self.pop_extra = dict(c.get('pop_extra', {}))
 
     def allows(self, name, where=None):
-        """Доступен ли цивилизации вид/технология name (where — здание, где обучают)."""
+        """Whether the kind/tech name is available to the civilization (where - the building where it is trained)."""
         return name not in self.banned and (where is None or (where, name) not in self.banned)
 
     def add_effects(self, effects):
@@ -163,8 +178,8 @@ class Player:
             self.ver += 1
 
     def mod(self, stat, kind=None, res=None, src=None, cls=None):
-        """(сумма add, произведение mul) всех эффектов игрока для данного стата и сущности.
-        cls по умолчанию берётся из таблиц по kind."""
+        """(the sum of add, the product of mul) of all the player's effects for the given stat and entity.
+        cls is taken from the tables by kind by default."""
         key = (stat, kind, res, src, cls)
         m = self._mc.get(key)
         if m is None:
@@ -181,18 +196,18 @@ class Player:
         return m
 
     def stat(self, stat, kind, base, res=None, src=None):
-        """Итоговое значение: (база + add) × mul."""
+        """The final value: (base + add) x mul."""
         m = self._mc.get((stat, kind, res, src, None))
         add, mul = m if m is not None else self.mod(stat, kind, res, src)
         v = base + add
         return v if mul == 1 else v * mul
 
     def current(self, kind):
-        """Текущий вид юнита с учётом изученных улучшений линии."""
+        """The unit's current kind taking the researched line upgrades into account."""
         return self.alias.get(kind, kind)
 
     def cost_of(self, cat, name):
-        """Цена с учётом эффектов 'cost'. cat: 'unit' | 'bld' | 'tech' (как в очереди зданий)."""
+        """The cost taking 'cost' effects into account. cat: 'unit' | 'bld' | 'tech' (as in the buildings' queue)."""
         key = ('cost!', cat, name)
         c = self._mc.get(key)
         if c is None:
@@ -210,7 +225,7 @@ class Player:
         add, mul = self.mod('time', name, cls=UNITS[name]['cls'] if cat == 'unit' else cat)
         return (base + add) * mul
 
-    # ---- ресурсы
+    # ---- resources
     def afford(self, cost, reserve=None):
         for k, v in cost.items():
             if self.res[k] - (reserve or {}).get(k, 0) < v:
@@ -231,25 +246,25 @@ class Player:
 
 _hypot = math.hypot
 
-# сетка юнитов (World.units_in_rect): размер ячейки, запас на сдвиг за шаг, наибольший радиус юнита
+# the unit grid (World.units_in_rect): the cell size, the margin for a per-step shift, the largest unit radius
 UG_CELL = 8 * TILE
 UG_PAD = TILE
 UG_MAXR = 24
 
-_FOG_SPANS = {}                 # радиус обзора → [(dy, полуширина строки)] для update_fog
+_FOG_SPANS = {}                 # sight radius -> [(dy, the row's half-width)] for update_fog
 _ONES = b'\x01' * 1024
 
-# звук работы жителя по источнику добычи (событие 'work')
-# сколько секунд лежат следы на земле (AoE II DE: тело ≈ 300 с, развалины 60 с — docs/research/04_graphics.md, 39–40)
+# the sound of a villager's work by gather source (the 'work' event)
+# how many seconds traces lie on the ground (AoE II DE: a body ~ 300 s, rubble 60 s - docs/research/04_graphics.md, 39-40)
 DECAL_LIFE = {'body': 300.0, 'rubble': 60.0, 'stump': 60.0}
 WORK_SOUND = {'tree': 'chop', 'gold': 'mine', 'stone': 'mine', 'farm': 'farm', 'berries': 'forage', 'hunt': 'butcher'}
 
 
-# ============================================================ сущности
+# ============================================================ entities
 class Node:
-    """Ресурс на карте: дерево, золото, камень, ягоды."""
+    """A resource on the map: a tree, gold, stone, berries."""
     owner = -1
-    serial = 0          # сколько узлов создано (кэши «ближайший ресурс» сбрасываются при новых)
+    serial = 0          # how many nodes were created (the "nearest resource" caches are reset when new ones appear)
 
     def __init__(self, kind, tx, ty):
         Node.serial += 1
@@ -290,10 +305,10 @@ class Building:
         self.walk = d.get('walk', False)
         self.amount = FARM_FOOD
         self.farmer = None
-        self.seen = owner == 0      # игрок-человек уже видел здание (World ставит для союзников)
+        self.seen = owner == 0      # the human player has already seen the building (World sets it for allies)
         self.alive = True
         self.hit_t = -99
-        self.garrison = []          # юниты внутри (см. game/defense.py)
+        self.garrison = []          # units inside (see game/defense.py)
 
     @property
     def complete(self):
@@ -318,7 +333,7 @@ class Building:
         return self.p.stat('los', self.kind, self.d.get('los', 4)) + self.w // 2
 
     def dist_px(self, x, y):
-        # dist_point_rect(x, y, прямоугольник здания), развёрнуто: вызывается миллионы раз
+        # dist_point_rect(x, y, the building's rectangle), inlined: called millions of times
         rx = self.tx * TILE
         dx = rx - x
         if dx < 0:
@@ -339,7 +354,7 @@ class Building:
 
     def update(self, w, dt):
         if self.progress >= 1.0 and not self.queue and not self.garrison and not self.d.get('atk'):
-            return          # достроено, очереди нет, гарнизона нет, не стреляет — делать нечего
+            return          # completed, no queue, no garrison, not firing - nothing to do
         p = w.players[self.owner]
         if not self.complete:
             n = self.builders
@@ -354,7 +369,7 @@ class Building:
             kind, name = self.queue[0]
             if kind == 'unit' and p.pop >= p.cap:
                 if not self.housed and self.owner == w.human:
-                    w.msg('Нужно больше домов!', (255, 150, 90))
+                    w.msg(i18n.t('msg.need_houses'), (255, 150, 90))
                 self.housed = True
             else:
                 self.housed = False
@@ -394,18 +409,18 @@ class Building:
 
 
 class Unit:
-    inside = None           # здание, в котором юнит сидит гарнизоном (тогда alive == False)
-    naval = False           # корабль (game/naval.py: Ship) — ходит только по воде
-    # осадные орудия со свёрткой (требушет): packed — можно ехать, нельзя стрелять; pack_t — идёт (раз)сборка
+    inside = None           # the building in which the unit sits in a garrison (then alive == False)
+    naval = False           # a ship (game/naval.py: Ship) - moves only on water
+    # siege weapons with packing (a trebuchet): packed - can move, cannot fire; pack_t - (un)packing is in progress
     packed = True
     pack_t = 0.0
-    faith_t = 0.0       # монах: игровое время, когда вера восстановится (можно обращать)
-    relic = None        # монах: несомая реликвия (game/relics.py) — пока несёт, не лечит и не обращает
-    conv_t = 0.0        # монах: сколько секунд идёт текущее обращение
-    _px = _py = 0.0     # позиция на прошлом шаге (для упреждения выстрела)
-    _sep_x = _sep_y = _sep_r = None     # World.separate: позиция и радиус в начале прошлого расталкивания
-    _sep_clear = False          # ... и тогда ни с кем не пересекался
-    # приказы сверх cmd_* (game/orders.py): стойка, очередь Shift-приказов, длительный приказ, строй
+    faith_t = 0.0       # monk: the game time when the faith will be restored (can convert)
+    relic = None        # monk: the carried relic (game/relics.py) - while carrying it he neither heals nor converts
+    conv_t = 0.0        # monk: how many seconds the current conversion has been going
+    _px = _py = 0.0     # the position at the previous step (for leading a shot)
+    _sep_x = _sep_y = _sep_r = None     # World.separate: the position and radius at the start of the previous pushing-apart
+    _sep_clear = False          # ... and then it did not intersect anyone
+    # orders beyond cmd_* (game/orders.py): a stance, a queue of Shift orders, a long-running order, a formation
     stance = 'aggressive'
     orders = None
     mission = None
@@ -446,7 +461,7 @@ class Unit:
         self.alive = True
         self.hit_t = -99
 
-    # ---- характеристики (база из UNITS + модификаторы игрока, см. Player.stat)
+    # ---- stats (the base from UNITS + the player's modifiers, see Player.stat)
     def atk(self):
         return self.p.stat('atk', self.kind, self.d['atk'])
 
@@ -467,7 +482,7 @@ class Unit:
 
     def speed(self):
         s = self.p.stat('speed', self.kind, self.d['speed']) * TILE
-        fs = self.form_speed        # в строю — со скоростью самого медленного
+        fs = self.form_speed        # in a formation - at the speed of the slowest
         return fs if fs is not None and fs < s else s
 
     def capacity(self):
@@ -477,7 +492,7 @@ class Unit:
         return self.p.stat('los', self.kind, self.d['los'])
 
     def minr_px(self):
-        """Минимальная дальность (онагр, требушет, бомбарда), пиксели."""
+        """The minimum range (onager, trebuchet, bombard), pixels."""
         m = self.d.get('minr', 0)
         return m * TILE if m else 0
 
@@ -485,20 +500,20 @@ class Unit:
         return min(1.0, self.p.stat('acc', self.kind, self.d.get('acc', 1.0)))
 
     def look(self):
-        """Вид для отрисовки: разложенный требушет рисуется отдельной «позой» (d['look_up'])."""
+        """The kind for drawing: an unpacked trebuchet is drawn as a separate "pose" (d['look_up'])."""
         if self.d.get('pack') and (not self.packed) != (self.pack_t > 0):
             return self.d.get('look_up', self.kind)
         return self.kind
 
     def start_pack(self, w, goal):
-        """goal=True — свернуть (чтобы ехать), False — развернуть (чтобы стрелять)."""
+        """goal=True - pack (to move), False - unpack (to fire)."""
         if self.pack_t > 0 or self.packed == goal:
             return
         self.pack_t = self.d['pack']
         w.emit('pack', self.x, self.y, self.owner, self.kind, goal)
 
     def set_kind(self, kind):
-        """Превратить юнита в другой вид (улучшение линии), сохранив долю здоровья."""
+        """Turn a unit into another kind (a line upgrade), keeping the health share."""
         frac = self.hp / self.max_hp if self.max_hp else 1.0
         d = UNITS[kind]
         self.kind = kind
@@ -517,7 +532,7 @@ class Unit:
     def dist_to(self, e):
         if isinstance(e, Unit):
             return _hypot(e.x - self.x, e.y - self.y) - e.radius - self.radius
-        # dist_point_rect до прямоугольника e (здание / ресурс), развёрнуто
+        # dist_point_rect to the rectangle of e (a building / resource), inlined
         x, y = self.x, self.y
         rx = e.tx * TILE
         dx = rx - x
@@ -537,7 +552,7 @@ class Unit:
             return dx - self.radius
         return _hypot(dx, dy) - self.radius
 
-    # ---- приказы
+    # ---- orders
     def release(self):
         self.form_speed = None
         t = self.target
@@ -565,14 +580,14 @@ class Unit:
             return
         if self.d.get('monk'):
             if self.relic is not None:
-                return      # с реликвией монах не обращает (AoE2)
+                return      # a monk carrying a relic does not convert (AoE2)
             if isinstance(t, Unit) and not isinstance(t, Animal):
                 self.release()
                 self.state = 'convert'
                 self.target = t
                 self.path_target = None
                 self.conv_t = 0.0
-            return      # здания монах не обращает
+            return      # a monk does not convert buildings
         if self.d.get('bld_only') and isinstance(t, Unit):
             self.cmd_move(t.x, t.y)
             return
@@ -582,7 +597,7 @@ class Unit:
         self.path_target = None
 
     def cmd_heal(self, t):
-        """Монах лечит союзного юнита."""
+        """A monk heals an allied unit."""
         if not self.d.get('monk') or not isinstance(t, Unit) or self.relic is not None:
             return
         self.release()
@@ -619,7 +634,7 @@ class Unit:
         self.state = 'return'
         self.path_target = None
 
-    # ---- движение
+    # ---- movement
     def step_toward(self, w, px, py, dt):
         dx, dy = px - self.x, py - self.y
         d = math.hypot(dx, dy)
@@ -672,7 +687,7 @@ class Unit:
         return False
 
     def approach(self, w, ent, rng, dt):
-        """Двигаться к ent, пока не окажемся в пределах rng. True — уже в зоне."""
+        """Move to ent until within rng. True - already in the zone."""
         if self.dist_to(ent) <= rng:
             self.path = []
             return True
@@ -691,7 +706,7 @@ class Unit:
             self.path = w.path_to_entity(self, ent)
             self.dest = None
             if not w.path_reached and self.state == 'attack' and ent is self.target:
-                # путь к цели перекрыт стенами — ломать ближайший сегмент стены/ворот
+                # the path to the target is blocked by walls - break the nearest wall/gate segment
                 wall = defense.breach_target(w, self, ent)
                 if wall is not None:
                     self.target = wall
@@ -713,7 +728,7 @@ class Unit:
         if d > 0.1:
             self.face = (dx / d, dy / d)
 
-    # ---- обновление
+    # ---- update
     def update(self, w, dt):
         self._px, self._py = self.x, self.y
         c = self.cool - dt
@@ -721,7 +736,7 @@ class Unit:
         c = self.swing - dt
         self.swing = c if c > 0.0 else 0.0
         if self.pack_t > 0:
-            # идёт свёртка/развёртка — больше ничего не делаем
+            # packing/unpacking is in progress - we do nothing else
             self.pack_t -= dt
             if self.pack_t <= 0:
                 self.pack_t = 0.0
@@ -750,7 +765,7 @@ class Unit:
         elif st == 'garrison':
             defense.do_garrison(w, self, dt)
         elif st in self.d.get('states', ()):
-            # состояния из контента: UNITS[kind]['states'][имя](unit, world, dt) (напр. 'trade' у повозки)
+            # states from content: UNITS[kind]['states'][name](unit, world, dt) (e.g. 'trade' for a cart)
             self.d['states'][st](self, w, dt)
         elif st == 'convert':
             self.do_convert(w, dt)
@@ -762,7 +777,7 @@ class Unit:
             orders.do_attack_ground(self, w, dt)
 
     def cmd_garrison(self, b):
-        """Идти в здание и сесть в гарнизон (см. game/defense.py)."""
+        """Walk to a building and enter the garrison (see game/defense.py)."""
         self.release()
         self.state = 'garrison'
         self.target = b
@@ -774,8 +789,8 @@ class Unit:
             return
         if d.get('monk'):
             if self.relic is not None:
-                return      # несёт реликвию — ни лечения, ни обращения
-            # монах сам лечит раненых союзников рядом и обращает врагов, подошедших на дальность
+                return      # carrying a relic - neither healing nor converting
+            # a monk heals wounded allies nearby on his own and converts enemies that came within range
             t = w.wounded_ally(self, self.los() * TILE)
             if t is not None:
                 self.cmd_heal(t)
@@ -786,12 +801,12 @@ class Unit:
                     self.cmd_attack(e)
             return
         if d.get('pack') and self.packed:
-            return      # свёрнутый требушет стоит и ждёт приказа
+            return      # a packed trebuchet stands and waits for an order
         radius = orders.scan_radius(self)
         e = w.nearest_enemy(self, radius, buildings=bool(d.get('bld_only') or d.get('pack')),
                             minr=self.minr_px(), units=not d.get('bld_only'))
         if e is None and not d.get('bld_only') and not self.naval and self.owner >= 0:
-            e = w.nearest_beast(self, min(radius, self.los() * TILE))      # волки в обзоре
+            e = w.nearest_beast(self, min(radius, self.los() * TILE))      # wolves in view
         if e is not None:
             orders.engage(self, e)
 
@@ -817,12 +832,12 @@ class Unit:
     def do_attack(self, w, dt):
         t = self.target
         if t is not None and self.p is not None and not isinstance(t, Animal) and not w.hmat[self.owner][t.owner]:
-            t = None        # цель обращена монахом и стала союзной
+            t = None        # the target was converted by a monk and became allied
         if t is None or not t.alive or getattr(t, 'dead', False):
             self.target = None
             e = None
             if self.orders:
-                self.state = 'idle'     # цель пала — к следующей точке очереди (Shift)
+                self.state = 'idle'     # the target fell - to the next point of the queue (Shift)
                 return
             if self.cls != 'vil' and self.p is not None:
                 d = self.d
@@ -834,12 +849,12 @@ class Unit:
                 self.state = 'idle'
             return
         if self.auto and self.stance != 'aggressive' and not orders.may_chase(self, t):
-            self.target = None      # стойка: дальше не преследуем
+            self.target = None      # stance: we do not pursue farther
             self.state = 'idle'
             return
         mr = self.minr_px()
         if mr and self.dist_to(t) < mr:
-            # цель ближе минимальной дальности: требушет ищет другую, остальные отходят
+            # the target is closer than the minimum range: a trebuchet looks for another, the others back off
             if self.d.get('pack'):
                 e = w.nearest_enemy(self, self.rng_px(), buildings=True, minr=mr)
                 if e is not None and e is not t:
@@ -867,9 +882,9 @@ class Unit:
                 else:
                     w.damage(t, self, dmg)
                 if 'on_attack' in self.d:
-                    self.d['on_attack'](self, w, t, dmg)   # контент: залп, топтание (уникальные юниты)
+                    self.d['on_attack'](self, w, t, dmg)   # content: a volley, trampling (unique units)
 
-    # ---- монах
+    # ---- monk
     def do_convert(self, w, dt):
         t = self.target
         if t is None or not t.alive or not w.convertible(self, t):
@@ -878,7 +893,7 @@ class Unit:
             self.conv_t = 0.0
             return
         if w.time < self.faith_t:
-            # вера ещё не восстановилась — держимся рядом
+            # faith has not been restored yet - stay close
             self.approach(w, t, self.rng_px(), dt)
             return
         if self.approach(w, t, self.rng_px(), dt):
@@ -888,7 +903,7 @@ class Unit:
             prev = self.conv_t
             self.conv_t += dt * self.p.stat('conv_speed', self.kind, 1.0) / t.p.stat('conv_resist', t.kind, 1.0)
             self.swing = 0.3 if int(self.conv_t * 2) % 2 else 0.0
-            # как в оригинале: не раньше 4 с, дальше каждую секунду шанс 28%, к 10 с — наверняка
+            # as in the original: not before 4 s, then every second a 28% chance, by 10 s - for certain
             if self.conv_t >= 10.0 or (self.conv_t >= 4.0 and int(self.conv_t) > int(prev)
                                        and random.random() < 0.28):
                 w.convert(t, self)
@@ -915,15 +930,15 @@ class Unit:
             return t.kind == 'farm' and t.complete and t.owner == self.owner and t.farmer in (None, self)
         if isinstance(t, Animal):
             if t.den is not None:
-                return False            # волк — не добыча
+                return False            # a wolf is not game
             return t.dead or t.kind != 'sheep' or t.owner in (-1, self.owner)
         return True
 
     def do_gather(self, w, dt):
         t = self.target
         tt = type(t)
-        # частые случаи — житель уже у дерева/шахты/куста или на своей ферме и добывает: короткий путь,
-        # делающий ровно то же, что общий путь ниже для цели в зоне досягаемости
+        # the frequent cases - a villager is already at a tree/mine/bush or on its own farm and gathers: a short path
+        # doing exactly the same as the general path below for a target within reach
         if tt is Node:
             if t.alive and self.carry_res == t.res:
                 x, y = self.x, self.y
@@ -1023,8 +1038,8 @@ class Unit:
     _gcache = None
 
     def _gather_stats(self, t, src, res, base_rate):
-        """(вместимость, скорость добычи) — те же capacity() и stat('gather', ...), что в общем пути,
-        но запомненные, пока не сменились цель (а с ней вид добычи), вид юнита, игрок, его эффекты и эпоха."""
+        """(capacity, gather rate) - the same capacity() and stat('gather', ...) as in the general path,
+        but remembered until the target changes (and with it the gather kind), the unit kind, the player, its effects and the age."""
         p = self.p
         c = self._gcache
         if c is not None and c[0] is t and c[1] is p and c[2] == p.ver and c[3] == p.age and c[4] == self.kind:
@@ -1035,9 +1050,9 @@ class Unit:
         return cap, rate
 
     def _gather_tick(self, w, t, dt, rate, res, src):
-        """Добыча у цели в зоне досягаемости (конец общего пути do_gather): то же, что
-        approach → stat('gather') → face_to → ..., с face_to, развёрнутым на месте (горячий путь).
-        rate — уже итоговая скорость (см. _gather_stats)."""
+        """Gathering at a target within reach (the end of the general do_gather path): the same as
+        approach -> stat('gather') -> face_to -> ..., with face_to inlined (a hot path).
+        rate - the final rate already (see _gather_stats)."""
         self.path = []
         cx, cy = t.center()
         dx, dy = cx - self.x, cy - self.y
@@ -1113,7 +1128,7 @@ class Unit:
     def after_build(self, w, b):
         self.target = None
         if self.orders:
-            self.state = 'idle'         # Shift-очередь строек: следующая по порядку закладки
+            self.state = 'idle'         # Shift queue of constructions: the next one in the order of laying
             return
         if b.kind == 'farm' and b.farmer is None:
             self.cmd_gather(b)
@@ -1126,7 +1141,7 @@ class Unit:
                 if nt is not None:
                     self.cmd_gather(nt)
                     return
-        # следующая стройка — ближайшая (стены строятся сегмент за сегментом)
+        # the next construction is the nearest (walls are built segment by segment)
         best, bd = None, 10 * TILE
         for o in w.buildings:
             if o.owner == self.owner and not o.complete and o.alive:
@@ -1140,12 +1155,12 @@ class Unit:
 
 
 class Animal(Unit):
-    """Овцы, олени, кабаны, волки. Убитое животное остаётся тушей, которую разделывают жители
-    (волк еды не даёт: туша исчезает через WOLF_ROT с)."""
-    dead_t = -99.0          # игровое время гибели (для анимации падения)
-    den = None              # хищник: точка, у которой он живёт (дальше LEASH клеток не преследует)
+    """Sheep, deer, boars, wolves. A killed animal stays as a carcass that villagers butcher
+    (a wolf gives no food: the carcass disappears after WOLF_ROT s)."""
+    dead_t = -99.0          # the game time of death (for the falling animation)
+    den = None              # a predator: the point where it lives (it does not pursue farther than LEASH tiles)
     WOLF_ROT = 15.0
-    LEASH = 12.0            # клеток от логова
+    LEASH = 12.0            # tiles from the den
 
     def __init__(self, kind, x, y, world, owner=-1):
         d = ANIMALS[kind]
@@ -1237,7 +1252,7 @@ class Animal(Unit):
         self.cmd_move(tx, ty)
 
     def prey(self, w, radius):
-        """Хищник: ближайший юнит игрока на суше в радиусе (px), или None."""
+        """A predator: the nearest player unit on land within a radius (px), or None."""
         best, bd = None, radius
         for u in w.units_near(self.x, self.y, radius):
             if not u.alive or u.owner < 0 or u.naval:
@@ -1250,7 +1265,7 @@ class Animal(Unit):
     def update(self, w, dt):
         if self.dead:
             if self.den is not None and w.time - self.dead_t > self.WOLF_ROT:
-                self.alive = False          # туша волка не нужна (еды нет) — убираем
+                self.alive = False          # a wolf's carcass is not needed (no food) - remove it
             return
         c = self.cool - dt
         self.cool = c if c > 0.0 else 0.0
@@ -1270,7 +1285,7 @@ class Animal(Unit):
                 if d < 2.5 * TILE:
                     self.flee(w, u.x, u.y)
             if self.den is not None and self.state != 'attack':
-                # волк: бросается на любого юнита игрока в обзоре, если не ушёл далеко от логова
+                # a wolf: it rushes at any player unit in view if it has not gone far from the den
                 hx, hy = self.den
                 if math.hypot(self.x - hx, self.y - hy) < self.LEASH * TILE:
                     u = self.prey(w, self.los() * TILE)
@@ -1286,7 +1301,7 @@ class Animal(Unit):
                 self.state = 'idle'
                 self.target = None
                 if far:
-                    self.cmd_move(*self.den)        # ушёл от логова — возвращается
+                    self.cmd_move(*self.den)        # it went away from the den - it returns
             else:
                 Unit.do_attack(self, w, dt)
         elif self.state == 'move':
@@ -1296,7 +1311,7 @@ class Animal(Unit):
             if self.wander_t <= 0:
                 self.wander_t = random.uniform(8, 25)
                 a = random.uniform(0, math.tau)
-                if self.den is not None:        # волк бродит у логова
+                if self.den is not None:        # a wolf roams near the den
                     r = random.uniform(0, 3) * TILE
                     self.cmd_move(self.den[0] + math.cos(a) * r, self.den[1] + math.sin(a) * r)
                     return
@@ -1304,10 +1319,10 @@ class Animal(Unit):
 
 
 class Projectile:
-    """Снаряд. point=None — самонаведение на цель (охота); иначе летит в точку point — куда целились:
-    если цель успела уйти, снаряд промахивается и может задеть другого врага рядом с точкой падения.
-    blast — радиус взрыва в пикселях (мангонель, требушет, бомбарда): урон всем в радиусе, и своим тоже.
-    pierce — болт скорпиона: задевает всех врагов на линии полёта."""
+    """A projectile. point=None - homing on the target (hunting); otherwise it flies to the point point - where it was aimed:
+    if the target managed to move away, the projectile misses and may hit another enemy near the landing point.
+    blast - the blast radius in pixels (mangonel, trebuchet, bombard): damage to everyone in the radius, own units too.
+    pierce - a scorpion's bolt: it hits all enemies along the flight line."""
 
     def __init__(self, x, y, target, dmg, src, delay=0.0, point=None, blast=0.0, pierce=False, shape=None):
         self.x, self.y = x, y
@@ -1323,7 +1338,7 @@ class Projectile:
         self.pierce = pierce
         self.hit = set()
         d = src.d if isinstance(src, Unit) else {}
-        # вид снаряда для отрисовки: 'arrow' | 'javelin' | 'bolt' | 'stone' | 'ball'
+        # the projectile kind for drawing: 'arrow' | 'javelin' | 'bolt' | 'stone' | 'ball'
         self.shape = shape or d.get('shot') or 'arrow'
         self.javelin = self.shape == 'javelin'
         self.speed = d.get('shot_speed', 260)
@@ -1360,39 +1375,39 @@ class Projectile:
             self.y += dy / d * step
 
 
-# ============================================================ мир
+# ============================================================ world
 class World:
-    """Мир партии. Игрок 0 — всегда человек (или ИИ на его месте в инструментах), -1 — природа (gaia).
+    """The match's world. Player 0 is always the human (or the AI in his place in tools), -1 - nature (gaia).
 
-    События для звука/эффектов копятся в self.events (кортежи (тип, x, y, владелец, вид, ...));
-    потребитель (интерфейс) забирает и очищает список каждый кадр. Типы:
-      'hit'          x, y, владелец цели, вид атакующего, вид цели
-      'death'        x, y, владелец, вид юнита/животного
-      'destroy'      x, y, владелец, вид здания
-      'arrow'        x, y, владелец стрелка, вид стрелка (выстрел)
-      'work'         x, y, владелец, звук: 'chop' | 'mine' | 'farm' | 'forage' | 'butcher' | 'build'
-      'build_done'   x, y, владелец, вид здания
-      'place'        x, y, владелец, вид здания (заложен фундамент)
-      'train_done'   x, y, владелец, вид юнита
-      'tech_done'    x, y, владелец, технология
-      'age_up'       x, y, владелец, номер эпохи
-      'attack_alert' x, y, владелец (на кого напали), вид цели — не чаще раза в 10 с на игрока
-      'defeat'       x, y, владелец, None
-      'game_over'    0, 0, команда-победитель (-1 — никто), None
-      'convert_start' x, y, владелец монаха, вид цели (монах начал обращение)
-      'convert'      x, y, новый владелец, вид юнита, старый владелец
-      'pack'         x, y, владелец, вид, True — сворачивается / False — разворачивается (требушет)
-      'blast'        x, y, владелец стрелявшего, его вид (взрыв снаряда мангонеля/требушета/бомбарды)
-      интерфейс добавляет 'select' / 'command' (x, y, 0, вид / приказ).
+    Events for sound/effects accumulate in self.events (tuples (type, x, y, owner, kind, ...));
+    the consumer (the interface) takes and clears the list every frame. Types:
+      'hit'          x, y, the target's owner, the attacker's kind, the target's kind
+      'death'        x, y, owner, the unit's/animal's kind
+      'destroy'      x, y, owner, the building's kind
+      'arrow'        x, y, the shooter's owner, the shooter's kind (a shot)
+      'work'         x, y, owner, the sound: 'chop' | 'mine' | 'farm' | 'forage' | 'butcher' | 'build'
+      'build_done'   x, y, owner, the building's kind
+      'place'        x, y, owner, the building's kind (a foundation was laid)
+      'train_done'   x, y, owner, the unit's kind
+      'tech_done'    x, y, owner, the tech
+      'age_up'       x, y, owner, the age number
+      'attack_alert' x, y, owner (who was attacked), the target's kind - no more than once per 10 s per player
+      'defeat'       x, y, owner, None
+      'game_over'    0, 0, the winning team (-1 - nobody), None
+      'convert_start' x, y, the monk's owner, the target's kind (a monk started converting)
+      'convert'      x, y, the new owner, the unit's kind, the old owner
+      'pack'         x, y, owner, kind, True - packing / False - unpacking (a trebuchet)
+      'blast'        x, y, the shooter's owner, its kind (a mangonel/trebuchet/bombard projectile explosion)
+      the interface adds 'select' / 'command' (x, y, 0, kind / order).
     """
 
     def __init__(self, difficulty=1, nplayers=2, teams=None, ai_players=None, civs=None, size=None,
                  map_type='land', ai_levels=None, settings=None):
-        """teams — номер команды для каждого игрока (по умолчанию все сами за себя);
-        ai_players — какие игроки получают бонус сложности (по умолчанию все, кроме 0);
-        map_type — 'land' (материк с озёрами) | 'coast' (море в центре) | 'islands' (см. naval.MAP_TYPES);
-        ai_levels — уровень ИИ (0…5, как в DE: match.AI_LEVELS) по игрокам; по умолчанию — из difficulty;
-        settings — параметры партии из лобби (game/match.py: ресурсы, население, эпохи, перемирие, победа…)."""
+        """teams - the team number for each player (by default everyone on their own);
+        ai_players - which players get the difficulty bonus (by default all except 0);
+        map_type - 'land' (a continent with lakes) | 'coast' (a sea in the center) | 'islands' (see naval.MAP_TYPES);
+        ai_levels - the AI level (0...5, as in DE: match.AI_LEVELS) per player; by default - from difficulty;
+        settings - the match parameters from the lobby (game/match.py: resources, population, ages, treaty, victory...)."""
         self.difficulty = difficulty
         self.map_type = map_type
         self.settings = match.normalize(settings)
@@ -1400,7 +1415,7 @@ class World:
         n = max(2, min(len(PLAYER_COLORS), nplayers))
         if size is None and settings:
             size = match.map_side(self.settings, n, map_type)
-        sizes = maps.LEGACY_SIZES if maps.is_legacy(map_type) else MAP_SIZES     # старые типы — прежние размеры
+        sizes = maps.LEGACY_SIZES if maps.is_legacy(map_type) else MAP_SIZES     # old types - the former sizes
         self.W = self.H = size or sizes.get(n, sizes[max(sizes)])
         self.pop_limit = 200
         self.max_age = 3
@@ -1412,11 +1427,11 @@ class World:
         W, H = self.W, self.H
         self.time = 0.0
         self.terrain = [[0] * W for _ in range(H)]
-        terrain.ensure(self)        # рельеф (game/terrain.py): высоты, обрывы, мелководье, типы земли
+        terrain.ensure(self)        # relief (game/terrain.py): heights, cliffs, shallows, ground types
         self.occ = [[None] * W for _ in range(H)]
         self.floor = [[None] * W for _ in range(H)]
-        self.gate = [[None] * W for _ in range(H)]     # ворота: проходимы для владельца и союзников
-        self.path_reached = True                        # дошёл ли последний find_path до цели
+        self.gate = [[None] * W for _ in range(H)]     # gates: passable for the owner and allies
+        self.path_reached = True                        # whether the last find_path reached the target
         self.nodes = []
         self.units = []
         self.animals = []
@@ -1431,7 +1446,7 @@ class World:
             p = Player(pid, team=teams[pid], is_ai=pid in ai_players,
                        civ=(civs[pid] if civs and pid < len(civs) else 'default'))
             if p.is_ai:
-                # сложность — бонус к добыче у компьютерных игроков (тот же механизм, что у технологий)
+                # difficulty - a gather bonus for computer players (the same mechanism as for techs)
                 p.add_effects([{'stat': 'gather', 'mul': match.LEVEL_GATHER[self.ai_levels[pid]]}])
             self.players.append(p)
         self.human = 0
@@ -1439,34 +1454,34 @@ class World:
         self.vis = bytearray(W * H)
         self.explored = bytearray(W * H)
         self.fog_version = 0
-        self._fog_srcs = None       # источники обзора при прошлом пересчёте тумана
+        self._fog_srcs = None       # the vision sources at the previous fog recomputation
         self.fog_t = 0.0
         self.messages = []
         self.pings = []
         self.alert_t = [-99.0] * n
         self.path_budget = 0
         self.dt = 0.0
-        self.winner = None          # номер победившей команды (-1 — никто); None — игра идёт
+        self.winner = None          # the number of the winning team (-1 - nobody); None - the game is on
         self.victory_t = 0.0
         self.nodes_dirty = False
-        self._ug = {}               # сетка юнитов (см. units_in_rect); строится лениво раз в шаг
+        self._ug = {}               # the unit grid (see units_in_rect); built lazily once per step
         self._ug_src = None
         self._ug_n = 0
         self._ug_mask = {}
         self._hm_cache = {}
-        self._sep_grid = None       # плоская сетка для separate (переиспользуется между шагами)
+        self._sep_grid = None       # a flat grid for separate (reused between steps)
         self._sep_moved = None
         self._sep_pass = 0
         self.gen_map()
         for f in WORLD_HOOKS['init']:
-            f(self)             # контент: командные бонусы, стартовые юниты цивилизаций…
-        gstats.init(self)       # статистика для экрана достижений и счёта
-        match.apply_start(self)     # ресурсы, эпоха, население, открытая карта, перемирие (лобби)
+            f(self)             # content: team bonuses, the civilizations' starting units...
+        gstats.init(self)       # statistics for the achievements screen and the score
+        match.apply_start(self)     # resources, age, population, map reveal, treaty (lobby)
         self.recount()
         self.update_fog()
         self.ais = []
 
-    # ---- сохранение (game/savegame.py): кэши не пишем — они пересоберутся
+    # ---- saving (game/savegame.py): caches are not written - they rebuild themselves
     _NOSAVE = ('_ug', '_ug_src', '_ug_mask', '_hm_cache', '_sep_grid', '_sep_moved', '_fog_srcs', '_bz')
 
     def __getstate__(self):
@@ -1493,27 +1508,27 @@ class World:
         if 'stats' not in self.__dict__:
             gstats.init(self)
 
-    # ---- команды и враждебность
+    # ---- teams and hostility
     def update_teams(self):
-        """Пересчитать матрицы враждебности/союза. Вызывать после смены команд.
-        Матрицы размером (n+1)×(n+1): последняя строка/столбец — природа (-1), поэтому
-        self.hmat[a][b] работает и для owner == -1 без проверок."""
+        """Recompute the hostility/alliance matrices. Call after changing teams.
+        The matrices are (n+1) x (n+1): the last row/column is nature (-1), so
+        self.hmat[a][b] works for owner == -1 too without checks."""
         n = len(self.players)
         tm = [p.team for p in self.players]
-        # перемирие (лобби): до его конца чужие команды не враги — никто не нападает (ни ИИ, ни вы)
+        # treaty (lobby): until it ends, other teams are not enemies - nobody attacks (neither the AI nor you)
         war = not (self.time < getattr(self, 'treaty_end', 0.0))
         self.hmat = [[war and a < n and b < n and tm[a] != tm[b] for b in range(n + 1)] for a in range(n + 1)]
         self._hm_cache = {}
         self.amat = [[a < n and b < n and tm[a] == tm[b] for b in range(n + 1)] for a in range(n + 1)]
-        # на кого бросается зверь (кабан): на любого игрока
+        # whom an animal (a boar) attacks: any player
         self.beast_row = [True] * n + [False]
 
     def hostile(self, a, b):
-        """Враги ли владельцы a и b (оба настоящие игроки из разных команд). Природа (-1) — не враг."""
+        """Whether owners a and b are enemies (both real players from different teams). Nature (-1) is not an enemy."""
         return self.hmat[a][b]
 
     def allied(self, a, b):
-        """Одна команда (включая самого себя); природа (-1) — не союзник."""
+        """One team (including oneself); nature (-1) is not an ally."""
         return self.amat[a][b]
 
     def ally_of_human(self, owner):
@@ -1522,7 +1537,7 @@ class World:
     def team_players(self, team):
         return [p for p in self.players if p.team == team]
 
-    # ---- сообщения и события
+    # ---- messages and events
     def msg(self, text, color=(240, 235, 220)):
         self.messages.append((text, self.time, color))
         self.messages = self.messages[-6:]
@@ -1530,15 +1545,15 @@ class World:
     def emit(self, *ev):
         self.events.append(ev)
 
-    # ---- карта
+    # ---- map
     def gen_map(self):
         if not maps.is_legacy(self.map_type):
-            mapgen.generate(self)           # карты по правилам DE (game/mapgen.py)
+            mapgen.generate(self)           # maps by DE rules (game/mapgen.py)
             return
         W, H = self.W, self.H
         n = len(self.players)
         mx, my = (W - 1) / 2, (H - 1) / 2
-        # старты по кругу; поворот выбираем так, чтобы все стояли как можно дальше от центра
+        # starts on a circle; the rotation is chosen so that everyone stands as far from the center as possible
         margin = 14
         best = None
         for _ in range(32):
@@ -1549,8 +1564,8 @@ class World:
             if best is None or R > best[0] + 0.01:
                 best = (R, angs)
         R, angs = best
-        # союзники — на соседних местах круга
-        together = self.settings.get('team_together', True)     # лобби: «Команды рядом»
+        # allies - in neighboring places of the circle
+        together = self.settings.get('team_together', True)     # lobby: "Team Together"
         order = sorted(range(n), key=lambda pid: (self.players[pid].team if together else 0, random.random()))
         slot_ang = [0.0] * n
         starts = [None] * n
@@ -1559,7 +1574,7 @@ class World:
             slot_ang[pid] = a
             starts[pid] = (int(round(mx + math.cos(a) * R)), int(round(my + math.sin(a) * R)))
         self.starts = starts
-        # «вперёд» для каждого игрока — к центру карты; стартовый набор строится в этой системе координат
+        # "forward" for each player - toward the center of the map; the starting set is built in this coordinate system
         fwd = [a + math.pi for a in slot_ang]
 
         def far(x, y, d):
@@ -1605,8 +1620,8 @@ class World:
                        self.occ[cy + dy][cx + dx] is None and far(cx + dx, cy + dy, 5.5) for dx, dy in shape)
 
         def stamp_fit(kind, cx, cy, shape):
-            """Поставить фигуру целиком (для честности у всех игроков одинаково), сдвинув на 1–3 клетки,
-            если на месте что-то мешает."""
+            """Place a figure as a whole (identically for all players, for fairness), shifting it by 1-3 tiles
+            if something is in the way."""
             for r in range(4):
                 for dy in range(-r, r + 1):
                     for dx in range(-r, r + 1):
@@ -1616,7 +1631,7 @@ class World:
             stamp(kind, cx, cy, shape)
 
         def at(pid, rel, d):
-            """Клетка на расстоянии d от старта игрока в направлении fwd + rel."""
+            """A tile at distance d from the player's start in the direction fwd + rel."""
             sx, sy = starts[pid]
             a = fwd[pid] + rel
             x = int(round(sx + math.cos(a) * d))
@@ -1625,9 +1640,9 @@ class World:
 
         water_map = self.map_type != 'land'
         if water_map:
-            # море / острова (game/naval.py); дальше ресурсы ставятся только на сушу
+            # sea / islands (game/naval.py); after that resources are placed only on land
             naval.gen_water(self, starts, slot_ang, R)
-        # озёра — подальше от всех стартов
+        # lakes - away from all starts
         for _ in range(0 if water_map else 3 + n):
             cx, cy = random.randrange(10, W - 10), random.randrange(10, H - 10)
             if not far(cx, cy, 20):
@@ -1637,9 +1652,9 @@ class World:
                 for x in range(int(cx - r - 2), int(cx + r + 3)):
                     if inb(x, y) and math.hypot(x - cx, y - cy) <= r + random.uniform(-0.8, 0.8) and far(x, y, 16):
                         self.terrain[y][x] = 1
-        terrain.gen_shallows(self, starts)      # мелководье по кромке озёр и берегов
-        terrain.gen_heights(self, starts)       # холмы (старты — на ровных площадках)
-        # стартовый набор: одинаковая раскладка, повёрнутая к центру карты для каждого игрока
+        terrain.gen_shallows(self, starts)      # shallows along the rim of lakes and shores
+        terrain.gen_heights(self, starts)       # hills (the starts are on flat sites)
+        # the starting set: an identical layout rotated toward the center of the map for each player
         base = random.uniform(0, math.tau)
         rel = [base + i * math.tau / 5 for i in range(5)]
         random.shuffle(rel)
@@ -1652,8 +1667,8 @@ class World:
         for kind, ra, d, shape in package:
             for pid in range(n):
                 stamp_fit(kind, *at(pid, ra, d), shape)
-        # ресурсы «впереди» каждого игрока (к центру карты) — тоже одинаковые для всех
-        # (на водных картах впереди море — ставим ближе и по бокам)
+        # resources "ahead" of each player (toward the center of the map) - also identical for all
+        # (on water maps ahead there is sea - place them closer and to the sides)
         d0, d1, fr, spread = (11, 17, 10, 2.6) if water_map else (19, 27, 16, 1.1)
         for kind, k in (('gold', 6), ('gold', 5), ('stone', 5), ('berries', 5)):
             shape = cluster_shape(k)
@@ -1664,9 +1679,9 @@ class World:
                     for x, y in pts:
                         stamp_fit(kind, x, y, shape)
                     break
-        # лес по карте (плотность — как на карте 96×96)
+        # forest across the map (density - as on a 96x96 map)
         land = sum(row.count(0) for row in self.terrain) if water_map else W * H
-        isl = self.map_type == 'islands'        # на островах лес гуще — иначе дерева не хватит на флот
+        isl = self.map_type == 'islands'        # on islands the forest is denser - otherwise there will not be enough wood for the navy
         for _ in range(int(26 * land / (96 * 96) * (3.0 if isl else 1))):
             cx, cy = random.randrange(W), random.randrange(H)
             for _ in range(12 if water_map else 0):
@@ -1675,14 +1690,14 @@ class World:
                 cx, cy = random.randrange(W), random.randrange(H)
             if far(cx, cy, 8.5 if isl else 11):
                 stamp('tree', cx, cy, blob_shape(random.uniform(1.5, 4.5), 0.85))
-        # лес по краям
+        # forest along the edges
         for y in range(H):
             for x in range(W):
                 e = min(x, y, W - 1 - x, H - 1 - y)
                 if e < 2 and random.random() < 0.55 and far(x, y, 9):
                     put('tree', x, y)
-        terrain.gen_cliffs(self, starts)        # обрывы (не делят карту)
-        # стартовые постройки и юниты
+        terrain.gen_cliffs(self, starts)        # cliffs (do not split the map)
+        # starting buildings and units
         for pid, (cx, cy) in enumerate(starts):
             tc = self.place_building('town_center', pid, cx - 2, cy - 2, complete=True)
             ox = 1 if math.cos(fwd[pid]) >= 0 else -1
@@ -1695,12 +1710,12 @@ class World:
             self.units.append(Unit('scout', pid, (tx + 0.5) * TILE, (ty + 0.5) * TILE, self))
             tc.rally = None
 
-        # животные: 4 своих овцы у центра, пары овец, олени, кабаны — одинаково для всех
+        # animals: 4 own sheep by the center, pairs of sheep, deer, boars - identical for all
         def free_near(x, y):
             x, y = int(round(max(2, min(W - 3, x)))), int(round(max(2, min(H - 3, y))))
             return self.nearest_free_tile(x, y)
 
-        herd = []   # (вид, свой?, угол, дальность, сдвиг по x, сдвиг по y)
+        herd = []   # (kind, own?, angle, distance, x offset, y offset)
         sheep_a = random.uniform(-2.2, 2.2)
         for i in range(4):
             herd.append(('sheep', True, sheep_a, 4.5, i % 2, i // 2))
@@ -1719,20 +1734,20 @@ class World:
                 self.animals.append(Animal(kind, (tx + 0.5) * TILE, (ty + 0.5) * TILE, self, pid if own else -1))
         if water_map:
             naval.place_fish(self, starts, fwd)
-        terrain.gen_ground(self, starts)        # типы земли для текстур и смешения
+        terrain.gen_ground(self, starts)        # ground types for textures and blending
 
-    # ---- рельеф (game/terrain.py)
+    # ---- relief (game/terrain.py)
     def z_at(self, x, y):
-        """Высота земли под точкой мира (логические px) в пикселях экрана."""
+        """The ground height under a world point (logical px) in screen pixels."""
         return terrain.z_at(self, x, y) if self.relief else 0.0
 
     def elev(self, tx, ty):
-        """Целый уровень высоты клетки (0..7)."""
+        """The integer height level of a cell (0..7)."""
         return terrain.elev(self, tx, ty)
 
-    # ---- проходимость
+    # ---- passability
     def passable(self, x, y):
-        # суша и мелководье (коды 0, 2) проходимы, вода и обрыв (1, 3) — нет
+        # land and shallows (codes 0, 2) are passable, water and cliff (1, 3) are not
         return 0 <= x < self.W and 0 <= y < self.H and not self.terrain[y][x] & 1 and self.occ[y][x] is None
 
     def passable_px(self, x, y, owner=None):
@@ -1741,7 +1756,7 @@ class World:
         return self.passable_for(int(x // TILE), int(y // TILE), owner)
 
     def passable_for(self, x, y, owner):
-        """Проходимость для юнита владельца owner: свои и союзные достроенные ворота открыты."""
+        """Passability for a unit of owner owner: own and allied completed gates are open."""
         if self.passable(x, y):
             return True
         if 0 <= x < self.W and 0 <= y < self.H:
@@ -1768,9 +1783,9 @@ class World:
         return tx, ty
 
     def find_path(self, start, goals, hx, hy, limit=1800, owner=None):
-        """A*; owner — чей юнит идёт (свои/союзные ворота проходимы). self.path_reached — дошёл ли до цели.
-        Проходимость четырёх прямых соседей считается один раз на раскрытие, диагональ — только если
-        открыты обе прилегающие прямые клетки (результат — тот же, что при проверке по DIRS)."""
+        """A*; owner - whose unit is walking (own/allied gates are passable). self.path_reached - whether it reached the target.
+        The passability of the four straight neighbors is computed once per expansion, a diagonal - only if
+        both adjacent straight cells are open (the result is the same as when checking by DIRS)."""
         W, H = self.W, self.H
         sx, sy = start
         s = sy * W + sx
@@ -1814,7 +1829,7 @@ class World:
             h = ex + 0.414 * ey if ex >= ey else ey + 0.414 * ex
             if h < besth:
                 besth, best = h, c
-            # прямые соседи: E, W, S, N
+            # straight neighbors: E, W, S, N
             trow, orow = terr[y], occ[y]
             e = x + 1 < W and not trow[x + 1] & 1 and (orow[x + 1] is None or
                                                      (arow is not None and gate_ok(x + 1, y, orow[x + 1])))
@@ -1839,7 +1854,7 @@ class World:
                 cand.append((x, y + 1, 1.0))
             if no:
                 cand.append((x, y - 1, 1.0))
-            # диагональ: обе прилегающие прямые открыты (значит, и индексы в пределах карты)
+            # a diagonal: both adjacent straights are open (so the indices are within the map too)
             if e and so and not rs[x + 1] & 1 and (os_[x + 1] is None or
                                                 (arow is not None and gate_ok(x + 1, y + 1, os_[x + 1]))):
                 cand.append((x + 1, y + 1, D))
@@ -1864,7 +1879,7 @@ class World:
                     ey = ny - hy
                     if ey < 0:
                         ey = -ey
-                    # (ng + max) + 0.414·min — тот же порядок сложения, что и раньше (те же float)
+                    # (ng + max) + 0.414*min - the same order of addition as before (the same floats)
                     heappush(openh, (ng + ex + 0.414 * ey if ex >= ey else ng + ey + 0.414 * ex, ng, nc))
         self.path_reached = best in gset
         path = []
@@ -1891,7 +1906,7 @@ class World:
                         goals.append((x, y))
         return self.find_path(u.tile(), goals, hx, hy, owner=u.owner)
 
-    # ---- здания
+    # ---- buildings
     def can_place(self, kind, tx, ty, pid, check_explored=True):
         if BUILDINGS[kind].get('water'):
             return naval.can_place_water(self, kind, tx, ty, pid, check_explored)
@@ -1905,7 +1920,7 @@ class World:
                 if pid == self.human and check_explored and not self.explored[y * self.W + x]:
                     return False
         if self.relief and not terrain.slope_ok(self, tx, ty, s):
-            return False                # склон круче уровня на основание (AoE2: лёгкие склоны можно)
+            return False                # a slope steeper than a level per base (AoE2: gentle slopes are allowed)
         if kind != 'farm':
             for u in self.units:
                 if u.owner != pid and tx * TILE - 4 <= u.x <= (tx + s) * TILE + 4 and \
@@ -1914,8 +1929,8 @@ class World:
         return True
 
     def place_building(self, kind, pid, tx, ty, complete=False, size=None):
-        """size — (ширина, высота) для неквадратных зданий (ворота 4×1 / 1×4).
-        Вид берётся с учётом улучшений игрока (сторожевая башня → караульная → крепостная)."""
+        """size - (width, height) for non-square buildings (gates 4x1 / 1x4).
+        The kind is taken with the player's upgrades in mind (watch tower -> guard tower -> keep)."""
         kind = self.players[pid].current(kind)
         b = Building(kind, pid, tx, ty, complete, self.players[pid])
         if size:
@@ -1937,7 +1952,7 @@ class World:
                 if tx <= ux < tx + b.w and ty <= uy < ty + b.h:
                     fx, fy = naval.nearest_water_tile(self, ux, uy) if u.naval else self.nearest_free_tile(ux, uy)
                     u.x, u.y = (fx + 0.5) * TILE, (fy + 0.5) * TILE
-                    self._ug_src = None     # юнит перепрыгнул — сетку юнитов пересобрать
+                    self._ug_src = None     # a unit jumped - rebuild the unit grid
                     u.path = []
                     u.path_target = None
         if not complete:
@@ -1958,7 +1973,7 @@ class World:
         if rubble:
             self.decals.append(['rubble', b.tx, b.ty, b.w, self.time, b.kind])
         if 'on_remove' in b.d:
-            b.d['on_remove'](self, b)       # контент (напр. «Кочевники»: дом не уносит население)
+            b.d['on_remove'](self, b)       # content (e.g. "Nomads": a house does not take population away)
         p = self.players[b.owner]
         for kind, name in b.queue:
             if kind == 'tech':
@@ -1976,12 +1991,12 @@ class World:
         gstats.on_complete(self, b)
         self.emit('build_done', cx, cy, b.owner, b.kind)
         if b.owner == self.human:
-            self.msg(f'Построено: {b.d["name"]}', (170, 230, 150))
+            self.msg(i18n.t('msg.built', name=b.d['name']), (170, 230, 150))
 
     def spawn(self, b, kind):
         if UNITS[kind].get('naval'):
             return naval.spawn_ship(self, b, kind)
-        # свободная клетка вокруг здания (сначала снизу)
+        # a free cell around the building (from below first)
         cand = []
         for y in range(b.ty - 1, b.ty + b.h + 1):
             for x in range(b.tx - 1, b.tx + b.w + 1):
@@ -2009,12 +2024,12 @@ class World:
             cx, cy = tc.center() if tc else (0, 0)
             self.emit('age_up', cx, cy, p.id, p.age)
             if p.id == self.human:
-                self.msg(f'Вы достигли: {AGE_NAMES[p.age]}!', (255, 220, 120))
+                self.msg(i18n.t('msg.you_reached', age=AGE_NAMES[p.age]), (255, 220, 120))
             else:
                 col = (150, 230, 160) if self.allied(self.human, p.id) else (255, 150, 130)
-                self.msg(f'{p.name} достиг: {AGE_NAMES[p.age]}', col)
+                self.msg(i18n.t('msg.reached', name=p.name, age=AGE_NAMES[p.age]), col)
         elif p.id == self.human:
-            self.msg(f'Изучено: {t["name"]}', (170, 230, 150))
+            self.msg(i18n.t('msg.researched', name=t['name']), (170, 230, 150))
         if t.get('upgrade'):
             self.upgrade_line(p, *t['upgrade'])
         if t.get('effects'):
@@ -2022,11 +2037,11 @@ class World:
             if any(e['stat'] == 'hp' for e in t['effects']):
                 self.refresh_hp(p)
         if t.get('on_apply'):
-            t['on_apply'](self, p)      # произвольное действие контента (напр. превращение башен)
+            t['on_apply'](self, p)      # an arbitrary content action (e.g. turning towers into others)
 
     def upgrade_line(self, p, old, new):
-        """Улучшение линии: все юниты old → new, здания обучают new (и всё, что раньше вело в old).
-        Юниты, обращённые монахом у других игроков, остаются своего вида (как в оригинале)."""
+        """A line upgrade: all units old -> new, buildings train new (and everything that used to lead to old).
+        Units converted by a monk for other players stay of their own kind (as in the original)."""
         for k, v in list(p.alias.items()):
             if v == old:
                 p.alias[k] = new
@@ -2036,7 +2051,7 @@ class World:
                 u.set_kind(new)
 
     def refresh_hp(self, p):
-        """После эффектов на 'hp': поднять максимум здоровья (и текущее на ту же величину)."""
+        """After effects on 'hp': raise the maximum health (and the current one by the same amount)."""
         for e in self.units:
             if e.owner == p.id:
                 m = p.stat('hp', e.kind, e.d['hp'])
@@ -2052,34 +2067,35 @@ class World:
                     b.max_hp = m
 
     def tech_state(self, p, name, b=None):
-        """(можно_ли, причина)"""
+        """(is_allowed, reason)"""
         t = TECHS[name]
+        T = i18n.t
         if name in p.techs:
-            return False, 'Уже изучено'
+            return False, T('msg.already_researched')
         if not p.allows(name):
-            return False, 'Недоступно цивилизации'
+            return False, T('msg.civ_unavailable')
         if name in p.researching:
-            return False, 'Изучается'
+            return False, T('msg.researching')
         if name in AGE_TECHS:
             if p.age >= getattr(self, 'max_age', 3):
-                return False, 'Конечная эпоха партии'
+                return False, T('msg.final_age')
             if p.age != t['age']:
-                return False, 'Нужна предыдущая эпоха'
+                return False, T('msg.need_previous_age')
             if any(a in p.researching for a in AGE_TECHS):
-                return False, 'Уже идёт переход'
+                return False, T('msg.age_in_progress')
             need, cnt = AGE_REQ[name]
             have = {x.kind for x in self.buildings if x.owner == p.id and x.complete and x.kind in need}
             if len(have) < cnt:
                 names = ', '.join(BUILDINGS[k]['name'] for k in sorted(need))
-                return False, f'Нужно {cnt} из: {names}'
+                return False, T('msg.need_n_of', n=cnt, names=names)
         elif p.age < t['age']:
-            return False, f'Нужна {AGE_NAMES[t["age"]]}'
+            return False, T('msg.need_age', age=AGE_NAMES[t['age']])
         for r in as_tuple(t.get('req', ())):
             if r not in p.techs:
-                return False, f'Нужно: {TECHS[r]["name"]}'
+                return False, T('msg.requires', name=TECHS[r]['name'])
         return True, ''
 
-    # ---- ресурсы
+    # ---- resources
     def deplete(self, t):
         t.alive = False
         if isinstance(t, Node):
@@ -2090,10 +2106,10 @@ class World:
                 self.decals.append(['stump', t.tx, t.ty, 1, self.time])
         elif isinstance(t, Building):
             farmer, t.farmer = t.farmer, None
-            t.alive = True                  # remove_building пропускает уже убранные — освободим клетки фермы
+            t.alive = True                  # remove_building skips already removed ones - free the farm's cells
             self.remove_building(t, rubble=False)
             if t.kind == 'farm':
-                from .market import farm_expired     # очередь пересева ферм
+                from .market import farm_expired     # the farm reseed queue
                 farm_expired(self, t, farmer)
 
     def exposed(self, n):
@@ -2149,13 +2165,13 @@ class World:
                     bd, best = d, b
         return best
 
-    # ---- бой
+    # ---- combat
     def calc_damage(self, att, target, ranged=None):
-        """Урон по правилам оригинала: max(1, Σ по классам атаки max(0, атака − броня того же класса)).
-        Основная атака — ближняя или дальняя (d['dtype'] 'melee' | 'pierce'; по умолчанию дальняя, если
-        выстрел). Бонусы d['bonus'] = {класс брони цели: +урон} работают, если у цели есть этот класс
-        (unit_tags: cls + 'ac'); броня цели против класса — её d['carm'] = {класс: броня}.
-        Модификаторы 'bonus:<класс>' (технологии) меняют бонусы, в том числе добавляют новые."""
+        """Damage by the rules of the original: max(1, sum over attack classes of max(0, attack - armor of the same class)).
+        The main attack is melee or ranged (d['dtype'] 'melee' | 'pierce'; by default ranged if
+        it is a shot). Bonuses d['bonus'] = {the target's armor class: +damage} work if the target has that class
+        (unit_tags: cls + 'ac'); the target's armor against a class - its d['carm'] = {class: armor}.
+        'bonus:<class>' modifiers (techs) change the bonuses, including adding new ones."""
         d = att.d
         atk = att.atk()
         ma, pa = target.armor()
@@ -2173,15 +2189,15 @@ class World:
             if v > 0:
                 total += max(0, v - carm.get(c, 0))
         if self.relief:
-            m = terrain.height_mult(self, att, target)          # ±25 % за высоту (DE)
+            m = terrain.height_mult(self, att, target)          # +-25 % for height (DE)
             if m != 1.0:
                 return max(1, total) * m
         return max(1, total)
 
-    # ---- выстрелы, промахи, взрывы
+    # ---- shots, misses, explosions
     def fire(self, src, t, dmg, x=None, y=None, delay=0.0, sound=True):
-        """Выпустить снаряд src по цели t. Стрелы летят в точку, где цель была (или будет — с упреждением
-        'lead', технология «Баллистика»); с вероятностью 1 − точность ('acc') — мимо, в сторону."""
+        """Fire a projectile src at target t. Arrows fly to the point where the target was (or will be - with the lead
+        'lead', the "Ballistics" tech); with probability 1 - accuracy ('acc') - they miss, to the side."""
         if x is None:
             x, y = src.x, src.y - 10
         d = src.d
@@ -2209,7 +2225,7 @@ class World:
             self.emit('arrow', x, y, src.owner, src.kind)
 
     def impact(self, pr):
-        """Снаряд долетел до точки прицеливания."""
+        """A projectile reached the aim point."""
         px, py = pr.point
         t, src = pr.target, pr.src
         if pr.blast > 0:
@@ -2225,7 +2241,7 @@ class World:
                 return
         if pr.pierce:
             return
-        # промах: стрела может задеть другого врага у точки падения
+        # a miss: an arrow may hit another enemy at the landing point
         hrow = self.hmat[pr.owner]
         for u in self.units:
             if hrow[u.owner] and u.alive and abs(u.x - px) <= u.radius + 3 and abs(u.y - py) <= u.radius + 3:
@@ -2233,8 +2249,8 @@ class World:
                 return
 
     def blast(self, src, x, y, r, primary=None, dmg=None):
-        """Взрыв радиуса r (пиксели): урон всем юнитам в радиусе — и чужим, и своим (как у мангонелей
-        в оригинале), плюс цели-зданию и вражеским зданиям в радиусе."""
+        """An explosion of radius r (pixels): damage to all units in the radius - foreign and own (like mangonels
+        in the original), plus the target building and enemy buildings in the radius."""
         self.emit('blast', x, y, src.owner, src.kind)
         for u in self.units:
             if u is src or not u.alive:
@@ -2249,7 +2265,7 @@ class World:
                 self.damage(b, src, dmg if b is primary and dmg is not None else self.calc_damage(src, b, True))
 
     def pierce_hits(self, pr):
-        """Болт скорпиона пробивает врагов на линии полёта (каждого — один раз)."""
+        """A scorpion's bolt pierces the enemies along the flight line (each one - once)."""
         hrow = self.hmat[pr.owner]
         for u in self.units:
             if not hrow[u.owner] or u is pr.target or not u.alive:
@@ -2258,10 +2274,10 @@ class World:
                 pr.hit.add(u)
                 self.damage(u, pr.src, self.calc_damage(pr.src, u, True))
 
-    # ---- монахи
+    # ---- monks
     def convertible(self, m, t):
-        """Может ли монах m обратить t: враждебный юнит; монахов — после «Искупления» (эффект
-        'convert_monk'), осадные — после «Искупления грехов» ('convert_siege'); здания — нельзя."""
+        """Whether monk m can convert t: a hostile unit; monks - after "Redemption" (the effect
+        'convert_monk'), siege - after "Atonement" ('convert_siege'); buildings - no."""
         if not isinstance(t, Unit) or isinstance(t, Animal) or not t.alive or not self.hmat[m.owner][t.owner]:
             return False
         if t.d.get('unconvertible'):
@@ -2274,11 +2290,11 @@ class World:
         return True
 
     def convert(self, t, m):
-        """Юнит t переходит к владельцу монаха m (очередь, цели, население — всё пересчитывается)."""
+        """Unit t passes to monk m's owner (queue, targets, population - everything is recomputed)."""
         old, new = t.owner, m.owner
         t.stop()
         t.owner = new
-        self._ug_src = None         # маски владельцев в сетке юнитов устарели
+        self._ug_src = None         # the owner masks in the unit grid are stale
         t.p = self.players[new]
         frac = t.hp / t.max_hp if t.max_hp else 1.0
         t.max_hp = t.p.stat('hp', t.kind, t.d['hp'])
@@ -2290,13 +2306,13 @@ class World:
         gstats.on_convert(self, t, old, new)
         self.emit('convert', t.x, t.y, new, t.kind, old)
         if old == self.human:
-            self.msg(f'Обращён: {t.d["name"]}', (255, 110, 90))
+            self.msg(i18n.t('msg.converted_lost', name=t.d['name']), (255, 110, 90))
             self.pings.append((t.x, t.y, self.time))
         elif new == self.human:
-            self.msg(f'Обращён на нашу сторону: {t.d["name"]}', (170, 230, 150))
+            self.msg(i18n.t('msg.converted_gained', name=t.d['name']), (170, 230, 150))
 
     def wounded_ally(self, m, radius):
-        """Ближайший раненый союзный юнит (не осадный) для лечения монахом."""
+        """The nearest wounded allied unit (not siege) for a monk to heal."""
         best, bd = None, radius
         arow = self.amat[m.owner]
         for u in self.units:
@@ -2310,7 +2326,7 @@ class World:
         return best
 
     def build_age(self, p, kind):
-        """С какой эпохи игрок p может заложить здание kind. Кочевье (AoE2): первый центр — уже в Тёмные века."""
+        """From which age player p may lay a building kind. Nomad (AoE2): the first center - already in the Dark Age."""
         age = BUILDINGS[kind]['age']
         if kind == 'town_center' and getattr(self, 'nomad', False) and \
                 not any(b.kind == 'town_center' and b.owner == p.id and b.alive for b in self.buildings):
@@ -2318,15 +2334,15 @@ class World:
         return age
 
     def unit_state(self, p, kind):
-        """(можно_ли_обучать, причина): эпоха и нужные технологии (UNITS[kind]['req'])."""
+        """(can_train, reason): the age and the needed techs (UNITS[kind]['req'])."""
         d = UNITS[kind]
         if not p.allows(kind):
-            return False, 'Недоступно цивилизации'
+            return False, i18n.t('msg.civ_unavailable')
         if d['age'] > p.age:
-            return False, f'Нужна {AGE_NAMES[d["age"]]}'
+            return False, i18n.t('msg.need_age', age=AGE_NAMES[d['age']])
         for r in as_tuple(d.get('req', ())):
             if r not in p.techs:
-                return False, f'Нужно: {TECHS[r]["name"]}'
+                return False, i18n.t('msg.requires', name=TECHS[r]['name'])
         return True, ''
 
     def damage(self, target, attacker, dmg):
@@ -2353,7 +2369,7 @@ class World:
             self.alert_t[to] = self.time
             self.emit('attack_alert', cx, cy, to, target.kind)
             if to == self.human:
-                self.msg('Вас атакуют!', (255, 110, 90))
+                self.msg(i18n.t('msg.under_attack'), (255, 110, 90))
                 self.pings.append((cx, cy, self.time))
         if isinstance(target, Unit) and target.cls != 'vil' and target.state == 'idle' and attacker.alive \
                 and attacker is not target and not self.allied(to, attacker.owner):
@@ -2368,19 +2384,19 @@ class World:
             if isinstance(target, Unit):
                 target.alive = False
                 target.release()
-                # сам юнит — для отрисовки анимации смерти (вид, взгляд, цивилизация)
+                # the unit itself - for drawing the death animation (kind, look, civilization)
                 self.decals.append(['body', target.x, target.y, target.owner, self.time, target])
                 self.emit('death', target.x, target.y, to, target.kind)
             else:
                 self.remove_building(target)
                 self.emit('destroy', cx, cy, to, target.kind)
                 if to == self.human:
-                    self.msg(f'Разрушено: {target.d["name"]}', (255, 110, 90))
+                    self.msg(i18n.t('msg.destroyed', name=target.d['name']), (255, 110, 90))
 
-    # ---- сетка юнитов: быстрый поиск «кто рядом» вместо обхода всех юнитов
+    # ---- the unit grid: a fast "who is nearby" search instead of walking all units
     def _build_ugrid(self):
         g = {}
-        masks = {}          # ячейка → битовая маска владельцев юнитов в ней (бит owner + 1; природа — бит 0)
+        masks = {}          # cell -> a bit mask of the owners of the units in it (bit owner + 1; nature - bit 0)
         units = self.units
         C = UG_CELL
         for u in units:
@@ -2398,7 +2414,7 @@ class World:
         self._ug_n = len(units)
 
     def hostile_mask(self, row):
-        """Битовая маска владельцев, для которых row[владелец] истинно (строка hmat / beast_row)."""
+        """A bit mask of the owners for which row[owner] is true (a row of hmat / beast_row)."""
         c = self._hm_cache.get(id(row))
         if c is not None and c[0] is row:
             return c[1]
@@ -2410,13 +2426,13 @@ class World:
         return m
 
     def units_in_rect(self, x0, y0, x1, y1, mask=None):
-        """Кандидаты — юниты, которые МОГУТ быть в прямоугольнике [x0, x1] × [y0, y1] (пиксели).
-        mask — только ячейки, где есть юниты этих владельцев (см. hostile_mask), напр. враги.
-        Точную проверку (живой ли, чей, расстояние) делает вызывающий по текущим координатам.
-        Сетка строится лениво и перестраивается, когда меняется список self.units (он заново
-        собирается в конце каждого шага), при обращении монахом и при сдвиге юнитов зданием;
-        за шаг юниты сдвигаются на пару пикселей — запас UG_PAD.
-        Добавленные после постройки сетки юниты (обучены, высажены) возвращаются всегда."""
+        """Candidates - units that MAY be in the rectangle [x0, x1] x [y0, y1] (pixels).
+        mask - only cells that contain units of these owners (see hostile_mask), e.g. enemies.
+        The exact check (alive, whose, distance) is done by the caller with the current coordinates.
+        The grid is built lazily and rebuilt when the self.units list changes (it is reassembled
+        at the end of every step), on a monk's conversion and when a building pushes units aside;
+        per step units move by a couple of pixels - the UG_PAD margin.
+        Units added after the grid was built (trained, landed) are always returned."""
         units = self.units
         if self._ug_src is not units:
             self._build_ugrid()
@@ -2445,12 +2461,12 @@ class World:
         return out
 
     def units_near(self, x, y, r, mask=None):
-        """Кандидаты в квадрате ±r вокруг точки (см. units_in_rect)."""
+        """Candidates in a square +-r around a point (see units_in_rect)."""
         return self.units_in_rect(x - r, y - r, x + r, y + r, mask)
 
     def nearest_enemy(self, u, radius, buildings=True, minr=0, units=True):
-        """Ближайший враг в радиусе; minr — не ближе этого (минимальная дальность осадных),
-        units=False — только здания (тараны)."""
+        """The nearest enemy within a radius; minr - no closer than this (the minimum range of siege),
+        units=False - only buildings (rams)."""
         best = None
         bd = radius
         hrow = self.hmat[u.owner] if u.owner >= 0 else self.beast_row
@@ -2459,7 +2475,7 @@ class World:
             for o in self.units_near(u.x, u.y, radius * 1.5, self.hostile_mask(hrow)):
                 if not hrow[o.owner] or not o.alive:
                     continue
-                if o.naval and not u.naval and u.d['rng'] <= 0:    # пехоте и коннице корабли не достать
+                if o.naval and not u.naval and u.d['rng'] <= 0:    # ships cannot be reached by infantry and cavalry
                     continue
                 d = abs(o.x - u.x) + abs(o.y - u.y)
                 if d > bd * 1.5:
@@ -2484,7 +2500,7 @@ class World:
         return best
 
     def nearest_beast(self, u, radius):
-        """Ближайший живой хищник (волк) в радиусе (px) — на него воины нападают сами."""
+        """The nearest living predator (a wolf) within a radius (px) - soldiers attack it on their own."""
         best, bd = None, radius
         for a in self.animals:
             if a.den is None or a.dead or not a.alive:
@@ -2512,7 +2528,7 @@ class World:
                 bd, best = d, o
         return best
 
-    # ---- туман войны (для человека: видно всё, что видит его команда)
+    # ---- fog of war (for the human: everything his team sees is visible)
     def visible_px(self, x, y):
         tx, ty = int(x // TILE), int(y // TILE)
         if 0 <= tx < self.W and 0 <= ty < self.H:
@@ -2522,7 +2538,7 @@ class World:
     def update_fog(self):
         W, H = self.W, self.H
         arow = self.amat[self.human]
-        srcs = set()         # (клетка x, клетка y, радиус): одинаковые источники считаем один раз
+        srcs = set()         # (cell x, cell y, radius): identical sources are counted once
         add = srcs.add
         for u in self.units:
             if arow[u.owner]:
@@ -2534,7 +2550,7 @@ class World:
             if arow[a.owner] and not a.dead:
                 add((int(a.x // TILE), int(a.y // TILE), a.los()))
         if srcs != self._fog_srcs:
-            # источники обзора сдвинулись (по клеткам) — пересчитать видимость
+            # the vision sources moved (by cells) - recompute the visibility
             self._fog_srcs = srcs
             vis = bytearray(W * H)
             exp = self.explored
@@ -2559,8 +2575,8 @@ class World:
                     if n > 0:
                         a = y * W + x0
                         vis[a:a + n] = ones[:n]
-            # разведано |= видно — одной операцией над всей картой (байты 0/1)
-            if getattr(self, 'reveal', 'normal') == 'all':      # лобби: «всё видно»
+            # explored |= visible - one operation over the whole map (0/1 bytes)
+            if getattr(self, 'reveal', 'normal') == 'all':      # lobby: "reveal all"
                 vis = bytearray(b'\x01' * (W * H))
             exp[:] = (int.from_bytes(exp, 'little') | int.from_bytes(vis, 'little')).to_bytes(W * H, 'little')
             self.vis = vis
@@ -2574,14 +2590,14 @@ class World:
                         b.seen = True
                         break
 
-    # ---- шаг симуляции
+    # ---- simulation step
     def recount(self):
         players = self.players
         pop = [0] * len(players)
         cap = [0] * len(players)
         for u in self.units:
             if u.alive:
-                pop[u.owner] += 1 + len(u.cargo) if u.naval else 1     # + пассажиры транспорта
+                pop[u.owner] += 1 + len(u.cargo) if u.naval else 1     # + transport passengers
         for b in self.buildings:
             if b.garrison:
                 pop[b.owner] += len(b.garrison)
@@ -2593,27 +2609,27 @@ class World:
             p.cap = min(self.pop_limit + p.pop_bonus, c + p.pop_bonus + p.pop_keep)
 
     def separate(self):
-        """Расталкивание пересекающихся юнитов (и живых зверей; корабли — naval.separate_ships).
-        Сетка — по клеткам карты (плоский список, живёт между шагами); соседи ячейки (3×3 клетки)
-        собираются один раз на ячейку и только если понадобились; одинокие юниты пропускаются.
-        «Спокойный» юнит стоит там же, где в начале прошлого расталкивания, с тем же радиусом, и тогда
-        ни с кем не пересекался. Если спокойны все юниты 3×3 клеток вокруг и никто из них ещё не
-        сдвинулся в этом проходе, расстояния до соседей те же, что в прошлый раз, — пересечений нет,
-        проверку пропускаем. Порядок обхода и арифметика — как раньше (результат тот же)."""
+        """Pushing apart overlapping units (and living animals; ships - naval.separate_ships).
+        The grid is by map cells (a flat list, living between steps); a cell's neighbors (3x3 cells)
+        are gathered once per cell and only if needed; lone units are skipped.
+        A "calm" unit stands where it stood at the start of the previous push-apart, with the same radius, and then
+        it intersected nobody. If all units of the 3x3 cells around are calm and none of them has yet
+        moved in this pass, the distances to the neighbors are the same as last time - no intersections,
+        the check is skipped. The traversal order and arithmetic are as before (the result is the same)."""
         W, H = self.W, self.H
-        R = W + 2       # строка сетки шире карты на 2 — соседи по x не «заворачивают» на другую строку
+        R = W + 2       # a grid row is wider than the map by 2 - neighbors by x do not "wrap around" to another row
         size = R * (H + 2)
         grid = self._sep_grid
         if grid is None or len(grid) != size:
             grid = self._sep_grid = [None] * size
             self._sep_moved = [0] * size
-        moved = self._sep_moved         # moved[k] == pid — в окрестности 3×3 ячейки k кто-то сдвинулся
+        moved = self._sep_moved         # moved[k] == pid - somebody moved in the 3x3 neighborhood of cell k
         pid = self._sep_pass = self._sep_pass + 1
         movers = [u for u in self.units if not u.naval]
         movers += [a for a in self.animals if not a.dead]
         keys = []
         occupied = []
-        calm = {}               # ячейка → все её юниты спокойны
+        calm = {}               # cell -> all its units are calm
         for u in movers:
             x, y = u.x, u.y
             cx, cy = int(x // TILE), int(y // TILE)
@@ -2633,9 +2649,9 @@ class World:
                 lst.append(u)
                 if not still:
                     calm[k] = False
-        offs = (-1 - R, -1, -1 + R, -R, 0, R, 1 - R, 1, 1 + R)     # порядок (dx, dy) как в старом коде
-        nbc = {}                # ячейка → соседи 3×3 (None — юнит в окрестности один)
-        calm3 = {}              # ячейка → спокойны все юниты 3×3 вокруг
+        offs = (-1 - R, -1, -1 + R, -R, 0, R, 1 - R, 1, 1 + R)     # the (dx, dy) order as in the old code
+        nbc = {}                # cell -> 3x3 neighbors (None - the unit is alone in the neighborhood)
+        calm3 = {}              # cell -> all units of the 3x3 around are calm
         cget = calm.get
         sqrt = math.sqrt
         terr, occ = self.terrain, self.occ
@@ -2684,7 +2700,7 @@ class World:
                         ddx, ddy, d = math.cos(ang), math.sin(ang), 1.0
                     push = (mind - d) * 0.22
                     if o.owner == u.owner:
-                        # свои уступают дорогу идущему: стоящий отходит, идущий почти не сбивается
+                        # own units give way to a walking one: a standing one steps aside, a walking one is barely deflected
                         um = u.state == 'move'
                         if um != (o.state == 'move'):
                             push *= 0.15 if um else 2.0
@@ -2708,7 +2724,7 @@ class World:
     def update(self, dt):
         if self.winner is not None:
             return
-        if len(self.events) > 4000:     # никто не забирает события (headless) — не копим бесконечно
+        if len(self.events) > 4000:     # nobody takes the events (headless) - do not accumulate forever
             del self.events[:-500]
         self.time += dt
         self.dt = dt
@@ -2750,15 +2766,15 @@ class World:
         gstats.tick(self, dt)
         if self.treaty_end and self.time - dt < self.treaty_end <= self.time:
             self.update_teams()
-            self.msg('Перемирие окончено — нападать можно!', (255, 200, 120))
+            self.msg(i18n.t('msg.treaty_over'), (255, 200, 120))
         self.victory_t -= dt
         if self.victory_t <= 0:
             self.victory_t = 1.0
             self.check_victory()
 
     def check_victory(self):
-        """Игрок побеждён, когда у него нет ни городского центра, ни жителей.
-        Партия кончается, когда осталась одна команда."""
+        """A player is defeated when he has neither a town center nor villagers.
+        The match ends when one team is left."""
         has = set()
         for b in self.buildings:
             if b.kind == 'town_center':
@@ -2775,12 +2791,12 @@ class World:
                 sx, sy = self.starts[p.id]
                 self.emit('defeat', sx * TILE, sy * TILE, p.id, None)
                 if p.id == self.human:
-                    self.msg('Вы побеждены!', (255, 110, 90))
+                    self.msg(i18n.t('msg.you_defeated'), (255, 110, 90))
                 else:
                     col = (255, 150, 130) if self.allied(self.human, p.id) else (170, 230, 150)
-                    self.msg(f'{p.name} побеждён', col)
+                    self.msg(i18n.t('msg.defeated', name=p.name), col)
         teams = {p.team for p in self.players if p.alive}
-        special = match.victory_check(self, teams)      # лимит времени / очки (лобби)
+        special = match.victory_check(self, teams)      # time limit / score (lobby)
         if special is not None:
             self.winner = special
             self.emit('game_over', 0, 0, self.winner, None)
@@ -2790,7 +2806,7 @@ class World:
             self.emit('game_over', 0, 0, self.winner, None)
 
     def resign(self, pid):
-        """Игрок сдаётся (меню F10 → «Сдаться»): побеждён сразу; его армия и здания остаются на карте."""
+        """A player resigns (the F10 menu -> "Resign"): he is defeated at once; his army and buildings stay on the map."""
         p = self.players[pid]
         if not p.alive:
             return
@@ -2799,7 +2815,7 @@ class World:
         gstats.on_defeat(self, pid)
         sx, sy = self.starts[pid]
         self.emit('defeat', sx * TILE, sy * TILE, pid, None)
-        self.msg('Вы сдались' if pid == self.human else f'{p.name} сдался', (255, 110, 90))
+        self.msg(i18n.t('msg.you_resigned') if pid == self.human else i18n.t('msg.resigned', name=p.name), (255, 110, 90))
         self.victory_t = 0.0
         self.check_victory()
 
@@ -2807,8 +2823,8 @@ class World:
         return self.winner is not None and self.winner == self.players[self.human].team
 
 
-from . import defense  # noqa: E402  (стены, ворота, гарнизон; модуль берёт классы отсюда)
-from . import orders  # noqa: E402  (очередь приказов, стойки, строй, ремонт — game/orders.py)
-# вода и корабли: модуль импортирует классы отсюда, поэтому подключается в самом конце
+from . import defense  # noqa: E402  (walls, gates, garrison; the module takes the classes from here)
+from . import orders  # noqa: E402  (order queue, stances, formation, repair - game/orders.py)
+# water and ships: the module imports the classes from here, so it is attached at the very end
 from . import naval  # noqa: E402
-from . import maps, mapgen  # noqa: E402  (карты DE: список и генератор)
+from . import maps, mapgen  # noqa: E402  (DE maps: the list and the generator)

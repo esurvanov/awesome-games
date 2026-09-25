@@ -1,17 +1,17 @@
-"""Регистрация контента: каждый модуль этого пакета дописывает свои записи в таблицы data.py.
+"""Content registration: each module of this package appends its own entries to the tables in data.py.
 
-Как добавить фичу, не трогая общие файлы:
-  1. Создайте game/content/<фича>.py (модули грузятся автоматически, по алфавиту).
-  2. В модуле импортируйте помощники: `from . import add_unit, add_building, add_tech, add_trains, add_techs`
-     (или сами таблицы: `from ..data import UNITS, TECHS, ...`) и зарегистрируйте записи.
-  3. Графику задавайте прямо в записи:
-       юнит  — 'art': {'helmet': ..., 'weapon': ..., 'shield': ...} (фигурка пехотинца, см. gfx.draw_foot)
-               или 'art': функция(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving);
-       здание — 'art': функция(painter: gfx.IsoPainter, surf, color, size); без 'art' рисуется типовой дом;
-       технология — 'icon': 'Аб' (текст на плашке); у улучшений ('upgrade') иконка — фигурка нового юнита.
-     gfx импортируйте внутри функций (`from .. import gfx`), не на уровне модуля.
-  4. Эффекты технологий и бонусы цивилизаций — списки модификаторов (формат описан в data.py над TECHS).
-Порядок загрузки детерминирован, поэтому модули не должны зависеть друг от друга.
+How to add a feature without touching the shared files:
+  1. Create game/content/<feature>.py (modules are loaded automatically, alphabetically).
+  2. In the module import the helpers: `from . import add_unit, add_building, add_tech, add_trains, add_techs`
+     (or the tables themselves: `from ..data import UNITS, TECHS, ...`) and register the entries.
+  3. Set graphics right in the entry:
+       unit  - 'art': {'helmet': ..., 'weapon': ..., 'shield': ...} (an infantryman figure, see gfx.draw_foot)
+               or 'art': function(surf, kind, color, x, y, face, anim, swing, k, carry_res, moving);
+       building - 'art': function(painter: gfx.IsoPainter, surf, color, size); without 'art' a generic house is drawn;
+       tech - 'icon': 'Ab' (text on the plate); for upgrades ('upgrade') the icon is a figure of the new unit.
+     Import gfx inside functions (`from .. import gfx`), not at module level.
+  4. Tech effects and civilization bonuses are lists of modifiers (the format is described in data.py above TECHS).
+The load order is deterministic, so modules must not depend on each other.
 """
 import importlib
 import pkgutil
@@ -20,13 +20,13 @@ from ..data import UNITS, BUILDINGS, TECHS, BUILD_MENU
 
 
 def add_unit(key, **d):
-    """Новый вид юнита. Обязательные поля — как у UNITS в data.py."""
+    """A new unit kind. Required fields are the same as for UNITS in data.py."""
     UNITS[key] = d
     return d
 
 
 def add_building(key, menu=True, **d):
-    """Новое здание; menu=True — добавить в меню стройки жителя."""
+    """A new building; menu=True adds it to the villager build menu."""
     BUILDINGS[key] = d
     if menu and key not in BUILD_MENU:
         BUILD_MENU.append(key)
@@ -34,7 +34,7 @@ def add_building(key, menu=True, **d):
 
 
 def add_tech(key, at=None, **d):
-    """Новая технология; at — здание (или кортеж зданий), где её изучают."""
+    """A new tech; at is the building (or a tuple of buildings) where it is researched."""
     TECHS[key] = d
     for b in (at if isinstance(at, (tuple, list)) else (at,) if at else ()):
         add_techs(b, key)

@@ -1,10 +1,10 @@
-"""Графика пейзажей карт (assets/gen/maps/, индекс maps.json — tools/build_map_assets.py).
+"""Landscape graphics of the maps (assets/gen/maps/, index maps.json - tools/build_map_assets.py).
 
-Грузится лениво; нет файлов — функции возвращают None, и игра рисует прежний облик (атлас sprites3d).
-  tile_fn(w)            — функция «имя типа земли → плитка» для terrain_gfx.load_tiles с учётом пейзажа
-  tree(w, tx, ty, var)  — (surface, ox, oy) дерева пейзажа; None — пусть рисует sprites3d.tree
-  animal(kind, var, face) — (surface, ox, oy) зверя, которого нет в атласе (волк)
-  relic()               — (surface, ox, oy) реликвии; (ox, oy) — верхний угол ромба клетки
+Loaded lazily; no files - the functions return None and the game draws its former look (the sprites3d atlas).
+  tile_fn(w)            - a function "terrain type name -> tile" for terrain_gfx.load_tiles taking the landscape into account
+  tree(w, tx, ty, var)  - (surface, ox, oy) of a landscape tree; None - let sprites3d.tree draw it
+  animal(kind, var, face) - (surface, ox, oy) of an animal missing from the atlas (the wolf)
+  relic()               - (surface, ox, oy) of a relic; (ox, oy) is the top corner of the tile's diamond
 """
 import json
 import math
@@ -20,8 +20,8 @@ _tried = False
 _img = {}
 _spr = {}
 _tiles = {}
-# листва своих пород уже приведена к зелени DE при сборке (tools/build_map_assets.py LEAF_TONE);
-# породы атласа (дуб, сосна…) в чужом пейзаже — как в sprites3d.tree (_greener)
+# the foliage of own species is already brought to the DE green at build time (tools/build_map_assets.py LEAF_TONE);
+# the atlas species (oak, pine...) in a foreign landscape - as in sprites3d.tree (_greener)
 _GREEN = ()
 
 
@@ -60,7 +60,7 @@ def _sprite(rec, green=False):
     return hit
 
 
-# ------------------------------------------------------------------ земля
+# ------------------------------------------------------------------ ground
 def terrain_tile(name):
     ix = index()
     rec = ix and ix.get('terrain', {}).get(name)
@@ -73,7 +73,7 @@ def terrain_tile(name):
 
 
 def tile_fn(w):
-    """Для terrain_gfx.load_tiles: тип земли → плитка пейзажа (нет — плитка атласа)."""
+    """For terrain_gfx.load_tiles: terrain type -> a landscape tile (none - the atlas tile)."""
     tex = themes.of(w)['tex']
 
     def fn(name):
@@ -86,9 +86,9 @@ def tile_fn(w):
     return fn
 
 
-# ------------------------------------------------------------------ деревья
+# ------------------------------------------------------------------ trees
 def tree(w, tx, ty, var):
-    """Дерево пейзажа партии; None — пейзаж по умолчанию или нет спрайтов (рисует sprites3d.tree)."""
+    """A tree of the match's landscape; None - the default landscape or no sprites (sprites3d.tree draws it)."""
     if themes.key_of(w) == themes.DEFAULT:
         return None
     ix = index() or {}
@@ -106,7 +106,7 @@ def tree(w, tx, ty, var):
     return _sprite(rec, True)
 
 
-# ------------------------------------------------------------------ звери и реликвия
+# ------------------------------------------------------------------ animals and relic
 def animal(kind, var, face):
     ix = index()
     vs = ix and ix.get('animals', {}).get(kind)

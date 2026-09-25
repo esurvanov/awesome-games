@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Замер силы ИИ: пакет безоконных партий параллельно, сводка по эпохам, жителям, замкам,
-уникальным юнитам/технологиям и исходу.
+"""Measuring AI strength: a batch of windowless matches in parallel, a summary by ages, villagers, castles,
+unique units/techs and outcome.
 
-  .venv/bin/python tools/ai_bench.py duel --diff 2 --seeds 1-6 --minutes 60        # ИИ против ИИ, 2 игрока
-  .venv/bin/python tools/ai_bench.py passive --diff 0,1,2 --seeds 1-3 --minutes 60  # ИИ против пассивного игрока
-  .venv/bin/python tools/ai_bench.py teams --players 4 --map coast --seeds 1-2      # команды, водная карта
-Выход с ненулевым кодом, если хоть одна партия упала.
+  .venv/bin/python tools/ai_bench.py duel --diff 2 --seeds 1-6 --minutes 60        # AI vs AI, 2 players
+  .venv/bin/python tools/ai_bench.py passive --diff 0,1,2 --seeds 1-3 --minutes 60  # AI vs a passive player
+  .venv/bin/python tools/ai_bench.py teams --players 4 --map coast --seeds 1-2      # teams, a water map
+Exit with a nonzero code if at least one match crashed.
 """
 import argparse
 import os
@@ -110,21 +110,21 @@ def main():
         mode_, n, diff, mp, seed, _ = r['args']
         if 'error' in r:
             errors += 1
-            print(f'!! diff {diff} seed {seed}: ОШИБКА\n{r["error"]}')
+            print(f'!! diff {diff} seed {seed}: ERROR\n{r["error"]}')
             continue
         if r['winner'] is not None:
             decided += 1
-        print(f'diff {diff} {mp} seed {seed}: победитель {r["winner"]}, конец {r["end"]:.1f} мин '
-              f'({r["wall"]:.0f} с)')
+        print(f'diff {diff} {mp} seed {seed}: winner {r["winner"]}, end {r["end"]:.1f} min '
+              f'({r["wall"]:.0f} s)')
         for pid, s in r['st'].items():
             if mode_ == 'passive' and pid == 0:
-                print(f'   P0 пассивный: разгромлен {fmt(s["defeat"])} мин')
+                print(f'   P0 passive: crushed {fmt(s["defeat"])} min')
                 agg.setdefault(diff, {}).setdefault('kill', []).append(s['defeat'])
                 continue
-            va = ' '.join(f'{m}м:{v}' for m, v in sorted(s['vil_at'].items()))
-            print(f'   P{pid} {s["civ"][:10]:10s} эпохи II {fmt(s["age"][0])} III {fmt(s["age"][1])} '
-                  f'IV {fmt(s["age"][2])} | жит макс {s["vmax"]:3d} [{va}] | замков {s["castles"]} '
-                  f'уник.юн {s["uu"]:3d} уник.тех {s["utech"]} | итог центры/жит/армия/нас {s["fin"]}' + ('' if s['alive'] else f' [побеждён {fmt(s["defeat"])}]'))
+            va = ' '.join(f'{m}m:{v}' for m, v in sorted(s['vil_at'].items()))
+            print(f'   P{pid} {s["civ"][:10]:10s} age II {fmt(s["age"][0])} III {fmt(s["age"][1])} '
+                  f'IV {fmt(s["age"][2])} | max vil {s["vmax"]:3d} [{va}] | castles {s["castles"]} '
+                  f'unique units {s["uu"]:3d} unique techs {s["utech"]} | result centers/vil/army/pop {s["fin"]}' + ('' if s['alive'] else f' [defeated {fmt(s["defeat"])}]'))
             g = agg.setdefault(diff, {})
             for i in range(3):
                 if s['age'][i] is not None:
@@ -134,22 +134,22 @@ def main():
             g.setdefault('castles', []).append(s['castles'])
             g.setdefault('utech', []).append(s['utech'])
             g.setdefault('np', []).append(1)
-    print('\n=== сводка')
+    print('\n=== summary')
     for diff, g in sorted(agg.items()):
         def avg(k):
             v = [x for x in g.get(k, []) if x is not None]
             return (sum(v) / len(v)) if v else None
         if 'kill' in g:
             ks = g['kill']
-            print(f'diff {diff}: пассивный разгромлен в {sum(1 for k in ks if k is not None)}/{len(ks)} партий, '
-                  f'среднее {fmt(avg("kill"))} мин, по партиям: {" ".join(fmt(k) for k in ks)}')
+            print(f'diff {diff}: passive crushed in {sum(1 for k in ks if k is not None)}/{len(ks)} matches, '
+                  f'average {fmt(avg("kill"))} min, per match: {" ".join(fmt(k) for k in ks)}')
         if 'np' in g:
             npl = len(g['np'])
-            print(f'diff {diff}: эпохи II {fmt(avg("age0"))} ({len(g.get("age0", []))}/{npl}) '
+            print(f'diff {diff}: age II {fmt(avg("age0"))} ({len(g.get("age0", []))}/{npl}) '
                   f'III {fmt(avg("age1"))} ({len(g.get("age1", []))}/{npl}) IV {fmt(avg("age2"))} '
-                  f'({len(g.get("age2", []))}/{npl}) | жит макс {avg("vmax"):.0f} | замков {avg("castles"):.1f} '
-                  f'| уник.юн {avg("uu"):.1f} | уник.тех {avg("utech"):.1f}')
-    print(f'партий с победителем: {decided}/{len(res) - errors}, ошибок: {errors}')
+                  f'({len(g.get("age2", []))}/{npl}) | max vil {avg("vmax"):.0f} | castles {avg("castles"):.1f} '
+                  f'| unique units {avg("uu"):.1f} | unique techs {avg("utech"):.1f}')
+    print(f'matches with a winner: {decided}/{len(res) - errors}, errors: {errors}')
     sys.exit(1 if errors else 0)
 
 

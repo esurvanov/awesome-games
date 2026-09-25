@@ -1,14 +1,14 @@
-"""Акторы 0 A.D. (XML): выбор вариантов, материалы, текстуры и рекурсивные пропы → плоский список деталей.
+"""0 A.D. actors (XML): choosing variants, materials, textures and recursive props -> a flat list of parts.
 
-Актор — набор групп `<group>`, из каждой берётся один `<variant>`; итог — слияние выбранных вариантов
-(меш, текстуры, пропы, декаль). Вариант может подтягивать общий блок `file="…"` из `art/variants/`.
-Пропы крепятся к точкам `prop_<имя>` меша-родителя (`root` — начало координат модели) и сами могут
-быть акторами с пропами.
+An actor is a set of `<group>` groups, from each one `<variant>` is taken; the result is the merge of the chosen variants
+(mesh, textures, props, a decal). A variant may pull in a common block `file="..."` from `art/variants/`.
+Props are attached to the points `prop_<name>` of the parent mesh (`root` - the model's origin) and may themselves
+be actors with props.
 
-Выбор варианта детерминирован:
-  1) если имя варианта есть в `prefer` (напр. {'alive', 'ungarrisoned'}) — берём его;
-  2) иначе, если в `pick` есть ключ с именем группы/индексом и он подходит — по нему;
-  3) иначе — взвешенно по `frequency` генератором random.Random(seed + глубина + номер группы).
+The variant choice is deterministic:
+  1) if the variant's name is in `prefer` (e.g. {'alive', 'ungarrisoned'}) - take it;
+  2) otherwise, if `pick` has a key with the group's name/index and it fits - by it;
+  3) otherwise - weighted by `frequency` with random.Random(seed + depth + group number).
 """
 import os
 import random
@@ -26,15 +26,15 @@ SKIP_ACTOR_PREFIXES = ('particle/',)
 
 @dataclass
 class Part:
-    """Одна рисуемая деталь: меш + мировая матрица (в координатах модели корневого актора)."""
+    """One drawable part: a mesh + a world matrix (in the model coordinates of the root actor)."""
     mesh: str
     matrix: np.ndarray
     textures: dict
     material: str
     actor: str
-    decal: dict = None          # для декалей: width, depth, offsetx, offsetz, angle
+    decal: dict = None          # for decals: width, depth, offsetx, offsetz, angle
     tags: set = field(default_factory=set)
-    geom: dict = None           # готовая геометрия (поза скелета) вместо assets.mesh(mesh)
+    geom: dict = None           # ready geometry (a skeleton pose) instead of assets.mesh(mesh)
 
     @property
     def player(self):
@@ -68,7 +68,7 @@ def _variant_file(rel):
 
 
 def _merge(acc, v):
-    """Сливает вариант v (Element) в накопитель acc."""
+    """Merges the variant v (an Element) into the accumulator acc."""
     f = v.get('file')
     if f:
         base = _variant_file(f)
@@ -99,7 +99,7 @@ def _merge(acc, v):
 
 
 def choose_variants(root, seed=0, prefer=DEFAULT_PREFER, pick=None, depth=0):
-    """Возвращает список выбранных <variant> по группам."""
+    """Returns the list of chosen <variant>s by groups."""
     pick = pick or {}
     out = []
     for gi, g in enumerate(root.findall('group')):
@@ -112,7 +112,7 @@ def choose_variants(root, seed=0, prefer=DEFAULT_PREFER, pick=None, depth=0):
                 chosen = v
                 break
         if chosen is None:
-            # явный выбор: по номеру группы или по имени одного из вариантов
+            # an explicit choice: by the group number or by the name of one of the variants
             for key in (gi, *(v.get('name') for v in vs)):
                 if key in pick:
                     want = pick[key]
@@ -134,9 +134,9 @@ def choose_variants(root, seed=0, prefer=DEFAULT_PREFER, pick=None, depth=0):
 
 
 def resolve(actor, seed=0, prefer=DEFAULT_PREFER, pick=None, matrix=None, depth=0, skip=None, prop_scale=None):
-    """Актор (путь относительно art/actors/) → список Part. skip — функция(actor_path, attachpoint) → True,
-    чтобы пропустить проп (например, флаги гарнизона или дым). prop_scale — {префикс пути актора: множитель}:
-    увеличить проп (флаги цвета игрока делаем крупнее, чтобы цвет читался в мелком спрайте)."""
+    """An actor (a path relative to art/actors/) -> a list of Parts. skip - a function(actor_path, attachpoint) -> True
+    to skip a prop (for example, garrison flags or smoke). prop_scale - {an actor path prefix: a multiplier}:
+    to enlarge a prop (we make player-color flags larger so that the color reads in a small sprite)."""
     if depth > 8:
         return []
     root = _actor_root(actor)

@@ -1,10 +1,10 @@
-"""ИИ на воде: док, рыбацкие корабли, боевой флот, обстрел берега, высадки на острова.
+"""AI on water: a dock, fishing ships, a war fleet, shelling the shore, landings on islands.
 
-Подключается к обычному ИИ (game/ai.py) только на водных картах (World.map_type != 'land'):
-  update(...)   — каждые полсекунды: доки, корабли, технологии дока, поведение флота и транспорта;
-  shore_fish(v) — рыба у берега для жителя (еда рядом со складом);
-  ferry_mode()  — нужно ли возить армию морем (враг на другом острове);
-  offense(army) — наступление через воду вместо сухопутного (посадка → переход → высадка → бой).
+Attached to the regular AI (game/ai.py) only on water maps (World.map_type != 'land'):
+  update(...)   - every half second: docks, ships, dock techs, the behavior of the fleet and transports;
+  shore_fish(v) - shore fish for a villager (food next to a storage);
+  ferry_mode()  - whether the army must be ferried by sea (the enemy is on another island);
+  offense(army) - an offensive across water instead of a land one (boarding -> crossing -> landing -> combat).
 """
 import math
 import random
@@ -25,12 +25,12 @@ class NavalAI:
         self.sea = None
         self.raid = None
         self.raid_t = 0.0
-        self.ferry = {}             # id(транспорта) → [состояние, отряд, время]
+        self.ferry = {}             # id(transport) -> [state, squad, time]
         self.ferry_t = -99.0
         self.ferry_need = False
         self.wave = []
 
-    # ---- география
+    # ---- geography
     def geo(self, base):
         w = self.w
         if self.home_lc is None:
@@ -48,7 +48,7 @@ class NavalAI:
     def my_lc(self, u):
         return naval.land_comp(self.w, int(u.x // TILE), int(u.y // TILE))
 
-    # ---- главный шаг
+    # ---- main step
     def update(self, vils, ships, blds, reserve, tc):
         w = self.w
         base = self.ai.base
@@ -78,7 +78,7 @@ class NavalAI:
                 if math.hypot(s.x - dx, s.y - dy) > 6 * TILE:
                     s.cmd_move(dx + random.uniform(-40, 40), dy + random.uniform(-40, 40))
 
-    # ---- доки
+    # ---- docks
     def build_docks(self, vils, docks, reserve):
         w, p = self.w, self.p
         nv = len(vils)
@@ -115,7 +115,7 @@ class NavalAI:
                         return tx, ty
         return None
 
-    # ---- обучение
+    # ---- tutorial
     def train(self, ready, fishers, navy, transports, vils, reserve):
         w, p = self.w, self.p
         if p.pop >= p.cap:
@@ -133,7 +133,7 @@ class NavalAI:
         want_f = min(comp_fish, (5, 8, 10, 10)[p.age] + self.ai.diff)
         nf = len(fishers) + queued.get('fishing_ship', 0)
         dock = min(free, key=lambda d: len(d.queue))
-        # транспорт — если надо везти армию (после первых рыбаков — раньше новых рыбаков)
+        # a transport - if the army has to be carried (after the first fishers - earlier than new fishers)
         if self.ferry_need and (nf >= 4 or p.age >= 1):
             nt = len(transports) + queued.get('transport_ship', 0)
             if nt < min(3, 1 + max(len(self.wave), self.ai.wave) // 6):
@@ -196,7 +196,7 @@ class NavalAI:
                 p.researching.add(name)
                 return
 
-    # ---- флот
+    # ---- fleet
     def fleet(self, navy, ready):
         w = self.w
         if not navy:
@@ -206,10 +206,10 @@ class NavalAI:
         enemy_ships = [u for u in w.units if hrow[u.owner] and u.naval and u.alive
                        and naval.water_comp(w, *u.tile()) == sea]
         mine = [s for s in w.units if s.owner == self.pid and s.naval and s.d['atk'] <= 0]
-        # берегём доки, транспорты с людьми и рыбаков (не больше 6)
+        # protect the docks, transports with people and fishers (no more than 6)
         my_stuff = [d.center() for d in ready] + [(s.x, s.y) for s in mine if s.cargo or id(s) in self.ferry] + \
                    [(s.x, s.y) for s in mine if s.d.get('fisher')][:6]
-        # угрозы: вражеские корабли рядом с нашими доками / рыбаками
+        # threats: enemy ships near our docks / fishers
         threats = [e for e in enemy_ships if any(math.hypot(e.x - x, e.y - y) < 12 * TILE for x, y in my_stuff)]
         if w.time >= self.raid_t or (self.raid is not None and not self.raid.alive):
             self.raid_t = w.time + 10
@@ -218,7 +218,7 @@ class NavalAI:
         for s in navy:
             if s.state == 'attack' and s.target is not None and s.target.alive:
                 if not getattr(s.target, 'naval', False) and threats and not s.d.get('siege'):
-                    # бьём берег, но свои корабли в опасности — сначала угроза
+                    # strike the shore, but our own ships are in danger - the threat first
                     s.cmd_attack(min(threats, key=lambda e: (e.x - s.x) ** 2 + (e.y - s.y) ** 2))
                 continue
             if threats and not s.d.get('siege'):
@@ -232,7 +232,7 @@ class NavalAI:
                     s.cmd_move(gx + random.uniform(-50, 50), gy + random.uniform(-50, 50))
 
     def guard_point(self, dx, dy):
-        """Точка в море перед доком (в сторону центра акватории)."""
+        """A point at sea in front of the dock (toward the center of the body of water)."""
         w = self.w
         tx, ty = int(dx // TILE), int(dy // TILE)
         best = naval.nearest_water_tile(w, tx, ty, comp=self.sea, free=True)
@@ -246,7 +246,7 @@ class NavalAI:
         return (best[0] + 0.5) * TILE, (best[1] + 0.5) * TILE
 
     def pick_raid(self, navy, enemy_ships, ready):
-        """Цель налёта: вражеские корабли, затем доки, затем здания у воды в досягаемости."""
+        """Raid target: enemy ships, then docks, then buildings by the water within reach."""
         w = self.w
         dx, dy = ready[0].center()
         if enemy_ships:
@@ -266,13 +266,13 @@ class NavalAI:
             shift = min(want['food'] * 0.6, fishers * 0.8 / nv)
             want['food'] -= shift
             want['wood'] += shift
-        # флот и транспорт едят дерево: лишнее золото — в лес
+        # the fleet and transports eat wood: excess gold - into the forest
         if self.p.res['gold'] > 400 and self.p.res['wood'] < 300:
             shift = want['gold'] * 0.5
             want['gold'] -= shift
             want['wood'] += shift
 
-    # ---- жители у берега
+    # ---- villagers by the shore
     def shore_fish(self, v, bx, by):
         w = self.w
         n = w.find_resource(v, 'shore_fish', bx, by, 18)
@@ -282,9 +282,9 @@ class NavalAI:
             return None
         return n
 
-    # ---- высадки
+    # ---- landings
     def ferry_mode(self):
-        """Враг недоступен по суше — армию надо возить (пересчёт раз в 10 с)."""
+        """The enemy is unreachable by land - the army must be ferried (recomputed every 10 s)."""
         w = self.w
         if w.time - self.ferry_t < 10:
             return self.ferry_need
@@ -308,7 +308,7 @@ class NavalAI:
         return self.ferry_need
 
     def enemy_goal(self):
-        """Куда высаживаться: главный центр (или любое здание) цели."""
+        """Where to land: the target's main center (or any building)."""
         w = self.w
         hrow = w.hmat[self.pid]
         tgt = self.ai.target
@@ -325,7 +325,7 @@ class NavalAI:
         home, landed = [], []
         for a in army:
             (home if self.my_lc(a) == self.home_lc else landed).append(a)
-        # высадившиеся — в бой на месте
+        # those who landed - into combat on the spot
         for a in landed:
             busy = a.state == 'attack' and a.target is not None and a.target.alive and \
                 not getattr(a.target, 'naval', False)
@@ -333,7 +333,7 @@ class NavalAI:
                 t = self.nearest_enemy_on(a, self.my_lc(a))
                 if t is not None:
                     a.cmd_attack(t)
-        # волна: как только дома собралось достаточно — возим всех, пока дома есть кого везти
+        # a wave: as soon as enough have gathered at home - carry everyone while there is someone at home to carry
         if not self.wave:
             if w.time >= ai.first_attack and len(home) >= ai.wave:
                 ai.wave = min(ai.wave + 4, 40)
@@ -366,7 +366,7 @@ class NavalAI:
             state, group, t0 = st
             if state == 'load':
                 if w.time - t0 > 12 and int(w.time * 2) % 20 == 0:
-                    # кто отвлёкся (бой, толчея) — снова к транспорту
+                    # those who got distracted (combat, a crowd) - to the transport again
                     lost = [a for a in group if a.alive and a.state == 'idle' and a not in s.to_load]
                     if lost:
                         naval.order_board(w, lost + [a for a in s.to_load if a.alive], s)
@@ -395,7 +395,7 @@ class NavalAI:
                     del self.ferry[id(s)]
         for k in [k for k in self.ferry if not any(id(s) == k for s in transports)]:
             del self.ferry[k]
-        # волна кончилась: всех увезли (или погибли), в пути никого
+        # the wave is over: everyone was carried off (or died), nobody on the way
         if len(waiting) < 3 and not any(st[0] in ('load', 'sail') for st in self.ferry.values()):
             self.wave = []
 

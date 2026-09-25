@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Значки интерфейса «по словарю DE» (docs/research/05_ui_recognition.md): переназначенные и составленные
-из портретов технологий 0 A.D. (CC BY-SA 3.0, Wildfire Games) и нарисованные процедурно (свои) —
-→ assets/ui/portraits/de/<имя>.png (128×128), курсоры → assets/ui/cursors/de_*.png.
+"""Interface icons "by the DE dictionary" (docs/research/05_ui_recognition.md): reassigned and composed
+from 0 A.D. tech portraits (CC BY-SA 3.0, Wildfire Games) and drawn procedurally (our own) ->
+assets/ui/portraits/de/<name>.png (128x128), cursors -> assets/ui/cursors/de_*.png.
 
-Вызывается из tools/build_ui_assets.py (или отдельно: .venv/bin/python tools/ui_icon_art.py [--sheet FILE]).
+Called from tools/build_ui_assets.py (or separately: .venv/bin/python tools/ui_icon_art.py [--sheet FILE]).
 
-Приёмы:
-  blacken(имя)   — предмет 0 A.D. на чистом чёрном фоне (DE, правило 2): фон портретов 0 A.D. — общий
-                   сине-серый градиент; его модель — медиана по всем портретам технологий, маска предмета —
-                   отличие пикселя от фона;
-  cutout(имя)    — предмет с прозрачным фоном (для составных значков, курсоров, значков характеристик);
-  процедурно     — книги, клетчатая ткань, хомут, чаша, луч, литера, кран, бойница, короны, гербы эпох,
-                   свиток с галочкой, шестерня, рог, строи, восьмиугольная рамка стоек, валун.
-Рисунок — в 4× и уменьшение (мягкие края).
+Techniques:
+  blacken(name)  - a 0 A.D. item on a pure black background (DE, rule 2): the background of 0 A.D. portraits is a shared
+                   blue-gray gradient; its model is the median over all tech portraits, the item mask is the pixel's
+                   difference from the background;
+  cutout(name)   - an item with a transparent background (for composite icons, cursors, stat icons);
+  procedural     - books, checkered cloth, a collar, a chalice, a ray, a letter, a crane, an arrow slit, crowns, age crests,
+                   a scroll with a check mark, a gear, a horn, formations, an octagonal stance frame, a boulder.
+Drawing is at 4x and downscaled (soft edges).
 """
 import argparse
 import math
@@ -34,19 +34,19 @@ OUT = os.path.join(ROOT, 'assets', 'ui', 'portraits', 'de')
 CUR_OUT = os.path.join(ROOT, 'assets', 'ui', 'cursors')
 FONTS = os.path.join(ROOT, 'assets', 'fonts')
 N = 128
-K = 4                     # сверхвыборка процедурного рисунка
+K = 4                     # supersampling of the procedural drawing
 B = N * K
 
 _bg = None
 
 
-# ================================================================ портреты 0 A.D.
+# ================================================================ 0 A.D. portraits
 def src(name, sub=TECH):
     return Image.open(os.path.join(sub, name + '.png')).convert('RGBA').resize((N, N), Image.LANCZOS)
 
 
 def bg_model():
-    """Фон портретов технологий 0 A.D. (медиана по всем) — (N, N, 3) float."""
+    """The background of 0 A.D. tech portraits (the median over all) - (N, N, 3) float."""
     global _bg
     if _bg is None:
         fs = sorted(f for f in os.listdir(TECH) if f.endswith('.png'))
@@ -57,7 +57,7 @@ def bg_model():
 
 
 def fg_alpha(img, lo=16.0, hi=46.0):
-    """Маска предмета: насколько пиксель отличается от общего фона 0 A.D."""
+    """The item mask: how much a pixel differs from the shared 0 A.D. background."""
     a = np.asarray(img.convert('RGB'), np.float32)
     d = np.sqrt(((a - bg_model()) ** 2).sum(-1))
     m = np.clip((d - lo) / (hi - lo), 0, 1)
@@ -67,7 +67,7 @@ def fg_alpha(img, lo=16.0, hi=46.0):
 
 
 def blacken(name, k=1.0):
-    """Предмет на чистом чёрном (DE) — фон 0 A.D. затемняется до #000."""
+    """An item on pure black (DE) - the 0 A.D. background is darkened to #000."""
     img = src(name)
     a = np.asarray(img.convert('RGB'), np.float32)
     m = fg_alpha(img)[..., None]
@@ -89,7 +89,7 @@ def cutout(name, lo=16.0, hi=46.0, crop=True):
 
 
 def tint_gold(img, region=None, strength=1.0):
-    """Серые (ненасыщенные) светлые части → золото (руда, монета). region — (x0, y0, x1, y1) в долях."""
+    """Gray (unsaturated) light parts -> gold (ore, coin). region - (x0, y0, x1, y1) in fractions."""
     a = np.asarray(img.convert('RGBA'), np.float32)
     rgb = a[..., :3]
     mx, mn = rgb.max(-1), rgb.min(-1)
@@ -111,7 +111,7 @@ def tint_gold(img, region=None, strength=1.0):
 
 
 def paste_fit(base, im, box, rot=0.0):
-    """Вписать im (RGBA) в прямоугольник box базового значка (доли 0..1), с поворотом rot°."""
+    """Fit im (RGBA) into the rectangle box of the base icon (fractions 0..1), rotated by rot deg."""
     if rot:
         im = im.rotate(rot, resample=Image.BICUBIC, expand=True)
     W, H = base.size
@@ -123,7 +123,7 @@ def paste_fit(base, im, box, rot=0.0):
 
 
 def drop_shadow(im, r=3, off=(2, 3), alpha=170):
-    """Тень под вырезанным предметом (для наложения на узор)."""
+    """A shadow under a cut-out item (for overlaying on a pattern)."""
     sh = Image.new('RGBA', (im.width + 4 * r, im.height + 4 * r), (0, 0, 0, 0))
     a = im.getchannel('A').point(lambda v: v * alpha // 255)
     blk = Image.new('RGBA', im.size, (0, 0, 0, 255))
@@ -134,7 +134,7 @@ def drop_shadow(im, r=3, off=(2, 3), alpha=170):
     return sh
 
 
-# ================================================================ процедурный рисунок
+# ================================================================ procedural drawing
 def canvas(bg=(0, 0, 0, 255)):
     return Image.new('RGBA', (B, B), bg)
 
@@ -164,7 +164,7 @@ def vgrad(d, box, top, bot):
 
 
 def shade_poly(im, pts, top, bot, outline=None, width=0):
-    """Многоугольник с вертикальным градиентом (объём)."""
+    """A polygon with a vertical gradient (volume)."""
     mask = Image.new('L', im.size, 0)
     ImageDraw.Draw(mask).polygon(pts, fill=255)
     ys = [p[1] for p in pts]
@@ -183,22 +183,22 @@ def font(sz, kind='serif'):
     return ImageFont.load_default()
 
 
-# ---------------------------------------------------------------- здания
+# ---------------------------------------------------------------- buildings
 def books():
-    """Университет DE: стопка книг."""
+    """DE University: a stack of books."""
     im = canvas()
     d = ImageDraw.Draw(im)
     specs = [(0.12, 0.66, 0.9, 0.84, (150, 40, 30)), (0.18, 0.5, 0.84, 0.66, (60, 80, 140)),
              (0.1, 0.34, 0.78, 0.5, (120, 70, 30))]
     for i, (x0, y0, x1, y1, col) in enumerate(specs):
         sk = 0.035 * (1 if i % 2 else -1)
-        # страницы (торец)
+        # pages (the end)
         pg = [P(x0 + 0.03, y0 + 0.02), P(x1 - 0.02 + sk, y0 + 0.02), P(x1 - 0.02 + sk, y1 - 0.02), P(x0 + 0.03, y1 - 0.02)]
         shade_poly(im, pg, (250, 240, 214), (196, 178, 140))
         for k in range(1, 6):
             yy = y0 + 0.02 + (y1 - y0 - 0.04) * k / 6
             d.line([P(x0 + 0.05, yy), P(x1 - 0.03 + sk, yy)], fill=(170, 150, 110), width=K)
-        # переплёт: верх, корешок слева
+        # binding: the top, the spine on the left
         cov = [P(x0, y0), P(x1 + sk, y0), P(x1 + sk, y0 + 0.035), P(x0, y0 + 0.035)]
         shade_poly(im, cov, tuple(min(255, c + 60) for c in col), col)
         cov2 = [P(x0, y1 - 0.03), P(x1 + sk, y1 - 0.03), P(x1 + sk, y1), P(x0, y1)]
@@ -211,17 +211,17 @@ def books():
 
 
 def lumber_camp():
-    """Лесопилка DE: топор, вбитый в бревно."""
+    """DE Lumber Camp: an axe driven into a log."""
     im = canvas()
     d = ImageDraw.Draw(im)
-    # бревно по диагонали снизу-слева
+    # a log diagonally from bottom-left
     log = [P(0.0, 0.62), P(0.78, 0.44), P(0.86, 0.72), P(0.06, 0.98)]
     shade_poly(im, log, (170, 120, 70), (84, 52, 26))
-    for i in range(7):                                     # кора
+    for i in range(7):                                     # bark
         t = i / 7
         d.line([P(0.02 + 0.76 * t, 0.66 - 0.18 * t + 0.02), P(0.06 + 0.78 * t, 0.9 - 0.2 * t)],
                fill=(70, 44, 22), width=2 * K)
-    # торец
+    # the end face
     cx, cy = P(0.82, 0.58)
     d.ellipse((cx - 0.075 * B, cy - 0.15 * B, cx + 0.075 * B, cy + 0.15 * B), fill=(214, 172, 110),
               outline=(96, 60, 30), width=2 * K)
@@ -234,7 +234,7 @@ def lumber_camp():
 
 
 def pair_on_sky():
-    """Городской центр DE: пара жителей на фоне неба."""
+    """DE Town Center: a pair of villagers against the sky."""
     from tools.build_portraits import sky_grass
     bg = sky_grass(B, horizon=0.7, seed=11)
     fg = cutout('population', lo=12, hi=40)
@@ -242,9 +242,9 @@ def pair_on_sky():
     return done(bg)
 
 
-# ---------------------------------------------------------------- технологии
+# ---------------------------------------------------------------- technologies
 def tartan():
-    """Ткачество DE: клетчатая ткань (зелёно-красная шотландка) с объёмной складкой."""
+    """DE Weaving: checkered cloth (a green-red tartan) with a volumetric fold."""
     im = canvas((40, 80, 40, 255))
     a = np.zeros((B, B, 3), np.float32)
     yy, xx = np.mgrid[0:B, 0:B]
@@ -265,7 +265,7 @@ def tartan():
 
 
 def horse_collar():
-    """Хомут DE: мягкий кожаный хомут (уже вверху, шире внизу) и две металлические клещи с шишками."""
+    """DE Collar: a soft leather collar (narrower at the top, wider at the bottom) and two metal tongs with knobs."""
     im = canvas()
     d = ImageDraw.Draw(im)
 
@@ -273,19 +273,19 @@ def horse_collar():
         pts = []
         for i in range(60):
             a = i / 60 * 2 * math.pi
-            rx = (0.26 + 0.1 * (1 + math.cos(a)) / 2) * k       # внизу (cos>0 → низ) шире
+            rx = (0.26 + 0.1 * (1 + math.cos(a)) / 2) * k       # at the bottom (cos>0 -> bottom) wider
             ry = 0.38 * k
             pts.append(P(0.5 + math.sin(a) * rx, 0.52 + math.cos(a) * ry))
         return pts
     shade_poly(im, ring(1.12), (150, 96, 50), (70, 40, 18))
     shade_poly(im, ring(0.72), (20, 12, 6), (0, 0, 0))
-    for i in range(14):                                         # стёжка подушки
+    for i in range(14):                                         # cushion stitching
         a = i / 14 * 2 * math.pi
         for k in (0.8, 1.04):
             rx = (0.26 + 0.1 * (1 + math.cos(a)) / 2) * k
             x, y = 0.5 + math.sin(a) * rx, 0.52 + math.cos(a) * 0.38 * k
             d.ellipse((x * B - K * 3, y * B - K * 3, x * B + K * 3, y * B + K * 3), fill=(210, 170, 110))
-    for side in (-1, 1):                                        # клещи
+    for side in (-1, 1):                                        # tongs
         pts = [P(0.5 + side * 0.2, 0.02), P(0.5 + side * 0.27, 0.02), P(0.5 + side * 0.42, 0.62),
                P(0.5 + side * 0.34, 0.66)]
         shade_poly(im, pts, (236, 232, 226), (120, 116, 112))
@@ -295,7 +295,7 @@ def horse_collar():
 
 
 def chalice():
-    """Святость DE: золотая чаша."""
+    """DE Sanctity: a golden chalice."""
     im = radial(B, (60, 40, 10), (0, 0, 0), (0.5, 0.45), 0.6)
     gold = ((255, 232, 140), (150, 100, 20))
     shade_poly(im, [P(0.24, 0.16), P(0.76, 0.16), P(0.66, 0.46), P(0.56, 0.54), P(0.44, 0.54), P(0.34, 0.46)], *gold)
@@ -312,7 +312,7 @@ def chalice():
 
 
 def sunbeam():
-    """Искупление грехов (DE: луч света сверху)."""
+    """DE Atonement (a ray of light from above)."""
     a = np.zeros((B, B, 3), np.float32)
     yy, xx = np.mgrid[0:B, 0:B].astype(np.float32) / B
     ang = np.arctan2(xx - 0.5, yy + 0.25)
@@ -329,7 +329,7 @@ def sunbeam():
 
 
 def open_book(glow=True):
-    """Озарение DE: раскрытая книга, над ней свет."""
+    """DE Illumination: an open book with light above it."""
     im = radial(B, (255, 240, 180), (0, 0, 0), (0.5, 0.25), 0.55) if glow else canvas()
     for side in (-1, 1):
         pts = [P(0.5, 0.52), P(0.5 + 0.44 * side, 0.44), P(0.5 + 0.44 * side, 0.8), P(0.5, 0.88)]
@@ -345,7 +345,7 @@ def open_book(glow=True):
 
 
 def block_printing():
-    """Книгопечатание DE: литера «А» на синем деревянном блоке."""
+    """DE Block Printing: the letter "A" on a blue wooden block."""
     im = canvas()
     shade_poly(im, [P(0.14, 0.3), P(0.72, 0.3), P(0.86, 0.16), P(0.28, 0.16)], (110, 150, 230), (70, 110, 200))
     shade_poly(im, [P(0.72, 0.3), P(0.86, 0.16), P(0.86, 0.74), P(0.72, 0.88)], (40, 70, 150), (20, 40, 100))
@@ -358,7 +358,7 @@ def block_printing():
 
 
 def crane():
-    """Подъёмный кран DE: деревянный кран с колесом."""
+    """DE Treadmill Crane: a wooden crane with a wheel."""
     im = radial(B, (90, 70, 40), (10, 8, 4), (0.5, 0.4), 0.8)
     d = ImageDraw.Draw(im)
     wood, dk = (200, 150, 80), (90, 60, 30)
@@ -378,7 +378,7 @@ def crane():
 
 
 def arrowslit():
-    """Бойницы DE: стрела вылетает из щели в каменной стене."""
+    """DE Arrow Slits: an arrow flies out of a slit in a stone wall."""
     im = canvas()
     d = ImageDraw.Draw(im)
     rng = np.random.default_rng(3)
@@ -398,7 +398,7 @@ def arrowslit():
 
 
 def crown(silver=False):
-    """Уникальная технология DE: корона (серебряная — эпоха замков, золотая — имперская)."""
+    """DE unique tech: a crown (silver - Castle Age, gold - Imperial)."""
     im = canvas()
     if silver:
         hi, lo, gem = (250, 250, 255), (120, 124, 140), (60, 90, 220)
@@ -419,8 +419,8 @@ def crown(silver=False):
 
 
 def age_emblem(age):
-    """Гербы эпох в духе DE (свой рисунок): 0 — круглый щит, 1 — каплевидный чёрно-красный «II»,
-    2 — геральдический сине-красный с башней «III», 3 — четверочастный с короной «IV»."""
+    """Age crests in the DE spirit (our own drawing): 0 - a round shield, 1 - a teardrop black-red "II",
+    2 - a heraldic blue-red one with a tower "III", 3 - a quartered one with a crown "IV"."""
     im = Image.new('RGBA', (B, B), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     gold_hi, gold_lo = (255, 232, 150), (150, 100, 30)
@@ -438,9 +438,9 @@ def age_emblem(age):
         rb = r * 0.24
         d.ellipse((cx - rb, cy - rb, cx + rb, cy + rb), fill=(200, 200, 210), outline=(80, 80, 90), width=2 * K)
         return done(im)
-    if age == 1:                           # каплевидный (миндалевидный)
+    if age == 1:                           # teardrop (almond-shaped)
         outline = [P(0.5, 0.04), P(0.84, 0.16), P(0.82, 0.5), P(0.5, 0.97), P(0.18, 0.5), P(0.16, 0.16)]
-    else:                                  # геральдический «испанский»
+    else:                                  # a heraldic "Spanish" one
         outline = [P(0.12, 0.06), P(0.88, 0.06), P(0.88, 0.56), P(0.5, 0.96), P(0.12, 0.56)]
     d.polygon(outline, fill=gold_lo)
     cx = sum(p[0] for p in outline) / len(outline)
@@ -469,13 +469,13 @@ def age_emblem(age):
     im.alpha_composite(lit)
     d = ImageDraw.Draw(im)
     d.polygon(outline, outline=gold_hi, width=3 * K)
-    if age == 2:                           # башня
+    if age == 2:                           # the tower
         tw = [P(0.38, 0.62), P(0.62, 0.62), P(0.62, 0.3), P(0.38, 0.3)]
         d.polygon(tw, fill=(236, 226, 200))
         for x in (0.38, 0.46, 0.54):
             d.rectangle((x * B, 0.24 * B, (x + 0.06) * B, 0.3 * B), fill=(236, 226, 200))
         d.rectangle((0.47 * B, 0.48 * B, 0.53 * B, 0.62 * B), fill=(40, 30, 20))
-    if age == 3:                           # корона
+    if age == 3:                           # the crown
         c = crown(False).resize((int(B * 0.42), int(B * 0.42)), Image.LANCZOS)
         cm = c.convert('RGB').convert('L').point(lambda v: 255 if v > 20 else 0)
         c.putalpha(cm)
@@ -489,16 +489,16 @@ def age_emblem(age):
 
 
 def age_button(age):
-    """Кнопка перехода в эпоху DE: герб эпохи на чёрном."""
+    """DE age-up button: the age crest on black."""
     bg = Image.new('RGBA', (N, N), (0, 0, 0, 255))
     e = age_emblem(age)
     bg.alpha_composite(e.resize((int(N * 0.92), int(N * 0.92)), Image.LANCZOS), (int(N * 0.04), int(N * 0.04)))
     return bg
 
 
-# ---------------------------------------------------------------- верхние кнопки (прозрачный фон)
+# ---------------------------------------------------------------- top buttons (transparent background)
 def scroll_check():
-    """Цели DE: свиток с красной галочкой."""
+    """DE Objectives: a scroll with a red check mark."""
     im = Image.new('RGBA', (B, B), (0, 0, 0, 0))
     shade_poly(im, [P(0.2, 0.18), P(0.8, 0.18), P(0.8, 0.84), P(0.2, 0.84)], (250, 238, 206), (206, 180, 130))
     d = ImageDraw.Draw(im)
@@ -513,7 +513,7 @@ def scroll_check():
 
 
 def gear():
-    """Древо технологий DE: металлическая шестерня."""
+    """DE Tech Tree: a metal gear."""
     im = Image.new('RGBA', (B, B), (0, 0, 0, 0))
     cx = cy = B / 2
     teeth = 10
@@ -530,7 +530,7 @@ def gear():
 
 
 def horn():
-    """Чат DE: золотой рог."""
+    """DE Chat: a golden horn."""
     im = Image.new('RGBA', (B, B), (0, 0, 0, 0))
     pts_top, pts_bot = [], []
     for i in range(41):
@@ -554,16 +554,16 @@ def horn():
 
 
 def wreath_handshake():
-    """Дипломатия DE: лавровый венок с рукопожатием."""
+    """DE Diplomacy: a laurel wreath with a handshake."""
     im = Image.new('RGBA', (N, N), (0, 0, 0, 0))
     paste_fit(im, cutout('laurel_wreath'), (0.0, 0.0, 1.0, 1.0))
     paste_fit(im, cutout('handshake'), (0.22, 0.26, 0.78, 0.74))
     return im
 
 
-# ---------------------------------------------------------------- приказы, стойки, строи
+# ---------------------------------------------------------------- orders, stances, formations
 def octagon(active=False):
-    """Рамка стойки DE: восьмиугольник (включённая — зелёная). Центр прозрачный."""
+    """DE stance frame: an octagon (an enabled one is green). The center is transparent."""
     im = Image.new('RGBA', (B, B), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     c = 0.29
@@ -571,7 +571,7 @@ def octagon(active=False):
     col = (90, 220, 90) if active else (200, 190, 160)
     d.polygon(pts, outline=(0, 0, 0), width=10 * K)
     d.polygon(pts, outline=col, width=4 * K)
-    # углы вне восьмиугольника — чёрные (как в DE)
+    # corners outside the octagon are black (as in DE)
     m = Image.new('L', (B, B), 255)
     ImageDraw.Draw(m).polygon(pts, fill=0)
     blk = Image.new('RGBA', (B, B), (0, 0, 0, 255))
@@ -580,7 +580,7 @@ def octagon(active=False):
 
 
 def formation(name, active=False):
-    """Строй DE: белые шары на чёрном + красная «крыша»-треугольник сверху; выбранный — зелёные шары."""
+    """DE formation: white balls on black + a red "roof" triangle on top; the selected one has green balls."""
     im = canvas()
     d = ImageDraw.Draw(im)
     d.polygon([P(0.5, 0.06), P(0.66, 0.2), P(0.34, 0.2)], fill=(220, 30, 30))
@@ -601,7 +601,7 @@ def formation(name, active=False):
 
 
 def sword_in_ground():
-    """Стойка «не атаковать» DE: меч, воткнутый в землю."""
+    """DE "no attack" stance: a sword stuck in the ground."""
     im = canvas()
     d = ImageDraw.Draw(im)
     d.ellipse((0.1 * B, 0.74 * B, 0.9 * B, 0.98 * B), fill=(96, 70, 40))
@@ -615,14 +615,14 @@ def sword_in_ground():
 
 
 def stance_aggressive():
-    """Агрессивная стойка DE: кулак с оружием."""
+    """DE aggressive stance: a fist with a weapon."""
     im = canvas()
     paste_fit(im, cutout('fist_spear').resize((N * K // 1, N * K // 1)), (0.06, 0.06, 0.94, 0.94))
     return done(im)
 
 
 def stance_defensive():
-    """Оборонительная стойка DE: щит поверх скрещённых мечей."""
+    """DE defensive stance: a shield over crossed swords."""
     im = canvas()
     sw = cutout('sword_cross')
     paste_fit(im, sw.resize((sw.width * K, sw.height * K), Image.LANCZOS), (0.02, 0.02, 0.98, 0.98))
@@ -632,7 +632,7 @@ def stance_defensive():
 
 
 def boulder_on_grass():
-    """Атака по земле DE: валун падает на траву."""
+    """DE attack ground: a boulder falls onto the grass."""
     im = radial(B, (120, 170, 220), (40, 70, 120), (0.5, 0.0), 1.0)
     d = ImageDraw.Draw(im)
     d.rectangle((0, 0.62 * B, B, B), fill=(70, 120, 40))
@@ -645,7 +645,7 @@ def boulder_on_grass():
     return done(im)
 
 
-# ---------------------------------------------------------------- составные из 0 A.D.
+# ---------------------------------------------------------------- composites from 0 A.D.
 def overlay(bgname, fgname, box=(0.08, 0.08, 0.92, 0.92), rot=0.0):
     base = src(bgname)
     fg = cutout(fgname)
@@ -653,7 +653,7 @@ def overlay(bgname, fgname, box=(0.08, 0.08, 0.92, 0.92), rot=0.0):
 
 
 def thumb_ring():
-    """Кольцо лучника DE: рука с крупным золотым кольцом на большом пальце."""
+    """DE Archer ring: a hand with a large gold ring on the thumb."""
     im = blacken('fist')
     d = ImageDraw.Draw(im)
     for w, col in ((9, (90, 60, 10)), (6, (255, 214, 90)), (2, (255, 246, 190))):
@@ -662,11 +662,11 @@ def thumb_ring():
 
 
 def ballistics():
-    """Баллистика DE: ядро летит по дуге в стену (пунктир траектории)."""
+    """DE Ballistics: a cannonball flies in an arc into a wall (a dotted trajectory)."""
     im = radial(B, (80, 110, 150), (20, 30, 50), (0.3, 0.2), 1.0)
     d = ImageDraw.Draw(im)
     d.rectangle((0, 0.84 * B, B, B), fill=(70, 110, 40))
-    for r in range(5):                                      # стена справа
+    for r in range(5):                                      # the wall on the right
         y0 = 0.3 + r * 0.11
         for c in range(2):
             x0 = 0.7 + ((c + 0.5 * (r % 2)) % 2) * 0.15
@@ -686,7 +686,7 @@ def ballistics():
 
 
 def build_page(kind):
-    """Кнопка жителя DE: «экономические» — молот и монеты, «военные» — молот и меч."""
+    """The DE villager button: "economic" - a hammer and coins, "military" - a hammer and a sword."""
     im = canvas()
     if kind == 'eco':
         c = cutout('coins')
@@ -700,7 +700,7 @@ def build_page(kind):
 
 
 def molten_pot():
-    """Литьё железа DE: тигель с раскалённым металлом."""
+    """DE Iron Casting: a crucible with glowing metal."""
     im = blacken('metal_pot')
     glow = radial(N, (255, 170, 40), (0, 0, 0), (0.5, 0.3), 0.35)
     im = ImageChops.add(im.convert('RGB'), glow.convert('RGB')).convert('RGBA')
@@ -710,23 +710,23 @@ def molten_pot():
 
 
 def stat_icon(name):
-    """Значок характеристики: предмет на прозрачном фоне."""
+    """A stat icon: an item on a transparent background."""
     c = cutout(name)
     im = Image.new('RGBA', (N, N), (0, 0, 0, 0))
     return paste_fit(im, c, (0.02, 0.02, 0.98, 0.98))
 
 
-# ================================================================ курсоры
-# DE (docs/research/08_cursor.md): курсор действия — один предмет без стрелки; рабочий конец (лезвие, боёк,
-# остриё) в верхнем-левом углу, там же точка прицела (1, 1) и белый уголок-метка. Рисунок на холсте CD = 64
-# с тёмной обводкой, уменьшение до CS = 32 (мягкие края); процедурные предметы — на 128 (4×).
+# ================================================================ cursors
+# DE (docs/research/08_cursor.md): an action cursor - one item without an arrow; the working end (blade, striker,
+# point) in the top-left corner, with the aim point (1, 1) and a white corner mark there too. Drawn on a CD = 64 canvas
+# with a dark outline, downscaled to CS = 32 (soft edges); procedural items - at 128 (4x).
 CS = 32
 CD = 64
-GP = 128            # холст процедурного предмета
+GP = 128            # the canvas of a procedural item
 
 
 def _dark_outline(im, r=2, alpha=235):
-    """Тёмная обводка по контуру (DE): расширенная маска под предметом."""
+    """A dark outline along the contour (DE): an expanded mask under the item."""
     a = im.getchannel('A').point(lambda v: 255 if v > 60 else 0).filter(ImageFilter.MaxFilter(2 * r + 1))
     out = Image.new('RGBA', im.size, (0, 0, 0, 0))
     out.paste(Image.new('RGBA', im.size, (24, 16, 8, alpha)), (0, 0), a)
@@ -735,7 +735,7 @@ def _dark_outline(im, r=2, alpha=235):
 
 
 def _tip_marker(im):
-    """Белый уголок в точке прицела (как у DE) — на готовом курсоре CS."""
+    """A white corner at the aim point (as in DE) - on the finished CS cursor."""
     d = ImageDraw.Draw(im)
     d.polygon([(0, 0), (7, 0), (0, 7)], fill=(30, 22, 12, 255))
     d.polygon([(0, 0), (5, 0), (0, 5)], fill=(255, 255, 255, 255))
@@ -747,11 +747,11 @@ def _crop_alpha(t, thr=30):
 
 
 def _no_shadow(im):
-    """Убрать нарисованную в портрете 0 A.D. тень под предметом (тёмные малонасыщенные пиксели → прозрачные),
-    замкнуть дыры маски (металл похож на фон) и поднять почти чёрный металл до стали (на 32 px иначе пятно)."""
+    """Remove the shadow drawn under the item in a 0 A.D. portrait (dark low-saturation pixels -> transparent),
+    close holes in the mask (metal resembles the background) and lift near-black metal to steel (at 32 px it would otherwise be a blot)."""
     a = np.asarray(im.convert('RGBA'), np.float32)
     rgb = a[..., :3]
-    chroma = rgb.max(-1) - rgb.min(-1)                                    # абсолютная насыщенность
+    chroma = rgb.max(-1) - rgb.min(-1)                                    # absolute saturation
     L = rgb @ np.array([0.3, 0.59, 0.11], np.float32)
     grey = chroma < 36
     keep = np.where(grey, np.clip((L - 52) / 28, 0, 1), np.clip((L - 16) / 16, 0, 1))
@@ -765,8 +765,8 @@ def _no_shadow(im):
 
 
 def cursor(tool, rot=0.0, mirror=False, box=(0.05, 0.05, 0.97, 0.97), extra=None, marker=True, outline=2):
-    """Курсор DE: предмет (имя портрета 0 A.D. или RGBA), отражённый/повёрнутый так, чтобы рабочий конец был ↖,
-    прижат к верхнему-левому углу box (доли холста CD), обводка, уменьшение до CS, уголок-метка."""
+    """A DE cursor: an item (a 0 A.D. portrait name or RGBA), mirrored/rotated so that the working end points up-left,
+    pressed to the top-left corner of box (fractions of the CD canvas), outline, downscale to CS, a corner mark."""
     t = _no_shadow(cutout(tool)) if isinstance(tool, str) else tool
     if mirror:
         t = ImageOps.mirror(t)
@@ -779,7 +779,7 @@ def cursor(tool, rot=0.0, mirror=False, box=(0.05, 0.05, 0.97, 0.97), extra=None
     t2 = t.resize((max(1, round(t.width * k)), max(1, round(t.height * k))), Image.LANCZOS)
     im.alpha_composite(t2, (round(x0), round(y0)))
     a = np.asarray(im).copy()
-    a[..., 3] = np.where(a[..., 3] < 48, 0, a[..., 3])                    # пыль после поворота/уменьшения
+    a[..., 3] = np.where(a[..., 3] < 48, 0, a[..., 3])                    # dust after rotation/downscaling
     im = Image.fromarray(a, 'RGBA')
     if extra:
         extra(im)
@@ -800,7 +800,7 @@ def _g(x, y):
 
 
 def _red_arrow(d, cx, y0, y1, w=0.16, up=True):
-    """Красная стрелка DE (вверх при up, иначе вниз), координаты — доли холста GP."""
+    """A DE red arrow (up if up, otherwise down), coordinates - fractions of the GP canvas."""
     hy = y0 if up else y1
     ty = y1 if up else y0
     col, edge = (225, 40, 20), (90, 10, 5)
@@ -811,7 +811,7 @@ def _red_arrow(d, cx, y0, y1, w=0.16, up=True):
 
 
 def nuggets(gold=True):
-    """Самородки (золото) / камни (серые) у кирки — рисуются в extra на холсте CD, слева-снизу."""
+    """Nuggets (gold) / stones (gray) by the pickaxe - drawn in extra on the CD canvas, bottom-left."""
     top, bot, edge = ((255, 226, 110), (170, 110, 20), (110, 70, 10)) if gold else \
         ((205, 205, 210), (95, 95, 102), (50, 50, 55))
 
@@ -824,7 +824,7 @@ def nuggets(gold=True):
 
 
 def drop_arrow(im):
-    """Зелёная стрелка вниз над корзиной (сдать ресурс) — на холсте CD."""
+    """A green arrow down over a basket (drop off a resource) - on the CD canvas."""
     d = ImageDraw.Draw(im)
     col, edge = (90, 220, 90), (20, 70, 20)
     d.rectangle((0.66 * CD, 0.02 * CD, 0.78 * CD, 0.24 * CD), fill=col, outline=edge)
@@ -832,7 +832,7 @@ def drop_arrow(im):
 
 
 def rope_coil(im):
-    """Моток каната у молота (ремонт DE) — на холсте CD, справа-снизу."""
+    """A coil of rope by the hammer (DE repair) - on the CD canvas, bottom-right."""
     d = ImageDraw.Draw(im)
     for i, (x, y) in enumerate(((0.62, 0.86), (0.76, 0.8), (0.88, 0.88), (0.7, 0.94))):
         d.ellipse(((x - 0.12) * CD, (y - 0.07) * CD, (x + 0.12) * CD, (y + 0.07) * CD),
@@ -841,21 +841,21 @@ def rope_coil(im):
 
 
 def hammer_tool():
-    """Молот 0 A.D. (курсор action-build) как предмет."""
+    """The 0 A.D. hammer (the action-build cursor) as an item."""
     return Image.open(os.path.join(CURSORS, 'action-build.png')).convert('RGBA')
 
 
 def sword_tool(name='action-attack'):
-    """Меч 0 A.D. (64×64, рисунок 23×23): вырезаем рамку — предмет займёт весь курсор."""
+    """The 0 A.D. sword (64x64, the drawing is 23x23): cut out the frame - the item takes the whole cursor."""
     return _crop_alpha(Image.open(os.path.join(CURSORS, name + '.png')).convert('RGBA'))
 
 
 def flag_glyph():
-    """Флаг точки сбора DE: древко из угла вниз-вправо, бело-синее полотнище."""
+    """The DE rally point flag: a pole from the corner down-right, a white-blue cloth."""
     im = _glyph()
     d = ImageDraw.Draw(im)
     top, base = (0.06, 0.06), (0.3, 0.96)
-    # полотнище (два клина: белый и синий)
+    # the cloth (two wedges: white and blue)
     fx = [top, (0.9, 0.16), (0.72, 0.36), (0.18, 0.42)]
     d.polygon([_g(*p) for p in fx], fill=(244, 244, 240), outline=(60, 60, 70), width=K)
     d.polygon([_g(*p) for p in (top, (0.9, 0.16), (0.6, 0.2), (0.12, 0.24))], fill=(50, 92, 210))
@@ -869,7 +869,7 @@ def flag_glyph():
 
 
 def plank_glyph(up=True):
-    """Сходни корабля DE: доска наискось + красная стрелка (на борт — вверх, выгрузить — вниз)."""
+    """The DE ship gangplank: a plank at an angle + a red arrow (to board - up, to unload - down)."""
     im = _glyph()
     d = ImageDraw.Draw(im)
     pl = [(0.5, 0.06), (0.68, 0.14), (0.98, 0.9), (0.8, 0.98)]
@@ -883,7 +883,7 @@ def plank_glyph(up=True):
 
 
 def boots_glyph():
-    """Следовать: сапоги 0 A.D. с красной стрелкой вперёд."""
+    """Follow: 0 A.D. boots with a red arrow forward."""
     b = _no_shadow(cutout('leather_boots'))
     im = _glyph()
     paste_fit(im, b, (0.22, 0.06, 1.0, 0.98))
@@ -893,32 +893,32 @@ def boots_glyph():
 
 
 def horn_glyph():
-    """Сигнал: рог (как «чат» DE), раструбом в верхний-левый угол."""
+    """Signal: a horn (like the DE "chat"), the bell toward the top-left corner."""
     h = horn().rotate(180, resample=Image.BICUBIC).rotate(38, resample=Image.BICUBIC, expand=True)
     return _crop_alpha(h)
 
 
 def hands_tool():
-    """Лечение DE: только сложенные ладони — красный крест 0 A.D. убираем по цвету."""
+    """DE healing: only folded palms - the 0 A.D. red cross is removed by color."""
     im = _no_shadow(cutout('healing_rate'))
     a = np.asarray(im, np.int32)
     red = (a[..., 0] > 120) & (a[..., 1] < 100) & (a[..., 2] < 100)
     m = np.asarray(Image.fromarray((red * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(7)), bool)
     h, w = m.shape
     m[:int(h * 0.42), :] = False
-    m[:, :int(w * 0.5)] = False                                            # крест — справа-снизу
+    m[:, :int(w * 0.5)] = False                                            # the cross - bottom-right
     a[m, 3] = 0
     im = Image.fromarray(a.astype(np.uint8), 'RGBA')
     return _crop_alpha(im.crop((0, 0, int(im.width * 0.74), im.height)))
 
 
-# ================================================================ рамки панелей по культурам
+# ================================================================ panel frames by culture
 SKIN_OUT = os.path.join(ROOT, 'assets', 'ui', 'skin')
 T = 256
 
 
 def _fbm(seed, size=T, octaves=5, base=4):
-    """Бесшовный шум (сумма октав периодической интерполяции) 0..1."""
+    """Seamless noise (a sum of octaves of periodic interpolation) 0..1."""
     rng = np.random.default_rng(seed)
     out = np.zeros((size, size), np.float32)
     amp, tot = 1.0, 0.0
@@ -940,7 +940,7 @@ def _rgb(a):
 
 
 def tex_iron():
-    """Центральная Европа: тёмные железные листы с заклёпками."""
+    """Central Europe: dark iron sheets with rivets."""
     n = _fbm(11)
     base = np.array([66, 70, 76], np.float32)
     a = base[None, None] * (0.78 + 0.4 * n[..., None])
@@ -959,7 +959,7 @@ def tex_iron():
 
 
 def tex_marble():
-    """Средиземноморье: тёплый серый мрамор с прожилками."""
+    """Mediterranean: warm gray marble with veins."""
     n = _fbm(21, octaves=6)
     v = np.abs(np.sin((n * 9 + np.linspace(0, 6, T)[None, :]) * math.pi))
     base = np.array([104, 96, 84], np.float32)
@@ -970,7 +970,7 @@ def tex_marble():
 
 
 def tex_sandstone():
-    """Ближний Восток: песчаник, кладка крупными блоками."""
+    """Middle East: sandstone, masonry of large blocks."""
     n = _fbm(31)
     base = np.array([122, 94, 62], np.float32)
     a = base * (0.78 + 0.34 * n[..., None])
@@ -982,7 +982,7 @@ def tex_sandstone():
 
 
 def tex_lacquer():
-    """Азия: красный лак по дереву, тонкая текстура волокон."""
+    """Asia: red lacquer on wood, a fine fiber texture."""
     n = _fbm(41, octaves=4, base=2)
     yy, xx = np.mgrid[0:T, 0:T].astype(np.float32)
     grain = 0.5 + 0.5 * np.sin((yy / T * 40 + n * 6) * math.pi)
@@ -992,32 +992,32 @@ def tex_lacquer():
 
 
 def trim(kind):
-    """Кант (лента 256×12, повторяется по горизонтали) — у каждой культуры свой орнамент."""
+    """The trim (a 256x12 ribbon, repeated horizontally) - each culture has its own ornament."""
     W, H = T * K, 12 * K
     im = Image.new('RGBA', (W, H), (0, 0, 0, 255))
     d = ImageDraw.Draw(im)
-    if kind == 'iron':                       # цепь
+    if kind == 'iron':                       # chain
         d.rectangle((0, 0, W, H), fill=(30, 32, 36))
         for x in range(0, W, 16 * K):
             d.ellipse((x + K, 2 * K, x + 15 * K, 10 * K), outline=(170, 176, 186), width=2 * K)
             d.line([(x + 12 * K, 6 * K), (x + 20 * K, 6 * K)], fill=(120, 126, 136), width=3 * K)
-    elif kind == 'marble':                   # мозаика: золото и лазурь
+    elif kind == 'marble':                   # mosaic: gold and azure
         d.rectangle((0, 0, W, H), fill=(60, 40, 20))
         for i, x in enumerate(range(0, W, 8 * K)):
             col = (230, 190, 90) if i % 2 else (40, 80, 170)
             d.rectangle((x + K, 2 * K, x + 7 * K, 10 * K), fill=col)
-    elif kind == 'sandstone':                # изразцы: бирюза и белое
+    elif kind == 'sandstone':                # tiles: turquoise and white
         d.rectangle((0, 0, W, H), fill=(30, 60, 80))
         for x in range(0, W, 12 * K):
             d.polygon([(x + 6 * K, K), (x + 11 * K, 6 * K), (x + 6 * K, 11 * K), (x + K, 6 * K)], fill=(60, 170, 190))
             d.ellipse((x + 4 * K, 4 * K, x + 8 * K, 8 * K), fill=(240, 236, 220))
-    elif kind == 'lacquer':                  # золотой меандр на чёрном
+    elif kind == 'lacquer':                  # a golden meander on black
         d.rectangle((0, 0, W, H), fill=(16, 10, 8))
         g = (220, 170, 70)
         for x in range(0, W, 12 * K):
             d.line([(x + K, 10 * K), (x + K, 2 * K), (x + 9 * K, 2 * K), (x + 9 * K, 7 * K), (x + 5 * K, 7 * K),
                     (x + 5 * K, 10 * K), (x + 13 * K, 10 * K)], fill=g, width=K + 1)
-    else:                                    # запад: витой золотой шнур
+    else:                                    # west: a twisted golden cord
         d.rectangle((0, 0, W, H), fill=(40, 26, 10))
         for x in range(0, W, 8 * K):
             d.line([(x, 10 * K), (x + 8 * K, 2 * K)], fill=(236, 196, 110), width=3 * K)
@@ -1026,7 +1026,7 @@ def trim(kind):
 
 
 def parchment_flat():
-    """Ровный светлый пергамент (DE) — бесшовная плитка."""
+    """Plain light parchment (DE) - a seamless tile."""
     n = _fbm(51, octaves=6, base=3)
     base = np.array([222, 204, 164], np.float32)
     a = base * (0.93 + 0.1 * n[..., None])
@@ -1048,19 +1048,19 @@ def build_skins():
     return made
 
 
-# ================================================================ сборка
+# ================================================================ assembly
 def recipes():
-    """имя файла → функция без аргументов, возвращающая PIL RGBA 128×128."""
+    """file name -> a function without arguments returning a PIL RGBA 128x128."""
     R = {}
 
     def bl(n):
         return lambda: blacken(n)
 
-    # здания-символы
+    # symbol buildings
     R.update({'barracks': bl('sword_cross'), 'stable': bl('horseshoe_metal'), 'siege_workshop': bl('engineering'),
               'dock': bl('anchor'), 'mining_camp': bl('mining_pickax'), 'market': bl('scales'),
               'lumber_camp': lumber_camp, 'university': books, 'town_center': pair_on_sky})
-    # технологии: хозяйство
+    # technologies: economy
     R.update({'loom': tartan, 'wheelbarrow': bl('wheelbarrow_empty'), 'hand_cart': bl('handcart_empty'),
               'double_bit': bl('wood_axe'), 'bow_saw': bl('wood_saw_bow'), 'two_man_saw': bl('wood_saw_two_man'),
               'gold_mining': lambda: tint_gold(blacken('mining_metal'), (0.0, 0.35, 1.0, 1.0)),
@@ -1071,7 +1071,7 @@ def recipes():
               'guilds': bl('calipers'), 'town_watch': bl('sentries'), 'town_patrol': bl('signal_fires'),
               'gillnets': bl('fishing_net'), 'careening': bl('ship_cladding'), 'dry_dock': bl('trihemiolia'),
               'shipwright': bl('armor_ship_bronze'), 'supplies': bl('grain_bag')})
-    # кузница
+    # the blacksmith
     R.update({'forging': bl('metalworker'), 'iron_casting': molten_pot, 'blast_furnace': bl('incendiary_weapons'),
               'fletching': bl('fletching'), 'bodkin_arrow': bl('arrow'), 'bracer': bl('armor_greaves'),
               'scale_armor': bl('armor_plates_swords'),
@@ -1082,7 +1082,7 @@ def recipes():
               'plate_barding': bl('armor_plates_silver_cavalry'),
               'padded_archer_armor': bl('armor_leather_arrow'), 'leather_archer_armor': bl('armor_plates_ranged'),
               'ring_archer_armor': lambda: overlay('armor_chain', 'arrow', (0.06, 0.06, 0.94, 0.94))})
-    # армия, монастырь, университет
+    # army, monastery, university
     R.update({'thumb_ring': thumb_ring, 'parthian_tactics': bl('horse_rider'), 'bloodlines': bl('horse_trainer'),
               'husbandry': bl('husbandry_horses'), 'squires': bl('fist_spear'), 'arson': bl('fist_spear_fire'),
               'sanctity': chalice, 'fervor': bl('spy_trader'), 'atonement': bl('high_priest'),
@@ -1096,13 +1096,13 @@ def recipes():
     for a in range(4):
         R[f'age_{a}'] = (lambda a=a: age_emblem(a))
         R[f'age_btn_{a}'] = (lambda a=a: age_button(a))
-    # верх
+    # top
     R.update({'top_objectives': scroll_check, 'top_chat': horn, 'top_diplomacy': wreath_handshake,
               'top_techtree': gear})
-    # характеристики
+    # stats
     R.update({'stat_atk': lambda: stat_icon('sword'), 'stat_arm': lambda: stat_icon('armor_cuirass_empire'),
               'stat_rng': lambda: stat_icon('archery_tradition'), 'stat_spd': lambda: stat_icon('leather_boots')})
-    # армия
+    # army
     R.update({'oct': lambda: octagon(False), 'oct_on': lambda: octagon(True),
               'stance_aggressive': stance_aggressive, 'stance_defensive': stance_defensive,
               'stance_no_attack': sword_in_ground, 'aground': boulder_on_grass})
@@ -1113,22 +1113,22 @@ def recipes():
 
 
 CURSOR_RECIPES = {
-    # добыча: инструмент, рабочий конец ↖ (DE)
-    'de_tree': lambda: cursor('wood_axe', rot=8),                                  # топор: лезвие ↖
+    # gathering: a tool, the working end up-left (DE)
+    'de_tree': lambda: cursor('wood_axe', rot=8),                                  # axe: the blade up-left
     'de_gold': lambda: cursor('mining_pickax', mirror=True, box=(0.16, 0.04, 0.98, 0.9), extra=nuggets(True)),
     'de_stone': lambda: cursor('mining_pickax', mirror=True, box=(0.16, 0.04, 0.98, 0.9), extra=nuggets(False)),
-    'de_berries': lambda: cursor('gather_basket'),                                 # корзина с плодами
-    'de_farm': lambda: cursor('sickle_2'),                                         # серп: лезвие ↖
-    'de_meat': lambda: cursor('spear', rot=42),                                    # охотничье копьё: остриё ↖
+    'de_berries': lambda: cursor('gather_basket'),                                 # a basket with fruit
+    'de_farm': lambda: cursor('sickle_2'),                                         # sickle: the blade up-left
+    'de_meat': lambda: cursor('spear', rot=42),                                    # hunting spear: the point up-left
     'de_fish': lambda: cursor('fishing_net'),
     'de_drop': lambda: cursor('gather_basket_empty', box=(0.05, 0.3, 0.97, 0.97), extra=drop_arrow),
-    'de_heal': lambda: cursor(hands_tool()),                                       # только ладони
-    # ремонт: молот + канат (отличается от «строить»)
+    'de_heal': lambda: cursor(hands_tool()),                                       # palms only
+    # repair: a hammer + a rope (differs from "build")
     'de_repair': lambda: cursor(hammer_tool(), box=(0.05, 0.05, 0.86, 0.86), extra=rope_coil, outline=1),
-    # меч 0 A.D. во весь курсор (рисунок 23 px из 64 — иначе крошка), остриё ↖
+    # the 0 A.D. sword across the whole cursor (a 23 px drawing out of 64 would be a crumb), the point up-left
     'de_attack': lambda: cursor(sword_tool('action-attack'), outline=1),
     'de_amove': lambda: cursor(sword_tool('action-attack-move'), outline=1),
-    # режимы и состояния без аналога в 0 A.D.
+    # modes and states with no 0 A.D. counterpart
     'de_flare': lambda: cursor(horn_glyph()),
     'de_rally': lambda: cursor(flag_glyph(), outline=1),
     'de_board': lambda: cursor(plank_glyph(True), outline=1),
@@ -1139,7 +1139,7 @@ CURSOR_RECIPES = {
 
 def build(sheet_path=None):
     if not os.path.isdir(TECH):
-        print('нет портретов 0 A.D.:', TECH)
+        print('no 0 A.D. portraits:', TECH)
         return []
     os.makedirs(OUT, exist_ok=True)
     made = []
@@ -1157,7 +1157,7 @@ def build(sheet_path=None):
         path = os.path.join(CUR_OUT, name + '.png')
         fn().save(path, optimize=True)
         made.append(path)
-    print(f'значки DE: {len(made)} файлов → {os.path.relpath(OUT, ROOT)}')
+    print(f'DE icons: {len(made)} files -> {os.path.relpath(OUT, ROOT)}')
     if sheet_path:
         sheet(made, sheet_path)
     return made
@@ -1177,7 +1177,7 @@ def sheet(paths, out, cell=80):
         sh.paste(im, (x, y), im)
         d.text((x, y + cell + 1), os.path.basename(p)[:-4][:15], fill=(255, 230, 140), font=f)
     sh.save(out)
-    print('лист:', out)
+    print('sheet:', out)
 
 
 if __name__ == '__main__':

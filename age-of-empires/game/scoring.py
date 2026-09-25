@@ -1,17 +1,17 @@
-"""Счёт игроков по правилам AoE2 (экран достижений «Score», оверлей F4).
+"""The player score by AoE2 rules (the "Score" achievements screen, the F4 overlay).
 
-  score(world, pid) -> {'total', 'military', 'economy', 'technology', 'society'}   (целые)
-  scores(world)     -> [score(world, pid) for pid]  — за один проход по юнитам и зданиям
-  team_scores(world) -> {команда: сумма total живых игроков}
+  score(world, pid) -> {'total', 'military', 'economy', 'technology', 'society'}   (integers)
+  scores(world)     -> [score(world, pid) for pid]  - in one pass over units and buildings
+  team_scores(world) -> {team: the sum of total of living players}
 
-Формулы (AoE2, лист достижений «Score», см. docs/research/02_menus.md [S10]):
-  военные     = 20 % ресурсной стоимости убитых вражеских юнитов (и обращённых) + 20 % стоимости
-                разрушенных вражеских зданий;
-  экономика   = 10 % ресурсов, которые у игрока есть сейчас и которые он отдал данью,
-                + 20 % стоимости живых юнитов и стоящих зданий (кроме замков и чудес);
-  технологии  = 20 % стоимости изученных технологий (с эпохами) + 10 очков за каждый 1 % разведанной карты;
-  общество    = 20 % стоимости стоящих замков и чудес (+10 за реликвию — реликвий в игре нет).
-Если в мире нет статистики (старый мир) — считаются только части, известные без неё.
+Formulas (AoE2, the "Score" achievements sheet, see docs/research/02_menus.md [S10]):
+  military    = 20 % of the resource cost of killed enemy units (and converted ones) + 20 % of the cost of
+                destroyed enemy buildings;
+  economy     = 10 % of the resources the player has now and gave as tribute,
+                + 20 % of the cost of living units and standing buildings (except castles and wonders);
+  technology  = 20 % of the cost of researched techs (with ages) + 10 points for every 1 % of the explored map;
+  society     = 20 % of the cost of standing castles and wonders (+10 for a relic - there are no relics in the game).
+If the world has no statistics (an old world) - only the parts known without them are counted.
 """
 from .stats import value
 

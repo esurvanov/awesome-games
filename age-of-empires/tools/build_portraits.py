@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Значки-«картинки» в кадре AoE II DE из наших 3D-моделей (tools/render3d) → assets/ui/portraits/…
+"""Icons-"pictures" in the AoE II DE frame from our 3D models (tools/render3d) -> assets/ui/portraits/...
 
   .venv/bin/python tools/build_portraits.py --buildings [--groups anglo,han]
-        здания на фоне неба и травы (дом, мельница, замок, башни, стены, ворота, ферма) — по группам архитектуры
-        → assets/ui/portraits/scenic/<группа>/<вид>.png
+        buildings against the sky and grass (house, mill, castle, towers, walls, gates, farm) - by architecture groups
+        -> assets/ui/portraits/scenic/<group>/<kind>.png
   .venv/bin/python tools/build_portraits.py --orders
-        приказы армии: фигурка нашего пехотинца в позах (патруль, охрана, следовать, атака с ходу, стоять),
-        требушет свёрнут / развёрнут → assets/ui/portraits/orders/<имя>.png
+        army orders: a figure of our infantryman in poses (patrol, guard, follow, attack-move, stand ground),
+        the trebuchet packed / unpacked -> assets/ui/portraits/orders/<name>.png
   .venv/bin/python tools/build_portraits.py --units [--only villager,knight] [--groups caro] [--out DIR] [--install]
-        портреты юнитов в кадре DE: ракурс ¾ (смотрит влево), кадр по колено, чёрный фон, синий цвет игрока,
-        ключевой свет сверху-слева; модели и правки — из tools/build_units.plan() (те же, что в игре).
-        Без --install — только просмотр (DIR, по умолчанию shots/portraits_preview); с --install —
-        assets/ui/portraits/units3d/<вид>.<группа юнитов>.png (игра берёт их раньше портретов 0 A.D.).
-  --sheet FILE — контактный лист всего собранного.
+        portraits of units in the DE frame: a 3/4 view (looking left), a knee-up frame, a black background, the blue player color,
+        key light from the top-left; the models and adjustments - from tools/build_units.plan() (the same as in the game).
+        Without --install - preview only (DIR, by default shots/portraits_preview); with --install -
+        assets/ui/portraits/units3d/<kind>.<unit group>.png (the game takes them before the 0 A.D. portraits).
+  --sheet FILE - a contact sheet of everything built.
 
-Камера значка: рендер игры (ортографическая проекция, 30° над землёй) с геометрией, наклонённой к зрителю, —
-видимый угол возвышения ELEV_* (DE: здания ≈ 15°, юниты ≈ 8°); свет — зеркальный игровому (сверху-слева).
-Производные материалы 0 A.D. / Millennium A.D. © Wildfire Games и авторы мода, CC BY-SA 3.0 (CREDITS.md).
+The icon camera: the game's render (an orthographic projection, 30 deg above the ground) with the geometry tilted toward the viewer -
+the visible elevation angle ELEV_* (DE: buildings ~ 15 deg, units ~ 8 deg); the light - the mirror of the game's (top-left).
+Derived 0 A.D. / Millennium A.D. materials (c) Wildfire Games and the mod's authors, CC BY-SA 3.0 (CREDITS.md).
 """
 import argparse
 import json
@@ -33,18 +33,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 OUT = os.path.join(REPO, 'assets', 'ui', 'portraits')
-SIZE = 128                   # размер значка (как портреты 0 A.D. в assets/ui/portraits)
-SS = 2                       # рендер крупнее и уменьшение — мягкие края
+SIZE = 128                   # icon size (like the 0 A.D. portraits in assets/ui/portraits)
+SS = 2                       # render larger and reduce - soft edges
 ELEV_BLD = 16.0
 ELEV_UNIT = 9.0
-YAW_UNIT = 72.0            # поворот юнита: ¾, лицом влево-к-зрителю (подобрано по листу)
-BLUE = (48, 96, 230)         # цвет игрока на значках DE — всегда синий
-# формула перекраски — как в game/sprites3d.recolor (цвет той же яркости, что у текстуры)
+YAW_UNIT = 72.0            # unit rotation: 3/4, facing left-toward-the-viewer (tuned by the sheet)
+BLUE = (48, 96, 230)         # the player color on DE icons is always blue
+# the recoloring formula - as in game/sprites3d.recolor (a color of the same brightness as the texture's)
 TA, TB, TD = 0.40, 0.85, 0.30
 
-# виды зданий-«картинок» (DE: на фоне неба) → (вид атласа build_sprites | особый, доля ширины кадра)
-# значок берётся у другой группы: деревянные кольцевые крепости и тёмные бревенчатые «каменные» стены
-# западных наборов на значке не читаются как замок / каменная стена (DE: каменный замок, серая стена)
+# kinds of "picture" buildings (DE: against the sky) -> (a build_sprites atlas kind | special, the share of the frame width)
+# the icon is taken from another group: wooden ring forts and dark log "stone" walls
+# of the western sets do not read on an icon as a castle / a stone wall (DE: a stone castle, a grey wall)
 SCENIC_SUB = {('anglo', 'castle'): 'teut', ('celt', 'castle'): 'teut', ('caro', 'castle'): 'teut',
               ('norse', 'castle'): 'teut'}
 SCENIC_SUB.update({(g, k): 'teut' for g in ('caro', 'anglo', 'celt') for k in ('stone_wall', 'gate', 'fortified_wall')})
@@ -52,7 +52,7 @@ SCENIC = ['house', 'mill', 'castle', 'tower', 'guard_tower', 'keep', 'farm',
           'palisade_wall', 'palisade_gate', 'stone_wall', 'gate', 'fortified_wall']
 
 
-# ================================================================ камера значка
+# ================================================================ icon camera
 _R = None
 
 
@@ -72,14 +72,14 @@ def _rot(axis, ang):
 
 
 def icon_items(items, elev, mirror_light=True, spin=0.0):
-    """Детали (координаты земли) → те же, наклонённые так, что камера игры видит их под углом elev°.
-    mirror_light — отразить по диагонали x=y (после рендера картинку отражают обратно: свет слева)."""
+    """Parts (ground coordinates) -> the same, tilted so that the game camera sees them at the angle elev deg.
+    mirror_light - mirror along the diagonal x=y (after rendering the picture is mirrored back: light from the left)."""
     mesh = [dict(it) for it in items if it['kind'] == 'mesh' and len(it['pos'])]
     P = np.concatenate([it['pos'] for it in mesh]).astype(np.float64)
     c = np.array([(P[:, 0].min() + P[:, 0].max()) / 2, (P[:, 1].min() + P[:, 1].max()) / 2, 0.0])
     R = np.eye(3)
     if isinstance(spin, tuple):
-        # ('align', (dx, dy), угол): длинная ось предмета — вдоль экрана, повёрнута на угол к зрителю
+        # ('align', (dx, dy), angle): the object's long axis - along the screen, rotated by the angle toward the viewer
         ax = np.array(spin[1], np.float64)
         if mirror_light:
             ax = ax[::-1]
@@ -89,7 +89,7 @@ def icon_items(items, elev, mirror_light=True, spin=0.0):
     d = math.radians(30.0 - elev)
     up_to_view = np.array([1.0, 1.0, 0.0])
     T = _rot((1, -1, 0), d)
-    if (T @ np.array([0, 0, 1.0])) @ up_to_view > 0:      # верх — от зрителя: видна передняя стена
+    if (T @ np.array([0, 0, 1.0])) @ up_to_view > 0:      # the top - away from the viewer: the front wall is visible
         T = _rot((1, -1, 0), -d)
     R = T @ R
     out = []
@@ -115,7 +115,7 @@ def icon_items(items, elev, mirror_light=True, spin=0.0):
 
 
 def recolor(rgba, mask, color=BLUE):
-    """Область маски — цветом игрока той же яркости (как в игре)."""
+    """The mask area - in the player color of the same brightness (as in the game)."""
     rgb = rgba[..., :3].astype(np.float32)
     m = (mask.astype(np.float32) / 255.0)[..., None]
     L = (rgb @ np.array([0.299, 0.587, 0.114], np.float32))[..., None] / 255.0
@@ -127,7 +127,7 @@ def recolor(rgba, mask, color=BLUE):
 
 
 def shoot(items, elev, look=None, mirror_light=True, spin=0.0, color=BLUE):
-    """Рендер значка → RGBA (numpy, обрезан по силуэту), свет сверху-слева, цвет игрока — color."""
+    """Render an icon -> RGBA (numpy, cropped to the silhouette), light from the top-left, the player color - color."""
     from tools.render3d import Look
     r = renderer()
     its = icon_items(items, elev, mirror_light, spin)
@@ -143,9 +143,9 @@ def to_img(a):
     return Image.fromarray(np.ascontiguousarray(a), 'RGBA')
 
 
-# ================================================================ фоны
+# ================================================================ backgrounds
 def sky_grass(size, horizon=0.66, seed=0):
-    """Фон «картинных» зданий DE: голубое небо (светлее к горизонту) + полоса травы."""
+    """The background of DE "picture" buildings: a blue sky (lighter toward the horizon) + a strip of grass."""
     rng = np.random.default_rng(seed)
     h = w = size
     y = np.linspace(0, 1, h)[:, None]
@@ -154,7 +154,7 @@ def sky_grass(size, horizon=0.66, seed=0):
     t = np.clip(y / horizon, 0, 1) ** 1.3
     sky = top * (1 - t[..., None]) + low * t[..., None]
     sky = np.broadcast_to(sky, (h, w, 3)).copy()
-    # лёгкие облака
+    # light clouds
     cl = rng.random((h // 8 + 2, w // 8 + 2)).astype(np.float32)
     cl = np.array(Image.fromarray((cl * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC)).astype(np.float32) / 255
     cl = np.clip((cl - 0.6) * 2.2, 0, 1) * (1 - t) * 0.45
@@ -170,7 +170,7 @@ def sky_grass(size, horizon=0.66, seed=0):
     hor = int(horizon * h)
     img = sky.copy()
     img[hor:] = grass[hor:]
-    # мягкая линия горизонта (дальний лес)
+    # a soft horizon line (a far forest)
     img[hor - 2:hor + 1] = img[hor - 2:hor + 1] * 0.5 + np.array([70, 110, 60]) * 0.5
     out = np.dstack([np.clip(img, 0, 255), np.full((h, w), 255)]).astype(np.uint8)
     return Image.fromarray(out, 'RGBA')
@@ -181,7 +181,7 @@ def black(size):
 
 
 def fit_on(bg, im, box, anchor='bottom'):
-    """Вписать im в прямоугольник box (x0, y0, x1, y1) фона с сохранением пропорций."""
+    """Fit im into the rectangle box (x0, y0, x1, y1) of the background keeping proportions."""
     x0, y0, x1, y1 = box
     k = min((x1 - x0) / im.width, (y1 - y0) / im.height)
     im2 = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
@@ -192,7 +192,7 @@ def fit_on(bg, im, box, anchor='bottom'):
 
 
 def ground_shadow(bg, cx, y, w, h=None, alpha=110):
-    """Мягкая тень-эллипс под предметом на траве."""
+    """A soft elliptical shadow under an object on the grass."""
     h = h or max(3, w // 6)
     sh = Image.new('L', bg.size, 0)
     ImageDraw.Draw(sh).ellipse((cx - w / 2, y - h / 2, cx + w / 2, y + h / 2), fill=alpha)
@@ -202,14 +202,14 @@ def ground_shadow(bg, cx, y, w, h=None, alpha=110):
     bg.alpha_composite(dark)
 
 
-# ================================================================ здания на небе
+# ================================================================ buildings against the sky
 def _bs():
     from tools import build_sprites as B
     return B
 
 
 def building_render(group, kind, elev=ELEV_BLD):
-    """RGBA рендер здания группы (как в игре) под углом значка."""
+    """An RGBA render of a group's building (as in the game) at the icon's angle."""
     B = _bs()
     vs = B.building_variants(group, kind)
     if not vs:
@@ -220,7 +220,7 @@ def building_render(group, kind, elev=ELEV_BLD):
 
 
 def wall_render(group, piece, elev=ELEV_BLD, n=3):
-    """Отрезок стены / ворота набора группы: piece 'stone' | 'palisade' | 'stone_gate' | 'palisade_gate'."""
+    """A wall segment / gate of the group's set: piece 'stone' | 'palisade' | 'stone_gate' | 'palisade_gate'."""
     B = _bs()
     from tools.render3d import resolve, camera, Renderer, parts_bounds
     wk = 'palisade' if piece.startswith('palisade') else 'stone'
@@ -239,7 +239,7 @@ def wall_render(group, piece, elev=ELEV_BLD, n=3):
         lo, hi = parts_bounds(parts)
         place = camera.placement(s, 0.0, center=(0.0, 0.0), model_center=((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2))
         items = Renderer.build_items(parts, place)
-        # отрезок длиной n клеток посередине длинной стены
+        # a segment n cells long from the middle of the long wall
         L = n / 2
         keep = []
         for it in items:
@@ -256,14 +256,14 @@ def wall_render(group, piece, elev=ELEV_BLD, n=3):
             keep.append(it)
         items = keep
         if piece == 'fortified':
-            # укреплённая стена: та же, но с башней посередине
+            # a fortified wall: the same but with a tower in the middle
             tp = [p for p in resolve(tower_a, seed=0) if 'garrison_flag' not in p.actor]
             tlo, thi = parts_bounds(tp)
             sp = 1.15 / max(thi[0] - tlo[0], thi[1] - tlo[1])
             pl = camera.placement(sp, 0.0, center=(0.0, 0.0),
                                   model_center=((tlo[0] + thi[0]) / 2, (tlo[1] + thi[1]) / 2))
             items += Renderer.build_items(tp, pl)
-    # стена вдоль x в мире — на экране диагональ; поворот на 45°: вдоль экрана, чуть в ракурсе
+    # a wall along x in the world is a diagonal on the screen; rotate by 45 deg: along the screen, slightly in perspective
     P = np.concatenate([it['pos'] for it in items if it['kind'] == 'mesh'])
     ax = (1.0, 0.0) if np.ptp(P[:, 0]) >= np.ptp(P[:, 1]) else (0.0, 1.0)
     return shoot(items, elev, spin=('align', ax, 22.0))
@@ -273,7 +273,7 @@ STONE_GREY = {'caro', 'anglo', 'celt', 'teut', 'byz', 'hisp', 'norse', 'rus'}
 
 
 def palisade_icon(size, gate=False):
-    """Частокол DE: ряд заострённых брёвен на фоне неба (ворота — с дощатыми створками посередине)."""
+    """DE palisade: a row of pointed logs against the sky (a gate - with plank leaves in the middle)."""
     big = size * SS
     bg = sky_grass(big, horizon=0.7, seed=7 if gate else 5)
     d = ImageDraw.Draw(bg)
@@ -289,7 +289,7 @@ def palisade_icon(size, gate=False):
         tone = rng.uniform(0.8, 1.1)
         body = tuple(int(c * tone) for c in (150, 110, 66))
         ww = w * 0.9
-        tip = top + ww * 1.1                          # заострённый конец бревна
+        tip = top + ww * 1.1                          # the pointed end of a log
         d.polygon([(x, tip), (x + ww / 2, top), (x + ww, tip), (x + ww, base), (x, base)], fill=body,
                   outline=(60, 40, 20))
         d.polygon([(x + ww * 0.62, top + (tip - top) * 0.25), (x + ww, tip), (x + ww, base), (x + ww * 0.62, base)],
@@ -318,11 +318,11 @@ def palisade_icon(size, gate=False):
 
 
 def farm_icon(size):
-    """Ферма DE: поле рядами под небом (процедурно)."""
+    """DE farm: a field in rows under the sky (procedural)."""
     bg = sky_grass(size, horizon=0.36, seed=3)
     d = ImageDraw.Draw(bg)
     hor = int(0.36 * size)
-    vx, vy = size * 0.5, hor - size * 0.9          # точка схода над горизонтом
+    vx, vy = size * 0.5, hor - size * 0.9          # the vanishing point above the horizon
     rows = 13
     for i in range(-rows, rows + 1):
         x_bot = size / 2 + i * size * 0.16
@@ -330,7 +330,7 @@ def farm_icon(size):
         col = (68, 126, 40) if i % 2 else (132, 104, 56)
         wdt = max(1, int(size * 0.035))
         d.line(pts, fill=col, width=wdt)
-    # ряды зелени — светлые пятна
+    # rows of greenery - light patches
     rng = np.random.default_rng(5)
     for _ in range(int(size * 2.2)):
         x = rng.uniform(0, size)
@@ -341,7 +341,7 @@ def farm_icon(size):
 
 
 def scenic_icon(group, kind, size=SIZE):
-    """Значок здания DE-«картинки»: наш рендер на фоне неба и травы, здание во весь кадр."""
+    """A DE "picture" building icon: our render against the sky and grass, the building filling the frame."""
     big = size * SS
     if kind == 'farm':
         return farm_icon(size)
@@ -351,7 +351,7 @@ def scenic_icon(group, kind, size=SIZE):
         piece = {'palisade_wall': 'palisade', 'stone_wall': 'stone', 'palisade_gate': 'palisade_gate',
                  'gate': 'stone_gate', 'fortified_wall': 'fortified'}[kind]
         a = wall_render(group, piece)
-        if a is not None and group in STONE_GREY:          # DE: каменная стена — серый камень
+        if a is not None and group in STONE_GREY:          # DE: a stone wall - grey stone
             rgb = a[..., :3].astype(np.float32)
             L = (rgb @ np.array([0.3, 0.59, 0.11], np.float32))[..., None]
             a = a.copy()
@@ -364,7 +364,7 @@ def scenic_icon(group, kind, size=SIZE):
     horizon = 0.68
     bg = sky_grass(big, horizon=horizon, seed=zlib.crc32(f'{group}/{kind}'.encode()) % 97)
     tall = im.height / im.width
-    if tall > 1.25:                                   # башни — по высоте
+    if tall > 1.25:                                   # towers - by height
         box = (big * 0.06, big * 0.03, big * 0.94, big * 0.95)
     elif kind in ('palisade_wall', 'stone_wall', 'fortified_wall'):
         box = (-big * 0.08, big * 0.18, big * 1.08, big * 0.92)
@@ -372,7 +372,7 @@ def scenic_icon(group, kind, size=SIZE):
         box = (big * 0.02, big * 0.06, big * 0.98, big * 0.94)
     x0, y0, x1, y1 = box
     k = min((x1 - x0) / im.width, (y1 - y0) / im.height)
-    if kind == 'mill':                                # DE: ветряная мельница — дом ниже, крылья над крышей
+    if kind == 'mill':                                # DE: a windmill - the house is lower, the sails above the roof
         box = (big * 0.16, big * 0.36, big * 0.96, big * 0.95)
         x0, y0, x1, y1 = box
         k = min((x1 - x0) / im.width, (y1 - y0) / im.height)
@@ -388,21 +388,21 @@ def scenic_icon(group, kind, size=SIZE):
 
 
 def windmill_sails(bg, hub, length, angle0=24.0):
-    """Крылья ветряной мельницы (4 решётчатых крыла с парусиной) со ступицей в hub — рисуются поверх рендера."""
+    """Windmill sails (4 lattice sails with canvas) with a hub at hub - drawn over the render."""
     lay = Image.new('RGBA', bg.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     hx, hy = hub
     wood, dark, cloth = (120, 84, 46, 255), (58, 38, 20, 255), (236, 228, 206, 255)
     for i in range(4):
         a = math.radians(angle0 + 90 * i)
-        ux, uy = math.cos(a) * 0.82, math.sin(a)             # лёгкий ракурс: сжатие по x
+        ux, uy = math.cos(a) * 0.82, math.sin(a)             # a light perspective: squeeze along x
         vx, vy = -math.sin(a) * 0.82, math.cos(a)
         w = length * 0.2
         p0 = (hx + ux * length * 0.16, hy + uy * length * 0.16)
         p1 = (hx + ux * length, hy + uy * length)
         quad = [p0, p1, (p1[0] + vx * w, p1[1] + vy * w), (p0[0] + vx * w, p0[1] + vy * w)]
         d.polygon(quad, fill=cloth, outline=dark)
-        for t in (0.35, 0.55, 0.75, 0.95):                  # поперечины решётки
+        for t in (0.35, 0.55, 0.75, 0.95):                  # the lattice's crosspieces
             q = (hx + ux * length * t, hy + uy * length * t)
             d.line([q, (q[0] + vx * w, q[1] + vy * w)], fill=wood, width=max(1, int(length * 0.018)))
         d.line([(hx, hy), p1], fill=dark, width=max(2, int(length * 0.04)))
@@ -420,7 +420,7 @@ def build_scenic(groups, kinds=SCENIC):
     for g0 in groups:
         for kind in kinds:
             g = SCENIC_SUB.get((g0, kind), g0)
-            # одинаковые модели в разных группах — один рендер
+            # identical models in different groups - one render
             if kind == 'farm':
                 key = ('farm',)
             elif kind in ('palisade_wall', 'palisade_gate'):
@@ -437,25 +437,25 @@ def build_scenic(groups, kinds=SCENIC):
                 continue
             try:
                 im = scenic_icon(g, kind)
-            except Exception as e:           # noqa: BLE001 — одна неудачная модель не валит сборку
+            except Exception as e:           # noqa: BLE001 - one failed model does not break the build
                 print(f'  ! {g}/{kind}: {e}')
                 im = None
             if im is None:
-                print(f'  - {g}/{kind}: нет модели')
+                print(f'  - {g}/{kind}: no model')
                 continue
             im = im.convert('RGB')
             im.save(path, optimize=True)
             done[key] = im
-            print(f'  + scenic/{g}/{kind}  {time.time() - t0:.1f} с', flush=True)
+            print(f'  + scenic/{g}/{kind}  {time.time() - t0:.1f} s', flush=True)
 
 
-# ================================================================ юниты
+# ================================================================ units
 def _bu():
     from tools import build_units as U
     return U
 
 
-# вид юнита → как кадрировать: 'inf' (по колено), 'cav' (всадник и перед коня), 'whole' (машина, корабль)
+# unit kind -> how to frame: 'inf' (knee-up), 'cav' (the rider and the horse's front), 'whole' (a machine, a ship)
 def framing(kind, spec):
     if spec.get('ship') or spec.get('length'):
         return 'whole'
@@ -465,7 +465,7 @@ def framing(kind, spec):
 
 
 def unit_pose(spec, anim='idle', frac=0.0, yaw=YAW_UNIT, extra_override=None):
-    """Детали юнита набора spec (tools/build_units) в позе anim/frac, лицом влево-к-зрителю (¾)."""
+    """The parts of a unit of the set spec (tools/build_units) in the pose anim/frac, facing left-toward-the-viewer (3/4)."""
     U = _bu()
     from tools.render3d import Renderer, camera, parts_bounds
     from tools.render3d import animactor as aa
@@ -473,23 +473,23 @@ def unit_pose(spec, anim='idle', frac=0.0, yaw=YAW_UNIT, extra_override=None):
     if extra_override:
         ov.update(extra_override)
     skip = (lambda a, ap: 'garrison_flag' in a or 'fish_' in ap) if spec.get('ship') else None
-    # одежда (paint), размер инструментов (prop_scale) и доп. детали машин/кораблей (extras) — как в листах
+    # clothing (paint), the tools' size (prop_scale) and extra parts of machines/ships (extras) - as in the sheets
     tree = aa.build(spec['actor'], anim, sel=tuple(spec.get('sel') or ()), seed=spec.get('seed', 0),
                     override=ov or None, skip=skip, paint=spec.get('paint'), prop_scale=spec.get('prop_scale'))
     if tree is None:
         return None
     parts = aa.evaluate(tree, frac) + U.extra_parts(spec)
-    scale = (spec.get('scale') or 0.12) * 14.0       # в игре фигура ≈ 21 px; на значок — ≈ 300 px
+    scale = (spec.get('scale') or 0.12) * 14.0       # in the game the figure is ~ 21 px; on an icon - ~ 300 px
     if spec.get('length'):
         lo, hi = parts_bounds(parts)
         scale = spec['length'] * 4.0 / max(hi[0] - lo[0], hi[1] - lo[1], 1e-3)
-    # yaw: поворот модели вокруг вертикали (YAW_UNIT — ¾ лицом влево к зрителю после зеркального света)
+    # yaw: the model's rotation about the vertical (YAW_UNIT - 3/4 facing left toward the viewer after the mirrored light)
     place = camera.placement(scale, yaw + U.FWD, center=(0.0, 0.0), mirror=U.MIRROR)
     return Renderer.build_items(parts, place)
 
 
 def crop_portrait(a, mode, size=SIZE):
-    """RGBA рендер → квадрат DE: 'inf' — от макушки до колен, 'cav' — всадник и перед коня, 'whole' — целиком."""
+    """An RGBA render -> a DE square: 'inf' - from the crown to the knees, 'cav' - the rider and the horse's front, 'whole' - entirely."""
     al = a[..., 3] > 40
     ys, xs = np.nonzero(al)
     if not len(xs):
@@ -530,7 +530,7 @@ def crop_portrait(a, mode, size=SIZE):
 
 
 def portrait(kind, group=None, size=SIZE, anim='idle', frac=0.0):
-    """Портрет вида kind (группа юнитов group) в кадре DE → PIL RGB или None."""
+    """A portrait of kind kind (unit group group) in the DE frame -> PIL RGB or None."""
     U = _bu()
     sets, mapping = U.plan()
     mp = mapping.get(kind)
@@ -572,14 +572,14 @@ def build_units(only, groups, out, install):
                 continue
             im.save(path, optimize=True)
             seen[name] = im
-            print(f'  + {k}.{g} ← {name}  {time.time() - t0:.1f} с', flush=True)
+            print(f'  + {k}.{g} ← {name}  {time.time() - t0:.1f} s', flush=True)
 
 
-# ================================================================ приказы армии
-# имя → (вид юнита, анимация, доля цикла, рамка)
-# имя → (вид юнита, анимация, доля цикла, поворот): патруль — идёт боком с мечом, охрана — алебардщик
-# лицом к зрителю, атака с ходу — замах, стоять — воин анфас со щитом
-# фигуры — ¾ влево, как портреты юнитов (YAW_UNIT); 09 · №56: раньше смотрели вправо
+# ================================================================ army orders
+# name -> (unit kind, animation, cycle share, frame)
+# name -> (unit kind, animation, cycle share, rotation): patrol - walks sideways with a sword, guard - a halberdier
+# facing the viewer, attack-move - a swing, stand ground - a warrior face-on with a shield
+# figures - 3/4 to the left, like unit portraits (YAW_UNIT); 09 - #56: they used to look right
 ORDERS = {
     'patrol': ('long_swordsman', 'walk', 0.3, YAW_UNIT),
     'guard': ('halberdier', 'idle', 0.0, YAW_UNIT),
@@ -597,7 +597,7 @@ def order_icon(name, size=SIZE):
         a = shoot(items, 20.0)
         return crop_portrait(a, 'whole', size)
     if name == 'follow':
-        # двое идут друг за другом + красная стрелка (DE)
+        # two walk one after another + a red arrow (DE)
         spec = sets[mapping['man_at_arms']['caro']]
         imgs = []
         for fr in (0.1, 0.6):
@@ -620,7 +620,7 @@ def order_icon(name, size=SIZE):
     spec = sets[mapping[kind]['caro']]
     items = unit_pose(spec, anim, fr, yaw=yaw)
     a = shoot(items, ELEV_UNIT)
-    # фигура целиком (DE: воин в полный рост в позе приказа)
+    # a whole figure (DE: a full-length warrior in an order pose)
     al = a[..., 3] > 40
     ys, xs = np.nonzero(al)
     im = to_img(a).crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
@@ -638,7 +638,7 @@ def build_orders(names=None):
         print('  + orders/' + n, flush=True)
 
 
-# ================================================================ лист
+# ================================================================ sheet
 def sheet(paths, out, cell=96):
     from PIL import ImageFont
     cols = 10
@@ -655,7 +655,7 @@ def sheet(paths, out, cell=96):
         d.text((x, y + cell + 2), os.path.relpath(p, OUT)[-22:], fill=(255, 230, 120), font=fnt)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     sh.save(out)
-    print('лист:', out)
+    print('sheet:', out)
 
 
 def main():

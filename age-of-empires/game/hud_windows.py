@@ -1,7 +1,7 @@
-"""Окна поверх игры по круглым кнопкам верхней панели (AoE2 DE): цели, чат, дипломатия, древо технологий;
-а также счёт игроков (F4 над мини-картой, окно целей) и история сообщений (PgUp).
+"""Windows over the game via the round buttons of the top panel (AoE2 DE): objectives, chat, diplomacy, tech tree;
+as well as the player score (F4 above the minimap, the objectives window) and the message history (PgUp).
 
-Окна не ставят игру на паузу (как в DE). Раскладка процедурная, текста минимум.
+Windows do not pause the game (as in DE). The layout is procedural, with minimal text.
 """
 import random
 
@@ -9,7 +9,7 @@ import pygame
 
 from .data import (SCREEN_W, TOP_H, UNITS, TECHS, BUILDINGS, CIVS, AGE_NAMES, AGE_TECHS, BUILD_MENU, RES_NAME,
                    shade)
-from . import civ_ui, market as mk, scoring, uiskin as S
+from . import civ_ui, i18n, market as mk, scoring, uiskin as S
 
 BOXES = {
     'objectives': pygame.Rect(SCREEN_W // 2 - 360, 80, 720, 470),
@@ -17,18 +17,17 @@ BOXES = {
     'diplomacy': pygame.Rect(SCREEN_W // 2 - 420, 80, 840, 300),
     'techtree': pygame.Rect(20, TOP_H + 16, SCREEN_W - 40, 552),
 }
-TITLES = {'objectives': ('Цели', 'victory'), 'chat': ('Чат', None), 'diplomacy': ('Дипломатия', 'diplomacy'),
-          'techtree': ('Древо технологий', 'upgrade')}
-SCORE_COLS = [('mil', 'Военное', (200, 60, 50)), ('eco', 'Экономика', (230, 185, 50)),
-              ('tech', 'Технологии', (70, 130, 220)), ('soc', 'Общество', (150, 90, 190))]
-# свои короткие фразы (номер → текст), как «насмешки» DE по номеру
-TAUNTS = {'1': 'Да.', '2': 'Нет.', '3': 'Нужна еда.', '4': 'Нужно дерево.', '5': 'Нужно золото.',
-          '6': 'Нужен камень.', '7': 'Ай!', '8': 'Все готовы?', '9': 'Ну-ну…', '10': 'Хорошая игра!',
-          '11': 'Ха-ха!', '12': 'Бегите!', '13': 'Ещё не всё!', '14': 'В атаку!'}
-ALLY_REPLY = ['Понял.', 'Хорошо!', 'Уже иду.', 'Держимся!', 'Принято.']
-ENEMY_REPLY = ['Посмотрим…', 'Ха!', 'Не дождётесь.']
-FLARE_REPLY = ['Вижу сигнал!', 'Иду туда.', 'Понял, иду.']
-# строки древа технологий: здания в порядке DE (военные, затем экономика)
+# window headings and captions are locale keys (win.*), see assets/locale/en.json
+TITLES = {'objectives': ('hud.objectives', 'victory'), 'chat': ('hud.chat', None),
+          'diplomacy': ('hud.diplomacy', 'diplomacy'), 'techtree': ('hud.techtree', 'upgrade')}
+SCORE_COLS = [('mil', 'score.military', (200, 60, 50)), ('eco', 'score.economy', (230, 185, 50)),
+              ('tech', 'score.technology', (70, 130, 220)), ('soc', 'score.society', (150, 90, 190))]
+# own short phrases (number -> key), like DE's "taunts" by number
+TAUNTS = {str(i): f'taunt.{i}' for i in range(1, 15)}
+ALLY_REPLY = ['reply.ally.%d' % i for i in range(1, 6)]
+ENEMY_REPLY = ['reply.enemy.%d' % i for i in range(1, 4)]
+FLARE_REPLY = ['reply.flare.%d' % i for i in range(1, 4)]
+# tech tree rows: buildings in DE order (military, then economy)
 TT_ROWS = ['barracks', 'archery_range', 'stable', 'siege_workshop', 'castle', 'dock', 'monastery', 'blacksmith',
            'university', 'town_center', 'market', 'mill', 'lumber_camp', 'mining_camp']
 TT_ICON = 24
@@ -38,19 +37,19 @@ def box(name):
     return BOXES[name]
 
 
-# ============================================================ счёт
+# ============================================================ score
 def _short(sc):
     return {'mil': sc['military'], 'eco': sc['economy'], 'tech': sc['technology'], 'soc': sc['society'],
             'total': sc['total']}
 
 
 def score_of(w, p):
-    """Счёт как в AoE2 — одна формула для F4, окна целей и экрана достижений (game/scoring.py)."""
+    """The AoE2-style score - one formula for F4, the objectives window and the achievements screen (game/scoring.py)."""
     return _short(scoring.score(w, p.id))
 
 
 def scores(game):
-    """Счёт всех игроков, пересчёт раз в игровую секунду."""
+    """The score of all players, recomputed once per game second."""
     w = game.world
     t, cache = game._score
     if w.time - t >= 1.0 or len(cache) != len(w.players):
@@ -59,13 +58,13 @@ def scores(game):
     return cache
 
 
-# ============================================================ отрисовка
+# ============================================================ drawing
 def frame(game, name):
     scr = game.screen
     b = BOXES[name]
     S.panel(scr, b, 'stone', ornate=True)
     title, ic = TITLES[name]
-    game.title_bar(b, title, ic)
+    game.title_bar(b, i18n.t(title), ic)
     close = close_rect(name)
     h = close.collidepoint(pygame.mouse.get_pos())
     S.slot(scr, close, 'hover' if h else 'normal')
@@ -93,14 +92,14 @@ def click(game, name, pos):
         fn(game, pos)
 
 
-# ---- цели
+# ---- objectives
 def draw_objectives(game):
     scr = game.screen
     w = game.world
     b = BOXES['objectives']
     p = w.players[0]
     x0, y = b.x + 30, b.y + 64
-    # условие победы
+    # victory condition
     row = pygame.Rect(x0, y, b.w - 60, 40)
     S.panel(scr, row, 'parchment', frame=False)
     cb = pygame.Rect(row.x + 10, row.centery - 10, 20, 20)
@@ -109,19 +108,19 @@ def draw_objectives(game):
         pygame.draw.lines(scr, (40, 120, 40), False, [(cb.x + 4, cb.centery), (cb.centerx - 1, cb.bottom - 4),
                                                       (cb.right - 3, cb.y + 3)], 3)
     S.blit_icon(scr, 'victory', (cb.right + 20, row.centery), 26)
-    S.text(scr, 'Завоевание: уничтожить центры и жителей врагов', (cb.right + 40, row.centery), game.fonts['b'],
-           S.INK, anchor='midleft', shadow=None)
+    S.text_fit(scr, i18n.t('win.conquest_goal'), (cb.right + 40, row.centery), game.fonts['b'],
+               S.INK, anchor='midleft', shadow=None, max_w=row.right - cb.right - 120)
     t = int(w.time)
     S.text(scr, f'{t // 3600}:{t // 60 % 60:02d}:{t % 60:02d}', (row.right - 12, row.centery), game.fonts['b'],
            S.INK, anchor='midright', shadow=None)
-    # игроки: счёт полосой по 4 частям
+    # players: the score as a bar of 4 parts
     sc = scores(game)
     top = max(1, max(s['total'] for s in sc.values()))
     y += 58
     lx = x0 + 250
     for i, (key, lbl, col) in enumerate(SCORE_COLS):
         pygame.draw.rect(scr, col, (lx + i * 105, y, 12, 12))
-        game.text(lbl, (lx + i * 105 + 17, y + 6), 's', S.TEXT_DIM, anchor='midleft')
+        game.text(i18n.t(lbl), (lx + i * 105 + 17, y + 6), 's', S.TEXT_DIM, anchor='midleft')
     y += 24
     for q in sorted(w.players, key=lambda q: (q.team, q.id)):
         s = sc[q.id]
@@ -130,7 +129,8 @@ def draw_objectives(game):
         pygame.draw.rect(scr, q.color, (r.x, r.y, 6, r.h))
         civ_ui.blit_emblem(game, q.civ, (r.x + 12, r.y + 3, 26, 32))
         game.text(q.name, (r.x + 46, r.y + 4), 'b', shade(q.color, 60) if q.alive else (140, 130, 120))
-        game.text(f'{civ_ui.civ_name(q.civ)} · команда {q.team + 1}', (r.x + 46, r.y + 21), 's', S.TEXT_DIM)
+        game.text(f'{civ_ui.civ_name(q.civ)} · ' + i18n.t('win.team_n', n=q.team + 1), (r.x + 46, r.y + 21), 's',
+                  S.TEXT_DIM)
         game.age_shield(r.x + 228, r.centery, q.age, 30, shade(q.color, -50))
         bx, bw = lx, r.right - lx - 70
         xx = bx
@@ -144,7 +144,7 @@ def draw_objectives(game):
         if not q.alive:
             pygame.draw.line(scr, (230, 90, 70), (r.x + 8, r.centery), (r.right - 8, r.centery), 2)
         y += 44
-    # свои итоги: добыто, убито, юниты, здания
+    # own totals: gathered, killed, units, buildings
     y = b.bottom - 62
     stats = [('economics', int(sum(p.gathered.values()))), ('kill', p.kills),
              ('training', sum(1 for u in w.units if u.owner == 0)),
@@ -157,9 +157,9 @@ def draw_objectives(game):
         game.text(str(v), (r.x + 44, r.centery), 'b', anchor='midleft')
 
 
-# ---- дипломатия
+# ---- diplomacy
 def dip_rows(game):
-    """[(игрок, прямоугольник строки, {отношение: rect}, {ресурс: rect})]."""
+    """[(player, row rectangle, {relation: rect}, {resource: rect})]."""
     w = game.world
     b = BOXES['diplomacy']
     out = []
@@ -179,18 +179,18 @@ def draw_diplomacy(game):
     b = BOXES['diplomacy']
     p = w.players[0]
     mp = pygame.mouse.get_pos()
-    # шапка: замок «команды закреплены», дань (сбор %), рынок
+    # header: a "teams locked" padlock, tribute (fee %), the market
     hy = b.y + 70
     lock(scr, b.x + 290, hy)
-    game.text('Команды закреплены', (b.x + 304, hy), 's', S.TEXT_DIM, anchor='midleft')
+    game.text(i18n.t('win.teams_locked'), (b.x + 304, hy), 's', S.TEXT_DIM, anchor='midleft')
     has_market = mk.has_market(w, 0)
     fee = int(round(mk.tribute_fee(p) * 100))
-    game.text(f'Дань +{mk.LOT}' + (f' · сбор {fee}%' if has_market else ''), (b.x + 544, hy), 's', S.TEXT_DIM,
-              anchor='midleft')
+    game.text(i18n.t('win.tribute_lot', n=mk.LOT) + (' · ' + i18n.t('win.fee', n=fee) if has_market else ''),
+              (b.x + 544, hy), 's', S.TEXT_DIM, anchor='midleft')
     if not has_market:
         ic = game.icon('b', 'market', 0, 24)
         scr.blit(ic, (b.right - 150, hy - 12))
-        game.text('нужен рынок', (b.right - 122, hy), 's', S.RED, anchor='midleft')
+        game.text(i18n.t('win.need_market'), (b.right - 122, hy), 's', S.RED, anchor='midleft')
     for q, r, st, tr in dip_rows(game):
         S.shade_overlay(scr, r, alpha=70)
         pygame.draw.rect(scr, q.color, (r.x, r.y, 6, r.h))
@@ -202,8 +202,8 @@ def draw_diplomacy(game):
             on = k == rel
             S.button(scr, rr, 'on' if on else 'disabled')
             col = {'ally': (150, 225, 130), 'neutral': (230, 220, 170), 'enemy': (255, 130, 110)}[k]
-            S.text(scr, {'ally': 'Союзник', 'neutral': 'Нейтрал', 'enemy': 'Враг'}[k], rr.center, game.fonts['bs'],
-                   col if on else (150, 140, 120), anchor='center')
+            S.text_fit(scr, i18n.t('rel.' + k), rr.center, game.fonts['bs'],
+                       col if on else (150, 140, 120), anchor='center', max_w=rr.w - 6)
         can = has_market and q.alive and rel == 'ally'
         for res, rr in tr.items():
             ok = can and p.res[res] >= mk.tribute_cost(p)
@@ -216,8 +216,9 @@ def draw_diplomacy(game):
     for q, r, st, tr in dip_rows(game):
         for res, rr in tr.items():
             if rr.collidepoint(mp):
-                game.draw_tip([f'Дань → {q.name}', {res: mk.tribute_cost(p)}, f'+{mk.LOT} {RES_NAME[res].lower()}',
-                               ('dim', 'Shift — ×5')], anchor=(rr.x, rr.y - 4))
+                game.draw_tip([i18n.t('eco.tribute_to', name=q.name), {res: mk.tribute_cost(p)},
+                               f'+{mk.LOT} {RES_NAME[res].lower()}', ('dim', i18n.t('eco.shift_x5'))],
+                              anchor=(rr.x, rr.y - 4))
 
 
 def click_diplomacy(game, pos):
@@ -226,22 +227,22 @@ def click_diplomacy(game, pos):
     for q, r, st, tr in dip_rows(game):
         for k, rr in st.items():
             if rr.collidepoint(pos):
-                w.msg('Команды закреплены', (230, 210, 160))
+                w.msg(i18n.t('win.teams_locked'), (230, 210, 160))
                 return
         for res, rr in tr.items():
             if rr.collidepoint(pos):
                 game.audio.click()
                 n = 5 if game.mods() & pygame.KMOD_SHIFT else 1
                 if not mk.has_market(w, 0):
-                    w.msg('Для дани нужен рынок', (255, 150, 90))
+                    w.msg(i18n.t('win.tribute_needs_market'), (255, 150, 90))
                 elif not w.allied(0, q.id):
-                    w.msg('Дань — только союзникам', (255, 150, 90))
+                    w.msg(i18n.t('win.tribute_allies_only'), (255, 150, 90))
                 elif not sum(1 for _ in range(n) if mk.tribute(w, p, q.id, res)):
-                    w.msg('Не хватает ресурсов', (255, 150, 90))
+                    w.msg(i18n.t('msg.not_enough_resources'), (255, 150, 90))
                 return
 
 
-# ---- чат
+# ---- chat
 def chat_rects():
     b = BOXES['chat']
     return {'all': pygame.Rect(b.x + 20, b.bottom - 46, 110, 30), 'allies': pygame.Rect(b.x + 136, b.bottom - 46, 110, 30),
@@ -260,11 +261,12 @@ def draw_chat(game):
         if y < log.y + 16:
             break
     if not game.chat_log:
-        game.text('1–14 — готовые фразы', (log.centerx, log.centery), 's', S.TEXT_DIM, anchor='center')
+        game.text(i18n.t('win.chat_hint'), (log.centerx, log.centery), 's', S.TEXT_DIM, anchor='center')
     rs = chat_rects()
-    for k, lbl in (('all', 'Всем'), ('allies', 'Союзникам')):
+    for k, lbl in (('all', 'win.chat_all'), ('allies', 'win.chat_allies')):
         S.button(scr, rs[k], 'on' if game.chat_to == k else 'normal')
-        S.text(scr, lbl, rs[k].center, game.fonts['bs'], (255, 236, 190), anchor='center')
+        S.text_fit(scr, i18n.t(lbl), rs[k].center, game.fonts['bs'], (255, 236, 190), anchor='center',
+                   max_w=rs[k].w - 8)
     inp = rs['input']
     pygame.draw.rect(scr, (16, 12, 8), inp)
     pygame.draw.rect(scr, S.GOLD_DK, inp, 1)
@@ -303,13 +305,13 @@ def chat_key(game, e):
 
 
 def send_chat(game, text):
-    """Сообщение от игрока: в журнал и на экран; компьютерные игроки отвечают готовыми фразами."""
+    """A message from a player: into the log and onto the screen; computer players answer with canned phrases."""
     if not text:
         return
     w = game.world
     p = w.players[0]
-    shown = TAUNTS.get(text, text)
-    to = '' if game.chat_to == 'all' else '(союзникам) '
+    shown = i18n.t(TAUNTS[text]) if text in TAUNTS else text
+    to = '' if game.chat_to == 'all' else i18n.t('win.chat_to_allies') + ' '
     col = shade(p.color, 70)
     game.chat_log.append((f'{to}{p.name}: {shown}', col))
     w.msg(f'{to}{p.name}: {shown}', col)
@@ -322,16 +324,16 @@ def send_chat(game, text):
         if game.chat_to == 'allies' and not ally:
             continue
         if ally:
-            ans = ALLY_REPLY[(len(text) + q.id) % len(ALLY_REPLY)]
+            ans = i18n.t(ALLY_REPLY[(len(text) + q.id) % len(ALLY_REPLY)])
         elif random.random() < 0.5:
-            ans = ENEMY_REPLY[(len(text) + q.id) % len(ENEMY_REPLY)]
+            ans = i18n.t(ENEMY_REPLY[(len(text) + q.id) % len(ENEMY_REPLY)])
         else:
             continue
         game.chat_replies.append((now + delay, f'{q.name}: {ans}', shade(q.color, 60)))
         delay += 700
 
 
-# ---- история сообщений (PgUp)
+# ---- message history (PgUp)
 def draw_history(game):
     log = game.chat_log[-14:]
     msgs = [(t, c) for t, _, c in game.world.messages]
@@ -344,7 +346,7 @@ def draw_history(game):
         game.text(t, (r.x + 8, r.y + 6 + i * 20), 'm', c)
 
 
-# ---- древо технологий
+# ---- tech tree
 def civ_list():
     return sorted((k for k in CIVS if k != 'default'), key=civ_ui.civ_name) or ['default']
 
@@ -356,7 +358,7 @@ def tt_civ(game):
 
 
 def tt_items(civ):
-    """[(здание, [(тип, имя, эпоха)])] для цивилизации: юниты и технологии по зданиям."""
+    """[(building, [(type, name, age)])] for a civilization: units and techs by building."""
     out = []
     for bk in TT_ROWS:
         d = BUILDINGS.get(bk)
@@ -379,7 +381,7 @@ def tt_items(civ):
 
 
 def tt_layout(game):
-    """[(rect, тип, имя, эпоха, здание)] + строки [(y, h, здание)] — кэш по цивилизации."""
+    """[(rect, type, name, age, building)] + rows [(y, h, building)] - cached by civilization."""
     civ = tt_civ(game)
     cache = game.__dict__.setdefault('_tt', {})
     if civ in cache:
@@ -422,7 +424,7 @@ def draw_techtree(game):
     bans = p.banned if own else _bans(civ)
     cells, rows, x0, colw = tt_layout(game)
     mp = pygame.mouse.get_pos()
-    # цивилизация: ◀ герб имя ▶
+    # civilization: <- crest name ->
     la, ra = tt_arrows()
     for r, d in ((la, -1), (ra, 1)):
         S.slot(scr, r, 'hover' if r.collidepoint(mp) else 'normal')
@@ -430,13 +432,13 @@ def draw_techtree(game):
         pygame.draw.polygon(scr, S.GOLD, [(cx - 5 * d, cy - 7), (cx + 5 * d, cy), (cx - 5 * d, cy + 7)])
     civ_ui.blit_emblem(game, civ, (la.right + 10, la.y - 4, 26, 32))
     game.text(civ_ui.civ_name(civ), (la.right + 50, la.centery), 'b', (255, 228, 160), anchor='midleft')
-    # легенда
+    # legend
     lx = b.right - 420
-    for i, (st, lbl) in enumerate((('done', 'изучено'), ('ok', 'доступно'), ('later', 'позже'), ('ban', 'нет'))):
+    for i, st in enumerate(('done', 'ok', 'later', 'ban')):
         r = pygame.Rect(lx + i * 100, la.y + 4, 16, 16)
         tt_mark(scr, r, st)
-        game.text(lbl, (r.right + 6, r.centery), 's', S.TEXT_DIM, anchor='midleft')
-    # столбцы эпох
+        game.text(i18n.t(f'win.tt_{st}'), (r.right + 6, r.centery), 's', S.TEXT_DIM, anchor='midleft')
+    # age columns
     for a in range(4):
         cx = x0 + a * colw
         hr = pygame.Rect(cx + 2, b.y + 78, colw - 4, 20)
@@ -447,7 +449,7 @@ def draw_techtree(game):
                   else S.TEXT_DIM, anchor='midleft')
         if own and a == p.age:
             pygame.draw.rect(scr, S.GOLD, hr, 1)
-    # строки зданий
+    # building rows
     for i, (y, h, bk) in enumerate(rows):
         if i % 2 == 0:
             S.shade_overlay(scr, (b.x + 14, y, b.w - 28, h), alpha=45)
@@ -478,7 +480,7 @@ def draw_techtree(game):
 
 
 def tt_mark(scr, r, st):
-    """Состояние значка: изучено — зелёная рамка и галочка; позже — затемнение; нет — серое и красный крест."""
+    """Icon state: researched - a green frame and a tick; later - dimmed; unavailable - grey with a red cross."""
     if st == 'done':
         pygame.draw.rect(scr, (90, 220, 90), r, 2)
         pygame.draw.lines(scr, (90, 240, 90), False, [(r.right - 10, r.bottom - 7), (r.right - 7, r.bottom - 3),

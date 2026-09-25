@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Сборка звуков игры из аудио 0 A.D. (Wildfire Games, CC BY-SA 3.0) → assets/audio/.
+"""Building the game's sounds from the audio of 0 A.D. (Wildfire Games, CC BY-SA 3.0) -> assets/audio/.
 
-Источник — выборочная загрузка tools/fetch_0ad.py (assets/0ad_raw/, в git не входит).
-Результат (входит в git, игра работает без assets/0ad_raw):
-  assets/audio/music/*.opus   — музыка: громкость выровнена (EBU R128, loudnorm), Opus 80 кбит/с
-  assets/audio/sfx/<имя>/*.opus — эффекты: тишина по краям срезана, длинные укорочены с затуханием,
-                                  пик/кратковременная громкость выровнены, часть — сдвиг высоты тона
-  assets/audio/manifest.json  — какие файлы у какого события + источник, лицензия, авторство по файлу
+The source is the selective download by tools/fetch_0ad.py (assets/0ad_raw/, not included in git).
+The result (included in git, the game works without assets/0ad_raw):
+  assets/audio/music/*.opus   - music: loudness leveled (EBU R128, loudnorm), Opus 80 kbit/s
+  assets/audio/sfx/<name>/*.opus - effects: silence at the edges trimmed, long ones shortened with a fade,
+                                  peak/short-term loudness leveled, some - a pitch shift
+  assets/audio/manifest.json  - which files belong to which event + the source, license, per-file authorship
 
-Нужен ffmpeg с libopus (brew install ffmpeg). Запуск: .venv/bin/python tools/build_audio.py
-Повторный запуск пересобирает всё (≈1 мин)."""
+ffmpeg with libopus is needed (brew install ffmpeg). Run: .venv/bin/python tools/build_audio.py
+A repeated run rebuilds everything (~1 min)."""
 import argparse
 import concurrent.futures as cf
 import json
@@ -30,9 +30,9 @@ LICENSE = 'CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)'
 CREDIT = '0 A.D. © Wildfire Games (https://www.wildfiregames.com/)'
 SR = 48000
 
-# ============================================================ музыка
-# Отобраны пьесы, подходящие к средневековой Европе и Азии; «греческие/римские» по характеру
-# (Forging a City-State, Juno Protect You) и слишком короткие/траурные пропущены.
+# ============================================================ music
+# Pieces suitable for medieval Europe and Asia were chosen; "Greek/Roman" in character ones
+# (Forging a City-State, Juno Protect You) and too short/mournful ones are skipped.
 MUSIC = {
     'menu': ['Epitaph'],
     'peace': ['Celtica', 'Celtic_Pride', 'Highland_Mist', 'Harvest_Festival', 'Tavern_in_the_Mist',
@@ -45,11 +45,11 @@ MUSIC = {
     'victory': ['You_are_Victorious!'],
     'defeat': ['Dried_Tears'],
 }
-MUSIC_LUFS = -20.0            # эффекты выровнены громче (~-14 dBFS кратковременно) — музыка ложится под них
+MUSIC_LUFS = -20.0            # effects are leveled louder (~-14 dBFS short-term) - the music sits under them
 MUSIC_BITRATE = '80k'
 
 
-# ============================================================ эффекты
+# ============================================================ effects
 def rng(prefix, nums, fmt='{:02d}'):
     return [prefix + fmt.format(i) + '.ogg' for i in nums]
 
@@ -61,11 +61,11 @@ V = 'voice/latin/civ/civ_'
 AL = 'interface/alarm/'
 CB = 'interface/complete/building/complete_'
 SB = 'interface/select/building/sel_'
-P = {'pitch': (0.94, 1.06)}   # добавить варианты чуть ниже и чуть выше по тону
+P = {'pitch': (0.94, 1.06)}   # add variants a little lower and a little higher in pitch
 
-# имя → [путь | (путь, опции)]; опции: max (сек), start (сек), pitch (множители), gain (дБ), stereo
+# name -> [path | (path, options)]; options: max (sec), start (sec), pitch (multipliers), gain (dB), stereo
 SFX = {
-    # ---- бой
+    # ---- combat
     'hit_melee': [(p, P) for p in rng(A + 'swordhit_', (10, 11, 12, 15, 16, 18))]
                  + [(p, P) for p in rng(I + 'shield_metal_', (2, 4, 5, 7))],
     'hit_pierce': [(p, P) for p in rng(I + 'fleshstab_', (1, 2, 3))] + rng(I + 'shield_wood_', (2, 4, 6)),
@@ -98,7 +98,7 @@ SFX = {
     'baa': rng('actor/fauna/death/goat_', (10, 13, 14, 15)),
     'death_ship': [('actor/ship/warship_death_01.ogg', {'max': 3.0}),
                    ('actor/ship/warship_death_02.ogg', {'max': 3.0})],
-    # ---- хозяйство
+    # ---- economy
     'work_chop': rng('resource/lumbering/lumber_tree_', range(1, 10)),
     'work_mine': rng('resource/mining/mine_stone_', (1, 2, 4, 5, 6, 9)) + rng('resource/mining/mine_metal_', (2, 3, 4, 7)),
     'work_farm': rng('resource/farming/hoe_', (10, 12, 14, 15, 16, 17), '{:d}')
@@ -111,7 +111,7 @@ SFX = {
                   + [('resource/construction/con_saw_05.ogg', {})],
     'place': rng('resource/construction/con_stone_', (2, 4)),
     'reseed': ['resource/farming/hoe_11.ogg', 'resource/farming/hoe_13.ogg'],
-    # ---- оповещения (глобальные)
+    # ---- notifications (global)
     'train_inf': [AL + 'alarmcreatemiltaryfoot_1.ogg'],
     'train_cav': [AL + 'alarmcreatecavalry_1.ogg'],
     'train_vil': [AL + 'alarmcreateworker_1.ogg', AL + 'alarmcreatefemale.ogg'],
@@ -130,7 +130,7 @@ SFX = {
     'defeat_ally': [AL + 'alarm_defeated_ally.ogg'],
     'convert': [AL + 'alarmunitturn_1.ogg'],
     'convert_start': [SB + 'temple_10.ogg', SB + 'temple.ogg'],
-    # ---- здания: готово / выбор
+    # ---- buildings: done / selection
     **{'done_' + k: [CB + v + '.ogg'] for k, v in (
         ('town_center', 'civ_center'), ('house', 'house'), ('mill', 'farmstead'), ('camp', 'storehouse'),
         ('farm', 'field'), ('barracks', 'barracks'), ('archery_range', 'range'), ('stable', 'stable'),
@@ -146,7 +146,7 @@ SFX = {
     'sel_stone': ['interface/select/resource/sel_stone_02.ogg'],
     'sel_gold': ['interface/select/resource/sel_metal_01.ogg'],
     'sel_berries': [('interface/select/resource/sel_fruit_02.ogg', {'max': 1.2})],
-    # ---- гарнизон, торговля, флот, осада
+    # ---- garrison, trade, navy, siege
     'garrison': [('actor/gate/stonegate_close_21.ogg', {'max': 1.6}), ('actor/gate/stonegate_close_22.ogg', {'max': 1.6})],
     'eject': [('actor/gate/stonegate_open_21.ogg', {'max': 1.8}), ('actor/gate/stonegate_open_22.ogg', {'max': 1.8})],
     'market': [(SB + 'market.ogg', {'pitch': (0.95, 1.05)})],
@@ -156,7 +156,7 @@ SFX = {
     'board': [('actor/ship/warship_move_01.ogg', {'max': 1.2}), ('actor/ship/ship_select_01.ogg', {})],
     'unload': [('actor/ship/smove_21.ogg', {'max': 1.5}), ('actor/ship/ship_move.ogg', {'max': 1.5})],
     'click': ['interface/ui/rally_click_01.ogg', 'interface/ui/rally_click_02.ogg'],
-    # ---- голоса: латынь (0 A.D., CC BY-SA) — древний язык, коротко; животные и механизмы — без речи
+    # ---- voices: Latin (0 A.D., CC BY-SA) - an ancient language, brief; animals and machines - no speech
     'sel_vil_m': [V + f'male_{w}_1.ogg' for w in ('hello', 'what_is_it', 'my_lord')],
     'sel_vil_f': [V + f'female_{w}_1.ogg' for w in ('hello', 'what_is_it', 'my_lord')],
     'sel_mil': [V + f'male_{w}_1.ogg' for w in ('what_is_it', 'my_lord', 'hello')],
@@ -187,7 +187,7 @@ SFX = {
     'cmd_elephant': ['actor/fauna/animal/elephant_order1.ogg', 'actor/fauna/animal/elephant_order2.ogg'],
 }
 SFX_BITRATE = '48k'
-SFX_TARGET = 10 ** (-14 / 20)          # кратковременная (50 мс) RMS самого громкого места
+SFX_TARGET = 10 ** (-14 / 20)          # short-term (50 ms) RMS of the loudest spot
 SFX_PEAK = 10 ** (-1 / 20)
 
 
@@ -215,7 +215,7 @@ def channels_of(path):
 
 
 def resample(x, k):
-    """Сдвиг тона вместе с темпом (как у проигрывателя с другой скоростью): k > 1 — выше и короче."""
+    """A pitch shift together with tempo (like a player at another speed): k > 1 - higher and shorter."""
     n = int(len(x) / k)
     src = np.arange(n) * k
     return np.stack([np.interp(src, np.arange(len(x)), x[:, c]) for c in range(x.shape[1])], axis=1)
@@ -244,7 +244,7 @@ def process_sfx(src, opt):
         x[:nf] *= np.linspace(0, 1, nf)[:, None]
     nf = min(len(x), int(0.01 * SR))
     x[-nf:] *= np.linspace(1, 0, nf)[:, None]
-    # громкость: самое громкое окно 50 мс → SFX_TARGET, пик не выше -1 dBFS
+    # loudness: the loudest 50 ms window -> SFX_TARGET, the peak no higher than -1 dBFS
     w = int(0.05 * SR)
     p2 = (x ** 2).mean(axis=1)
     if len(p2) > w:
@@ -281,9 +281,9 @@ def build_sfx(jobs):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             encode(y, dst, SFX_BITRATE)
             ch = 'stereo' if y.shape[1] == 2 else 'mono'
-            changes = (f'обрезана тишина{", укорочено до %.1f с с затуханием" % opt["max"] if opt.get("max") else ""}'
-                       f'{", фрагмент с %.1f с" % opt["start"] if opt.get("start") else ""}, выровнена громкость'
-                       f'{", скорость/тон ×%.2f" % k if k != 1.0 else ""}; {ch}, Opus {SFX_BITRATE}')
+            changes = (f'silence trimmed{", shortened to %.1f s with a fade" % opt["max"] if opt.get("max") else ""}'
+                       f'{", fragment from %.1f s" % opt["start"] if opt.get("start") else ""}, loudness leveled'
+                       f'{", speed/pitch x%.2f" % k if k != 1.0 else ""}; {ch}, Opus {SFX_BITRATE}')
             res.append((name, dst_rel, {'source': UPSTREAM + rel, 'license': LICENSE, 'credit': CREDIT,
                                         'changes': changes, 'duration': round(len(y) / SR, 3),
                                         'bytes': os.path.getsize(dst)}))
@@ -298,7 +298,7 @@ def build_sfx(jobs):
 
 
 def loudnorm_args(src):
-    """Двухпроходный loudnorm: 1-й проход меряет, 2-й применяет линейное усиление."""
+    """A two-pass loudnorm: the 1st pass measures, the 2nd applies a linear gain."""
     r = subprocess.run(['ffmpeg', '-hide_banner', '-i', src, '-af',
                         f'loudnorm=I={MUSIC_LUFS}:TP=-1.5:LRA=14:print_format=json', '-f', 'null', '-'],
                        capture_output=True, text=True)
@@ -325,8 +325,8 @@ def build_music(jobs):
              '-b:a', MUSIC_BITRATE, '-application', 'audio', '-vbr', 'on', dst])
         dur = float(run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', dst]))
         return role, dst_rel, {'title': title.replace('_', ' '), 'source': UPSTREAM + 'music/' + title + '.ogg',
-                               'license': LICENSE, 'credit': CREDIT + '; музыка — Omri Lahav и др. (см. CREDITS.md)',
-                               'changes': f'громкость выровнена ({lufs:.1f} → {MUSIC_LUFS:.0f} LUFS), '
+                               'license': LICENSE, 'credit': CREDIT + '; music - Omri Lahav et al. (see CREDITS.md)',
+                               'changes': f'loudness leveled ({lufs:.1f} → {MUSIC_LUFS:.0f} LUFS), '
                                           f'Opus {MUSIC_BITRATE}',
                                'duration': round(dur, 2), 'bytes': os.path.getsize(dst)}
 
@@ -334,7 +334,7 @@ def build_music(jobs):
         for role, dst_rel, meta in ex.map(one, tasks):
             out.setdefault(role, []).append(dst_rel)
             files[dst_rel] = meta
-    for role in out:           # порядок как в MUSIC (ex.map и так сохраняет, но на всякий случай)
+    for role in out:           # the order as in MUSIC (ex.map preserves it anyway, but just in case)
         out[role].sort(key=lambda p: [re.sub(r'[^A-Za-z0-9_-]+', '', t) for t in MUSIC[role]].index(
             os.path.splitext(os.path.basename(p))[0]))
     return out, files
@@ -345,11 +345,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--jobs', type=int, default=8)
     ap.add_argument('--sfx-only', action='store_true')
-    ap.add_argument('--raw', default=RAW, help='папка public/audio из assets/0ad_raw')
+    ap.add_argument('--raw', default=RAW, help='the public/audio folder from assets/0ad_raw')
     a = ap.parse_args()
     RAW = os.path.abspath(a.raw)
     if not os.path.isdir(RAW):
-        sys.exit(f'нет {RAW}: сначала tools/fetch_0ad.py')
+        sys.exit(f'no {RAW}: run tools/fetch_0ad.py first')
     man_path = os.path.join(OUT, 'manifest.json')
     old = {}
     if a.sfx_only and os.path.exists(man_path):
@@ -372,15 +372,15 @@ def main():
             commit = json.load(f).get('commit', '')
     except (OSError, ValueError):
         pass
-    man = {'about': 'Звуки и музыка из 0 A.D. (Wildfire Games), изменены (см. changes у файла). '
-                    'Лицензия CC BY-SA 3.0; эти файлы распространяются под той же лицензией.',
+    man = {'about': 'Sounds and music from 0 A.D. (Wildfire Games), modified (see the file\'s changes). '
+                    'License CC BY-SA 3.0; these files are distributed under the same license.',
            'source': f'{REPO} @ {commit}', 'license': LICENSE, 'credit': CREDIT,
            'music': music, 'sfx': dict(sorted(sfx.items())), 'files': dict(sorted(files.items()))}
     with open(man_path, 'w') as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
     tot = {k: sum(v['bytes'] for p, v in files.items() if p.startswith(k)) for k in ('music/', 'sfx/')}
-    print(f'музыка: {sum(len(v) for v in music.values())} пьес, {tot["music/"] / 1e6:.1f} МБ; '
-          f'эффекты: {len(sfx)} событий, {sum(len(v) for v in sfx.values())} файлов, {tot["sfx/"] / 1e6:.1f} МБ')
+    print(f'music: {sum(len(v) for v in music.values())} pieces, {tot["music/"] / 1e6:.1f} MB; '
+          f'effects: {len(sfx)} events, {sum(len(v) for v in sfx.values())} files, {tot["sfx/"] / 1e6:.1f} MB')
 
 
 if __name__ == '__main__':

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Безоконный замер отрисовки: время кадра Game.draw() на занятой сцене (≈200 юнитов в кадре).
+"""A windowless drawing measurement: the frame time of Game.draw() on a busy scene (~200 units in the frame).
 
-Примеры:
-  .venv/bin/python tools/draw_bench.py                     # 3 игрока, 15 мин игры, 200 юнитов в кадре
+Examples:
+  .venv/bin/python tools/draw_bench.py                     # 3 players, 15 game minutes, 200 units in the frame
   .venv/bin/python tools/draw_bench.py --units 300 --frames 300
-  .venv/bin/python tools/draw_bench.py --profile           # + cProfile отрисовки (топ функций)
-Сцена: ИИ играет за всех N минут, затем у вашего центра высаживаются юниты разных игроков
-(сражаются — есть снаряды, полоски здоровья, трупы), тумана нет. Каждый кадр — шаг мира + draw().
+  .venv/bin/python tools/draw_bench.py --profile           # + cProfile of the drawing (top functions)
+The scene: the AI plays for everyone for N minutes, then units of different players land at your center
+(they fight - there are projectiles, health bars, corpses), no fog. Every frame - a world step + draw().
 """
 import argparse
 import cProfile
@@ -33,11 +33,11 @@ def main():
     ap.add_argument('--seed', type=int, default=3)
     ap.add_argument('--players', type=int, default=3)
     ap.add_argument('--minutes', type=float, default=15)
-    ap.add_argument('--units', type=int, default=200, help='сколько юнитов должно быть в кадре')
+    ap.add_argument('--units', type=int, default=200, help='how many units should be in the frame')
     ap.add_argument('--frames', type=int, default=200)
     ap.add_argument('--maptype', default='land')
     ap.add_argument('--profile', action='store_true')
-    ap.add_argument('--zoom', type=float, default=1.0, help='масштаб мира (колесо мыши), 0.6–1.6')
+    ap.add_argument('--zoom', type=float, default=1.0, help='world scale (the mouse wheel), 0.6-1.6')
     a = ap.parse_args()
     random.seed(a.seed)
     g = Game()
@@ -50,7 +50,7 @@ def main():
     cx, cy = tc.center() if tc else (w.starts[0][0] * TILE, w.starts[0][1] * TILE)
     g.zoom = g.zoom_to = a.zoom
     g.center_on(cx, cy)
-    # без тумана — всё видно
+    # no fog - everything is visible
     w.explored[:] = b'\x01' * len(w.explored)
     w.amat[0] = [True] * len(w.amat[0])
     for b in w.buildings:
@@ -72,8 +72,8 @@ def main():
         u = Unit(rnd.choice(kinds), owner, x, y, w)
         w.units.append(u)
     w.recount()
-    print(f'в кадре юнитов: {len(in_view())}, всего {len(w.units)}, зданий {len(w.buildings)}')
-    # прогрев (спрайты, кэши)
+    print(f'units in the frame: {len(in_view())}, total {len(w.units)}, buildings {len(w.buildings)}')
+    # warm-up (sprites, caches)
     for _ in range(10):
         w.update(0.034)
         g.events = w.events[:]
@@ -95,8 +95,8 @@ def main():
         times.append(time.perf_counter() - t0)
     times.sort()
     n = len(times)
-    print(f'масштаб ×{g.zoom}: кадр draw(): среднее {1000 * sum(times) / n:.2f} мс, медиана {1000 * times[n // 2]:.2f} мс, '
-          f'95% {1000 * times[int(n * 0.95)]:.2f} мс, в кадре юнитов {len(in_view())}')
+    print(f'scale x{g.zoom}: draw() frame: mean {1000 * sum(times) / n:.2f} ms, median {1000 * times[n // 2]:.2f} ms, '
+          f'95% {1000 * times[int(n * 0.95)]:.2f} ms, units in the frame {len(in_view())}')
     if prof:
         pstats.Stats(prof).strip_dirs().sort_stats('tottime').print_stats(25)
 

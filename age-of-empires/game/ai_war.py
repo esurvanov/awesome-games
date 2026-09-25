@@ -1,12 +1,12 @@
-"""ИИ: ведение войны — сбор армии у точки сбора, волны атаки, марш с осадой, выбор целей, отступление,
-оборона базы и «зачистка» (охота на последних жителей и здания, чтобы закончить партию).
+"""AI: waging war - gathering the army at the rally point, attack waves, marching with siege, choosing targets, retreat,
+base defense and the "sweep" (hunting the last villagers and buildings to finish the match).
 
-Используется из ai.AI: self.war = WarPlanner(ai); каждые полсекунды AI.fight → war.update(army, vils, threats).
-Состояния: 'rally' (копим у точки сбора) → 'march' (строем идём к рубежу перед целью, темп — по самым
-медленным, т. е. осаде) → 'engage' (бой: юниты бьют ближайших военных врагов, иначе — цель; осада — здания)
-→ 'retreat' (при тяжёлых потерях — назад к точке сбора) → 'rally'.
-Атака начинается, когда сила армии ≥ ratio × известной силы врага (профиль сложности ai.prof).
-Союзников не трогаем: все цели — только через матрицу враждебности w.hmat.
+Used from ai.AI: self.war = WarPlanner(ai); every half second AI.fight -> war.update(army, vils, threats).
+States: 'rally' (saving at the rally point) -> 'march' (in formation to a line before the target, pace set by the
+slowest, i.e. the siege) -> 'engage' (combat: units hit the nearest military enemies, otherwise the target; siege - buildings)
+-> 'retreat' (after heavy losses - back to the rally point) -> 'rally'.
+The attack starts when the army's strength >= ratio x the known enemy strength (difficulty profile ai.prof).
+Allies are never touched: all targets go only through the hostility matrix w.hmat.
 """
 import math
 import random
@@ -21,7 +21,7 @@ _VAL = {}
 
 
 def value(kind):
-    """Цена юнита (сумма ресурсов) — мера «силы» для сравнения армий."""
+    """Unit cost (sum of resources) - a measure of "strength" for comparing armies."""
     v = _VAL.get(kind)
     if v is None:
         d = UNITS[kind]
@@ -50,7 +50,7 @@ def siege_like(u):
 
 
 def bld_breaker(u):
-    """Осада, способная ломать здания (таран, требушет, бомбарда)."""
+    """Siege able to break buildings (ram, trebuchet, bombard)."""
     return bool(u.d.get('bld_only') or u.d.get('pack') or u.kind == 'bombard_cannon')
 
 
@@ -66,23 +66,23 @@ class WarPlanner:
         self.v0 = 1.0
         self.t_state = 0.0
         self.next_wave = 0.0
-        self.ready_t = None         # с какого времени армия «готова», но ждёт осаду
-        self.wait_t = None          # с какого времени армии хватает по численности (терпение — prof['patience'])
+        self.ready_t = None         # since when the army is "ready" but waits for siege
+        self.wait_t = None          # since when the army is large enough (patience is prof['patience'])
         self.waves = 0
-        self.order_t = {}           # id(юнит) → время последнего приказа
+        self.order_t = {}           # id(unit) -> time of the last order
         self.tick_n = 0
         self.hunt = False
         self.broken = False
         self.broken_t = -99.0
-        self.avoid = []             # замки врага, к которым без осады не лезем (зачистка)
+        self.avoid = []             # enemy castles we do not approach without siege (sweep)
 
-    # ---- служебное
+    # ---- helpers
     def set_state(self, s):
         self.state = s
         self.t_state = self.w.time
 
     def order(self, a, now, gap=2.5):
-        """Можно ли снова отдавать приказ юниту (не дёргаем путь каждые полсекунды)."""
+        """Whether the unit may be ordered again (do not tug the path every half second)."""
         t = self.order_t.get(id(a), -99.0)
         if now - t < gap:
             return False
@@ -100,7 +100,7 @@ class WarPlanner:
         return bx + dx / d * 7 * TILE, by + dy / d * 7 * TILE
 
     def enemy_strength(self):
-        """Известная сила врага: армия цели + треть армий остальных врагов."""
+        """Known enemy strength: the target's army plus a third of the other enemies' armies."""
         w, ai = self.w, self.ai
         hrow = w.hmat[ai.pid]
         s = 0.0
@@ -117,7 +117,7 @@ class WarPlanner:
         ys = sorted(u.y for u in units)
         return xs[len(xs) // 2], ys[len(ys) // 2]
 
-    # ---- главный шаг
+    # ---- main step
     def update(self, army, vils, threats):
         ai, w = self.ai, self.w
         now = w.time
@@ -131,14 +131,14 @@ class WarPlanner:
             alive = {id(a) for a in fighters}
             self.order_t = {k: v for k, v in self.order_t.items() if k in alive}
 
-        # ---- оборона базы
+        # ---- base defense
         if threats:
             tv = strength(threats)
             if self.state in ('march', 'engage'):
                 gs = strength(self.group)
                 hs = strength([a for a in home if not siege_like(a)])
                 sieged = any(bld_breaker(u) for u in threats)
-                # отзываем армию, только если дома не справиться: набег мелкий — размен базами выгоднее
+                # recall the army only if it cannot be handled at home: a small raid - trading bases is more profitable
                 if tv > 1.2 * hs + 300 and (tv >= 0.5 * gs or sieged or self.state == 'march'):
                     self.recall()
             if self.state == 'retreat':
@@ -152,7 +152,7 @@ class WarPlanner:
                 if v.state == 'attack' and (v.target is None or not v.target.alive or not isinstance(v.target, Unit)):
                     v.stop()
 
-        # ---- морская высадка — у морской части ИИ
+        # ---- naval landing - handled by the naval part of the AI
         if ai.naval is not None and ai.naval.ferry_mode():
             self.group = []
             self.set_state('rally')
@@ -179,7 +179,7 @@ class WarPlanner:
         ai.attacking = self.state in ('march', 'engage')
         ai.army.lead_monks(self.group if self.group else home)
 
-    # ---- оборона
+    # ---- defense
     def defend(self, home, vils, threats):
         now = self.w.time
         for a in home:
@@ -193,7 +193,7 @@ class WarPlanner:
                 continue
             t = min(threats, key=lambda o: (o.x - a.x) ** 2 + (o.y - a.y) ** 2)
             a.cmd_attack(t)
-        # мангонели/скорпионы дома тоже стреляют по толпе
+        # mangonels/scorpions at home also shoot at the crowd
         for a in home:
             if siege_like(a) or not a.d.get('rng') or a.cls != 'siege':
                 continue
@@ -219,7 +219,7 @@ class WarPlanner:
         self.set_state('retreat')
         self.next_wave = self.w.time + 30
 
-    # ---- сбор
+    # ---- gathering
     def gather(self, home, now):
         rx, ry = self.rally_point()
         for a in home:
@@ -234,7 +234,7 @@ class WarPlanner:
         combat = [a for a in home if not a.d.get('monk')]
         n = len([a for a in combat if not siege_like(a)])
         minw = prof['wave_min'][p.age]
-        # у цели не осталось ни центра, ни замка — добить хватит и небольшого отряда
+        # the target has neither a center nor a castle left - a small squad is enough to finish it
         if self.enemy_broken():
             minw = min(minw, 4)
         if n < minw:
@@ -247,13 +247,13 @@ class WarPlanner:
         en = self.enemy_strength()
         maxed = p.pop >= min(p.cap, 200 + p.pop_bonus) - 4 and p.pop >= 120
         big = n >= 3 * minw and my >= 0.6 * en
-        # долго стоим «готовыми», а перевеса всё нет — идём при сопоставимых силах
+        # we have been standing "ready" for long with no advantage - go with comparable forces
         patient = now - self.wait_t > prof['patience'] and my >= 0.65 * en
         broken = self.enemy_broken() and my >= 0.5 * en
         if not (my >= prof['ratio'] * en or maxed or big or patient or broken):
             self.ready_t = None
             return
-        # в Замках и позже ждём осадное орудие (не дольше 100 с), если мастерская есть
+        # in the Castle Age and later we wait for a siege weapon (no longer than 100 s) if a workshop exists
         if p.age >= 2 and not any(bld_breaker(a) for a in combat):
             has_ws = any(b.owner == ai.pid and b.complete and b.kind in ('siege_workshop', 'castle')
                          for b in self.w.buildings)
@@ -282,7 +282,7 @@ class WarPlanner:
         self.prog_t = now
 
     def enemy_broken(self):
-        """У цели нет ни центра, ни замка (пересчёт раз в 5 с)."""
+        """The target has neither a center nor a castle (recomputed every 5 s)."""
         w = self.w
         if w.time - self.broken_t < 5:
             return self.broken
@@ -291,7 +291,7 @@ class WarPlanner:
         self.broken = bool(owners) and not any(b.owner in owners and b.kind == 'town_center' for b in w.buildings)
         return self.broken
 
-    # ---- выбор цели
+    # ---- target choice
     def target_players(self):
         w, ai = self.w, self.ai
         hrow = w.hmat[ai.pid]
@@ -309,8 +309,8 @@ class WarPlanner:
         gs = strength(self.group)
         blds = [b for b in w.buildings if b.owner in owners and b.alive and not b.d.get('wall')
                 and not b.d.get('water')]
-        # «хребет» врага: центры и замки
-        # без центров враг проигрывает, как только кончатся жители — охотимся на них (замок без осады обходим)
+        # the enemy's "backbone": centers and castles
+        # without centers the enemy loses as soon as the villagers run out - hunt them (walk around a castle without siege)
         core = [b for b in blds if b.kind == 'town_center' or (b.kind == 'castle' and siege >= 2)]
         self.hunt = not core
         self.avoid = [b for b in blds if b.kind == 'castle' and siege < 2]
@@ -347,7 +347,7 @@ class WarPlanner:
                 bs, best = s, b
         return best
 
-    # ---- марш
+    # ---- march
     def march(self, now):
         w = self.w
         grp = self.group
@@ -366,7 +366,7 @@ class WarPlanner:
         dx, dy = ox - bx, oy - by
         d = math.hypot(dx, dy) or 1
         stx, sty = ox - dx / d * 9 * TILE, oy - dy / d * 9 * TILE
-        # враги рядом с отрядом — в бой
+        # enemies near the squad - into combat
         c = self.centroid([a for a in grp if not siege_like(a)] or grp)
         hrow = w.hmat[self.ai.pid]
         mask = w.hostile_mask(hrow)
@@ -393,11 +393,11 @@ class WarPlanner:
                     and self.order(a, now, 3.0):
                 a.cmd_move(fx + random.uniform(-45, 45), fy + random.uniform(-45, 45))
 
-    # ---- бой
+    # ---- combat
     def reinforce(self, home, now):
         n = [a for a in home if not a.d.get('monk')]
-        # подкрепление — пачкой и только к живой волне; растаявшую волну не кормим по одному.
-        # Явный перевес (или враг без армии) — дожимаем: всё новое сразу вперёд
+        # reinforcements - in a batch and only to a living wave; a dwindled wave is not fed one by one.
+        # Clear advantage (or an enemy without an army) - press on: everything new goes forward at once
         gs = strength(self.group)
         ahead = gs + strength(n) >= 2.0 * self.enemy_strength()
         if len(n) >= (2 if self.hunt or ahead else 5) and (self.hunt or ahead or gs >= 0.45 * self.v0):
@@ -412,7 +412,7 @@ class WarPlanner:
         self.group = []
         self.obj = None
         self.set_state('rally')
-        # волна дошла до конца цели, а врагу нечем ответить — следующая почти сразу
+        # the wave reached the end of the target and the enemy cannot answer - the next one almost immediately
         quick = self.enemy_strength() < 0.5 * max(1.0, strength(self.group))
         self.next_wave = now + self.ai.prof['wave_gap'] * (0.15 if quick else 0.5)
 
@@ -427,7 +427,7 @@ class WarPlanner:
         c = self.centroid([a for a in combat if not siege_like(a)] or combat)
         hrow = w.hmat[ai.pid]
         mask = w.hostile_mask(hrow)
-        # отступление: армия растаяла, а рядом с ней враг сильнее
+        # retreat: the army has dwindled and a stronger enemy is near it
         gs = strength(combat)
         if now - self.t_state > 10 and gs < 0.4 * self.v0 and not self.hunt:
             local = [u for u in w.units_in_rect(c[0] - 10 * TILE, c[1] - 10 * TILE, c[0] + 10 * TILE,
@@ -437,7 +437,7 @@ class WarPlanner:
                         and b.dist_px(*c) < 10 * TILE)
             en = self.enemy_strength()
             if strength(local) + forts * 500 > 1.2 * gs or (gs < 0.25 * self.v0 and gs < 2.0 * en):
-                # проигрываем (или от волны почти ничего не осталось) — назад, копить следующую
+                # losing (or almost nothing is left of the wave) - back to save up the next one
                 self.recall()
                 self.next_wave = now + ai.prof['wave_gap']
                 return
@@ -467,7 +467,7 @@ class WarPlanner:
                     a.cmd_attack(b)
                 continue
             if a.cls == 'siege':
-                # мангонели, скорпионы: по юнитам рядом, иначе — за отрядом
+                # mangonels, scorpions: at units nearby, otherwise behind the squad
                 e = self.near_enemy(a, 9 * TILE, mask, hrow, military=True)
                 if e is not None:
                     if not alive_t:
@@ -493,7 +493,7 @@ class WarPlanner:
                 a.cmd_move(c[0] + random.uniform(-40, 40), c[1] + random.uniform(-40, 40))
                 continue
             if obj.kind in FORTS and isinstance(obj, Building) and breakers:
-                # замок/башню ломает осада; остальные прикрывают её, не подставляясь под стрелы
+                # a castle/tower is broken by siege; the rest cover it without exposing themselves to arrows
                 sx, sy = breakers
                 if alive_t and isinstance(t, Building) and t.kind in FORTS:
                     a.cmd_move(sx + random.uniform(-50, 50), sy + random.uniform(-50, 50))
@@ -520,7 +520,7 @@ class WarPlanner:
         return best
 
     def siege_target(self, a, obj, c):
-        """Цель тарана/требушета: башни и замки рядом, затем цель волны, затем ближайшее здание."""
+        """Target of a ram/trebuchet: nearby towers and castles, then the wave's target, then the nearest building."""
         w = self.w
         hrow = w.hmat[self.ai.pid]
         best, bs = None, 1e18
@@ -546,7 +546,7 @@ class WarPlanner:
         return best
 
     def hunt_target(self, a, taken):
-        """Зачистка: ближайший вражеский житель (не больше 4 охотников на одного), иначе здание."""
+        """Sweep: the nearest enemy villager (no more than 4 hunters per one), otherwise a building."""
         w = self.w
         hrow = w.hmat[self.ai.pid]
         best, bd = None, 1e18

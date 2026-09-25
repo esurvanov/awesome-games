@@ -1,8 +1,8 @@
-"""Процедурная графика стен и ворот: сегменты соединяются с соседями (маска defense.wall_mask).
+"""Procedural wall and gate graphics: segments connect to their neighbors (the defense.wall_mask mask).
 
-Частокол — заострённые брёвна; каменная стена — блоки с зубцами; ворота — две башни и створки
-(открыты, когда рядом свои). Спрайты кэшируются по (вид, цвет, маска / ориентация, открыто).
-Возвращают (surface, ox, oy): (ox, oy) — верхний угол ромба основания внутри спрайта.
+A palisade - pointed logs; a stone wall - blocks with battlements; a gate - two towers and leaves
+(open when own units are nearby). Sprites are cached by (kind, color, mask / orientation, open).
+They return (surface, ox, oy): (ox, oy) is the top corner of the base diamond inside the sprite.
 """
 import math
 
@@ -19,7 +19,7 @@ LOG_TIP = (196, 160, 112)
 STONE = (178, 172, 160)
 WOOD_DOOR = (122, 84, 50)
 
-EXTRA = 74          # запас высоты над ромбом клетки
+EXTRA = 74          # a height margin above the cell's diamond
 
 
 def is_palisade(kind):
@@ -34,7 +34,7 @@ def _canvas(w, h, extra=EXTRA):
 
 
 class _P:
-    """Мини-художник: координаты клеток (x, y) и высота z в пикселях."""
+    """A mini-painter: cell coordinates (x, y) and height z in pixels."""
 
     def __init__(self, surf, ox, oy):
         self.s = surf
@@ -61,7 +61,7 @@ class _P:
             self.poly([(x0, y0, z0 + h), (x1, y0, z0 + h), (x1, y1, z0 + h), (x0, y1, z0 + h)], shade(color, 22))
 
 
-# ============================================================ частокол
+# ============================================================ palisade
 def _log(p, x, y, h, r, band=None):
     bx, by = p.P(x, y, 0)
     top = by - h
@@ -93,7 +93,7 @@ def _palisade_piece(p, mask, color):
         _log(p, x, y, h, r, color)
 
 
-# ============================================================ камень
+# ============================================================ stone
 def _slab(p, ax, ay, bx, by, t, H, color, band):
     ux, uy = bx - ax, by - ay
     L = math.hypot(ux, uy)
@@ -119,7 +119,7 @@ def _slab(p, ax, ay, bx, by, t, H, color, band):
         p.poly([(c[0], c[1], 0), (d[0], d[1], 0), (d[0], d[1], H), (c[0], c[1], H)], col)
         for z in range(7, H - 2, 7):
             pygame.draw.line(p.s, shade(col, -22), p.P(c[0], c[1], z), p.P(d[0], d[1], z))
-        # вертикальные швы вразбежку
+        # staggered vertical seams
         n = max(1, int(L / 0.22))
         for k in range(1, n):
             f = k / n
@@ -134,7 +134,7 @@ def _slab(p, ax, ay, bx, by, t, H, color, band):
         col = lit(ux, uy)
         p.poly([(b1[0], b1[1], 0), (b2[0], b2[1], 0), (b2[0], b2[1], H), (b1[0], b1[1], H)], col)
     p.poly([(a1[0], a1[1], H), (b1[0], b1[1], H), (b2[0], b2[1], H), (a2[0], a2[1], H)], shade(color, 20))
-    # зубцы
+    # battlements
     n = max(1, int(round(L / 0.25)))
     sz = 0.13
     for k in range(n):
@@ -174,14 +174,14 @@ def _stone_piece(p, mask, pcolor):
 
 
 def _band(p, color, mask):
-    """Флажок владельца на столбе."""
+    """The owner's pennant on a post."""
     bx, by = p.P(0.5, 0.5, 44 if mask is not None else 40)
     pygame.draw.line(p.s, (70, 50, 35), (bx, by), (bx, by - 14), 2)
     pygame.draw.polygon(p.s, color, [(bx + 1, by - 14), (bx + 10, by - 11), (bx + 1, by - 7)])
 
 
 def piece_sprite(kind, color, mask, civ=None):
-    """Спрайт сегмента стены с учётом соединений (mask — биты DIR8). С civ — из 3D-рендеров (если есть)."""
+    """A wall-segment sprite taking connections into account (mask - DIR8 bits). With civ - from 3D renders (if any)."""
     if civ is not None:
         r3 = sprites3d.wall_piece(kind, civ, color, mask, DIR8)
         if r3 is not None:
@@ -191,7 +191,7 @@ def piece_sprite(kind, color, mask, civ=None):
     if spr is None:
         surf, ox, oy = _canvas(1, 1)
         p = _P(surf, ox, oy)
-        # тень
+        # shadow
         sh = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
         pygame.draw.polygon(sh, (0, 0, 0, 45), [(ox + 6 - HW * 0.6, oy + HH + 2), (ox + 6, oy + HH * 0.4 + 2),
                                                 (ox + 6 + HW * 0.6, oy + HH + 2), (ox + 6, oy + HH * 1.6 + 2)])
@@ -207,7 +207,7 @@ def piece_sprite(kind, color, mask, civ=None):
     return spr
 
 
-# ============================================================ ворота
+# ============================================================ gates
 def gate_sprite(kind, color, horiz, opened, civ=None):
     if civ is not None:
         r3 = sprites3d.gate(kind, civ, color, horiz, opened)
@@ -230,7 +230,7 @@ def gate_sprite(kind, color, horiz, opened, civ=None):
         x1, y1 = M(u1, v1)
         p.box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1), hh, col, z0=z0, top=top, mortar=mortar)
 
-    # тень
+    # shadow
     sh = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     pts = [p.P(*M(0.1, 0.2)), p.P(*M(span - 0.1, 0.2)), p.P(*M(span - 0.1, 0.9)), p.P(*M(0.1, 0.9))]
     pygame.draw.polygon(sh, (0, 0, 0, 50), [(x + 8, y + 2) for x, y in pts])
@@ -295,7 +295,7 @@ def gate_sprite(kind, color, horiz, opened, civ=None):
 
 
 def kind_sprite(kind, color, civ=None):
-    """Спрайт по умолчанию (иконки, призрак стройки): прямой сегмент / закрытые ворота вдоль x."""
+    """The default sprite (icons, the construction ghost): a straight segment / a closed gate along x."""
     if BUILDINGS[kind].get('gate'):
         return gate_sprite(kind, color, True, False, civ)
     return piece_sprite(kind, color, (1 << 0) | (1 << 2), civ)

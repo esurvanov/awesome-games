@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Безоконная проверка звука: рендерит все эффекты и музыку в WAV, печатает длительности,
-пики (клиппинг — если пик > 0.9) и время генерации.
+"""A windowless sound check: renders all effects and music to WAV, prints the durations,
+the peaks (clipping - if a peak > 0.9) and the generation time.
 
-  .venv/bin/python tools/sounds.py                  # эффекты + музыка → shots/sound/
-  .venv/bin/python tools/sounds.py --no-music       # только эффекты
-Код выхода 1 — если где-то пик выше 0.9."""
+  .venv/bin/python tools/sounds.py                  # effects + music -> shots/sound/
+  .venv/bin/python tools/sounds.py --no-music       # effects only
+Exit code 1 - if a peak is above 0.9 anywhere."""
 import argparse
 import os
 import sys
@@ -40,7 +40,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     bad = []
     t_all = time.perf_counter()
-    print(f'{"эффект":<16}{"вар":>4}{"сек":>7}{"пик":>7}{"мс":>7}')
+    print(f'{"effect":<16}{"var":>4}{"sec":>7}{"peak":>7}{"ms":>7}')
     for name, (_, nv, _) in sound.SFX.items():
         for v in range(nv):
             t = time.perf_counter()
@@ -51,9 +51,9 @@ def main():
                 bad.append(f'{name}#{v}')
             save(os.path.join(a.out, f'{name}_{v}.wav'), x)
             print(f'{name:<16}{v:>4}{len(x) / S.SR:>7.2f}{pk:>7.2f}{ms:>7.0f}')
-    print(f'все эффекты: {time.perf_counter() - t_all:.2f} с')
+    print(f'all effects: {time.perf_counter() - t_all:.2f} s')
     if not a.no_music:
-        print(f'\n{"пьеса":<10}{"петля, с":>9}{"пик":>7}{"пик+бой":>9}{"рендер, с":>11}')
+        print(f'\n{"piece":<10}{"loop, s":>9}{"peak":>7}{"peak+war":>9}{"render, s":>11}')
         for name, spec in music.ALL.items():
             t = time.perf_counter()
             base, war, secs = music.render(spec)
@@ -69,7 +69,7 @@ def main():
             if pkw > 0.9:
                 bad.append(f'music {name}')
             print(f'{name:<10}{secs:>9.1f}{pk:>7.2f}{pkw:>9.2f}{dt:>11.2f}')
-    # время запуска звуковой системы (без музыки из кэша — она в фоне)
+    # the sound system start-up time (without cached music - it is in the background)
     import pygame
     sound.pre_init()
     pygame.init()
@@ -78,13 +78,13 @@ def main():
     t_init = time.perf_counter() - t
     while au.ok and not au.loaded and time.perf_counter() - t < 10:
         time.sleep(0.05)
-    print(f'\nAudio(): {t_init * 1000:.0f} мс в основном потоке; эффекты готовы в фоне за {au.sfx_time:.2f} с '
-          f'(микшер: {pygame.mixer.get_init()}, ok={au.ok})')
+    print(f'\nAudio(): {t_init * 1000:.0f} ms in the main thread; effects ready in the background in {au.sfx_time:.2f} s '
+          f'(mixer: {pygame.mixer.get_init()}, ok={au.ok})')
     pygame.quit()
     if bad:
-        print('КЛИППИНГ/ошибка:', ', '.join(bad))
+        print('CLIPPING/error:', ', '.join(bad))
         sys.exit(1)
-    print('ok: пики ≤ 0.9')
+    print('ok: peaks <= 0.9')
 
 
 if __name__ == '__main__':

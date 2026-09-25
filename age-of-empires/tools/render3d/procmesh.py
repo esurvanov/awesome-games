@@ -1,19 +1,19 @@
-"""Процедурные пропы (огнестрел, пушка), которых нет среди моделей 0 A.D. / Millennium A.D.
+"""Procedural props (firearms, a cannon) that are absent among the 0 A.D. / Millennium A.D. models.
 
-Меши собираются из примитивов (цилиндры, коробки) в координатах точки крепления пропа, как у оружия 0 A.D.:
-ось −Y — «вперёд» (к дулу), +Z — вверх, начало координат — место хвата. Текстуры — фрагменты атласа
-оружия 0 A.D. (`props/prop_weap.dds`: дерево и сталь), вырезанные в assets.GENERATED; производная работа
-по CC BY-SA 3.0 (см. CREDITS.md).
+The meshes are assembled from primitives (cylinders, boxes) in the coordinates of the prop's attachment point, like 0 A.D. weapons:
+the -Y axis is "forward" (toward the muzzle), +Z is up, the origin is the grip. The textures are fragments of the 0 A.D.
+weapon atlas (`props/prop_weap.dds`: wood and steel), cut out into assets.GENERATED; a derived work
+under CC BY-SA 3.0 (see CREDITS.md).
 
-Актор-проп задаётся строкой '@имя' вместо пути XML (см. animactor.build):
-  '@musket'      — аркебуза/мушкет: деревянное ложе + стальной ствол, замок
-  '@handcannon'  — ручная пушка: короткий толстый ствол на древке
-  '@powderhorn'  — пороховница на поясе
-  '@halberd'     — алебарда (древко вдоль +Z, как у копий 0 A.D.)
-  '@bombard'     — бомбарда на двухколёсном лафете (корень осадной машины; колёса крутятся в 'walk',
-                   ствол откатывается в 'attack_ranged')
-  '@ship_cannons'— ряд пушечных стволов по бортам (проп корабля)
-Геометрия может зависеть от доли цикла анимации: geom(mesh, anim, frac).
+A prop actor is given by the string '@name' instead of an XML path (see animactor.build):
+  '@musket'      - an arquebus/musket: a wooden stock + a steel barrel, a lock
+  '@handcannon'  - a hand cannon: a short thick barrel on a shaft
+  '@powderhorn'  - a powder horn at the belt
+  '@halberd'     - a halberd (the shaft along +Z, like 0 A.D. spears)
+  '@bombard'     - a bombard on a two-wheeled carriage (the root of the siege machine; the wheels turn in 'walk',
+                   the barrel recoils in 'attack_ranged')
+  '@ship_cannons'- a row of cannon barrels along the sides (a ship prop)
+The geometry may depend on the animation cycle share: geom(mesh, anim, frac).
 """
 import math
 
@@ -21,7 +21,7 @@ import numpy as np
 
 from . import assets
 
-# ------------------------------------------------------------------ текстуры
+# ------------------------------------------------------------------ textures
 _WEAP = 'props/prop_weap.dds'
 
 
@@ -40,7 +40,7 @@ def _crop(x0, y0, x1, y1, gray=False, tint=None):
         if tint is not None:
             c[..., :3] *= np.array(tint, np.float32)[None, None]
         c[..., 3] = 255
-        # до степени двойки: мип-карты без полос
+        # up to a power of two: mipmaps without stripes
         from PIL import Image
         im = Image.fromarray(np.clip(c, 0, 255).astype(np.uint8), 'RGBA').resize((32, 64), Image.BILINEAR)
         return np.asarray(im).copy()
@@ -60,7 +60,7 @@ def _flat(rgb, alpha=255):
     def gen():
         c = np.zeros((32, 32, 4), np.uint8)
         c[..., :3] = rgb
-        # лёгкий шум ткани, чтобы не было «пластика»
+        # a light cloth noise so it is not "plastic"
         n = (np.random.RandomState(7).rand(32, 32) - 0.5) * 18
         c[..., :3] = np.clip(np.array(rgb, np.float32)[None, None] + n[..., None], 0, 255).astype(np.uint8)
         c[..., 3] = alpha
@@ -69,7 +69,7 @@ def _flat(rgb, alpha=255):
 
 
 TEX.update({
-    '@tex/player': _flat((205, 205, 210), 0),        # цвет игрока (перекраска по яркости)
+    '@tex/player': _flat((205, 205, 210), 0),        # player color (recoloring by brightness)
     '@tex/linen': _flat((228, 222, 206)),
     '@tex/dark': _flat((28, 26, 24)),
     '@tex/gold': _crop(30, 190, 50, 225, gray=True, tint=(1.45, 1.15, 0.5)),
@@ -78,8 +78,8 @@ TEX.update({
     '@tex/red': _flat((170, 40, 30)),
 })
 def _kite(pattern):
-    """Каплевидный щит (меш shield_kite_small, текстура kite_chiro_white Millennium A.D.) с гербом «цвет игрока +
-    белый» как у DE: 'bands' — вертикальные полосы, 'diag' — косые, 'chevron' — белый шеврон на цвете игрока."""
+    """A kite shield (the mesh shield_kite_small, the texture kite_chiro_white of Millennium A.D.) with a crest "player color +
+    white" as in DE: 'bands' - vertical stripes, 'diag' - diagonal ones, 'chevron' - a white chevron on the player color."""
     def gen():
         a = assets.texture('props/shields/byza/kite/kite_chiro_white.png')
         if a is None:
@@ -96,13 +96,13 @@ def _kite(pattern):
         face &= (v > 0.05) & (v < 0.88)
         boss = (u - 0.29) ** 2 + (v - 0.33) ** 2 < 0.065 ** 2
         face &= ~boss
-        fu = (u - 0.14) / 0.3                       # 0…1 по ширине лица щита
+        fu = (u - 0.14) / 0.3                       # 0...1 across the shield face's width
         fv = (v - 0.05) / 0.83
         if pattern == 'bands':
             white = (np.floor(fu * 5).astype(np.int32) % 2) == 1
         elif pattern == 'diag':
             white = (np.floor((fu + fv) * 4).astype(np.int32) % 2) == 1
-        else:                                       # шеврон
+        else:                                       # chevron
             d = fv - 0.45 + np.abs(fu - 0.5) * 0.9
             white = (d > 0) & (d < 0.2)
         a[face & white, :3] = (238, 236, 230)
@@ -119,9 +119,9 @@ for _k, _f in TEX.items():
     assets.GENERATED.setdefault(_k, _f)
 
 
-# ------------------------------------------------------------------ примитивы
+# ------------------------------------------------------------------ primitives
 def _rot_to(axis):
-    """Матрица 3×3, переводящая +Z в направление axis."""
+    """A 3x3 matrix turning +Z into the direction axis."""
     a = np.asarray(axis, np.float64)
     a = a / np.linalg.norm(a)
     z = np.array([0.0, 0.0, 1.0])
@@ -134,7 +134,7 @@ def _rot_to(axis):
 
 
 class Mesh:
-    """Накопитель треугольников: pos/nrm/uv по вершинам треугольников подряд (как assets.mesh)."""
+    """A triangle accumulator: pos/nrm/uv per triangle vertices in a row (like assets.mesh)."""
 
     def __init__(self):
         self.P, self.N, self.U = [], [], []
@@ -149,7 +149,7 @@ class Mesh:
         self.tri(a, c, d, n, n, n, uv[0], uv[2], uv[3])
 
     def cylinder(self, p0, p1, r0, r1=None, seg=10, caps=True, urep=1.0, vrep=1.0):
-        """Усечённый конус от p0 (радиус r0) до p1 (r1)."""
+        """A truncated cone from p0 (radius r0) to p1 (r1)."""
         r1 = r0 if r1 is None else r1
         p0 = np.asarray(p0, np.float64)
         p1 = np.asarray(p1, np.float64)
@@ -211,11 +211,11 @@ def _merge(*ms):
                 props={k: v for m in ms for k, v in m['props'].items()})
 
 
-# ------------------------------------------------------------------ ручное оружие
-# Размеры — в единицах 0 A.D. (человек ≈ 4.2): слегка преувеличены, чтобы ствол читался в спрайте 44 px.
+# ------------------------------------------------------------------ hand weapons
+# Sizes are in 0 A.D. units (a man ~ 4.2): slightly exaggerated so that the barrel reads in a 44 px sprite.
 def _musket_wood():
     m = Mesh()
-    # приклад: утолщается к плечу (+Y), шейка, цевьё под стволом до −1.6
+    # the butt: thickens toward the shoulder (+Y), the neck, the fore-end under the barrel down to -1.6
     m.cylinder((0, 0.75, -0.06), (0, 0.15, 0.0), 0.12, 0.075, seg=8)
     m.cylinder((0, 0.15, 0.0), (0, -1.55, 0.05), 0.075, 0.06, seg=8)
     return m.done()
@@ -223,23 +223,23 @@ def _musket_wood():
 
 def _musket_metal():
     m = Mesh()
-    m.cylinder((0, 0.05, 0.11), (0, -2.45, 0.13), 0.07, 0.06, seg=8)       # ствол
-    m.cylinder((0, -2.45, 0.13), (0, -2.52, 0.13), 0.08, 0.08, seg=8)      # дульное утолщение
-    m.box((-0.1, -0.05, 0.02), (0.02, 0.2, 0.12))                          # замок
+    m.cylinder((0, 0.05, 0.11), (0, -2.45, 0.13), 0.07, 0.06, seg=8)       # barrel
+    m.cylinder((0, -2.45, 0.13), (0, -2.52, 0.13), 0.08, 0.08, seg=8)      # muzzle swell
+    m.box((-0.1, -0.05, 0.02), (0.02, 0.2, 0.12))                          # lock
     return m.done()
 
 
 def _hc_wood():
     m = Mesh()
-    m.cylinder((0, 1.3, -0.02), (0, -0.55, 0.05), 0.06, 0.065, seg=8)      # древко (под мышку / на плечо)
+    m.cylinder((0, 1.3, -0.02), (0, -0.55, 0.05), 0.06, 0.065, seg=8)      # the shaft (under the arm / on the shoulder)
     return m.done()
 
 
 def _hc_metal():
     m = Mesh()
-    m.cylinder((0, -0.45, 0.07), (0, -1.55, 0.09), 0.16, 0.13, seg=10)     # толстый короткий ствол
-    m.cylinder((0, -1.5, 0.09), (0, -1.62, 0.09), 0.17, 0.17, seg=10)      # дульное кольцо
-    m.cylinder((0, -0.55, 0.07), (0, -0.45, 0.07), 0.19, 0.19, seg=10)     # казённое кольцо
+    m.cylinder((0, -0.45, 0.07), (0, -1.55, 0.09), 0.16, 0.13, seg=10)     # a thick short barrel
+    m.cylinder((0, -1.5, 0.09), (0, -1.62, 0.09), 0.17, 0.17, seg=10)      # muzzle ring
+    m.cylinder((0, -0.55, 0.07), (0, -0.45, 0.07), 0.19, 0.19, seg=10)     # breech ring
     return m.done()
 
 
@@ -251,27 +251,27 @@ def _horn():
 
 def _halberd_wood():
     m = Mesh()
-    m.cylinder((0, 0, -1.7), (0, 0, 3.3), 0.05, 0.045, seg=6, vrep=3)       # древко вдоль +Z, как у копий 0 A.D.
+    m.cylinder((0, 0, -1.7), (0, 0, 3.3), 0.05, 0.045, seg=6, vrep=3)       # the shaft along +Z, like 0 A.D. spears
     return m.done()
 
 
 def _halberd_metal():
     m = Mesh()
-    m.box((-0.025, 0.04, 2.7), (0.025, 0.5, 3.2))                         # лезвие топора
-    m.box((-0.025, 0.4, 2.6), (0.025, 0.55, 3.3))                         # выпуклая кромка
-    m.box((-0.02, -0.32, 2.9), (0.02, -0.04, 3.02))                       # крюк-клюв сзади
-    m.cylinder((0, 0, 3.2), (0, 0, 3.85), 0.06, 0.005, seg=6)              # верхнее остриё
+    m.box((-0.025, 0.04, 2.7), (0.025, 0.5, 3.2))                         # the axe blade
+    m.box((-0.025, 0.4, 2.6), (0.025, 0.55, 3.3))                         # a convex edge
+    m.box((-0.02, -0.32, 2.9), (0.02, -0.04, 3.02))                       # a hook-beak at the back
+    m.cylinder((0, 0, 3.2), (0, 0, 3.85), 0.06, 0.005, seg=6)              # the top spike
     return m.done()
 
 
-# ------------------------------------------------------------------ бомбарда
-# Корень машины: X — ось колёс, −Y — вперёд (к дулу), Z — вверх, земля z=0. Колёса r=0.9.
+# ------------------------------------------------------------------ bombard
+# The machine's root: X - the wheel axis, -Y - forward (toward the muzzle), Z - up, the ground z=0. Wheels r=0.9.
 _WR = 0.9
 _WX = 1.05
 
 
 def _wheel(side, ang):
-    """Колесо: обод-цилиндр (толстый диск) + 6 спиц; ang — поворот вокруг оси X."""
+    """A wheel: a rim cylinder (a thick disk) + 6 spokes; ang - the rotation about the X axis."""
     m = Mesh()
     x = side * _WX
     m.cylinder((x - 0.12, 0, _WR), (x + 0.12, 0, _WR), _WR, _WR, seg=16, caps=False, urep=4)
@@ -281,19 +281,19 @@ def _wheel(side, ang):
         a = ang + k * math.pi / 3
         d = np.array([0.0, math.cos(a), math.sin(a)])
         m.cylinder((x, 0, _WR), np.array((x, 0, _WR)) + d * _WR * 0.85, 0.05, 0.045, seg=5, caps=False)
-    m.cylinder((x - 0.2, 0, _WR), (x + 0.2, 0, _WR), 0.16, 0.16, seg=8)        # ступица
+    m.cylinder((x - 0.2, 0, _WR), (x + 0.2, 0, _WR), 0.16, 0.16, seg=8)        # hub
     del ca, sa
     return m.done()
 
 
 def _carriage():
     m = Mesh()
-    # станины (две балки) от оси назад к земле, поперечины, ось
+    # carriage beams (two) from the axle back to the ground, crosspieces, the axle
     for s in (-1, 1):
-        th = -math.atan2(_WR - 0.1, 2.6)          # хвост станины опускается к земле позади (+Y)
+        th = -math.atan2(_WR - 0.1, 2.6)          # the carriage tail descends to the ground behind (+Y)
         M = np.eye(4)
         c, sn = math.cos(th), math.sin(th)
-        # балка вдоль +Y, наклонена вниз к хвосту
+        # a beam along +Y, tilted down toward the tail
         M[:3, :3] = np.array([[1, 0, 0], [0, c, -sn], [0, sn, c]]) @ np.eye(3)
         M[:3, 3] = (s * 0.42, 0.0, _WR + 0.05)
         m.box((-0.12, -0.9, -0.14), (0.12, 2.75, 0.14), M=M, rep=(1, 3))
@@ -310,13 +310,13 @@ def _barrel(recoil):
     for yy, r in ((0.7, 0.44), (-0.1, 0.42), (-0.9, 0.4), (-1.7, 0.38), (-2.3, 0.4)):
         m.cylinder((0, yy + y + 0.1, _WR + 0.55 - (0.75 - yy) * 0.023), (0, yy + y - 0.1, _WR + 0.55 - (0.75 - yy) * 0.023),
                    r, r, seg=14)
-    m.cylinder((0, 0.75 + y, _WR + 0.55), (0, 1.05 + y, _WR + 0.57), 0.3, 0.12, seg=10)   # казённая часть
+    m.cylinder((0, 0.75 + y, _WR + 0.55), (0, 1.05 + y, _WR + 0.57), 0.3, 0.12, seg=10)   # the breech
     return m.done()
 
 
 def _ship_cannons():
-    """Стволы, торчащие из портов по бортам: координаты корпуса (длина по ±Y, ширина по X) задаёт
-    множитель пропа; здесь — единичный корабль длиной 2 (y ∈ [−1, 1]), полуширина 0.27, высота борта 0.2."""
+    """Barrels sticking out of ports along the sides: the hull coordinates (the length along +-Y, the width along X) are set by
+    the prop's multiplier; here - a unit ship of length 2 (y in [-1, 1]), half-width 0.27, gunwale height 0.2."""
     m = Mesh()
     for s in (-1, 1):
         for k in range(4):
@@ -326,11 +326,11 @@ def _ship_cannons():
     return m.done()
 
 
-# ------------------------------------------------------------------ клинки и шлемы (узнаваемость, 06_units_recognition)
-# Оружие — как мечи 0 A.D.: клинок вдоль +Z, ширина по Y, плоскость клинка ⟂ X; шлем — в координатах точки
-# 'helmet' (голова ≈ z 0.1…0.75, лицо к −Y). Всё нарочно крупнее реального: в спрайте 21 px клинок ≥ 2 px.
+# ------------------------------------------------------------------ blades and helmets (recognizability, 06_units_recognition)
+# Weapons - like 0 A.D. swords: the blade along +Z, the width along Y, the blade's plane perpendicular to X; the helmet - in the coordinates of the point
+# 'helmet' (the head ~ z 0.1...0.75, the face toward -Y). Everything is deliberately larger than real: in a 21 px sprite the blade is >= 2 px.
 def _stack(m, rings, seg=12, y=0.0):
-    """Тело вращения вокруг оси Z: rings — [(z, r), …] снизу вверх."""
+    """A body of revolution about the Z axis: rings - [(z, r), ...] from bottom to top."""
     for (z0, r0), (z1, r1) in zip(rings, rings[1:]):
         m.cylinder((0, y, z0), (0, y, z1), max(r0, 1e-3), max(r1, 1e-3), seg=seg, caps=False)
 
@@ -338,16 +338,16 @@ def _stack(m, rings, seg=12, y=0.0):
 def _greatsword_blade():
     m = Mesh()
     m.box((-0.045, -0.17, 0.35), (0.045, 0.17, 2.75), rep=(1, 4))
-    m.box((-0.1, -0.045, 0.35), (0.1, 0.045, 2.75), rep=(1, 4))            # ребро: ширина видна и с торца
-    m.cylinder((0, 0, 2.75), (0, 0, 3.08), 0.17, 0.01, seg=4)               # остриё
+    m.box((-0.1, -0.045, 0.35), (0.1, 0.045, 2.75), rep=(1, 4))            # the edge: the width is visible from the end too
+    m.cylinder((0, 0, 2.75), (0, 0, 3.08), 0.17, 0.01, seg=4)               # the point
     return m.done()
 
 
 def _greatsword_hilt():
     m = Mesh()
-    m.cylinder((0, 0, -0.5), (0, 0, 0.26), 0.06, 0.06, seg=6)               # рукоять
-    m.box((-0.06, -0.44, 0.24), (0.06, 0.44, 0.35))                         # гарда
-    m.cylinder((0, 0, -0.62), (0, 0, -0.48), 0.1, 0.1, seg=8)               # навершие
+    m.cylinder((0, 0, -0.5), (0, 0, 0.26), 0.06, 0.06, seg=6)               # the hilt
+    m.box((-0.06, -0.44, 0.24), (0.06, 0.44, 0.35))                         # the guard
+    m.cylinder((0, 0, -0.62), (0, 0, -0.48), 0.1, 0.1, seg=8)               # the pommel
     return m.done()
 
 
@@ -357,7 +357,7 @@ def _katana_blade():
     for i in range(n):
         t0, t1 = i / n, (i + 1) / n
         z0, z1 = 0.32 + 2.1 * t0, 0.32 + 2.1 * t1
-        y0, y1 = 0.18 * t0 * t0, 0.18 * t1 * t1          # изгиб к обуху
+        y0, y1 = 0.18 * t0 * t0, 0.18 * t1 * t1          # a bend toward the spine
         w = 0.075 * (1.0 - 0.35 * t1)
         yy = (y0 + y1) / 2
         m.box((-0.03, yy - w, z0), (0.03, yy + w, z1))
@@ -367,13 +367,13 @@ def _katana_blade():
 def _katana_hilt():
     m = Mesh()
     m.cylinder((0, 0, -0.62), (0, 0, 0.28), 0.055, 0.055, seg=6)
-    m.cylinder((0, 0, 0.24), (0, 0, 0.3), 0.15, 0.15, seg=10)                # цуба
+    m.cylinder((0, 0, 0.24), (0, 0, 0.3), 0.15, 0.15, seg=10)                # the tsuba
     return m.done()
 
 
 def _kettle():
     m = Mesh()
-    m.cylinder((0, -0.02, 0.38), (0, -0.02, 0.43), 0.56, 0.54, seg=16)       # широкие поля
+    m.cylinder((0, -0.02, 0.38), (0, -0.02, 0.43), 0.56, 0.54, seg=16)       # wide brims
     _stack(m, [(0.42, 0.3), (0.6, 0.29), (0.72, 0.22), (0.8, 0.1), (0.82, 0.01)], y=-0.02)
     return m.done()
 
@@ -386,7 +386,7 @@ def _greathelm():
 
 def _greathelm_slit():
     m = Mesh()
-    m.box((-0.21, -0.32, 0.47), (0.21, -0.26, 0.53))                        # смотровая щель
+    m.box((-0.21, -0.32, 0.47), (0.21, -0.26, 0.53))                        # a viewing slit
     return m.done()
 
 
@@ -400,13 +400,13 @@ def _greathelm_cross():
 def _kabuto():
     m = Mesh()
     _stack(m, [(0.42, 0.3), (0.6, 0.28), (0.72, 0.19), (0.79, 0.06), (0.8, 0.01)])
-    m.cylinder((0, 0.02, 0.46), (0, 0.04, 0.2), 0.31, 0.48, seg=14, caps=False)   # сикоро (назатыльник)
+    m.cylinder((0, 0.02, 0.46), (0, 0.04, 0.2), 0.31, 0.48, seg=14, caps=False)   # the shikoro (neck guard)
     return m.done()
 
 
 def _kabuto_horns():
     m = Mesh()
-    for s in (-1, 1):                                                        # кувагата — рога-«V»
+    for s in (-1, 1):                                                        # the kuwagata - "V" horns
         m.cylinder((s * 0.05, -0.3, 0.5), (s * 0.34, -0.38, 1.12), 0.045, 0.03, seg=5)
     m.box((-0.08, -0.34, 0.46), (0.08, -0.28, 0.58))
     return m.done()
@@ -416,7 +416,7 @@ def _morion():
     m = Mesh()
     m.cylinder((0, 0, 0.38), (0, 0, 0.42), 0.5, 0.47, seg=16)
     _stack(m, [(0.41, 0.29), (0.6, 0.26), (0.7, 0.17), (0.74, 0.02)])
-    m.box((-0.03, -0.26, 0.55), (0.03, 0.26, 0.9))                          # гребень
+    m.box((-0.03, -0.26, 0.55), (0.03, 0.26, 0.9))                          # the crest
     return m.done()
 
 
@@ -427,7 +427,7 @@ def _plume():
 
 
 def _stole():
-    """Широкая стола/оплечье цвета игрока (плащ на плечи): полукольцо вокруг шеи, свисает вперёд и назад."""
+    """A wide stole/shoulder piece in player color (a cloak over the shoulders): a half-ring around the neck, hanging forward and back."""
     m = Mesh()
     for s in (-1, 1):
         m.box((s * 0.12 - 0.09, -0.36, -1.1), (s * 0.12 + 0.09, -0.3, 0.15))
@@ -435,8 +435,8 @@ def _stole():
     return m.done()
 
 
-# ------------------------------------------------------------------ акторы
-# имя → список деталей: (меш, текстура); анимация — (имя состояния → длительность) для процедурных движений
+# ------------------------------------------------------------------ actors
+# name -> a list of parts: (mesh, texture); the animation - (a state name -> duration) for procedural motions
 ACTORS = {
     '@musket': [('@m/musket_wood', '@tex/wood'), ('@m/musket_metal', '@tex/steel')],
     '@musket_dark': [('@m/musket_wood', '@tex/wood'), ('@m/musket_metal', '@tex/iron')],
@@ -465,13 +465,13 @@ _STATIC = {'@m/musket_wood': _musket_wood, '@m/musket_metal': _musket_metal, '@m
            '@m/kabuto': _kabuto, '@m/kabuto_horns': _kabuto_horns, '@m/morion': _morion, '@m/plume': _plume,
            '@m/stole': _stole}
 _CACHE = {}
-ANIMATED = {'@bombard'}          # акторы с процедурными движениями (колёса, откат)
-# длительность цикла процедурных анимаций (с)
+ANIMATED = {'@bombard'}          # actors with procedural motions (wheels, recoil)
+# the cycle duration of procedural animations (s)
 DUR = {'walk': 1.2, 'attack_ranged': 1.6, 'attack_melee': 1.6, 'idle': 1.0}
 
 
 def shape(kind, a, b):
-    """Деталь в коробке [a, b] координат модели (−Y — перёд): см. build_units.extra_parts."""
+    """A part in the box [a, b] of model coordinates (-Y - front): see build_units.extra_parts."""
     a = np.asarray(a, np.float64)
     b = np.asarray(b, np.float64)
     lo, hi = np.minimum(a, b), np.maximum(a, b)
@@ -487,7 +487,7 @@ def shape(kind, a, b):
         r = min(sz[0], sz[1]) / 2
         m.cylinder((c[0], c[1], lo[2]), (c[0], c[1], hi[2]), r, r * 0.8, seg=8, urep=1, vrep=4)
     elif kind == 'ram_head':
-        # голова барана: утолщение на конце бревна (−Y) и два завитка рогов по бокам
+        # a ram's head: a swelling at the end of the log (-Y) and two curls of horns at the sides
         r = min(sz[0], sz[2]) / 2
         m.cylinder((c[0], hi[1], c[2]), (c[0], lo[1] + sz[1] * 0.25, c[2]), r * 0.7, r, seg=10)
         m.cylinder((c[0], lo[1] + sz[1] * 0.25, c[2]), (c[0], lo[1], c[2]), r, r * 0.55, seg=10)
@@ -495,7 +495,7 @@ def shape(kind, a, b):
             m.cylinder((c[0] + s * r * 0.6, lo[1] + sz[1] * 0.45, c[2] + r * 0.3),
                        (c[0] + s * r * 1.35, lo[1] + sz[1] * 0.2, c[2] - r * 0.4), r * 0.42, r * 0.3, seg=8)
     elif kind == 'tent':
-        # полуцилиндр вдоль Y: дуги поперёк, 10 сегментов
+        # a half-cylinder along Y: arcs across, 10 segments
         n = 10
         for i in range(n):
             a0, a1 = math.pi * i / n, math.pi * (i + 1) / n
@@ -505,7 +505,7 @@ def shape(kind, a, b):
             m.quad((p0[0], lo[1], p0[1]), (p1[0], lo[1], p1[1]), (p1[0], hi[1], p1[1]), (p0[0], hi[1], p0[1]), nm,
                    uv=((0, 0), (1, 0), (1, 3), (0, 3)))
     elif kind == 'sail_lat':
-        # косой (латинский) парус: треугольник в плоскости YZ — вершина наверху впереди
+        # a lateen (Latin) sail: a triangle in the YZ plane - the apex at the top in front
         top = np.array([c[0], lo[1], hi[2]])
         b0 = np.array([c[0], lo[1] + sz[1] * 0.15, lo[2]])
         b1 = np.array([c[0], hi[1], lo[2] + sz[2] * 0.1])
@@ -513,7 +513,7 @@ def shape(kind, a, b):
         m.tri(top, b0, b1, nm, nm, nm, (0.5, 1), (0, 0), (1, 0))
         m.tri(top, b1, b0, -nm, -nm, -nm, (0.5, 1), (1, 0), (0, 0))
     elif kind == 'barrels':
-        # бочки пороха: 2 ряда по 3
+        # barrels of gunpowder: 2 rows of 3
         r = min(sz[0] / 4.4, sz[1] / 6.6)
         for i in range(3):
             for j in range(2):
@@ -535,14 +535,14 @@ def is_proc(actor):
 
 
 def mesh(name, anim=None, frac=0.0):
-    """Геометрия процедурного меша (в позе анимации anim в доле цикла frac)."""
+    """The geometry of a procedural mesh (in the animation pose anim at the cycle share frac)."""
     if name in _STATIC:
         if name not in _CACHE:
             _CACHE[name] = _STATIC[name]()
         return _CACHE[name]
     if name in ('@m/wheel_l', '@m/wheel_r'):
         side = -1 if name.endswith('_l') else 1
-        # колесо катится: путь за цикл = длине окружности × 1 оборот (шаг задаёт stride)
+        # the wheel rolls: the path per cycle = the circumference x 1 revolution (the stride sets the step)
         ang = -2 * math.pi * frac if anim == 'walk' else 0.0
         key = (name, round(ang, 4))
         if key not in _CACHE:
@@ -551,7 +551,7 @@ def mesh(name, anim=None, frac=0.0):
     if name == '@m/barrel':
         rec = 0.0
         if anim and anim.startswith('attack'):
-            # выстрел в момент 0.35 цикла: резкий откат, медленный накат
+            # a shot at moment 0.35 of the cycle: a sharp recoil, a slow return
             f = (frac - 0.35) % 1.0
             rec = 0.45 * math.exp(-f * 6.0) if f < 0.9 else 0.0
         key = (name, round(rec, 4))
@@ -562,7 +562,7 @@ def mesh(name, anim=None, frac=0.0):
 
 
 def stride(actor):
-    """Путь за цикл 'walk' (ед. модели) для процедурных машин: одна длина окружности колеса."""
+    """The path per 'walk' cycle (model units) for procedural machines: one wheel circumference."""
     if actor == '@bombard':
         return 2 * math.pi * _WR
     return 0.0

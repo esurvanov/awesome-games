@@ -1,4 +1,4 @@
-"""Реликвии (монах → монастырь, +0.5 золота/с) — логика в game/relics.py; волки — ANIMALS['wolf'] в data.py."""
+"""Relics (monk -> monastery, +0.5 gold/s) - logic in game/relics.py; wolves - ANIMALS['wolf'] in data.py."""
 from .. import relics
 
 relics.register()

@@ -1,11 +1,11 @@
-"""Процедурная средневековая музыка: оригинальные пьесы, сочинённые по простым правилам
-(лады дорийский / миксолидийский / эолийский, бурдон, щипковая лютня, блокфлейта, лёгкая перкуссия).
+"""Procedural medieval music: original pieces composed by simple rules
+(dorian / mixolydian / aeolian modes, a drone, a plucked lute, a recorder, light percussion).
 
-Каждая пьеса — бесшовная петля (хвосты нот и реверберация заворачиваются в начало) плюс
-короткий «военный» слой (барабаны + низкий гул), длина которого ровно делит длину пьесы: оба слоя
-запускаются одновременно и идут синхронно, а громкость военного слоя следует за накалом боя.
+Each piece is a seamless loop (note tails and reverb wrap around to the beginning) plus a
+short "war" layer (drums + a low rumble) whose length divides the piece's length exactly: both layers
+start at the same time and run in sync, while the war layer's volume follows the intensity of the fighting.
 
-Рендер — в фоновом потоке, готовые петли кэшируются WAV-файлами в ~/.cache/khroniki/music/."""
+Rendering is in a background thread, the ready loops are cached as WAV files in ~/.cache/khroniki/music/."""
 import io
 import os
 import threading
@@ -24,13 +24,13 @@ MODES = {
     'mixolydian': (0, 2, 4, 5, 7, 9, 10),
     'aeolian': (0, 2, 3, 5, 7, 8, 10),
 }
-# последовательности аккордов (ступени лада) на 4 такта для частей формы
+# chord sequences (scale degrees) for 4 bars for the parts of the form
 PROGS = {
     'dorian': {'A': (0, 6, 0, 3), 'A2': (0, 3, 6, 0), 'B': (2, 3, 6, 4), 'C': (3, 0, 6, 4)},
     'mixolydian': {'A': (0, 6, 0, 4), 'A2': (0, 6, 3, 0), 'B': (3, 0, 3, 6), 'C': (5, 6, 3, 4)},
     'aeolian': {'A': (0, 5, 6, 0), 'A2': (0, 3, 4, 0), 'B': (5, 2, 6, 4), 'C': (5, 6, 0, 4)},
 }
-# ритмы такта в «шагах» (восьмых)
+# bar rhythms in "steps" (eighth notes)
 RHYTHMS = {
     6: [(3, 3), (2, 1, 3), (2, 1, 2, 1), (3, 2, 1), (1, 1, 1, 3), (2, 1, 1, 1, 1)],
     8: [(2, 2, 2, 2), (3, 1, 2, 2), (2, 1, 1, 2, 2), (4, 2, 2), (2, 2, 4), (1, 1, 2, 2, 2), (3, 1, 4)],
@@ -43,31 +43,31 @@ ARPS = {
         ((0, 2), (4, 1), (7, 1), (0, 2), (4, 1), (7, 1)), ((0, 3), (4, 1), (7, 2), (4, 2))],
 }
 
-# Пьесы. bpm — для 6/8 в долях «четверть с точкой», для 4/4 — в четвертях.
+# The pieces. bpm - for 6/8 in dotted-quarter beats, for 4/4 - in quarters.
 PIECES = [
-    dict(name='village', title='Утро в деревне', tonic=62, mode='dorian', meter=6, bpm=66, seed=11,
+    dict(name='village', title='Village Morning', tonic=62, mode='dorian', meter=6, bpm=66, seed=11,
          form=('A', 'A2', 'B', 'A2', 'C', 'A2'), lead=('pluck', 'recorder'), perc='soft'),
-    dict(name='fields', title='Поля у мельницы', tonic=67, mode='mixolydian', meter=8, bpm=92, seed=23,
+    dict(name='fields', title='Fields by the Mill', tonic=67, mode='mixolydian', meter=8, bpm=92, seed=23,
          form=('A', 'A2', 'B', 'A2'), lead=('recorder', 'pluck'), perc='none'),
-    dict(name='forest', title='Старый лес', tonic=69, mode='aeolian', meter=8, bpm=74, seed=37,
+    dict(name='forest', title='Old Forest', tonic=69, mode='aeolian', meter=8, bpm=74, seed=37,
          form=('A', 'A2', 'C', 'A2'), lead=('pluck', 'recorder'), perc='none'),
-    dict(name='fair', title='Ярмарка', tonic=64, mode='dorian', meter=6, bpm=76, seed=51,
+    dict(name='fair', title='The Fair', tonic=64, mode='dorian', meter=6, bpm=76, seed=51,
          form=('A', 'A2', 'B', 'A2', 'A', 'A2'), lead=('recorder', 'pluck'), perc='light'),
 ]
-MENU = dict(name='menu', title='Хроники', tonic=62, mode='aeolian', meter=8, bpm=68, seed=5,
+MENU = dict(name='menu', title='Chronicles', tonic=62, mode='aeolian', meter=8, bpm=68, seed=5,
             form=('A', 'A2', 'B', 'A2'), lead=('recorder', 'recorder'), perc='none', war=False)
 ALL = {p['name']: p for p in PIECES + [MENU]}
 
 
-# ============================================================ сочинение
+# ============================================================ composition
 def deg_midi(tonic, mode, d):
     sc = MODES[mode]
     return tonic + 12 * (d // 7) + sc[d % 7]
 
 
 def compose_section(prog, meter, center, seed, final):
-    """Мелодия на 4 такта: [(шаг, длительность, ступень)]. Сильные доли тяготеют к звукам аккорда,
-    движение в основном поступенное, конец фразы — на тонике (final) или на звуке аккорда."""
+    """A 4-bar melody: [(step, duration, degree)]. Strong beats lean to chord tones,
+    the motion is mostly stepwise, the phrase ends on the tonic (final) or a chord tone."""
     r = np.random.default_rng(seed)
     notes = []
     cur = center + int(r.choice((-2, 0, 2)))
@@ -97,9 +97,9 @@ def compose_section(prog, meter, center, seed, final):
     return notes
 
 
-# ============================================================ рендер
+# ============================================================ rendering
 class Track:
-    """Стерео-буфер петли с циклическим сложением (хвосты заворачиваются в начало)."""
+    """A stereo buffer of the loop with circular addition (tails wrap around to the beginning)."""
 
     def __init__(self, n):
         self.n = n
@@ -118,8 +118,8 @@ class Track:
 
 
 def loop_drone(freqs, n, gain, reps, seed):
-    """Бурдон (как у колёсной лиры): пилообразный спектр, целое число периодов на отрезок n/reps —
-    отрезок тиражируется, стык петли без щелчка; медленное «дыхание» громкости раз в отрезок."""
+    """A drone (like a hurdy-gurdy): a sawtooth spectrum, a whole number of periods per segment n/reps -
+    the segment is replicated, the loop's seam has no click; a slow volume "breathing" once per segment."""
     full, n = n, n // reps
     secs = n / S.SR
     t = S.tvec(n)
@@ -131,17 +131,17 @@ def loop_drone(freqs, n, gain, reps, seed):
             ph = S.TAU * fa * t + r.uniform(0, S.TAU)
             for k in range(1, 12):
                 fk = k * fa
-                if fk < 2500:       # мягкий «фильтр» прямо в амплитудах гармоник
+                if fk < 2500:       # a soft "filter" right in the harmonics' amplitudes
                     out += np.sin(k * ph) / k ** 1.15 / np.sqrt(1 + (fk / 700) ** 4)
     lfo = 0.8 + 0.2 * np.sin(S.TAU * t / secs)
     return np.tile(S.normalize(out * lfo, gain), full // n + 1)[:full]
 
 
 def render(spec):
-    """→ (base (n,2), war (m,2) или None, секунд в петле)."""
+    """-> (base (n,2), war (m,2) or None, seconds in the loop)."""
     meter, tonic, mode = spec['meter'], spec['tonic'], spec['mode']
     step = 60.0 / spec['bpm'] / (3 if meter == 6 else 2)
-    sn = max(1, int(round(step * S.SR / 64))) * 64      # кратно 64: быстрые БПФ и ровная дробь
+    sn = max(1, int(round(step * S.SR / 64))) * 64      # a multiple of 64: fast FFTs and an even roll
     spb = meter
     form = spec['form']
     bars = 4 * len(form)
@@ -160,7 +160,7 @@ def render(spec):
         rep = seen.get(sec, 0)
         seen[sec] = rep + 1
         inst = spec['lead'][(si // 2) % 2]
-        # мелодия
+        # melody
         for st, dur, d in melodies[sec]:
             m = deg_midi(tonic, mode, d)
             f = S.midi_hz(m)
@@ -170,16 +170,16 @@ def render(spec):
                 tr.put(S.pluck(f, min(2.4, secs + 1.2), 0.55, seed), pos, 0.42, -0.25)
             else:
                 ln = secs * 0.93
-                if rep and dur >= 3 and rr.random() < 0.4:      # украшение: форшлаг сверху
+                if rep and dur >= 3 and rr.random() < 0.4:      # ornament: a grace note from above
                     g = S.midi_hz(deg_midi(tonic, mode, d + 1))
                     gl = 0.07
                     tr.put(S.recorder(g, gl, seed, vib=False), pos, 0.24, 0.25)
                     tr.put(S.recorder(f, ln - gl, seed), pos + S.n_of(gl), 0.3, 0.25)
                 else:
                     tr.put(S.recorder(f, ln, seed), pos, 0.3, 0.25)
-            if rep and inst == 'recorder' and dur >= 2:         # на повторе лютня подыгрывает октавой ниже
+            if rep and inst == 'recorder' and dur >= 2:         # on the repeat the lute accompanies an octave lower
                 tr.put(S.pluck(S.midi_hz(m - 12), min(2.0, secs + 0.8), 0.4, seed + 1), pos, 0.16, -0.3)
-        # аккомпанемент
+        # accompaniment
         prog = PROGS[mode][sec]
         for bar, root in enumerate(prog):
             pat = ARPS[meter][int(rr.integers(len(ARPS[meter])))]
@@ -189,7 +189,7 @@ def render(spec):
                 tr.put(S.pluck(S.midi_hz(m), 1.4, 0.3, seed + 2), (base_step + bar * spb + p) * sn,
                        0.2 if p else 0.26, -0.45 + 0.1 * (off % 3))
                 p += dur
-        # тихая перкуссия мирного слоя
+        # quiet percussion of the peaceful layer
         if spec['perc'] != 'none':
             for bar in range(4):
                 b0 = (base_step + bar * spb) * sn
@@ -198,7 +198,7 @@ def render(spec):
                 if spec['perc'] == 'light':
                     for k in range(1, spb, 2):
                         tr.put(S.jingle(0.2, seed + k, 2), b0 + k * sn, 0.05, 0.3)
-    # бурдон: тоника + квинта в басу
+    # drone: tonic + fifth in the bass
     drone = loop_drone([S.midi_hz(tonic - 24), S.midi_hz(tonic - 17)], n, 0.15, bars // 2, seed)
     tr.buf[:, 0] += drone
     tr.buf[:, 1] += drone
@@ -208,7 +208,7 @@ def render(spec):
     war = None
     if spec.get('war', True):
         war = render_war(spec, sn, spb)
-    # общий масштаб: база и база+война без клиппинга
+    # overall scale: base and base+war without clipping
     peak = np.abs(base).max()
     if war is not None:
         tiled = np.tile(war, (n // len(war), 1))
@@ -218,7 +218,7 @@ def render(spec):
 
 
 def render_war(spec, sn, spb):
-    """Военный слой: 2 такта барабанов с дробью в конце + низкий гудящий рог на тонике."""
+    """The war layer: 2 bars of drums with a roll at the end + a low droning horn on the tonic."""
     n = 2 * spb * sn
     tr = Track(n)
     seed = spec['seed'] + 100
@@ -232,7 +232,7 @@ def render_war(spec, sn, spb):
         for k in range(spb):
             if k % 2:
                 tr.put(S.jingle(0.18, seed + k, 2), b0 + k * sn, 0.05, -0.2)
-    # дробь в конце второго такта
+    # a roll at the end of the second bar
     for i in range(4):
         tr.put(S.drum(210, 140, 0.07, 0.5, seed + 40 + i), (2 * spb - 1) * sn + i * sn // 4, 0.16 + 0.05 * i, 0.1)
     horn = S.brass(S.midi_hz(spec['tonic'] - 24), n / S.SR - 0.2, seed, bright=0.4, scoop=0.02, vib=0.003)
@@ -261,7 +261,7 @@ def cache_path(name, layer):
 
 
 def load_or_render(name):
-    """→ {'base': wav-байты, 'war': wav-байты | None, 'secs': длина петли, 'gen': секунд на рендер}."""
+    """-> {'base': wav bytes, 'war': wav bytes | None, 'secs': loop length, 'gen': seconds to render}."""
     spec = ALL[name]
     paths = {ly: cache_path(name, ly) for ly in ('base', 'war')}
     need_war = spec.get('war', True)
@@ -295,18 +295,18 @@ def load_or_render(name):
     return out
 
 
-# ============================================================ проигрыватель
+# ============================================================ player
 class MusicPlayer:
-    """Две пары зарезервированных каналов (база + война) для перекрёстного затухания пьес.
-    Пьесы готовятся в фоновом потоке; пока нужная не готова — играет предыдущая (или тишина)."""
+    """Two pairs of reserved channels (base + war) for crossfading the pieces.
+    Pieces are prepared in a background thread; until the needed one is ready - the previous one plays (or silence)."""
     def __init__(self, pg, channels):
         self.pg = pg
         self.chs = channels                  # [(base, war), (base, war)]
         self.ready = {}                      # name → (Sound, Sound|None, secs)
-        self.want = []                       # очередь на подготовку
+        self.want = []                       # queue for preparation
         self.lock = threading.Lock()
         self.thread = None
-        self.cur = None                      # имя играющей пьесы
+        self.cur = None                      # name of the playing piece
         self.pair = 0
         self.started = 0.0
         self.mode = None
@@ -315,12 +315,12 @@ class MusicPlayer:
         self.war = 0.0
         self.volume = 0.45
         self.enabled = True
-        self.hold = False                    # тишина (после конца партии), до смены режима
+        self.hold = False                    # silence (after the end of the match), until the mode changes
         self.gen_times = {}
         self.lvl = [0.0, 0.0]
         self.tgt = [0.0, 0.0]
 
-    # ---- фоновая подготовка
+    # ---- background preparation
     def request(self, name):
         with self.lock:
             if name in self.ready or name in self.want:
@@ -343,15 +343,15 @@ class MusicPlayer:
                 war = self.pg.mixer.Sound(file=io.BytesIO(d['war'])) if d['war'] else None
                 self.gen_times[name] = d['gen']
                 self.ready[name] = (base, war, d['secs'])
-            except Exception:           # без музыки, но игра продолжается
+            except Exception:           # no music, but the game continues
                 self.ready[name] = None
             with self.lock:
                 self.want.pop(0)
 
-    # ---- управление
+    # ---- control
     def prefetch(self):
-        """Меню → затем все пьесы по очереди: пока игрок в меню (процессор свободен), петли
-        успевают отрендериться в кэш, и в партии фоновый поток уже не конкурирует с игрой."""
+        """Menu -> then all pieces in turn: while the player is in the menu (the CPU is free), the loops
+        manage to render into the cache, and in a match the background thread no longer competes with the game."""
         for name in ['menu'] + self.order:
             self.request(name)
 
@@ -360,8 +360,8 @@ class MusicPlayer:
         return self.order[self.idx]
 
     def start(self, name):
-        """Запустить пьесу на свободной паре каналов; прежняя пара плавно гаснет (громкость
-        ведём сами каждый кадр — встроенные fade у SDL конфликтуют с set_volume)."""
+        """Start a piece on a free pair of channels; the previous pair fades out smoothly (we drive
+        the volume ourselves every frame - SDL's built-in fades conflict with set_volume)."""
         item = self.ready.get(name)
         if not item:
             return False
@@ -389,7 +389,7 @@ class MusicPlayer:
         self.cur = None
 
     def silence(self):
-        """Конец партии: музыка затихает до возвращения в меню."""
+        """End of the match: the music fades until the return to the menu."""
         self.stop(1.2)
         self.hold = True
 
@@ -415,9 +415,9 @@ class MusicPlayer:
                     if self.ready[self.pending] is None or self.start(self.pending):
                         self.pending = None
                         self.fade = 2.5
-                        if self.mode == 'play':         # заранее готовим следующую
+                        if self.mode == 'play':         # prepare the next one in advance
                             self.request(self.order[(self.idx + 1) % len(self.order)])
-        # военный слой следует за накалом (быстро нарастает, медленно спадает)
+        # the war layer follows the intensity (rises quickly, falls slowly)
         target = min(1.0, intensity)
         k = 1 - np.exp(-dt / (0.8 if target > self.war else 6.0))
         self.war += (target - self.war) * k

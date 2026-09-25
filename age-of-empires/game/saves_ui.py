@@ -1,11 +1,12 @@
-"""Окно «Сохранить игру» / «Загрузить игру» (меню F10 в партии; «Одиночная игра» → «Загрузить игру»).
-Слева — слоты (миниатюра, название, дата, цивилизация, время партии), справа — большая миниатюра и данные,
-внизу — имя сохранения (при сохранении), кнопки «Сохранить»/«Загрузить», «Удалить», «Отмена».
-Файлы — game/savegame.py.
+"""The "Save Game" / "Load Game" window (the F10 menu in a match; "Single Player" -> "Load Game").
+On the left - slots (a thumbnail, name, date, civilization, match time), on the right - a large thumbnail and data,
+at the bottom - the save name (when saving), the buttons "Save"/"Load", "Delete", "Cancel".
+Files - game/savegame.py.
 """
 import pygame
 
 from .data import SCREEN_W, SCREEN_H, TOP_H, VIEW_H
+from . import i18n
 from . import naval, savegame, uiskin as S, widgets as W
 
 BOX = pygame.Rect(SCREEN_W // 2 - 470, 60, 940, 660)
@@ -16,6 +17,13 @@ ROW = 68
 def _clock(t):
     t = int(t)
     return f'{t // 3600}:{t // 60 % 60:02d}:{t % 60:02d}' if t >= 3600 else f'{t // 60:02d}:{t % 60:02d}'
+
+
+def _civ_name(meta):
+    """The name of a save's civilization in the player's language (by the 'civ' key; old files - as written)."""
+    from . import civ_ui
+    civ = meta.get('civ')
+    return civ_ui.civ_name(civ) if civ else meta.get('civ_name', '')
 
 
 class SavesUI:
@@ -54,7 +62,7 @@ class SavesUI:
             self.help = 'menu'
 
     def game_snapshot(self):
-        """Кадр игры без оверлеев (для миниатюры сохранения)."""
+        """A game frame without overlays (for the save thumbnail)."""
         keep = self.help
         try:
             self.help = False
@@ -77,7 +85,7 @@ class SavesUI:
                 self._thumbs[key] = img
         return img
 
-    # ---- разметка
+    # ---- layout
     def saves_rects(self):
         items = []
         rows = ([(None, None, None)] if self.saves_mode == 'save' else []) + list(self.saves_list)
@@ -93,7 +101,7 @@ class SavesUI:
         items.append((pygame.Rect(BOX.right - 242, y, 210, 42), 'cancel', None))
         return items
 
-    # ---- действия
+    # ---- actions
     def saves_action(self, act, val):
         if act == 'slot':
             self.saves_sel = val
@@ -112,7 +120,7 @@ class SavesUI:
         elif act == 'do':
             if self.saves_mode == 'save':
                 self.do_save(self.saves_sel or savegame.new_slot_name(), self.save_name)
-                self.saves_msg = 'Сохранено'
+                self.saves_msg = i18n.t('saves.saved')
                 self.help = False
             elif self.saves_sel is not None:
                 self.do_load(self.saves_sel)
@@ -123,11 +131,11 @@ class SavesUI:
         shot = self._shot if self._shot is not None else self.game_snapshot()
         self._shot = None
         path = savegame.save_world(w, slot, name, ui=ui, thumb=shot)
-        w.msg(f'Игра сохранена: {name or slot}', (170, 230, 150))
+        w.msg(i18n.t('saves.game_saved', name=name or slot), (170, 230, 150))
         return path
 
     def ui_state(self):
-        """Что из интерфейса сохраняется вместе с миром: камера, скорость, группы (ссылки на юнитов мира)."""
+        """What of the interface is saved together with the world: the camera, speed, groups (references to the world's units)."""
         return {'cam_x': self.cam_x, 'cam_y': self.cam_y, 'zoom': self.zoom, 'speed': self.speed,
                 'groups': {k: list(v) for k, v in (getattr(self, 'groups', None) or {}).items()}}
 
@@ -139,13 +147,13 @@ class SavesUI:
     def do_load(self, slot):
         try:
             w, ui, meta = savegame.load_world(slot)
-        except Exception as ex:          # битый/старый файл — сообщить, не падать
-            self.saves_msg = f'Не удалось загрузить: {type(ex).__name__}'
+        except Exception as ex:          # a broken/old file - report it, do not crash
+            self.saves_msg = i18n.t('saves.load_failed', err=type(ex).__name__)
             return False
         self.attach_world(w, ui)
         self.help = False
         self.last_start = getattr(self, 'last_start', None)
-        w.msg(f'Загружено: {meta.get("name", slot)}', (170, 230, 150))
+        w.msg(i18n.t('saves.loaded', name=meta.get('name', slot)), (170, 230, 150))
         return True
 
     def saves_event(self, e):
@@ -180,13 +188,14 @@ class SavesUI:
             return True
         return False
 
-    # ---- отрисовка
+    # ---- drawing
     def draw_saves(self):
         scr = self.screen
         S.shade_overlay(scr, (0, 0, SCREEN_W, SCREEN_H), (10, 6, 2), 150)
         S.panel(scr, BOX, 'parchment', frame=False)
         pygame.draw.rect(scr, (120, 84, 40), BOX, 2)
-        W.plate(scr, (BOX.centerx, BOX.y + 30), 'Сохранить игру' if self.saves_mode == 'save' else 'Загрузить игру',
+        W.plate(scr, (BOX.centerx, BOX.y + 30),
+                i18n.t('saves.save_game') if self.saves_mode == 'save' else i18n.t('saves.load_game'),
                 self.fonts['h'], 360)
         W.box(scr, LIST, 40)
         mp = pygame.mouse.get_pos()
@@ -204,8 +213,8 @@ class SavesUI:
             pygame.draw.rect(scr, (190, 40, 26) if on else (140, 104, 60), r, 2 if on else 1)
             if slot is None:
                 S.blit_icon(scr, 'construction', (r.x + 50, r.centery), 40)
-                S.text(scr, 'Новое сохранение', (r.x + 110, r.centery), self.fonts['l'], W.INK, anchor='midleft',
-                       shadow=None)
+                S.text_fit(scr, i18n.t('saves.new'), (r.x + 110, r.centery), self.fonts['l'], W.INK, anchor='midleft',
+                           shadow=None, max_w=r.right - r.x - 120)
                 continue
             meta, th = metas.get(slot, ({}, None))
             img = self.thumb(slot, th, (96, 60))
@@ -214,13 +223,13 @@ class SavesUI:
             else:
                 pygame.draw.rect(scr, (60, 50, 40), (r.x + 4, r.y + 2, 96, 60))
             S.text(scr, meta.get('name', slot), (r.x + 110, r.y + 16), fb, W.INK, anchor='midleft', shadow=None)
-            S.text(scr, f'{meta.get("date", "")}  ·  {meta.get("civ_name", "")}  ·  {_clock(meta.get("time", 0))}',
-                   (r.x + 110, r.y + 42), f, (100, 70, 40), anchor='midleft', shadow=None)
+            S.text_fit(scr, f'{meta.get("date", "")}  ·  {_civ_name(meta)}  ·  {_clock(meta.get("time", 0))}',
+                       (r.x + 110, r.y + 42), f, (100, 70, 40), anchor='midleft', shadow=None, max_w=r.right - r.x - 120)
         scr.set_clip(clip)
         if not self.saves_list and self.saves_mode == 'load':
-            S.text(scr, 'Сохранений пока нет', LIST.center, self.fonts['l'], (110, 80, 50), anchor='center',
-                   shadow=None)
-        # справа — выбранное
+            S.text_fit(scr, i18n.t('saves.empty'), LIST.center, self.fonts['l'], (110, 80, 50), anchor='center',
+                       shadow=None, max_w=LIST.w - 20)
+        # on the right - the selection
         right = pygame.Rect(LIST.right + 20, LIST.y, BOX.right - LIST.right - 44, LIST.h)
         W.box(scr, right, 40)
         sel = metas.get(self.saves_sel)
@@ -233,32 +242,33 @@ class SavesUI:
                 scr.blit(img, (right.x + 10, right.y + 10))
             y = right.y + tsz[1] + 30
             if sel is not None:
-                rows = [('time', _clock(meta.get('time', 0))), ('diplomacy', meta.get('civ_name', '')),
-                        ('population', f'{meta.get("players", 0)} игроков'),
+                rows = [('time', _clock(meta.get('time', 0))), ('diplomacy', _civ_name(meta)),
+                        ('population', i18n.t('saves.players_n', n=meta.get('players', 0))),
                         ('portraits/technologies/cartography.png',
                          f'{naval.MAP_NAMES.get(meta.get("map"), "")} · {meta.get("size", "")}²'),
                         ('encyclopaedia', meta.get('date', ''))]
             else:
                 w = self.world
-                rows = [('time', _clock(w.time)), ('population', f'{len(w.players)} игроков')]
+                rows = [('time', _clock(w.time)), ('population', i18n.t('saves.players_n', n=len(w.players)))]
             for ic, txt in rows:
                 S.blit_icon(scr, ic, (right.x + 26, y), 24)
-                S.text(scr, txt, (right.x + 48, y), fb, W.INK, anchor='midleft', shadow=None)
+                S.text_fit(scr, txt, (right.x + 48, y), fb, W.INK, anchor='midleft', shadow=None, max_w=right.w - 60)
                 y += 32
         for r, act, _ in rects:
             h = r.collidepoint(mp)
             if act == 'name':
                 caret = '|' if (pygame.time.get_ticks() // 400) % 2 else ''
-                S.text(scr, 'Имя:', (r.x - 4, r.y - 10), self.fonts['bs'], W.INK, shadow=None)
+                S.text(scr, i18n.t('saves.name'), (r.x - 4, r.y - 10), self.fonts['bs'], W.INK, shadow=None)
                 W.field(scr, r, self.save_name + caret, fb, True, arrow=False)
             elif act == 'do':
                 ok = self.saves_mode == 'save' or self.saves_sel is not None
-                W.red_button(scr, r, 'Сохранить' if self.saves_mode == 'save' else 'Загрузить', fb,
+                W.red_button(scr, r, i18n.t('gm.save') if self.saves_mode == 'save' else i18n.t('gm.load'), fb,
                              'disabled' if not ok else 'hover' if h else 'normal')
             elif act == 'delete':
-                W.red_button(scr, r, 'Удалить', fb, 'disabled' if self.saves_sel is None else 'hover' if h else 'normal')
+                W.red_button(scr, r, i18n.t('common.delete'), fb,
+                             'disabled' if self.saves_sel is None else 'hover' if h else 'normal')
             elif act == 'cancel':
-                W.red_button(scr, r, 'Отмена', fb, 'hover' if h else 'normal')
+                W.red_button(scr, r, i18n.t('common.cancel'), fb, 'hover' if h else 'normal')
         if self.saves_msg:
             S.text(scr, self.saves_msg, (BOX.centerx, BOX.bottom - 76), fb, (170, 30, 20), anchor='center',
                    shadow=None)

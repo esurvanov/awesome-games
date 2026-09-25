@@ -1,14 +1,14 @@
-"""Экономика компьютерного игрока: мельница у ферм, рынок, торговля излишками, экономические
-технологии, очередь пересева ферм, торговые повозки к союзным рынкам.
+"""Computer player's economy: a mill by the farms, a market, trading surpluses, economic
+techs, the farm reseed queue, trade carts to allied markets.
 
-Вызывается из AI.update каждые 0.5 с: eco_ai.update(ai, ...); своё состояние держит в ai.eco.
+Called from AI.update every 0.5 s: eco_ai.update(ai, ...); keeps its own state in ai.eco.
 """
 from collections import Counter
 
 from .data import TILE, TECHS
 from . import market as mk
 
-# (технология, условие) в порядке важности; условие получает сводку c (см. update)
+# (tech, condition) in order of importance; the condition receives a summary c (see update)
 ECO_TECHS = [
     ('wheelbarrow', lambda c: c['nv'] >= 14),
     ('double_bit', lambda c: c['wood'] >= 4),
@@ -56,13 +56,13 @@ def update(ai, units, vils, blds, count, done, reserve, tc):
 
 
 def _spend_ok(p, cost, reserve):
-    """Хватает ли, не трогая запас на эпоху — только по тем ресурсам, что нужны самой покупке."""
+    """Whether it is affordable without touching the age reserve - only for the resources the purchase itself needs."""
     return all(p.res[r] >= v + reserve.get(r, 0) for r, v in cost.items())
 
 
 def _invest_ok(p, cost, reserve):
-    """Вложение в экономику (технология, повозка) окупается быстро: запас на эпоху бережём,
-    только когда он почти собран (80%)."""
+    """An investment in the economy (a tech, a cart) pays back fast: the age reserve is protected
+    only when it is almost collected (80%)."""
     close = bool(reserve) and all(p.res[r] >= 0.8 * v for r, v in reserve.items())
     return _spend_ok(p, cost, reserve) if close else p.afford(cost)
 
@@ -71,7 +71,7 @@ def build(ai, vils, count, done, reserve, c):
     p = ai.p
     bx, by = ai.base.center()
     btx, bty = int(bx // TILE), int(by // TILE)
-    # мельница у ферм (для технологий и пересева), если ягодной не было
+    # a mill by the farms (for techs and reseeding), if there was no berry one
     if count['mill'] == 0 and c['farms'] >= 2 and p.age >= 1:
         cost = p.cost_of('bld', 'mill')
         if _spend_ok(p, cost, reserve):
@@ -79,8 +79,8 @@ def build(ai, vils, count, done, reserve, c):
             if spot:
                 ai.start_build('mill', spot, vils, 1)
                 return
-    # рынок: в Феодальную при большой экономике, в Замках — всегда
-    has_market = any(b.kind == 'market' and b.owner == p.id for b in ai.w.buildings)    # count мог устареть
+    # market: in the Feudal Age with a large economy, in the Castle Age - always
+    has_market = any(b.kind == 'market' and b.owner == p.id for b in ai.w.buildings)    # count may be stale
     if not has_market and p.age >= 1 and (p.age >= 2 or c['nv'] >= 32 or
                                                    p.res['gold'] + p.res['stone'] >= 900):
         cost = p.cost_of('bld', 'market')
@@ -110,7 +110,7 @@ def research(ai, blds, reserve, c):
 
 
 def trade(ai, st, count, reserve):
-    """Продать излишки (камень, еду/дерево сверх нормы) и купить недостающее за лишнее золото."""
+    """Sell surpluses (stone, food/wood above the norm) and buy what is missing with the extra gold."""
     w, p = ai.w, ai.p
     castle_plan = p.age >= 2 and ai.diff >= 1 and count['castle'] < 1
     want = {'food': 400 + 100 * p.age, 'wood': 300 + 50 * p.age, 'gold': 250,
@@ -119,7 +119,7 @@ def trade(ai, st, count, reserve):
         want[r] = want.get(r, 0) + v
     for _ in range(3):
         did = False
-        # продажа: заметный излишек и цена не бросовая
+        # selling: a noticeable surplus and the price is not throwaway
         for r in mk.GOODS:
             extra = p.res[r] - want[r]
             limit = 200 if r == 'stone' else 900
@@ -127,7 +127,7 @@ def trade(ai, st, count, reserve):
                 st['trades'] += 1
                 did = True
                 break
-        # покупка: самый нужный из еды/дерева, если золота больше нормы
+        # buying: the most needed of food/wood if there is more gold than the norm
         need = sorted((r for r in ('food', 'wood') if p.res[r] < want[r]), key=lambda r: p.res[r] - want[r])
         for r in need:
             price = mk.buy_price(p, r)
@@ -140,7 +140,7 @@ def trade(ai, st, count, reserve):
 
 
 def carts(ai, units, blds, reserve, c):
-    """Торговые повозки — только к союзным рынкам (свой рынок у ИИ один)."""
+    """Trade carts - only to allied markets (the AI has just one market of its own)."""
     w, p = ai.w, ai.p
     if p.age < 2:
         return

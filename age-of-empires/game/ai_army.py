@@ -1,6 +1,6 @@
-"""ИИ: состав армии (контр-юниты), военные технологии, осада и монахи.
+"""AI: army composition (counter units), military techs, siege and monks.
 
-Используется из ai.AI: self.army = ArmyPlanner(ai). Все цены — через Player.cost_of."""
+Used from ai.AI: self.army = ArmyPlanner(ai). All costs go through Player.cost_of."""
 import math
 import random
 from collections import Counter
@@ -8,23 +8,23 @@ from collections import Counter
 from .data import TILE, UNITS, TECHS, CIVS, BUILDINGS
 from .world import unit_tags
 
-# военные технологии по эпохам; улучшения линий берутся, только если ИИ эти линии обучает
+# military techs per age; line upgrades are taken only if the AI trains those lines
 ARMY_TECHS = [
-    # Феодальная
+    # Feudal
     'man_at_arms', 'forging', 'fletching', 'scale_armor', 'padded_archer_armor', 'scale_barding', 'bloodlines',
-    # Эпоха замков
+    # Castle Age
     'crossbowman', 'long_swordsman', 'pikeman', 'elite_skirmisher', 'light_cavalry', 'iron_casting',
     'bodkin_arrow', 'chain_mail', 'chain_barding', 'leather_archer_armor', 'husbandry', 'thumb_ring',
     'ballistics', 'squires', 'sanctity', 'fervor', 'supplies',
-    # Имперская
+    # Imperial
     'chemistry', 'cavalier', 'arbalester', 'two_handed_swordsman', 'capped_ram', 'halberdier', 'blast_furnace',
     'bracer', 'plate_mail', 'plate_barding', 'ring_archer_armor', 'onager', 'champion', 'heavy_cavalry_archer',
     'siege_engineers', 'paladin', 'hussar', 'siege_ram', 'parthian_tactics', 'heavy_camel_rider',
     'illumination', 'heavy_scorpion', 'siege_onager', 'redemption', 'arson',
 ]
-# технологии монастыря — только если монахов уже несколько
+# monastery techs - only when there are already several monks
 MONK_TECHS = {'sanctity', 'fervor', 'illumination', 'redemption', 'block_printing', 'atonement'}
-# сколько держать осадных/монахов (по базовому виду линии)
+# how many siege units/monks to keep (by the line's base kind)
 CAPS = {'ram': 3, 'mangonel': 2, 'scorpion': 2, 'bombard_cannon': 2, 'trebuchet': 3, 'monk': 3}
 
 
@@ -37,11 +37,11 @@ class ArmyPlanner:
         self.ai = ai
         self.mix = Counter()
         self.mix_t = -99.0
-        self.order = None       # (базовый вид, с какого времени копим) — см. train()
-        self.ec = None          # доли ресурсов в тратах на армию (expected_cost), кэш
+        self.order = None       # (base kind, since when we save) - see train()
+        self.ec = None          # resource shares in army spending (expected_cost), cache
         self.ec_t = -99.0
 
-    # ---- разведка состава врага
+    # ---- scouting the enemy composition
     def enemy_mix(self):
         w = self.ai.w
         if w.time - self.mix_t < 5:
@@ -72,7 +72,7 @@ class ArmyPlanner:
         return c
 
     def weights(self, own):
-        """Веса выбора по базовому виду линии. own — Counter базовых линий своей армии."""
+        """Selection weights by the line's base kind. own - Counter of the own army's base lines."""
         p = self.ai.p
         age = p.age
         m = self.enemy_mix()
@@ -96,22 +96,22 @@ class ArmyPlanner:
             'trebuchet': 3.0,
             'monk': 1.5,
         }
-        # цивилизация: свои сильные стороны (CIVS[civ]['ai'] — множители; уникальные юниты — там же)
+        # civilization: its strengths (CIVS[civ]['ai'] - multipliers; unique units are there too)
         for k, m in CIVS.get(p.civ, {}).get('ai', {}).items():
             wts[k] = wts.get(k, 1.0) * m
-        # уникальные юниты своей цивилизации — сильная сторона: в Замках и позже их в армии заметно больше
+        # the civilization's unique units are a strength: from the Castle Age on there are noticeably more of them in the army
         for k in UNITS:
             if UNITS[k].get('civ') == p.civ and UNITS[k].get('line', k) == k:
                 wts[k] = wts.get(k, 1.0) * (1.6 if age >= 2 else 1.0)
         caps = dict(CAPS)
         if age >= 3:
-            # Имперская: против замков и башен врага — требушеты
+            # Imperial: trebuchets against enemy castles and towers
             forts = self.enemy_forts()
             caps['trebuchet'] = 2 + min(4, forts) if self.ai.diff >= 1 else 2
             wts['trebuchet'] = wts.get('trebuchet', 1.0) * (1 + 0.5 * min(4, forts))
             caps['ram'] = 5 if self.ai.diff >= 2 else 3
         if age >= 2 and self.ai.diff >= 1 and own['ram'] < 2:
-            wts['ram'] = wts.get('ram', 1.0) * 2.5        # без тарана волна Замков центр не возьмёт
+            wts['ram'] = wts.get('ram', 1.0) * 2.5        # without a ram the Castle Age wave will not take the center
         for k, cap in caps.items():
             if own[k] >= cap:
                 wts[k] = 0
@@ -120,12 +120,12 @@ class ArmyPlanner:
     def enemy_forts(self):
         w = self.ai.w
         hrow = w.hmat[self.ai.pid]
-        # замки, башни и центры — то, что требушеты ломают издалека
+        # castles, towers and centers - what trebuchets break from afar
         return sum(1 for b in w.buildings if hrow[b.owner] and b.kind in ('castle', 'keep', 'guard_tower', 'tower',
                                                                           'bombard_tower', 'town_center'))
 
     def expected_cost(self):
-        """Доли ресурсов в ожидаемых тратах на армию (по весам доступных линий) — для распределения жителей."""
+        """Resource shares in expected army spending (by the weights of available lines) - for villager distribution."""
         p, w = self.ai.p, self.ai.w
         if w.time - self.ec_t < 15 and self.ec:
             return self.ec
@@ -145,7 +145,7 @@ class ArmyPlanner:
         return self.ec
 
     def prod_pref(self):
-        """Предпочтение производственных зданий: сумма весов линий, которые в них обучаются."""
+        """Production building preference: sum of the weights of the lines trained there."""
         p = self.ai.p
         wts = self.weights(Counter())
         out = {}
@@ -158,21 +158,21 @@ class ArmyPlanner:
         return out
 
     def pick(self, b, opts, own):
-        """Что обучить в здании b из opts (базовые виды). None — ничего."""
+        """What to train in building b from opts (base kinds). None - nothing."""
         p = self.ai.p
         w = self.ai.w
         wts = self.weights(own)
         opts = [o for o in opts if w.unit_state(p, p.current(o))[0] and wts.get(o, 1) > 0]
         if not opts:
             return None
-        # на заказ копит train(); здесь — из того, на что хватает
+        # train() saves for the order; here - from what is affordable
         ok = [o for o in opts if p.afford(p.cost_of('unit', p.current(o)))] or opts
         return random.choices(ok, [wts.get(o, 1) for o in ok])[0]
 
     def train(self, blds, keep, own):
-        """Обучение армии. Один «заказ» (вид по весам среди всех свободных зданий) копится до 30 с:
-        остальные здания обучают, только если после них на заказ всё ещё хватит — так дорогие юниты
-        (рыцари, требушеты) не вытесняются дешёвыми."""
+        """Army training. One "order" (a kind picked by weights among all free buildings) is saved for up to 30 s:
+        the other buildings train only if the order is still affordable after them - so expensive units
+        (knights, trebuchets) are not crowded out by cheap ones."""
         p, w = self.ai.p, self.ai.w
         if p.pop >= p.cap:
             return
@@ -180,19 +180,19 @@ class ArmyPlanner:
         for b in blds:
             if b.complete and not b.queue:
                 if b.d.get('water'):
-                    continue    # доки — у морской части ИИ
+                    continue    # docks belong to the naval part of the AI
                 opts = [u for u in b.d.get('trains', []) if u != 'villager' and not UNITS[u].get('civil')
                         and p.allows(u, b.kind) and w.unit_state(p, p.current(u))[0]]
                 if opts:
                     idle.append((b, opts))
         if not idle:
             return
-        # замок без дела — уникальный юнит цивилизации (сильная сторона), если хватает, не трогая запасы
+        # an idle castle trains the civilization's unique unit (a strength) if affordable, without touching reserves
         for b, opts in list(idle):
             if b.kind != 'castle' or p.pop >= p.cap:
                 continue
             uq = [u for u in opts if UNITS[u].get('civ') == p.civ]
-            # в Имперскую против замков/башен сначала требушеты
+            # in the Imperial Age trebuchets first against castles/towers
             if p.age >= 3 and 'trebuchet' in opts and self.enemy_forts() and \
                     own['trebuchet'] < (2 + min(3, self.enemy_forts()) if self.ai.diff >= 1 else 1):
                 uq = ['trebuchet']
@@ -237,15 +237,15 @@ class ArmyPlanner:
                 b.queue.append(('unit', p.current(ob)))
                 own[ob] += 1
 
-    # ---- технологии
+    # ---- techs
     def tech_order(self, blds):
-        """Военные технологии, которые стоит изучать (в порядке важности)."""
+        """Military techs worth researching (in order of importance)."""
         p = self.ai.p
         trains = set()
         for b in blds:
             if b.complete:
                 trains.update(b.d.get('trains', ()))
-        # линии, которые можно обучать; улучшения других линий не тратим
+        # lines that can be trained; upgrades of other lines are not bought
         lines = {line_of(p.current(k)) for k in trains} | {line_of(k) for k in trains}
         monks = sum(1 for u in self.ai.w.units if u.owner == self.ai.pid and u.d.get('monk'))
         out = []
@@ -257,13 +257,13 @@ class ArmyPlanner:
             if up and line_of(up[0]) not in lines:
                 continue
             out.append(t)
-        # улучшения линий, добавленные другими модулями
+        # line upgrades added by other modules
         out += [t for t in TECHS if TECHS[t].get('upgrade') and t not in out and TECHS[t]['age'] <= p.age
                 and line_of(TECHS[t]['upgrade'][0]) in lines]
-        # уникальные технологии своей цивилизации (замок) — в числе первых: это сильные стороны цивилизации
+        # the civilization's unique techs (castle) come among the first: they are its strengths
         out = [t for t, d in TECHS.items() if d.get('civ') == p.civ and not d.get('upgrade') and d['age'] <= p.age
                and t not in out] + out
-        # сначала — улучшения линий, которых в армии уже много
+        # first the upgrades of lines that are already numerous in the army
         own = Counter(line_of(u.kind) for u in self.ai.w.units if u.owner == self.ai.pid)
         rank = {t: i for i, t in enumerate(out)}
 
@@ -272,12 +272,12 @@ class ArmyPlanner:
             return (0 if up and own[line_of(up[0])] >= 4 else 1, rank[t])
         return sorted(out, key=key)
 
-    # ---- бой: осада и монахи
+    # ---- combat: siege and monks
     def siege_like(self, a):
         return bool(a.d.get('bld_only') or a.d.get('pack'))
 
     def lead_monks(self, army):
-        """Монахи держатся у армии; с полной верой обращают ближайших врагов."""
+        """Monks stay with the army; with full faith they convert the nearest enemies."""
         w = self.ai.w
         monks = [a for a in army if a.d.get('monk')]
         if not monks:

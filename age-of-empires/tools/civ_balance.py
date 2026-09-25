@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Баланс цивилизаций: ИИ против ИИ, все пары (каждая пара — на обеих стартовых позициях), параллельно.
+"""Civilization balance: AI vs AI, all pairs (each pair - at both starting positions), in parallel.
 
   .venv/bin/python tools/civ_balance.py --minutes 45 --jobs 7
   .venv/bin/python tools/civ_balance.py --civs franks,britons,mongols --seeds 3
 
-Победа — разгром соперника; если за отведённое время никто не разгромлен — по очкам
-(убито + добыто/100 + здания×2 + технологии×3 + эпоха×20). Итог — таблица побед по цивилизациям.
+Victory - crushing the opponent; if nobody was crushed in the allotted time - by score
+(kills + gathered/100 + buildings x2 + techs x3 + age x20). The result is a table of wins by civilization.
 """
 import argparse
 import itertools
@@ -38,7 +38,7 @@ def game(args):
         while w.time < minutes * 60 and w.winner is None:
             w.update(DT)
             w.events.clear()
-    except Exception as e:      # noqa: BLE001 — падение считаем отдельно
+    except Exception as e:      # noqa: BLE001 - we count a crash separately
         import traceback
         return a, b, seed, 'error', repr(e) + '\n' + traceback.format_exc(), 0, 0, time.time() - t0, {}
     uu = {}
@@ -47,11 +47,11 @@ def game(args):
             uu[u.kind] = uu.get(u.kind, 0) + 1
     if w.winner is not None:
         win = a if w.winner == 0 else b
-        how = 'разгром'
+        how = 'crush'
     else:
         sa, sb = score(w, w.players[0]), score(w, w.players[1])
         win = a if sa >= sb else b
-        how = 'очки'
+        how = 'score'
     return (a, b, seed, win, how, score(w, w.players[0]), score(w, w.players[1]), time.time() - t0,
             {'techs': sorted(t for p in w.players for t in p.techs if _civ_tech(t)), 'uu': uu})
 
@@ -70,8 +70,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--minutes', type=float, default=45)
     ap.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) - 1))
-    ap.add_argument('--civs', default='', help='через запятую (по умолчанию все)')
-    ap.add_argument('--seeds', type=int, default=1, help='партий на каждую пару и сторону')
+    ap.add_argument('--civs', default='', help='comma-separated (all by default)')
+    ap.add_argument('--seeds', type=int, default=1, help='matches per pair and side')
     a = ap.parse_args()
     from game.data import CIVS
     civs = a.civs.split(',') if a.civs else [k for k in CIVS if k != 'default']
@@ -80,7 +80,7 @@ def main():
         for s in range(a.seeds):
             tasks.append((x, y, 1000 + i * 10 + s, a.minutes))
             tasks.append((y, x, 1000 + i * 10 + s, a.minutes))
-    print(f'{len(tasks)} партий по {a.minutes:g} мин, {a.jobs} процессов')
+    print(f'{len(tasks)} matches of {a.minutes:g} min, {a.jobs} processes')
     t0 = time.time()
     stats = {c: {'g': 0, 'w': 0, 'rout': 0, 'lost_rout': 0, 'uu': 0} for c in civs}
     errors = []
@@ -90,12 +90,12 @@ def main():
             x, y, seed, win, how, sa, sb, dt, extra = r
             if win == 'error':
                 errors.append(r)
-                print('ОШИБКА', r[:3], r[4])
+                print('ERROR', r[:3], r[4])
                 continue
             for c in (x, y):
                 stats[c]['g'] += 1
             stats[win]['w'] += 1
-            if how == 'разгром':
+            if how == 'crush':
                 stats[win]['rout'] += 1
                 stats[y if win == x else x]['lost_rout'] += 1
             for k, v in extra.get('uu', {}).items():
@@ -104,15 +104,15 @@ def main():
             for t in extra.get('techs', []):
                 uts[t] = uts.get(t, 0) + 1
             if n % 10 == 0:
-                print(f'  {n}/{len(tasks)} за {time.time() - t0:.0f} с')
+                print(f'  {n}/{len(tasks)} in {time.time() - t0:.0f} s')
     from game.data import CIVS as C
-    print(f'\nГотово за {time.time() - t0:.0f} с; ошибок: {len(errors)}')
-    print(f'{"цивилизация":14s} партий  побед  %побед  разгромил  разгромлен  уник.юнитов(живых)')
+    print(f'\nDone in {time.time() - t0:.0f} s; errors: {len(errors)}')
+    print(f'{"civilization":14s} matches  wins  win%  crushed  was crushed  unique units (alive)')
     for c in sorted(civs, key=lambda c: -stats[c]['w'] / max(1, stats[c]['g'])):
         s = stats[c]
         print(f'{C[c]["name"]:14s} {s["g"]:6d} {s["w"]:6d} {100 * s["w"] / max(1, s["g"]):6.0f}% {s["rout"]:9d} '
               f'{s["lost_rout"]:11d} {s["uu"]:8d}')
-    print('уникальные технологии/элита изучены (раз):', ' '.join(f'{k}:{v}' for k, v in sorted(uts.items())))
+    print('unique techs/elite researched (times):', ' '.join(f'{k}:{v}' for k, v in sorted(uts.items())))
     sys.exit(1 if errors else 0)
 
 

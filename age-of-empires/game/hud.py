@@ -1,12 +1,12 @@
-"""Игровой интерфейс (примесь к ui.Game) в раскладке AoE2 DE:
+"""The in-game interface (a mixin of ui.Game) in the AoE2 DE layout:
 
-  верх     — ресурсы «дерево · еда · золото · камень» с числом жителей на каждом, население, праздные,
-             эпоха (во время перехода — полоса прогресса), герб, 5 круглых кнопок (цели, чат, дипломатия,
-             древо технологий, меню); под ним значки групп управления и общая очередь;
-  низ      — две панели с окном в мир между ними: панель команд (сетка 5×3 + пергамент выбранного)
-             и панель мини-карты (ромб + 4 кнопки по углам), над ней счёт игроков (F4);
-  подсказки — тёмная плашка слева над панелью, с задержкой.
-Окна поверх игры — game/hud_windows.py. Графика обвязки — game/uiskin.py.
+  top      - resources "wood · food · gold · stone" with the number of villagers on each, population, idle,
+             the age (a progress bar during advancement), the coat of arms, 5 round buttons (objectives, chat, diplomacy,
+             tech tree, menu); under it the control group icons and the global queue;
+  bottom   - two panels with a window onto the world between them: the command panel (a 5x3 grid + the selection parchment)
+             and the minimap panel (a diamond + 4 corner buttons), above it the player score (F4);
+  tooltips - a dark plate at the left above the panel, with a delay.
+Windows over the game - game/hud_windows.py. Graphics of the frame - game/uiskin.py.
 """
 import pygame
 
@@ -14,83 +14,83 @@ from .data import (SCREEN_W, SCREEN_H, TOP_H, PANEL_H, TILE, GAME_SPEED, RES, RE
                    NODE_DEFS, TECHS, UNITS, BUILDINGS, ANIMALS, FARM_RATE, AGE_TECHS, BUILD_MENU, HOTKEYS,
                    as_tuple, shade)
 from .world import Unit, Building, Node, Animal
-from . import civ_ui, hud_windows, uiskin as S
+from . import civ_ui, hud_windows, i18n, uiskin as S
 from . import themes
 
-# ---------------------------------------------------------------- раскладка (1280×800)
-PY0 = SCREEN_H - PANEL_H                               # верх панели команд
-CMD_FULL = pygame.Rect(0, PY0, 833, PANEL_H)           # панель команд (DE: 1125/1920 при высоте 1080)
-CMD_SMALL = pygame.Rect(0, PY0, 262, PANEL_H)          # свёрнутая: только сетка
+# ---------------------------------------------------------------- layout (1280x800)
+PY0 = SCREEN_H - PANEL_H                               # top of the command panel
+CMD_FULL = pygame.Rect(0, PY0, 833, PANEL_H)           # command panel (DE: 1125/1920 at a height of 1080)
+CMD_SMALL = pygame.Rect(0, PY0, 262, PANEL_H)          # collapsed: the grid only
 MAP_PANEL = pygame.Rect(SCREEN_W - 367, SCREEN_H - 181, 367, 181)
-MM_RECT = pygame.Rect(MAP_PANEL.x + 29, MAP_PANEL.y + 13, 310, 155)   # ромб мини-карты 2 : 1
+MM_RECT = pygame.Rect(MAP_PANEL.x + 29, MAP_PANEL.y + 13, 310, 155)   # minimap diamond 2 : 1
 GRID_BOX = pygame.Rect(6, PY0 + 8, 240, PANEL_H - 14)
 INFO_BOX = pygame.Rect(252, PY0 + 8, 550, PANEL_H - 14)
 GRID_X, GRID_Y, GRID_STEP, BTN = 14, PY0 + 16, 45, 42
 COLLAPSE_FULL = pygame.Rect(807, PY0 + 10, 20, 26)
 COLLAPSE_SMALL = pygame.Rect(238, PY0 + 10, 20, 26)
 INFO_X = INFO_BOX.x + 10
-PORT = 56                 # большой портрет (≈ 1/3 высоты панели, как в DE)
-TX = INFO_X + PORT + 16   # столбец характеристик
-TOP_RES = ('wood', 'food', 'gold', 'stone')            # порядок DE
-# DE: цели — свиток с красной галочкой, чат — рог, дипломатия — венок с рукопожатием, древо — шестерня, меню — свиток
-TOP_BTNS = [('objectives', 'Цели', ('portraits/de/top_objectives.png', 'victory')),
-            ('chat', 'Чат', ('portraits/de/top_chat.png',)),
-            ('diplomacy', 'Дипломатия', ('portraits/de/top_diplomacy.png', 'diplomacy')),
-            ('techtree', 'Древо технологий', ('portraits/de/top_techtree.png', 'upgrade')),
-            ('menu', 'Меню', ('match-settings',))]
+PORT = 56                 # large portrait (~ 1/3 of the panel height, as in DE)
+TX = INFO_X + PORT + 16   # stats column
+TOP_RES = ('wood', 'food', 'gold', 'stone')            # DE order
+# DE: objectives - a scroll with a red tick, chat - a horn, diplomacy - a wreath with a handshake, tree - a gear, menu - a scroll
+# captions of buttons, modes, jobs and help are locale keys (hud.*, job.*, bonus.*, help.*)
+TOP_BTNS = [('objectives', 'hud.objectives', ('portraits/de/top_objectives.png', 'victory')),
+            ('chat', 'hud.chat', ('portraits/de/top_chat.png',)),
+            ('diplomacy', 'hud.diplomacy', ('portraits/de/top_diplomacy.png', 'diplomacy')),
+            ('techtree', 'hud.techtree', ('portraits/de/top_techtree.png', 'upgrade')),
+            ('menu', 'hud.menu', ('match-settings',))]
 MM_BTNS = ['flare', 'score', 'colors', 'mode']         # ↖ ↗ ↙ ↘
-MM_MODES = ['обычный', 'военный', 'экономический']
-TIP_DELAY = 350           # мс до появления подсказки
+MM_MODES = ['hud.mm.normal', 'hud.mm.military', 'hud.mm.economy']
+TIP_DELAY = 350           # ms before a tooltip appears
 TEAM_COLORS = {'me': (70, 130, 255), 'ally': (240, 215, 60), 'enemy': (225, 50, 40)}
 
-# сетка жителя: две страницы с постоянными местами (DE)
+# villager grid: two pages with fixed places (DE)
 ECO_PAGE = {'house': 0, 'mill': 1, 'mining_camp': 2, 'lumber_camp': 3, 'dock': 4,
             'farm': 5, 'blacksmith': 6, 'market': 7, 'monastery': 8, 'university': 9,
             'town_center': 10, 'wonder': 11}
 MIL_PAGE = {'barracks': 0, 'archery_range': 1, 'stable': 2, 'siege_workshop': 3,
             'outpost': 5, 'palisade_wall': 6, 'stone_wall': 7, 'tower': 8, 'bombard_tower': 9,
             'gate': 10, 'palisade_gate': 11, 'castle': 12}
-# городской центр: житель Q, ткачество A, тачка S, дозор D, выпустить G, эпоха Z, набат B
+# town center: villager Q, loom A, wheelbarrow S, town watch D, eject G, age Z, town bell B
 TC_SLOTS = {'villager': 0, 'loom': 5, 'wheelbarrow': 6, 'hand_cart': 6, 'town_watch': 7, 'town_patrol': 7,
             'feudal': 10, 'castle': 10, 'imperial': 10}
 
 X_ICONS = {'bell': 'bell_level2', 'clear': 'back-to-work', 'eject': 'garrison-out', 'shield': 'garrison',
-           # требушет DE: свёрнутый / развёрнутый — рендер нашей модели (tools/build_portraits.py --orders)
+           # DE trebuchet: packed / unpacked - a render of our model (tools/build_portraits.py --orders)
            'treb_pack': 'portraits/orders/treb_packed.png', 'treb_up': 'portraits/orders/treb_up.png'}
-# DE: атака — меч, броня — кираса, дальность — мишень со стрелой, скорость — сапог (tools/ui_icon_art.py)
+# DE: attack - a sword, armor - a cuirass, range - a target with an arrow, speed - a boot (tools/ui_icon_art.py)
 STAT_ICONS = {'atk': 'portraits/de/stat_atk.png', 'arm': 'portraits/de/stat_arm.png',
               'rng': 'portraits/de/stat_rng.png', 'spd': 'portraits/de/stat_spd.png'}
 STAT_ICONS_0AD = {'atk': 'portraits/technologies/sword_01.png', 'arm': 'portraits/technologies/armor_scale.png',
                   'rng': 'portraits/technologies/arrow_01.png', 'spd': 'portraits/technologies/walk.png'}
-BONUS_NAMES = {'cav': 'конница', 'arch': 'стрелки', 'bld': 'здания', 'inf': 'пехота', 'spear': 'копейщики',
-               'siege': 'осада', 'monk': 'монахи', 'camel': 'верблюды', 'ship': 'корабли'}
-VIL_JOB = {'wood': 'Лесоруб', 'gold': 'Золотодобытчик', 'stone': 'Каменотёс', 'berries': 'Собиратель',
-           'farm': 'Фермер', 'hunt': 'Охотник', 'build': 'Строитель', 'fish': 'Рыбак'}
+BONUS_NAMES = {k: 'bonus.' + k for k in ('cav', 'arch', 'bld', 'inf', 'spear', 'siege', 'monk', 'camel', 'ship')}
+VIL_JOB = {k: 'job.' + k for k in ('wood', 'gold', 'stone', 'berries', 'farm', 'hunt', 'build', 'fish')}
 ROMAN = ['I', 'II', 'III', 'IV']
+# help: (keys, action); keys are letters as they are, words (LMB, Shift + placement...) are help.k<n> keys
 HELP_ROWS = [
-    ('ЛКМ / рамка', 'выбрать'),
-    ('ПКМ', 'идти · добывать · строить · бить'),
-    ('Q W E R T · A S D F G · Z X C V B', 'кнопки панели'),
-    ('житель: Q · W', 'экономика · военные здания'),
-    ('Shift + постройка', 'несколько зданий'),
-    ('Shift + обучение', '5 юнитов'),
-    ('двойной клик', 'все такие же'),
-    ('Ctrl + 1…9 / 1…9', 'группы'),
-    ('H', 'городской центр'),
-    ('.', 'следующий бездельник'),
-    ('Пробел', 'к выделенному'),
-    ('стрелки · край · колесо', 'камера'),
-    ('+ / −', 'скорость'),
-    ('P / F3', 'пауза'),
-    ('F4 · F11', 'счёт · часы'),
-    ('F5 · Enter', 'древо · чат'),
-    ('Delete', 'удалить юнита'),
-    ('стена: тянуть ЛКМ · Tab', 'повернуть ворота'),
-    ('Alt + ПКМ по центру', 'в гарнизон'),
-    ('F2 · F10', 'цивилизация · меню'),
+    ('help.k1', 'help.v1'),
+    ('help.k2', 'help.v2'),
+    ('Q W E R T · A S D F G · Z X C V B', 'help.v3'),
+    ('help.k4', 'help.v4'),
+    ('help.k5', 'help.v5'),
+    ('help.k6', 'help.v6'),
+    ('help.k7', 'help.v7'),
+    ('Ctrl + 1…9 / 1…9', 'help.v8'),
+    ('H', 'help.v9'),
+    ('.', 'help.v10'),
+    ('help.k11', 'help.v11'),
+    ('help.k12', 'help.v12'),
+    ('+ / −', 'help.v13'),
+    ('P / F3', 'help.v14'),
+    ('F4 · F11', 'help.v15'),
+    ('F5 · Enter', 'help.v16'),
+    ('Delete', 'help.v17'),
+    ('help.k18', 'help.v18'),
+    ('help.k19', 'help.v19'),
+    ('F2 · F10', 'help.v20'),
 ]
-GAME_MENU = [('resume', 'Продолжить', 'call-to-arms'), ('help', 'Управление', 'encyclopaedia'),
-             ('civ', 'Цивилизация', 'diplomacy'), ('quit', 'В главное меню', 'cancel')]
+GAME_MENU = [('resume', 'gm.continue', 'call-to-arms'), ('help', 'gm.help', 'encyclopaedia'),
+             ('civ', 'gm.civ', 'diplomacy'), ('quit', 'menu.to_main', 'cancel')]
 
 
 def _lum(c):
@@ -101,27 +101,27 @@ class HudUI:
     idle_rect = None
     menu_btn_rect = None
     _cursor_t = 0
-    ink = False               # True — текст рисуется на пергаменте (Game.text затемняет светлые цвета)
-    window = None             # открытое окно: 'objectives' | 'chat' | 'diplomacy' | 'techtree'
+    ink = False               # True - text is drawn on parchment (Game.text darkens light colors)
+    window = None             # open window: 'objectives' | 'chat' | 'diplomacy' | 'techtree'
     info_collapsed = False
-    build_page = None         # страница зданий жителя: None | 'eco' | 'mil'
+    build_page = None         # villager building page: None | 'eco' | 'mil'
     show_score = True
-    clock_mode = 1            # F11: 0 — скрыто, 1 — время и скорость, 2 — + кадры в секунду
+    clock_mode = 1            # F11: 0 - hidden, 1 - time and speed, 2 - + frames per second
     mm_mode = 0               # MM_MODES
-    mm_team = False           # цвета команд на мини-карте
+    mm_team = False           # team colors on the minimap
     show_history = False
 
-    # ============================================================ состояние
+    # ============================================================ state
     def hud_reset(self):
-        """Новая партия: состояние интерфейса по умолчанию."""
+        """A new match: the default interface state."""
         self.window = None
         self.info_collapsed = False
         self.build_page = None
         self._bp_key = None
-        self.chat_log = []             # (текст, цвет)
+        self.chat_log = []             # (text, color)
         self.chat_text = ''
         self.chat_to = 'all'
-        self.chat_replies = []         # (время мс, текст, цвет) — ответы союзников
+        self.chat_replies = []         # (time in ms, text, color) - allies' replies
         self.show_history = False
         self.group_hits = []
         self.gq_hits = []
@@ -138,7 +138,7 @@ class HudUI:
         f.setdefault('tipb', S.font('antiqua', 15, True))
 
     def hud_opt(self, name, default=None):
-        """Настройка интерфейса: game.settings (меню «Настройки»), затем настройки звука, иначе default."""
+        """An interface setting: game.settings (the "Settings" menu), then the sound settings, otherwise the default."""
         for st in (getattr(self, 'settings', None), getattr(getattr(self, 'audio', None), 'settings', None)):
             if isinstance(st, dict) and name in st:
                 return st[name]
@@ -148,7 +148,7 @@ class HudUI:
         return CMD_SMALL if self.info_collapsed else CMD_FULL
 
     def hud_rects(self):
-        """Прямоугольники интерфейса, закрывающие мир (для щелчков и курсора)."""
+        """Interface rectangles covering the world (for clicks and the cursor)."""
         rs = [pygame.Rect(0, 0, SCREEN_W, TOP_H), civ_ui.top_emblem_rect(), self.cmd_rect(), MAP_PANEL]
         rs += [r for r, _ in self.group_hits] + [r for r, _ in self.gq_hits]
         if self.window:
@@ -156,12 +156,12 @@ class HudUI:
         return rs
 
     def hud_view(self, pos):
-        """Точка на мире (не под панелями)."""
+        """A point on the world (not under the panels)."""
         if not (TOP_H <= pos[1] < SCREEN_H and 0 <= pos[0] < SCREEN_W):
             return False
         return not any(r.collidepoint(pos) for r in self.hud_rects())
 
-    # ============================================================ значки
+    # ============================================================ icons
     def owner_civ_key(self, owner):
         w = self.world
         if w is not None and 0 <= owner < len(w.players):
@@ -169,12 +169,12 @@ class HudUI:
         return self.menu_cfg.get('civ', 'random')
 
     def skin_icon(self, typ, name, owner, size):
-        """Портрет/значок 0 A.D. для Game.icon или None (тогда — процедурный)."""
+        """A 0 A.D. portrait/icon for Game.icon or None (then a procedural one)."""
         if typ == 'x':
             fn = X_ICONS.get(name)
             if fn is None:
                 return None
-            full = fn.startswith('portraits/')          # картинка во всю ячейку (DE)
+            full = fn.startswith('portraits/')          # a picture filling the whole cell (DE)
             ic = S.icon(fn, size if full else int(size * 0.86))
             if ic is None:
                 return None
@@ -206,7 +206,7 @@ class HudUI:
         pygame.draw.rect(self.screen, (230, 210, 170), (cx - 4, cy, 8, 7), border_radius=3)
 
     def stat(self, x, y, kind, val):
-        """Значок характеристики + число; возвращает x после надписи."""
+        """A stat icon + a number; returns x after the label."""
         ic = stat_icon(kind, 18)
         if ic is not None:
             r = ic.get_rect(midleft=(x, y))
@@ -215,8 +215,8 @@ class HudUI:
         return r.right + 16
 
     def age_shield(self, cx, cy, age, h=40, color=None, dim=False):
-        """Герб эпохи (DE: 4 разных герба — круглый, каплевидный, с башней, четверочастный с короной).
-        dim — эпоха ещё не достигнута (серый)."""
+        """An age crest (DE: 4 different crests - round, kite-shaped, with a tower, quartered with a crown).
+        dim - the age has not been reached yet (grey)."""
         scr = self.screen
         em = S.icon(f'portraits/de/age_{max(0, min(3, age))}.png', int(h * 1.12))
         if em is not None:
@@ -236,7 +236,7 @@ class HudUI:
         img = S.gold_text(ROMAN[max(0, min(3, age))], self.fonts['n'] if h < 34 else self.fonts['l'])
         scr.blit(img, img.get_rect(center=(cx, cy - h * 0.06)))
 
-    # ============================================================ верхняя панель
+    # ============================================================ top panel
     def my_civ(self):
         w = getattr(self, 'world', None)
         return w.players[0].civ if w is not None and w.players else self.menu_cfg.get('civ', 'random')
@@ -251,7 +251,7 @@ class HudUI:
             bg = pygame.Surface((SCREEN_W, TOP_H + 6), pygame.SRCALPHA)
             bg.blit(S.culture_panel((SCREEN_W, TOP_H), civ), (0, 0))
             S.bevel(bg, (0, 0, SCREEN_W, TOP_H), width=2)
-            # блок ресурсов и блок кнопок — рельефные, между ними узкая планка
+            # the resource block and the button block are embossed, with a narrow bar between them
             for r in (pygame.Rect(2, 2, 772, TOP_H - 4), pygame.Rect(1038, 2, SCREEN_W - 1040, TOP_H - 4)):
                 S.bevel(bg, r, width=2)
                 pygame.draw.rect(bg, (30, 20, 10), r, 1)
@@ -260,20 +260,20 @@ class HudUI:
             s.fill((0, 0, 0, 80))
             bg.blit(s, plank.topleft)
             pygame.draw.line(bg, (14, 10, 6), (0, TOP_H - 1), (SCREEN_W, TOP_H - 1), 1)
-            S.trim_band(bg, (0, TOP_H - 6, SCREEN_W, 6), civ)          # кант-орнамент культуры
-            for i in range(6):     # мягкая тень на карте
+            S.trim_band(bg, (0, TOP_H - 6, SCREEN_W, 6), civ)          # culture border ornament
+            for i in range(6):     # soft shadow on the map
                 pygame.draw.line(bg, (0, 0, 0, 90 - i * 15), (0, TOP_H + i), (SCREEN_W, TOP_H + i))
             self._top_bg = bg
         return bg
 
     def icon_box(self, r):
-        """Тёмная квадратная ячейка под значок ресурса (как в DE)."""
+        """A dark square cell under a resource icon (as in DE)."""
         pygame.draw.rect(self.screen, (12, 9, 6), r.inflate(2, 2))
         pygame.draw.rect(self.screen, (40, 32, 24), r)
         pygame.draw.rect(self.screen, (120, 98, 64), r, 1)
 
     def vil_jobs(self):
-        """Жители игрока по работам: {'wood'|'food'|'gold'|'stone'|'build'|'idle': n}."""
+        """The player's villagers by job: {'wood'|'food'|'gold'|'stone'|'build'|'idle': n}."""
         w = self.world
         cnt = dict.fromkeys(('wood', 'food', 'gold', 'stone', 'build', 'idle'), 0)
         for u in w.units:
@@ -295,7 +295,7 @@ class HudUI:
         return cnt
 
     def age_progress(self, p):
-        """(следующая эпоха, доля) во время перехода или None."""
+        """(next age, share) during advancement or None."""
         for b in self.world.buildings:
             if b.owner == p.id and b.queue and b.queue[0][0] == 'tech' and b.queue[0][1] in AGE_TECHS:
                 name = b.queue[0][1]
@@ -319,7 +319,7 @@ class HudUI:
             self.text(str(jobs[r]), (ib.right - 2, ib.bottom), 'bs', (255, 255, 255), anchor='bottomright')
             self.text(str(int(p.res[r])), (ib.right + 8, cy), 'b', anchor='midleft')
             x += 89
-        # население: значок + общее число жителей, «pop/cap» (мигает, когда упёрлись и ждут дома)
+        # population: an icon + the total number of villagers, "pop/cap" (blinks when capped and waiting for houses)
         ib = pygame.Rect(x + 2, 5, 38, 38)
         self.icon_box(ib)
         self.pop_icon(ib.centerx, ib.centery, 32)
@@ -332,7 +332,7 @@ class HudUI:
         if flash:
             pygame.draw.rect(scr, (230, 70, 40), pr.inflate(8, 6), 2, border_radius=3)
         x += 104
-        # праздные жители — жёлтый круг сразу после населения
+        # idle villagers - a yellow circle right after the population
         idle = jobs['idle']
         c = (x + 20, cy)
         self.idle_rect = pygame.Rect(c[0] - 19, c[1] - 19, 38, 38)
@@ -345,7 +345,7 @@ class HudUI:
         if self.idle_rect.collidepoint(mp):
             pygame.draw.circle(scr, S.GOLD_HI, c, 20, 2)
         x += 44
-        # эпоха: щит с цифрой + полоса с названием; при переходе — полоса прогресса
+        # age: a shield with a numeral + a bar with the name; during advancement - a progress bar
         self.age_shield(x + 24, cy, p.age, 40, shade(p.color, -60))
         bar = pygame.Rect(x + 50, 8, 772 - x - 56, TOP_H - 16)
         pygame.draw.rect(scr, (18, 13, 8), bar)
@@ -360,11 +360,11 @@ class HudUI:
         pygame.draw.rect(scr, (110, 88, 56), bar, 1)
         img = S.gold_text(label, self.fonts['age'])
         scr.blit(img, img.get_rect(center=bar.center))
-        # планка: звук и музыка
+        # bar: sound and music
         self.audio.draw_icon(scr, 790, cy - 10)
-        # герб цивилизации — знамя перед кнопками
+        # the civilization's coat of arms - a banner before the buttons
         civ_ui.draw_top(self)
-        # 5 круглых кнопок
+        # 5 round buttons
         self.top_btn_rects = []
         for i, (act, _, ic) in enumerate(TOP_BTNS):
             bc = (1062 + i * 46, cy)
@@ -378,7 +378,7 @@ class HudUI:
             if not any(S.blit_icon(scr, c, bc, 28 if c.startswith('portraits/') else 24) for c in ic):
                 chat_icon(scr, bc)
         self.menu_btn_rect = self.top_btn_rects[-1][0]
-        # под верхом: значки групп, общая очередь, часы
+        # below the top: group icons, the global queue, the clock
         self.draw_groups()
         self.draw_global_queue()
         self.draw_clock()
@@ -390,14 +390,14 @@ class HudUI:
         spc = (255, 220, 120) if self.speed != GAME_SPEED else (225, 215, 190)
         s = f'{t // 3600}:{t // 60 % 60:02d}:{t % 60:02d}  ×{self.speed:g}'
         if self.clock_mode == 2:
-            s += f'  {int(self.clock.get_fps())} к/с'
+            s += '  ' + i18n.t('hud.fps', n=int(self.clock.get_fps()))
         img = self.fonts['bs'].render(s, True, spc)
         r = img.get_rect(topright=(SCREEN_W - 8, TOP_H + 26))
         S.shade_overlay(self.screen, r.inflate(10, 4), alpha=110)
         self.screen.blit(img, r)
 
     def draw_groups(self):
-        """Значки групп управления 1…9, 0 под ресурсами: номер + портрет самого частого вида + число."""
+        """Control group icons 1...9, 0 under the resources: a number + the portrait of the most frequent kind + a count."""
         self.group_hits = []
         groups = getattr(self, 'groups', {}) or {}
         x = 6
@@ -420,7 +420,7 @@ class HudUI:
             x += 38
 
     def draw_global_queue(self):
-        """Общая очередь (DE: «Global Queue»): что сейчас обучается/изучается во всех зданиях."""
+        """Global queue (DE: "Global Queue"): what is being trained/researched right now in all buildings."""
         self.gq_hits = []
         if not self.hud_opt('global_queue', True):
             return
@@ -446,9 +446,9 @@ class HudUI:
             if x > 740:
                 break
 
-    # ============================================================ щелчки и клавиши
+    # ============================================================ clicks and keys
     def hud_top_click(self, pos):
-        """ЛКМ по верхней панели: праздный житель, герб, круглые кнопки."""
+        """Left click on the top panel: idle villager, coat of arms, round buttons."""
         if self.idle_rect and self.idle_rect.collidepoint(pos):
             self.select_idle()
             return
@@ -471,7 +471,7 @@ class HudUI:
             self.tt_civ = None
 
     def hud_click(self, pos):
-        """ЛКМ: True, если щелчок забрал интерфейс (мир его не получает)."""
+        """Left click: True if the click was taken by the interface (the world does not get it)."""
         if self.window:
             if hud_windows.box(self.window).collidepoint(pos):
                 hud_windows.click(self, self.window, pos)
@@ -506,8 +506,8 @@ class HudUI:
             if self.mm_hit(pos):
                 if self.order_mode or self.mods() & pygame.KMOD_ALT:
                     if not self.order_mode:
-                        self.order_mode = 'flare'           # Alt+ЛКМ по мини-карте — сигнал союзникам
-                    self.order_click(pos, mm=True)          # controls.py: приказ / сигнал по мини-карте
+                        self.order_mode = 'flare'           # Alt+left click on the minimap - a signal to allies
+                    self.order_click(pos, mm=True)          # controls.py: an order / signal via the minimap
                     return True
                 self.mm_drag = True
                 self.minimap_jump(pos)
@@ -549,19 +549,19 @@ class HudUI:
             from . import defense
             defense.eject(w, act[1], [act[2]])
         elif act[0] == 'sel':
-            self.panel_select(act[1])           # controls.py: Ctrl — убрать, Shift — только вид, Ctrl+Shift — убрать вид
+            self.panel_select(act[1])           # controls.py: Ctrl - remove, Shift - only the kind, Ctrl+Shift - remove the kind
         elif act[0] == 'stack':
             ents = act[1]
             ctrl = self.mods() & (pygame.KMOD_CTRL | pygame.KMOD_META)
             if ctrl and not shift:
-                self.panel_select(ents[-1])     # Ctrl — убрать одного из стопки
+                self.panel_select(ents[-1])     # Ctrl - remove one from the stack
             elif ctrl or shift:
                 self.panel_select(ents[0].kind)
             else:
-                self.selected = list(ents)      # щелчок по стопке — все этого вида
+                self.selected = list(ents)      # a click on a stack - all of that kind
 
     def hud_rclick(self, pos):
-        """ПКМ: True, если щелчок забрал интерфейс."""
+        """Right click: True if the click was taken by the interface."""
         if self.window:
             self.window = None
             return True
@@ -572,7 +572,7 @@ class HudUI:
         return not self.hud_view(pos)
 
     def hud_key(self, e):
-        """Клавиши интерфейса (до обычных): чат, F4, F5, F11, PgUp. True — клавиша забрана."""
+        """Interface keys (before the regular ones): chat, F4, F5, F11, PgUp. True - the key was taken."""
         k = e.key
         if self.window == 'chat':
             return hud_windows.chat_key(self, e)
@@ -597,14 +597,15 @@ class HudUI:
         return False
 
     def hud_tick(self):
-        """Раз в кадр: ответы союзников в чате (и на сигнал — событие 'flare' из controls.py)."""
+        """Once per frame: allies' replies in chat (and to a signal - the 'flare' event from controls.py)."""
         now = pygame.time.get_ticks()
         w = self.world
         for ev in getattr(self, 'events', ()):
             if ev[0] == 'flare' and ev[3] == 0:
                 allies = [q for q in w.players[1:] if q.alive and w.allied(0, q.id) and q.is_ai]
                 for i, q in enumerate(allies):
-                    self.chat_replies.append((now + 900 + i * 600, f'{q.name}: {hud_windows.FLARE_REPLY[q.id % 3]}',
+                    self.chat_replies.append((now + 900 + i * 600,
+                                              f'{q.name}: {i18n.t(hud_windows.FLARE_REPLY[q.id % 3])}',
                                               shade(q.color, 60)))
         due = [r for r in self.chat_replies if r[0] <= now]
         if due:
@@ -613,7 +614,7 @@ class HudUI:
                 self.chat_log.append((txt, col))
                 self.world.msg(txt, col)
 
-    # ============================================================ нижняя панель
+    # ============================================================ bottom panel
     def panel_bg(self):
         bg = getattr(self, '_panel_bg', None)
         civ = self.my_civ()
@@ -623,17 +624,17 @@ class HudUI:
         cul = S.culture(civ)
         metal = cul['metal']
         bg = pygame.Surface((SCREEN_W, SCREEN_H - MAP_PANEL.y + 8), pygame.SRCALPHA)
-        oy = MAP_PANEL.y - 8                    # экранная y верха поверхности
+        oy = MAP_PANEL.y - 8                    # screen y of the top of the surface
         cmd = self.cmd_rect().move(0, -oy)
         mp_ = MAP_PANEL.move(0, -oy)
         for body in (cmd, mp_):
-            for i in range(8):                  # тень над панелью
+            for i in range(8):                  # shadow above the panel
                 pygame.draw.line(bg, (0, 0, 0, 20 + i * 12), (body.x, body.y - 8 + i), (body.right, body.y - 8 + i))
             bg.blit(S.culture_panel(body.size, civ), body.topleft)
             S.bevel(bg, body, width=3)
             pygame.draw.rect(bg, (12, 8, 4), body, 2)
             S.trim_band(bg, (body.x + 2, body.y + 2, body.w - 4, 6), civ)
-        # сетка — тёмный камень, выбранное — ровный пергамент с бледным гербом (DE)
+        # the grid - dark stone, the selection - plain parchment with a pale coat of arms (DE)
         gb = GRID_BOX.move(0, -oy)
         bg.blit(S.tiled('skin/stone_dark.png', gb.size, tint=cul['grid_tint']), gb.topleft)
         S.vignette(bg, gb, 140)
@@ -645,7 +646,7 @@ class HudUI:
             pygame.draw.rect(bg, (60, 40, 20), ib, 2)
             S.gold_frame(bg, ib.inflate(4, 4), color=metal)
             S.corners(bg, ib.inflate(4, 4), 6)
-        # мини-карта: пергамент в углах, тёмный ромб в толстой кайме
+        # minimap: parchment in the corners, a dark diamond in a thick border
         mr = MM_RECT.move(0, -oy)
         inner = mp_.inflate(-12, -12)
         bg.blit(S.parchment_flat(inner.size), inner.topleft)
@@ -693,7 +694,7 @@ class HudUI:
             self.draw_tooltip(hover)
 
     def btn_state(self, bt):
-        """Недоступная кнопка (DE): 'poor' — не хватает только ресурсов (значок красный), иначе 'disabled' (серый)."""
+        """An unavailable button (DE): 'poor' - only resources are missing (the icon is red), otherwise 'disabled' (grey)."""
         tip = bt.get('tip') or ()
         if any(isinstance(x, tuple) and x[0] == 'red' for x in tip[2:]):
             return 'disabled'
@@ -708,12 +709,12 @@ class HudUI:
         if typ in ('draw',):
             S.slot(scr, r, 'hover' if state == 'hover' else 'normal')
         else:
-            pygame.draw.rect(scr, (0, 0, 0), r)          # DE: значок во всю ячейку на чёрном
+            pygame.draw.rect(scr, (0, 0, 0), r)          # DE: an icon filling the whole cell on black
         inner = r.inflate(-2, -2)
         if typ == 'stop':
             S.blit_icon(scr, 'stop', r.center, 34) or pygame.draw.rect(scr, (200, 60, 50), r.inflate(-18, -18))
         elif typ == 'draw':
-            name(self, r, bt['ok'])     # кнопка рисует себя сама (рынок, пересев)
+            name(self, r, bt['ok'])     # the button draws itself (market, reseeding)
         elif typ == 'unload':
             S.blit_icon(scr, 'garrison-out', r.center, 32)
             self.text(str(name), (r.x + 4, r.y + 2), 'bs', (255, 240, 200))
@@ -728,7 +729,7 @@ class HudUI:
         elif typ == 'back':
             back_cross(scr, r)
         elif typ == 'bpage':
-            ic = S.icon(f'portraits/de/build_{name[0]}.png', inner.w)     # DE: молот + монеты / молот + меч
+            ic = S.icon(f'portraits/de/build_{name[0]}.png', inner.w)     # DE: a hammer + coins / a hammer + a sword
             if ic is not None:
                 scr.blit(ic, ic.get_rect(center=r.center))
             else:
@@ -742,9 +743,9 @@ class HudUI:
         if self.hud_opt('show_hotkeys', False):
             self.text(bt['key'], (r.right - 3, r.bottom), 's', (255, 230, 150), anchor='bottomright')
 
-    # ---- подсказка: тёмная плашка слева над панелью (DE)
+    # ---- tooltip: a dark plate at the left above the panel (DE)
     def tip_stats(self, bt):
-        """Строка чисел под описанием: [(значок, текст)] для юнита / здания."""
+        """A row of numbers under the description: [(icon, text)] for a unit / building."""
         act = bt.get('act') or ()
         p = self.world.players[0]
         kind = None
@@ -771,13 +772,13 @@ class HudUI:
         self.draw_tip(bt['tip'], bt.get('key'), self.tip_stats(bt))
 
     def draw_tip(self, tip, key=None, stats=(), anchor=None):
-        """tip = [имя, цена, описание, доп. строки…]. anchor — (x, низ) плашки; по умолчанию слева над панелью."""
+        """tip = [name, cost, description, extra lines...]. anchor - (x, bottom) of the plate; by default at the left above the panel."""
         scr = self.screen
         name, cost = tip[0], tip[1] or {}
         k = max(50, min(100, int(self.hud_opt('tooltip_scale', 100) or 100))) / 100
         f, fb = S.font('antiqua', max(9, round(13 * k)), True), S.font('antiqua', max(10, round(15 * k)), True)
         maxw = int(440 * k)
-        lines = []                                          # (текст, цвет, шрифт)
+        lines = []                                          # (text, color, font)
         for ex in tip[2:]:
             if isinstance(ex, tuple):
                 col = (255, 120, 100) if ex[0] == 'red' else (200, 190, 165)
@@ -796,7 +797,7 @@ class HudUI:
         x = max(2, min(SCREEN_W - wdt - 2, x))
         y = max(TOP_H + 2, bottom - hgt)
         box = pygame.Rect(x, y, wdt, hgt)
-        S.shade_overlay(scr, box, alpha=200)            # DE: чёрная полупрозрачная плашка без рамки
+        S.shade_overlay(scr, box, alpha=200)            # DE: a black translucent plate without a frame
         yy = y + 6
         r = S.text(scr, name, (x + 10, yy), fb, (255, 240, 200))
         cx = r.right + 10
@@ -823,9 +824,9 @@ class HudUI:
                 sx = r2.right + 12
             yy += 24
         if key:
-            S.text(scr, f'(Клавиша: {key})', (x + 10, yy), f, (200, 190, 165))
+            S.text(scr, i18n.t('hud.hotkey', key=key), (x + 10, yy), f, (200, 190, 165))
 
-    # ---- выбранное (на пергаменте)
+    # ---- selection (on parchment)
     def big_portrait(self, ic, hp_frac=None, owner=0):
         scr = self.screen
         box = pygame.Rect(INFO_X, INFO_BOX.y + 30, PORT, PORT)
@@ -853,7 +854,7 @@ class HudUI:
         self.text(f'{int(max(0, e.hp))}/{int(e.max_hp)}', (INFO_X, INFO_BOX.y + 30 + PORT + 16), 'bs')
 
     def owner_label(self, owner, x=None, y=None):
-        """«Имя (Цивилизация)» в цвете игрока справа вверху, ниже — «Враг» / «Союзник» (DE)."""
+        """'Name (Civilization)' in the player's color at the top right, below it - 'Enemy' / 'Ally' (DE)."""
         w = self.world
         pl = w.players[owner]
         right = INFO_BOX.right - 22
@@ -863,13 +864,13 @@ class HudUI:
         civ_ui.blit_emblem(self, pl.civ, (img.x - 18, y0 - 1, 14, 17))
         rel = self.relation(owner)
         if rel in ('ally', 'enemy'):
-            S.text(self.screen, 'Союзник' if rel == 'ally' else 'Враг', (right, y0 + 18), self.fonts['bs'],
+            S.text(self.screen, i18n.t('rel.' + rel), (right, y0 + 18), self.fonts['bs'],
                    (40, 110, 40) if rel == 'ally' else (170, 30, 20), anchor='topright', shadow=None)
 
     def stat_row(self, x, y, kind, val):
-        """Строка столбца характеристик: значок 18 px + число."""
+        """A row of the stats column: an 18 px icon + a number."""
         if kind == 'hp':
-            pass                                     # DE: у здоровья нет значка — только числа
+            pass                                     # DE: health has no icon - only numbers
         elif kind in STAT_ICONS:
             ic = stat_icon(kind, 18)
             if ic is not None:
@@ -892,9 +893,9 @@ class HudUI:
             return
         e = sel[0]
         y0 = INFO_BOX.y + 30
-        rows = []                                       # (значок, текст) — столбец сверху вниз
+        rows = []                                       # (icon, text) - the column from top to bottom
         if isinstance(e, Animal):
-            self.name_line(e.d['name'] + (' (туша)' if e.dead else ''))
+            self.name_line(e.d['name'] + (' ' + i18n.t('hud.carcass') if e.dead else ''))
             self.big_portrait(self.icon('u', e.kind, 0, PORT), None if e.dead else e.hp / e.max_hp, e.owner)
             if e.owner >= 0:
                 self.owner_label(e.owner)
@@ -913,14 +914,14 @@ class HudUI:
         if is_u and e.cls == 'vil' and e.owner == 0:
             job = self.vil_job(e)
             if job:
-                name = VIL_JOB.get(job, name)
+                name = i18n.t(VIL_JOB[job]) if job in VIL_JOB else name
         self.name_line(name)
         pbox = self.big_portrait(self.icon('u' if is_u else 'b', e.kind, e.owner, PORT), e.hp / e.max_hp, e.owner)
         self.hp_text(e)
         if e.owner >= 0:
             self.owner_label(e.owner)
         if is_u:
-            if e.cls == 'vil' and e.carry >= 1:        # значок груза на портрете (DE)
+            if e.cls == 'vil' and e.carry >= 1:        # load icon on the portrait (DE)
                 S.blit_icon(scr, e.carry_res, (pbox.right - 9, pbox.y + 9), 16)
             rows.append(('atk', f'{e.atk():g}'))
             m, pc = e.armor()
@@ -937,7 +938,7 @@ class HudUI:
             col2 = [('spd', f'{e.speed() / TILE:.2f}')]
             if e.d.get('bonus'):
                 for k2, v in list(e.d['bonus'].items())[:2]:
-                    col2.append(('bonus', f'+{v} {BONUS_NAMES.get(k2, k2)}'))
+                    col2.append(('bonus', f'+{v} {i18n.t(BONUS_NAMES[k2]) if k2 in BONUS_NAMES else k2}'))
             self.stat_col(rows, y0)
             self.stat_col(col2, y0, TX + 120)
             if e.d.get('monk'):
@@ -960,7 +961,7 @@ class HudUI:
             if e.d.get('panel'):
                 e.d['panel'](self, e, TX + 240, y0)
             return
-        # здание
+        # building
         if not e.complete:
             bar = pygame.Rect(TX, y0 + 8, 260, 16)
             pygame.draw.rect(scr, (40, 30, 20), bar)
@@ -985,7 +986,7 @@ class HudUI:
             self.draw_queue(e, qx, y0 - 2)
         if e.d.get('garrison'):
             self.draw_garrison_info(e, qx, y0 + 52)
-        if e.d.get('panel'):           # панель из контента: fn(game, здание, x, y) (цены рынка, пересевы)
+        if e.d.get('panel'):           # a panel from content: fn(game, building, x, y) (market prices, reseeds)
             e.d['panel'](self, e, TX + 4 if not e.queue else qx, INFO_BOX.bottom - 22)
 
     def stat_col(self, rows, y0, x=TX):
@@ -996,11 +997,11 @@ class HudUI:
                 self.stat_row(x, y0 + 10 + i * 20, k, v)
 
     def draw_queue(self, e, x, y):
-        """Очередь здания: первая — крупно с полосой, дальше подряд одинаковые — одна иконка с числом."""
+        """A building's queue: the first one large with a bar, then consecutive identical ones - one icon with a number."""
         scr = self.screen
         p = self.world.players[0]
         mp = pygame.mouse.get_pos()
-        groups = []                                    # [(kind, name, [индексы])]
+        groups = []                                    # [(kind, name, [indices])]
         for i, (kind, nm) in enumerate(e.queue):
             if i > 0 and groups and groups[-1][:2] == (kind, nm) and groups[-1][2][0] != 0:
                 groups[-1][2].append(i)
@@ -1026,10 +1027,10 @@ class HudUI:
             cx = r.right + 4
         if e.housed:
             self.pop_icon(cx + 14, y + 27, 22)
-            self.text('нужны дома', (cx + 28, y + 27), 'bs', (170, 30, 20), anchor='midleft')
+            self.text(i18n.t('hud.need_houses'), (cx + 28, y + 27), 'bs', (170, 30, 20), anchor='midleft')
 
     def draw_stacks(self, sel):
-        """Несколько выбранных: одинаковые виды — одна иконка с числом (DE), под ней общая полоса HP."""
+        """Several selected: identical kinds - one icon with a number (DE), under it a shared HP bar."""
         scr = self.screen
         stacks = {}
         for e in sel:
@@ -1051,9 +1052,9 @@ class HudUI:
         self.text(f'{len(sel)}', (INFO_BOX.right - 12, INFO_BOX.bottom - 6), 'b', anchor='bottomright')
 
     def draw_nothing(self):
-        """Ничего не выбрано: чистый пергамент с гербом цивилизации (DE)."""
+        """Nothing selected: clean parchment with the civilization's coat of arms (DE)."""
         key = ('nothing', self.world.players[0].civ)
-        img = getattr(self, '_nothing', (None, None))
+        img = getattr(self, '_nothing', None) or (None, None)
         if img[0] != key:
             em = civ_ui.emblem(self.world.players[0].civ, 70, 84).copy()
             em.fill((255, 255, 255, 60), special_flags=pygame.BLEND_RGBA_MULT)
@@ -1078,7 +1079,7 @@ class HudUI:
         return None
 
     def gather_rate(self, u):
-        """Скорость добычи жителя в минуту (как «рабочий темп» в DE) или 0."""
+        """A villager's gather rate per minute (like the "work rate" in DE) or 0."""
         t = u.target
         if u.state not in ('gather', 'return') or t is None:
             return 0
@@ -1092,13 +1093,13 @@ class HudUI:
             base, res, src = NODE_DEFS.get(t.kind, {}).get('rate', 0.35), t.res, t.kind
         return u.p.stat('gather', u.kind, base, res, src) * 60
 
-    # ============================================================ сетка команд
+    # ============================================================ command grid
     def grid_rect(self, slot):
         return pygame.Rect(GRID_X + (slot % 5) * GRID_STEP, GRID_Y + (slot // 5) * GRID_STEP, BTN, BTN)
 
     def grid_layout(self, items, fixed=()):
-        """items / fixed — dict(icon, act, ok, tip[, slot]). Пункты со 'slot' стоят на своём месте (DE),
-        остальные заполняют свободные ячейки; если не влезают — листание (последняя ячейка)."""
+        """items / fixed - dict(icon, act, ok, tip[, slot]). Items with a 'slot' stand in their own place (DE),
+        the rest fill the free cells; if they do not fit - paging (the last cell)."""
         GRID = 15
         fixed_slots = {}
         base = GRID - len(fixed)
@@ -1117,7 +1118,7 @@ class HudUI:
         if len(free) <= len(empty):
             slots = list(taken.items()) + list(zip(empty, free))
         else:
-            # не влезает: всё подряд по страницам, постоянные — на каждой
+            # does not fit: everything in a row across pages, the fixed ones on every page
             allit = [taken[s] for s in sorted(taken) if s not in fixed_slots] + free
             per = GRID - len(fixed_slots) - 1
             pages = (len(allit) + per - 1) // per
@@ -1126,7 +1127,7 @@ class HudUI:
             open_slots = [s for s in range(GRID - 1) if s not in fixed_slots]
             slots = list(zip(open_slots, shown)) + list(fixed_slots.items())
             slots.append((GRID - 1, dict(icon=('page', (page, pages)), act=('page', None), ok=True,
-                                         tip=[f'Страница {page + 1}/{pages}', {}, 'Другие кнопки'])))
+                                         tip=[i18n.t('hud.page', n=page + 1, m=pages), {}, i18n.t('hud.more_buttons')])))
         btns = []
         for slot, it in slots:
             btns.append(dict(it, rect=self.grid_rect(slot), key=HOTKEYS[slot]))
@@ -1136,17 +1137,17 @@ class HudUI:
         self.build_page = page
 
     def villager_items(self, p):
-        """Сетка жителя (DE): главная — Q «экономика», W «военные»; страницы с постоянными местами,
-        V — на другую страницу, B — назад."""
+        """The villager grid (DE): the main one - Q "economy", W "military"; pages with fixed places,
+        V - to the other page, B - back."""
         key = tuple(id(e) for e in self.selected[:3])
         if key != self._bp_key:
             self._bp_key = key
             self.build_page = None
         if self.build_page is None:
             return [dict(icon=('bpage', ('eco', 'house')), act=('call', lambda g: g.set_build_page('eco')), ok=True,
-                         tip=['Построить хозяйственное здание', {}, 'Дом, мельница, склады, рынок…'], slot=0),
+                         tip=[i18n.t('hud.build_eco'), {}, i18n.t('hud.build_eco_desc')], slot=0),
                     dict(icon=('bpage', ('mil', 'barracks')), act=('call', lambda g: g.set_build_page('mil')),
-                         ok=True, tip=['Построить военное здание', {}, 'Казармы, стены, башни, замок'], slot=1)]
+                         ok=True, tip=[i18n.t('hud.build_mil'), {}, i18n.t('hud.build_mil_desc')], slot=1)]
         page = ECO_PAGE if self.build_page == 'eco' else MIL_PAGE
         other = MIL_PAGE if page is ECO_PAGE else ECO_PAGE
         items = []
@@ -1156,13 +1157,13 @@ class HudUI:
             if k0 in other or not p.allows(k0) or not p.allows(k):
                 continue
             if k0 not in page and self.build_page != 'eco':
-                continue                               # неизвестные здания — на страницу экономики
+                continue                               # unknown buildings - to the economy page
             d = BUILDINGS[k]
             cost = p.cost_of('bld', k)
             locked = self.world.build_age(p, k) > p.age
             tip = [d['name'], cost, d['desc']]
             if locked:
-                tip.append(('red', f'Нужна {AGE_NAMES[d["age"]]}'))
+                tip.append(('red', i18n.t('msg.need_age', age=AGE_NAMES[d['age']])))
             s = page.get(k0)
             if s in used:
                 s = None
@@ -1170,15 +1171,15 @@ class HudUI:
             items.append(dict(icon=('b', k), act=('place', k), ok=not locked and p.afford(cost), tip=tip, slot=s))
         items.append(dict(icon=('next', None), act=('call', lambda g: g.set_build_page(
             'mil' if g.build_page == 'eco' else 'eco')), ok=True,
-            tip=['Следующая страница', {}, 'Военные здания' if page is ECO_PAGE else 'Хозяйственные здания'],
+            tip=[i18n.t('hud.next_page'), {}, i18n.t('hud.mil_buildings') if page is ECO_PAGE else i18n.t('hud.eco_buildings')],
             slot=13))
         items.append(dict(icon=('back', None), act=('call', lambda g: g.set_build_page(None)), ok=True,
-                          tip=['Назад', {}, 'К приказам жителя'], slot=14))
+                          tip=[i18n.t('common.back'), {}, i18n.t('hud.back_to_villager')], slot=14))
         return items
 
     def building_slots(self, b, p, items):
-        """Постоянные места кнопок здания (DE): юниты — верхний ряд, улучшения линий — второй,
-        прочие технологии — третий; в центре — раскладка DE (TC_SLOTS). Меняет items на месте."""
+        """Fixed places of a building's buttons (DE): units - the top row, line upgrades - the second,
+        other techs - the third; in the center - the DE layout (TC_SLOTS). Changes items in place."""
         if b.kind == 'town_center':
             for it in items:
                 a = it['act']
@@ -1216,7 +1217,7 @@ class HudUI:
         return items
 
     def tech_chains(self, b, p):
-        """Цепочки технологий здания (следующая заменяет предыдущую на том же месте)."""
+        """A building's tech chains (the next one replaces the previous one in the same place)."""
         key = ('chains', b.kind, p.id, p.civ)
         cache = self.__dict__.setdefault('_chains', {})
         if key in cache:
@@ -1236,7 +1237,7 @@ class HudUI:
         cache[key] = chains
         return chains
 
-    # ============================================================ мини-карта
+    # ============================================================ minimap
     def mm_color(self, owner):
         if not self.mm_team or owner < 0:
             return self.pcolor(owner)
@@ -1244,7 +1245,7 @@ class HudUI:
 
     def minimap_button(self, act):
         self.audio.click()
-        if act == 'flare':             # режим сигнала из controls.py: следующий ЛКМ по карте или миру
+        if act == 'flare':             # signal mode from controls.py: the next left click on the map or world
             self.order_mode = None if self.order_mode == 'flare' else 'flare'
         elif act == 'score':
             self.show_score = not self.show_score
@@ -1264,14 +1265,14 @@ class HudUI:
         if self.mm_img is None or self.mm_t <= 0:
             self.mm_t = 10
             small = self.mm_base.copy()
-            if mode == 1:                               # военный: земля приглушена
+            if mode == 1:                               # military: the ground is muted
                 small.fill((70, 70, 70), special_flags=pygame.BLEND_RGB_MULT)
             MAP_W, MAP_H = w.W, w.H
             arow = w.amat[0]
             exp, vis = w.explored, w.vis
             if mode != 1:
-                # цвета объектов DE (game/themes.py): золото #FFC700, камень #919191, вся еда #A5C46C,
-                # лес — цветом лесной земли пейзажа
+                # DE object colors (game/themes.py): gold #FFC700, stone #919191, all food #A5C46C,
+                # forest - the color of the landscape's forest floor
                 node_c = {'tree': themes.forest_mm(w), 'gold': themes.MM_GOLD, 'stone': themes.MM_STONE}
                 for n in w.nodes:
                     if n.alive and exp[n.ty * MAP_W + n.tx]:
@@ -1299,7 +1300,7 @@ class HudUI:
                     small.set_at((int(u.x // TILE), int(u.y // TILE)), shade(self.mm_color(u.owner), 60))
             if mode != 1:
                 rc = _relic_mm_color()
-                for rl in getattr(w, 'relics', ()):         # реликвии (game/relics.py): белая точка
+                for rl in getattr(w, 'relics', ()):         # relics (game/relics.py): a white dot
                     tx, ty = int(rl.x // TILE), int(rl.y // TILE)
                     if 0 <= tx < MAP_W and 0 <= ty < MAP_H and (exp[ty * MAP_W + tx] if rl.carrier is None
                                                                  else w.visible_px(rl.x, rl.y)):
@@ -1315,7 +1316,7 @@ class HudUI:
         scr.blit(self.mm_img, r)
         tw, th = self.iso_tw, self.iso_th
         cam = pygame.Rect(r.x + self.cam_x / tw * r.w, r.y + self.cam_y / th * r.h,
-                          self.view_w() / tw * r.w, self.view_h() / th * r.h)     # с учётом масштаба
+                          self.view_w() / tw * r.w, self.view_h() / th * r.h)     # taking the scale into account
         scr.set_clip(r)
         pygame.draw.rect(scr, (255, 255, 255), cam, 1)
         scr.set_clip(None)
@@ -1323,7 +1324,7 @@ class HudUI:
             a = (w.time - t) % 1.0
             mx, my = self.world_to_mm(x, y)
             pygame.draw.circle(scr, (255, 80, 60), (int(mx), int(my)), int(4 + a * 10), 2)
-        # 4 кнопки по углам
+        # 4 buttons in the corners
         self.mm_btn_rects = []
         mp = pygame.mouse.get_pos()
         corners = [(MAP_PANEL.x + 24, MAP_PANEL.y + 24), (MAP_PANEL.right - 24, MAP_PANEL.y + 24),
@@ -1339,20 +1340,21 @@ class HudUI:
             pygame.draw.circle(scr, S.GOLD_HI if on or h else (150, 118, 70), c, 15, 2)
             mm_btn_icon(scr, act, c, self.mm_mode, self.pcolor(0))
             if h:
-                tips = {'flare': ['Сигнал союзникам', {}, 'Щелчок по карте или миру'],
-                        'score': ['Счёт игроков', {}, 'F4'],
-                        'colors': ['Цвета', {}, 'Команды' if not self.mm_team else 'Игроки'],
-                        'mode': ['Режим карты', {}, MM_MODES[self.mm_mode]]}[act]
+                T = i18n.t
+                tips = {'flare': [T('hud.flare'), {}, T('hud.flare_desc')],
+                        'score': [T('keys.score'), {}, 'F4'],
+                        'colors': [T('hud.colors'), {}, T('lobby.teams') if not self.mm_team else T('lobby.players')],
+                        'mode': [T('hud.map_mode'), {}, T(MM_MODES[self.mm_mode])]}[act]
                 self.draw_tip(tips, anchor=(MAP_PANEL.x - 200, MAP_PANEL.y - 4))
 
-    # ---- счёт над мини-картой (F4)
+    # ---- score above the minimap (F4)
     def draw_score(self):
         if not self.show_score:
             return
         w = self.world
         scores = hud_windows.scores(self)
         players = sorted(w.players, key=lambda q: (q.team != w.players[0].team, q.team, q.id))
-        # обычный режим — очки; военный — число воинов; экономический — жителей (DE)
+        # normal mode - points; military - the number of soldiers; economic - villagers (DE)
         lines = []
         for q in players:
             if self.mm_mode == 0:
@@ -1365,7 +1367,7 @@ class HudUI:
         y = MAP_PANEL.y - 6 - 20 * len(lines)
         box = pygame.Rect(SCREEN_W - wmax - 8, y - 4, wmax + 6, 20 * len(lines) + 6)
         S.shade_overlay(self.screen, box, alpha=130)
-        if self.mm_mode:                                # значок режима слева от списка
+        if self.mm_mode:                                # mode icon to the left of the list
             c = (box.x - 14, box.y + 12)
             pygame.draw.circle(self.screen, (40, 32, 24), c, 12)
             mm_btn_icon(self.screen, 'mode', c, self.mm_mode, self.pcolor(0))
@@ -1381,12 +1383,12 @@ class HudUI:
                 pygame.draw.line(self.screen, (230, 90, 70), (r.x, r.centery), (r.right, r.centery), 1)
             self.age_shield(SCREEN_W - 16, yy, q.age, 16, shade(q.color, -50))
 
-    # ============================================================ оверлеи
+    # ============================================================ overlays
     def dim(self, alpha=160):
         S.shade_overlay(self.screen, (0, 0, SCREEN_W, SCREEN_H), alpha=alpha)
 
     def draw_overlays(self):
-        """Окна поверх игры: окно (цели, чат, дипломатия, древо), затем справка / карточка / меню партии."""
+        """Windows over the game: a window (objectives, chat, diplomacy, tree), then help / card / the match menu."""
         if self.window:
             hud_windows.draw(self, self.window)
         if self.show_history:
@@ -1399,7 +1401,7 @@ class HudUI:
             self.draw_help()
 
     def title_bar(self, box, title, icon=None):
-        """Заголовок панели: золотая надпись по центру, орнамент-линии по бокам."""
+        """A panel heading: a golden inscription in the center, ornamental lines on the sides."""
         scr = self.screen
         img = S.gold_text(title, self.fonts['h'])
         r = img.get_rect(center=(box.centerx, box.y + 30))
@@ -1419,10 +1421,12 @@ class HudUI:
         self.dim(170)
         box = pygame.Rect(SCREEN_W // 2 - 360, 56, 720, 640)
         S.panel(scr, box, 'stone', ornate=True)
-        self.title_bar(box, 'Управление', 'encyclopaedia')
+        self.title_bar(box, i18n.t('gm.help'), 'encyclopaedia')
         y = box.y + 66
         for k, v in HELP_ROWS:
-            # клавиши — «камешки»
+            k = i18n.t(k) if k.startswith('help.') else k
+            v = i18n.t(v)
+            # keys - "pebbles"
             kx = box.x + 34
             for part in k.split(' · '):
                 img = self.fonts['bs'].render(part, True, (255, 232, 170))
@@ -1438,8 +1442,8 @@ class HudUI:
         goal = pygame.Rect(box.x + 30, box.bottom - 46, box.w - 60, 30)
         S.panel(scr, goal, 'parchment', frame=False)
         S.blit_icon(scr, 'victory', (goal.x + 20, goal.centery), 24)
-        S.text(scr, 'Цель: уничтожить центры и жителей всех врагов', (goal.centerx + 10, goal.centery),
-               self.fonts['b'], S.INK, anchor='center', shadow=None)
+        S.text_fit(scr, i18n.t('hud.goal'), (goal.centerx + 10, goal.centery),
+                   self.fonts['b'], S.INK, anchor='center', shadow=None, max_w=goal.w - 60)
 
     def game_menu_rects(self):
         box = pygame.Rect(SCREEN_W // 2 - 190, 170, 380, 110 + len(GAME_MENU) * 66)
@@ -1451,17 +1455,17 @@ class HudUI:
         self.dim(150)
         box, items = self.game_menu_rects()
         S.panel(scr, box, 'stone', ornate=True)
-        self.title_bar(box, 'Пауза')
+        self.title_bar(box, i18n.t('keys.pause'))
         mp = pygame.mouse.get_pos()
         for r, act, lbl, ic in items:
             h = r.collidepoint(mp)
             S.button(scr, r, 'hover' if h else 'normal')
             S.blit_icon(scr, ic, (r.x + 30, r.centery), 30)
-            S.text(scr, lbl, (r.centerx + 12, r.centery), self.fonts['btn'], (255, 236, 190) if h else (240, 222, 180),
-                   anchor='center')
+            S.text_fit(scr, i18n.t(lbl), (r.centerx + 12, r.centery), self.fonts['btn'],
+                       (255, 236, 190) if h else (240, 222, 180), anchor='center', max_w=r.w - 70)
 
     def overlay_click(self, pos):
-        """ЛКМ при открытом оверлее (помощь, карточка, меню партии)."""
+        """Left click while an overlay is open (help, card, match menu)."""
         if self.help == 'menu':
             box, items = self.game_menu_rects()
             for r, act, _, _ in items:
@@ -1491,7 +1495,7 @@ class HudUI:
         box = pygame.Rect(SCREEN_W // 2 - 280, 150, 560, 420)
         S.panel(scr, box, 'stone', ornate=True)
         S.blit_icon(scr, 'victory' if win else 'defeat', (box.centerx, box.y + 60), 96)
-        img = S.gold_text('ПОБЕДА!' if win else 'ПОРАЖЕНИЕ', self.fonts['xl'],
+        img = S.gold_text(i18n.t('end.victory_bang').upper() if win else i18n.t('end.defeat').upper(), self.fonts['xl'],
                           *(((255, 240, 170), (210, 150, 50)) if win else ((255, 170, 140), (160, 40, 30))))
         scr.blit(img, img.get_rect(center=(box.centerx, box.y + 140)))
         t = int(w.time)
@@ -1516,9 +1520,10 @@ class HudUI:
         br = pygame.Rect(box.centerx - 150, box.bottom - 84, 300, 54)
         h = br.collidepoint(pygame.mouse.get_pos())
         S.button(scr, br, 'hover' if h else 'normal')
-        S.text(scr, 'В главное меню', br.center, self.fonts['btn'], (255, 236, 190), anchor='center')
+        S.text_fit(scr, i18n.t('menu.to_main'), br.center, self.fonts['btn'], (255, 236, 190), anchor='center',
+                   max_w=br.w - 20)
 
-    # ============================================================ курсор
+    # ============================================================ cursor
     def update_cursor(self):
         cur = getattr(self, 'cursors', None)
         if cur is None:
@@ -1531,23 +1536,23 @@ class HudUI:
             return
         cur.set(self.cursor_kind(pygame.mouse.get_pos()))
 
-    # режим приказа (controls.order_mode) → курсор (DE: у каждого режима свой значок)
+    # order mode (controls.order_mode) -> cursor (DE: each mode has its own icon)
     ORDER_CURSORS = {'flare': 'flare', 'patrol': 'patrol', 'guard': 'guard', 'follow': 'follow',
                      'amove': 'amove', 'aground': 'aground'}
 
     def cursor_kind(self, mp):
-        """Состояние курсора по тому, что под мышью (docs/research/08_cursor.md, DE)."""
+        """Cursor state by what is under the mouse (docs/research/08_cursor.md, DE)."""
         w = self.world
         if self.help or w.winner is not None or not self.in_view(mp):
             return 'arrow'
         if self.placing:
             return 'build' if self.place_ok(mp) else 'no'
         mode = getattr(self, 'order_mode', None)
-        if mode:                                        # ждём ЛКМ
+        if mode:                                        # waiting for a left click
             return self.ORDER_CURSORS.get(mode, 'attack')
         units = [u for u in self.selected if isinstance(u, Unit) and u.owner == 0 and u.alive]
         if not units:
-            # выбрано здание, обучающее юнитов: ПКМ ставит точку сбора — флаг (DE)
+            # a unit-training building is selected: right click sets a rally point - a flag (DE)
             if any(isinstance(s, Building) and s.owner == 0 and s.complete and s.d.get('trains')
                    for s in self.selected):
                 return 'rally'
@@ -1556,16 +1561,16 @@ class HudUI:
         ships = [u for u in units if u.naval]
         land = [u for u in units if not u.naval]
         if e is None:
-            # транспорт с пассажирами над сушей: выгрузка
+            # a transport with passengers over land: unload
             if ships and any(getattr(s, 'cargo', None) for s in ships) and self.land_at(mp):
                 return 'unload'
             return 'arrow'
         vils = any(u.kind == 'villager' for u in units)
-        # торговая повозка → рынок (свой или союзный, готовый)
+        # a trade cart -> a market (own or allied, completed)
         if isinstance(e, Building) and e.kind == 'market' and e.complete and e.owner >= 0 and \
                 w.allied(0, e.owner) and any(u.d.get('command') for u in units):
             return 'trade'
-        # сухопутные → свой транспорт: на борт
+        # land units -> own transport: board
         if land and isinstance(e, Unit) and e.naval and e.owner == 0 and getattr(e, 'cargo_cap', lambda: 0)() > 0:
             return 'board'
         if isinstance(e, Animal):
@@ -1599,12 +1604,12 @@ class HudUI:
             return 'drop'
         if isinstance(e, Building) and e.owner == 0 and e.complete and e.d.get('garrison') and \
                 self.garrison_wanted(units, e):
-            # ПКМ по своему зданию с гарнизоном; DE: житель без ноши заходит в центр без Alt
+            # right click on your own building with a garrison; DE: a villager without a load enters the center without Alt
             return 'garrison' if self.garrison_room(e) > 0 else 'no'
         return 'arrow'
 
     def place_ok(self, mp):
-        """Можно ли заложить выбранное здание под курсором (курсор «нельзя» иначе)."""
+        """Whether the selected building can be placed under the cursor (otherwise the "no" cursor)."""
         try:
             tx, ty = self.place_tile(mp)
             return bool(self.world.can_place(self.placing, tx, ty, 0))
@@ -1618,8 +1623,8 @@ class HudUI:
         return 0 <= tx < w.W and 0 <= ty < w.H and w.terrain[ty][tx] in (0, 2)
 
     def garrison_wanted(self, units, b):
-        """Гарнизон по ПКМ (defense_ui.garrison_command): нужный класс и — для жителей у склада — пустые руки
-        или Alt."""
+        """Garrison by right click (defense_ui.garrison_command): the required class and - for villagers near a storage - empty hands
+        or Alt."""
         allowed = b.d.get('garrison_cls', ('vil', 'inf', 'arch'))
         cands = [u for u in units if u.cls in allowed]
         if not cands:
@@ -1645,9 +1650,9 @@ def _relic_mm_color():
         return (255, 255, 255)
 
 
-# ================================================================ процедурные значки
+# ================================================================ procedural icons
 def stat_icon(kind, size):
-    """Значок характеристики (DE-словарь, иначе портрет 0 A.D.)."""
+    """A stat icon (the DE dictionary, otherwise a 0 A.D. portrait)."""
     return S.icon(STAT_ICONS[kind], size) or S.icon(STAT_ICONS_0AD[kind], size)
 
 
@@ -1666,7 +1671,7 @@ def wrap(s, f, maxw):
 
 
 def idle_figure(scr, c):
-    """Силуэт жителя с топором (кнопка праздных, DE)."""
+    """A villager silhouette with an axe (the idle button, DE)."""
     cx, cy = c
     col = (40, 28, 14)
     pygame.draw.circle(scr, col, (cx - 1, cy - 9), 4)
@@ -1678,7 +1683,7 @@ def idle_figure(scr, c):
 
 
 def hp_glyph(scr, x, cy):
-    """Здоровье в подсказке: полоска как под портретом (DE), без сердца."""
+    """Health in a tooltip: a bar like under the portrait (DE), no heart."""
     pygame.draw.rect(scr, (10, 10, 10), (x, cy - 4, 16, 8))
     pygame.draw.rect(scr, (60, 200, 60), (x + 1, cy - 3, 14, 6))
     pygame.draw.line(scr, (160, 250, 150), (x + 1, cy - 3), (x + 14, cy - 3))
@@ -1698,7 +1703,7 @@ def hammer(scr, cx, cy, col):
 
 
 def next_arrow(scr, r):
-    """Красная стрелка «следующая страница» (DE)."""
+    """A red "next page" arrow (DE)."""
     cx, cy = r.center
     pts = [(cx - 12, cy - 5), (cx + 1, cy - 5), (cx + 1, cy - 11), (cx + 13, cy), (cx + 1, cy + 11), (cx + 1, cy + 5),
            (cx - 12, cy + 5)]
@@ -1707,7 +1712,7 @@ def next_arrow(scr, r):
 
 
 def back_cross(scr, r):
-    """Красный крест «назад» (DE)."""
+    """A red "back" cross (DE)."""
     cx, cy = r.center
     for d in (1, -1):
         pygame.draw.line(scr, (60, 10, 6), (cx - 11, cy - 11 * d), (cx + 11, cy + 11 * d), 7)
@@ -1715,7 +1720,7 @@ def back_cross(scr, r):
 
 
 def chat_icon(scr, c):
-    """Облачко реплики (кнопка «Чат»)."""
+    """A speech bubble (the "Chat" button)."""
     cx, cy = c
     pygame.draw.ellipse(scr, (235, 225, 200), (cx - 11, cy - 9, 22, 15))
     pygame.draw.polygon(scr, (235, 225, 200), [(cx - 5, cy + 4), (cx - 8, cy + 10), (cx + 1, cy + 5)])
@@ -1725,29 +1730,29 @@ def chat_icon(scr, c):
 
 def mm_btn_icon(scr, act, c, mode, color):
     cx, cy = c
-    if act == 'flare':                    # вспышка
+    if act == 'flare':                    # flash
         for i in range(8):
             v = pygame.Vector2(0, -10).rotate(i * 45)
             pygame.draw.line(scr, (255, 220, 120), (cx, cy), (cx + v.x, cy + v.y), 2)
         pygame.draw.circle(scr, (255, 250, 220), c, 4)
-    elif act == 'score':                  # столбики счёта
+    elif act == 'score':                  # score columns
         for i, (h, col) in enumerate(((8, (220, 60, 50)), (14, (70, 120, 230)), (11, (235, 235, 235)))):
             pygame.draw.rect(scr, col, (cx - 9 + i * 7, cy + 7 - h, 5, h))
-    elif act == 'colors':                 # DE: глобус (цвета команд)
+    elif act == 'colors':                 # DE: a globe (team colors)
         pygame.draw.circle(scr, (40, 96, 190), c, 10)
         for dx, dy, r in ((-3, -3, 4), (3, 2, 3), (-2, 4, 2), (5, -4, 2)):
             pygame.draw.circle(scr, (70, 160, 70), (cx + dx, cy + dy), r)
         pygame.draw.ellipse(scr, (190, 220, 250), (cx - 4, cy - 10, 8, 20), 1)
         pygame.draw.line(scr, (190, 220, 250), (cx - 10, cy), (cx + 10, cy), 1)
         pygame.draw.circle(scr, (20, 14, 8), c, 10, 1)
-    else:                                 # режим: обычный — земля, военный — меч, экономический — мешок
+    else:                                 # mode: normal - ground, military - a sword, economic - a sack
         if mode == 1:
             pygame.draw.line(scr, (220, 220, 230), (cx - 7, cy + 7), (cx + 7, cy - 7), 3)
             pygame.draw.line(scr, (160, 110, 50), (cx - 6, cy + 1), (cx - 1, cy + 6), 3)
         elif mode == 2:
             pygame.draw.circle(scr, (240, 200, 40), (cx, cy + 2), 7)
             pygame.draw.rect(scr, (240, 200, 40), (cx - 3, cy - 8, 6, 5))
-        else:                             # DE: закат — солнце над горизонтом
+        else:                             # DE: sunset - the sun over the horizon
             for i in range(20):
                 t = i / 19
                 col = (int(250 - 60 * t), int(200 - 150 * t), int(90 - 50 * t))
@@ -1759,7 +1764,7 @@ def mm_btn_icon(scr, act, c, mode, color):
 
 
 def hourglass(scr, cx, cy, s, col):
-    """Песочные часы (значок времени) — контуром цвета col."""
+    """An hourglass (the time icon) - an outline in color col."""
     top = [(cx - s * 0.6, cy - s), (cx + s * 0.6, cy - s), (cx, cy)]
     bot = [(cx - s * 0.6, cy + s), (cx + s * 0.6, cy + s), (cx, cy)]
     pygame.draw.polygon(scr, (200, 160, 90), [(cx - s * 0.3, cy - s * 0.5), (cx + s * 0.3, cy - s * 0.5), (cx, cy)])

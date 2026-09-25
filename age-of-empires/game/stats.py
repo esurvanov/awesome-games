@@ -1,18 +1,18 @@
-"""Статистика партии для экрана достижений (6 вкладок) и счёта (game/scoring.py).
+"""Match statistics for the achievements screen (6 tabs) and the score (game/scoring.py).
 
-World держит w.stats — список словарей, по одному на игрока (см. new_stats). Мир зовёт хуки:
-  on_death(w, target, attacker, is_building) — юнит убит / здание разрушено
-  on_convert(w, unit, old, new)   — монах обратил юнита
-  on_tech(w, p, name)             — изучена технология (эпохи — с отметкой времени)
-  on_complete(w, b)               — достроено здание (замки считаются)
-  on_tribute(w, frm, to, amt)     — дань (market.tribute), on_trade(w, pid, gold) — доход торговли
-  tick(w, dt)                     — раз в 30 с — отсчёт для графика «Хронология», раз в 5 с — разведка
+World keeps w.stats - a list of dicts, one per player (see new_stats). The world calls the hooks:
+  on_death(w, target, attacker, is_building) - a unit was killed / a building destroyed
+  on_convert(w, unit, old, new)   - a monk converted a unit
+  on_tech(w, p, name)             - a tech was researched (ages - with a timestamp)
+  on_complete(w, b)               - a building was completed (castles are counted)
+  on_tribute(w, frm, to, amt)     - tribute (market.tribute), on_trade(w, pid, gold) - trade income
+  tick(w, dt)                     - every 30 s - a sample for the "Timeline" graph, every 5 s - exploration
 """
 from .data import UNITS, BUILDINGS, TECHS, AGE_TECHS
 
-SAMPLE = 30.0           # период отсчётов графика, игровых секунд
+SAMPLE = 30.0           # the graph sampling period, game seconds
 EXPLORE_T = 5.0
-CELL = 4                # клетка сетки разведки (в клетках карты)
+CELL = 4                # a cell of the exploration grid (in map tiles)
 
 
 def new_stats():
@@ -26,7 +26,7 @@ def new_stats():
 
 
 def value(kind):
-    """Ресурсная стоимость вида юнита/здания/технологии (сумма цены)."""
+    """The resource cost of a unit/building/tech kind (the sum of the price)."""
     d = UNITS.get(kind) or BUILDINGS.get(kind) or TECHS.get(kind) or {}
     return float(sum((d.get('cost') or {}).values()))
 
@@ -129,7 +129,7 @@ def tick(w, dt):
 
 
 def counts(w):
-    """{pid: (население, армия, жители)} по живым юнитам."""
+    """{pid: (population, army, villagers)} over living units."""
     n = len(w.players)
     pop = [0] * n
     army = [0] * n
@@ -161,7 +161,7 @@ def sample(w):
 
 
 def explore(w):
-    """Разведанная доля карты по игрокам (грубая сетка CELL×CELL по обзору юнитов и зданий)."""
+    """The explored share of the map per player (a coarse CELL x CELL grid by the view of units and buildings)."""
     cw = (w.W + CELL - 1) // CELL
     ch = (w.H + CELL - 1) // CELL
     grids = w.explore_grid

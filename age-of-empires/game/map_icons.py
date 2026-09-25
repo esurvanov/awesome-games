@@ -1,8 +1,8 @@
-"""Значки карт для лобби — свои, рисуются из настоящей генерации карты (как иконки выбора карты DE:
-ромб карты на квадрате, лес «деревцами», вода с отмелью, стены, цветные ромбики игроков).
+"""Map icons for the lobby - our own, drawn from the real map generation (like DE's map choice icons:
+a map diamond on a square, forest as little trees, water with a shoal, walls, colored player diamonds).
 
-  icon(mt, size)   → pygame.Surface size×size (кэш в памяти; генерация ~0.2–0.5 с на карту)
-Никаких картинок DE: всё рисуется по карте, которую выдаёт наш генератор (game/mapgen.py).
+  icon(mt, size)   -> pygame.Surface size x size (an in-memory cache; generation takes ~0.2-0.5 s per map)
+No DE pictures: everything is drawn from the map that our generator produces (game/mapgen.py).
 """
 import random
 
@@ -12,7 +12,7 @@ from .data import PLAYER_COLORS
 
 _cache = {}
 
-# краски значка (приглушённые, «рисованные»)
+# icon paints (muted, "hand-painted")
 GRASS = {'grass': (104, 150, 62), 'desert': (222, 188, 118), 'steppe': (178, 164, 86), 'snow': (226, 230, 236),
          'tropical': (86, 158, 70), 'autumn': (150, 140, 66)}
 FOREST = {'grass': (34, 78, 34), 'desert': (86, 118, 52), 'steppe': (84, 98, 44), 'snow': (46, 74, 60),
@@ -24,7 +24,7 @@ WALL = (150, 150, 150)
 DIRT = (176, 140, 80)
 BG = (24, 18, 12)
 SEED = {'arabia': 5, 'arena': 3, 'black_forest': 2, 'nomad': 4, 'islands': 3, 'mediterranean': 1}
-THEME = {'arabia': 'desert'}         # значок Пустоши — пустынный пейзаж (как у DE)
+THEME = {'arabia': 'desert'}         # the Wasteland icon is a desert landscape (as in DE)
 
 
 def _world(mt):
@@ -52,7 +52,7 @@ def icon(mt, size):
 
 
 def draw(w, size):
-    """Значок по готовому миру w (экран загрузки)."""
+    """An icon from a ready world w (the loading screen)."""
     return _draw(w, size)
 
 
@@ -60,7 +60,7 @@ def _draw(w, size):
     W, H = w.W, w.H
     theme = getattr(w, 'theme', 'grass')
     theme = theme if theme in GRASS else 'grass'
-    k = 3                                   # пикселей на клетку до поворота
+    k = 3                                   # pixels per tile before rotation
     top = pygame.Surface((W * k, H * k))
     top.fill(GRASS[theme])
     rnd = random.Random(3)
@@ -79,10 +79,10 @@ def _draw(w, size):
                 v = rnd.randint(-6, 6)
                 c = tuple(max(0, min(255, a + v)) for a in GRASS[theme])
             top.fill(c, (x * k, y * k, k, k))
-    # у стартов — земля
+    # land at the starts
     for sx, sy in w.starts:
         pygame.draw.circle(top, DIRT, ((sx + 0.5) * k, (sy + 0.5) * k), 4 * k)
-    # лес — «деревца» (кружки с тенью) плотно по клеткам леса
+    # forest - "little trees" (circles with a shadow) densely across the forest tiles
     fc = FOREST[theme]
     dark = tuple(max(0, a - 26) for a in fc)
     light = tuple(min(255, a + 28) for a in fc)
@@ -102,20 +102,20 @@ def _draw(w, size):
     for b in w.buildings:
         if b.d.get('wall'):
             top.fill(WALL, (b.tx * k, b.ty * k, b.w * k, b.h * k))
-    # поворот в ромб 1:1 (как значки выбора карты DE: ромб на квадрате)
+    # rotation into a 1:1 diamond (like DE's map choice icons: a diamond on a square)
     rot = pygame.transform.rotate(top.convert_alpha() if pygame.display.get_surface() else top, -45)
     d = size - 4
     dia = pygame.transform.smoothscale(rot, (d, d))
     out = pygame.Surface((size, size))
     out.fill(BG)
-    # углы квадрата — продолжение края карты, темнее
+    # the square's corners - a continuation of the map edge, darker
     edge = [top.get_at((x * k, y * k)) for x, y in ((0, 0), (W - 1, 0), (0, H - 1), (W - 1, H - 1),
                                                      (W // 2, 0), (0, H // 2), (W - 1, H // 2), (W // 2, H - 1))]
     base = tuple(max(0, int(sum(c[i] for c in edge) / len(edge)) - 36) for i in range(3))
     pygame.draw.rect(out, base, (2, 2, d, d))
     dy = 2
     out.blit(dia, (2, dy))
-    # ромбики игроков
+    # player diamonds
     Wd = Hd = d
     for pid, (sx, sy) in enumerate(w.starts):
         u = (sx + 0.5) / W
@@ -132,7 +132,7 @@ def _draw(w, size):
 
 
 def _water_dist(w):
-    """Расстояние (0, 1, 2+) до воды по 8 соседям — для кромки отмели/пляжа."""
+    """Distance (0, 1, 2+) to water among the 8 neighbors - for the shoal/beach edge."""
     W, H = w.W, w.H
     T = w.terrain
     out = [[3] * W for _ in range(H)]

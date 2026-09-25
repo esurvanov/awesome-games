@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Сцены для сверки графики с AoE II DE (docs/research/04_graphics.md): город с жителями, опушка леса, берег, бой,
-холмы, обрывы, мелководье.
+"""Scenes for checking the graphics against AoE II DE (docs/research/04_graphics.md): a town with villagers, a forest edge, a shore, a battle,
+hills, cliffs, shallows.
 
-  .venv/bin/python tools/gfx_shot.py --out shots/gfx            # 4 снимка + сравнение с эталонами + замеры
+  .venv/bin/python tools/gfx_shot.py --out shots/gfx            # 4 screenshots + comparison with the references + measurements
   .venv/bin/python tools/gfx_shot.py --scenes town,battle
 
-Для каждой сцены: <сцена>.png (экран игры) и <сцена>_vs.png (слева наш вид мира, справа эталон DE,
-уменьшенный так, что клетка — те же 64 px, что у нас: 1920 px DE ≈ 20–21 клетка = 1280 px наши).
-Печатает средний цвет и яркость V области мира (эталон DE: V ≈ 0.50–0.61, среднее ≈ (150, 122, 68)).
-"""
+For each scene: <scene>.png (the game screen) and <scene>_vs.png (on the left our world view, on the right the DE reference,
+reduced so that a cell is the same 64 px as ours: 1920 px of DE ~ 20-21 cells = 1280 px of ours).
+Prints the average color and brightness V of the world area (the DE reference: V ~ 0.50-0.61, the average ~ (150, 122, 68))."""
 import argparse
 import os
 import random
@@ -33,7 +32,7 @@ REF_OF = {'town': 'de_farms_mills.jpg', 'forest': 'de_forest_town.jpg', 'shore':
 
 def _ref_path(name):
     p = os.path.join(REF, name)
-    if not os.path.exists(p):         # рабочее дерево git: эталоны лежат в основной копии
+    if not os.path.exists(p):         # a git working tree: the references are in the main copy
         p = os.path.abspath(os.path.join(REF, '..', '..', '..', '..', '..', '..', 'shots', 'ref', 'gfx', name))
     return p
 
@@ -56,7 +55,7 @@ def _run(w, sec):
 
 
 def scene_town(g, seed=4):
-    """Своя игра под управлением ИИ 6 минут: центр, дома, фермы, жители за работой."""
+    """Our own game played by the AI for 6 minutes: a center, houses, farms, villagers at work."""
     random.seed(seed)
     g.new_game(1, 1, False, ai_human=True, map_type='land', civ='franks')
     w = g.world
@@ -71,7 +70,7 @@ def scene_forest(g, seed=4):
     w = g.world
     tc = next(b for b in w.buildings if b.owner == 0 and b.kind == 'town_center')
     cx, cy = tc.center()
-    # ближайший лагерь лесорубов или ближайшее дерево
+    # the nearest lumber camp or the nearest tree
     lc = [b for b in w.buildings if b.owner == 0 and b.kind == 'lumber_camp']
     if lc:
         b = min(lc, key=lambda b: (b.center()[0] - cx) ** 2 + (b.center()[1] - cy) ** 2)
@@ -143,7 +142,7 @@ def scene_battle(g, seed=2, seconds=5.0):
 
 
 def _relief_game(g, seed, map_type='land', players=2, need=None):
-    """Партия, где есть нужное (need(w) → точка или None); ИИ играет 3 минуты, туман снят."""
+    """A match where there is what is needed (need(w) -> a point or None); the AI plays 3 minutes, the fog is removed."""
     for k in range(40):
         random.seed(seed + k)
         g.new_game(1, players - 1, False, ai_human=True, map_type=map_type, civ='franks')
@@ -157,7 +156,7 @@ def _relief_game(g, seed, map_type='land', players=2, need=None):
 
 
 def scene_hills(g, seed=11):
-    """Холмы: самый высокий склон на карте с юнитами на нём (эталон — hd_classicart_farms_hills.jpg)."""
+    """Hills: the highest slope on the map with units on it (the reference is hd_classicart_farms_hills.jpg)."""
     def need(w):
         best = None
         for y in range(20, w.H - 20):
@@ -204,7 +203,7 @@ def world_stats(surf):
 
 
 def compare(surf, scene, out):
-    """Слева — наш вид мира, справа — эталон DE в том же масштабе клетки."""
+    """On the left - our world view, on the right - the DE reference at the same cell scale."""
     ref = _ref_path(REF_OF[scene])
     view = surf.subsurface(pygame.Rect(0, TOP_H, SCREEN_W, VIEW_H)).copy()
     if not os.path.exists(ref):
@@ -238,7 +237,7 @@ def main():
         pygame.image.save(g.screen, os.path.join(a.out, f'{sc}.png'))
         ours = world_stats(g.screen)
         de = compare(g.screen, sc, a.out)
-        print(f'{sc:7s} наш цвет {ours[0]} V {ours[1]}   DE {de[0] if de else "-"} V {de[1] if de else "-"}')
+        print(f'{sc:7s} our color {ours[0]} V {ours[1]}   DE {de[0] if de else "-"} V {de[1] if de else "-"}')
     pygame.quit()
 
 

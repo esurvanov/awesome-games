@@ -1,16 +1,16 @@
-"""Акторы 0 A.D. с анимацией: выбор вариантов по «состоянию» (как в движке: имя анимации + набор выборов),
-дерево пропов, поза в момент времени → список Part с готовой (деформированной скиннингом) геометрией.
+"""0 A.D. actors with animation: choosing variants by "state" (as in the engine: the animation name + a set of choices),
+the prop tree, a pose at a moment of time -> a list of Parts with ready (skinning-deformed) geometry.
 
-  tree = build('units/britons/infantry_spearman_b.xml', 'walk', seed=0)            # дерево ANode
-  tree = build('units/britons/citizen_male.xml', 'walk', sel={'carry_wood'})       # походка с ношей
-  tree = build('units/britons/citizen_male.xml', 'gather_tree')                    # вариант gather_tree
-  parts = evaluate(tree, 0.25)                    # доля цикла 0..1 (у всех узлов одна фаза: всадник ↔ конь)
-  anim_info(tree)                                 # {'dur', 'event', 'file', ...} анимации корня
+  tree = build('units/britons/infantry_spearman_b.xml', 'walk', seed=0)            # an ANode tree
+  tree = build('units/britons/citizen_male.xml', 'walk', sel={'carry_wood'})       # a walk with a load
+  tree = build('units/britons/citizen_male.xml', 'gather_tree')                    # the gather_tree variant
+  parts = evaluate(tree, 0.25)                    # the cycle share 0..1 (all nodes have one phase: rider <-> horse)
+  anim_info(tree)                                 # {'dur', 'event', 'file', ...} of the root's animation
 
-Как в 0 A.D.: из каждой группы берётся вариант, имя которого (своё или корня файла variants/…) есть в наборе
-выборов (имя анимации + sel); иначе — взвешенно по frequency. Анимации вариантов сливаются, одноимённые
-у более позднего варианта заменяют прежние. Пропы с пустым actor снимают проп с точки. У каждого пропа
-анимация с тем же именем (если есть) — лук натягивается вместе с рукой, всадник играет свою рысь на коне.
+As in 0 A.D.: from each group a variant is taken whose name (its own or the root of the variants/... file) is in the set
+of choices (the animation name + sel); otherwise - weighted by frequency. The variants' animations are merged, same-named ones
+of a later variant replace earlier ones. Props with an empty actor remove a prop from the point. Each prop has
+an animation with the same name (if any) - a bow is drawn together with the arm, a rider plays his own trot on the horse.
 """
 import random
 from dataclasses import dataclass, field
@@ -20,7 +20,7 @@ import numpy as np
 from . import assets, paint as _paint, procmesh, skin
 from .actor import Part, _actor_root, _variant_file
 
-# чем заменить анимацию, если у актора нет нужной (по порядку)
+# what to replace an animation with if the actor has none of the needed one (in order)
 FALLBACK = {
     'run': ['walk'],
     'walk': ['run', 'idle'],
@@ -42,12 +42,12 @@ class ANode:
     material: str
     anim: dict = None                   # {'file', 'name', 'speed', 'event', 'load', 'id'}
     props: list = field(default_factory=list)       # [(attachpoint, ANode, scale)]
-    color: tuple = None                 # <color> варианта: цвет объекта (волосы, шерсть) для objectcolor
-    paint: str = None                   # стиль перекраски одежды тела (tools/render3d/paint.py)
+    color: tuple = None                 # <color> of a variant: the object's color (hair, wool) for objectcolor
+    paint: str = None                   # the body clothing recoloring style (tools/render3d/paint.py)
 
 
 def _eff(v):
-    """Имя и частота варианта с учётом цепочки файлов-основ (атрибуты ближнего элемента важнее)."""
+    """The name and frequency of a variant taking the chain of base files into account (the nearest element's attributes matter more)."""
     name = v.get('name')
     freq = v.get('frequency')
     f = v.get('file')
@@ -129,7 +129,7 @@ def _merge(acc, v):
 
 
 def pick_anim(anims, name, pick=0):
-    """Анимация по имени (с запасными именами). pick — номер среди одноимённых (или id)."""
+    """An animation by name (with fallback names). pick - the number among same-named ones (or an id)."""
     for nm in [name] + FALLBACK.get(name, []):
         lst = [a for a in anims if a['name'] == nm]
         if lst:
@@ -145,18 +145,18 @@ def pick_anim(anims, name, pick=0):
 
 
 def _proc_node(actor, anim):
-    """Процедурный проп ('@musket', '@bombard'…, tools/render3d/procmesh.py) → ANode с деталями на 'root'."""
+    """A procedural prop ('@musket', '@bombard'..., tools/render3d/procmesh.py) -> an ANode with parts at 'root'."""
     parts = procmesh.ACTORS.get(actor)
     if parts is None:
         return None
     a = anim.lower()
     pa = {'file': '', 'name': a, 'speed': 100, 'event': 0.35, 'load': 0, 'id': '', 'frequency': 1,
           'proc': True, 'dur': procmesh.DUR.get(a, 1.0)}
-    moving = actor in procmesh.ANIMATED          # у ручного оружия своих движений нет — анимацию задаёт тело
+    moving = actor in procmesh.ANIMATED          # hand weapons have no motions of their own - the animation is set by the body
     node = ANode(actor=actor, mesh=None, textures={}, material='no_trans_norm_spec.xml',
                  anim=dict(pa) if moving else None)
     for m, tex in parts:
-        # '@tex/player…' — ткань цвета игрока (маска — альфа текстуры, как у 0 A.D.)
+        # '@tex/player...' - cloth in player color (the mask is the texture's alpha, as in 0 A.D.)
         mat = 'player_trans_norm_spec.xml' if tex.startswith('@tex/player') else 'no_trans_norm_spec.xml'
         node.props.append(('root', ANode(actor=actor, mesh=m, textures={'baseTex': tex},
                                          material=mat, anim=dict(pa) if moving else None), 1.0))
@@ -164,7 +164,7 @@ def _proc_node(actor, anim):
 
 
 def _sub_override(override, ap):
-    """Часть override для пропа в точке ap: ключи 'ap>…' без префикса."""
+    """The part of an override for a prop at the point ap: the keys 'ap>...' without the prefix."""
     if not override:
         return None
     pre = ap + '>'
@@ -174,19 +174,19 @@ def _sub_override(override, ap):
 
 def build(actor, anim='idle', sel=(), seed=0, depth=0, skip=None, pick=0, prop_scale=None, override=None,
           paint=None):
-    """Актор → дерево ANode для анимации anim. sel — дополнительные выборы вариантов (carry_wood…).
-    skip(actor, attachpoint) → True — пропустить проп.
+    """An actor -> an ANode tree for the animation anim. sel - extra variant choices (carry_wood...).
+    skip(actor, attachpoint) -> True - skip the prop.
 
-    override — правки дерева (ключи этого уровня; 'rider>…' — для пропа в точке rider и глубже):
-      'weapon_R': актор | None | (актор, масштаб)  — заменить/снять проп (масштаб — число или (sx, sy, sz));
-      'weapon_R+': актор | (актор, масштаб)        — добавить ещё один проп в точку, не снимая прежних;
-      '#baseTex': файл                               — заменить текстуру меша;
-      '#mesh': файл                                  — заменить меш;
-      '#anim:walk': файл .dae                        — своя анимация для состояния (walk, idle, attack_ranged…);
-      '#color': (r, g, b)                            — цвет объекта (objectcolor);
-      '#paint': стиль | None                         — перекраска одежды тела (paint.py) для этого узла и ниже.
-    paint — стиль перекраски одежды тел людей по умолчанию (paint.STYLES), наследуется пропами.
-    Актор-строка '@…' — процедурный проп (procmesh)."""
+    override - tree edits (keys of this level; 'rider>...' - for a prop at the point rider and deeper):
+      'weapon_R': an actor | None | (an actor, a scale)  - replace/remove a prop (the scale is a number or (sx, sy, sz));
+      'weapon_R+': an actor | (an actor, a scale)        - add one more prop at the point, without removing the previous ones;
+      '#baseTex': a file                               - replace the mesh's texture;
+      '#mesh': a file                                  - replace the mesh;
+      '#anim:walk': a .dae file                        - its own animation for a state (walk, idle, attack_ranged...);
+      '#color': (r, g, b)                            - the object's color (objectcolor);
+      '#paint': a style | None                         - recoloring of the body's clothing (paint.py) for this node and below.
+    paint - the default recoloring style of human bodies' clothing (paint.STYLES), inherited by props.
+    An actor string '@...' - a procedural prop (procmesh)."""
     if depth > 8:
         return None
     if procmesh.is_proc(actor):
@@ -199,7 +199,7 @@ def build(actor, anim='idle', sel=(), seed=0, depth=0, skip=None, pick=0, prop_s
     chosen = _choose(root, selections, seed, depth)
     for v in chosen:
         _merge(acc, v)
-    # как в движке: имена выбранных вариантов передаются пропам (плащ берёт тот же набор анимаций, что тело)
+    # as in the engine: the names of the chosen variants are passed to props (a cloak takes the same set of animations as the body)
     sub = list(sel) + [n for n in (_eff(v)[0] for v in chosen) if n and n not in selections]
     scales = {}
     if override:
@@ -230,7 +230,7 @@ def build(actor, anim='idle', sel=(), seed=0, depth=0, skip=None, pick=0, prop_s
     f = (override or {}).get('#anim:' + anim.lower())
     if f:
         ev = None
-        if isinstance(f, tuple):          # (файл, момент выстрела/удара в доле цикла)
+        if isinstance(f, tuple):          # (file, the moment of the shot/strike as a share of the cycle)
             f, ev = f
         an = dict(an or {'speed': 100, 'event': 0.5, 'load': 0, 'id': '', 'frequency': 1}, file=f, name=anim.lower())
         if ev is not None:
@@ -256,8 +256,8 @@ def build(actor, anim='idle', sel=(), seed=0, depth=0, skip=None, pick=0, prop_s
 
 
 def anim_info(node, want=None):
-    """Анимация, задающая длительность цикла: первая в дереве (корень, затем пропы) с именем из want
-    (например, у верблюда нет атаки, а у всадника есть); без want или если такой нет — корня/первого пропа."""
+    """The animation that sets the cycle duration: the first in the tree (the root, then props) with a name from want
+    (for example, a camel has no attack, while a rider has one); without want or if there is none - the root's/the first prop's."""
     def walk(n, ok):
         if n.anim and (ok is None or n.anim['name'] in ok):
             if n.anim.get('proc'):
@@ -273,7 +273,7 @@ def anim_info(node, want=None):
 
 
 def evaluate(node, frac, matrix=None, rest=False, _out=None):
-    """Поза дерева в доле цикла frac (0..1) → list[Part] с геометрией (Part.geom) в координатах модели корня."""
+    """The tree's pose at the cycle share frac (0..1) -> a list[Part] with geometry (Part.geom) in the root's model coordinates."""
     out = [] if _out is None else _out
     matrix = np.eye(4) if matrix is None else matrix
     geom, points = None, {}
@@ -292,7 +292,7 @@ def evaluate(node, frac, matrix=None, rest=False, _out=None):
             if m is not None:
                 geom = m
                 points = dict(m['props'])
-                # статичный меш с собственным скелетом без скина (стрелы, некоторые пропы) — точки из позы
+                # a static mesh with its own skeleton without a skin (arrows, some props) - points from the pose
                 if node.anim and not rest:
                     an = skin.animation(node.anim['file'])
                     if an is not None:
@@ -301,7 +301,7 @@ def evaluate(node, frac, matrix=None, rest=False, _out=None):
                             if n.startswith('prop-') or n.startswith('prop_'):
                                 points[n[5:]] = skin.orthonormal(W[i])
     if geom is not None and node.paint:
-        # одежда тела: исходная часть (R2) + узор стиля с новой развёрткой (paint.py)
+        # body clothing: the original part (R2) + the style pattern with a new unwrap (paint.py)
         tx = node.textures
         for g, role in _paint.split(node.mesh, node.paint, geom):
             base = _paint.orig_key(tx['baseTex']) if role == 'orig' else _paint.cloth_key(node.paint)
@@ -326,7 +326,7 @@ def evaluate(node, frac, matrix=None, rest=False, _out=None):
 
 
 def _textures(node):
-    """objectcolor: базовая текстура × mix(цвет объекта, 1, alpha) — как шейдер 0 A.D. (USE_OBJECTCOLOR)."""
+    """objectcolor: the base texture x mix(the object's color, 1, alpha) - like the 0 A.D. shader (USE_OBJECTCOLOR)."""
     tx = node.textures
     base = tx.get('baseTex')
     if not base or 'objectcolor' not in node.material:

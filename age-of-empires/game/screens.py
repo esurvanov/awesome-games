@@ -1,50 +1,37 @@
-"""Экраны вокруг партии (примесь к ui.Game, стоит перед HudUI — переопределяет меню партии и конец игры):
+"""Screens around a match (a mixin of ui.Game, placed before HudUI - overrides the match menu and the game end):
 
-  • экран загрузки (лобби → игра): превью карты, игроки, совет, полоска прогресса; мир строится по шагам;
-  • меню F10: Вернуться · Сохранить · Загрузить · Перезапустить · Задачи · Управление · Цивилизация ·
-    Настройки · Сдаться · Выйти в меню · Выйти из игры (опасное — с подтверждением);
-  • «Победа!/Поражение» → «Достижения» (6 вкладок: Итог, Армия, Экономика, Технологии, Общество, Хронология
-    с графиком населения) → «Сыграть снова» / «Главное меню»;
-  • автосохранение, быстрые сохранение/загрузка (F7/F8, game/keymap.py), «Закрепить скорость».
-Окна настроек и сохранений — game/settings_ui.py, game/saves_ui.py.
+  * the loading screen (lobby -> game): a map preview, players, a tip, a progress bar; the world is built in steps;
+  * the F10 menu: Return · Save · Load · Restart · Objectives · Controls · Civilization ·
+    Settings · Resign · Exit to menu · Exit game (dangerous ones - with confirmation);
+  * "Victory!/Defeat" -> "Achievements" (6 tabs: Summary, Military, Economy, Technology, Society, Timeline
+    with a population graph) -> "Play again" / "Main menu";
+  * autosave, quick save/load (F7/F8, game/keymap.py), "Lock speed".
+The settings and saves windows - game/settings_ui.py, game/saves_ui.py.
 """
 import random
 
 import pygame
 
 from .data import SCREEN_W, SCREEN_H, PLAYER_COLORS, AGE_NAMES
-from . import civ_ui, keymap, match, naval, savegame, scoring, uiskin as S, widgets as W
+from . import civ_ui, i18n, keymap, match, naval, savegame, scoring, uiskin as S, widgets as W
 from . import settings as gsettings
 from .settings_ui import SettingsUI
 from .saves_ui import SavesUI
 
-GAME_MENU = [('resume', 'Вернуться в игру', 'call-to-arms'), ('save', 'Сохранить', 'construction'),
-             ('load', 'Загрузить', 'upgrade'), ('restart', 'Перезапустить', 'repair'),
-             ('objectives', 'Задачи', 'victory'), ('help', 'Управление', 'encyclopaedia'),
-             ('civ', 'Цивилизация', 'diplomacy'), ('settings', 'Настройки', 'match-settings'),
-             ('resign', 'Сдаться', 'defeat'), ('quit', 'Выйти в меню', 'cancel'),
-             ('exit', 'Выйти из игры', 'cancel')]
-CONFIRM = {'restart': 'Начать партию заново?', 'resign': 'Сдаться? Вы проиграете партию.',
-           'quit': 'Выйти из партии? Несохранённое пропадёт.', 'exit': 'Выйти из игры?'}
+# captions are locale keys (gm.*, confirm.*, tip.<n>, stats.*)
+GAME_MENU = [('resume', 'gm.resume', 'call-to-arms'), ('save', 'gm.save', 'construction'),
+             ('load', 'gm.load', 'upgrade'), ('restart', 'gm.restart', 'repair'),
+             ('objectives', 'gm.objectives', 'victory'), ('help', 'gm.help', 'encyclopaedia'),
+             ('civ', 'gm.civ', 'diplomacy'), ('settings', 'menu.settings', 'match-settings'),
+             ('resign', 'gm.resign', 'defeat'), ('quit', 'gm.quit', 'cancel'),
+             ('exit', 'gm.exit', 'cancel')]
+CONFIRM = {'restart': 'confirm.restart', 'resign': 'confirm.resign', 'quit': 'confirm.quit', 'exit': 'confirm.exit'}
 
-TIPS = [
-    'Держите городской центр в работе: новый житель каждые 25 секунд — основа сильной экономики.',
-    'Стройте дома заранее: при упоре в лимит населения центр встаёт.',
-    'Копейщики сильны против конницы, застрельщики — против лучников.',
-    'Мельница у ягод и лесопилка у леса экономят жителям долгие переходы.',
-    'Нажмите «.» — выделится праздный житель.',
-    'Тараны почти не получают урона от стрел, но беззащитны перед пехотой.',
-    'Сторожевые башни и центр стреляют по врагам; жители могут укрыться в центре.',
-    'Рынок меняет излишки ресурсов на золото — и обратно.',
-    'Перемирие в лобби запрещает нападать до назначенной минуты.',
-    'F10 — меню партии: сохранение, загрузка, настройки, сдача.',
-    'Победа «по очкам»: счёт растёт от убитых врагов, экономики, технологий и замков.',
-    'Эпоха замков открывает рыцарей, тараны, замки и уникальные войска цивилизаций.',
-]
+TIPS = ['tip.%d' % i for i in range(1, 13)]
 
-STAT_TABS = [('score', 'Итог', 'victory'), ('military', 'Армия', 'kill'), ('economy', 'Экономика', 'economics'),
-             ('tech', 'Технологии', 'upgrade'), ('society', 'Общество', 'population'),
-             ('timeline', 'Хронология', 'time')]
+STAT_TABS = [('score', 'stats.score', 'victory'), ('military', 'stats.military', 'kill'),
+             ('economy', 'stats.economy', 'economics'), ('tech', 'stats.tech', 'upgrade'),
+             ('society', 'stats.society', 'population'), ('timeline', 'stats.timeline', 'time')]
 
 
 def _clock(t):
@@ -55,41 +42,42 @@ def _clock(t):
 
 
 def stat_columns(tab):
-    """[(подпись, значок, функция(w, p, s, sc) → число или None, формат)] для вкладки достижений."""
+    """[(caption, icon, function(w, p, s, sc) -> a number or None, format)] for the achievements tab."""
+    T = i18n.t
     if tab == 'score':
-        return [('Военные', 'kill', lambda w, p, s, sc: sc['military'], None),
-                ('Экономика', 'economics', lambda w, p, s, sc: sc['economy'], None),
-                ('Технологии', 'upgrade', lambda w, p, s, sc: sc['technology'], None),
-                ('Общество', 'population', lambda w, p, s, sc: sc['society'], None),
-                ('Всего', 'victory', lambda w, p, s, sc: sc['total'], None)]
+        return [(T('score.military'), 'kill', lambda w, p, s, sc: sc['military'], None),
+                (T('score.economy'), 'economics', lambda w, p, s, sc: sc['economy'], None),
+                (T('score.technology'), 'upgrade', lambda w, p, s, sc: sc['technology'], None),
+                (T('score.society'), 'population', lambda w, p, s, sc: sc['society'], None),
+                (T('stats.total'), 'victory', lambda w, p, s, sc: sc['total'], None)]
     if tab == 'military':
-        return [('Убито', 'kill', lambda w, p, s, sc: s['kills'], None),
-                ('Потери', 'defeat', lambda w, p, s, sc: s['losses'], None),
-                ('Разрушено', 'repair', lambda w, p, s, sc: s['razed'], None),
-                ('Потеряно зданий', 'construction', lambda w, p, s, sc: s['bld_lost'], None),
-                ('Обращено', 'heal', lambda w, p, s, sc: s['converted'], None),
-                ('Макс. армия', 'call-to-arms', lambda w, p, s, sc: s['army_max'], None)]
+        return [(T('stats.kills'), 'kill', lambda w, p, s, sc: s['kills'], None),
+                (T('stats.losses'), 'defeat', lambda w, p, s, sc: s['losses'], None),
+                (T('stats.razed'), 'repair', lambda w, p, s, sc: s['razed'], None),
+                (T('stats.bld_lost'), 'construction', lambda w, p, s, sc: s['bld_lost'], None),
+                (T('stats.converted'), 'heal', lambda w, p, s, sc: s['converted'], None),
+                (T('stats.army_max'), 'call-to-arms', lambda w, p, s, sc: s['army_max'], None)]
     if tab == 'economy':
-        return [('Еда', 'food', lambda w, p, s, sc: int(p.gathered.get('food', 0)), None),
-                ('Дерево', 'wood', lambda w, p, s, sc: int(p.gathered.get('wood', 0)), None),
-                ('Золото', 'gold', lambda w, p, s, sc: int(p.gathered.get('gold', 0)), None),
-                ('Камень', 'stone', lambda w, p, s, sc: int(p.gathered.get('stone', 0)), None),
-                ('Дань отдано', 'bribes', lambda w, p, s, sc: int(s['trib_sent']), None),
-                ('Дань получено', 'bribes', lambda w, p, s, sc: int(s['trib_recv']), None),
-                ('Торговля', 'economics', lambda w, p, s, sc: int(s['trade']), None)]
+        return [(T('res.food'), 'food', lambda w, p, s, sc: int(p.gathered.get('food', 0)), None),
+                (T('res.wood'), 'wood', lambda w, p, s, sc: int(p.gathered.get('wood', 0)), None),
+                (T('res.gold'), 'gold', lambda w, p, s, sc: int(p.gathered.get('gold', 0)), None),
+                (T('res.stone'), 'stone', lambda w, p, s, sc: int(p.gathered.get('stone', 0)), None),
+                (T('stats.trib_sent'), 'bribes', lambda w, p, s, sc: int(s['trib_sent']), None),
+                (T('stats.trib_recv'), 'bribes', lambda w, p, s, sc: int(s['trib_recv']), None),
+                (T('stats.trade'), 'economics', lambda w, p, s, sc: int(s['trade']), None)]
     if tab == 'tech':
-        return [('Феодальная', None, lambda w, p, s, sc: s['age_t'][1], 'time'),
-                ('Замков', None, lambda w, p, s, sc: s['age_t'][2], 'time'),
-                ('Имперская', None, lambda w, p, s, sc: s['age_t'][3], 'time'),
-                ('Технологий', 'upgrade', lambda w, p, s, sc: s['techs'], None),
-                ('Разведано', 'portraits/technologies/cartography.png',
+        return [(T('age.short.1'), None, lambda w, p, s, sc: s['age_t'][1], 'time'),
+                (T('age.short.2'), None, lambda w, p, s, sc: s['age_t'][2], 'time'),
+                (T('age.short.3'), None, lambda w, p, s, sc: s['age_t'][3], 'time'),
+                (T('stats.techs'), 'upgrade', lambda w, p, s, sc: s['techs'], None),
+                (T('stats.explored'), 'portraits/technologies/cartography.png',
                  lambda w, p, s, sc: int(round(s['explored'] * 100)), '%')]
     if tab == 'society':
-        return [('Замков', 'production', lambda w, p, s, sc: s['castles'], None),
-                ('Макс. жителей', 'economics', lambda w, p, s, sc: s['vil_max'], None),
-                ('Макс. население', 'population', lambda w, p, s, sc: s['pop_max'], None),
-                ('Чудеса', 'victory', lambda w, p, s, sc: None, None),
-                ('Реликвии', 'heal', lambda w, p, s, sc: None, None)]
+        return [(T('stats.castles'), 'production', lambda w, p, s, sc: s['castles'], None),
+                (T('stats.vil_max'), 'economics', lambda w, p, s, sc: s['vil_max'], None),
+                (T('stats.pop_max'), 'population', lambda w, p, s, sc: s['pop_max'], None),
+                (T('stats.wonders'), 'victory', lambda w, p, s, sc: None, None),
+                (T('stats.relics'), 'heal', lambda w, p, s, sc: None, None)]
     return []
 
 
@@ -103,12 +91,12 @@ class ScreensUI(SettingsUI, SavesUI):
     last_start = None
 
     def apply_startup_settings(self):
-        self.settings = gsettings.data()        # живой словарь настроек (hud.py читает через hud_opt)
+        self.settings = gsettings.data()        # the live settings dict (hud.py reads it through hud_opt)
         cur = getattr(self, 'cursors', None)
         if cur is not None:
             cur.enabled = bool(gsettings.get('cursor', True))
             soft = gsettings.get('cursor_soft')
-            if soft is None:                    # авто: на Retina (масштаб окна > 1) — программный курсор
+            if soft is None:                    # auto: on Retina (window scale > 1) - the software cursor
                 soft = S.backing_scale() > 1.0
             cur.set_soft(bool(soft))
         if gsettings.get('fullscreen'):
@@ -117,7 +105,7 @@ class ScreensUI(SettingsUI, SavesUI):
             except Exception:
                 pass
 
-    # ============================================================ загрузка
+    # ============================================================ loading
     def begin_loading(self, args):
         self.load_args = dict(args)
         self.load_step = 0
@@ -129,9 +117,9 @@ class ScreensUI(SettingsUI, SavesUI):
         self.state = 'loading'
 
     def loading_frame(self, fast=False):
-        """Один шаг экрана загрузки: отрисовать, затем выполнить следующий шаг постройки партии."""
-        steps = ['Подготовка…', 'Карта и ресурсы…', 'Земля и вода…', 'Готово']
-        self.draw_loading(self.load_step / (len(steps) - 1), steps[min(self.load_step, len(steps) - 1)])
+        """One step of the loading screen: draw, then carry out the next step of building the match."""
+        steps = ['load.step1', 'load.step2', 'load.step3', 'load.done']
+        self.draw_loading(self.load_step / (len(steps) - 1), i18n.t(steps[min(self.load_step, len(steps) - 1)]))
         st = self.load_step
         if st == 1:
             self.last_start = dict(self.load_args)
@@ -148,7 +136,7 @@ class ScreensUI(SettingsUI, SavesUI):
         self.load_step += 1
 
     def finish_loading(self):
-        """Прогнать загрузку до конца сразу (инструменты, проверки)."""
+        """Run the loading to the end at once (tools, checks)."""
         for _ in range(10):
             if self.state != 'loading':
                 break
@@ -165,26 +153,27 @@ class ScreensUI(SettingsUI, SavesUI):
         W.plate(scr, (SCREEN_W // 2, 54), f'{naval.MAP_NAMES.get(mt, mt)} · {match.map_side(o, n, mt)}×'
                 f'{match.map_side(o, n, mt)}',
                 self.fonts['h'], 420)
-        # превью карты
+        # map preview
         pv = pygame.Rect(70, 110, 460, 310)
         W.box(scr, pv, 60)
         img = self.load_prev if self.load_prev is not None else self.map_preview(mt, (440, 290))
         scr.blit(img, (pv.x + 10, pv.y + 10))
-        # параметры
+        # parameters
+        T = i18n.t
         rows = [('match-settings', match.value_label('mode', o['mode'])),
-                ('economics', 'Ресурсы: ' + match.value_label('resources', o['resources'])),
-                ('population', f'Население: {o["pop"]}'),
-                ('upgrade', 'Эпоха: ' + match.value_label('start_age', o['start_age'])),
-                ('victory', 'Победа: ' + match.value_label('victory', o['victory'])),
-                ('time', 'Перемирие: ' + match.value_label('treaty', o['treaty']))]
+                ('economics', T('match.opt.resources') + ': ' + match.value_label('resources', o['resources'])),
+                ('population', T('match.opt.pop') + f': {o["pop"]}'),
+                ('upgrade', T('load.age') + ': ' + match.value_label('start_age', o['start_age'])),
+                ('victory', T('match.opt.victory') + ': ' + match.value_label('victory', o['victory'])),
+                ('time', T('match.opt.treaty') + ': ' + match.value_label('treaty', o['treaty']))]
         for i, (ic, txt) in enumerate(rows):
             x, y = 80 + (i % 2) * 230, pv.bottom + 26 + (i // 2) * 30
             S.blit_icon(scr, ic, (x + 10, y), 22)
-            S.text(scr, txt, (x + 28, y), self.fonts['b'], W.INK, anchor='midleft', shadow=None)
-        # игроки
+            S.text_fit(scr, txt, (x + 28, y), self.fonts['b'], W.INK, anchor='midleft', shadow=None, max_w=200)
+        # players
         pl = pygame.Rect(570, 110, 640, 420)
         W.box(scr, pl, 60)
-        S.text(scr, 'Игроки', (pl.centerx, pl.y + 22), self.fonts['l'], W.INK, anchor='center', shadow=None)
+        S.text(scr, T('lobby.players'), (pl.centerx, pl.y + 22), self.fonts['l'], W.INK, anchor='center', shadow=None)
         civs = list(a.get('civs') or [])
         cols = list(a.get('colors') or [])
         teams = list(a.get('teams') or [])
@@ -197,22 +186,22 @@ class ScreensUI(SettingsUI, SavesUI):
             if self.world is not None and i < len(self.world.players) and self.load_step >= 2:
                 civ = self.world.players[i].civ
             civ_ui.blit_emblem(self, civ, (pl.x + 60, y + 2, 30, 34))
-            who = gsettings.get('player_name', 'Игрок') if i == 0 else \
-                'ИИ · ' + match.AI_LEVELS[levels[i] if i < len(levels) and levels[i] is not None else 2]
-            S.text(scr, who, (pl.x + 100, y + 19), self.fonts['b'], W.INK, anchor='midleft', shadow=None)
-            S.text(scr, civ_ui.civ_name(civ), (pl.x + 360, y + 19), self.fonts['b'], (110, 40, 20),
-                   anchor='midleft', shadow=None)
+            who = i18n.player_name() if i == 0 else T('lobby.ai_slot', level=match.ai_level_name(
+                levels[i] if i < len(levels) and levels[i] is not None else 2))
+            S.text_fit(scr, who, (pl.x + 100, y + 19), self.fonts['b'], W.INK, anchor='midleft', shadow=None, max_w=250)
+            S.text_fit(scr, civ_ui.civ_name(civ), (pl.x + 360, y + 19), self.fonts['b'], (110, 40, 20),
+                       anchor='midleft', shadow=None, max_w=170)
             if i < len(teams):
-                S.text(scr, f'Команда {teams[i] + 1}', (pl.right - 20, y + 19), self.fonts['m'], W.INK,
+                S.text(scr, T('win.team_n', n=teams[i] + 1), (pl.right - 20, y + 19), self.fonts['m'], W.INK,
                        anchor='midright', shadow=None)
-        # совет
+        # tip
         tip = pygame.Rect(70, 560, SCREEN_W - 140, 80)
         W.box(scr, tip, 40)
         S.blit_icon(scr, 'encyclopaedia', (tip.x + 34, tip.centery), 40)
-        S.text(scr, 'Совет', (tip.x + 70, tip.y + 20), self.fonts['bs'], (140, 40, 20), anchor='midleft', shadow=None)
-        S.text(scr, getattr(self, 'load_tip', TIPS[0]), (tip.x + 70, tip.y + 48), self.fonts['m'], W.INK,
-               anchor='midleft', shadow=None)
-        # прогресс
+        S.text(scr, T('load.tip'), (tip.x + 70, tip.y + 20), self.fonts['bs'], (140, 40, 20), anchor='midleft', shadow=None)
+        S.text_fit(scr, T(getattr(self, 'load_tip', TIPS[0])), (tip.x + 70, tip.y + 48), self.fonts['m'], W.INK,
+                   anchor='midleft', shadow=None, max_w=tip.w - 90)
+        # progress
         bar = pygame.Rect(70, 680, SCREEN_W - 140, 26)
         pygame.draw.rect(scr, (60, 40, 20), bar)
         pygame.draw.rect(scr, (180, 40, 26), (bar.x + 2, bar.y + 2, int((bar.w - 4) * min(1.0, prog)), bar.h - 4))
@@ -220,7 +209,7 @@ class ScreensUI(SettingsUI, SavesUI):
         S.text(scr, f'{label}  {int(min(1.0, prog) * 100)}%', bar.center, self.fonts['b'], (255, 240, 210),
                anchor='center')
 
-    # ============================================================ автосохранение и «горячие» окна
+    # ============================================================ autosave and "hot" windows
     def after_update(self, dt):
         mins = gsettings.get('autosave', 0) or 0
         w = self.world
@@ -230,15 +219,15 @@ class ScreensUI(SettingsUI, SavesUI):
         if self.autosave_t >= mins * 60:
             self.autosave_t = 0.0
             try:
-                savegame.save_world(w, savegame.AUTOSAVE, 'Автосохранение',
+                savegame.save_world(w, savegame.AUTOSAVE, i18n.t('saves.autosave'),
                                     ui=self.ui_state(),
                                     thumb=self.screen.copy())
-                w.msg('Автосохранение', (170, 200, 230))
+                w.msg(i18n.t('saves.autosave'), (170, 200, 230))
             except Exception:
                 pass
 
     def overlay_event(self, e):
-        """События до обычного ввода игры: открытые окна F10, быстрые клавиши, закреплённая скорость."""
+        """Events before the game's regular input: the open F10 windows, quick keys, the locked speed."""
         h = self.help
         if h == 'settings':
             if self.settings_event(e):
@@ -255,7 +244,7 @@ class ScreensUI(SettingsUI, SavesUI):
             return True
         if e.type == pygame.KEYDOWN and not getattr(self, '_kbypass', False) and \
                 not (h in ('save', 'load', 'settings') or getattr(self, 'window', None) == 'chat'):
-            tr = keymap.translate(e.key)        # переназначенные клавиши (Настройки → Горячие клавиши)
+            tr = keymap.translate(e.key)        # remapped keys (Settings -> Hotkeys)
             if tr == 'swallow':
                 return True
             if tr is not None:
@@ -269,10 +258,10 @@ class ScreensUI(SettingsUI, SavesUI):
         if e.type == pygame.KEYDOWN and not h:
             byp = getattr(self, '_kbypass', False)
 
-            def act(name):              # после переназначения ввод приходит с клавишей по умолчанию
+            def act(name):              # after remapping the input arrives with the default key
                 return e.key == keymap.default_code(name) if byp else keymap.matches(name, e.key)
             if act('quick_save'):
-                self.do_save('quicksave', 'Быстрое сохранение')
+                self.do_save('quicksave', i18n.t('saves.quicksave'))
                 return True
             if act('quick_load'):
                 if any(s == 'quicksave' for s, _, _ in savegame.list_slots()):
@@ -281,11 +270,11 @@ class ScreensUI(SettingsUI, SavesUI):
             w = self.world
             if w is not None and w.settings.get('lock_speed') and \
                     (act('speed_up') or act('speed_down')):
-                w.msg('Скорость закреплена в параметрах партии', (230, 200, 150))
+                w.msg(i18n.t('msg.speed_locked'), (230, 200, 150))
                 return True
         return False
 
-    # ============================================================ меню F10
+    # ============================================================ F10 menu
     def game_menu_rects(self):
         bh, gap = 44, 6
         box = pygame.Rect(SCREEN_W // 2 - 200, 56, 400, 90 + len(GAME_MENU) * (bh + gap))
@@ -298,11 +287,11 @@ class ScreensUI(SettingsUI, SavesUI):
         box, items = self.game_menu_rects()
         S.panel(scr, box, 'parchment', frame=False)
         pygame.draw.rect(scr, (120, 84, 40), box, 2)
-        W.plate(scr, (box.centerx, box.y + 32), 'Меню', self.fonts['h'], 220)
+        W.plate(scr, (box.centerx, box.y + 32), i18n.t('hud.menu'), self.fonts['h'], 220)
         mp = pygame.mouse.get_pos()
         for r, act, lbl, ic in items:
             h = r.collidepoint(mp)
-            W.red_button(scr, r, lbl, self.fonts['b'], 'hover' if h else 'normal', icon=ic)
+            W.red_button(scr, r, i18n.t(lbl), self.fonts['b'], 'hover' if h else 'normal', icon=ic)
 
     def game_menu_action(self, act):
         w = self.world
@@ -313,7 +302,7 @@ class ScreensUI(SettingsUI, SavesUI):
         elif act == 'load':
             self.open_saves('load')
         elif act == 'objectives':
-            if hasattr(self, 'toggle_window'):          # hud.py: окно «Цели» (hud_windows.draw_objectives)
+            if hasattr(self, 'toggle_window'):          # hud.py: the "Objectives" window (hud_windows.draw_objectives)
                 self.help = False
                 self.window = 'objectives'
             else:
@@ -350,7 +339,7 @@ class ScreensUI(SettingsUI, SavesUI):
                      (pygame.Rect(box.right - 220, box.bottom - 64, 180, 42), 'no')]
 
     def overlay_click(self, pos):
-        """ЛКМ при открытом окне (меню F10, подтверждение, задачи; остальное — как в hud.py)."""
+        """Left click while a window is open (the F10 menu, a confirmation, objectives; the rest - as in hud.py)."""
         h = self.help
         if h == 'menu':
             box, items = self.game_menu_rects()
@@ -402,50 +391,52 @@ class ScreensUI(SettingsUI, SavesUI):
         box, items = self.confirm_rects()
         S.panel(scr, box, 'parchment', frame=False)
         pygame.draw.rect(scr, (120, 84, 40), box, 2)
-        S.text(scr, CONFIRM.get(self.confirm, '?'), (box.centerx, box.y + 52), self.fonts['l'], W.INK,
-               anchor='center', shadow=None)
+        S.text_fit(scr, i18n.t(CONFIRM.get(self.confirm, '?')), (box.centerx, box.y + 52), self.fonts['l'], W.INK,
+                   anchor='center', shadow=None, max_w=box.w - 30)
         mp = pygame.mouse.get_pos()
         for r, act in items:
-            W.red_button(scr, r, 'Да' if act == 'yes' else 'Нет', self.fonts['b'],
+            W.red_button(scr, r, i18n.t('common.yes') if act == 'yes' else i18n.t('common.no'), self.fonts['b'],
                          'hover' if r.collidepoint(mp) else 'normal')
 
     def draw_objectives(self):
-        """Запасное окно «Задачи» (если в hud нет своего): цель и параметры партии."""
+        """The fallback "Objectives" window (if hud has none of its own): the goal and match parameters."""
         scr = self.screen
         w = self.world
         self.dim(150)
         box = pygame.Rect(SCREEN_W // 2 - 300, 150, 600, 420)
         S.panel(scr, box, 'parchment', frame=False)
         pygame.draw.rect(scr, (120, 84, 40), box, 2)
-        W.plate(scr, (box.centerx, box.y + 32), 'Задачи', self.fonts['h'], 260)
+        T = i18n.t
+        W.plate(scr, (box.centerx, box.y + 32), T('gm.objectives'), self.fonts['h'], 260)
         o = w.settings
         v = o.get('victory', 'standard')
-        goal = {'time': f'Лучший счёт к {o.get("victory_time")}-й минуте (или завоевание)',
-                'score': f'Первым набрать {o.get("victory_score")} очков (или завоевание)'}.get(
-            v, 'Уничтожить городские центры и жителей всех врагов')
+        goal = {'time': T('obj.goal_time', n=o.get('victory_time')),
+                'score': T('obj.goal_score', n=o.get('victory_score'))}.get(v, T('obj.goal_conquest'))
         rows = [('victory', goal),
                 ('portraits/technologies/cartography.png', f'{naval.MAP_NAMES.get(w.map_type, "")} · {w.W}²'),
                 ('match-settings', match.value_label('mode', o.get('mode'))),
-                ('time', 'Перемирие: ' + (_clock(match.treaty_left(w)) if match.treaty_active(w) else 'нет')),
-                ('population', f'Население: {w.pop_limit}'),
-                ('upgrade', 'Конечная эпоха: ' + AGE_NAMES[w.max_age])]
+                ('time', T('match.opt.treaty') + ': ' + (_clock(match.treaty_left(w)) if match.treaty_active(w)
+                                                        else T('common.none'))),
+                ('population', T('match.opt.pop') + f': {w.pop_limit}'),
+                ('upgrade', T('match.opt.end_age') + ': ' + AGE_NAMES[w.max_age])]
         for i, (ic, txt) in enumerate(rows):
             y = box.y + 90 + i * 48
             S.blit_icon(scr, ic, (box.x + 44, y), 30)
-            S.text(scr, txt, (box.x + 74, y), self.fonts['b'], W.INK, anchor='midleft', shadow=None)
+            S.text_fit(scr, txt, (box.x + 74, y), self.fonts['b'], W.INK, anchor='midleft', shadow=None,
+                       max_w=box.right - box.x - 90)
 
-    # ============================================================ конец партии
+    # ============================================================ end of the match
     def gameover_rects(self):
         box = pygame.Rect(SCREEN_W // 2 - 280, 170, 560, 360)
         return box, [(pygame.Rect(box.centerx - 150, box.y + 196 + i * 50, 300, 42), act, lbl)
-                     for i, (act, lbl) in enumerate((('stats', 'Достижения'), ('stay', 'Остаться на карте'),
-                                                     ('menu', 'Главное меню')))]
+                     for i, (act, lbl) in enumerate((('stats', 'end.stats'), ('stay', 'end.stay'),
+                                                     ('menu', 'menu.main')))]
 
     def draw_gameover(self):
         w = self.world
-        if self.gameover_seen:           # «Остаться на карте» — только плашка сверху
+        if self.gameover_seen:           # "Stay on the map" - only the plate at the top
             win = w.human_won()
-            self.text('ПОБЕДА' if win else 'ПОРАЖЕНИЕ', (SCREEN_W // 2, 60), 'h',
+            self.text(i18n.t('end.victory').upper() if win else i18n.t('end.defeat').upper(), (SCREEN_W // 2, 60), 'h',
                       (255, 230, 150) if win else (255, 160, 130), anchor='center')
             return
         scr = self.screen
@@ -455,12 +446,12 @@ class ScreensUI(SettingsUI, SavesUI):
         S.panel(scr, box, 'parchment', frame=False)
         pygame.draw.rect(scr, (120, 84, 40), box, 2)
         S.blit_icon(scr, 'victory' if win else 'defeat', (box.centerx, box.y + 60), 90)
-        img = S.gold_text('ПОБЕДА!' if win else 'ПОРАЖЕНИЕ', self.fonts['xl'],
+        img = S.gold_text(i18n.t('end.victory_bang').upper() if win else i18n.t('end.defeat').upper(), self.fonts['xl'],
                           *(((255, 240, 170), (210, 150, 50)) if win else ((255, 170, 140), (160, 40, 30))))
         scr.blit(img, img.get_rect(center=(box.centerx, box.y + 140)))
         mp = pygame.mouse.get_pos()
         for r, act, lbl in items:
-            W.red_button(scr, r, lbl, self.fonts['b'], 'hover' if r.collidepoint(mp) else 'normal')
+            W.red_button(scr, r, i18n.t(lbl), self.fonts['b'], 'hover' if r.collidepoint(mp) else 'normal')
 
     def gameover_event(self, e):
         if e.type == pygame.KEYDOWN and e.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_KP_ENTER):
@@ -480,7 +471,7 @@ class ScreensUI(SettingsUI, SavesUI):
                         self.state = 'menu'
                         self.menu_screen = 'main'
 
-    # ============================================================ достижения
+    # ============================================================ achievements
     def open_stats(self):
         self.help = False
         self.stats_tab = 'score'
@@ -524,12 +515,12 @@ class ScreensUI(SettingsUI, SavesUI):
         scr.fill((18, 12, 6))
         sheet = pygame.Rect(24, 12, SCREEN_W - 48, SCREEN_H - 24)
         S.panel(scr, sheet, 'parchment', frame=False)
-        title = next(lbl for t, lbl, _ in STAT_TABS if t == self.stats_tab)
-        W.plate(scr, (SCREEN_W // 2, 50), 'Достижения · ' + title, self.fonts['h'], 460)
+        title = i18n.t(next(lbl for t, lbl, _ in STAT_TABS if t == self.stats_tab))
+        W.plate(scr, (SCREEN_W // 2, 50), i18n.t('end.stats') + ' · ' + title, self.fonts['h'], 460)
         S.text(scr, _clock(w.time), (SCREEN_W - 60, 50), self.fonts['l'], W.INK, anchor='midright', shadow=None)
         win = w.winner
         if win is not None:
-            S.text(scr, 'Победа!' if w.human_won() else 'Поражение', (70, 50), self.fonts['l'],
+            S.text(scr, i18n.t('end.victory_bang') if w.human_won() else i18n.t('end.defeat'), (70, 50), self.fonts['l'],
                    (40, 120, 40) if w.human_won() else (160, 30, 20), anchor='midleft', shadow=None)
         mp = pygame.mouse.get_pos()
         area = pygame.Rect(50, 90, SCREEN_W - 100, SCREEN_H - 230)
@@ -541,15 +532,15 @@ class ScreensUI(SettingsUI, SavesUI):
             h = r.collidepoint(mp)
             if act == 'tab':
                 tid, lbl, ic = next(t for t in STAT_TABS if t[0] == val)
-                W.tab(scr, r, lbl, self.fonts['b'], self.stats_tab == val, h, ic)
+                W.tab(scr, r, i18n.t(lbl), self.fonts['b'], self.stats_tab == val, h, ic)
             elif act == 'again':
-                W.red_button(scr, r, 'Сыграть снова', self.fonts['b'],
+                W.red_button(scr, r, i18n.t('end.play_again'), self.fonts['b'],
                              'disabled' if not self.last_start else 'hover' if h else 'normal')
             else:
-                W.red_button(scr, r, 'Главное меню', self.fonts['b'], 'hover' if h else 'normal')
+                W.red_button(scr, r, i18n.t('menu.main'), self.fonts['b'], 'hover' if h else 'normal')
 
     def banner(self, r, p):
-        """Лента игрока слева (цвет, имя, цивилизация) — как флажки на листе достижений."""
+        """The player ribbon on the left (color, name, civilization) - like flags on the achievements sheet."""
         scr = self.screen
         col = p.color
         pts = [(r.x, r.y), (r.right - 18, r.y), (r.right, r.centery), (r.right - 18, r.bottom), (r.x, r.bottom)]
@@ -557,9 +548,9 @@ class ScreensUI(SettingsUI, SavesUI):
         pygame.draw.polygon(scr, col, pts)
         pygame.draw.polygon(scr, (240, 220, 180), pts, 1)
         civ_ui.blit_emblem(self, p.civ, (r.x + 6, r.y + 4, 26, r.h - 8))
-        name = gsettings.get('player_name', 'Игрок') if p.id == self.world.human else p.name
-        S.text(scr, name, (r.x + 40, r.y + 14), self.fonts['b'], (255, 255, 255), anchor='midleft',
-               shadow=(0, 0, 0))
+        name = i18n.player_name() if p.id == self.world.human else p.name
+        S.text_fit(scr, name, (r.x + 40, r.y + 14), self.fonts['b'], (255, 255, 255), anchor='midleft',
+                   shadow=(0, 0, 0), max_w=r.w - 60)
         S.text(scr, civ_ui.civ_name(p.civ), (r.x + 40, r.y + 32), self.fonts['s'], (250, 240, 220),
                anchor='midleft', shadow=(0, 0, 0))
 
@@ -581,7 +572,7 @@ class ScreensUI(SettingsUI, SavesUI):
                 a = S.portrait('age', j + 1, None, 26)
                 if a is not None:
                     scr.blit(a, a.get_rect(center=(cx, area.y + 14)))
-            S.text(scr, lbl, (cx, area.y + 38), self.fonts['bs'], W.INK, anchor='center', shadow=None)
+            S.text_fit(scr, lbl, (cx, area.y + 38), self.fonts['bs'], W.INK, anchor='center', shadow=None, max_w=cw - 6)
             col_vals = [v[j] for v in vals if v[j] is not None]
             best = (min(col_vals) if fmt == 'time' else max(col_vals)) if col_vals else None
             bar_max = max(col_vals) if col_vals and fmt != 'time' else 0
@@ -605,15 +596,17 @@ class ScreensUI(SettingsUI, SavesUI):
             y = area.y + 56 + i * rh
             self.banner(pygame.Rect(area.x, y + 4, 236, min(48, rh - 8)), p)
             tx = area.right - 50
-            S.text(scr, f'К{p.team + 1}', (tx, y + rh // 2 - 4), self.fonts['b'], W.INK, anchor='center', shadow=None)
+            S.text(scr, i18n.t('stats.team_short', n=p.team + 1), (tx, y + rh // 2 - 4), self.fonts['b'], W.INK,
+                   anchor='center', shadow=None)
             if w.winner is not None and p.team == w.winner:
                 S.blit_icon(scr, 'victory', (tx + 28, y + rh // 2 - 4), 22)
             elif not p.alive:
                 S.blit_icon(scr, 'defeat', (tx + 28, y + rh // 2 - 4), 20)
-        S.text(scr, 'Команда', (area.right - 50, area.y + 38), self.fonts['bs'], W.INK, anchor='center', shadow=None)
+        S.text_fit(scr, i18n.t('lobby.team'), (area.right - 50, area.y + 38), self.fonts['bs'], W.INK, anchor='center',
+                   shadow=None, max_w=96)
 
     def draw_timeline(self, area):
-        """График населения всех игроков по отсчётам раз в 30 с + отметки эпох (II, III, IV) и поражений."""
+        """A population graph of all players by samples every 30 s + marks of ages (II, III, IV) and defeats."""
         scr = self.screen
         w = self.world
         W.box(scr, area, 30)
@@ -624,7 +617,7 @@ class ScreensUI(SettingsUI, SavesUI):
             for smp in s['samples']:
                 pmax = max(pmax, smp[1])
         pmax = int((pmax + 9) // 10 * 10)
-        # сетка
+        # grid
         for k in range(5):
             y = g.bottom - g.h * k / 4
             pygame.draw.line(scr, (190, 160, 110), (g.x, y), (g.right, y), 1)
@@ -634,17 +627,18 @@ class ScreensUI(SettingsUI, SavesUI):
         while t <= tmax:
             x = g.x + g.w * t / tmax
             pygame.draw.line(scr, (200, 176, 130), (x, g.y), (x, g.bottom), 1)
-            S.text(scr, f'{int(t // 60)}м', (x, g.bottom + 12), self.fonts['s'], W.INK, anchor='center', shadow=None)
+            S.text(scr, i18n.t('stats.min_short', n=int(t // 60)), (x, g.bottom + 12), self.fonts['s'], W.INK,
+                   anchor='center', shadow=None)
             t += step
         pygame.draw.rect(scr, (120, 84, 40), g, 2)
-        S.text(scr, 'Население', (g.x, g.y - 16), self.fonts['bs'], W.INK, anchor='midleft', shadow=None)
+        S.text(scr, i18n.t('match.opt.pop'), (g.x, g.y - 16), self.fonts['bs'], W.INK, anchor='midleft', shadow=None)
         for p in w.players:
             s = w.stats[p.id]
             pts = [(g.x + g.w * smp[0] / tmax, g.bottom - g.h * smp[1] / pmax) for smp in s['samples']]
             if len(pts) >= 2:
                 pygame.draw.lines(scr, (30, 20, 10), False, [(x + 1, y + 1) for x, y in pts], 3)
                 pygame.draw.lines(scr, p.color, False, pts, 3)
-            # эпохи — ромбы с номером
+            # ages - diamonds with a number
             for a, ta in enumerate(s['age_t'][1:], start=1):
                 if ta is None or ta <= 0:
                     continue
@@ -660,14 +654,14 @@ class ScreensUI(SettingsUI, SavesUI):
                 y = g.bottom - g.h * self._pop_at(s, s['defeat_t']) / pmax
                 pygame.draw.line(scr, (160, 20, 10), (x - 6, y - 6), (x + 6, y + 6), 3)
                 pygame.draw.line(scr, (160, 20, 10), (x - 6, y + 6), (x + 6, y - 6), 3)
-        # легенда — строкой над графиком
+        # the legend - a line above the graph
         for i, p in enumerate(w.players):
             lx = g.x + 150 + (i % 4) * 230
             ly = area.y + 10 + (i // 4) * 16
             pygame.draw.rect(scr, p.color, (lx, ly - 4, 22, 8))
-            name = gsettings.get('player_name', 'Игрок') if p.id == w.human else p.name
-            S.text(scr, f'{name} · {civ_ui.civ_name(p.civ)}', (lx + 28, ly), self.fonts['s'], W.INK,
-                   anchor='midleft', shadow=None)
+            name = i18n.player_name() if p.id == w.human else p.name
+            S.text_fit(scr, f'{name} · {civ_ui.civ_name(p.civ)}', (lx + 28, ly), self.fonts['s'], W.INK,
+                       anchor='midleft', shadow=None, max_w=196)
 
     @staticmethod
     def _pop_at(s, t):

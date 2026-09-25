@@ -1,6 +1,6 @@
-"""Процедурная графика в изометрии: здания, деревья, ресурсы, юниты.
+"""Procedural isometric graphics: buildings, trees, resources, units.
 
-Все изображения рисуются кодом — никаких чужих картинок.
+All images are drawn by code - no third-party pictures.
 """
 import math
 import random
@@ -22,10 +22,10 @@ def shadow(surf, x, y, w, h, a=70):
     surf.blit(s, (int(x), int(y)))
 
 
-# ============================================================ юниты
+# ============================================================ units
 def draw_unit(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None,
               moving=False):
-    """face — направление в экранных координатах."""
+    """face - direction in screen coordinates."""
     fx, fy = face
     hx = 1 if fx >= 0 else -1
     dark = shade(color, -80)
@@ -88,14 +88,14 @@ def draw_unit(surf, kind, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1
     draw_foot(surf, color, x, y, face, anim, swing, k, carry_res, moving, **spec)
 
 
-_SPEC = {}      # (вид, id(art)) → собранный вид пешего юнита (FOOT_ART + UNITS[kind]['art'])
+_SPEC = {}      # (kind, id(art)) -> the assembled look of a foot unit (FOOT_ART + UNITS[kind]['art'])
 
 
-# дополнительные «позы» без собственной записи в UNITS (например, разложенный требушет — Unit.look()):
-# вид → функция отрисовки с той же сигнатурой, что UNITS[kind]['art']; заполняет контент
+# extra "poses" without their own entry in UNITS (for example, the unpacked trebuchet - Unit.look()):
+# kind -> a drawing function with the same signature as UNITS[kind]['art']; filled in by content
 ART = {}
 
-# внешний вид пеших юнитов: шлем и оружие (контент задаёт то же через UNITS[kind]['art'])
+# appearance of foot units: helmet and weapon (content sets the same through UNITS[kind]['art'])
 FOOT_ART = {
     'villager': {'helmet': 'hat', 'weapon': 'tool'},
     'militia': {'helmet': 'iron', 'weapon': 'sword'},
@@ -107,8 +107,8 @@ FOOT_ART = {
 
 def draw_foot(surf, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, carry_res=None, moving=False,
               helmet='hood', weapon=None, shield=False):
-    """Пеший человечек. helmet: 'hat' | 'iron' | 'crest' | 'hood'; weapon: 'tool' | 'sword' | 'longsword' |
-    'spear' | 'bow' | 'javelin' | None; shield — круглый щит в цвет игрока."""
+    """A little foot figure. helmet: 'hat' | 'iron' | 'crest' | 'hood'; weapon: 'tool' | 'sword' | 'longsword' |
+    'spear' | 'bow' | 'javelin' | None; shield - a round shield in player color."""
     fx, fy = face
     hx = 1 if fx >= 0 else -1
     dark = shade(color, -80)
@@ -134,7 +134,7 @@ def draw_foot(surf, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, ca
     elif helmet == 'iron':
         pygame.draw.ellipse(surf, (160, 160, 172), (*P(-3.8, -19.5), int(7.6 * k), int(5.5 * k)))
     elif helmet == 'crest':
-        # глухой шлем с наносником и гребнем в цвет игрока
+        # closed helmet with a nasal guard and a crest in player color
         pygame.draw.ellipse(surf, (130, 132, 145), (*P(-4.2, -20), int(8.4 * k), int(6.5 * k)))
         pygame.draw.line(surf, (95, 96, 108), P(1.5 * hx, -17), P(1.5 * hx, -13.5), max(1, int(1.3 * k)))
         pygame.draw.line(surf, shade(color, 30), P(-3 * hx, -21), P(2 * hx, -21.5), max(1, int(2 * k)))
@@ -174,8 +174,8 @@ def draw_foot(surf, color, x, y, face=(1.0, 0.0), anim=0.0, swing=0.0, k=1.0, ca
         pygame.draw.polygon(surf, (100, 150, 180), [P(3 * hx, -8), P(-3 * hx, -5), P(-2 * hx, 0), P(4 * hx, -2)])
 
 
-# ============================================================ природа
-TREE_ANCHOR = (30, 78)     # точка «корня» дерева в спрайте
+# ============================================================ nature
+TREE_ANCHOR = (30, 78)     # the tree's "root" point in the sprite
 
 
 def make_tree(seed):
@@ -184,7 +184,7 @@ def make_tree(seed):
     ax, ay = TREE_ANCHOR
     pygame.draw.ellipse(s, (0, 0, 0, 70), (ax - 20, ay - 8, 44, 14))
     pygame.draw.rect(s, (92, 62, 36), (ax - 3, ay - 26, 6, 26))
-    if seed % 3 == 2:   # ель
+    if seed % 3 == 2:   # fir
         base = (36 + rnd.randint(-6, 6), 88 + rnd.randint(-10, 10), 48)
         for i, (w, y) in enumerate(((42, ay - 14), (34, ay - 30), (26, ay - 44), (16, ay - 56))):
             c = shade(base, i * 8)
@@ -238,9 +238,9 @@ def make_bush(seed):
     return s
 
 
-# ============================================================ здания
+# ============================================================ buildings
 class IsoPainter:
-    """Рисует объёмные коробки/крыши в изометрии; координаты — клетки и пиксели высоты."""
+    """Draws volumetric boxes/roofs in isometry; coordinates are tiles and height in pixels."""
 
     def __init__(self, surf, ox, oy):
         self.s = surf
@@ -261,9 +261,9 @@ class IsoPainter:
     def box(self, x0, y0, x1, y1, h, color, z0=0.0, top=True, tex=None):
         lc = color
         rc = shade(color, -38)
-        # левая (юго-западная) грань: y = y1
+        # left (south-west) face: y = y1
         self.poly([(x0, y1, z0), (x1, y1, z0), (x1, y1, z0 + h), (x0, y1, z0 + h)], lc)
-        # правая (юго-восточная) грань: x = x1
+        # right (south-east) face: x = x1
         self.poly([(x1, y1, z0), (x1, y0, z0), (x1, y0, z0 + h), (x1, y1, z0 + h)], rc)
         if tex == 'stone':
             for z in range(int(z0) + 6, int(z0 + h) - 1, 6):
@@ -412,7 +412,7 @@ ROOF_SLATE = (86, 90, 104)
 
 
 def make_building_sprite(kind, color):
-    """Возвращает (surface, ox, oy): (ox, oy) — где в спрайте верхний угол ромба основания."""
+    """Returns (surface, ox, oy): (ox, oy) is where the top corner of the base diamond is in the sprite."""
     d = BUILDINGS[kind]
     s = d['size']
     extra = d.get('art_h') or {'tower': 120, 'castle': 130, 'town_center': 110}.get(kind, 80)
@@ -421,7 +421,7 @@ def make_building_sprite(kind, color):
     surf = pygame.Surface((W + 8, Hh + extra + 4), pygame.SRCALPHA)
     ox, oy = W // 2 + 4, extra
     p = IsoPainter(surf, ox, oy)
-    # тень (сдвиг на восток)
+    # shadow (shifted east)
     sh = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     ps = IsoPainter(sh, ox + 10, oy + 2)
     pygame.draw.polygon(sh, (0, 0, 0, 55), [ps.P(0.1, 0.1), ps.P(s - 0.1, 0.1), ps.P(s - 0.1, s - 0.1),
@@ -430,7 +430,7 @@ def make_building_sprite(kind, color):
 
     art = d.get('art')
     if callable(art):
-        # здание из контента рисует себя само: art(painter, surf, color, size)
+        # a content building draws itself: art(painter, surf, color, size)
         art(p, surf, color, s)
     elif kind == 'house':
         p.poly([(0.1, 0.1), (1.9, 0.1), (1.9, 1.9), (0.1, 1.9)], (150, 130, 95), outline=False)
@@ -529,7 +529,7 @@ def make_building_sprite(kind, color):
         p.gable(0.3, 0.3, 2.7, 1.6, 24, 22, (150, 108, 62), (176, 134, 88), axis='x')
         for i in range(3):
             p.door(0.8 + i * 0.7, 1.6, 0.35, 14, (70, 48, 30))
-        # загон
+        # pen
         for t in (0.3, 1.0, 1.7, 2.4, 2.7):
             p.box(t - 0.03, 2.62, t + 0.03, 2.68, 10, (130, 95, 60), top=False)
         p.line((0.3, 2.65, 8), (2.7, 2.65, 8), (140, 100, 62), 2)
@@ -578,7 +578,7 @@ def make_building_sprite(kind, color):
         p.crenels(tx_, ty_, tx_ + T, ty_ + T, 58, STONE, step=0.3)
         p.banner_l(tx_ + T / 2, ty_ + T, 52, color)
     else:
-        # типовое здание — для нового контента без собственной графики
+        # a generic building - for new content without its own graphics
         m = 0.3 if s > 1 else 0.15
         p.box(m, m, s - m, s - m, 12 + 8 * s, STONE, top=False, tex='stone')
         p.door(s / 2, s - m, 0.3 * s / 2, 12)
@@ -588,7 +588,7 @@ def make_building_sprite(kind, color):
 
 
 def draw_farm(surf, ox, oy, size, prog, fill):
-    """Ферма — ромб земли с бороздами; (ox, oy) — верхний угол основания."""
+    """A farm - a diamond of soil with furrows; (ox, oy) is the top corner of the base."""
     p = IsoPainter(surf, ox, oy)
     soil = (122, 90, 56) if prog >= 1 else (150, 122, 86)
     p.poly([(0.05, 0.05), (size - 0.05, 0.05), (size - 0.05, size - 0.05), (0.05, size - 0.05)], soil, outline=False)
@@ -669,10 +669,10 @@ def draw_animal(surf, kind, x, y, face=(1.0, 0.0), anim=0.0, moving=False, dead=
             pygame.draw.line(surf, shade(c, -45), P(lx, -7), P(lx + o, 0), lw)
         pygame.draw.ellipse(surf, c, (*P(-9, -13), int(18 * k), int(7 * k)))
         pygame.draw.ellipse(surf, shade(c, 40), (*P(-6, -10), int(10 * k), int(3 * k)))
-        pygame.draw.line(surf, shade(c, -20), P(-9 * hx, -11), P(-14 * hx, -7), max(2, int(2 * k)))     # хвост
-        pygame.draw.polygon(surf, c, [P(7 * hx, -14), P(14 * hx, -12), P(8 * hx, -9)])                     # морда
-        pygame.draw.polygon(surf, shade(c, -30), [P(7 * hx, -14), P(8 * hx, -18), P(10 * hx, -14)])       # ухо
-    else:  # кабан
+        pygame.draw.line(surf, shade(c, -20), P(-9 * hx, -11), P(-14 * hx, -7), max(2, int(2 * k)))     # tail
+        pygame.draw.polygon(surf, c, [P(7 * hx, -14), P(14 * hx, -12), P(8 * hx, -9)])                     # muzzle
+        pygame.draw.polygon(surf, shade(c, -30), [P(7 * hx, -14), P(8 * hx, -18), P(10 * hx, -14)])       # ear
+    else:  # boar
         c = (84, 64, 48)
         shadow(surf, x - 12 * k, y - 3 * k, 24 * k, 7 * k)
         for i, lx in enumerate((-6, -3, 4, 7)):

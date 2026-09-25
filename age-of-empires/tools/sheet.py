@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Лист спрайтов: все юниты (обе стороны, в покое и в замахе) и выбранные здания — для проверки графики.
+"""A sprite sheet: all units (both sides, at rest and in a swing) and selected buildings - for checking the graphics.
 
   .venv/bin/python tools/sheet.py --out shots/units.png
   .venv/bin/python tools/sheet.py --out shots/blds.png --buildings university monastery castle
@@ -21,9 +21,9 @@ from game import gfx  # noqa: E402
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--out', default='shots/units.png')
-    ap.add_argument('--k', type=float, default=2.2, help='масштаб фигурок')
+    ap.add_argument('--k', type=float, default=2.2, help='figure scale')
     ap.add_argument('--cols', type=int, default=8)
-    ap.add_argument('--buildings', nargs='*', help='вместо юнитов — эти здания')
+    ap.add_argument('--buildings', nargs='*', help='instead of units - these buildings')
     a = ap.parse_args()
     pygame.init()
     pygame.display.set_mode((1, 1))
@@ -41,7 +41,7 @@ def main():
             sheet.blit(font.render(k, True, (255, 255, 255)), (x, H - 30))
             x += s.get_width() + 20
         pygame.image.save(sheet, a.out)
-        print('сохранено', a.out)
+        print('saved', a.out)
         return
     kinds = [k for k in UNITS] + list(gfx.ART)
     cw, ch = int(34 * a.k) * 2 + 20, int(40 * a.k) + 30
@@ -56,7 +56,7 @@ def main():
         gfx.draw_unit(sheet, k, col, cx + cw * 0.73, cy + ch - 26, face=(-1, 0), swing=0.2, k=a.k)
         sheet.blit(font.render(k, True, (255, 255, 255)), (cx + 5, cy + ch - 20))
     pygame.image.save(sheet, a.out)
-    print('сохранено', a.out)
+    print('saved', a.out)
 
 
 if __name__ == '__main__':

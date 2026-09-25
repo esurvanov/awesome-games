@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Постановочный бой для снимка: две армии из новых юнитов сходятся в центре карты.
+"""A staged battle for a screenshot: two armies of new units meet at the center of the map.
 
   .venv/bin/python tools/battle_shot.py --out shots/battle_staged.png --seconds 6
 """
@@ -69,7 +69,7 @@ def main():
     g.selected = [u for u in w.units if u.owner == 0 and u.kind == 'monk'][:1]
     g.draw()
     pygame.image.save(g.screen, a.out)
-    print('сохранено', a.out)
+    print('saved', a.out)
 
 
 if __name__ == '__main__':

@@ -1,12 +1,12 @@
-"""Обвязка интерфейса в духе классических RTS: каменные/деревянные панели, золотые рамки, кнопки,
-пергаментные подсказки, значки ресурсов, портреты юнитов/зданий/технологий, курсоры.
+"""The interface frame in the spirit of classic RTS: stone/wooden panels, golden frames, buttons,
+parchment tooltips, resource icons, portraits of units/buildings/techs, cursors.
 
-Графика — из 0 A.D. (© Wildfire Games, CC BY-SA 3.0), собрана в assets/ui/ скриптом
-tools/build_ui_assets.py. Если папки нет — всё рисуется процедурно (плоские цвета), игра работает.
-Шрифты (assets/fonts/): PT Serif — имена, числа, подсказки (жирная антиква, как в DE); Cormorant SC —
-заголовки меню (капитель); Linux Biolinum и GNU FreeSans — прочий текст.
-Рамки панелей — по группе культуры цивилизации игрока (CULTURES: 5 наборов, tools/ui_icon_art.py).
-Состояния кнопок как в DE (icon_frame): нет ресурсов — значок залит красным, недоступна — серая.
+The graphics are from 0 A.D. (c Wildfire Games, CC BY-SA 3.0), built into assets/ui/ by the script
+tools/build_ui_assets.py. If the folder is missing - everything is drawn procedurally (flat colors), the game works.
+Fonts (assets/fonts/): PT Serif - names, numbers, tooltips (a bold old-style serif, as in DE); Cormorant SC -
+menu headings (small caps); Linux Biolinum and GNU FreeSans - other text.
+Panel frames - by the culture group of the player's civilization (CULTURES: 5 sets, tools/ui_icon_art.py).
+Button states as in DE (icon_frame): no resources - the icon is filled red, unavailable - grey.
 """
 import json
 import os
@@ -20,11 +20,11 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 UI_DIR = os.path.join(ROOT, 'assets', 'ui')
 FONT_DIR = os.path.join(ROOT, 'assets', 'fonts')
 
-# палитра
+# palette
 GOLD = (236, 200, 120)
 GOLD_HI = (255, 228, 160)
 GOLD_DK = (150, 112, 52)
-INK = (58, 36, 18)            # текст на пергаменте
+INK = (58, 36, 18)            # text on parchment
 INK_DIM = (96, 66, 34)
 TEXT = (240, 232, 214)
 TEXT_DIM = (190, 178, 152)
@@ -42,7 +42,7 @@ def _key_limit():
 
 
 def image(rel):
-    """Картинка из assets/ui (с альфой) или None."""
+    """A picture from assets/ui (with alpha) or None."""
     if rel in _img:
         return _img[rel]
     path = os.path.join(UI_DIR, rel)
@@ -62,14 +62,14 @@ def available():
     return image('skin/btn_base.png') is not None
 
 
-# ============================================================ шрифты
+# ============================================================ fonts
 _fonts = {}
 
 
 FONT_FILES = {
-    # (вид, жирный) → файл; вид: 'serif' — Linux Biolinum (прежние заголовки), 'sans' — FreeSans (мелкий текст),
-    # 'antiqua' — PT Serif (DE: жирная антиква имён, чисел, подсказок), 'italic' — PT Serif Italic,
-    # 'title' — Cormorant SC (капитель «под Trajan» — заголовки меню)
+    # (kind, bold) -> file; kind: 'serif' - Linux Biolinum (the former headings), 'sans' - FreeSans (small text),
+    # 'antiqua' - PT Serif (DE: a bold old-style serif of names, numbers, tooltips), 'italic' - PT Serif Italic,
+    # 'title' - Cormorant SC (small caps "in the Trajan style" - menu headings)
     ('serif', False): 'LinBiolinum_Rah.ttf', ('serif', True): 'LinBiolinum_RBah.ttf',
     ('sans', False): 'FreeSans.ttf', ('sans', True): 'FreeSansBold.ttf',
     ('antiqua', False): 'PTSerif-Regular.ttf', ('antiqua', True): 'PTSerif-Bold.ttf',
@@ -78,13 +78,39 @@ FONT_FILES = {
 }
 FONT_FALLBACK = {'antiqua': ('serif', 'georgia'), 'italic': ('serif', 'georgia'), 'title': ('serif', 'georgia'),
                  'serif': (None, 'georgia'), 'sans': (None, 'arial')}
+# Chinese and Japanese: our fonts have no ideographs - one Noto Sans (OFL, a subset of GB 2312 / JIS X 0208,
+# tools/build_cjk_fonts.py) for all kinds; the bold is synthetic. Heading sizes are slightly smaller (ideographs are wider).
+CJK_FONT = {'zh-CN': 'NotoSansSC-Subset.otf', 'ja': 'NotoSansJP-Subset.otf'}
+CJK_SCALE = {'title': 0.8, 'xl': 0.9}
+_font_info = {}             # id(Font) -> (kind, size, bold) - for choosing a smaller size (fit_text)
+OVERFLOW = []               # (text, the needed width, the available one) - captions that had to be cut (checks)
+
+
+def _lang():
+    from . import i18n
+    return i18n.current()
+
+
+def cjk_file():
+    """The font file with ideographs for the current language or None."""
+    fn = CJK_FONT.get(_lang())
+    if fn and os.path.exists(os.path.join(FONT_DIR, fn)):
+        return fn
+    return None
 
 
 def font(kind, size, bold=False):
-    """kind: 'serif' | 'sans' | 'antiqua' | 'italic' | 'title' (см. FONT_FILES)."""
+    """kind: 'serif' | 'sans' | 'antiqua' | 'italic' | 'title' (see FONT_FILES)."""
     key = (kind, size, bold)
     f = _fonts.get(key)
     if f is None:
+        cjk = cjk_file()
+        if cjk is not None:
+            f = pygame.font.Font(os.path.join(FONT_DIR, cjk), size)
+            f.bold = bool(bold) or kind == 'title'
+            _fonts[key] = f
+            _font_info[id(f)] = key
+            return f
         path = os.path.join(FONT_DIR, FONT_FILES.get((kind, bold), FONT_FILES[('sans', bold)]))
         if not os.path.exists(path):
             alt, sysname = FONT_FALLBACK.get(kind, (None, 'arial'))
@@ -95,17 +121,26 @@ def font(kind, size, bold=False):
             path = pygame.font.match_font(sysname, bold=bold)
         f = pygame.font.Font(path, size)
         _fonts[key] = f
+        _font_info[id(f)] = key
     return f
 
 
+def reset_fonts():
+    """Language change: fonts (Latin <-> ideographs) and caption caches - anew."""
+    _fonts.clear()
+    _font_info.clear()
+    _cache.clear()
+
+
 def game_fonts():
-    """Набор шрифтов для ui.Game.fonts (ключи прежние + заголовочные)."""
-    # DE: имена, числа, подсказки — жирная антиква (PT Serif Bold); заголовки меню — капитель (Cormorant SC)
+    """The font set for ui.Game.fonts (the former keys + heading ones)."""
+    # DE: names, numbers, tooltips - a bold old-style serif (PT Serif Bold); menu headings - small caps (Cormorant SC)
+    k = CJK_SCALE if cjk_file() else {}
     return {
         's': font('sans', 12), 'm': font('sans', 14), 'b': font('antiqua', 15, True),
-        'l': font('antiqua', 21, True), 'xl': font('title', 50, True),
-        'h': font('title', 29, True), 'title': font('title', 74, True), 'btn': font('title', 26, True),
-        'bs': font('antiqua', 13, True),
+        'l': font('antiqua', 21, True), 'xl': font('title', round(50 * k.get('xl', 1)), True),
+        'h': font('title', 29, True), 'title': font('title', round(74 * k.get('title', 1)), True),
+        'btn': font('title', 26, True), 'bs': font('antiqua', 13, True),
     }
 
 
@@ -119,8 +154,36 @@ def text(surf, s, pos, f, color=TEXT, anchor='topleft', shadow=SHADOW):
     return r
 
 
+def fit_text(f, s, max_w, min_size=9):
+    """(font, string) that fit into max_w: first a smaller font of the same kind (down to min_size),
+    then truncation with "...". Truncated captions go into OVERFLOW (tools/i18n_check.py)."""
+    if max_w is None or max_w <= 0 or f.size(s)[0] <= max_w:
+        return f, s
+    info = _font_info.get(id(f))
+    if info is not None:
+        kind, size, bold = info
+        while size > min_size:
+            size -= 1
+            f = font(kind, size, bold)
+            if f.size(s)[0] <= max_w:
+                return f, s
+    full = s
+    while len(s) > 1 and f.size(s + '…')[0] > max_w:
+        s = s[:-1].rstrip()
+    OVERFLOW.append((full, f.size(full)[0], max_w))
+    if len(OVERFLOW) > 500:
+        del OVERFLOW[:250]
+    return f, s + '…'
+
+
+def text_fit(surf, s, pos, f, color=TEXT, anchor='topleft', shadow=SHADOW, max_w=None):
+    """Like text(), but the caption is no wider than max_w (a smaller font / "...")."""
+    f, s = fit_text(f, s, max_w)
+    return text(surf, s, pos, f, color, anchor, shadow)
+
+
 def gold_text(s, f, top=(255, 236, 170), bottom=(196, 140, 52), outline=(40, 24, 8)):
-    """Надпись с вертикальным золотым градиентом и тёмной обводкой (заголовки)."""
+    """A caption with a vertical golden gradient and a dark outline (headings)."""
     key = ('gold', s, id(f), top, bottom)
     got = _cache.get(key)
     if got is not None:
@@ -143,9 +206,9 @@ def gold_text(s, f, top=(255, 236, 170), bottom=(196, 140, 52), outline=(40, 24,
     return out
 
 
-# ============================================================ заливки и рамки
+# ============================================================ fills and frames
 def tiled(rel, size, tint=None, fallback=(46, 38, 30)):
-    """Поверхность size, замощённая текстурой (tint — (r,g,b) множитель ×/255)."""
+    """A surface of size tiled with a texture (tint - an (r,g,b) multiplier x/255)."""
     key = ('tile', rel, size, tint)
     got = _cache.get(key)
     if got is not None:
@@ -168,7 +231,7 @@ def tiled(rel, size, tint=None, fallback=(46, 38, 30)):
 
 
 def nine(rel, size, border, fallback=None):
-    """9-slice: углы border×border как есть, края и центр растянуты."""
+    """9-slice: the border x border corners as they are, the edges and center stretched."""
     key = ('nine', rel, size, border)
     got = _cache.get(key)
     if got is not None:
@@ -206,7 +269,7 @@ def nine(rel, size, border, fallback=None):
 
 
 def bevel(surf, rect, light=(255, 240, 200, 60), dark=(0, 0, 0, 110), width=2):
-    """Фаска: светлый верх/лево, тёмный низ/право (полупрозрачно)."""
+    """A bevel: light top/left, dark bottom/right (translucent)."""
     r = pygame.Rect(rect)
     s = pygame.Surface(r.size, pygame.SRCALPHA)
     for i in range(width):
@@ -218,7 +281,7 @@ def bevel(surf, rect, light=(255, 240, 200, 60), dark=(0, 0, 0, 110), width=2):
 
 
 def _line_img(size, color=None):
-    """Тонкая рамка 0 A.D. (золото) или перекрашенная в color (металл культуры)."""
+    """A thin 0 A.D. frame (gold) or recolored to color (the culture's metal)."""
     img = nine('skin/goldline.png', size, 4)
     if color is None:
         return img
@@ -234,8 +297,8 @@ def _line_img(size, color=None):
 
 
 def gold_frame(surf, rect, thick=False, color=None):
-    """Тонкая золотая рамка 0 A.D.; thick — двойная, с тёмной прокладкой и уголками; color — цвет металла
-    (рамки по культурам: сталь, бирюза, золото)."""
+    """A thin golden 0 A.D. frame; thick - a double one, with a dark backing and corners; color - the metal's color
+    (frames by culture: steel, turquoise, gold)."""
     r = pygame.Rect(rect)
     if thick:
         pygame.draw.rect(surf, (20, 14, 8), r.inflate(6, 6), 3)
@@ -247,19 +310,19 @@ def gold_frame(surf, rect, thick=False, color=None):
     surf.blit(_line_img(r.size, color), r.topleft)
 
 
-# ============================================================ культуры (рамки панелей по группам цивилизаций)
-# DE: у каждой группы цивилизаций своя обвязка (песчаник с плющом, железо с цепями, резной камень…);
-# у нас 5 наборов из своих текстур (tools/ui_icon_art.py: build_skins).
+# ============================================================ cultures (panel frames by civilization group)
+# DE: every civilization group has its own trim (sandstone with ivy, iron with chains, carved stone...);
+# we have 5 sets from our own textures (tools/ui_icon_art.py: build_skins).
 CULTURES = {
-    'west': dict(name='Западная Европа', tex='skin/hud.png', tint=(255, 240, 220), trim='skin/trim_west.png',
+    'west': dict(name='west', tex='skin/hud.png', tint=(255, 240, 220), trim='skin/trim_west.png',
                  metal=None, grid_tint=(120, 112, 104)),
-    'central': dict(name='Центральная Европа', tex='skin/culture_iron.png', tint=(235, 238, 245),
+    'central': dict(name='central', tex='skin/culture_iron.png', tint=(235, 238, 245),
                     trim='skin/trim_iron.png', metal=(170, 176, 190), grid_tint=(100, 104, 112)),
-    'med': dict(name='Средиземноморье', tex='skin/culture_marble.png', tint=(230, 224, 214),
+    'med': dict(name='mediterranean', tex='skin/culture_marble.png', tint=(230, 224, 214),
                 trim='skin/trim_marble.png', metal=None, grid_tint=(110, 104, 98)),
-    'mideast': dict(name='Ближний Восток', tex='skin/culture_sandstone.png', tint=(225, 215, 200),
+    'mideast': dict(name='middle_east', tex='skin/culture_sandstone.png', tint=(225, 215, 200),
                     trim='skin/trim_sandstone.png', metal=(100, 190, 200), grid_tint=(118, 104, 88)),
-    'asia': dict(name='Азия', tex='skin/culture_lacquer.png', tint=(230, 220, 215),
+    'asia': dict(name='asia', tex='skin/culture_lacquer.png', tint=(230, 220, 215),
                  trim='skin/trim_lacquer.png', metal=(230, 176, 70), grid_tint=(96, 70, 64)),
 }
 CULTURE_OF = {'britons': 'west', 'franks': 'west', 'celts': 'west',
@@ -270,7 +333,7 @@ CULTURE_OF = {'britons': 'west', 'franks': 'west', 'celts': 'west',
 
 
 def culture(civ):
-    """Набор обвязки цивилизации: dict (см. CULTURES) + 'key'. Нет текстуры — западный набор."""
+    """A civilization's trim set: a dict (see CULTURES) + 'key'. No texture - the western set."""
     key = CULTURE_OF.get(civ, 'west')
     c = CULTURES[key]
     if image(c['tex']) is None:
@@ -279,13 +342,13 @@ def culture(civ):
 
 
 def culture_panel(size, civ):
-    """Фон панели культуры цивилизации civ (замощённая текстура)."""
+    """The panel background of civilization civ's culture (a tiled texture)."""
     c = culture(civ)
     return tiled(c['tex'], size, tint=c['tint'], fallback=(52, 42, 30))
 
 
 def trim_band(surf, rect, civ):
-    """Кант-орнамент культуры вдоль rect (по горизонтали)."""
+    """The culture's border ornament along rect (horizontally)."""
     r = pygame.Rect(rect)
     t = image(culture(civ)['trim'])
     if t is None:
@@ -300,7 +363,7 @@ def trim_band(surf, rect, civ):
 
 
 def parchment_flat(size, emblem=None):
-    """Ровный пергамент DE с мягкой виньеткой и бледным гербом-водяным знаком по центру (emblem — Surface)."""
+    """Plain DE parchment with a soft vignette and a pale coat-of-arms watermark in the center (emblem - a Surface)."""
     key = ('pflat', size, id(emblem) if emblem is not None else None)
     got = _cache.get(key)
     if got is not None:
@@ -324,7 +387,7 @@ def parchment_flat(size, emblem=None):
 
 
 def corners(surf, rect, size=7):
-    """Золотые ромбики-заклёпки по углам рамки."""
+    """Golden diamond rivets at the frame's corners."""
     r = pygame.Rect(rect)
     for cx, cy in (r.topleft, (r.right - 1, r.top), (r.left, r.bottom - 1), (r.right - 1, r.bottom - 1)):
         pts = [(cx, cy - size), (cx + size, cy), (cx, cy + size), (cx - size, cy)]
@@ -335,8 +398,8 @@ def corners(surf, rect, size=7):
 
 
 def panel(surf, rect, style='stone', frame=True, alpha=None, ornate=False):
-    """Панель: 'stone' (тёмный камень), 'light' (светлый камень), 'wood' (резное дерево HUD),
-    'parchment' (пергамент). ornate — толстая рамка с уголками."""
+    """A panel: 'stone' (dark stone), 'light' (light stone), 'wood' (the HUD's carved wood),
+    'parchment' (parchment). ornate - a thick frame with corners."""
     r = pygame.Rect(rect)
     if style == 'parchment':
         bg = parchment(r.size)
@@ -357,12 +420,12 @@ def panel(surf, rect, style='stone', frame=True, alpha=None, ornate=False):
 
 
 def parchment(size):
-    """Лист пергамента с рваными краями (9-slice текстуры 0 A.D.)."""
+    """A sheet of parchment with torn edges (a 9-slice of a 0 A.D. texture)."""
     return nine('skin/parchment.png', size, 24, fallback=(214, 190, 140))
 
 
 def glow(size, strength):
-    """Мягкое свечение (добавляется BLEND_RGB_ADD): текстура 0 A.D., ослабленная до strength/255."""
+    """A soft glow (added by BLEND_RGB_ADD): a 0 A.D. texture attenuated to strength/255."""
     key = ('glow', size, strength)
     g = _cache.get(key)
     if g is None:
@@ -399,10 +462,10 @@ def shade_overlay(surf, rect, color=(0, 0, 0), alpha=150):
     surf.blit(s, r.topleft)
 
 
-# ============================================================ кнопки
+# ============================================================ buttons
 def button(surf, rect, state='normal'):
-    """Большая резная кнопка: normal | hover | pressed | disabled | on (выбрана).
-    Все состояния — из тёмной деревянной текстуры 0 A.D.: подсветка, вдавливание, серость, золотая кайма."""
+    """A large carved button: normal | hover | pressed | disabled | on (selected).
+    All states come from the dark wooden 0 A.D. texture: highlight, pressing in, greyness, a golden edge."""
     r = pygame.Rect(rect)
     key = ('btn', r.size, state)
     img = _cache.get(key)
@@ -433,7 +496,7 @@ def button(surf, rect, state='normal'):
 
 
 def slot(surf, rect, state='normal'):
-    """Квадратная каменная ячейка под значок (сетка команд, очередь, портрет)."""
+    """A square stone cell for an icon (the command grid, queue, portrait)."""
     r = pygame.Rect(rect)
     key = ('slot', r.size, state)
     s = _cache.get(key)
@@ -447,9 +510,9 @@ def slot(surf, rect, state='normal'):
 
 
 def icon_state(surf, rect, state):
-    """Значок в состоянии DE (меняет уже нарисованный значок на surf):
-    'poor' — не хватает ресурсов: значок залит красным; 'disabled' — недоступен: серый;
-    'pressed' — темнее; 'hover' — ярче."""
+    """An icon in a DE state (changes the already drawn icon on surf):
+    'poor' - only resources are missing: the icon is filled red; 'disabled' - unavailable: grey;
+    'pressed' - darker; 'hover' - brighter."""
     r = pygame.Rect(rect).clip(surf.get_rect())
     if r.w <= 0 or r.h <= 0:
         return
@@ -468,7 +531,7 @@ def icon_state(surf, rect, state):
 
 
 def icon_frame(surf, rect, state='normal'):
-    """Рамка значка кнопки DE: тонкая светлая фаска 1 px, значок во всю ячейку; состояния — icon_state."""
+    """A DE button icon frame: a thin light 1 px bevel, the icon fills the whole cell; states - icon_state."""
     r = pygame.Rect(rect)
     icon_state(surf, r, state)
     col = {'hover': GOLD_HI, 'pressed': GOLD, 'on': GOLD_HI, 'poor': (200, 70, 60)}.get(state, (150, 138, 110))
@@ -482,14 +545,14 @@ def icon_frame(surf, rect, state='normal'):
         pygame.draw.rect(surf, GOLD_HI, r, 1)
 
 
-# ============================================================ значки
+# ============================================================ icons
 RES_ICON = {'food': 'icons/food.png', 'wood': 'icons/wood.png', 'stone': 'icons/stone.png',
             'gold': 'icons/bribes.png', 'metal': 'icons/metal.png', 'pop': 'icons/population.png',
             'time': 'icons/time.png'}
 
 
 def icon(name, size):
-    """Значок из assets/ui/icons (или путь 'dir/name.png'), масштабированный; None — нет файла."""
+    """An icon from assets/ui/icons (or a 'dir/name.png' path), scaled; None - no file."""
     rel = RES_ICON.get(name) or (name if name.endswith('.png') else f'icons/{name}.png')
     key = ('icon', rel, size)
     got = _cache.get(key)
@@ -513,7 +576,7 @@ def blit_icon(surf, name, center, size):
     return True
 
 
-# ============================================================ портреты
+# ============================================================ portraits
 _pfiles = None
 
 
@@ -531,13 +594,13 @@ def _portrait_index():
 
 
 def civ_group(civ):
-    """Группа архитектуры цивилизации (как в атласе зданий)."""
+    """A civilization's architecture group (as in the building atlas)."""
     return M.CIV_GROUP.get(civ, M.DEFAULT_GROUP)
 
 
 def portrait_path(typ, name, civ=None):
-    """Относительный путь портрета (без .png) или None. typ: 'u' | 'b' | 't' | 'n' | 'age'.
-    Порядок: значок по словарю DE (de/, scenic/, units3d/) → портрет 0 A.D."""
+    """The relative path of a portrait (without .png) or None. typ: 'u' | 'b' | 't' | 'n' | 'age'.
+    Order: an icon by the DE dictionary (de/, scenic/, units3d/) -> a 0 A.D. portrait."""
     idx = _portrait_index()
     g = civ_group(civ)
     if typ == 'u':
@@ -552,7 +615,7 @@ def portrait_path(typ, name, civ=None):
         if not cands:
             return None
         dirs = M.CIV_DIRS.get(civ, ()) + tuple(d for d in M.FALLBACK_DIRS if d not in M.CIV_DIRS.get(civ, ()))
-        for c in cands:            # сначала лучший кандидат в своей группе, потом — у всех
+        for c in cands:            # first the best candidate in its own group, then - among all
             for d in M.CIV_DIRS.get(civ, ()):
                 if f'units/{d}/{c}' in idx:
                     return f'units/{d}/{c}'
@@ -593,7 +656,7 @@ _uniq = None
 
 
 def _unique_age():
-    """Уникальные технологии цивилизаций (не улучшения юнитов) → эпоха (2 — замков, 3 — имперская)."""
+    """Civilizations' unique techs (not unit upgrades) -> age (2 - castle, 3 - imperial)."""
     global _uniq
     if _uniq is None:
         from .data import TECHS
@@ -603,13 +666,13 @@ def _unique_age():
 
 
 def portrait(typ, name, civ=None, size=64, upgrade_of=None):
-    """Портрет size×size (скруглённые углы не нужны — рамку рисует кнопка) или None."""
+    """A size x size portrait (rounded corners are not needed - the button draws the frame) or None."""
     key = ('portrait', typ, name, civ, size)
     if key in _cache:
         return _cache[key]
     out = None
     if typ == 't' and upgrade_of:
-        base = portrait('u', upgrade_of, civ, size)       # DE: улучшение — портрет нового юнита, без стрелки
+        base = portrait('u', upgrade_of, civ, size)       # DE: an upgrade - a portrait of the new unit, without an arrow
         if base is not None:
             out = base.copy()
     else:
@@ -621,9 +684,9 @@ def portrait(typ, name, civ=None, size=64, upgrade_of=None):
     return out
 
 
-# ============================================================ курсоры
-# Состояния (hud.cursor_kind / controls.order_mode) → файлы assets/ui/cursors. Основа — 0 A.D.; курсоры действий
-# в стиле DE (de_*, tools/ui_icon_art.py): один предмет без стрелки, рабочий конец = точка прицела (1, 1).
+# ============================================================ cursors
+# States (hud.cursor_kind / controls.order_mode) -> files assets/ui/cursors. The base is 0 A.D.; the action cursors
+# in the DE style (de_*, tools/ui_icon_art.py): one object without an arrow, the working end = the aim point (1, 1).
 CURSOR_FILES = {
     'arrow': 'arrow-default-down', 'attack': 'action-attack', 'amove': 'action-attack-move',
     'build': 'action-build', 'repair': 'action-repair', 'garrison': 'action-garrison',
@@ -641,7 +704,7 @@ for _k in ('tree', 'gold', 'stone', 'berries', 'farm', 'meat', 'fish', 'drop', '
 
 
 def backing_scale():
-    """Масштаб экрана окна (Retina — 2.0): пиксели / пункты через SDL2 (ctypes); 1.0, если не узнать."""
+    """The window's screen scale (Retina - 2.0): pixels / points via SDL2 (ctypes); 1.0 if it cannot be determined."""
     try:
         import ctypes
         import ctypes.util
@@ -677,7 +740,7 @@ def backing_scale():
                 return pw.value / w.value
     except Exception:
         pass
-    # окно без HIGHDPI (pygame SCALED на macOS): SDL видит 1280×800 и там, и там — спрашиваем экран у Cocoa
+    # a window without HIGHDPI (pygame SCALED on macOS): SDL sees 1280x800 both ways - we ask Cocoa for the screen
     if sys.platform == 'darwin':
         try:
             import ctypes
@@ -702,16 +765,16 @@ def backing_scale():
 
 
 class Cursors:
-    """Курсоры 0 A.D./DE. Системный курсор (SDL) — 32 пункта, на Retina macOS растягивается в 64 px и мылится
-    (docs/research/08_cursor.md, корень 3); программный (soft) рисуется в конце кадра на поверхности игры —
-    в той же пиксельной сетке, что и мир, с точкой прицела под нашим контролем."""
+    """0 A.D./DE cursors. The system cursor (SDL) is 32 points, on Retina macOS it is stretched to 64 px and blurred
+    (docs/research/08_cursor.md, root 3); the software one (soft) is drawn at the end of the frame on the game's surface -
+    in the same pixel grid as the world, with the aim point under our control."""
 
     def __init__(self):
         self.enabled = True
-        self.soft = False               # программный курсор (settings 'cursor_soft'; None — авто по Retina)
+        self.soft = False               # software cursor (settings 'cursor_soft'; None - auto by Retina)
         self.cur = None
-        self.cache = {}                 # имя → pygame.cursors.Cursor (системный)
-        self.imgs = {}                  # имя → (surface, hx, hy) (программный)
+        self.cache = {}                 # name -> pygame.cursors.Cursor (system)
+        self.imgs = {}                  # name -> (surface, hx, hy) (software)
         self._sys_visible = True
         try:
             with open(os.path.join(UI_DIR, 'cursors', 'hotspots.json')) as f:
@@ -720,7 +783,7 @@ class Cursors:
             self.hot = None
 
     def load(self, name):
-        """(surface 32 px, hx, hy) курсора или None."""
+        """(a 32 px surface, hx, hy) of a cursor or None."""
         if name in self.imgs:
             return self.imgs[name]
         rec = None
@@ -757,7 +820,7 @@ class Cursors:
             return
         self.cur = name
         if self.soft and name is not None:
-            return                      # рисуем сами (draw); системный спрятан там же
+            return                      # we draw it ourselves (draw); the system one is hidden there
         try:
             if name is None:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
@@ -777,8 +840,8 @@ class Cursors:
             self._sys_visible = v
 
     def draw(self, scr):
-        """Программный курсор: в конце кадра по текущему положению мыши минус точка прицела.
-        Вне окна (и когда режим выключен) — системный курсор."""
+        """The software cursor: at the end of the frame by the current mouse position minus the aim point.
+        Outside the window (and when the mode is off) - the system cursor."""
         if not (self.soft and self.enabled and self.cur is not None):
             self._show_sys(True)
             return
@@ -795,7 +858,7 @@ class Cursors:
         scr.blit(img, (mx - hx, my - hy))
 
     def set_soft(self, v):
-        """Включить/выключить программный курсор; системный переустанавливается на следующем кадре."""
+        """Turn the software cursor on/off; the system one is reinstalled on the next frame."""
         self.soft = bool(v)
         self.cur = '?'
         self.imgs.clear()

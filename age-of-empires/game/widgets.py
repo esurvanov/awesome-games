@@ -1,5 +1,5 @@
-"""Простые элементы экранов меню в духе AoE2 DE (рисуются кодом — без арта Microsoft):
-красная кнопка с золотой каймой, поле-список (dropdown), флажок, вкладка, ползунок, плашка заголовка.
+"""Simple menu screen elements in the spirit of AoE2 DE (drawn by code - without Microsoft art):
+a red button with a golden edge, a dropdown field, a checkbox, a tab, a slider, a heading plate.
 """
 import pygame
 
@@ -31,7 +31,7 @@ def _grad(size, top, bot):
 
 
 def red_button(surf, rect, label, f, state='normal', icon=None):
-    """Кнопка DE: бордовая, с золотой каймой; state: normal | hover | pressed | disabled | on."""
+    """A DE button: burgundy, with a golden edge; state: normal | hover | pressed | disabled | on."""
     r = pygame.Rect(rect)
     if state == 'disabled':
         top, bot = (96, 84, 78), (60, 52, 48)
@@ -49,21 +49,24 @@ def red_button(surf, rect, label, f, state='normal', icon=None):
         pygame.draw.rect(surf, S.GOLD_HI, r.inflate(4, 4), 2)
     col = (255, 240, 205) if state != 'disabled' else (190, 180, 165)
     x = r.centerx
+    avail = r.w - 16
     if icon:
         S.blit_icon(surf, icon, (r.x + r.h // 2 + 4, r.centery), r.h - 12)
         x += r.h // 3
-    S.text(surf, label, (x, r.centery), f, col, anchor='center', shadow=(30, 8, 4))
+        avail -= r.h + 4
+    S.text_fit(surf, label, (x, r.centery), f, col, anchor='center', shadow=(30, 8, 4), max_w=avail)
 
 
 def field(surf, rect, label, f, hover=False, arrow=True, color=INK, enabled=True):
-    """Поле-список: светлая плашка, текст слева, ромб-стрелка справа."""
+    """A dropdown field: a light plate, text on the left, a diamond arrow on the right."""
     r = pygame.Rect(rect)
     surf.blit(_grad(r.size, (238, 222, 186) if hover else (226, 208, 168), (206, 184, 140)), r.topleft)
     pygame.draw.rect(surf, (120, 92, 52), r, 1)
     pygame.draw.line(surf, (255, 246, 220), (r.x + 1, r.y + 1), (r.right - 2, r.y + 1))
     if not enabled:
         S.shade_overlay(surf, r, (120, 110, 100), 110)
-    S.text(surf, label, (r.x + 8, r.centery), f, color if enabled else (110, 96, 80), anchor='midleft', shadow=None)
+    S.text_fit(surf, label, (r.x + 8, r.centery), f, color if enabled else (110, 96, 80), anchor='midleft', shadow=None,
+               max_w=r.w - 12 - (20 if arrow else 0))
     if arrow:
         cx, cy = r.right - 13, r.centery
         pts = [(cx - 6, cy - 3), (cx + 6, cy - 3), (cx, cy + 4)]
@@ -72,8 +75,8 @@ def field(surf, rect, label, f, hover=False, arrow=True, color=INK, enabled=True
 
 
 def dropdown_list(surf, anchor, items, f, cur=None, hover_i=None, row_h=24, max_h=None):
-    """Раскрытый список под полем anchor (или над ним, если не влезает). items — подписи.
-    Возвращает [(rect, индекс)]."""
+    """An open list under the anchor field (or above it if it does not fit). items - captions.
+    Returns [(rect, index)]."""
     a = pygame.Rect(anchor)
     h = row_h * len(items) + 4
     y = a.bottom
@@ -95,13 +98,13 @@ def dropdown_list(surf, anchor, items, f, cur=None, hover_i=None, row_h=24, max_
             col = INK
         else:
             col = INK
-        S.text(surf, lbl, (r.x + 8, r.centery), f, col, anchor='midleft', shadow=None)
+        S.text_fit(surf, lbl, (r.x + 8, r.centery), f, col, anchor='midleft', shadow=None, max_w=r.w - 12)
         out.append((r, i))
     return out
 
 
 def list_rects(surf_h, anchor, n, row_h=24):
-    """Те же прямоугольники, что рисует dropdown_list (для кликов без отрисовки)."""
+    """The same rectangles that dropdown_list draws (for clicks without drawing)."""
     a = pygame.Rect(anchor)
     h = row_h * n + 4
     y = a.bottom
@@ -118,7 +121,7 @@ def checkbox(surf, rect, on, label, f, hover=False, color=INK):
     pygame.draw.rect(surf, (90, 60, 28), b, 1)
     if on:
         pygame.draw.lines(surf, (170, 24, 16), False, [(b.x + 3, b.y + 8), (b.x + 7, b.y + 12), (b.x + 13, b.y + 3)], 3)
-    S.text(surf, label, (b.right + 8, r.centery), f, color, anchor='midleft', shadow=None)
+    S.text_fit(surf, label, (b.right + 8, r.centery), f, color, anchor='midleft', shadow=None, max_w=r.right - b.right - 8)
 
 
 def tab(surf, rect, label, f, on, hover=False, icon=None):
@@ -129,14 +132,16 @@ def tab(surf, rect, label, f, on, hover=False, icon=None):
     pygame.draw.rect(surf, (230, 184, 96), r, 1)
     col = INK if on else (250, 232, 200)
     x = r.centerx
+    avail = r.w - 12
     if icon:
         S.blit_icon(surf, icon, (r.x + 20, r.centery), 22)
         x += 10
-    S.text(surf, label, (x, r.centery), f, col, anchor='center', shadow=None if on else (20, 6, 2))
+        avail -= 44
+    S.text_fit(surf, label, (x, r.centery), f, col, anchor='center', shadow=None if on else (20, 6, 2), max_w=avail)
 
 
 def slider(surf, rect, v, hover=False):
-    """Ползунок 0…1: дорожка и ручка. Возвращает дорожку (для кликов)."""
+    """A 0...1 slider: a track and a handle. Returns the track (for clicks)."""
     r = pygame.Rect(rect)
     tr = pygame.Rect(r.x, r.centery - 4, r.w, 8)
     pygame.draw.rect(surf, (70, 50, 30), tr, border_radius=4)
@@ -150,7 +155,9 @@ def slider(surf, rect, v, hover=False):
 
 
 def plate(surf, center, text, f, w=None):
-    """Плашка заголовка экрана (как «Standard Game» в DE): светлая лента с орнаментом по бокам."""
+    """A screen heading plate (like "Standard Game" in DE): a light ribbon with ornaments on the sides."""
+    if w:
+        f, text = S.fit_text(f, text, w - 24)
     img = f.render(text, True, INK)
     w = w or img.get_width() + 120
     r = pygame.Rect(0, 0, w, img.get_height() + 16)
@@ -169,7 +176,7 @@ def plate(surf, center, text, f, w=None):
 
 
 def box(surf, rect, alpha=70):
-    """Вложенная рамка на пергаменте (блок игроков / параметров)."""
+    """A nested frame on parchment (the players / parameters block)."""
     r = pygame.Rect(rect)
     S.shade_overlay(surf, r, (90, 60, 20), alpha)
     pygame.draw.rect(surf, (120, 84, 40), r, 2)

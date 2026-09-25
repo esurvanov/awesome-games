@@ -1,17 +1,17 @@
-"""Офлайн-рендер моделей 0 A.D. в изометрические спрайты игры.
+"""Offline rendering of 0 A.D. models into the game's isometric sprites.
 
-Быстрый старт:
+Quick start:
     from tools.render3d import Renderer, resolve, fit_to_footprint, render_parts
     r = Renderer(ss=3)
-    parts = resolve('structures/britons/house.xml', seed=0)          # актор → детали (меш + матрица)
-    spr = render_parts(r, parts, footprint=2)                          # вписать в 2×2 клетки
-    spr.rgba, spr.mask, spr.ox, spr.oy                                 # RGBA, маска цвета игрока, якорь
+    parts = resolve('structures/britons/house.xml', seed=0)          # an actor -> parts (a mesh + a matrix)
+    spr = render_parts(r, parts, footprint=2)                          # fit into 2x2 cells
+    spr.rgba, spr.mask, spr.ox, spr.oy                                 # RGBA, the player color mask, the anchor
 
-Модули:
-    assets   — пути к сырым ассетам, текстуры (DDS→PNG, кэш), COLLADA → numpy (кэш .npz)
-    actor    — XML акторов: варианты, пропы, материалы → list[Part]
-    camera   — проекция игры (ромб 64×32, 30°), солнце, матрица размещения модели на земле
-    renderer — moderngl: карта теней, тень на земле, маска цвета игрока, сверхвыборка
+Modules:
+    assets   - paths to raw assets, textures (DDS->PNG, a cache), COLLADA -> numpy (a .npz cache)
+    actor    - actor XML: variants, props, materials -> list[Part]
+    camera   - the game's projection (a 64x32 diamond, 30 deg), the sun, the matrix for placing a model on the ground
+    renderer - moderngl: a shadow map, a shadow on the ground, the player color mask, supersampling
 """
 import numpy as np
 
@@ -24,7 +24,7 @@ __all__ = ['assets', 'camera', 'Part', 'resolve', 'actor_exists', 'Renderer', 'S
 
 
 def parts_bounds(parts, z_min=-0.05, include_decals=False):
-    """Габариты деталей в координатах модели: (min xyz, max xyz) по вершинам выше z_min (над землёй)."""
+    """The footprint of parts in model coordinates: (min xyz, max xyz) over the vertices above z_min (above the ground)."""
     lo = np.full(3, np.inf)
     hi = np.full(3, -np.inf)
     for p in parts:
@@ -44,9 +44,9 @@ def parts_bounds(parts, z_min=-0.05, include_decals=False):
 
 
 def fit_to_footprint(parts, size, fill=0.94, yaw=0.0, mirror=False, bounds=None, scale=None, center=None):
-    """Матрица размещения: модель поворачивается на yaw и масштабируется так, чтобы её габарит по земле
-    занял долю fill квадрата size×size клеток; центр габарита — в центре квадрата.
-    Возвращает (матрица, масштаб)."""
+    """A placement matrix: the model is rotated by yaw and scaled so that its footprint on the ground
+    takes the share fill of a size x size square of cells; the footprint's center - at the square's center.
+    Returns (matrix, scale)."""
     if bounds is None:
         pl0 = camera.placement(1.0, yaw, mirror=mirror)
         lo, hi = parts_bounds([Part(p.mesh, pl0 @ p.matrix, p.textures, p.material, p.actor, p.decal)
@@ -56,7 +56,7 @@ def fit_to_footprint(parts, size, fill=0.94, yaw=0.0, mirror=False, bounds=None,
     ext = max(hi[0] - lo[0], hi[1] - lo[1], 1e-3)
     s = scale if scale is not None else fill * size / ext
     c = center if center is not None else (size / 2, size / 2)
-    # центр габарита (в повёрнутых координатах) → центр основания
+    # the footprint's center (in rotated coordinates) -> the base's center
     base = camera.placement(s, yaw, mirror=mirror)
     mc = np.array([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 0.0])
     T = np.eye(4)
@@ -65,7 +65,7 @@ def fit_to_footprint(parts, size, fill=0.94, yaw=0.0, mirror=False, bounds=None,
 
 
 def render_parts(r, parts, footprint, fill=0.94, yaw=0.0, mirror=False, place=None, **kw):
-    """Детали → Sprite, вписанный в основание footprint×footprint клеток (или с готовой матрицей place)."""
+    """Parts -> a Sprite fitted into a footprint x footprint base of cells (or with a ready placement matrix place)."""
     if place is None:
         place, _ = fit_to_footprint(parts, footprint, fill, yaw, mirror)
     items = Renderer.build_items(parts, place)

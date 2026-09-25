@@ -1,7 +1,7 @@
-"""Процедурный синтез звука на numpy: огибающие, фильтры, реверберация и «инструменты».
+"""Procedural sound synthesis on numpy: envelopes, filters, reverb and "instruments".
 
-Всё генерируется из формул — никаких звуковых файлов. Сигналы — моно/стерео массивы float32
-в диапазоне [-1, 1] с частотой дискретизации SR (выставляется под микшер через set_rate)."""
+Everything is generated from formulas - no sound files. Signals are mono/stereo float32 arrays
+in the range [-1, 1] with the sampling rate SR (set to the mixer via set_rate)."""
 import numpy as np
 
 SR = 44100
@@ -29,9 +29,9 @@ def rng(seed):
     return np.random.default_rng(seed)
 
 
-# ============================================================ огибающие
+# ============================================================ envelopes
 def ramp(n, a, r):
-    """Плато с плавными (sin²) нарастанием a и спадом r (в секундах)."""
+    """A plateau with smooth (sin^2) attack a and release r (in seconds)."""
     e = np.ones(n)
     na, nr = min(n, n_of(a)), min(n, n_of(r))
     if na > 1:
@@ -42,7 +42,7 @@ def ramp(n, a, r):
 
 
 def perc(n, tau, attack=0.002):
-    """Удар: быстрое нарастание, экспоненциальный спад с постоянной tau."""
+    """A strike: fast attack, an exponential decay with the constant tau."""
     e = np.exp(-tvec(n) / tau)
     na = min(n, n_of(attack))
     if na > 1:
@@ -51,16 +51,16 @@ def perc(n, tau, attack=0.002):
 
 
 def tail(x, r=0.01):
-    """Гасит последние r секунд — без щелчка в конце."""
+    """Fades the last r seconds - no click at the end."""
     nr = min(len(x), n_of(r))
     if nr > 1:
         x[len(x) - nr:] *= np.linspace(1, 0, nr)
     return x
 
 
-# ============================================================ фильтры (в частотной области)
+# ============================================================ filters (in the frequency domain)
 def fast_len(n):
-    """Ближайшая сверху длина вида 2^a·3^b·5^c — БПФ на ней быстрый."""
+    """The nearest length above of the form 2^a*3^b*5^c - the FFT at it is fast."""
     best = 1 << (int(n - 1).bit_length())
     p5 = 1
     while p5 < best:
@@ -76,8 +76,8 @@ def fast_len(n):
 
 
 def spectral(x, gain, pad=0.25, circular=False):
-    """Фильтр через БПФ: gain(freqs) → амплитудная характеристика.
-    circular=True — циклическая свёртка (для бесшовных петель музыки)."""
+    """A filter via FFT: gain(freqs) -> an amplitude response.
+    circular=True - circular convolution (for seamless music loops)."""
     m = len(x)
     size = m if circular else fast_len(m + int(m * pad) + 256)
     X = np.fft.rfft(x, size)
@@ -94,7 +94,7 @@ def hp(fc, order=2):
 
 
 def bp(fc, bw=1.0):
-    """Полоса вокруг fc шириной ~bw октав (гауссова в логарифме частоты)."""
+    """A band around fc about bw octaves wide (Gaussian in the logarithm of the frequency)."""
     return lambda f: np.exp(-(np.log2(np.maximum(f, 1.0) / fc) / (bw * 0.6)) ** 2)
 
 
@@ -104,7 +104,7 @@ def band(lo, hi, order=2):
 
 
 def formant(peaks):
-    """Сумма резонансов [(частота, ширина в октавах, усиление)] — «гласная»."""
+    """A sum of resonances [(frequency, width in octaves, gain)] - a "vowel"."""
     def g(f):
         out = np.zeros_like(f)
         for fc, bw, k in peaks:
@@ -113,27 +113,27 @@ def formant(peaks):
     return g
 
 
-# ============================================================ источники
+# ============================================================ sources
 def noise(n, r):
     return r.standard_normal(n)
 
 
 def brown(n, r):
-    """«Коричневый» шум — глухой, для грохота."""
+    """'Brown' noise - dull, for rumble."""
     x = spectral(r.standard_normal(n), lambda f: 1.0 / np.maximum(f, 20.0))
     return x / (np.abs(x).max() + 1e-9)
 
 
 def phase_of(freq, n):
-    """Фаза для постоянной или меняющейся (массив) частоты."""
+    """Phase for a constant or varying (array) frequency."""
     if np.isscalar(freq):
         return TAU * freq * tvec(n)
     return TAU * np.cumsum(freq) / SR
 
 
 def harmonic(freq, n, amps, env=None, bright=None):
-    """Аддитивный тон: sum a_k·sin(kφ). bright — степень, в которую огибающая
-    входит в верхние гармоники (громче → ярче, как у меди)."""
+    """An additive tone: sum a_k*sin(k*phi). bright - the power to which the envelope
+    enters the upper harmonics (louder -> brighter, like brass)."""
     ph = phase_of(freq, n)
     f0 = freq if np.isscalar(freq) else float(np.max(freq))
     out = np.zeros(n)
@@ -148,11 +148,11 @@ def harmonic(freq, n, amps, env=None, bright=None):
 
 
 def glide(f_from, f_to, n, tau):
-    """Частота, экспоненциально скользящая от f_from к f_to (tau — секунды)."""
+    """A frequency sliding exponentially from f_from to f_to (tau - seconds)."""
     return f_to + (f_from - f_to) * np.exp(-tvec(n) / tau)
 
 
-# ============================================================ пространство
+# ============================================================ space
 def reverb_ir(dur, seed, damp=3500.0, pre=0.012):
     r = rng(seed)
     n = n_of(dur)
@@ -163,7 +163,7 @@ def reverb_ir(dur, seed, damp=3500.0, pre=0.012):
 
 
 def reverb(x, dur=1.2, wet=0.2, seed=7, circular=False, damp=3500.0):
-    """Моно → стерео (n, 2) с реверберацией; для петель — циклическая свёртка."""
+    """Mono -> stereo (n, 2) with reverb; for loops - circular convolution."""
     m = len(x)
     size = m if circular else fast_len(m + n_of(dur) + 256)
     X = np.fft.rfft(x, size)
@@ -184,7 +184,7 @@ def normalize(x, peak):
 
 
 def mix(parts, n=None):
-    """Сложить сигналы [(смещение_сек, сигнал, громкость)] в один моно-буфер."""
+    """Sum signals [(offset_sec, signal, volume)] into one mono buffer."""
     if n is None:
         n = max(n_of(off) + len(s) for off, s, _ in parts)
     out = np.zeros(n)
@@ -195,13 +195,13 @@ def mix(parts, n=None):
     return out
 
 
-# ============================================================ инструменты
+# ============================================================ instruments
 _memo = {}
 
 
 def pluck(freq, dur, bright=0.5, seed=0):
-    """Щипковая струна (лютня/арфа): гармоники с убывающими амплитудами и быстрее
-    затухающими верхами, двойной хор (две чуть расстроенные струны) и «щелчок» медиатора."""
+    """A plucked string (lute/harp): harmonics with decreasing amplitudes and faster-decaying
+    upper ones, a double course (two slightly detuned strings) and a pick "click"."""
     key = ('pl', round(freq, 2), round(dur, 3), bright, seed)
     s = _memo.get(key)
     if s is not None:
@@ -234,7 +234,7 @@ def pluck(freq, dur, bright=0.5, seed=0):
 
 
 def recorder(freq, dur, seed=0, vib=True):
-    """Блокфлейта: почти чистый тон с лёгкими 2–3 гармониками, дыхание и «чифф» в атаке."""
+    """A recorder: an almost pure tone with light 2nd-3rd harmonics, breath and a "chiff" in the attack."""
     key = ('rec', round(freq, 2), round(dur, 3), seed, vib)
     s = _memo.get(key)
     if s is not None:
@@ -259,7 +259,7 @@ def recorder(freq, dur, seed=0, vib=True):
 
 
 def brass(freq, dur, seed=0, bright=0.6, scoop=0.03, vib=0.004):
-    """Медный духовой (рог, фанфара): гармоники ярчают вместе с громкостью, подъезд высоты в атаке."""
+    """A brass wind (horn, fanfare): the harmonics brighten with loudness, a pitch scoop in the attack."""
     n = n_of(dur + 0.12)
     t = tvec(n)
     r = rng(seed + int(freq))
@@ -274,7 +274,7 @@ def brass(freq, dur, seed=0, bright=0.6, scoop=0.03, vib=0.004):
 
 
 def bell(freq, dur, seed=0, soft=0.0):
-    """Колокол/колокольчик: негармонические парциалы, у каждого свой спад."""
+    """A bell/little bell: inharmonic partials, each with its own decay."""
     n = n_of(dur)
     t = tvec(n)
     r = rng(seed + int(freq))
@@ -291,7 +291,7 @@ def bell(freq, dur, seed=0, soft=0.0):
 
 
 def chime(freq, dur, seed=0):
-    """Светлый металлофон (глокеншпиль): 1 : 2.76 : 5.4."""
+    """A bright metallophone (glockenspiel): 1 : 2.76 : 5.4."""
     n = n_of(dur)
     t = tvec(n)
     out = (np.sin(TAU * freq * t) * np.exp(-t / (dur * 0.35))
@@ -303,7 +303,7 @@ def chime(freq, dur, seed=0):
 
 
 def drum(f_hi=150.0, f_lo=70.0, tau=0.22, snap=0.25, seed=0, dur=None):
-    """Тамбурин/барабан: тон со спадом высоты + приглушённый шум удара."""
+    """A tambourine/drum: a tone with a pitch decay + a muffled noise of the strike."""
     dur = dur or tau * 4
     n = n_of(dur)
     r = rng(seed)
@@ -314,7 +314,7 @@ def drum(f_hi=150.0, f_lo=70.0, tau=0.22, snap=0.25, seed=0, dur=None):
 
 
 def jingle(dur=0.25, seed=0, n_hits=3):
-    """Бубенцы/тарелочки: высокий шум короткими всплесками."""
+    """Sleigh bells/cymbals: high noise in short bursts."""
     n = n_of(dur)
     r = rng(seed)
     out = np.zeros(n)
@@ -328,7 +328,7 @@ def jingle(dur=0.25, seed=0, n_hits=3):
 
 
 def voice(f0, n, vowel, breath=0.08, seed=0):
-    """Невнятный «голосовой» звук (хм/ха/ух) — не речь: гармонический тон через резонансы."""
+    """An indistinct "vocal" sound (hm/ha/uh) - not speech: a harmonic tone through resonances."""
     r = rng(seed)
     f = f0 if not np.isscalar(f0) else np.full(n, float(f0))
     fmax = float(np.max(f))
@@ -349,7 +349,7 @@ VOWELS = {
 
 
 def to_pcm(x, channels=2):
-    """float (n,) или (n, 2) → байты int16 с чередованием каналов под микшер."""
+    """float (n,) or (n, 2) -> int16 bytes with interleaved channels for the mixer."""
     x = np.asarray(x, dtype=np.float64)
     if x.ndim == 1:
         x = x[:, None]

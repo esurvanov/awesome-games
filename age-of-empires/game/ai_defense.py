@@ -1,18 +1,18 @@
-"""Оборона компьютерного игрока: частокол вокруг базы (сложный уровень), набат, гарнизон,
-университет и технологии башен/стен, когда ресурсов много.
+"""Computer player defense: palisade around the base (hard level), town bell, garrison,
+university and tower/wall techs when resources are plentiful.
 
-AI.update вызывает tick() раз в полсекунды. Кольцо стен всегда с воротами на каждой стороне
-(или с проходом, если ворота не встали) — ИИ никогда не запирает себя.
-Пролом чужих стен делают сами юниты (defense.breach_target из Unit.approach).
+AI.update calls tick() twice a second. The wall ring always has gates on every side
+(or a gap if a gate did not fit) - the AI never locks itself in.
+Breaching enemy walls is done by the units themselves (defense.breach_target from Unit.approach).
 """
 import math
 
 from .data import TILE, BUILDINGS
 from . import defense
 
-RING_R = 11                 # «радиус» (по Чебышёву) кольца частокола вокруг центра
-BELL_R = 9 * TILE           # враги ближе — повод для набата
-CLEAR_T = 15.0              # сколько секунд тишины до «Всё чисто»
+RING_R = 11                 # "radius" (Chebyshev) of the palisade ring around the center
+BELL_R = 9 * TILE           # enemies closer than this are a reason for the town bell
+CLEAR_T = 15.0              # how many seconds of quiet before "All clear"
 
 
 def state(ai):
@@ -32,7 +32,7 @@ def tick(ai, vils, army, blds, tc, count):
     research(ai, blds, count, vils)
 
 
-# ---- набат
+# ---- town bell
 def enemies_near(ai, b, r):
     w = ai.w
     hrow = w.hmat[ai.pid]
@@ -59,7 +59,7 @@ def bell(ai, st, vils, army, tc, threats):
         return
     if threats:
         st['quiet'] = 0.0
-        # новые жители тоже прячутся
+        # new villagers hide too
         for v in vils:
             if v.state not in ('garrison',) and getattr(v, 'bell_task', None) is None:
                 v.bell_task = defense.snapshot(v)
@@ -80,7 +80,7 @@ def best_shelter(w, pid, u):
 
 
 def shelter_archers(ai, army, threats):
-    """Стрелки при большом перевесе врага садятся в башни/центр — стреляют оттуда."""
+    """Ranged units garrison in towers/center when the enemy heavily outnumbers them - they shoot from there."""
     if not threats or len(threats) < 2 * max(1, len(army)):
         return
     w = ai.w
@@ -92,14 +92,14 @@ def shelter_archers(ai, army, threats):
             a.cmd_garrison(b)
 
 
-# ---- кольцо частокола
+# ---- palisade ring
 def ring_plan(ai, tc):
-    """4 стороны квадрата вокруг центра: (линия-стена, ворота посередине)."""
+    """The 4 sides of the square around the center: (wall line, gate in the middle)."""
     cx, cy = tc.tx + tc.w // 2, tc.ty + tc.h // 2
     R = RING_R
     x0, y0, x1, y1 = cx - R, cy - R, cx + R, cy + R
     sides = []
-    # (начало, конец, ворота гориз.?, клетка ворот)
+    # (start, end, gate horizontal?, gate tile)
     sides.append(((x0, y0), (x1, y0), True, (cx - 2, y0)))
     sides.append(((x1, y0), (x1, y1), False, (x1, cy - 2)))
     sides.append(((x1, y1), (x0, y1), True, (cx - 2, y1)))
@@ -115,7 +115,7 @@ def palisade_ring(ai, st, vils, tc):
         st['ring'] = ring_plan(ai, tc)
     if st['side'] >= len(st['ring']):
         return
-    # не больше одной стороны в работе
+    # no more than one side in progress
     wip = [b for b in w.buildings if b.owner == ai.pid and b.d.get('wall') and not b.complete]
     if wip:
         builders = [v for v in vils if v.state == 'build' and v.target in wip]
@@ -138,7 +138,7 @@ def palisade_ring(ai, st, vils, tc):
     free = sorted([v for v in vils if v.state in ('idle', 'gather') and ai.vil_task(v) in (None, 'wood', 'food')],
                   key=lambda v: math.hypot(v.x - sx * TILE, v.y - sy * TILE))[:2]
     gate = defense.place_gate(w, 'palisade_gate', ai.pid, gx, gy, horiz, free[:1])
-    # стена по линии, кроме клеток ворот (если ворота не встали — там остаётся проход)
+    # wall along the line except the gate tiles (if the gate did not fit, a gap remains there)
     tiles = [t for t in defense.line_tiles(sx, sy, ex, ey) if t not in gate_tiles]
     segs = []
     for (x, y) in tiles:
@@ -153,7 +153,7 @@ def palisade_ring(ai, st, vils, tc):
 
 
 def near_resource_or_building(w, x, y):
-    """Не ставить сегмент вплотную к ресурсам/зданиям — чтобы не закрыть к ним подход."""
+    """Do not place a segment right next to resources/buildings - so as not to block access to them."""
     for dy in (-1, 0, 1):
         for dx in (-1, 0, 1):
             xx, yy = x + dx, y + dy
@@ -166,7 +166,7 @@ def near_resource_or_building(w, x, y):
     return False
 
 
-# ---- университет и технологии
+# ---- university and techs
 DEF_TECHS = ('masonry', 'guard_tower', 'murder_holes', 'fortified_wall', 'treadmill_crane', 'keep',
              'architecture', 'arrowslits')
 

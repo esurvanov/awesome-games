@@ -1,22 +1,23 @@
-"""Управление как в AoE2 DE (примесь к ui.Game): выбор (лимит 60, свои важнее, Ctrl/Shift, линии),
-группы (Ctrl/Shift/Alt + цифра, здания в группах), поиск праздных, переходы к зданиям, прошлый вид,
-удаление, режимы приказов (патруль, охрана, следование, атака с ходу, атака по земле), стойки, строй,
-Shift-очередь, сигнал союзникам, кнопки армии в сетке команд.
+"""AoE2 DE-style controls (a mixin of ui.Game): selection (cap of 60, own units first, Ctrl/Shift, lines),
+groups (Ctrl/Shift/Alt + digit, buildings in groups), finding idle units, jumps to buildings, previous view,
+deletion, order modes (patrol, guard, follow, attack-move, attack ground), stances, formations,
+Shift queue, signal to allies, army buttons in the command grid.
 
-Механика приказов — game/orders.py; отрисовка меток (номера групп, флажки маршрута, сигналы) —
-game/controls_draw.py. ui.py вызывает отсюда хуки одной строкой.
+Order mechanics - game/orders.py; drawing of markers (group numbers, route flags, signals) -
+game/controls_draw.py. ui.py calls the hooks from here with a single line.
 """
 import pygame
 
+from . import i18n
 from .data import BUILDINGS, TECHS, HOTKEYS
 from .world import Unit, Building, Animal
 from . import orders, defense
 
-SEL_MAX = 60            # DE: не больше 60 в выборе
+SEL_MAX = 60            # DE: no more than 60 in a selection
 DBL_MS = 350
 GROUP_MS = 400
-FLARE_S = 4.0           # сколько секунд виден сигнал
-# DE: «перейти к зданию» — Ctrl+буква (все такие — Ctrl+Shift+буква)
+FLARE_S = 4.0           # how many seconds a signal is visible
+# DE: "go to building" - Ctrl+letter (all of that kind - Ctrl+Shift+letter)
 GOTO_KEYS = {
     pygame.K_b: ('barracks',), pygame.K_a: ('archery_range',), pygame.K_l: ('stable',),
     pygame.K_k: ('siege_workshop',), pygame.K_d: ('dock',), pygame.K_y: ('monastery',),
@@ -24,26 +25,10 @@ GOTO_KEYS = {
     pygame.K_u: ('university',), pygame.K_n: ('mill',), pygame.K_e: ('lumber_camp',),
     pygame.K_i: ('mining_camp',), pygame.K_t: ('tower', 'guard_tower', 'keep'),
 }
-# кнопки армии: слот сетки QWERT/ASDFG/ZXCVB → (действие, название, пояснение)
-ORDER_SLOTS = [
-    (0, 'patrol', 'Патруль', 'ЛКМ — точка, Shift — ещё точки'),
-    (1, 'guard', 'Охранять', 'ЛКМ по своему юниту или зданию'),
-    (2, 'follow', 'Следовать', 'ЛКМ по юниту'),
-    (3, 'amove', 'Атака с ходу', 'Идти, атакуя всех по пути'),
-    (4, 'aground', 'Атака по земле', 'Бить по точке'),
-]
-STANCE_SLOTS = [
-    (5, 'aggressive', 'Агрессивная', 'Нападать и преследовать'),
-    (6, 'defensive', 'Оборонительная', 'Преследовать недалеко и вернуться'),
-    (7, 'stand_ground', 'Стоять на месте', 'Бить только в зоне атаки'),
-    (8, 'no_attack', 'Не атаковать', 'Не отвечать на удары'),
-]
-FORM_SLOTS = [
-    (10, 'line', 'Линия', 'Конница, пехота, стрелки, осада — рядами'),
-    (11, 'box', 'Коробка', 'Ближний бой снаружи, стрелки внутри'),
-    (12, 'staggered', 'Шахматный', 'Разреженно — против осады'),
-    (13, 'flank', 'Фланг', 'Две половины с промежутком'),
-]
+# army buttons: command grid slot QWERT/ASDFG/ZXCVB -> action; name and description - locale ctl.<action> / ctl.<action>.desc
+ORDER_SLOTS = [(0, 'patrol'), (1, 'guard'), (2, 'follow'), (3, 'amove'), (4, 'aground')]
+STANCE_SLOTS = [(5, 'aggressive'), (6, 'defensive'), (7, 'stand_ground'), (8, 'no_attack')]
+FORM_SLOTS = [(10, 'line'), (11, 'box'), (12, 'staggered'), (13, 'flank')]
 STOP_SLOT = 9
 SPARE_SLOTS = (14, 4, 13, 12, 11, 10)
 
@@ -58,7 +43,7 @@ def _line_roots():
 
 
 class ControlsUI:
-    order_mode = None       # 'patrol' | 'guard' | 'follow' | 'amove' | 'aground' | 'flare' — ждём ЛКМ
+    order_mode = None       # 'patrol' | 'guard' | 'follow' | 'amove' | 'aground' | 'flare' - waiting for a left click
     order_pts = ()
     cam_prev = None
     _queue = False
@@ -76,9 +61,9 @@ class ControlsUI:
         self.last_event = None
         self._queue = False
 
-    # ============================================================ камера
+    # ============================================================ camera
     def jump_to(self, x, y):
-        """Перенос камеры с запоминанием прошлого вида (Backspace)."""
+        """Move the camera, remembering the previous view (Backspace)."""
         self.cam_prev = (self.cam_x, self.cam_y)
         self.center_on(x, y)
 
@@ -91,7 +76,7 @@ class ControlsUI:
         self.cam_prev = cur
 
     def ctl_update(self):
-        """Кадр интерфейса: последнее событие (Home), устаревшие сигналы."""
+        """Interface frame: the last event (Home), stale signals."""
         w = self.world
         for ev in self.events:
             if ev[0] in ('attack_alert', 'build_done', 'train_done', 'tech_done', 'age_up', 'flare') and \
@@ -101,7 +86,7 @@ class ControlsUI:
         if self.flares:
             self.flares = [f for f in self.flares if w.time - f[2] < FLARE_S]
 
-    # ============================================================ выбор
+    # ============================================================ selection
     def own_units(self, sel=None):
         return [u for u in (self.selected if sel is None else sel)
                 if isinstance(u, Unit) and u.owner == 0 and u.alive]
@@ -110,7 +95,7 @@ class ControlsUI:
         return lst[:SEL_MAX]
 
     def line_of(self, kind):
-        """Линия юнита (LineID): корень цепочки улучшений (ополченец → … → чемпион)."""
+        """A unit's line (LineID): the root of the upgrade chain (militia -> ... -> champion)."""
         if self._line_root is None:
             ControlsUI._line_root = _line_roots()
         root = self._line_root
@@ -122,15 +107,15 @@ class ControlsUI:
         return k
 
     def click_select(self, e, shift, ctrl, dbl):
-        """Щелчок по карте: e — сущность под курсором (или None)."""
+        """Click on the map: e - the entity under the cursor (or None)."""
         w = self.world
-        if e is None or getattr(e, 'is_relic', False):     # реликвию не выделяем — только ПКМ монахом
+        if e is None or getattr(e, 'is_relic', False):     # a relic is not selected - only right-click with a monk
             if not (shift or ctrl):
                 self.selected = []
             return
         own = e.owner == 0 and isinstance(e, (Unit, Building))
         if dbl and own:
-            # двойной щелчок: вся линия на экране (здания — все того же вида), ≤ 60, ближние первыми
+            # double click: the whole line on screen (buildings - all of the same kind), <= 60, nearest first
             if isinstance(e, Unit):
                 ln = self.line_of(e.kind)
                 pool = [u for u in w.units if u.owner == 0 and self.line_of(u.kind) == ln and self.on_screen(u)]
@@ -155,7 +140,7 @@ class ControlsUI:
         return self.in_view((sx, sy)) and 0 <= sx < self.screen.get_width()
 
     def box_select(self, r, shift):
-        """Рамка: только свои юниты, сверху вниз, до 60 (здания — нет)."""
+        """Box: only own units, top to bottom, up to 60 (buildings - no)."""
         w = self.world
         found = []
         for u in w.units:
@@ -176,7 +161,7 @@ class ControlsUI:
         return found[0]
 
     def panel_select(self, e):
-        """Щелчок по портрету в панели выбора: Ctrl — убрать, Shift — только этот вид, Ctrl+Shift — убрать вид."""
+        """Click on a portrait in the selection panel: Ctrl - remove, Shift - only this kind, Ctrl+Shift - remove the kind."""
         m = self.mods()
         ctrl = m & (pygame.KMOD_CTRL | pygame.KMOD_META)
         shift = m & pygame.KMOD_SHIFT
@@ -190,9 +175,9 @@ class ControlsUI:
         else:
             self.selected = [e] if not isinstance(e, str) else [s for s in self.selected if s.kind == kind][:1]
 
-    # ============================================================ клавиши
+    # ============================================================ keys
     def ctl_key(self, k):
-        """Клавиши управления. True — обработано."""
+        """Control keys. True - handled."""
         w = self.world
         m = self.mods()
         ctrl = m & (pygame.KMOD_CTRL | pygame.KMOD_META)
@@ -299,8 +284,8 @@ class ControlsUI:
         self.jump_to(*bs[i].center())
 
     def group_key(self, n, ctrl, shift):
-        """Ctrl+N — назначить (юниты и здания, ≤ 60; юнит — только в одной группе); N — выбрать
-        (дважды — камера); Shift+N — добавить к выбору; Ctrl+Shift+N — выбрать и к ним; Alt — группы 10–19."""
+        """Ctrl+N - assign (units and buildings, <= 60; a unit - in one group only); N - select
+        (twice - camera); Shift+N - add to the selection; Ctrl+Shift+N - select and add them; Alt - groups 10-19."""
         w = self.world
         if ctrl and not shift:
             mem = self.cap([s for s in self.selected if s.owner == 0 and s.alive])
@@ -308,7 +293,7 @@ class ControlsUI:
                 if g != n:
                     self.groups[g] = [s for s in lst if s not in mem]
             self.groups[n] = mem
-            w.msg(f'Группа {n}: {len(mem)}')
+            w.msg(i18n.t('msg.group', n=n, count=len(mem)))
             return
         g = [s for s in self.groups.get(n, []) if s.alive]
         if not g:
@@ -329,7 +314,7 @@ class ControlsUI:
         return None
 
     def delete_selected(self, all_of=False):
-        """Del — удалить один (первый в выборе), Shift+Del — всех выбранных; здания тоже."""
+        """Del - delete one (the first in the selection), Shift+Del - all selected; buildings too."""
         w = self.world
         own = [s for s in self.selected if s.owner == 0 and s.alive]
         if not own:
@@ -341,7 +326,7 @@ class ControlsUI:
             else:
                 p = w.players[0]
                 if not e.complete and e.progress <= 0.0:
-                    p.refund(p.cost_of('bld', e.kind))      # фундамент без стройки — ресурсы назад
+                    p.refund(p.cost_of('bld', e.kind))      # a foundation without construction - resources back
                 if e.garrison:
                     defense.eject(w, e)
                 e.hp = 0
@@ -350,19 +335,19 @@ class ControlsUI:
                 self.selected.remove(e)
 
     def ctl_wheel(self, e):
-        """Ctrl+колесо при закладке ворот — повернуть (как в DE; Tab тоже работает). True — съедено."""
+        """Ctrl+wheel while placing a gate - rotate (as in DE; Tab works too). True - consumed."""
         if self.placing and BUILDINGS[self.placing].get('gate') and \
                 self.mods() & (pygame.KMOD_CTRL | pygame.KMOD_META):
             self.gate_horiz = not self.gate_horiz
             return True
         return False
 
-    # ============================================================ приказы
+    # ============================================================ orders
     def queue_mode(self):
         return bool(self.mods() & pygame.KMOD_SHIFT)
 
     def o(self, u, item):
-        """Приказ юниту из интерфейса (Shift — в очередь)."""
+        """An order to a unit from the interface (Shift - into the queue)."""
         return orders.issue(u, self.world, item, queue=self._queue)
 
     def formation_of(self, units):
@@ -373,7 +358,7 @@ class ControlsUI:
         return max(cnt, key=cnt.get) if cnt else 'line'
 
     def form_move(self, units, wx, wy, kind='move'):
-        """Групповое перемещение строем: места по строю, скорость — по самому медленному."""
+        """Group movement in formation: places by formation, speed - by the slowest."""
         if not units:
             return
         units = [u for u in units if u.alive]
@@ -381,7 +366,7 @@ class ControlsUI:
             return
         heading = None
         if self._queue:
-            # из последней точки очереди — туда же смотрит строй
+            # from the last point of the queue - the formation faces the same way
             last = [it for u in units for it in (u.orders or ()) if it[0] in ('move', 'amove')]
             if last:
                 heading = (wx - last[-1][1], wy - last[-1][2])
@@ -404,7 +389,7 @@ class ControlsUI:
         self.order_pts = []
 
     def order_click(self, pos, target=None, mm=False):
-        """ЛКМ в режиме приказа. pos — экранная точка; mm — по мини-карте."""
+        """Left click in order mode. pos - a screen point; mm - via the minimap."""
         w = self.world
         mode = self.order_mode
         if mm:
@@ -461,42 +446,43 @@ class ControlsUI:
             self._queue = False
 
     def flare(self, wx, wy):
-        """Сигнал союзникам: метка на карте и мини-карте + звук (событие 'flare')."""
+        """Signal to allies: a mark on the map and minimap + a sound (event 'flare')."""
         w = self.world
         self.flares.append((wx, wy, w.time, 0))
         w.emit('flare', wx, wy, 0, None)
 
-    # ============================================================ кнопки армии
+    # ============================================================ army buttons
     def army_selection(self, units):
         return any(self.is_military(u) and u.d['atk'] > 0 for u in units) or \
             (units and all(u.cls == 'monk' for u in units))
 
     def army_buttons(self, units, extra):
-        """Сетка DE для армии: Q патруль · W охрана · E следовать · R атака с ходу · T атака по земле /
-        A S D F — стойки · G стоп / Z X C V — строи · B — особое (свёртка, высадка)."""
+        """The DE grid for the army: Q patrol · W guard · E follow · R attack-move · T attack ground /
+        A S D F - stances · G stop / Z X C V - formations · B - special (pack, unload)."""
         slots = {}
         mil = [u for u in units if u.cls != 'vil']
         st = self.common(mil, 'stance', 'aggressive')
-        for i, name, title, tip in ORDER_SLOTS:
+        T = i18n.t
+        for i, name in ORDER_SLOTS:
             if name == 'aground' and not any(orders.can_attack_ground(u) for u in units):
                 continue
             slots[i] = dict(icon=('ctl', name + ('*' if self.order_mode == name else '')), act=('omode', name),
-                            ok=True, tip=[title, {}, tip])
-        for i, name, title, tip in STANCE_SLOTS:
+                            ok=True, tip=[T('ctl.' + name), {}, T('ctl.' + name + '.desc')])
+        for i, name in STANCE_SLOTS:
             slots[i] = dict(icon=('ctl', name + ('*' if st == name else '')), act=('stance', name), ok=True,
-                            tip=[title, {}, tip])
-        slots[STOP_SLOT] = dict(icon=('stop', None), act=('stop', None), ok=True, tip=['Стоп', {}, 'Остановить'])
+                            tip=[T('ctl.' + name), {}, T('ctl.' + name + '.desc')])
+        slots[STOP_SLOT] = dict(icon=('stop', None), act=('stop', None), ok=True, tip=[T('hud.stop'), {}, T('hud.stop_desc')])
         if len(units) > 1:
             fm = self.formation_of(units)
-            for i, name, title, tip in FORM_SLOTS:
+            for i, name in FORM_SLOTS:
                 slots[i] = dict(icon=('ctl', name + ('*' if fm == name else '')), act=('form', name), ok=True,
-                                tip=[title, {}, tip])
+                                tip=[T('ctl.' + name), {}, T('ctl.' + name + '.desc')])
         free = [s for s in SPARE_SLOTS if s not in slots]
         for it, s in zip(extra, free):
             slots[s] = it
         out = []
         for s in sorted(slots):
-            out.append(dict(slots[s], rect=self.grid_rect(s), key=HOTKEYS[s]))     # hud.py: сетка DE
+            out.append(dict(slots[s], rect=self.grid_rect(s), key=HOTKEYS[s]))     # hud.py: the DE grid
         return out
 
     @staticmethod
@@ -505,7 +491,7 @@ class ControlsUI:
         return vals.pop() if len(vals) == 1 else None
 
     def army_press(self, act):
-        """Кнопки армии. True — обработано."""
+        """Army buttons. True - handled."""
         units = self.own_units()
         k = act[0]
         if k == 'stop':
@@ -532,10 +518,10 @@ class ControlsUI:
             return True
         return False
 
-    # ============================================================ ПКМ: ремонт
+    # ============================================================ RMB: repair
     def relic_command(self, units, target, wx, wy):
-        """Монахи: ПКМ по реликвии — один идёт поднять; ПКМ по своему монастырю — несущие сдают реликвии.
-        True — приказ отдан."""
+        """Monks: right-click on a relic - one goes to pick it up; right-click on your own monastery - carriers drop off relics.
+        True - the order was given."""
         w = self.world
         monks = [u for u in units if u.d.get('monk')]
         if not monks:
@@ -563,7 +549,7 @@ class ControlsUI:
         return False
 
     def repair_command(self, units, target, wx, wy):
-        """Жители → своё раненое здание / осада / корабль: ремонт; остальные — как обычно. True — отдан."""
+        """Villagers -> their own damaged building / siege / ship: repair; the rest - as usual. True - given."""
         w = self.world
         vils = [u for u in units if u.kind == 'villager']
         if not vils or not orders.repairable(vils[0], target):
@@ -579,7 +565,7 @@ class ControlsUI:
 
 
 def unit_top_px(g, u):
-    """Высота фигурки над ногами (для значков над юнитом) — по рамке текущего кадра."""
+    """Height of the figure above the feet (for icons above a unit) - from the current frame's bounding box."""
     if hasattr(g, 'unit_top'):
         return g.unit_top(u, 9)
     return u.d.get('bar') or u.d.get('bar_h') or (36 if u.cls == 'cav' else 30)

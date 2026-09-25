@@ -1,5 +1,5 @@
-"""Иллюстрации плиток главного меню и окна «Одиночная игра» — из спрайтов самой игры (0 A.D. / Millennium A.D.,
-CC BY-SA), тонированные «сепией тушью» на пергаменте, как эскизы DE (их арт — собственность Microsoft, не берём).
+"""Illustrations of the main menu tiles and the "Single Player" window - from the game's own sprites (0 A.D. / Millennium A.D.,
+CC BY-SA), toned "ink sepia" on parchment, like DE's sketches (their art is Microsoft's property, we do not take it).
 
   tile_art(kind, (w, h)) -> Surface     kind: 'single' | 'multi' | 'learn' | 'skirmish' | 'campaign' |
                                                 'scenario' | 'load'
@@ -16,7 +16,7 @@ BLUE, RED = (60, 90, 170), (170, 50, 40)
 
 
 def _zoom(spr, k):
-    """Равномерное масштабирование со сглаживанием (rotozoom: smoothscale даёт полосы на кадрах из листов)."""
+    """Uniform scaling with smoothing (rotozoom: smoothscale gives stripes on frames from sheets)."""
     return pygame.transform.rotozoom(spr.copy(), 0, k)
 
 
@@ -49,7 +49,7 @@ def _building(kind, civ, color=BLUE, scale=1.0):
 
 
 def _paper(size):
-    """Чистый лист: середина текстуры пергамента (без рваных краёв), растянутая на плитку."""
+    """A clean sheet: the middle of the parchment texture (without torn edges), stretched to the tile."""
     src = S.image('skin/parchment.png')
     if src is None:
         base = pygame.Surface(size)
@@ -63,13 +63,13 @@ def _paper(size):
 
 
 def _ink(surf):
-    """Цветной рисунок → сепия (серый × тон пергамента)."""
+    """A color picture -> sepia (grey x the parchment tone)."""
     try:
         import numpy as np
         g = surf.copy()
         rgb = pygame.surfarray.pixels3d(g)
         lum = rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11
-        lum = np.clip((lum - 25) * 1.6, 0, 255)                     # контраст: тени темнее, света ярче
+        lum = np.clip((lum - 25) * 1.6, 0, 255)                     # contrast: shadows darker, lights brighter
         for i, t in enumerate(INK_TINT):
             rgb[..., i] = (lum * (t / 255.0)).astype(np.uint8)
         del rgb
@@ -140,7 +140,7 @@ def tile_art(kind, size):
     if fig is not None:
         fig = _ink(fig)
         out.blit(fig, fig.get_rect(midbottom=(size[0] // 2, size[1] - 2)))
-    # мягкая виньетка по краям — «рисунок на листе»
+    # a soft vignette at the edges - a "drawing on a sheet"
     v = pygame.Surface(size, pygame.SRCALPHA)
     for i in range(10):
         pygame.draw.rect(v, (90, 60, 20, int(60 * (1 - i / 10))), (i, i, size[0] - 2 * i, size[1] - 2 * i), 1)

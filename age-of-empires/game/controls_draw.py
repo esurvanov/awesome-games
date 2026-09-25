@@ -1,11 +1,12 @@
-"""Отрисовка меток управления (вызывается из ui.Game одной строкой):
-номера групп над юнитами и зданиями, флажки Shift-маршрута и патруля, несколько точек сбора, сигналы союзникам
-(на карте и мини-карте), подсказка режима приказа, значки кнопок армии (стойки, строи, приказы).
-Координаты — только через Game.w2s / world_to_mm (без жёстких размеров клетки)."""
+"""Drawing of control markers (called from ui.Game with a single line):
+group numbers above units and buildings, Shift-route and patrol flags, several rally points, signals to allies
+(on the map and minimap), the order-mode hint, army button icons (stances, formations, orders).
+Coordinates go only through Game.w2s / world_to_mm (no hard-coded tile size)."""
 import math
 
 import pygame
 
+from . import i18n
 from .data import TOP_H
 from .world import Unit, Building
 from . import orders
@@ -15,17 +16,10 @@ GROUP_FG = (255, 236, 170)
 FLAG = (250, 250, 250)
 PATROL = (120, 200, 255)
 FLARE = (255, 220, 60)
-MODE_TIPS = {
-    'patrol': 'Патруль: ЛКМ — точка, Shift+ЛКМ — ещё точки, ПКМ — отмена',
-    'guard': 'Охрана: ЛКМ по своему юниту или зданию',
-    'follow': 'Следовать: ЛКМ по юниту',
-    'amove': 'Атака с ходу: ЛКМ — куда идти',
-    'aground': 'Атака по земле: ЛКМ — точка удара',
-    'flare': 'Сигнал союзникам: ЛКМ по карте или мини-карте',
-}
+MODE_TIPS = {m: 'ctl.mode.' + m for m in ('patrol', 'guard', 'follow', 'amove', 'aground', 'flare')}   # locale keys
 
 
-# ============================================================ мир
+# ============================================================ world
 def draw_world_overlay(g):
     scr = g.screen
     w = g.world
@@ -83,11 +77,11 @@ def _flag(scr, sx, sy, col, n=None, g=None):
 
 
 def _routes(g, scr, w):
-    """Флажки Shift-маршрута выбранных (до 10, как в DE): по флажку на точку — в середине строя;
-    петля патруля."""
+    """Shift-route flags of the selected units (up to 10, as in DE): one flag per point - in the middle of the formation;
+    the patrol loop."""
     units = [u for u in g.selected if isinstance(u, Unit) and u.owner == 0 and u.alive]
     seen = set()
-    legs = []                       # i-я точка очереди → [(x, y), ...] у всех юнитов
+    legs = []                       # i-th queue point -> [(x, y), ...] for all units
     for u in units:
         m = u.mission
         if m is not None and m[0] == 'patrol':
@@ -137,7 +131,7 @@ def _rally_pts(g, scr):
             _flag(scr, int(p[0]), int(p[1]), g.pcolor(0))
 
 
-# ============================================================ панель
+# ============================================================ panel
 def draw_panel_overlay(g):
     scr = g.screen
     w = g.world
@@ -147,7 +141,7 @@ def draw_panel_overlay(g):
         pygame.draw.circle(scr, FLARE, (int(mx), int(my)), int(3 + a * 9), 2)
     mode = getattr(g, 'order_mode', None)
     if mode:
-        tip = MODE_TIPS.get(mode, '')
+        tip = i18n.t(MODE_TIPS[mode]) if mode in MODE_TIPS else ''
         img = g.fonts['m'].render(tip, True, (255, 240, 200))
         r = img.get_rect(midtop=(scr.get_width() // 2, TOP_H + 8)).inflate(16, 8)
         pygame.draw.rect(scr, (20, 16, 12), r, border_radius=6)
@@ -155,9 +149,9 @@ def draw_panel_overlay(g):
         scr.blit(img, img.get_rect(center=r.center))
 
 
-# ============================================================ значки кнопок армии
-# DE: приказы — фигурка нашего воина в позе (tools/build_portraits.py --orders); стойки — в восьмиугольной
-# рамке (включённая — зелёная); строи — белые шары и красная «крыша» (выбранный — зелёные шары)
+# ============================================================ army button icons
+# DE: orders - a figure of our soldier in a pose (tools/build_portraits.py --orders); stances - in an octagonal
+# frame (the active one is green); formations - white balls and a red "roof" (the selected one has green balls)
 CTL_ART = {
     'patrol': 'portraits/orders/patrol.png', 'guard': 'portraits/orders/guard.png',
     'follow': 'portraits/orders/follow.png', 'amove': 'portraits/orders/amove.png',
@@ -169,7 +163,7 @@ STANCES = ('aggressive', 'defensive', 'stand_ground', 'no_attack')
 
 
 def _ctl_art(ic, name, active, size):
-    """Значок из собранной графики; False — файлов нет (рисуем процедурно)."""
+    """An icon from the built graphics; False - no files (draw procedurally)."""
     from . import uiskin as S
     if name in orders.FORMATIONS:
         art = S.icon(f'portraits/de/form_{name}{"_on" if active else ""}.png', size)

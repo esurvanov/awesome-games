@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Безоконные проверки рельефа (game/terrain.py): высота и урон ±25 %, обрывы (непроходимы, карта связна),
-мелководье (пешие ходят, корабли — нет, строить нельзя), здания на склонах, выбор мышью на высоте,
-сохранение рельефа, время сборки земли.
+"""Windowless relief checks (game/terrain.py): height and +-25 % damage, cliffs (impassable, the map is connected),
+shallows (foot units walk, ships do not, building is not allowed), buildings on slopes, mouse selection at height,
+saving the relief, the ground build time.
 
-  .venv/bin/python tools/terrain_test.py          # код выхода 0 — всё прошло
+  .venv/bin/python tools/terrain_test.py          # exit code 0 - everything passed
 """
 import math
 import os
@@ -52,18 +52,18 @@ def arena(seed=1):
 
 
 def test_height_damage():
-    print('Высота и урон')
+    print('Height and damage')
     w, cx, cy = arena()
-    # холм: на востоке арены уровень 3 (ровная площадка), на западе — 0; между — склон
+    # a hill: in the east of the arena level 3 (a flat site), in the west - 0; between - a slope
     terrain.set_heights(w, lambda x, y: 3.0 if x >= cx + 2 else 0.0 if x <= cx - 2 else (x - cx + 2) * 0.75)
-    check(w.relief, 'рельеф включён')
+    check(w.relief, 'relief is on')
     hi = Unit('archer', 0, (cx + 5.5) * TILE, (cy + 0.5) * TILE, w)
     lo = Unit('spearman', 1, (cx - 4.5) * TILE, (cy + 0.5) * TILE, w)
     lo2 = Unit('archer', 1, (cx - 5.5) * TILE, (cy + 0.5) * TILE, w)
     w.units += [hi, lo, lo2]
-    check(w.elev(cx + 5, cy) == 3 and w.elev(cx - 5, cy) == 0, f'уровни клеток 3 и 0 ({w.elev(cx + 5, cy)}, '
+    check(w.elev(cx + 5, cy) == 3 and w.elev(cx - 5, cy) == 0, f'cell levels 3 and 0 ({w.elev(cx + 5, cy)}, '
                                                                f'{w.elev(cx - 5, cy)})')
-    check(abs(w.z_at(hi.x, hi.y) - 3 * terrain.ZL) < 1e-6, f'высота под юнитом = 3·{terrain.ZL} px')
+    check(abs(w.z_at(hi.x, hi.y) - 3 * terrain.ZL) < 1e-6, f'height under the unit = 3*{terrain.ZL} px')
     base_rel = w.relief
     w.relief = False
     flat_down = w.calc_damage(hi, lo, True)
@@ -71,20 +71,20 @@ def test_height_damage():
     w.relief = base_rel
     down = w.calc_damage(hi, lo, True)
     up = w.calc_damage(lo2, hi, True)
-    check(abs(down - flat_down * 1.25) < 1e-6, f'сверху вниз ×1.25: {flat_down} → {down}')
-    check(abs(up - flat_up * 0.75) < 1e-6, f'снизу вверх ×0.75: {flat_up} → {up}')
+    check(abs(down - flat_down * 1.25) < 1e-6, f'top to bottom x1.25: {flat_down} → {down}')
+    check(abs(up - flat_up * 0.75) < 1e-6, f'bottom to top x0.75: {flat_up} → {up}')
     same = Unit('archer', 1, (cx + 6.5) * TILE, (cy + 1.5) * TILE, w)
     w.relief = False
     fs = w.calc_damage(hi, same, True)
     w.relief = True
-    check(w.calc_damage(hi, same, True) == fs, 'на одной высоте — без изменений')
-    # и вживую: лучник на холме убивает быстрее, чем снизу
+    check(w.calc_damage(hi, same, True) == fs, 'at the same height - no change')
+    # and live: an archer on a hill kills faster than from below
     terrain.flatten(w, 0, 0, w.W, w.H)
-    check(not w.relief and w.z_at(hi.x, hi.y) == 0, 'flatten: ровно')
+    check(not w.relief and w.z_at(hi.x, hi.y) == 0, 'flatten: exactly flat')
 
 
 def test_cliffs():
-    print('Обрывы')
+    print('Cliffs')
     seen = 0
     for seed in range(12):
         random.seed(seed)
@@ -94,7 +94,7 @@ def test_cliffs():
         seen += 1
         cells = {(x, y) for x, y, _ in w.cliffs}
         ok = all(w.terrain[y][x] == terrain.CLIFF and not w.passable(x, y) for x, y in cells)
-        # связность: обрывы не отрезают ни клетки проходимой суши (сравнение с картой без них)
+        # connectivity: cliffs do not cut off a single cell of passable land (compared with a map without them)
         W, H = w.W, w.H
         walk = [not w.terrain[i // W][i % W] & 1 and w.occ[i // W][i % W] is None for i in range(W * H)]
         _, n1 = terrain._labels(W, H, walk)
@@ -102,30 +102,30 @@ def test_cliffs():
         for x, y in cells:
             walk2[y * W + x] = w.occ[y][x] is None
         _, n0 = terrain._labels(W, H, walk2)
-        # путь от старта к старту — не через обрыв
+        # the path from start to start - not through a cliff
         (ax, ay), (bx, by) = w.starts[0], w.starts[1]
         a = w.nearest_free_tile(ax + 3, ay + 3)
         b = w.nearest_free_tile(bx + 3, by + 3)
         p = w.find_path(a, [b], b[0], b[1], limit=40000)
         through = any(c in cells for c in p)
-        # дальние от стартов
+        # far from the starts
         far = all(min(math.hypot(x - sx, y - sy) for sx, sy in w.starts) >= 15 for x, y in cells)
         if not (ok and n1 <= n0 and w.path_reached and not through and far):
-            check(False, f'сид {seed}: непроходимы {ok}, компоненты {n0}→{n1}, путь {w.path_reached}, '
-                         f'через обрыв {through}, далеко от стартов {far}')
+            check(False, f'seed {seed}: impassable {ok}, components {n0}→{n1}, path {w.path_reached}, '
+                         f'through a cliff {through}, far from the starts {far}')
             return
-    check(seen >= 4, f'обрывы есть на {seen} из 12 карт; непроходимы, карта не делится, пути в обход')
-    # поиск пути обходит стену обрыва
+    check(seen >= 4, f'cliffs are on {seen} of 12 maps; impassable, the map is not split, paths go around')
+    # pathfinding goes around the cliff wall
     w, cx, cy = arena(3)
     for y in range(cy - 5, cy + 6):
         w.terrain[y][cx] = terrain.CLIFF
     p = w.find_path((cx - 3, cy), [(cx + 3, cy)], cx + 3, cy)
     check(w.path_reached and all(w.terrain[y][x] != terrain.CLIFF for x, y in p) and len(p) > 7,
-          f'путь в обход стены обрыва ({len(p)} шагов)')
+          f'a path around the cliff wall ({len(p)} steps)')
 
 
 def test_shallows():
-    print('Мелководье')
+    print('Shallows')
     found = None
     for seed in range(10):
         random.seed(seed)
@@ -134,16 +134,16 @@ def test_shallows():
         if sh:
             found = (w, sh)
             break
-    check(found is not None, 'мелководье есть на картах')
+    check(found is not None, 'shallows exist on the maps')
     if not found:
         return
     w, sh = found
     x, y = sh[0]
-    check(w.passable(x, y), 'пешим проходимо')
-    check(not naval.water_ok(w, x, y), 'кораблям — нет')
-    check(not w.can_place('house', x, y, 0, check_explored=False), 'дом на мелководье не ставится')
-    check(all(w.ground[yy * w.W + xx] == terrain.G['shallow'] for xx, yy in sh), 'тип земли — мелководье')
-    # брод: поперёк реки из мелководья проходят пешие
+    check(w.passable(x, y), 'passable on foot')
+    check(not naval.water_ok(w, x, y), 'not for ships')
+    check(not w.can_place('house', x, y, 0, check_explored=False), 'a house is not placed in the shallows')
+    check(all(w.ground[yy * w.W + xx] == terrain.G['shallow'] for xx, yy in sh), 'the ground type - shallows')
+    # a ford: across a river, foot units cross the shallows
     w, cx, cy = arena(4)
     for yy in range(cy - 8, cy + 9):
         for xx in range(cx - 1, cx + 2):
@@ -151,7 +151,7 @@ def test_shallows():
     w.terrain[cy][cx - 1] = w.terrain[cy][cx] = w.terrain[cy][cx + 1] = terrain.SHALLOW
     w._naval_comps = None
     p = w.find_path((cx - 4, cy + 2), [(cx + 4, cy + 2)], cx + 4, cy + 2)
-    check(w.path_reached and (cx, cy) in p, f'путь через брод ({len(p)} шагов)')
+    check(w.path_reached and (cx, cy) in p, f'a path through the ford ({len(p)} steps)')
     u = Unit('militia', 0, (cx - 4 + 0.5) * TILE, (cy + 2.5) * TILE, w)
     w.units.append(u)
     u.cmd_move((cx + 4.5) * TILE, (cy + 2.5) * TILE)
@@ -160,27 +160,27 @@ def test_shallows():
         w.update(0.05)
         w.events.clear()
         t += 0.05
-    check(int(u.x // TILE) == cx + 4, f'ополченец перешёл брод ({u.x / TILE:.1f}, {u.y / TILE:.1f})')
+    check(int(u.x // TILE) == cx + 4, f'a militiaman crossed the ford ({u.x / TILE:.1f}, {u.y / TILE:.1f})')
 
 
 def test_building_slope():
-    print('Здания на склонах')
+    print('Buildings on slopes')
     w, cx, cy = arena(5)
-    terrain.set_heights(w, lambda x, y: max(0.0, min(4.0, (x - cx) * 0.9)))       # склон 0.9 уровня/клетку
-    check(w.can_place('house', cx - 6, cy, 0, check_explored=False), 'ровно — можно')
-    check(not w.can_place('town_center', cx + 1, cy, 0, check_explored=False), 'ЦГ на крутом склоне — нельзя')
+    terrain.set_heights(w, lambda x, y: max(0.0, min(4.0, (x - cx) * 0.9)))       # a slope of 0.9 levels/cell
+    check(w.can_place('house', cx - 6, cy, 0, check_explored=False), 'flat - allowed')
+    check(not w.can_place('town_center', cx + 1, cy, 0, check_explored=False), 'a town center on a steep slope - not allowed')
     check(w.can_place('house', cx, cy, 0, check_explored=False) == (terrain.footprint_range(w, cx, cy, 2, 2)[1] -
                                                                    terrain.footprint_range(w, cx, cy, 2, 2)[0] <= 1),
-          'дом: перепад ≤ 1 уровня — можно')
+          'a house: a drop <= 1 level - allowed')
     lo, hi = terrain.footprint_range(w, cx + 1, cy, 2, 2)
     check(hi - lo > 1 and not w.can_place('house', cx + 1, cy, 0, check_explored=False),
-          f'дом на перепаде {hi - lo:.1f} уровня — нельзя')
+          f'a house on a drop of {hi - lo:.1f} levels - not allowed')
     terrain.set_heights(w, lambda x, y: 2.0)
-    check(w.can_place('town_center', cx - 2, cy - 2, 0, check_explored=False), 'ровное плато — можно')
+    check(w.can_place('town_center', cx - 2, cy - 2, 0, check_explored=False), 'a flat plateau - allowed')
 
 
 def test_picking():
-    print('Выбор мышью на высоте')
+    print('Mouse selection at height')
     from game.ui import Game
     g = Game()
     random.seed(6)
@@ -201,43 +201,43 @@ def test_picking():
         g.draw()
         sx, sy = g.w2s(u.x, u.y)
         wx, wy = g.s2w(sx, sy)
-        check(math.hypot(wx - u.x, wy - u.y) < 1.5, f'×{zoom}: экран → мир на вершине холма ({wx - u.x:+.2f}, '
+        check(math.hypot(wx - u.x, wy - u.y) < 1.5, f'×{zoom}: screen -> world on the hilltop ({wx - u.x:+.2f}, '
                                                     f'{wy - u.y:+.2f})')
-        flat = (sx, sy + w.z_at(u.x, u.y) * zoom)       # куда юнит попал бы без высоты
-        check(g.entity_at((sx, sy - 10 * zoom)) is u, f'×{zoom}: щелчок по юниту на высоте {w.z_at(u.x, u.y):.0f} px')
-        check(g.entity_at(flat) is not u, f'×{zoom}: по «плоскому» месту — не он')
+        flat = (sx, sy + w.z_at(u.x, u.y) * zoom)       # where the unit would have landed without height
+        check(g.entity_at((sx, sy - 10 * zoom)) is u, f'×{zoom}: a click on a unit at height {w.z_at(u.x, u.y):.0f} px')
+        check(g.entity_at(flat) is not u, f'×{zoom}: at the "flat" spot - not it')
     g.set_zoom(1.0)
-    # здание: основание на средней высоте
+    # a building: the base at the average height
     tx, ty = cx + 3, cy - 1
     clear(w, tx, ty, tx + 2, ty + 2)
     b = w.place_building('house', 0, tx, ty, complete=True)
     z = terrain.building_z(w, b)
-    check(abs(g.b2s(b)[1] - (g.w2s(tx * TILE, ty * TILE, 0)[1] - z)) < 1e-6, f'дом на высоте {z:.1f} px')
-    # размещение: клетка под курсором на холме
+    check(abs(g.b2s(b)[1] - (g.w2s(tx * TILE, ty * TILE, 0)[1] - z)) < 1e-6, f'a house at height {z:.1f} px')
+    # placement: the cell under the cursor on a hill
     g.placing = 'house'
     px, py = g.w2s((cx + 1) * TILE, (cy + 1) * TILE)
-    check(g.place_tile((px, py)) == (cx, cy), f'закладка под курсором на холме {g.place_tile((px, py))}')
+    check(g.place_tile((px, py)) == (cx, cy), f'a foundation under the cursor on a hill {g.place_tile((px, py))}')
     g.placing = None
 
 
 def test_save():
-    print('Сохранение рельефа')
+    print('Relief saving')
     random.seed(7)
     w = World(1, 2, map_type='coast')
     w2 = savegame.loads(savegame.dumps(w))
     check(w2.hz == w.hz and w2.elev_map == w.elev_map and w2.ground == w.ground and w2.cliffs == w.cliffs and
-          w2.terrain == w.terrain and w2.relief == w.relief, 'высоты, уровни, типы земли, обрывы, мелководье')
-    # старое сохранение без рельефа — плоско
+          w2.terrain == w.terrain and w2.relief == w.relief, 'heights, levels, ground types, cliffs, shallows')
+    # an old save without relief - flat
     d = dict(w.__dict__)
     for k in ('hz', 'elev_map', 'ground', 'cliffs', 'relief'):
         d.pop(k, None)
     w3 = World.__new__(World)
     w3.__setstate__(d)
-    check(not w3.relief and w3.z_at(100, 100) == 0 and len(w3.ground) == w.W * w.H, 'старое сохранение — ровная земля')
+    check(not w3.relief and w3.z_at(100, 100) == 0 and len(w3.ground) == w.W * w.H, 'an old save - flat ground')
 
 
 def test_build_time():
-    print('Сборка земли и кадр')
+    print('Ground build and frame')
     from game.ui import Game
     g = Game()
     for n, mt in ((4, 'land'), (4, 'coast')):
@@ -246,7 +246,7 @@ def test_build_time():
         t = time.time()
         g.build_terrain()
         dt = time.time() - t
-        check(dt < 3.0, f'{mt} {g.world.W}×{g.world.H}: земля за {dt:.2f} с (≤ 3)')
+        check(dt < 3.0, f'{mt} {g.world.W}×{g.world.H}: the ground in {dt:.2f} s (<= 3)')
 
 
 def main():
@@ -257,7 +257,7 @@ def main():
     test_picking()
     test_save()
     test_build_time()
-    print(f'=== провалов: {len(FAILS)}')
+    print(f'=== failures: {len(FAILS)}')
     for f in FAILS:
         print('  -', f)
     sys.exit(1 if FAILS else 0)
