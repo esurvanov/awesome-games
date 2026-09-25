@@ -41,7 +41,7 @@ export async function runViews(H, dir, names, log) {
     await page.evaluate(() => { try { if (window.__after) window.__after(); } catch (e) { /* */ } QAV.cleanup(); });
     out[v] = Object.assign({ note: info.note }, c);
     const feetBad = c.feet.filter((f) => f.pass === false);
-    log(`  view ${v.padEnd(14)} backfaces ${String(c.backfaces.px).padStart(5)} px ${P(c.backfaces.pass)} · primitives ${c.primitives.visible.length} ${P(!c.primitives.visible.length)} · untextured ${c.untextured.length} · pixels ${P(c.pixels.pass)} (luma ${c.pixels.mean}, zero ${c.pixels.zero}) · dark ${c.dark.frac} · camera ${P(c.camera.pass)} · feet ${feetBad.length ? 'FAIL ' + feetBad.map((f) => f.id + ' ' + f.worst).join(', ') : c.feet.length ? 'PASS' : 'n/a'}`);
+    log(`  view ${v.padEnd(14)} backfaces holes ${String(c.backfaces.holes).padStart(4)} / 2-sided ${String(c.backfaces.dsBack).padStart(4)} px ${c.backfaces.pass === 'warn' ? 'WARN' : P(c.backfaces.pass)} · primitives ${c.primitives.visible.length} ${P(!c.primitives.visible.length)} · untextured ${c.untextured.length} · pixels ${P(c.pixels.pass)} (luma ${c.pixels.mean}, zero ${c.pixels.zero}) · dark ${c.dark.frac} · camera ${P(c.camera.pass)} · feet ${feetBad.length ? 'FAIL ' + feetBad.map((f) => f.id + ' ' + f.worst).join(', ') : c.feet.length ? 'PASS' : 'n/a'}`);
   }
   return out;
 }

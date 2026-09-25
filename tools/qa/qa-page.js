@@ -281,13 +281,17 @@
     const res = [];
     for (const a of actors) {
       if (!a.feet.length || !a.g.parent || !QA.visibleChain(a.g)) continue;
-      const c = wpos(a.g, V()), soles = a.feet.map(sole).filter(Boolean), top = (soles.length ? Math.min(...soles.map((q) => q.y)) : c.y) + 0.35, size = o.size || (a.kind === 'stag' || a.kind === 'boss' ? 7 : 4);   // top just above the soles: overhangs (branches, arches) are not the ground
+      // camera top just above the soles and the snow under them: overhangs (branches, arches, the pilot's own body) are
+      // not the ground, and the visible snow surface must never be clipped away (else the sea plane under the island shows)
+      const c = wpos(a.g, V()), soles = a.feet.map(sole).filter(Boolean), surfTop = Math.max(...soles.map((q) => QA.surfCPU(q.x, q.z)), -1e9);
+      const top = Math.max(soles.length ? Math.min(...soles.map((q) => q.y)) : c.y, surfTop) + 0.45, size = o.size || (a.kind === 'stag' || a.kind === 'boss' ? 7 : 4);
       const hm = QA.heightMap(c.x, c.z, size, o.res || 256, top, 40), feet = [];
       for (const fs of a.feet) {
         let minC = Infinity, at = null;
         for (const { sm, i } of fs.verts) { sm.getVertexPosition(i, _v); sm.localToWorld(_v); const s = hm.at(_v.x, _v.z); if (!Number.isFinite(s)) continue; const cl = _v.y - s; if (cl < minC) { minC = cl; at = [r3(_v.x), r3(_v.y), r3(_v.z), r3(s)]; } }
         const q = sole(fs);
-        feet.push({ bone: fs.bone, clearance: Number.isFinite(minC) ? r3(minC) : null, at, soleY: q ? r3(q.y) : null, cpuSurf: q ? r3(QA.surfCPU(q.x, q.z)) : null });
+        const cpu = q ? QA.surfCPU(q.x, q.z) : null, sane = at && cpu !== null && Math.abs(at[3] - cpu) < 1.5;   // GPU surface far from the heightfield = a clipped / missing surface, not a measurement
+        feet.push({ bone: fs.bone, clearance: Number.isFinite(minC) && sane ? r3(minC) : null, at, soleY: q ? r3(q.y) : null, cpuSurf: q ? r3(cpu) : null, invalid: !sane || undefined });
       }
       // grounded feet = the lowest half (a walking biped has one foot in the air)
       const sorted = feet.filter((f) => f.clearance !== null).sort((x, y) => x.clearance - y.clearance), grounded = sorted.slice(0, Math.max(1, Math.ceil(sorted.length / 2)));
@@ -384,9 +388,9 @@ void main() {
   const nameOwner = (n) => (/^veg_|^bark$|^needles$/.test(n) ? 'vegetation' : /^wf_/.test(n) ? 'worldfill' : /^tr_|terrain/.test(n) ? 'terrain' : /^atm|^env_|mountain/.test(n) ? 'atmosphere' : null);
   QA.sourceOf = (o) => {
     const g = o.geometry;
+    for (let p = o; p; p = p.parent) if (p.userData && p.userData.qaSource) return p.userData.qaSource;   // explicit STYLE.tag wins
     if (g && g.userData) { if (g.userData.source) return 'pack:' + g.userData.source; const mu = g.userData.mergedUserData; if (mu && mu.length) { const s = [...new Set(mu.map((u) => u && u.source).filter(Boolean))]; if (s.length) return 'pack:' + s.join('+'); } }
     for (let p = o; p; p = p.parent) if (p.userData && p.userData.source) return 'pack:' + p.userData.source;
-    if (o.userData && o.userData.qaSource) return o.userData.qaSource;
     if (g && PRIM.test(g.type)) return 'primitive:' + g.type.replace('Geometry', '');
     if (o.isSprite) return 'sprite';
     return 'generated';
@@ -430,7 +434,9 @@ void main() {
     out.backfaces = { px: bm.holes + bm.dsBack, holes: bm.holes, dsBack: bm.dsBack, frac: r3((bm.holes + bm.dsBack) / total),
       top: [...per.entries()].map(([k, e]) => { const obj = k ? idObjs[k - 1] : null; return { name: obj ? QA.label(obj) : '(custom shader / unattributed)', owner: obj ? QA.ownerOf(obj) : '', source: obj ? QA.sourceOf(obj) : '', hole: e.hole, ds: e.ds, px: e.hole + e.ds, side: obj ? matsOf(obj).map((m) => ['front', 'back', 'double'][m.side]).join('/') : '' }; })
         .sort((a, b) => b.px - a.px).slice(0, 10) };
-    out.backfaces.pass = out.backfaces.frac <= 0.0005;
+    // FAIL: see-through holes (open meshes seen from behind — the black/missing triangles). Back side of a double-sided
+    // sheet is lit correctly by three (normals flipped), so it is only a warning (inside-out models, thin shells)
+    out.backfaces.pass = bm.holes / total <= 0.0005 ? (bm.dsBack / total > 0.005 ? 'warn' : true) : false;
     // view blocked: share of the frame covered by geometry closer than 1.2 m (camera inside a tree crown, a wall…)
     { let n = 0; for (let i = 0; i < total; i++) if (bm.D1[i] < 1.2) n++; out.nearCover = r3(n / total); }
     if (o.magenta) out.backfaces.mask = QA.maskPng({ w: bm.w, h: bm.h, buf: (() => { const b = new Uint8Array(total * 4); for (let i = 0; i < total; i++) if (bm.mask[i]) { b[i * 4] = 1; } return b; })() }, [255, 0, 255]);
@@ -511,17 +517,19 @@ void main() {
       const n = verts.length / 3; minY = Infinity; maxY = -Infinity; let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (let i = 0; i < n; i++) { const x = verts[i * 3], y = verts[i * 3 + 1], z = verts[i * 3 + 2]; if (y < minY) minY = y; if (y > maxY) maxY = y; if (e.role !== 'pushable' || y === minY) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; } }
       // lowest vertex per 3×3 footprint cell
-      const cell = {};
+      const cell = {}, top = {};
       for (let i = 0; i < n; i++) { const x = verts[i * 3], y = verts[i * 3 + 1], z = verts[i * 3 + 2]; const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
-        if (!cell[k] || y < cell[k][1]) cell[k] = [x, y, z]; }
-      cells = Object.values(cell);
-      const gaps = [], surfs = [];
-      for (const [x, y, z] of cells) {
-        const s = surf(x, z); surfs.push(s); let g = y - s;
+        if (!cell[k] || y < cell[k][1]) cell[k] = [x, y, z]; if (top[k] === undefined || y > top[k]) top[k] = y; }
+      cells = Object.entries(cell);
+      const gaps = [], bur = [];
+      for (const [k, [x, y, z]] of cells) {
+        const s = surf(x, z); let g = y - s;
         if (ok && g > 0.1) { const h = PH.P.raycast({ x, y: y - 0.02, z }, { x: 0, y: -1, z: 0 }, 6, { groups: G.STATIC | G.PROP }); if (h) g = Math.min(g, h.distance + 0.02); }
         gaps.push(g);
+        // share of this footprint column (its lowest → highest vertex) that lies under the local surface
+        const colH = top[k] - y; if (colH > 0.02) bur.push(Math.min(1, Math.max(0, (s - y) / colH)));
       }
-      const minGap = Math.min(...gaps), maxGap = Math.max(...gaps), height = Math.max(0.01, maxY - minY), buried = (median(surfs) - minY) / height;
+      const minGap = Math.min(...gaps), maxGap = Math.max(...gaps), height = Math.max(0.01, maxY - minY), buried = bur.length ? bur.reduce((a, b) => a + b, 0) / bur.length : 0;
       rows.push({ name: e.name, role: e.role, kind: String(e.name).replace(/#\d+$/, ''), float: r3(minGap), cornerGap: r3(maxGap), buried: r3(Math.max(0, buried)), height: r3(height), pos: [r3((x0 + x1) / 2), r3(minY), r3((z0 + z1) / 2)] });
     }
     const floating = rows.filter((r) => r.float > 0.1), buried = rows.filter((r) => r.buried > 0.3);

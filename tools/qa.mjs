@@ -92,7 +92,7 @@ for (const [m, r] of Object.entries(res.motions || {})) {
 for (const [v, r] of Object.entries(res.views || {})) {
   if (r.skip) { add(G.back, 'view', v, r.skip, null); continue; }
   const img = `eye/${v}.png`;
-  add(G.back, 'back faces on screen', v, `${r.backfaces.px} px (${(r.backfaces.frac * 100).toFixed(2)} %) · holes ${r.backfaces.holes} · two-sided ${r.backfaces.dsBack}` + (r.backfaces.top.length ? ' · ' + r.backfaces.top.slice(0, 3).map((t) => `${t.name} ${t.px}`).join(', ') : ''), r.backfaces.pass, { img, mask: `eye/${v}.backfaces.png` });
+  add(G.back, 'back faces on screen (holes = FAIL, two-sided back = WARN)', v, `${r.backfaces.px} px (${(r.backfaces.frac * 100).toFixed(2)} %) · holes ${r.backfaces.holes} · two-sided ${r.backfaces.dsBack}` + (r.backfaces.top.length ? ' · ' + r.backfaces.top.slice(0, 3).map((t) => `${t.name} ${t.px}`).join(', ') : ''), r.backfaces.pass, { img, mask: `eye/${v}.backfaces.png` });
   add(G.prim, 'v1 primitives visible', v, r.primitives.visible.length ? r.primitives.visible.map((p) => `${p.name}·${p.geo.replace('Geometry', '')} ${p.px}px`).join(', ') : '0', !r.primitives.visible.length, { img });
   add(G.black, 'black / NaN pixels', v, `luma ${r.pixels.mean} · zero ${(r.pixels.zero * 100).toFixed(2)} % · dark ${(r.pixels.dark * 100).toFixed(1)} %`, r.pixels.pass, { img });
   const blackObj = (r.dark && r.dark.top || []).filter((d) => d.ofObject > 0.5 && d.px >= 300 && d.owner);
