@@ -2328,6 +2328,12 @@ const ENDINGS = {
 
 /* ============================ UI ============================ */
 const hudEl = $('hud'), promptEl = $('prompt'), toastsEl = $('toasts'), crossEl = $('cross'), touchEl = $('touch');
+// per-frame HUD text: reuse the existing Text node, write only on change (textContent= makes a new node each call → DOM-node sawtooth)
+function setTxt(el, s) {
+  s = String(s); if (el._t === s) return; el._t = s;
+  const n = el.firstChild; if (n && n.nodeType === 3 && !n.nextSibling) n.data = s; else el.textContent = s;
+}
+function setUse(el, id) { if (el._u === id) return; el._u = id; const u = el.firstElementChild; if (u) u.setAttribute('href', '#' + id); else el.innerHTML = `<use href="#${id}"/>`; }
 function toast(icon, text, cls = '') {
   if (toastsEl.children.length > 3) toastsEl.firstChild.remove();
   const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = ICON(icon, cls) + '<span></span>'; el.lastChild.textContent = text;
@@ -2378,7 +2384,7 @@ function updateCompass(heading) {
   for (const it of cmpItems) placeCmp(it.el, it.b, heading);
   for (const m of cmpMarks) { if (m.hide && m.hide()) { m.el.style.display = 'none'; continue; } const p = m.p(); placeCmp(m.el, Math.atan2(p.x - player.x, -(p.z - player.z)), heading); }
   const t = STAGES[G.stage].tgt();
-  if (t) { placeCmp(cmpObj, Math.atan2(t.x - player.x, -(t.z - player.z)), heading); cmpObj.lastChild.textContent = Math.round(Math.hypot(t.x - player.x, t.z - player.z)) + ' м'; }
+  if (t) { placeCmp(cmpObj, Math.atan2(t.x - player.x, -(t.z - player.z)), heading); setTxt(cmpObj.lastChild, Math.round(Math.hypot(t.x - player.x, t.z - player.z)) + ' м'); }
   else cmpObj.style.display = 'none';
 }
 // map image
@@ -2468,7 +2474,7 @@ const Dialog = {
     if (L.choices) { this.showChoices(L); return; }
     const s = SPK[L[0]];
     $('dPor').style.color = s.c; $('dIcon').setAttribute('href', '#' + s.i); $('dWho').textContent = s.n; $('dWho').style.color = s.c;
-    this.full = L[1]; this.shown = 0; $('dLine').textContent = ''; $('dLine').className = 'line' + (L[0] === 'keep' ? ' keep' : '');
+    this.full = L[1]; this.shown = 0; setTxt($('dLine'), ''); $('dLine').className = 'line' + (L[0] === 'keep' ? ' keep' : '');
     $('dChoices').hidden = true; $('dNext').hidden = false;
     if (L[0] === 'keep') Sound.choir(false);
     if (L[0] === 'orm' && AV.orm) { const r = Math.random(); AV.orm.once(r < 0.6 ? 'talk' : r < 0.8 ? 'yes' : 'no', 2.4); }
@@ -2476,7 +2482,7 @@ const Dialog = {
   showChoices(L) {
     this.choosing = true; const box = $('dChoices'); box.innerHTML = ''; box.hidden = false; $('dNext').hidden = true;
     if (L.who) { const s = SPK[L.who]; $('dPor').style.color = s.c; $('dIcon').setAttribute('href', '#' + s.i); $('dWho').textContent = s.n; $('dWho').style.color = s.c; }
-    $('dLine').textContent = L.prompt || ''; this.full = ''; this.shown = 0;
+    setTxt($('dLine'), L.prompt || ''); this.full = ''; this.shown = 0;
     L.choices.forEach((c, k) => {
       const b = document.createElement('button'); b.className = 'choice'; b.disabled = !!c.disabled;
       b.innerHTML = ICON(c.icon || 'i-target') + '<span></span>' + (c.hint ? '<small></small>' : '');
@@ -2489,7 +2495,7 @@ const Dialog = {
   update(dt) {
     if (!this.active || this.choosing || this.shown >= this.full.length) return;
     const before = Math.floor(this.shown); this.shown = Math.min(this.full.length, this.shown + dt * 55);
-    if (Math.floor(this.shown) !== before) { $('dLine').textContent = this.full.slice(0, Math.floor(this.shown)); if (Math.floor(this.shown) % 3 === 0) Sound.blip(); }
+    if (Math.floor(this.shown) !== before) { setTxt($('dLine'), this.full.slice(0, Math.floor(this.shown))); if (Math.floor(this.shown) % 3 === 0) Sound.blip(); }
   },
   close() { this.active = false; $('dialog').hidden = true; this.full = ''; const d = this.done; this.done = null; if (d) d(); },
 };
@@ -3185,9 +3191,9 @@ function updateInteract() {
     const p = it.pos(), d = Math.hypot(p.x - player.x, p.z - player.z), pr = it.pri || 0;
     if (d < it.r && (pr > bp || (pr === bp && d < bd)) && Math.abs((p.y || player.y) - player.y) < 8) { bd = d; bp = pr; curInter = it; }
   }
-  if (G.riding && !curInter) { promptEl.hidden = false; promptEl.className = ''; $('promptText').textContent = 'Выйти'; $('promptIcon').innerHTML = '<use href="#i-skimmer"/>'; return; }
+  if (G.riding && !curInter) { promptEl.hidden = false; promptEl.className = ''; setTxt($('promptText'), 'Выйти'); setUse($('promptIcon'), 'i-skimmer'); return; }
   if (curInter) {
-    promptEl.hidden = false; promptEl.className = curInter.off ? 'off' : ''; $('promptText').textContent = curInter.label; $('promptIcon').innerHTML = `<use href="#${curInter.icon}"/>`;
+    promptEl.hidden = false; promptEl.className = curInter.off ? 'off' : ''; setTxt($('promptText'), curInter.label); setUse($('promptIcon'), curInter.icon);
     if (pressed.has('KeyE')) { pressed.delete('KeyE'); if (AV.player && !G.riding && curInter.act !== mount && !curInter.noAnim) AV.player.once('interact', 0.7); curInter.act(); }
   } else promptEl.hidden = true;
 }
@@ -3697,7 +3703,7 @@ function updateScan(dt) {
     if (tmp.z > 1 || vis <= 0) { m.el.style.opacity = 0; continue; }
     m.el.style.opacity = vis;
     m.el.style.transform = `translate(${((tmp.x * 0.5 + 0.5) * W2).toFixed(1)}px, ${((-tmp.y * 0.5 + 0.5) * H2).toFixed(1)}px) translate(-50%, -100%)`;
-    m.el.lastChild.textContent = Math.round(Math.hypot(m.p.x - player.x, m.p.z - player.z)) + ' м';
+    setTxt(m.el.lastChild, Math.round(Math.hypot(m.p.x - player.x, m.p.z - player.z)) + ' м');
   }
   if (scan.t > 9.5) { scan.t = -1; scanEl.innerHTML = ''; scan.marks = []; TU.uScanA.value = 0; TU.uScanR.value = -1; }
 }
