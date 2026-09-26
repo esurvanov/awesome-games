@@ -69,7 +69,8 @@ Back home after five years: firewood for grandma, a 1979 Zhiguli that won't star
 
 Your Mi-8 went down in Evenkia and the radio is smashed. Light the stove, meet the old Evenk Urkachan, carry Vera out of the wreck, hold off the wolves and the rogue bear, and call for a helicopter — or stay and build a village.
 
-- 📖 4 chapters · 4 endings · 🔥 real cold and a hunting wolf pack
+- 🗺 ~11 × 11 km taiga in 8 zones · 👥 11 people, 15 tasks · 🦌 sledges and a «Buran»
+- 📖 7 chapters · 5 endings · 🔥 real cold and a hunting wolf pack
 - 🏘 hire settlers · 8 buildings · 4 ages · market and alarm bell
 - 🎣 reaction fishing · 🎧 all sound synthesised · 📱 phone-ready
 

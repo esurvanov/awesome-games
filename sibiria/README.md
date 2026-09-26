@@ -24,10 +24,14 @@ January 1993. Mi-8 board 24713 went down on a river bend in Evenkia. You are Lyo
 
 | | | |
 |---|---|---|
-| 📖 **Four chapters** — Wreckage, Urkachan, The Pack, The Signal; twelve found notes, typed dialogue, dry humour | 🔥 **Real cold** — warmth, hunger, frostbite, blizzards; a fire is the only safe place | 🐺 **A hunting pack** — a scout, a circle that tightens, a lunge; wolves fear fire and torches |
+| 📖 **Seven chapters** — Wreckage, Urkachan, The Pack, The Signal, then Trapping, Wintering or the Expedition; found notes, typed dialogue, dry humour | 🔥 **Real cold** — warmth, hunger, frostbite, blizzards; a fire is the only safe place | 🐺 **A hunting pack** — a scout, a circle that tightens, a lunge; wolves fear fire and torches |
 | 🏚 **Your hut, upgraded** — chinks, door, workbench, damper; sleep to save | 🏘 **A settlement of your own** — hire hands, build 8 kinds of buildings, climb 4 ages, trade for roubles | 🐻 **A rogue bear** — smashes the smokehouse, steals food, breaks the door |
 | 🎣 **Reaction fishing** — grayling, taimen, burbot; every catch has a weight | 🧭 **RTS-style control** — box-select, right-click orders, groups, alarm bell, zoom | 🎧 **All sound synthesised** — wind, howls, footsteps, an adaptive score that follows the danger |
-| 🏆 **Four endings** — everyone home, alone, the taiga takes you, a new settlement | 📱 **Phone-ready** — joystick, order mode, pinch zoom, quality auto-tuning | 💾 **3 save slots + autosave** — sleep in the hut to bank progress |
+| 🏆 **Five endings** — everyone home, alone, the taiga takes you, a new settlement, the Kerbo-2 expedition | 📱 **Phone-ready** — joystick, order mode, pinch zoom, quality auto-tuning | 💾 **3 save slots + autosave** — sleep in the hut to bank progress |
+
+## 🗺 A big world
+
+About 11 × 11 km of taiga around the crash site, in eight zones that each change a rule of play: an **aufeis** that soaks your boots, a **burnt forest** where fires last longer, a **boulder field** that twists ankles, a windswept **bald peak** with a view, an old **drill site**, the **Kerbo-2 weather station**, a **winter road** with a trading post, and an **Evenki camp**. Eleven people live out there — a meteorologist, drillers, a shaman, an Old Believer, a mail carrier and more — with 15 tasks between them. Travel on skis, by reindeer sledge or on a repaired «Buran» snowmobile, and plan routes on a full-screen geological map (`M`).
 
 ## 📸 Screenshots
 

@@ -52,7 +52,7 @@ const SCENES = {
   storm:    { frames: 90, fn: () => { play(); G.time = tAt(1, 13); G.storm = { a: G.time - 5, b: G.time + 60 }; } }, // 6 пурга
   hut:      { frames: 90, fn: () => { play(); G.time = tAt(1, 21); G.hut.walls = G.hut.door = 1; G.hut.fuel = 400; G.p.x = HUT.x; G.p.y = HUT.y; } }, // 7 печь, окна
   forest:   { frames: 90, fn: () => { play(); G.time = tAt(1, 11); const t = G.trees.find(t => !t.wall); G.p.x = t.x + 30; G.p.y = t.y + 10; } }, // 8 лес
-  wolves:   { frames: 60, fn: () => { play(); G.time = tAt(1, 22); G.s.hp = 1e9; spawnPack(4, true);
+  wolves:   { frames: 60, fn: () => { play(); G.time = tAt(1, 22); G.s.hp = 1e9; Wolves.spawnPack(4, true);
     for (const w of G.wolves) { w.x = G.p.x + (Math.random() - .5) * 300; w.y = G.p.y + (Math.random() - .5) * 200; } } }, // 9 стая
   wreck:    { frames: 90, fn: () => { play(); G.time = tAt(1, 15); G.p.x = POI.cockpit.x; G.p.y = POI.cockpit.y + 90; } }, // 10 Ми-8, реквизит
   stormNight: { frames: 90, fn: () => { play(); G.time = tAt(1, 23); G.storm = { a: G.time - 5, b: G.time + 60 }; } }, // 11 L1, L7

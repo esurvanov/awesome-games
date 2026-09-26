@@ -101,7 +101,7 @@ const ArtAnimals = (() => {
     g.strokeStyle = col; g.lineWidth = w2; g.beginPath(); g.moveTo(kx, ky); g.lineTo(j[2], j[3] - w2 * 0.3); g.lineTo(j[2] + toe, j[3] - w2 * 0.3); g.stroke();
     if (paw) { g.fillStyle = paw; g.fillRect(j[2] - w2 * 0.45, j[3] - 1.3, w2 * 0.9 + toe, 1.3); }
   }
-  function shadow(g, x, y, rx, ry, a = 0.22) { g.fillStyle = `rgba(40,60,95,${a})`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); }
+  function shadow(g, x, y, rx, ry, a = 0.22) { g.fillStyle = `rgba(39,57,74,${a})`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); }
   // хвост: изогнутая «морковка» от корня, θ — провис (0 горизонтально назад, π/2 вниз, <0 вверх)
   function tailPts(b, th, L, w, t0 = 0) {
     const ex = b[0] - cos(th) * L, ey = b[1] + sin(th) * L, c = [b[0] - cos(th * 0.35) * L * 0.6, b[1] + sin(th * 0.35) * L * 0.6];
@@ -115,14 +115,22 @@ const ArtAnimals = (() => {
     return L1.concat(R);
   }
   function frost(g, F, pts, a = 0.75) {
-    g.fillStyle = `rgba(244,249,255,${a})`;
+    g.fillStyle = `rgba(246,249,252,${a})`;
     for (const [u, v] of pts) { const p = F(u, v); g.fillRect(p[0] - 0.9, p[1] - 0.5, 1.8, 1); }
   }
 
   // ---------- общий рендер четвероногого ----------
   // SP: строение; P: поза; C: палитра
+  // поворот: сжатие по x 1→0→−1 за 0.1 с вместо мгновенного зеркала (A10)
+  function turn(m, face, now) {
+    const f = face < 0 ? -1 : 1;
+    if (m.qf === undefined) m.qf = f;
+    if (f !== m.qf) { m.qfrom = m.qf; m.qf = f; m.qt = now; }
+    const k = (now - (m.qt === undefined ? -9 : m.qt)) / 0.1;
+    return k >= 0 && k < 1 ? [k < 0.5 ? m.qfrom : f, Math.max(0.06, Math.abs(1 - 2 * k))] : [f, 1];
+  }
   function quad(g, o, env, m, SP, P, C, k, eyeKind) {
-    const f = o.face < 0 ? -1 : 1, ad = Math.abs(m.dy), sx = 1 - 0.24 * ad, fy = -(1.4 + 3 * ad) + (P.farY || 0);
+    const [f, tq] = turn(m, o.face, env.now || 0), ad = Math.abs(m.dy), sx = (1 - 0.24 * ad) * tq, fy = -(1.4 + 3 * ad) + (P.farY || 0);
     const x = o.x, y = o.y, H = P.H, S = P.S;
     shadow(g, x + f * k * sx * (H[0] + S[0]) * 0.5, y + 1, (Math.abs(S[0] - H[0]) * 0.5 + SP.shw) * k * sx + 1.5 * ad * k, (3.5 + 1.8 * ad) * k * SP.shh);
     g.save(); g.translate(x, y); g.scale(f * k * sx, k);
@@ -156,8 +164,8 @@ const ArtAnimals = (() => {
   }
 
   // ======================= ВОЛК =======================
-  const WOLF_C = { body: '#80868e', dark: '#565c64', mid: '#959ba2', belly: '#d3d8dd', far: '#5a6068', leg: '#8a9098', tip: '#2f3338', ear: '#a88f7a', inner: '#e6d7c8', paw: '#6a7078', pawF: '#4a4f56' };
-  const LEAD_C = { body: '#5d6269', dark: '#363a40', mid: '#6d737a', belly: '#b7bcc2', far: '#3e4248', leg: '#5f646b', tip: '#1d2024', ear: '#6e5c4c', inner: '#b8a898', paw: '#474b51', pawF: '#303338' };
+  const WOLF_C = { body: '#7f8792', dark: '#5d626b', mid: '#93979f', belly: '#d4d7db', far: '#5d626b', leg: '#888e96', tip: '#323138', ear: '#a58e73', inner: '#e2d9c4', paw: '#6c7178', pawF: '#4e535d' };
+  const LEAD_C = { body: '#5d626b', dark: '#2f3542', mid: '#6c7178', belly: '#b2bac3', far: '#3e4450', leg: '#5d626b', tip: '#313031', ear: '#645240', inner: '#b4a89a', paw: '#4e535d', pawF: '#323138' };
   function wolfHead(g, P, C, o, m, env, dog) {
     const ea = P.ear, jaw = P.jaw, mz = dog ? 0.8 : 1, lead = o.leader;
     // дальнее ухо
@@ -165,24 +173,24 @@ const ArtAnimals = (() => {
     ell(g, 0, 0, 5.2, 4.5, C.body);
     // нижняя челюсть
     if (jaw > 0.03) {
-      poly(g, [[2.2, 1.1], [9.6 * mz, 0.6], [2 + 7.4 * mz * cos(jaw), 1.4 + 7.4 * mz * sin(jaw)]], '#5a1e1e');
-      g.fillStyle = '#f4f1ea'; g.fillRect(7.4 * mz, 0.7, 0.9, 1.7); g.fillRect(3 + 5 * mz * cos(jaw), 1.2 + 5 * mz * sin(jaw) - 1.4, 0.8, 1.4);
+      poly(g, [[2.2, 1.1], [9.6 * mz, 0.6], [2 + 7.4 * mz * cos(jaw), 1.4 + 7.4 * mz * sin(jaw)]], '#5b251a');
+      g.fillStyle = '#f1f0eb'; g.fillRect(7.4 * mz, 0.7, 0.9, 1.7); g.fillRect(3 + 5 * mz * cos(jaw), 1.2 + 5 * mz * sin(jaw) - 1.4, 0.8, 1.4);
     }
     g.save(); g.translate(2.2, 1.6); g.rotate(jaw);
     poly(g, [[0, -0.6], [7.2 * mz, -0.4], [6.8 * mz, 1], [0, 2]], C.mid); g.restore();
     fillBlob(g, [[1, -3.6], [6 * mz, -2.6], [10.6 * mz, -0.9], [10.8 * mz, 1.1], [7 * mz, 1.5], [1.5, 2.6]], C.body);
     fillBlob(g, [[4 * mz, 0.2], [10 * mz, 0.4], [9.6 * mz, 1.6], [4 * mz, 1.9]], C.belly); // светлая губа
-    if (P.snarl) { g.fillStyle = '#f4f1ea'; g.fillRect(4.2 * mz, 1, 5 * mz, 0.9); g.fillStyle = '#6b2a2a'; g.fillRect(4 * mz, 0.1, 5.5 * mz, 0.8); }
+    if (P.snarl) { g.fillStyle = '#f1f0eb'; g.fillRect(4.2 * mz, 1, 5 * mz, 0.9); g.fillStyle = '#5b251a'; g.fillRect(4 * mz, 0.1, 5.5 * mz, 0.8); }
     ell(g, -2.3, 2.6, 3.8, 3.4, C.belly); // щёки-«баки»
-    ell(g, 10.5 * mz, -0.5, 1.5, 1.15, '#18191c');
-    ell(g, 3.8, -1.6, 1.3, 0.75, P.snarl ? '#e0b030' : '#c9a040', -0.15);
-    g.fillStyle = '#111'; g.fillRect(3.8, -2, 0.7, 0.9);
+    ell(g, 10.5 * mz, -0.5, 1.5, 1.15, '#10271f');
+    ell(g, 3.8, -1.6, 1.3, 0.75, P.snarl ? '#ffb347' : '#f8bc63', -0.15);
+    g.fillStyle = '#10271f'; g.fillRect(3.8, -2, 0.7, 0.9);
     // ближнее ухо
     const tip = [-1.2 - 6 * ea, -11 + 5.4 * ea];
     if (lead) poly(g, [[-3, -2.8], [tip[0], tip[1] + 1.5], [tip[0] + 1.3, tip[1] + 3], [tip[0] + 1.6, tip[1] + 1.2], [2, -3.4]], C.body);
     else poly(g, [[-3, -2.8], tip, [2, -3.4]], C.body);
     poly(g, [[-1.6, -3.3], [tip[0] + 1.1, tip[1] + 2.8], [0.8, -3.5]], dog ? C.inner : C.ear);
-    if (lead) { g.strokeStyle = '#c98b86'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(1.8, -4.4); g.lineTo(4.8, -0.4); g.lineTo(6.4, 0.6); g.stroke(); }
+    if (lead) { g.strokeStyle = '#7c241c'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(1.8, -4.4); g.lineTo(4.8, -0.4); g.lineTo(6.4, 0.6); g.stroke(); }
   }
   function wolfTail(g, F, P, C, m, env, o) {
     const b = F(-0.2, 2.8), L = 15 * P.tail[1], th = P.tail[0] + sin(env.now * 3.1 + m.seed) * 0.06;
@@ -200,7 +208,7 @@ const ArtAnimals = (() => {
     }
     g.fill();
     frost(g, F, [[-0.05, 5.2], [0.2, 5.6], [0.45, 5.4], [0.7, 6.6], [0.88, 7.4]], 0.8);
-    if (o.hurt) { const p = F(0.72, -2); ell(g, p[0], p[1], 2.6, 1.8, '#7a1f1f', 0.3); g.fillStyle = '#9b2a22'; g.fillRect(p[0] - 0.4, p[1] + 1, 0.9, 2.4); }
+    if (o.hurt) { const p = F(0.72, -2); ell(g, p[0], p[1], 2.6, 1.8, '#7c241c', 0.3); g.fillStyle = '#9a2f25'; g.fillRect(p[0] - 0.4, p[1] + 1, 0.9, 2.4); }
   }
   function wolfNeck(g, F, P, C, nb, nh) {
     const p = F(1.12, -3.5); ell(g, p[0], p[1], 2.6, 4.4, C.belly, F.ang + 0.35); // светлая грудь
@@ -266,21 +274,21 @@ const ArtAnimals = (() => {
   }
 
   // ======================= МЕДВЕДЬ =======================
-  const BEAR_C = { body: '#4b3628', dark: '#35261c', mid: '#553e2e', belly: '#5e4634', far: '#2e2118', leg: '#3f2d21', muz: '#8a6a4c', paw: '#241a13', pawF: '#1c140f', tuft: '#6b513c' };
+  const BEAR_C = { body: '#4e3723', dark: '#3a2618', mid: '#5b3d27', belly: '#5b3d27', far: '#3a2618', leg: '#3a2618', muz: '#8a6a45', paw: '#3a2618', pawF: '#3a2618', tuft: '#645240' };
   function bearHead(g, P, C) {
     const jaw = P.jaw;
     ell(g, -2.8, -5.8, 2.6, 2.4, C.dark); // дальнее ухо
     ell(g, 0, 0, 8, 7, C.body);
     if (jaw > 0.03) {
-      poly(g, [[3, 1.4], [12, 0.8], [3 + 9 * cos(jaw), 2 + 9 * sin(jaw)]], '#5c1a18');
-      g.fillStyle = '#f1ece0'; g.fillRect(9.6, 0.9, 1, 2.2); g.fillRect(3 + 7.5 * cos(jaw), 2 + 7.5 * sin(jaw) - 2, 1, 2);
+      poly(g, [[3, 1.4], [12, 0.8], [3 + 9 * cos(jaw), 2 + 9 * sin(jaw)]], '#5b251a');
+      g.fillStyle = '#ede7d9'; g.fillRect(9.6, 0.9, 1, 2.2); g.fillRect(3 + 7.5 * cos(jaw), 2 + 7.5 * sin(jaw) - 2, 1, 2);
     }
     g.save(); g.translate(3, 2.4); g.rotate(jaw); poly(g, [[0, -1], [8.4, -0.6], [8, 1.4], [0, 2.6]], C.muz); g.restore();
     fillBlob(g, [[2, -4], [8, -2.4], [12.2, -0.8], [12.2, 1.6], [8, 2], [3, 3.6]], C.muz);
-    ell(g, 12, -0.3, 1.9, 1.5, '#161110');
-    ell(g, 3.6, -2.6, 1, 1, '#120c09');
+    ell(g, 12, -0.3, 1.9, 1.5, '#10271f');
+    ell(g, 3.6, -2.6, 1, 1, '#10271f');
     ell(g, 0.2, -6.4, 2.6, 2.4, C.body); ell(g, 0.4, -6.2, 1.3, 1.2, C.tuft);
-    g.fillStyle = 'rgba(244,249,255,0.7)'; g.fillRect(-3, -5.2, 2, 0.9); g.fillRect(-1, -6, 1.5, 0.8);
+    g.fillStyle = 'rgba(246,249,252,0.7)'; g.fillRect(-3, -5.2, 2, 0.9); g.fillRect(-1, -6, 1.5, 0.8);
   }
   function bearTail(g, F, P, C) { const b = F(-0.24, 3); ell(g, b[0], b[1], 3.2, 2.6, C.dark); }
   function bearDetail(g, F, P, C, m, env) {
@@ -335,19 +343,19 @@ const ArtAnimals = (() => {
     const P = bearPose(m, b, env.now);
     quad(g, b, env, m, BEAR, P, BEAR_C, k, 'bear');
     if (P.rear > 0.6) { // когти на поднятых лапах
-      const f = b.face < 0 ? -1 : 1; g.fillStyle = '#e8e2d4';
+      const f = b.face < 0 ? -1 : 1; g.fillStyle = '#eae1d6';
       for (const q of [P.F[2], P.F[3]]) for (let i = 0; i < 3; i++) g.fillRect(b.x + f * (q[0] + 1 + i * 1.6), b.y + q[1] - 2.5 + i * 0.3, 0.9, 2.2);
     }
     if (st === 'stun') { // звёздочки
       const f = b.face < 0 ? -1 : 1;
-      g.fillStyle = '#ffe58a';
+      g.fillStyle = '#ffd27a';
       for (let i = 0; i < 3; i++) { const a = env.now * 5 + i * TAU / 3; g.fillRect(b.x + f * 33 + cos(a) * 10 - 1, b.y - 36 + sin(a) * 3.5 - 1, 2.2, 2.2); }
     }
   }
 
   // ======================= ЛАЙКА =======================
-  const DOG_C = { body: '#a7aeb6', dark: '#737a84', mid: '#b4bac1', belly: '#e9ecef', far: '#7c838c', leg: '#b6bcc3', tip: '#e9ecef', inner: '#e8c9c0', paw: '#e3e6ea', pawF: '#aab1b9' };
-  const PET_C = { body: '#f1f3f5', dark: '#9aa2ac', mid: '#f7f8f9', belly: '#ffffff', far: '#c3c9d0', leg: '#eef0f2', tip: '#ffffff', inner: '#efc9c2', paw: '#ffffff', pawF: '#cfd4da' };
+  const DOG_C = { body: '#a5acb3', dark: '#6c7178', mid: '#b2bac3', belly: '#dde6ee', far: '#7f8792', leg: '#b2bac3', tip: '#dde6ee', inner: '#e7c9c8', paw: '#dde6ee', pawF: '#a5acb3' };
+  const PET_C = { body: '#f6f9fc', dark: '#919dac', mid: '#f6f9fc', belly: '#f6f9fc', far: '#c3c9d0', leg: '#f6f9fc', tip: '#f6f9fc', inner: '#e7c9c8', paw: '#f6f9fc', pawF: '#d4d7db' };
   function dogTail(g, F, P, C, m, env) {
     const c = F(0.0, 8.2 - (P.sitK || 0) * 2.5), r = 3.4, wag = sin(env.now * (P.wag || 2) + m.seed) * 0.1;
     const a0 = F.ang + Math.PI * 0.5 + 1.2 + wag;
@@ -379,7 +387,7 @@ const ArtAnimals = (() => {
   }
 
   // ======================= СЕВЕРНЫЙ ОЛЕНЬ =======================
-  const DEER_C = { body: '#76634f', dark: '#54463a', mid: '#8a7660', belly: '#d8ccb8', far: '#4c3f33', leg: '#6a5846', mane: '#ece4d4', ant: '#dccdb2', antF: '#b4a58c', paw: '#2c241d', pawF: '#241d17' };
+  const DEER_C = { body: '#7d634b', dark: '#473930', mid: '#8f7e67', belly: '#e3d5b6', far: '#473930', leg: '#645240', mane: '#ede7d9', ant: '#e3d5b6', antF: '#b9a98f', paw: '#352b25', pawF: '#352b25' };
   function deerHead(g, P, C) {
     const ch = P.jaw;
     // рога: дальний и ближний
@@ -397,13 +405,13 @@ const ArtAnimals = (() => {
     ell(g, -1, -2.6, 3.6, 1.3, C.dark, -0.5); // ухо
     g.save(); g.translate(3, 2); g.rotate(ch); poly(g, [[0, -0.8], [7, -0.4], [6.6, 1.2], [0, 1.6]], C.mid); g.restore();
     fillBlob(g, [[-3.5, -3], [3, -3.2], [10.5, -1.4], [11.4, 1.2], [6, 2.2], [-2.5, 3]], C.body);
-    ell(g, 10.3, 0, 1.9, 1.7, '#b9ac98'); // мохнатый нос
-    ell(g, 2.2, -1.4, 1.1, 0.9, '#140f0b');
-    g.fillStyle = '#fff'; g.fillRect(2.3, -1.9, 0.5, 0.5);
+    ell(g, 10.3, 0, 1.9, 1.7, '#c0b2a1'); // мохнатый нос
+    ell(g, 2.2, -1.4, 1.1, 0.9, '#10271f');
+    g.fillStyle = '#f6f9fc'; g.fillRect(2.3, -1.9, 0.5, 0.5);
   }
-  function deerTail(g, F) { const b = F(-0.27, 2.5); ell(g, b[0], b[1], 2, 2.8, '#efe8dc', F.ang + 0.5); }
+  function deerTail(g, F) { const b = F(-0.27, 2.5); ell(g, b[0], b[1], 2, 2.8, '#ede7d9', F.ang + 0.5); }
   function deerDetail(g, F, P, C) {
-    const r = F(-0.14, -0.5); ell(g, r[0], r[1], 3, 4.4, '#e8e0d2', F.ang + 0.2); // светлое «зеркало»
+    const r = F(-0.14, -0.5); ell(g, r[0], r[1], 3, 4.4, '#eae1d6', F.ang + 0.2); // светлое «зеркало»
     frost(g, F, [[0.1, 6], [0.35, 6.3], [0.6, 6.4], [0.85, 7.4]], 0.7);
   }
   function deerNeck(g, F, P, C, nb, nh, m, env, o) {
@@ -412,8 +420,8 @@ const ArtAnimals = (() => {
     fillBlob(g, [[nb[0] + 2, nb[1] + 1], [mx - 0.5, my + 3.8], [nh[0] + 1, nh[1] + 3.2], [nh[0] + 2, nh[1] + 1.4], [mx + 1.5, my], [nb[0] + 3.5, nb[1] - 1.5]], C.mane);
     // колокольчик на ремешке
     const ba = m.bell, bx = mx - 0.5, by = my + 1.8, ex = bx + sin(ba) * 4.2, ey = by + cos(ba) * 4.2;
-    g.strokeStyle = '#7a3b24'; g.lineWidth = 1.1; g.beginPath(); g.moveTo(bx - 2.5, by - 1.5); g.lineTo(bx, by); g.lineTo(ex, ey); g.stroke();
-    ell(g, ex, ey + 1, 1.9, 2.2, '#d6a743', ba); g.fillStyle = '#6b4a14'; g.fillRect(ex - 0.6, ey + 2.6, 1.2, 0.8);
+    g.strokeStyle = '#723c29'; g.lineWidth = 1.1; g.beginPath(); g.moveTo(bx - 2.5, by - 1.5); g.lineTo(bx, by); g.lineTo(ex, ey); g.stroke();
+    ell(g, ex, ey + 1, 1.9, 2.2, '#f8bc63', ba); g.fillStyle = '#765436'; g.fillRect(ex - 0.6, ey + 2.6, 1.2, 0.8);
   }
   const DEER = {
     hl: [12.5, 14], fl: [12, 14.5], lw: [10, 2.3], lwF: [7.5, 2.3], toe: 1, paw: 1, shw: 11, shh: 1.2,
@@ -448,16 +456,16 @@ const ArtAnimals = (() => {
 
   // ======================= ЗАЯЦ-БЕЛЯК =======================
   function hare(g, h, env) {
-    const m = mem(h, env), now = env.now, f = h.face < 0 ? -1 : 1, moving = m.spd > 5 || (h.vx || h.vy);
+    const m = mem(h, env), now = env.now, [f, tq] = turn(m, h.face, now), moving = m.spd > 5 || (h.vx || h.vy);
     const p = moving ? frac((h.hop || 0) / Math.PI) : 0, air = moving ? sin(p * Math.PI) : 0;
     const st = moving ? clamp(air * 1.4, 0, 1) : 0, lift = air * 7, sx = 1 - 0.22 * Math.abs(m.dy);
     const pitch = moving ? (p < 0.5 ? -0.25 : 0.22) * st : 0;
     shadow(g, h.x, h.y + 1, 9 * (1 - air * 0.25) * sx, 3.2 * (1 - air * 0.25), 0.2);
-    g.save(); g.translate(h.x, h.y - lift); g.scale(f * sx, 1);
+    g.save(); g.translate(h.x, h.y - lift); g.scale(f * sx * tq, 1);
     const cx = -2 + 2 * st, cy = -7 - st, rx = 7.5 + 3 * st, ry = 6 - 1.8 * st, rot = -0.35 * (1 - st) + pitch;
     const hx = 5 + 5.5 * st, hy = -12.5 + 3 * st + (moving ? 0 : sin(now * 1.3 + m.seed) * 0.3);
     // задние лапы
-    g.lineCap = 'round'; g.strokeStyle = '#c9d3de'; g.lineWidth = 3;
+    g.lineCap = 'round'; g.strokeStyle = '#c2d0dd'; g.lineWidth = 3;
     g.beginPath();
     if (st > 0.2) { g.moveTo(cx - rx * 0.6, cy + 2); g.lineTo(cx - rx - 4 * st, cy + 5 + 2 * st); }
     else { g.moveTo(-8, -1.2); g.lineTo(1, -1.2); }
@@ -467,29 +475,29 @@ const ArtAnimals = (() => {
     const ea = moving ? -2.55 + 0.5 * (1 - st) : -1.62 + tw, eb = moving ? -2.45 : -1.4 - tw * 0.6;
     const ear = (a, dx, col, tip) => {
       const bx = hx - 1.5 + dx, by = hy - 2.5;
-      ell(g, bx + cos(a) * 5, by + sin(a) * 5, 6.1, 2.2, 'rgba(120,140,170,0.6)', a);
+      ell(g, bx + cos(a) * 5, by + sin(a) * 5, 6.1, 2.2, 'rgba(111,142,168,0.6)', a);
       ell(g, bx + cos(a) * 5, by + sin(a) * 5, 5.6, 1.7, col, a);
       ell(g, bx + cos(a) * 9.6, by + sin(a) * 9.6, 1.7, 1.25, tip, a);
     };
-    ear(eb, 1.2, '#d6dee8', '#2a2a2e');
+    ear(eb, 1.2, '#dde6ee', '#313031');
     // тело: контур, тень, свет
-    ell(g, cx, cy, rx + 0.8, ry + 0.8, 'rgba(120,140,170,0.55)', rot);
-    ell(g, cx, cy + 0.6, rx, ry, '#dbe3ec', rot);
-    ell(g, cx + 0.5, cy - 0.8, rx - 1.2, ry - 1.4, '#fbfdff', rot);
-    ell(g, cx - rx + 0.5, cy - 1.5, 2.4, 2.3, '#ffffff'); // хвостик
+    ell(g, cx, cy, rx + 0.8, ry + 0.8, 'rgba(111,142,168,0.55)', rot);
+    ell(g, cx, cy + 0.6, rx, ry, '#dde6ee', rot);
+    ell(g, cx + 0.5, cy - 0.8, rx - 1.2, ry - 1.4, '#f6f9fc', rot);
+    ell(g, cx - rx + 0.5, cy - 1.5, 2.4, 2.3, '#f6f9fc'); // хвостик
     // передние лапы
-    g.strokeStyle = '#e4eaf1'; g.lineWidth = 2.2; g.beginPath();
+    g.strokeStyle = '#dde6ee'; g.lineWidth = 2.2; g.beginPath();
     if (st > 0.2) { const fx = cx + rx * 0.7; g.moveTo(fx, cy + 2); g.lineTo(fx + 4 + 2 * (p > 0.5 ? 1 : -0.5), cy + 7 + lift * 0.4 * (p > 0.5 ? 1 : 0.3)); }
     else { g.moveTo(4, -5); g.lineTo(5.2, -0.8); }
     g.stroke();
     // голова
-    ell(g, hx, hy, 4.6, 3.9, 'rgba(120,140,170,0.55)', 0.25 + pitch);
-    ell(g, hx, hy, 4.2, 3.6, '#fbfdff', 0.25 + pitch);
-    ear(ea, 0, '#f4f7fb', '#1c1c20');
-    ell(g, hx + 1.3, hy - 0.8, 1.15, 1.25, '#1a1a1e');
-    g.fillStyle = '#fff'; g.fillRect(hx + 1.3, hy - 1.4, 0.5, 0.5);
+    ell(g, hx, hy, 4.6, 3.9, 'rgba(111,142,168,0.55)', 0.25 + pitch);
+    ell(g, hx, hy, 4.2, 3.6, '#f6f9fc', 0.25 + pitch);
+    ear(ea, 0, '#f6f9fc', '#313031');
+    ell(g, hx + 1.3, hy - 0.8, 1.15, 1.25, '#313031');
+    g.fillStyle = '#f6f9fc'; g.fillRect(hx + 1.3, hy - 1.4, 0.5, 0.5);
     const nw = moving ? 0 : sin(now * 18) * 0.35 * (sin(now * 0.7 + m.seed) > 0 ? 1 : 0);
-    ell(g, hx + 4, hy + 0.6 + nw, 0.9, 0.7, '#c98f96');
+    ell(g, hx + 4, hy + 0.6 + nw, 0.9, 0.7, '#c89468');
     g.restore();
   }
 
@@ -497,7 +505,7 @@ const ArtAnimals = (() => {
   function raven(g, rv, env) {
     const m = mem(rv, env), now = env.now, x = rv.x, y = rv.y - (rv.z || 0);
     if (rv.fly && !m.fly) m.flyT = now; m.fly = rv.fly ? 1 : 0;
-    const B = '#15171b', B2 = '#262a31', SH = '#3a4250';
+    const B = '#10271f', B2 = '#2f3542', SH = '#3e4450';
     if (!rv.fly) {
       if (now > m.lookT) { m.lookT = now + 0.6 + R() * 2.2; m.look = [1, -1, 0.25, 1][(R() * 4) | 0]; if (R() < 0.5) m.face = -m.face; }
       const f = m.face, caw = sin(now * 0.8 + m.seed) > 0.93 ? Math.abs(sin(now * 20)) : 0;
@@ -505,11 +513,11 @@ const ArtAnimals = (() => {
       poly(g, [[-2.5, -3.2], [-10.5, -0.2], [-10, 1.6], [-2.5, -1.2]], B);
       ell(g, 0, -4.6 - caw * 0.4, 5.2, 3.5, B, -0.35);
       ell(g, -0.6, -4.2, 3.4, 2, B2, -0.3); // сложенное крыло
-      g.strokeStyle = '#2b2f36'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(-0.8, -1.2); g.lineTo(-1.2, 0.6); g.moveTo(1.2, -1.2); g.lineTo(1.4, 0.6); g.stroke();
+      g.strokeStyle = '#2f3542'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(-0.8, -1.2); g.lineTo(-1.2, 0.6); g.moveTo(1.2, -1.2); g.lineTo(1.4, 0.6); g.stroke();
       const lk = m.look, hx = 3.6, hy = -8.3 - caw * 0.8, tl = sin(now * 1.7 + m.seed) * 0.15;
       ell(g, hx, hy, 2.8, 2.6, B);
-      poly(g, [[hx + 1.2 * lk, hy - 1.1], [hx + 1.2 * lk + 4.4 * lk, hy + 0.1 + tl * 4], [hx + 1.2 * lk, hy + 0.9 + caw * 1.6]], '#0b0c0e');
-      if (lk !== 0.25) { g.fillStyle = '#9aa6b8'; g.fillRect(hx + 0.6 * lk - 0.3, hy - 0.9, 0.7, 0.7); }
+      poly(g, [[hx + 1.2 * lk, hy - 1.1], [hx + 1.2 * lk + 4.4 * lk, hy + 0.1 + tl * 4], [hx + 1.2 * lk, hy + 0.9 + caw * 1.6]], '#10271f');
+      if (lk !== 0.25) { g.fillStyle = '#94a4b8'; g.fillRect(hx + 0.6 * lk - 0.3, hy - 0.9, 0.7, 0.7); }
       g.restore();
       return;
     }
@@ -530,35 +538,35 @@ const ArtAnimals = (() => {
     poly(g, [[-4.5, -0.8], [-10.5, -3], [-11.2, 0], [-10.5, 3], [-4.5, 0.8]], B);
     ell(g, 0, 0, 6, 2.3, B);
     ell(g, 5.8, 0, 2.2, 1.9, B);
-    poly(g, [[7.6, -0.8], [10.6, 0], [7.6, 0.8]], '#0b0c0e');
+    poly(g, [[7.6, -0.8], [10.6, 0], [7.6, 0.8]], '#10271f');
     g.restore();
   }
 
   // ======================= ТУША =======================
   const CORPSE = {
-    wolf: { k: 1, body: '#80868e', dark: '#565c64', belly: '#e2e6ea', leg: '#6f757d', L: 20, R: 7, head: 6, blood: 16 },
-    wolfLeader: { k: 1.16, body: '#5d6269', dark: '#363a40', belly: '#b7bcc2', leg: '#4c5157', L: 20, R: 7, head: 6, blood: 17 },
-    bear: { k: 1, body: '#4b3628', dark: '#35261c', belly: '#5e4634', leg: '#3a2a1f', L: 30, R: 13, head: 8.5, blood: 26 },
-    hare: { k: 1, body: '#f6f9fc', dark: '#d7dfe8', belly: '#ffffff', leg: '#dbe3ec', L: 9, R: 4.5, head: 3.8, blood: 8 },
-    deer: { k: 1, body: '#76634f', dark: '#54463a', belly: '#d8ccb8', leg: '#4c3f33', L: 24, R: 8, head: 5.5, blood: 18 },
-    dog: { k: 0.7, body: '#a7aeb6', dark: '#737a84', belly: '#e9ecef', leg: '#8a9098', L: 20, R: 7, head: 6, blood: 12 },
-    raven: { k: 1, body: '#15171b', dark: '#262a31', belly: '#15171b', leg: '#15171b', L: 6, R: 3, head: 2.4, blood: 5 },
+    wolf: { k: 1, body: '#7f8792', dark: '#5d626b', belly: '#dde6ee', leg: '#6c7178', L: 20, R: 7, head: 6, blood: 16 },
+    wolfLeader: { k: 1.16, body: '#5d626b', dark: '#2f3542', belly: '#b2bac3', leg: '#4e535d', L: 20, R: 7, head: 6, blood: 17 },
+    bear: { k: 1, body: '#4e3723', dark: '#3a2618', belly: '#5b3d27', leg: '#3a2618', L: 30, R: 13, head: 8.5, blood: 26 },
+    hare: { k: 1, body: '#f6f9fc', dark: '#dde6ee', belly: '#f6f9fc', leg: '#dde6ee', L: 9, R: 4.5, head: 3.8, blood: 8 },
+    deer: { k: 1, body: '#7d634b', dark: '#473930', belly: '#e3d5b6', leg: '#473930', L: 24, R: 8, head: 5.5, blood: 18 },
+    dog: { k: 0.7, body: '#a5acb3', dark: '#6c7178', belly: '#dde6ee', leg: '#888e96', L: 20, R: 7, head: 6, blood: 12 },
+    raven: { k: 1, body: '#10271f', dark: '#2f3542', belly: '#10271f', leg: '#10271f', L: 6, R: 3, head: 2.4, blood: 5 },
   };
   function corpse(g, kind, x, y, t = 99) {
     const C = CORPSE[kind] || CORPSE.wolf, k = C.k, grow = sstep(0, 2.5, t), age = clamp(t / 90, 0, 1);
     // кровь: пятно растёт, темнеет, частично заметается снегом
     const bl = C.blood * k * (0.4 + 0.6 * grow);
     g.globalAlpha = 1 - age * 0.45;
-    ell(g, x + 2 * k, y + 1, bl, bl * 0.42, age > 0.3 ? '#6e1a1a' : '#8a1c1c');
-    ell(g, x - bl * 0.55, y + 2.5, bl * 0.4, bl * 0.2, '#7a1818');
-    g.fillStyle = '#9b2220';
+    ell(g, x + 2 * k, y + 1, bl, bl * 0.42, age > 0.3 ? '#7c241c' : '#8b2920');
+    ell(g, x - bl * 0.55, y + 2.5, bl * 0.4, bl * 0.2, '#7c241c');
+    g.fillStyle = '#9a2f25';
     for (let i = 0; i < 5; i++) { const a = i * 1.9 + x * 0.01, r = bl * (1.1 + (i % 3) * 0.25); g.fillRect(x + cos(a) * r, y + 1 + sin(a) * r * 0.4, 1.8, 1.2); }
     g.globalAlpha = 1;
     g.save(); g.translate(x, y); g.scale(k, k); g.lineCap = 'round';
     if (kind === 'raven') {
       poly(g, [[-2, -1], [-9, 2], [-7, 3.5], [-1, 1]], C.body);
       poly(g, [[0, -1], [6, -6], [8, -3], [2, 1]], C.dark); poly(g, [[0, 0], [-4, -6], [-1, -6], [2, -1]], C.dark);
-      ell(g, 0, -1, 4, 2.4, C.body); ell(g, 4, -0.5, 2.2, 2, C.body); poly(g, [[5.8, -0.8], [8.8, 0.6], [5.6, 0.6]], '#0b0c0e');
+      ell(g, 0, -1, 4, 2.4, C.body); ell(g, 4, -0.5, 2.2, 2, C.body); poly(g, [[5.8, -0.8], [8.8, 0.6], [5.6, 0.6]], '#10271f');
     } else {
       const L = C.L, R = C.R;
       // лапы окоченело торчат
@@ -572,12 +580,12 @@ const ArtAnimals = (() => {
       // голова лежит, глаз закрыт
       const hx = L * 1.05, hy = -R * 0.2, hr = C.head;
       ell(g, hx, hy, hr * 1.1, hr * 0.8, C.body, 0.25);
-      ell(g, hx + hr * 1.1, hy + hr * 0.45, hr * 0.8, hr * 0.45, kind === 'bear' ? '#8a6a4c' : C.body, 0.35);
-      if (kind === 'wolf' || kind === 'wolfLeader' || kind === 'dog') { g.fillStyle = '#c05a6a'; g.fillRect(hx + hr * 1.3, hy + hr * 0.8, hr * 0.5, hr * 0.3); }
-      if (kind === 'deer') { g.strokeStyle = '#d8c9b0'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(hx - 1, hy - 3); g.lineTo(hx - 10, hy - 12); g.lineTo(hx - 16, hy - 11); g.moveTo(hx - 5, hy - 7); g.lineTo(hx - 3, hy - 13); g.stroke(); }
-      if (kind === 'hare') { ell(g, hx - 5, hy - 1, 5, 1.4, C.body, -0.2); ell(g, hx - 9.5, hy - 0.2, 1.4, 1.1, '#1c1c20'); }
-      g.strokeStyle = '#1a1a1a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(hx + hr * 0.2, hy - hr * 0.3); g.lineTo(hx + hr * 0.7, hy - hr * 0.2); g.stroke();
-      if (t > 20) { g.fillStyle = `rgba(245,249,255,${Math.min(0.85, (t - 20) / 60)})`; for (let i = 0; i < 6; i++) g.fillRect(-L * 0.7 + i * L * 0.3, -R * 1.25 + (i % 2) * 1.2, 3, 1.3); }
+      ell(g, hx + hr * 1.1, hy + hr * 0.45, hr * 0.8, hr * 0.45, kind === 'bear' ? '#8a6a45' : C.body, 0.35);
+      if (kind === 'wolf' || kind === 'wolfLeader' || kind === 'dog') { g.fillStyle = '#7c241c'; g.fillRect(hx + hr * 1.3, hy + hr * 0.8, hr * 0.5, hr * 0.3); }
+      if (kind === 'deer') { g.strokeStyle = '#e3d5b6'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(hx - 1, hy - 3); g.lineTo(hx - 10, hy - 12); g.lineTo(hx - 16, hy - 11); g.moveTo(hx - 5, hy - 7); g.lineTo(hx - 3, hy - 13); g.stroke(); }
+      if (kind === 'hare') { ell(g, hx - 5, hy - 1, 5, 1.4, C.body, -0.2); ell(g, hx - 9.5, hy - 0.2, 1.4, 1.1, '#313031'); }
+      g.strokeStyle = '#10271f'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(hx + hr * 0.2, hy - hr * 0.3); g.lineTo(hx + hr * 0.7, hy - hr * 0.2); g.stroke();
+      if (t > 20) { g.fillStyle = `rgba(246,249,252,${Math.min(0.85, (t - 20) / 60)})`; for (let i = 0; i < 6; i++) g.fillRect(-L * 0.7 + i * L * 0.3, -R * 1.25 + (i % 2) * 1.2, 3, 1.3); }
     }
     g.restore();
   }

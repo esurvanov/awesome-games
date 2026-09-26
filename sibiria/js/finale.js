@@ -1,12 +1,15 @@
 'use strict';
 // Финальная сцена: оверлей-канвас поверх игры (~12 с), потом onDone() → итоговый экран.
-// Finale.play(kind, stats, onDone): kind 'A' | 'B' | 'D' | 'C'.
+// Finale.play(kind, stats, onDone): kind 'A' | 'B' | 'D' | 'C' | 'E' (поход: борт садится у мачты метеостанции).
 // stats (всё необязательно): { pop, vera, urk, day } — иначе берём из G/Colony.
 // Клик / клавиша / тап после 1 с — пропустить.
 const Finale = (() => {
   // U — масштаб сцены (доля экрана), UI — единый масштаб интерфейса (титры, бейдж «пропустить»)
-  let cv = null, cx = null, raf = 0, T = 0, last = 0, done = null, K = 'A', S = {}, W = 0, H = 0, U = 1, UIk = 1, parts = [], skipOK = false;
-  const DUR = { A: 12, B: 11, D: 12, C: 10 };
+  let cv = null, cx = null, raf = 0, T = 0, last = 0, done = null, K = 'A', S = {}, W = 0, H = 0, U = 1, UIk = 1, skipOK = false;
+  // частицы финала — экранный пул общего модуля (js/particles.js): те же законы, лимит 900 / low 450
+  let fx = FX.pool(900);
+  const DUR = { A: 12, B: 11, D: 12, C: 10, E: 12 };
+  const HELI = k => k === 'A' || k === 'B' || k === 'E'; // сцены с посадкой борта
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const cl = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
   const ease = x => { x = cl(x); return x * x * (3 - 2 * x); };
@@ -21,6 +24,7 @@ const Finale = (() => {
       if (o.vera == null) o.vera = !G.flags.veraDead && G.vera.state !== 'tail';
       if (o.urk == null) o.urk = G.urk.respect >= 2;
       if (o.day == null) o.day = G.day;
+      if (o.healed == null) o.healed = !!G.flags.veraHealed;
     } catch (e) { o.pop = o.pop || 0; }
     return o;
   }
@@ -29,10 +33,10 @@ const Finale = (() => {
     stop();
     K = DUR[kind] ? kind : 'A'; S = stats(st); done = onDone || (() => {});
     cv = document.createElement('canvas'); cv.id = 'finale';
-    cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:20;display:block;background:#111a15;cursor:pointer;touch-action:none';
+    cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:20;display:block;background:#10271f;cursor:pointer;touch-action:none';
     document.body.appendChild(cv); cx = cv.getContext('2d');
     resize(); addEventListener('resize', resize);
-    T = 0; last = performance.now(); parts = []; skipOK = false;
+    T = 0; last = performance.now(); fx = FX.pool(900); skipOK = false;
     setTimeout(() => { skipOK = true; }, 1000);
     cv.addEventListener('pointerdown', skip); addEventListener('keydown', skip);
     setup();
@@ -73,37 +77,43 @@ const Finale = (() => {
   function setup() {
     crowd = [];
     const gy = 0.8;
-    if (K === 'A' || K === 'B') {
-      crowd.push({ who: 'lesha', x: 0.24, y: gy + 0.04, sp: 0.085, delay: 5.6, col: '#c8612d' });
-      if (K === 'A' && S.vera) crowd.push({ who: 'vera', x: 0.2, y: gy + 0.06, sp: 0.07, delay: 5.8, col: '#b8433a', limp: 1, wave: 1 });
+    if (K === 'E') {
+      // у мачты: Лёша и Вера идут к борту, Тамара машет с крыльца, упряжка Уялан стоит у дома
+      crowd.push({ who: 'lesha', x: 0.3, y: gy + 0.05, sp: 0.07, delay: 5.6, col: '#ca5834' });
+      if (S.vera) crowd.push({ who: 'vera', x: 0.26, y: gy + 0.07, sp: S.healed ? 0.07 : 0.055, delay: 5.9, col: '#b8392d', limp: S.healed ? 0 : 1, wave: 1 });
+      crowd.push({ who: 'tamara', x: 0.16, y: gy - 0.02, sp: 0, delay: 99, col: '#3f6f7a', wave: 1, waveAt: 7.5 });
+    } else if (K === 'A' || K === 'B') {
+      crowd.push({ who: 'lesha', x: 0.24, y: gy + 0.04, sp: 0.085, delay: 5.6, col: '#ca5834' });
+      if (K === 'A' && S.vera) crowd.push({ who: 'vera', x: 0.2, y: gy + 0.06, sp: 0.07, delay: 5.8, col: '#b8392d', limp: 1, wave: 1 });
       const n = K === "B" ? 0 : Math.min(6, Math.max(0, (S.pop | 0) - 1));
-      for (let i = 0; i < n; i++) crowd.push({ who: 'folk', x: 0.02 + i * 0.05, y: gy + 0.02 + (i % 3) * 0.025, sp: R(0.06, 0.08), delay: 6 + i * 0.35, col: ['#5d6b52', '#6b5242', '#4f5e6e', '#7a6440'][i % 4], stop: 0.4 + i * 0.03, wave: i % 2 });
-      if (K === 'A') crowd.push({ who: 'urk', x: 0.1, y: gy - 0.03, sp: 0, delay: 99, col: '#3d3226', pipe: 1 });
+      for (let i = 0; i < n; i++) crowd.push({ who: 'folk', x: 0.02 + i * 0.05, y: gy + 0.02 + (i % 3) * 0.025, sp: R(0.06, 0.08), delay: 6 + i * 0.35, col: ['#5d6b52', '#645240', '#4b5d6f', '#8a6a45'][i % 4], stop: 0.4 + i * 0.03, wave: i % 2 });
+      if (K === 'A') crowd.push({ who: 'urk', x: 0.1, y: gy - 0.03, sp: 0, delay: 99, col: '#473930', pipe: 1 });
     } else if (K === 'D') {
-      for (let i = 0; i < Math.min(8, Math.max(3, S.pop | 0)); i++) crowd.push({ who: 'folk', x: R(0.1, 0.9), y: gy + R(0.0, 0.08), sp: R(0.02, 0.04) * (Math.random() < 0.5 ? -1 : 1), delay: R(0, 2), col: ['#5d6b52', '#6b5242', '#4f5e6e', '#7a6440', '#b8433a'][i % 5], roam: 1 });
-      crowd.push({ who: 'urk', x: 0.5, y: gy + 0.02, sp: 0, delay: 99, col: '#3d3226', pipe: 1 });
+      for (let i = 0; i < Math.min(8, Math.max(3, S.pop | 0)); i++) crowd.push({ who: 'folk', x: R(0.1, 0.9), y: gy + R(0.0, 0.08), sp: R(0.02, 0.04) * (Math.random() < 0.5 ? -1 : 1), delay: R(0, 2), col: ['#5d6b52', '#645240', '#4b5d6f', '#8a6a45', '#b8392d'][i % 5], roam: 1 });
+      crowd.push({ who: 'urk', x: 0.5, y: gy + 0.02, sp: 0, delay: 99, col: '#473930', pipe: 1 });
     } else {
-      crowd.push({ who: 'urk', x: 0.5, y: gy + 0.1, sp: 0.018, delay: 1.5, col: '#3d3226', ski: 1, away: 1 });
-      crowd.push({ who: 'lesha', x: 0.46, y: gy + 0.12, sp: 0.018, delay: 2.2, col: '#c8612d', ski: 1, away: 1 });
+      crowd.push({ who: 'urk', x: 0.5, y: gy + 0.1, sp: 0.018, delay: 1.5, col: '#473930', ski: 1, away: 1 });
+      crowd.push({ who: 'lesha', x: 0.46, y: gy + 0.12, sp: 0.018, delay: 2.2, col: '#ca5834', ski: 1, away: 1 });
     }
   }
   function sound(dt) {
-    if (K === 'A' || K === 'B') {
+    if (HELI(K)) {
       const k = T < LAND ? 0.35 + 0.65 * ease(T / LAND) : T < 9 ? 1 : 1 - ease((T - 9) / 3) * 0.7;
-      Sound.cinema(dt, { mood: K === 'A' ? 'finale' : 'quiet', rotor: k * (K === 'B' ? 0.8 : 1), pan: (heliPos(T).x - 0.5) * 1.4, wind: 0.08 + (T > 3 && T < 9 ? 0.18 : 0) });
+      Sound.cinema(dt, { mood: K === 'B' ? 'quiet' : 'finale', rotor: k * (K === 'B' ? 0.8 : 1), pan: (heliPos(T).x - 0.5) * 1.4, wind: 0.08 + (T > 3 && T < 9 ? 0.18 : 0) });
     } else Sound.cinema(dt, { mood: K === 'D' ? 'finale' : 'quiet', wind: K === 'C' ? 0.16 : 0.06, night: 1 });
   }
 
   // ---------- рисование ----------
   function draw(dt) {
-    const shake = !reduced && (K === 'A' || K === 'B') && T > 3.5 && T < 6 ? (1 - Math.abs(T - 5) / 1.5) * 2.5 * U : 0;
+    const shake = !reduced && HELI(K) && T > 3.5 && T < 6 ? (1 - Math.abs(T - 5) / 1.5) * 2.5 * U : 0;
     cx.save(); if (shake > 0) cx.translate(R(-shake, shake), R(-shake, shake));
-    sky(); if (K === 'D') aurora(); hills(); forest(0.64, 0.5, '#1d2b33', 1); forest(0.7, 0.8, '#15222a', 2);
+    sky(); if (K === 'D') aurora(); hills(); forest(0.64, 0.5, '#1c3035', 1); forest(0.7, 0.8, '#1c3035', 2);
     ground();
     if (K === 'A' || K === 'B') { stacks(dt); }
     if (K === 'D') village(dt);
+    if (K === 'E') meteo(dt);
     people(dt);
-    if (K === 'A' || K === 'B') { const h = heliPos(T); heli(h.x * W, h.y * H, U * 1.1, h.tilt); downwash(dt, h); }
+    if (HELI(K)) { const h = heliPos(T); heli(h.x * W, h.y * H, U * 1.1, h.tilt); downwash(dt, h); }
     snow(dt);
     cx.restore();
     titles();
@@ -122,10 +132,10 @@ const Finale = (() => {
   function sky() {
     const g = cx.createLinearGradient(0, 0, 0, H * 0.75);
     // палитра мира (C2): ночь #27394a, сумерки #6f8ea8, снег #dde6ee, огонь #ffb347
-    const P = { A: ['#27394a', '#6f8ea8', '#f3d6b0'], B: ['#27394a', '#6f8ea8', '#b6c9df'], D: ['#111a15', '#1b2a3a', '#27394a'], C: ['#27394a', '#6f8ea8', '#dde6ee'] }[K];
+    const P = { A: ['#27394a', '#6f8ea8', '#f1c9a5'], B: ['#27394a', '#6f8ea8', '#b6c9df'], D: ['#10271f', '#2f3542', '#27394a'], C: ['#27394a', '#6f8ea8', '#dde6ee'], E: ['#4b6479', '#a4bad1', '#f8e1c4'] }[K];
     g.addColorStop(0, P[0]); g.addColorStop(0.6, P[1]); g.addColorStop(1, P[2]);
     cx.fillStyle = g; cx.fillRect(-20, -20, W + 40, H + 40);
-    if (K === 'A' || K === 'C') { const sx = W * (K === 'A' ? 0.3 : 0.7), sy = H * 0.58, r = 160 * U; const s = cx.createRadialGradient(sx, sy, 0, sx, sy, r); s.addColorStop(0, K === 'A' ? 'rgba(255,220,160,.9)' : 'rgba(220,235,255,.5)'); s.addColorStop(1, 'rgba(255,220,160,0)'); cx.fillStyle = s; cx.fillRect(sx - r, sy - r, r * 2, r * 2); }
+    if (K === 'A' || K === 'C' || K === 'E') { const sx = W * (K === 'C' ? 0.7 : K === 'E' ? 0.82 : 0.3), sy = H * 0.58, r = 160 * U; const s = cx.createRadialGradient(sx, sy, 0, sx, sy, r); s.addColorStop(0, K === 'C' ? 'rgba(221,230,238,.5)' : 'rgba(253,220,155,.9)'); s.addColorStop(1, 'rgba(253,220,155,0)'); cx.fillStyle = s; cx.fillRect(sx - r, sy - r, r * 2, r * 2); }
     if (K === 'D' || K === 'C') { cx.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 70; i++) { const x = hash(i) * W, y = hash(i + 99) * H * 0.5, tw = 0.5 + 0.5 * Math.sin(T * 2 + i); cx.globalAlpha = (K === 'D' ? 0.9 : 0.3) * tw; cx.fillRect(x, y, 1.5, 1.5); } cx.globalAlpha = 1; }
   }
   function aurora() {
@@ -136,7 +146,7 @@ const Finale = (() => {
     }
   }
   function hills() {
-    cx.fillStyle = K === 'D' ? '#1b2a3a' : '#6f8ea8';
+    cx.fillStyle = K === 'D' ? '#2f3542' : '#6f8ea8';
     cx.beginPath(); cx.moveTo(0, H);
     for (let i = 0; i <= 50; i++) { const x = i / 50 * W; cx.lineTo(x, H * 0.55 - (Math.sin(i * 0.3) * 0.5 + 0.5) * H * 0.06 - hash(i) * H * 0.01); }
     cx.lineTo(W, H); cx.fill();
@@ -159,47 +169,58 @@ const Finale = (() => {
   }
   function ground() {
     const g = cx.createLinearGradient(0, H * 0.68, 0, H);
-    const c = { A: ['#f6f9fc', '#dde6ee'], B: ['#dde6ee', '#b6c9df'], D: ['#6f8ea8', '#27394a'], C: ['#dde6ee', '#b6c9df'] }[K];
+    const c = { A: ['#f6f9fc', '#dde6ee'], B: ['#dde6ee', '#b6c9df'], D: ['#6f8ea8', '#27394a'], C: ['#dde6ee', '#b6c9df'], E: ['#f6f9fc', '#dde6ee'] }[K];
     g.addColorStop(0, c[0]); g.addColorStop(1, c[1]);
     cx.fillStyle = g; cx.beginPath(); cx.moveTo(0, H * 0.7);
     for (let i = 0; i <= 30; i++) cx.lineTo(i / 30 * W, H * 0.7 + Math.sin(i * 0.7) * 4 * U);
     cx.lineTo(W, H); cx.lineTo(0, H); cx.fill();
-    if (K === 'C') { cx.strokeStyle = 'rgba(90,110,130,.4)'; cx.lineWidth = 2 * U; for (const o of [-5, 5]) { cx.beginPath(); cx.moveTo(W * 0.48 + o * U, H); cx.quadraticCurveTo(W * 0.5, H * 0.8, W * 0.52 + o * 0.3 * U, H * 0.66); cx.stroke(); } }
+    if (K === 'C') { cx.strokeStyle = 'rgba(95,120,143,.4)'; cx.lineWidth = 2 * U; for (const o of [-5, 5]) { cx.beginPath(); cx.moveTo(W * 0.48 + o * U, H); cx.quadraticCurveTo(W * 0.5, H * 0.8, W * 0.52 + o * 0.3 * U, H * 0.66); cx.stroke(); } }
   }
   function smoke(x, y, k, lean) {
-    if (Math.random() < 0.5 * k) parts.push({ t: 'smoke', x: x + R(-4, 4) * U, y, vx: lean * R(10, 40) * U, vy: -R(20, 40) * U, life: R(2, 3.5), max: 3.5, r: R(6, 10) * U });
+    if (Math.random() < 0.5 * k) fx.spawn({ t: 'smoke', x: x + R(-4, 4) * U, y, vx: lean * R(10, 40) * U, vy: -R(20, 40) * U, life: R(2, 3.5), max: 3.5, r: R(6, 10) * U, grow: 6 * U });
   }
+  // мировые модели в экранном масштабе: окружение для ArtWorld (свет и искры здесь не нужны — свой грейд)
+  const NOENV = () => ({ now: T, night: K === 'D' ? 1 : 0.2, wind: 1, light() {}, glow() {}, spark() {}, eye() {} });
+  function world(x, y, s, fn) { cx.save(); cx.translate(x, y); cx.scale(s, s); fn(); cx.restore(); }
+  // сигнальные штабели — та же модель, что в мире (ArtWorld.stack), горят
+  const STK = [0, 1, 2].map(() => ({ x: 0, y: 0, lit: 30, wood: 4 }));
   function stacks(dt) {
-    const h = heliPos(T), close = T > 3 ? ease((T - 3) / 2) : 0;
+    const h = heliPos(T), close = T > 3 ? ease((T - 3) / 2) : 0, s = U * 0.85;
     for (let i = 0; i < 3; i++) {
       const x = W * (0.24 + i * 0.12), y = H * 0.76 + (i % 2) * 8 * U;
-      cx.fillStyle = '#4a3625'; cx.fillRect(x - 12 * U, y - 5 * U, 24 * U, 6 * U);
-      const f = 0.7 + 0.3 * Math.sin(T * 17 + i * 3);
-      cx.fillStyle = `rgba(255,${140 + 40 * f | 0},60,.9)`; cx.beginPath(); cx.moveTo(x - 9 * U, y - 4 * U); cx.quadraticCurveTo(x, y - 30 * U * f, x + 9 * U, y - 4 * U); cx.fill();
-      cx.fillStyle = 'rgba(255,240,160,.9)'; cx.beginPath(); cx.moveTo(x - 4 * U, y - 4 * U); cx.quadraticCurveTo(x, y - 16 * U * f, x + 4 * U, y - 4 * U); cx.fill();
-      smoke(x, y - 26 * U, 1, (x - h.x * W) / W * 6 * close + 0.3);
+      glowAt(x, y - 20 * s, 110 * s, 0.35);
+      world(x, y, s, () => ArtWorld.stack(cx, STK[i], NOENV()));
+      smoke(x, y - 60 * s, 1, (x - h.x * W) / W * 6 * close + 0.3);
     }
   }
+  // метеостанция (глава VII): дом и мачта из мира (ArtZones.obj), упряжка у крыльца, флюгер крутится
+  const MET = { type: 'meteoHouse', id: 'finMeteo', x: 0, y: 0 }, MAST = { type: 'mast', id: 'finMast', x: 0, y: 0 }, SLED = { x: 0, y: 0, face: 1 };
+  function meteo(dt) {
+    const env = NOENV(); env.wind = 1.4;
+    const s = U * 1.25;
+    glowAt(W * 0.13, H * 0.7, 90 * s, 0.2);
+    world(W * 0.13, H * 0.74, s, () => ArtZones.obj(cx, MET, env));
+    world(W * 0.42, H * 0.75, s * 0.95, () => ArtZones.obj(cx, MAST, env));
+    if (typeof ArtAnimals !== 'undefined') world(W * 0.9, H * 0.84, U * 1.1, () => ArtZones.deerSled(cx, SLED, env));
+    smoke(W * 0.13 + 34 * s, H * 0.74 - 114 * s, 1, 0.5);
+  }
+  function glowAt(x, y, r, a) { const gl = cx.createRadialGradient(x, y, 0, x, y, r); gl.addColorStop(0, `rgba(255,179,71,${a})`); gl.addColorStop(1, 'rgba(255,179,71,0)'); cx.fillStyle = gl; cx.fillRect(x - r, y - r, r * 2, r * 2); }
+  // посёлок — постройки мира (ArtWorld.building), ночью окна горят
+  const VIL = [['balok', 0.14, 0.74, 1.5], ['market', 0.3, 0.76, 1.5], ['smoke', 0.62, 0.745, 1.4], ['balok', 0.8, 0.77, 1.7], ['woodshed', 0.46, 0.72, 1.2]].map(([type, fx0, fy, s], i) => ({ type, fx: fx0, fy, s, b: { type, x: 0, y: 0, done: 1, fuel: 60, stockWood: 20 }, i }));
+  const FIRE = { x: 0, y: 0, fuel: 90 };
   function village(dt) {
-    const hs = [[0.14, 0.74, 1], [0.3, 0.76, 1.2], [0.62, 0.745, 1], [0.8, 0.77, 1.3], [0.46, 0.72, 0.8]];
-    hs.forEach(([fx, fy, s], i) => {
-      const x = W * fx, y = H * fy, w = 70 * U * s, hh = 40 * U * s;
-      cx.fillStyle = '#6b4a2e'; cx.fillRect(x - w / 2, y - hh, w, hh);
-      cx.fillStyle = 'rgba(40,28,18,.45)'; for (let r = 1; r < 5; r++) cx.fillRect(x - w / 2, y - hh + r * hh / 5, w, 1.5 * U);
-      cx.fillStyle = '#f6f9fc'; cx.beginPath(); cx.moveTo(x - w / 2 - 6 * U, y - hh); cx.lineTo(x, y - hh - 26 * U * s); cx.lineTo(x + w / 2 + 6 * U, y - hh); cx.fill();
-      const lit = T > 1 + i * 0.7; cx.fillStyle = lit ? `rgba(255,190,90,${0.75 + 0.2 * Math.sin(T * 3 + i)})` : '#1a140f';
-      cx.fillRect(x - w * 0.25, y - hh * 0.65, w * 0.18, hh * 0.3); cx.fillRect(x + w * 0.08, y - hh * 0.65, w * 0.18, hh * 0.3);
-      if (lit) { const gl = cx.createRadialGradient(x, y - hh * 0.5, 0, x, y - hh * 0.5, w); gl.addColorStop(0, 'rgba(255,170,70,.18)'); gl.addColorStop(1, 'rgba(255,170,70,0)'); cx.fillStyle = gl; cx.fillRect(x - w, y - hh * 1.5, w * 2, hh * 2); }
-      cx.fillStyle = '#3a2d22'; cx.fillRect(x + w * 0.2, y - hh - 22 * U * s, 7 * U, 16 * U);
-      smoke(x + w * 0.2 + 3 * U, y - hh - 24 * U * s, 0.5, 0.4);
-    });
-    // костёр посреди посёлка
-    const x = W * 0.5, y = H * 0.84, f = 0.7 + 0.3 * Math.sin(T * 15);
-    const gl = cx.createRadialGradient(x, y, 0, x, y, 120 * U); gl.addColorStop(0, 'rgba(255,160,60,.35)'); gl.addColorStop(1, 'rgba(255,160,60,0)'); cx.fillStyle = gl; cx.fillRect(x - 120 * U, y - 120 * U, 240 * U, 240 * U);
-    cx.fillStyle = `rgba(255,${150 + 40 * f | 0},60,.95)`; cx.beginPath(); cx.moveTo(x - 10 * U, y); cx.quadraticCurveTo(x, y - 34 * U * f, x + 10 * U, y); cx.fill();
+    for (const v of VIL) {
+      const x = W * v.fx, y = H * v.fy, s = U * v.s;
+      if (T > 1 + v.i * 0.7) glowAt(x, y - 20 * s, 60 * s, 0.22);
+      world(x, y, s, () => ArtWorld.building(cx, v.b, NOENV()));
+    }
+    // костёр посреди посёлка — ArtWorld.fire
+    const x = W * 0.5, y = H * 0.84;
+    glowAt(x, y, 120 * U, 0.35);
+    world(x, y, U * 1.3, () => ArtWorld.fire(cx, FIRE, NOENV()));
   }
   // люди — тот же риг, что в мире (ArtPeople), внешность по роли
-  const LOOK = { lesha: 'anorak', vera: 'vera', urk: 'urk' }, FOLK = ['bich', 'evenk', 'strelok', 'bich', 'evenk'];
+  const LOOK = { lesha: 'anorak', vera: 'vera', urk: 'urk', tamara: 'tamara' }, FOLK = ['bich', 'evenk', 'strelok', 'bich', 'evenk'];
   function person(p, x, y, s) {
     if (typeof ArtPeople !== 'undefined') {
       const look = LOOK[p.who] || FOLK[(p.fi == null ? (p.fi = crowd.indexOf(p)) : p.fi) % FOLK.length];
@@ -207,14 +228,14 @@ const Finale = (() => {
       cx.save(); cx.translate(x, y); cx.scale(s * 0.95, s * 0.95);
       ArtPeople.draw(cx, { x: 0, y: 0, face: p.away ? 1 : p.sp < 0 ? -1 : 1, vy: p.away ? -1 : 0, speed: 0.4, t: T, phase: T * 7, anim, look, tool: p.ski ? 'none' : 'none', seed: crowd.indexOf(p) + 1 });
       cx.restore();
-      if (p.pipe && Math.random() < 0.05) parts.push({ t: 'smoke', x: x + 7 * s, y: y - 36 * s, vx: 6 * U, vy: -12 * U, life: 2, max: 2, r: 3 * U });
+      if (p.pipe && Math.random() < 0.05) fx.spawn({ t: 'smoke', x: x + 7 * s, y: y - 36 * s, vx: 6 * U, vy: -12 * U, life: 2, max: 2, r: 3 * U, grow: 6 * U });
       return;
     }
     const t = T * (p.ski ? 2.2 : 5.5), moving = p.moving, sw = moving ? Math.sin(t) * 5 * s : 0, limp = p.limp ? Math.max(0, Math.sin(t)) * 3 * s : 0;
     cx.save(); cx.translate(x, y - limp);
-    cx.fillStyle = 'rgba(40,50,70,.18)'; cx.beginPath(); cx.ellipse(0, limp, 12 * s, 3 * s, 0, 0, 7); cx.fill();
-    if (p.ski) { cx.strokeStyle = '#6b4a2a'; cx.lineWidth = 2 * s; cx.beginPath(); cx.moveTo(-3 * s, 0); cx.lineTo(-3 * s, -8 * s); cx.moveTo(3 * s, 0); cx.lineTo(3 * s, -8 * s); cx.stroke(); }
-    cx.strokeStyle = '#2a2420'; cx.lineWidth = 4 * s; cx.lineCap = 'round';
+    cx.fillStyle = 'rgba(39,57,74,.18)'; cx.beginPath(); cx.ellipse(0, limp, 12 * s, 3 * s, 0, 0, 7); cx.fill();
+    if (p.ski) { cx.strokeStyle = '#67482f'; cx.lineWidth = 2 * s; cx.beginPath(); cx.moveTo(-3 * s, 0); cx.lineTo(-3 * s, -8 * s); cx.moveTo(3 * s, 0); cx.lineTo(3 * s, -8 * s); cx.stroke(); }
+    cx.strokeStyle = '#352b25'; cx.lineWidth = 4 * s; cx.lineCap = 'round';
     cx.beginPath(); cx.moveTo(-2 * s, -12 * s); cx.lineTo(-2 * s + sw, 0); cx.moveTo(2 * s, -12 * s); cx.lineTo(2 * s - (p.limp ? 0 : sw), 0); cx.stroke();
     cx.fillStyle = p.col; cx.beginPath(); cx.moveTo(-8 * s, -12 * s); cx.lineTo(-6 * s, -32 * s); cx.lineTo(6 * s, -32 * s); cx.lineTo(8 * s, -12 * s); cx.fill();
     cx.strokeStyle = p.col; cx.lineWidth = 3.5 * s;
@@ -222,10 +243,10 @@ const Finale = (() => {
     cx.beginPath(); cx.moveTo(6 * s, -29 * s);
     if (wave || (p.wave && p.waving)) cx.lineTo(12 * s + wave * 4 * s, -42 * s); else cx.lineTo(7 * s + sw * 0.5, -16 * s);
     cx.moveTo(-6 * s, -29 * s); cx.lineTo(-7 * s - sw * 0.5, -16 * s); cx.stroke();
-    cx.fillStyle = '#e2b996'; cx.beginPath(); cx.arc(0, -36 * s, 4.5 * s, 0, 7); cx.fill();
-    cx.fillStyle = p.who === 'urk' ? '#5a4632' : p.who === 'vera' ? '#e0d6c8' : '#4a3a2c';
+    cx.fillStyle = '#e7bc96'; cx.beginPath(); cx.arc(0, -36 * s, 4.5 * s, 0, 7); cx.fill();
+    cx.fillStyle = p.who === 'urk' ? '#5b3d27' : p.who === 'vera' ? '#e0ded2' : '#473930';
     cx.beginPath(); cx.arc(0, -38 * s, 5.5 * s, Math.PI, 0); cx.fill(); cx.fillRect(-6 * s, -39 * s, 12 * s, 2.5 * s);
-    if (p.pipe) { cx.strokeStyle = '#2a1d12'; cx.lineWidth = 1.5 * s; cx.beginPath(); cx.moveTo(3 * s, -34 * s); cx.lineTo(8 * s, -33 * s); cx.stroke(); if (Math.random() < 0.06) parts.push({ t: 'smoke', x: x + 8 * s, y: y - 35 * s, vx: 6 * U, vy: -12 * U, life: 2, max: 2, r: 3 * U }); }
+    if (p.pipe) { cx.strokeStyle = '#3a2618'; cx.lineWidth = 1.5 * s; cx.beginPath(); cx.moveTo(3 * s, -34 * s); cx.lineTo(8 * s, -33 * s); cx.stroke(); if (Math.random() < 0.06) fx.spawn({ t: 'smoke', x: x + 8 * s, y: y - 35 * s, vx: 6 * U, vy: -12 * U, life: 2, max: 2, r: 3 * U, grow: 6 * U }); }
     cx.restore();
   }
   function people(dt) {
@@ -245,47 +266,19 @@ const Finale = (() => {
         }
       }
       if (p.who === 'urk' && !p.sp && K === 'A') { p.waving = false; }
+      if (p.waveAt && T > p.waveAt) p.waving = true;
       person(p, x, y, s); cx.globalAlpha = 1;
     }
   }
+  // вертолёт — та же модель, что в мире (ArtWorld.mi8Fly: ливрея №1–3 + полоса №15), ротор — размытый диск
   function heli(x, y, s, tilt) {
-    // тень на снегу
     const gy = H * 0.8, alt = cl(1 - (gy - y) / (H * 0.7));
-    cx.fillStyle = `rgba(40,50,70,${0.25 * alt})`; cx.beginPath(); cx.ellipse(x, gy + 6 * U, 110 * s * (0.6 + alt * 0.4), 10 * s, 0, 0, 7); cx.fill();
-    cx.save(); cx.translate(x, y); cx.rotate(tilt); cx.scale(s, s);
-    // тот же Ми-8, что лежит в мире (ArtWorld.paintMi8): белая эмаль, красная полоса, синяя линия
-    const bodyG = (y0, y1) => { const g = cx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#f4f6f7'); g.addColorStop(0.3, '#dde3e8'); g.addColorStop(0.75, '#aab4bd'); g.addColorStop(1, '#77828d'); return g; };
-    const body = bodyG(-66, -10), stripe = '#c8452a';
-    // хвостовая балка
-    cx.fillStyle = bodyG(-52, -22); cx.beginPath(); cx.moveTo(40, -40); cx.lineTo(170, -52); cx.lineTo(172, -44); cx.lineTo(40, -22); cx.fill();
-    cx.fillStyle = '#dde3e8'; cx.fillRect(160, -80, 12, 36); // киль
-    cx.fillStyle = stripe; cx.fillRect(60, -41, 90, 5); cx.fillRect(160, -62, 12, 5);
-    // хвостовой винт
-    const tr = T * 40; cx.strokeStyle = 'rgba(40,40,40,.7)'; cx.lineWidth = 3;
-    cx.beginPath(); cx.moveTo(166 + Math.cos(tr) * 18, -64 + Math.sin(tr) * 18); cx.lineTo(166 - Math.cos(tr) * 18, -64 - Math.sin(tr) * 18); cx.stroke();
-    cx.fillStyle = 'rgba(80,80,80,.18)'; cx.beginPath(); cx.arc(166, -64, 18, 0, 7); cx.fill();
-    // фюзеляж
-    cx.fillStyle = body; cx.beginPath(); cx.moveTo(-95, -20); cx.quadraticCurveTo(-100, -62, -60, -66); cx.lineTo(50, -66); cx.quadraticCurveTo(70, -60, 60, -20); cx.quadraticCurveTo(0, -8, -95, -20); cx.fill();
-    cx.fillStyle = stripe; cx.fillRect(-92, -30, 150, 7); cx.fillStyle = '#8e2d1c'; cx.fillRect(-92, -23, 150, 1.6);
-    cx.fillStyle = '#2d5a8c'; cx.fillRect(-92, -36, 150, 1.6);
-    const glass = cx.createLinearGradient(-96, -60, -66, -34); glass.addColorStop(0, '#5e7f9c'); glass.addColorStop(0.5, '#27394a'); glass.addColorStop(1, '#162230');
-    cx.fillStyle = glass; cx.beginPath(); cx.moveTo(-94, -34); cx.quadraticCurveTo(-96, -58, -66, -60); cx.lineTo(-62, -40); cx.fill();
-    for (let i = 0; i < 4; i++) { cx.fillStyle = '#8f9aa4'; cx.beginPath(); cx.arc(-38 + i * 20, -48, 5.4, 0, 7); cx.fill(); cx.fillStyle = '#1c2833'; cx.beginPath(); cx.arc(-38 + i * 20, -48, 4.2, 0, 7); cx.fill(); }
-    // дверь: после посадки открыта
-    const open = T > LAND + 0.6;
-    cx.fillStyle = open ? '#10151a' : '#c9d0d6'; cx.fillRect(18, -60, 22, 38);
-    if (open) { cx.fillStyle = 'rgba(255,200,120,.35)'; cx.fillRect(20, -58, 18, 34); }
-    // двигатели + втулка
-    cx.fillStyle = bodyG(-80, -64); cx.beginPath(); cx.roundRect(-50, -80, 92, 16, 6); cx.fill(); cx.fillStyle = '#4c5157'; cx.fillRect(-8, -92, 8, 14);
-    // шасси
-    cx.strokeStyle = '#2b2b2b'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(-70, -14); cx.lineTo(-72, 0); cx.moveTo(30, -14); cx.lineTo(34, 0); cx.stroke();
-    cx.fillStyle = '#1d1d1d'; cx.beginPath(); cx.arc(-72, 2, 5, 0, 7); cx.arc(34, 2, 6, 0, 7); cx.fill();
-    // номер на балке
-    cx.fillStyle = '#2b2f3a'; cx.font = 'bold 10px "PT Mono", monospace'; cx.fillText('24713', 88, -44);
-    // несущий винт: размытый диск + лопасти
-    cx.fillStyle = 'rgba(60,60,60,.12)'; cx.beginPath(); cx.ellipse(-4, -92, 150, 9, 0, 0, 7); cx.fill();
-    const r = T * 22; cx.strokeStyle = 'rgba(30,30,30,.75)'; cx.lineWidth = 3.5;
-    for (let b = 0; b < 5; b++) { const a = r + b * Math.PI * 2 / 5, c = Math.cos(a); cx.beginPath(); cx.moveTo(-4, -92); cx.lineTo(-4 + c * 150, -92 + Math.sin(a) * 6); cx.stroke(); }
+    cx.fillStyle = `rgba(39,57,74,${0.25 * alt})`; cx.beginPath(); cx.ellipse(x, gy + 6 * U, 110 * s * (0.6 + alt * 0.4), 10 * s, 0, 0, 7); cx.fill();
+    cx.save(); cx.translate(x, y - 22 * s); cx.rotate(tilt); cx.scale(s, s);
+    cx.drawImage(ArtWorld.mi8Fly(), -108, -70, 290, 132);
+    // дверь: после посадки открыта, изнутри тёплый свет
+    if (T > LAND + 0.6) { cx.fillStyle = '#10271f'; cx.fillRect(18, -32, 18, 32); cx.fillStyle = 'rgba(255,179,71,.35)'; cx.fillRect(20, -30, 14, 28); }
+    ArtWorld.rotor(cx, -2, -66, 150, T);
     cx.restore();
   }
   function downwash(dt, h) {
@@ -293,23 +286,17 @@ const Finale = (() => {
     const n = Math.floor(k * 90 * dt * (reduced ? 0.4 : 1) * 10);
     for (let i = 0; i < n; i++) {
       const dir = Math.random() < 0.5 ? -1 : 1, sp = R(120, 380) * U;
-      parts.push({ t: 'snow', x: h.x * W + R(-30, 30) * U, y: gy + R(-4, 6) * U, vx: dir * sp, vy: -R(20, 110) * U, life: R(0.8, 1.8), max: 1.8, r: R(1.2, 3.2) * U, swirl: dir * R(1, 3) });
+      fx.spawn({ t: 'snow', x: h.x * W + R(-30, 30) * U, y: gy + R(-4, 6) * U, vx: dir * sp, vy: -R(20, 110) * U, life: R(0.8, 1.8), max: 1.8, r: R(1.2, 3.2) * U, swirl: dir * R(1, 3), u: U, g: 90 * U, drag: 1.5 });
     }
-    if (k > 0.2) { const g = cx.createRadialGradient(h.x * W, gy, 0, h.x * W, gy, 260 * U * k); g.addColorStop(0, `rgba(240,246,250,${0.55 * k})`); g.addColorStop(1, 'rgba(240,246,250,0)'); cx.fillStyle = g; cx.fillRect(h.x * W - 260 * U, gy - 200 * U, 520 * U, 260 * U); }
+    if (k > 0.2) { const g = cx.createRadialGradient(h.x * W, gy, 0, h.x * W, gy, 260 * U * k); g.addColorStop(0, `rgba(246,249,252,${0.55 * k})`); g.addColorStop(1, 'rgba(246,249,252,0)'); cx.fillStyle = g; cx.fillRect(h.x * W - 260 * U, gy - 200 * U, 520 * U, 260 * U); }
   }
   function snow(dt) {
     const rate = K === 'C' ? 40 : K === 'B' ? 25 : 12;
-    for (let i = 0; i < rate * dt; i++) if (Math.random() < 1) parts.push({ t: 'flake', x: R(0, W), y: -5, vx: R(-10, 20) * U, vy: R(25, 60) * U, life: 12, max: 12, r: R(0.8, 2) * U });
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const q = parts[i]; q.life -= dt; if (q.life <= 0 || q.y > H + 10) { parts.splice(i, 1); continue; }
-      if (q.t === 'snow') { q.vy += 90 * U * dt; q.vx *= 1 - dt * 1.5; q.vy += q.swirl * Math.sin(q.life * 6) * 30 * U * dt; }
-      if (q.t === 'smoke') q.r += dt * 6 * U;
-      q.x += q.vx * dt; q.y += q.vy * dt;
-      const a = cl(q.life / q.max);
-      cx.fillStyle = q.t === 'smoke' ? `rgba(${K === 'D' ? '120,130,145' : '200,205,212'},${0.35 * a})` : `rgba(255,255,255,${(q.t === 'snow' ? 0.9 : 0.8) * a})`;
-      cx.beginPath(); cx.arc(q.x, q.y, q.r, 0, 7); cx.fill();
-    }
-    if (parts.length > 1500) parts.splice(0, parts.length - 1500);
+    for (let i = 0; i < rate * dt; i++) fx.spawn({ t: 'flake', x: R(0, W), y: -5, vx: R(-10, 20) * U, vy: R(25, 60) * U, life: 12, max: 12, r: R(0.8, 2) * U, floor: H + 10, a: 0.8 });
+    fx.update(dt);
+    // дым — тон №21/№3, снег — №1 (ночью — №3): палитра мира
+    const smokeC = K === 'D' ? 'rgba(108,113,120,0.35)' : 'rgba(182,201,223,0.35)', snowC = K === 'D' ? '#b6c9df' : '#f6f9fc';
+    fx.draw(cx, q => q.t === 'smoke' ? smokeC : snowC);
   }
   function titles() {
     const TX = {
@@ -317,8 +304,9 @@ const Finale = (() => {
       B: ['Борт 24713 — домой', 'Один. В вертолёте тепло и тихо.'],
       D: ['Новый посёлок', (S.pop || 0) + ' человек зимуют. Весной придёт почта.'],
       C: ['Весной выйдем', 'Вместе. Уркачан впереди, лыжня за ним.'],
+      E: ['Кербо-2 — Тура', (S.vera ? 'Лёша и Вера дошли. ' : 'Дошёл. ') + 'Тамара Ильинична машет с крыльца.'],
     }[K];
-    const t0 = K === 'A' || K === 'B' ? 7.3 : 4, a = cl((T - t0) / 1.2) * cl((DUR[K] - 0.6 - T) / 0.8);
+    const t0 = HELI(K) ? 7.3 : 4, a = cl((T - t0) / 1.2) * cl((DUR[K] - 0.6 - T) / 0.8);
     if (a <= 0) return;
     cx.save(); cx.globalAlpha = a; cx.textAlign = 'center';
     // лента-титр: канвас-копия .plate (эмаль, кромка), заголовок Russo, подпись PT Sans

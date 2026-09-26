@@ -26,11 +26,11 @@ const OUT = __dirname + '/shots/';
       Colony.hire('evenk'); Colony.hire('laika'); step(400); log.push('units ' + G.col.units.length + ' research ' + Colony.research('saw2'));
       G.p.x = HUT.x + 350; G.p.y = HUT.y - 90; update(0.05); log.push('market near ' + Colony.nearMarket() + ' sell ' + Colony.sell('wood') + ' rub ' + G.col.rub);
       Colony.alarm(); step(200); log.push('hidden ' + G.col.units.filter(u => u.hidden).length + '/' + G.col.units.length); Colony.alarm(); step(100);
-      G.time = tAt(G.day, 12); spawnPack(3, false); G.wolves.forEach(w => { w.x = HUT.x + 60; w.y = HUT.y + 320; }); step(300); log.push('wolves left ' + G.wolves.length + ' units ' + G.col.units.length);
-      sniff(); step(20); log.push('sniff hits ' + G.sniff.hits.length);
-      G.p.x = riverX(1900); G.p.y = 1900; update(0.05); G.holes.push({ x: G.p.x + 20, y: G.p.y + 4, fish: 3 }); interact(false); step(100); log.push('fish ph ' + (G.p.action && G.p.action.ph));
-      G.p.action && (G.p.action.z = 0, G.p.action.w = 1); log.push('strike ' + fishStrike() + ' fish ' + G.inv.fish);
-      saveCheckpoint(); loadSave(checkpoint); step(200); log.push('reload units ' + G.col.units.length + ' ep ' + G.col.ep);
+      G.time = tAt(G.day, 12); Wolves.spawnPack(3, false); G.wolves.forEach(w => { w.x = HUT.x + 60; w.y = HUT.y + 320; }); step(300); log.push('wolves left ' + G.wolves.length + ' units ' + G.col.units.length);
+      Actions.sniff(); step(20); log.push('sniff hits ' + G.sniff.hits.length);
+      G.p.x = riverX(1900); G.p.y = 1900; update(0.05); G.holes.push({ x: G.p.x + 20, y: G.p.y + 4, fish: 3 }); Actions.interact(false); step(100); log.push('fish ph ' + (G.p.action && G.p.action.ph));
+      G.p.action && (G.p.action.z = 0, G.p.action.w = 1); log.push('strike ' + Actions.fishStrike() + ' fish ' + G.inv.fish);
+      SaveGame.checkpoint(); SaveGame.load(checkpoint); step(200); log.push('reload units ' + G.col.units.length + ' ep ' + G.col.ep);
     } catch (e) { log.push('ERR ' + e.message + ' ' + e.stack); }
     return log;
   });

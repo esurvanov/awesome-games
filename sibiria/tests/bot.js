@@ -5,7 +5,7 @@
     wolfHits: 0, wolfDmg: 0, bearDmg: 0, frostEv: 0, coldDmg: 0, allowIce: false, deaths: [] };
   class Dead extends Error {}
   B.Dead = Dead;
-  const L = m => B.log.push(`[${(B.R / 60).toFixed(1)}m d${G.day} ${hourOf().toFixed(2)}h ch${G.chapter} hp${G.s.hp | 0} w${G.s.warm | 0} f${G.s.food | 0} 🪵${cnt('wood', false)}/${G.chest.wood || 0}] ${m}`);
+  const L = m => B.log.push(`[${(B.R / 60).toFixed(1)}m d${G.day} ${hourOf().toFixed(2)}h ch${G.chapter} hp${G.s.hp | 0} w${G.s.warm | 0} f${G.s.food | 0} 🪵${Inv.cnt('wood', false)}/${G.chest.wood || 0}] ${m}`);
   B.L = L;
   let lastCh = 0;
   const $$ = s => document.querySelector(s);
@@ -35,7 +35,7 @@
     handleModal();
     const sl = G.p.sleeping, hp0 = G.s.hp, fr0 = G.s.frost;
     update(dt);
-    B.R += sl ? dt / SLEEP_X : dt; B.T += dt;
+    B.R += sl ? dt / TUNE.time.sleepX : dt; B.T += dt;
     if (G.s.hp < hp0 - 0.001) {
       const d = hp0 - G.s.hp;
       if (d > 5 && G.cause === 'wolf') { B.wolfHits++; B.wolfDmg += d; L(`🐺 укус −${d.toFixed(0)}`); }
@@ -53,9 +53,9 @@
   function reflex() {
     const p = G.p;
     if (p.sleeping || p.cd > 0 || UI.modal()) return;
-    if (G.bear && G.bear.st !== 'gone' && dist2(G.bear, p) < 80 * 80) { if (p.action) p.action = null; interact(true); return; }
-    const w = nearest(G.wolves, 58);
-    if (w && !(p.inside && G.hut.door)) { p.action = null; interact(true); B.hitsGiven = (B.hitsGiven || 0) + 1; }
+    if (G.bear && G.bear.st !== 'gone' && dist2(G.bear, p) < 80 * 80) { if (p.action) p.action = null; Actions.interact(true); return; }
+    const w = Actions.nearest(G.wolves, 58);
+    if (w && !(p.inside && G.hut.door)) { p.action = null; Actions.interact(true); B.hitsGiven = (B.hitsGiven || 0) + 1; }
   }
 
   function wait(sec, cond) { const t0 = B.T; input.mx = input.my = 0; while (B.T - t0 < sec) { if (cond && cond()) return true; tick(); survive(); } return false; }
@@ -114,13 +114,13 @@
 
   // ---------- выживание ----------
   B.warmThr = 35;
-  function cookedHere() { return !!nearFire(140) || (G.p.inside && G.hut.fuel > 0); }
+  function cookedHere() { return !!Fire.near(140) || (G.p.inside && G.hut.fuel > 0); }
   function tryEat(force) {
     const wc = G.p.inside;
     if (G.s.food >= 96) return;
-    const k = FOOD_ORDER.find(f => cnt(f, wc) > 0); if (!k) return;
+    const k = FOOD_ORDER.find(f => Inv.cnt(f, wc) > 0); if (!k) return;
     if (ITEMS[k].raw && !cookedHere() && G.s.food > 20 && !force) return;
-    input.mx = input.my = 0; eat(); B.ate[k] = (B.ate[k] || 0) + 1;
+    input.mx = input.my = 0; Actions.eat(); B.ate[k] = (B.ate[k] || 0) + 1;
   }
   B.tryEat = tryEat;
   let inS = false;
@@ -140,41 +140,41 @@
     const a = Math.atan2(p.y - best.y, p.x - best.x);
     goTo(best.x + Math.cos(a) * 30, best.y + Math.sin(a) * 30, 12, 40);
     for (let k = 0; k < 6 && best.wood > 0; k++) {
-      const c = context();
+      const c = Actions.context();
       if (!c) { rawGo(best.x, best.y, 30, 5); continue; }
-      if (c.k === 'amulet' || c.k === 'trap') { interact(true); tick(); continue; }
+      if (c.k === 'amulet' || c.k === 'trap') { Actions.interact(true); tick(); continue; }
       if (c.k !== 'tree' && c.k !== 'hare') { rawGo(best.x + 20, best.y + 20, 8, 3); continue; }
-      const w0 = cnt('wood', false);
-      interact(true); doAction();
-      if (weight() > capKg() + 6) return true;
-      if (cnt('wood', false) > w0) return true;
+      const w0 = Inv.cnt('wood', false);
+      Actions.interact(true); doAction();
+      if (Inv.weight() > Inv.capKg() + 6) return true;
+      if (Inv.cnt('wood', false) > w0) return true;
     }
-    return cnt('wood', false) > 0;
+    return Inv.cnt('wood', false) > 0;
   }
   function chop(n, maxDist) {
-    if (weight() > capKg() + 2 && !G.p.inside) { enterHut(); chestAll(); L('перегруз → в ящик'); }
-    const t0 = B.T, w0 = cnt('wood', false); let g = 0; while (cnt('wood', false) < n && g++ < n * 4) { if (!chopOne(maxDist)) break; } B.chopTime = (B.chopTime || 0) + B.T - t0; L(`рубка +${cnt('wood', false) - w0} за ${(B.T - t0).toFixed(0)} с`); }
+    if (Inv.weight() > Inv.capKg() + 2 && !G.p.inside) { enterHut(); chestAll(); L('перегруз → в ящик'); }
+    const t0 = B.T, w0 = Inv.cnt('wood', false); let g = 0; while (Inv.cnt('wood', false) < n && g++ < n * 4) { if (!chopOne(maxDist)) break; } B.chopTime = (B.chopTime || 0) + B.T - t0; L(`рубка +${Inv.cnt('wood', false) - w0} за ${(B.T - t0).toFixed(0)} с`); }
   B.chop = chop;
   function warmUp() {
     input.mx = input.my = 0;
-    const st = nearest(G.stacks, 80); if (st) rawGo(st.x + (G.p.x < st.x ? -110 : 110), st.y + 40, 12, 3);
-    let f = nearest(G.fires, 130, f => f.fuel > 0);
+    const st = Actions.nearest(G.stacks, 80); if (st) rawGo(st.x + (G.p.x < st.x ? -110 : 110), st.y + 40, 12, 3);
+    let f = Actions.nearest(G.fires, 130, f => f.fuel > 0);
     if (!f) {
-      const f0 = nearest(G.fires, 70, f => f.fuel <= 0);
-      if (f0 && cnt('wood', false) >= 2) { fireKey(); f = f0; }
+      const f0 = Actions.nearest(G.fires, 70, f => f.fuel <= 0);
+      if (f0 && Inv.cnt('wood', false) >= 2) { Actions.fireKey(); f = f0; }
       else {
-        if (cnt('wood', false) < 3) chop(3, 500);
+        if (Inv.cnt('wood', false) < 3) chop(3, 500);
         if (onIce(G.p.x + G.p.face * 30, G.p.y) || onIce(G.p.x, G.p.y)) { G.p.face *= -1; }
         if (onIce(G.p.x + G.p.face * 30, G.p.y)) rawGo(G.p.x + (G.p.x < riverX(G.p.y) ? -140 : 140), G.p.y, 10, 5);
-        if (cnt('wood', false) >= 3) { fireKey(); B.fires++; f = nearest(G.fires, 130, f => f.fuel > 0); }
+        if (Inv.cnt('wood', false) >= 3) { Actions.fireKey(); B.fires++; f = Actions.nearest(G.fires, 130, f => f.fuel > 0); }
       }
     }
     if (!f) { L('не смог развести огонь'); return; }
     rawGo(f.x + 40, f.y, 10, 4);
     const t0 = B.T;
-    while (G.s.warm < maxWarm() - 4 && B.T - t0 < 40) {
+    while (G.s.warm < Hero.maxWarm() - 4 && B.T - t0 < 40) {
       tick();
-      if (f.fuel <= 1) { if (cnt('wood', false) >= 2) { rawGo(f.x + 30, f.y, 10, 3); fireKey(); } else break; }
+      if (f.fuel <= 1) { if (Inv.cnt('wood', false) >= 2) { rawGo(f.x + 30, f.y, 10, 3); Actions.fireKey(); } else break; }
       if (G.s.food < 75) tryEat();
     }
     B.warmT = (B.warmT || 0) + B.T - t0;
@@ -182,15 +182,15 @@
   B.warmUp = warmUp;
 
   // ---------- взаимодействия ----------
-  function readNote(id) { const n = NOTES[id]; goTo(n.x, n.y + 20, 16); rawGo(n.x, n.y + 10, 8, 5); const c = context(); if (c && c.k === 'note') interact(false); tick(); }
+  function readNote(id) { const n = NOTES[id]; goTo(n.x, n.y + 20, 16); rawGo(n.x, n.y + 10, 8, 5); const c = Actions.context(); if (c && c.k === 'note') Actions.interact(false); tick(); }
   B.readNote = readNote;
   function wreck(w, maxN = 99) {
     goTo(POI[w].x, POI[w].y + 95, 14);
     let n = 0;
     while (G.wreck[w].length && n < maxN) {
-      const c = context();
-      if (!c || c.k !== 'wreck') { rawGo(POI[w].x + 20, POI[w].y + 80, 10, 4); const c2 = context(); if (!c2 || c2.k !== 'wreck') { L('wreck ctx ' + (c2 && c2.k)); break; } }
-      interact(true); doAction(); n++;
+      const c = Actions.context();
+      if (!c || c.k !== 'wreck') { rawGo(POI[w].x + 20, POI[w].y + 80, 10, 4); const c2 = Actions.context(); if (!c2 || c2.k !== 'wreck') { L('wreck ctx ' + (c2 && c2.k)); break; } }
+      Actions.interact(true); doAction(); n++;
       survive();
     }
     L(`разобрал ${w}: ${n} шт`);
@@ -202,18 +202,18 @@
     for (const k in G.inv) { const n = (G.inv[k] || 0) - (keep[k] || 0); if (n > 0) { G.chest[k] = (G.chest[k] || 0) + n; G.inv[k] -= n; } }
     B.R += 2;
   }
-  function chestTake(k, n) { goTo(SPOT.chest.x - 10, SPOT.chest.y, 10); const a = Math.min(n, G.chest[k] || 0); G.chest[k] = (G.chest[k] || 0) - a; add(k, a); return a; }
+  function chestTake(k, n) { goTo(SPOT.chest.x - 10, SPOT.chest.y, 10); const a = Math.min(n, G.chest[k] || 0); G.chest[k] = (G.chest[k] || 0) - a; Inv.add(k, a); return a; }
   B.chestAll = chestAll; B.chestTake = chestTake;
   function fillStove(target) {
     if (!G.p.inside) enterHut();
     goTo(SPOT.stove.x + 20, SPOT.stove.y + 20, 10);
-    target = target == null ? secPerLog() * 5.5 : target;
+    target = target == null ? Stove.secPerLog() * 5.5 : target;
     let g = 0;
-    while (G.hut.fuel < target && g++ < 10 && cnt('wood', true) > 0) { const f0 = G.hut.fuel; stoveAdd(); if (G.hut.fuel === f0) break; }
+    while (G.hut.fuel < target && g++ < 10 && Inv.cnt('wood', true) > 0) { const f0 = G.hut.fuel; Stove.add(); if (G.hut.fuel === f0) break; }
   }
   B.fillStove = fillStove;
-  function build(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const ok = buildHut(HUT_UPG.find(u => u.id === id)); L(`стройка ${id}: ${ok}`); return ok; }
-  function doCraft(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const r = RECIPES.find(r => r.id === id); const st = recipeState(r); const ok = craft(r); L(`крафт ${id}: ${ok ? 'ok' : st}`); return ok; }
+  function build(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const ok = Actions.buildHut(HUT_UPG.find(u => u.id === id)); L(`стройка ${id}: ${ok}`); return ok; }
+  function doCraft(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const r = RECIPES.find(r => r.id === id); const st = Actions.recipeState(r); const ok = Actions.craft(r); L(`крафт ${id}: ${ok ? 'ok' : st}`); return ok; }
   B.build = build; B.doCraft = doCraft;
 
   // ночь: к 18:00 в избе, печь полна, сон с 19:00
@@ -226,7 +226,7 @@
     for (let r = 0; r <= 46 && !best; r += 4) for (let a = 0; a < 6.28 && !best; a += 0.4) {
       const x = SPOT.bed.x + Math.cos(a) * r, y = SPOT.bed.y + Math.sin(a) * r;
       if (!insideHut(x, y) || x < HUT_IN.x0 + 11 || x > HUT_IN.x1 - 11 || y < HUT_IN.y0 + 11 || y > HUT_IN.y1 - 11) continue;
-      G.p.x = x; G.p.y = y; G.p.inside = true; const c = context(); if (c && c.k === 'bed') best = { x, y };
+      G.p.x = x; G.p.y = y; G.p.inside = true; const c = Actions.context(); if (c && c.k === 'bed') best = { x, y };
     }
     G.p.x = sx; G.p.y = sy; G.p.inside = si; return best;
   }
@@ -234,26 +234,34 @@
   function trySleepNow() {
     const bs = bedSpot(); if (!bs) return false;
     goTo(bs.x, bs.y, 4, 10);
-    const c = context(); if (c && c.k === 'bed') interact(false);
+    const c = Actions.context(); if (c && c.k === 'bed') Actions.interact(false);
     return G.p.sleeping;
   }
   function night(opts = {}) {
     L('ночёвка: иду в избу');
-    if (cnt('wood', true) + cnt('wood', false) < 7) { chop(8, 700); }
+    if (Inv.cnt('wood', true) + Inv.cnt('wood', false) < 7) { chop(8, 700); }
     enterHut();
     chestAll({ wood: 0 });
-    fillStove(secPerLog() * 5.6);
-    while (!(hourOf() >= 19 || hourOf() < 6)) { tick(); if (G.hut.fuel < secPerLog() * 2) fillStove(); if (G.s.food < 60) tryEat(); if (opts.during) opts.during(); }
+    fillStove(Stove.secPerLog() * 5.6);
+    // БЛОКЕР (D/E): если дверь сломана к вечеру, ни ожидание 19:00, ни попытка уснуть её не чинят —
+    // а без двери шатун/волки достают героя «изнутри» избы весь остаток ночи без единого шанса на защиту.
+    // Печь заправляем первой (иначе в главах II–III, где дрова на счету, дверь съедала топливо ночи);
+    // с главы V, когда посёлок уже сам справляется с обороной, — про запас в 15 полен сверх двери.
+    if (G.chapter >= 4 && !G.hut.door && Inv.canPay({ wood: 19, scrap: 1 }, true)) build('door');
+    while (!(hourOf() >= 19 || hourOf() < 6)) { tick(); if (G.hut.fuel < Stove.secPerLog() * 2) fillStove(); if (G.s.food < 60) tryEat(); if (opts.during) opts.during(); }
     if (opts.at19) opts.at19();
-    fillStove(secPerLog() * 5.6);
+    fillStove(Stove.secPerLog() * 5.6);
     if (G.s.food < 80) { tryEat(); tryEat(); }
     let awake = 0, sleeps = 0;
     while (!(hourOf() >= 7 && hourOf() < 12)) {
       if (!G.p.sleeping) {
-        if (G.hut.fuel < secPerLog() * 3) fillStove(secPerLog() * 5.6);
+        if (G.hut.fuel < Stove.secPerLog() * 3) fillStove(Stove.secPerLog() * 5.6);
+        // БЛОКЕР (D/E): раньше сон пробовали ДО проверки шатуна — если тот ещё дальше bearSleepR (450),
+        // trySleepNow() успевал усыпить героя, а дальше «изнутри» избы шатуна встречает уже не bearDefense()
+        // (с факелом), а голый reflex() спящего — по сути никак. Шатуна встречаем первым, сон — потом.
+        if (G.bear && G.bear.st !== 'flee' && G.bear.st !== 'fleeHurt' && G.bear.st !== 'gone' && G.bear.st !== 'wander' && dist2(G.bear, HUT) < 900 * 900) { bearDefense(); continue; }
         if (hourOf() >= 19 || hourOf() < 6) { if (trySleepNow()) { sleeps++; continue; } }
-        if (G.bear && dist2(G.bear, HUT) < 600 * 600) { bearDefense(); continue; }
-        if (!B.noBed && !G.bear) { B.noBed = 1; L('❌ не могу лечь: кровать недоступна (ctx ' + (context() || {}).k + ')'); }
+        if (!B.noBed && !G.bear) { B.noBed = 1; L('❌ не могу лечь: кровать недоступна (ctx ' + (Actions.context() || {}).k + ')'); }
         if (G.s.food < 60) tryEat();
         const t0 = B.T; wait(2); awake += B.T - t0;
         if (opts.wake) opts.wake();
@@ -267,10 +275,12 @@
   function bearDefense() {
     const t0 = B.T; B.bearMet = (B.bearMet || 0) + 1; L('🐻 шатун у избы — факел и на выход');
     while (G.bear && B.T - t0 < 60 && G.bear.st !== 'flee' && G.bear.st !== 'fleeHurt') {
-      if (G.p.torch < 10 && G.p.inside && G.hut.fuel > 0 && cnt('wood', true) > 0) { craft(RECIPES.find(r => r.id === 'torch')); B.torches = (B.torches || 0) + 1; }
+      // ниже 40 hp — одна оплеуха (−50) добивает; лучше отступить за дверь и переждать, чем ловить вторую
+      if (G.s.hp < 40 && G.hut.door) { if (!G.p.inside) enterHut(); break; }
+      if (G.p.torch < 10 && G.p.inside && G.hut.fuel > 0 && Inv.cnt('wood', true) > 0) { Actions.craft(RECIPES.find(r => r.id === 'torch')); B.torches = (B.torches || 0) + 1; }
       if (G.p.torch > 0) { const b = G.bear; if (dist2(b, G.p) > 70 * 70) goTo(b.x, b.y, 60, 1.5); else { input.mx = input.my = 0; tick(); } }
       else { if (!G.p.inside) enterHut(); wait(1); }
-      if (G.hut.fuel < secPerLog() * 2 && G.p.inside) fillStove();
+      if (G.hut.fuel < Stove.secPerLog() * 2 && G.p.inside) fillStove();
     }
     wait(1);
     L('🐻 шатун: ' + (G.bear ? G.bear.st + ' hp' + G.bear.hp.toFixed(1) : 'ушёл/убит'));
@@ -281,7 +291,7 @@
   // ---------- зайцы ----------
   function huntHares(n, maxT = 120, cond) {
     if (G.p.inside || Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 200) goTo(HUT.x, HUT.y + 260, 20);
-    const t0 = B.T, start = cnt('hare', false) + (G.chest.hare || 0); let got = 0;
+    const t0 = B.T, start = Inv.cnt('hare', false) + (G.chest.hare || 0); let got = 0;
     while (got < n && B.T - t0 < maxT) {
       if (cond && !cond()) break;
       let h = null, bd = 1e12;
@@ -289,12 +299,12 @@
       if (!h) { wait(1); continue; }
       const t1 = B.T;
       while (G.hares.includes(h) && B.T - t1 < 25) {
-        if (dist2(h, G.p) < 48 * 48) { const c = context(); if (c && c.k === 'hare') { input.mx = input.my = 0; interact(true); tick(); break; } }
+        if (dist2(h, G.p) < 48 * 48) { const c = Actions.context(); if (c && c.k === 'hare') { input.mx = input.my = 0; Actions.interact(true); tick(); break; } }
         const dx = h.x - G.p.x, dy = h.y - G.p.y, d = Math.hypot(dx, dy) || 1;
         input.mx = dx / d; input.my = dy / d; tick(); survive();
         if (Math.hypot(G.p.x - POI.polynya.x, G.p.y - POI.polynya.y) < 150) break;
       }
-      const now = cnt('hare', false) + (G.chest.hare || 0);
+      const now = Inv.cnt('hare', false) + (G.chest.hare || 0);
       if (now > start + got) { got = now - start; B.hares.push(+(B.T - t0).toFixed(1)); }
     }
     input.mx = input.my = 0;

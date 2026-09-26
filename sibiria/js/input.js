@@ -65,8 +65,7 @@ const Input = (() => {
     };
     for (const u of G.col.units) if (!u.hidden) test(u.pet || u.type === 'laika' ? 'pet' : 'unit', u, u.pet || u.type === 'laika' ? HIT.pet : HIT.unit);
     if (!G.p.sleeping) test('hero', G.p, HIT.unit);
-    if (G.urk.state !== 'away') test('npc', G.urk, HIT.unit);
-    if (G.vera.state !== 'dead') test('npc', G.vera, HIT.unit);
+    for (const n of Npc.list()) test('npc', n.st, HIT.unit);
     for (const f of G.wolves) test('wolf', f, HIT.wolf);
     if (G.bear) test('bear', G.bear, HIT.bear);
     for (const h of G.hares) test('hare', h, HIT.hare);
@@ -120,7 +119,7 @@ const Input = (() => {
     }
     const w = t.w;
     G.col.mark = { x: w.x, y: w.y, t: 0.8 };
-    if (t.k === 'wreck' && us.some(u => u.type === 'bich') && !wreckLoot(t.o.key)) toast(':scrap: Людям тут больше нечего брать');
+    if (t.k === 'wreck' && us.some(u => u.type === 'bich') && !wreckLoot(t.o.key)) Fx.toast(':scrap: Людям тут больше нечего брать');
     us.forEach((u, i) => {
       const T = UNITS[u.type];
       u.prev = null; u.idleT = 0;

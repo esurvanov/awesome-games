@@ -20,7 +20,7 @@ require('fs').mkdirSync(OUT, { recursive: true });
   await pg.evaluate(() => { localStorage.clear(); localStorage.setItem('sibir-tips', '{"move":1,"act":1,"fire":1,"cold":1,"eat":1,"stove":1,"night":1,"craft":1,"build":1,"select":1,"zoom":1}'); });
   await pg.click('#start'); await pg.waitForTimeout(600);
   await pg.evaluate(() => {
-    const s = JSON.parse(snapshot()); s._v = 3; s.trees = [{ x: 1, y: 1, wood: 3 }];
+    const s = JSON.parse(SaveGame.snapshot()); s._v = 3; s.trees = [{ x: 1, y: 1, wood: 3 }];
     localStorage.setItem('sibir3-save-1', JSON.stringify(s)); localStorage.setItem('sibir3-meta-1', JSON.stringify({ v: 3, at: Date.now(), day: 2, ch: 0, ep: 0, h: 10 }));
     delete s._v; localStorage.setItem('sibir2-save', JSON.stringify(s)); localStorage.removeItem('sibir3-save-auto'); localStorage.removeItem('sibir3-meta-auto');
   });
@@ -31,9 +31,9 @@ require('fs').mkdirSync(OUT, { recursive: true });
   ok(!drop.cont && /стёрты/.test(drop.toast), `«Продолжить» скрыта, тост: «${drop.toast}»`);
   // --- автосейв нового формата → «Продолжить»
   await pg.click('#start'); await pg.waitForTimeout(600);
-  await pg.evaluate(() => { G.day = 4; G.time = tAt(4, 21); G.chapter = 2; saveCheckpoint(); });
+  await pg.evaluate(() => { G.day = 4; G.time = tAt(4, 21); G.chapter = 2; SaveGame.checkpoint(); });
   await pg.reload(); await pg.waitForTimeout(500);
-  const mig = await pg.evaluate(() => ({ m: Saves.meta('auto'), cur: Saves.meta('auto').v === SAVE_V && Saves.meta('auto').W === W, cont: !document.getElementById('continue').hidden }));
+  const mig = await pg.evaluate(() => ({ m: Saves.meta('auto'), cur: Saves.meta('auto').v === SaveGame.V && Saves.meta('auto').W === W, cont: !document.getElementById('continue').hidden }));
   ok(mig.m && mig.m.day === 4 && mig.m.ch === 2 && mig.cur, `«Авто» v${mig.m && mig.m.v}: день ${mig.m && mig.m.day}, глава ${mig.m && mig.m.ch}`);
   ok(mig.cont, 'кнопка «Продолжить» видна');
   await pg.click('#continue'); await pg.waitForTimeout(500);
@@ -62,14 +62,14 @@ require('fs').mkdirSync(OUT, { recursive: true });
   // --- сон → автосейв
   const at0 = await pg.evaluate(() => Saves.meta('auto').at);
   await pg.waitForTimeout(20);
-  await pg.evaluate(() => { wake(true); });
+  await pg.evaluate(() => { Actions.wake(true); });
   ok(await pg.evaluate(at0 => Saves.meta('auto').at > at0, at0), 'утро после сна → автосейв');
 
   // --- отказ: сейв из новой версии и битый
   await pg.evaluate(() => {
-    const s = JSON.parse(snapshot()); s._v = SAVE_V + 5;
-    localStorage.setItem('sibir3-save-3', JSON.stringify(s)); localStorage.setItem('sibir3-meta-3', JSON.stringify({ v: SAVE_V + 5, at: Date.now(), day: 9, ch: 3, ep: 2, h: 10 }));
-    localStorage.setItem('sibir3-save-1', '{битый'); localStorage.setItem('sibir3-meta-1', JSON.stringify({ v: SAVE_V, at: Date.now(), day: 2, ch: 0, ep: 0, h: 10 }));
+    const s = JSON.parse(SaveGame.snapshot()); s._v = SaveGame.V + 5;
+    localStorage.setItem('sibir3-save-3', JSON.stringify(s)); localStorage.setItem('sibir3-meta-3', JSON.stringify({ v: SaveGame.V + 5, at: Date.now(), day: 9, ch: 3, ep: 2, h: 10 }));
+    localStorage.setItem('sibir3-save-1', '{битый'); localStorage.setItem('sibir3-meta-1', JSON.stringify({ v: SaveGame.V, at: Date.now(), day: 2, ch: 0, ep: 0, h: 10 }));
   });
   await pg.keyboard.press('Escape'); await pg.click('#p-load'); await pg.waitForTimeout(150);
   const refuse = await pg.evaluate(() => ({ r3: document.querySelectorAll('#sl-list .slot')[3].textContent, b3: !!document.querySelector('[data-load="3"]') }));
@@ -107,7 +107,7 @@ require('fs').mkdirSync(OUT, { recursive: true });
   ok(await pg.evaluate(() => { const u = Colony.selected()[0]; const x = (u.x - cam.x) * GFX.zoom, y = (u.y - 14 - cam.y) * GFX.zoom; return x > 0 && y > 0 && x < innerWidth && y < innerHeight; }), 'G — камера к выделенным');
   ok(await pg.locator('#offsel .offa').count() === 0, 'стрелка пропала, когда выделенный на экране');
   // группа сохраняется в сейве
-  await pg.evaluate(() => saveCheckpoint());
+  await pg.evaluate(() => SaveGame.checkpoint());
   ok(await pg.evaluate(() => JSON.parse(Saves.read('auto').json).col.groups[1].length === 2), 'группы пишутся в сейв');
   // финал стирает только «Авто»
   await pg.evaluate(() => UI.end('A'));

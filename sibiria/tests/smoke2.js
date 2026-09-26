@@ -14,7 +14,7 @@ const OUT = __dirname + '/shots/';
   // ночь у костра со стаей
   await shot('4-night', () => {
     G.s.hp = 1e6; G.time = tAt(1, 22.5); G.aurora = 1; G.p.x = 1200; G.p.y = 1500; G.fires.push({ x: 1230, y: 1510, fuel: 100 });
-    cam.x = G.p.x - 640; cam.y = G.p.y - 420; spawnPack(4, false); for (let i = 0; i < 60; i++) update(0.05);
+    cam.x = G.p.x - 640; cam.y = G.p.y - 420; Wolves.spawnPack(4, false); for (let i = 0; i < 60; i++) update(0.05);
     return 'wolves ' + G.wolves.map(w => w.st).join(',');
   });
   // изба внутри вечером

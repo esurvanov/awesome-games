@@ -2,7 +2,7 @@
 // Интерфейс: HUD, панели, диалоги, ввод, главный цикл.
 
 // ---------- сохранения: ячейки «Авто» + 1..3 ----------
-// Данные ячейки — snapshot() (формат v4: seed + изменения, см. game.js), рядом маленькая мета для списка.
+// Данные ячейки — SaveGame.snapshot() (формат v4: seed + изменения, см. js/savegame.js), рядом маленькая мета для списка.
 // «Сибирь 2.0»: сейвы старше v4 не читаются — при запуске стираются, в ячейке остаётся понятная причина
 // (один раз показываем и тостом). Старый ключ sibir2-save удаляется так же.
 const Saves = (() => {
@@ -12,12 +12,12 @@ const Saves = (() => {
   const del = k => { try { localStorage.removeItem(k); } catch (e) {} };
   const put = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
   const say = t => { if (typeof UI !== 'undefined') UI.toast(t); };
-  const metaOf = g => ({ v: SAVE_V, W, at: Date.now(), day: g.day, ch: g.chapter, ep: g.col ? g.col.ep : 0, h: ((START_H / 24 + g.time / CYCLE) % 1) * 24 });
+  const metaOf = g => ({ v: SaveGame.V, W, at: Date.now(), day: g.day, ch: g.chapter, ep: g.col ? g.col.ep : 0, h: ((TUNE.time.startH / 24 + g.time / CYCLE) % 1) * 24 });
   // проверка: { json, g } или { err } с понятной причиной
   function check(json) {
     let g; try { g = JSON.parse(json); } catch (e) { return { err: 'файл повреждён' }; }
     if (!g || typeof g !== 'object' || !g.p || !g.s || !g.inv || typeof g.time !== 'number') return { err: 'не сохранение «Сибири»' };
-    const err = saveProblem(g);
+    const err = SaveGame.problem(g);
     return err ? { err, v: g._v || 2 } : { json, g };
   }
   function write(slot, json, meta) {
@@ -32,8 +32,8 @@ const Saves = (() => {
     const has = !!get(KD(slot));
     if (!has && !(m && m.err)) return null;
     if (!m) m = { v: 0, err: 'нет описания' };
-    if (!m.err && m.v > SAVE_V) m.err = `из новой версии игры (v${m.v})`;
-    if (!m.err && m.v < SAVE_V) m.err = `старое сохранение (v${m.v}) — мир «Сибири 2.0» другой, начните заново`;
+    if (!m.err && m.v > SaveGame.V) m.err = `из новой версии игры (v${m.v})`;
+    if (!m.err && m.v < SaveGame.V) m.err = `старое сохранение (v${m.v}) — мир «Сибири 2.0» другой, начните заново`;
     if (!m.err && m.W && m.W !== W) m.err = `мир другого размера (${m.W})`;
     return m;
   }
@@ -53,7 +53,7 @@ const Saves = (() => {
     for (const s of SLOTS) {
       const d = get(KD(s)); if (!d) continue;
       let v = 0; try { v = JSON.parse(d)._v || 2; } catch (e) { continue; } // битый — покажет check
-      if (v < SAVE_V) { del(KD(s)); put(KM(s), JSON.stringify({ v, err: reason(v) })); dropped++; }
+      if (v < SaveGame.V) { del(KD(s)); put(KM(s), JSON.stringify({ v, err: reason(v) })); dropped++; }
     }
   }
   drop();
@@ -221,8 +221,8 @@ const UI = (() => {
     if (!node) return;
     closePanel(true);
     dlg = node; kind = 'dialog'; typeN = 0; typeT = 0;
-    if (node.act) dialogAct(node.act);
-    const w = WHO[node.who];
+    if (node.act) Story.act(node.act);
+    const w = NPCS[node.who];
     face(w); $('dlg-name').textContent = w.n;
     $('dlg-note').textContent = node.note || ''; $('dlg-note').hidden = !node.note;
     $('dlg-text').textContent = reduced ? node.t : '';
@@ -239,11 +239,10 @@ const UI = (() => {
     if (typeN < dlg.t.length) { typeN = dlg.t.length; $('dlg-text').textContent = dlg.t; renderOpts(); return; }
     const opts = dlg.opts || [{ t: 'Дальше' }], o = opts[i]; if (!o) return;
     $('dialog').hidden = true; kind = null; const was = dlg; dlg = null;
-    if (o.trade) return openTrade();
-    if (o.gift) { giftUrk(); return dialog(DIALOG.urk_gift); }
-    if (o.feed) return feedVera();
+    if (o.trade) return openTrade(was.who);
+    if (o.run) { const n = Npc.run(was.who, o.run); return n ? dialog(DIALOG[n]) : undefined; }
     if (o.next) return dialog(DIALOG[o.next]);
-    if (was.who === 'vera' && G.vera.state === 'hut' && !G.fired.veraUrk && G.flags.metUrk) G.fired.veraUrk = 1;
+    Npc.closed(was.who);
   }
   $('dlg-opts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b) choose(+b.dataset.i); });
   $('dialog').addEventListener('click', e => { if (!e.target.closest('.opt') && typeN < (dlg ? dlg.t.length : 0)) choose(0); });
@@ -260,8 +259,12 @@ const UI = (() => {
   let panelTab = 'craft';
   function openCraft(tab) { panelTab = tab || panelTab; kind = 'craft'; renderPanel(); $('panel').hidden = false; }
   function openChest() { kind = 'chest'; renderPanel(); $('panel').hidden = false; }
-  function openTrade() { kind = 'trade'; renderPanel(); $('panel').hidden = false; }
+  let tradeWho = 'urk';
+  function openTrade(who) { tradeWho = who && NPCS[who] && NPCS[who].trade ? who : 'urk'; kind = 'trade'; renderPanel(); $('panel').hidden = false; }
+  // большая карта (A9, js/map.js): пауза, как панель
+  function openMap() { if (state !== 'play' || G.p.sleeping) return; if (kind) closePanel(); kind = 'map'; WorldMap.open(); }
   function closePanel(silent) {
+    if (kind === 'map') WorldMap.close();
     $('panel').hidden = true; $('note').hidden = true; $('dialog').hidden = true;
     if (!silent || kind !== 'dialog') kind = null;
     dlg = null;
@@ -269,7 +272,7 @@ const UI = (() => {
   // ---------- разметка компонентов (SPEC-ui §3) ----------
   const icon = k => k === 'food' ? ':food:' : ITEMS[k].i;
   const bdg = (cls, inner, title) => `<span class="badge ${cls || ''}"${title ? ` title="${icPlain(title)}"` : ''}>${inner}</span>`;
-  const costHtml = (cost, wc) => Object.entries(cost).map(([k, v]) => { const have = cnt(k, wc); return bdg(have >= v ? '' : 'miss', ic(icon(k), 's') + (have >= v ? v : `${Math.min(have, v)}/${v}`), k === 'food' ? 'еда' : ITEMS[k].n); }).join('');
+  const costHtml = (cost, wc) => Object.entries(cost).map(([k, v]) => { const have = Inv.cnt(k, wc); return bdg(have >= v ? '' : 'miss', ic(icon(k), 's') + (have >= v ? v : `${Math.min(have, v)}/${v}`), k === 'food' ? 'еда' : ITEMS[k].n); }).join('');
   const ST_IC = { fire: 'fire', stove: 'stove', bench: 'craft' }, ST_N = { fire: 'у огня', stove: 'у печи', bench: 'верстак' };
   const setHtml = setHtmlOnce;
   const row = (st, i, name, sub, badges, act) => `<div class="row ${st}"><span class="ri">${ic(i)}</span><span class="rn">${esc(name)}<small>${esc(sub || '')}</small></span><span class="badges">${badges || ''}</span>${act}</div>`;
@@ -286,14 +289,14 @@ const UI = (() => {
       if (panelTab === 'craft') {
         if (G.flags.radioBuilt && G.p.inside && dist2(G.p, SPOT.bench) < 70 * 70) html += `<div class="row sel"><span class="ri">${ic('radio')}</span><span class="rn">Выйти на связь<small>07:30–09:00 · 19:30–21:00</small></span><span></span><button class="btn pri" data-radio="1">${ic('play', 's')}Связь</button></div>`;
         for (const r of RECIPES) {
-          const st = recipeState(r), off = st !== 'ok' && st !== 'owned';
-          const b = bdg(stationOk(r.at) ? '' : 'miss', ic(ST_IC[r.at], 's'), ST_N[r.at]) + costHtml(r.in, G.p.inside) + (r.radio ? bdg(G.charge >= 100 ? '' : 'miss', ic('battery', 's') + Math.floor(G.charge) + '%') : '');
+          const st = Actions.recipeState(r), off = st !== 'ok' && st !== 'owned';
+          const b = bdg(Actions.stationOk(r.at) ? '' : 'miss', ic(ST_IC[r.at], 's'), ST_N[r.at]) + costHtml(r.in, G.p.inside) + (r.radio ? bdg(G.charge >= 100 ? '' : 'miss', ic('battery', 's') + Math.floor(G.charge) + '%') : '');
           html += row(st === 'owned' ? 'done' : off ? 'is-off' : '', st === 'owned' ? 'ok' : r.i, r.n, r.d, st === 'owned' ? '' : b, st === 'owned' ? doneB() : mkBtn(`data-r="${r.id}"`, st === 'ok', 'Сделать'));
         }
       } else if (panelTab === 'build') {
         html += `<p class="hint">${ic('epoch', 's')}Эпоха ${ROMAN[G.col.ep]} · ${esc(EPOCHS[G.col.ep].n)} · лабаз + рюкзак</p>`;
         for (const [id, B] of Object.entries(BUILDS)) {
-          const lockEp = B.ep > G.col.ep, ok = !lockEp && canPay(B.cost, true), n = Colony.doneCount(id);
+          const lockEp = B.ep > G.col.ep, ok = !lockEp && Inv.canPay(B.cost, true), n = Colony.doneCount(id);
           const b = (lockEp ? bdg('miss', ic('epoch', 's') + ROMAN[B.ep], 'эпоха ' + EPOCHS[B.ep].n) : costHtml(B.cost, true)) + secs(B.t);
           html += row(ok ? '' : 'is-off', B.i, B.n + (n ? ` ×${n}` : ''), B.d, b, mkBtn(`data-place="${id}"`, ok, 'Построить'));
         }
@@ -327,17 +330,17 @@ const UI = (() => {
         html += `<div class="chead"><span></span><span>${ic('labaz', 's')}</span><span>продать · купить</span><span>₽</span></div>`;
         for (const k of [...new Set([...MARKET_SELL, ...MARKET_BUY])]) {
           const canS = MARKET_SELL.includes(k), canB = MARKET_BUY.includes(k);
-          html += `<div class="crow"><span class="ri" title="${ITEMS[k].n}">${ic(ITEMS[k].i)}</span><b>${cnt(k, true)}</b>
-            <span class="arr">${canS ? `<button class="btn sec" data-sell="${k}" ${near && cnt(k, true) ? '' : 'disabled'}>Продать +${Colony.sellPrice(k)}</button>` : ''}${canB ? `<button class="btn sec" data-buy="${k}" ${near && G.col.rub >= Colony.buyPrice(k) ? '' : 'disabled'}>Купить −${Colony.buyPrice(k)}</button>` : ''}</span>
+          html += `<div class="crow"><span class="ri" title="${ITEMS[k].n}">${ic(ITEMS[k].i)}</span><b>${Inv.cnt(k, true)}</b>
+            <span class="arr">${canS ? `<button class="btn sec" data-sell="${k}" ${near && Inv.cnt(k, true) ? '' : 'disabled'}>Продать +${Colony.sellPrice(k)}</button>` : ''}${canB ? `<button class="btn sec" data-buy="${k}" ${near && G.col.rub >= Colony.buyPrice(k) ? '' : 'disabled'}>Купить −${Colony.buyPrice(k)}</button>` : ''}</span>
             <b>${Math.round(G.col.prices[k])}</b></div>`;
         }
       } else {
         html += `<div class="chain">${HUT_UPG.map(u => `<span class="${G.hut[u.id] ? 'on' : ''}" title="${u.n}">${ic(u.i)}</span>`).join('<i></i>')}</div>`;
         for (const u of HUT_UPG) {
-          const st = hutUpgState(u);
+          const st = Actions.hutUpgState(u);
           html += row(st === 'owned' ? 'done' : st === 'ok' ? '' : 'is-off', st === 'owned' ? 'ok' : u.i, u.n, u.d, st === 'owned' ? '' : st === 'need' ? bdg('miss', ic('wall', 's') + 'сначала щели') : costHtml(u.in, true), st === 'owned' ? doneB() : mkBtn(`data-u="${u.id}"`, st === 'ok', 'Построить'));
         }
-        if (!nearHut()) html += `<p class="hint">${ic('hut', 's')}Только у избы</p>`;
+        if (!World.nearHut()) html += `<p class="hint">${ic('hut', 's')}Только у избы</p>`;
       }
       setHtml(body, html);
     } else if (kind === 'chest') {
@@ -348,21 +351,25 @@ const UI = (() => {
         <span class="arr"><button class="btn sec" data-put="${k}" ${G.inv[k] ? '' : 'disabled'}>Положить</button><button class="btn sec" data-take="${k}" ${G.chest[k] ? '' : 'disabled'}>Взять</button></span>
         <b>${G.chest[k] || 0}</b></div>`).join('') : '<p class="hint">Пусто</p>');
     } else if (kind === 'trade') {
-      head.innerHTML = `<span class="ph">${ic('trade', 's')}Торг · Уркачан</span><span class="fur">${ic('pelt', 's')}${furTotal()} · ${ic('evenk', 's')}${G.urk.respect}/3</span>`;
-      setHtml(body, `<p class="hint">${ic('hare', 's')}1 · ${ic('wolf', 's')}3 · ${ic('sable', 's')}4 ${ic('pelt', 's')}</p>` + TRADES.map(t => {
-        const pr = price(t), left = G.urk.stock[t.id], owned = t.gear && G.gear[t.gear], can = left > 0 && !owned && furTotal() >= pr;
+      // торг с персонажем tradeWho: валюта — его trade.pay (цены единицы — trade.val), остаток — в его состоянии
+      const who = tradeWho, R = NPCS[who], T = R.trade, st = Npc.state(who), cur = T.cur || 'pelt', have = Npc.furTotal(who);
+      const extra = who === 'urk' ? ` · ${ic('evenk', 's')}${G.urk.respect}/3` : '';
+      head.innerHTML = `<span class="ph">${ic('trade', 's')}Торг · ${esc(R.n)}</span><span class="fur">${ic(cur, 's')}${have}${extra}</span>`;
+      const hint = T.pay.map(k => `${ic(ITEMS[k].i, 's')}${Npc.unit(who, k)}`).join(' · ') + ' ' + ic(cur, 's');
+      setHtml(body, `<p class="hint">${hint}</p>` + T.goods.map(t => {
+        const pr = Npc.price(t, who), left = st.stock[t.id], owned = t.gear && G.gear[t.gear], can = left > 0 && !owned && have >= pr;
         const done = owned || left <= 0;
-        return row(done ? 'done' : can ? '' : 'is-off', done ? 'ok' : t.i, t.n, t.gear ? GEAR[t.gear].d : 'осталось ' + left, done ? '' : bdg(furTotal() >= pr ? '' : 'miss', ic('pelt', 's') + pr), done ? doneB(owned ? 'есть' : 'нет') : mkBtn(`data-t="${t.id}"`, can, 'Купить'));
+        return row(done ? 'done' : can ? '' : 'is-off', done ? 'ok' : t.i, t.n, t.d || (t.gear ? GEAR[t.gear].d : 'осталось ' + left), done ? '' : bdg(have >= pr ? '' : 'miss', ic(cur, 's') + pr), done ? doneB(owned ? 'есть' : 'нет') : mkBtn(`data-t="${t.id}"`, can, 'Купить'));
       }).join(''));
     }
   }
   $('panel').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.tab) { panelTab = b.dataset.tab; }
-    else if (b.dataset.r) craft(RECIPES.find(r => r.id === b.dataset.r));
-    else if (b.dataset.u) buildHut(HUT_UPG.find(u => u.id === b.dataset.u));
-    else if (b.dataset.t) buy(TRADES.find(t => t.id === b.dataset.t));
-    else if (b.dataset.radio) { closePanel(); return radioSession(); }
+    else if (b.dataset.r) Actions.craft(RECIPES.find(r => r.id === b.dataset.r));
+    else if (b.dataset.u) Actions.buildHut(HUT_UPG.find(u => u.id === b.dataset.u));
+    else if (b.dataset.t) Npc.buy(NPCS[tradeWho].trade.goods.find(t => t.id === b.dataset.t), tradeWho);
+    else if (b.dataset.radio) { closePanel(); return Actions.radioSession(); }
     else if (b.dataset.place) { closePanel(); Colony.startPlace(b.dataset.place); return; }
     else if (b.dataset.hire) Colony.hire(b.dataset.hire);
     else if (b.dataset.epoch) Colony.advance();
@@ -370,7 +377,7 @@ const UI = (() => {
     else if (b.dataset.sell) Colony.sell(b.dataset.sell);
     else if (b.dataset.buy) Colony.buy(b.dataset.buy);
     else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { G.inv[k]--; G.chest[k] = (G.chest[k] || 0) + 1; } }
-    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; add(k); } }
+    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; Inv.add(k); } }
     else if (b.dataset.all) { for (const k in G.inv) if (G.inv[k] > 0) { G.chest[k] = (G.chest[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.close) return closePanel();
     renderPanel(); hud(true);
@@ -383,13 +390,13 @@ const UI = (() => {
     const LIST = [
       ['move', 'skis', T ? 'Джойстик слева — идти' : 'WASD / стрелки — идти', () => G.time > 3],
       ['act', 'axe', T ? ':axe: — действие: рубить, брать, говорить' : 'E — действие рядом: рубить, брать, говорить', () => !!ctxCache && ctxCache.k !== 'inspect'],
-      ['fire', 'fire', T ? ':fire: — костёр из :wood:3, греет' : 'F — костёр из :wood:3, греет', () => !G.p.inside && G.s.warm < 70 && cnt('wood', false) >= 3],
-      ['cold', 'frost', 'Мёрзнешь — в избу или к огню', () => G.s.warm < 45 && !G.p.inside && !nearFire(200)],
-      ['eat', 'food', T ? ':food: — поесть · у огня сытнее' : 'Q — поесть · у огня сытнее', () => G.s.food < 55 && FOOD_ORDER.some(k => cnt(k, G.p.inside) > 0)],
+      ['fire', 'fire', T ? ':fire: — костёр из :wood:3, греет' : 'F — костёр из :wood:3, греет', () => !G.p.inside && G.s.warm < 70 && Inv.cnt('wood', false) >= 3],
+      ['cold', 'frost', 'Мёрзнешь — в избу или к огню', () => G.s.warm < 45 && !G.p.inside && !Fire.near(200)],
+      ['eat', 'food', T ? ':food: — поесть · у огня сытнее' : 'Q — поесть · у огня сытнее', () => G.s.food < 55 && FOOD_ORDER.some(k => Inv.cnt(k, G.p.inside) > 0)],
       ['stove', 'stove', 'Печь: E у печи · :wood: из рук или лабаза', () => G.p.inside && G.hut.fuel <= 0],
       ['night', 'night', 'После 19:00 — спать у печи (E у кровати)', () => { const h = hourOf(); return h >= 17.5 && h < 19.5; }],
       ['craft', 'craft', T ? ':craft: — мастерская, изба, посёлок' : 'C — мастерская, изба, посёлок', () => G.time > 150 && G.p.inside],
-      ['build', 'build', T ? ':craft: · :build: — стройка посёлка' : 'B — стройка посёлка', () => G.col.units.some(u => u.type === 'bich') || cnt('wood', true) >= 10],
+      ['build', 'build', T ? ':craft: · :build: — стройка посёлка' : 'B — стройка посёлка', () => G.col.units.some(u => u.type === 'bich') || Inv.cnt('wood', true) >= 10],
       ['select', 'people', T ? 'Тап по человеку — выбрать · тап по месту — приказ' : 'Рамка ЛКМ — выбрать людей · ПКМ — приказ', () => G.col.units.some(u => !u.pet && !u.hidden)],
       ['zoom', 'cam', T ? 'Два пальца — масштаб и обзор' : 'Колесо — масштаб · СКМ / край экрана — обзор · 0 — к герою', () => G.col.units.filter(u => !u.pet).length >= 2 || G.time > 400],
     ];
@@ -433,17 +440,17 @@ const UI = (() => {
   const chipI = (id, v, title, cls) => `<span${cls ? ` class="${cls}"` : ''} title="${title}">${ic(id, 's')}${v}</span>`;
   function hud(force) {
     const s = G.s;
-    bar(els.warm, s.warm, maxWarm()); bar(els.food, s.food); bar(els.hp, Math.max(0, s.hp));
+    bar(els.warm, s.warm, Hero.maxWarm()); bar(els.food, s.food); bar(els.hp, Math.max(0, s.hp));
     setHtmlOnce($('frost'), s.frost ? ic('frost', 's').repeat(s.frost) : '');
     // инвентарь
     const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, G.inv[k], ITEMS[k].n)).join('');
-    const kg = weight(), cap = capKg();
+    const kg = Inv.weight(), cap = Inv.capKg();
     const invHtml = (inv || '<span class="dim">пусто</span>') + chipI('weight', `${kg}/${cap}`, 'Вес, кг', 'kg' + (kg > cap ? ' over' : ''));
     if (invHtml !== invCache || force) { invCache = invHtml; $('inv').innerHTML = invHtml; }
     // посёлок
     const C = G.col, st = k => G.chest[k] || 0;
     const colHtml = `<span title="Эпоха">${ic('epoch', 's')}${ROMAN[C.ep]}${C.epT > 0 ? `<small>${Math.ceil(C.epT)} с</small>` : ''}</span>` + chipI('people', `${Colony.pop()}/${Colony.popCap()}`, 'Люди')
-      + chipI('wood', st('wood'), 'Лабаз: дрова') + chipI('food', cnt('food', true) - cnt('food', false), 'Лабаз: еда') + chipI('scrap', st('scrap'), 'Лабаз: железо')
+      + chipI('wood', st('wood'), 'Лабаз: дрова') + chipI('food', Inv.cnt('food', true) - Inv.cnt('food', false), 'Лабаз: еда') + chipI('scrap', st('scrap'), 'Лабаз: железо')
       + chipI('coins', C.rub, 'Рубли') + chipI('sevek', `${G.amulets}/12`, 'Сэвэки') + (C.alarm ? `<span class="alarm">${ic('alarm', 's')}</span>` : '');
     if (colHtml !== $('colony').dataset.c) { $('colony').dataset.c = colHtml; $('colony').innerHTML = colHtml; }
     const sel = Colony.selected();
@@ -468,17 +475,19 @@ const UI = (() => {
     $('clock').classList.toggle('warn', h > 16 && h < 18 && !G.p.inside && Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) > 700);
     // рация
     const parts = PARTS.map(k => {
-      const got = G.flags.radioBuilt || (k === 'quartz' ? G.flags.quartz && has('quartz', true) || G.flags.radioBuilt : has(k, true));
+      const got = G.flags.radioBuilt || (k === 'quartz' ? G.flags.quartz && Inv.has('quartz', true) || G.flags.radioBuilt : Inv.has(k, true));
       return `<span title="${ITEMS[k].n}">${ic(ITEMS[k].i, got ? 'on' : '')}</span>`;
     }).join('') + `<span class="ch">${G.flags.radioBuilt ? ic('radio', 's on') : Math.floor(G.charge) + '%'}</span>`;
     if (parts !== $('parts').dataset.c) { $('parts').dataset.c = parts; $('parts').innerHTML = parts; }
     // цели
     const ch = CHAPTERS[G.chapter];
-    const gh = `<div class="plate-h">${ic(ch.ic, 's')}${ch.num} · ${esc(ch.n)}</div>` + ch.goals.filter(g => !g.show || g.show(G)).map(g => `<div class="g ${g.ok(G) ? 'done' : ''}${g.alt ? ' alt' : ''}">${ic(g.ok(G) ? 'ok' : g.ic)}${esc(g.t)}</div>`).join('');
+    // + взятые задания людей (QUESTS[*].hud) — отдельными строками .qg под целями главы (не больше трёх)
+    const qs = Quests.active().filter(id => QUESTS[id].hud).slice(0, 3).map(id => `<div class="qg">${ic(QUESTS[id].hud[0])}${esc(QUESTS[id].hud[1])}</div>`).join('');
+    const gh = `<div class="plate-h">${ic(ch.ic, 's')}${ch.num} · ${esc(ch.n)}</div>` + ch.goals.filter(g => !g.show || g.show(G)).map(g => `<div class="g ${g.ok(G) ? 'done' : ''}${g.alt ? ' alt' : ''}">${ic(g.ok(G) ? 'ok' : g.ic)}${esc(g.t)}</div>`).join('') + qs;
     if (gh !== goalCache) { goalCache = gh; $('goals').innerHTML = gh; }
     // навыки и снаряжение
     const sk = Object.keys(SKILLS).map(k => {
-      const l = lvl(k), x = G.skills[k], a = LV[l - 1], b = LV[l] || LV[l - 1] + 1, pr = l >= 5 ? 1 : (x - a) / (b - a);
+      const l = Hero.lvl(k), x = G.skills[k], a = LV[l - 1], b = LV[l] || LV[l - 1] + 1, pr = l >= 5 ? 1 : (x - a) / (b - a);
       return `<span class="ring" style="--p:${pr}" title="${SKILLS[k].n}">${ic(SKILLS[k].i)}<b>${l}</b></span>`;
     }).join('') + '<i class="sep"></i>' + Object.keys(GEAR).map(k => `<span class="gear ${G.gear[k] ? 'on' : ''}" title="${GEAR[k].n} · ${icPlain(GEAR[k].d)}">${ic(GEAR[k].i)}</span>`).join('');
     if (sk !== skillCache) { skillCache = sk; $('skills').innerHTML = sk; }
@@ -488,12 +497,12 @@ const UI = (() => {
     const c = ctxCache;
     if (c) items.push(['E', `${ic('axe', 's')}${esc(c.label)}<kbd>E</kbd>`]);
     if (!G.p.inside && !G.p.sleeping) {
-      const f = nearest(G.fires, 70);
+      const f = Actions.nearest(G.fires, 70);
       if (f) items.push(['F', f.fuel > 0 ? `${ic('fire', 's')}Подбросить ${ic('wood', 's')}1<kbd>F</kbd>` : `${ic('fire', 's')}Разжечь ${ic('wood', 's')}2<kbd>F</kbd>`]);
-      else if (cnt('wood', false) >= 3 && !c) items.push(['F', `${ic('fire', 's')}Костёр ${ic('wood', 's')}3<kbd>F</kbd>`]);
-      if ((has('snare', false) || has('trap', false)) && !onIce(G.p.x, G.p.y)) items.push(['R', `${ic(inCedar(G.p.x, G.p.y) && has('trap', false) ? 'trap' : has('snare', false) ? 'snare' : 'trap', 's')}Поставить<kbd>R</kbd>`]);
+      else if (Inv.cnt('wood', false) >= 3 && !c) items.push(['F', `${ic('fire', 's')}Костёр ${ic('wood', 's')}3<kbd>F</kbd>`]);
+      if ((Inv.has('snare', false) || Inv.has('trap', false)) && !onIce(G.p.x, G.p.y)) items.push(['R', `${ic(World.inCedar(G.p.x, G.p.y) && Inv.has('trap', false) ? 'trap' : Inv.has('snare', false) ? 'snare' : 'trap', 's')}Поставить<kbd>R</kbd>`]);
     }
-    if (G.s.food < 60 && FOOD_ORDER.some(k => cnt(k, G.p.inside) > 0)) items.push(['Q', `${ic('food', 's')}Есть<kbd>Q</kbd>`]);
+    if (G.s.food < 60 && FOOD_ORDER.some(k => Inv.cnt(k, G.p.inside) > 0)) items.push(['Q', `${ic('food', 's')}Есть<kbd>Q</kbd>`]);
     const ph = items.map(([k, t]) => `<button class="btn sec pbtn" data-k="${k}">${t}</button>`).join('');
     if (ph !== promptCache) { promptCache = ph; $('prompt').innerHTML = ph; }
   }
@@ -585,10 +594,10 @@ const UI = (() => {
   $('prompt').addEventListener('click', e => { const b = e.target.closest('.pbtn'); if (b) keyAction(b.dataset.k); });
 
   // ---------- мини-карта ----------
-  // Масштаб постоянный: MAP_SPAN px мира на 128 px карты (при ×1 — весь мир, как раньше).
-  // Мир больше — карта показывает окно MAP_SPAN вокруг героя (у края мира окно упирается в край).
+  // Масштаб постоянный: MAP_SPAN px мира на 128 px карты — окрестность героя (A9: ~2,5 км; при ×1 — весь мир, как раньше).
+  // У края мира окно упирается в край. Весь мир — большая карта (M, js/map.js).
   // Подложка печётся на весь мир в том же масштабе и перепекается, когда лес заметно поредел.
-  const MAP_SPAN = Math.min(W, H, WORLD.BASE), MS = 128 / MAP_SPAN;
+  const MAP_SPAN = W > WORLD.BASE ? 2400 : Math.min(W, H), MS = 128 / MAP_SPAN;
   const mm = $('minimap'), mx = mm.getContext('2d');
   const mbase = document.createElement('canvas'); mbase.width = Math.ceil(W * MS); mbase.height = Math.ceil(H * MS);
   let mapWin = { x: 0, y: 0 }, mapFelled = -1;
@@ -600,6 +609,10 @@ const UI = (() => {
     g.strokeStyle = '#7fb0cf'; g.lineWidth = 4; g.beginPath(); for (let y = 0; y <= H; y += 40) g.lineTo(riverX(y) * MS, y * MS); g.stroke();
     g.fillStyle = 'rgba(160,140,110,0.5)'; g.beginPath(); g.arc(POI.mar.x * MS, POI.mar.y * MS, POI.mar.r * MS, 0, 7); g.fill();
     g.fillStyle = '#6b5238'; g.fillRect((HUT.x - 100) * MS, (HUT.y - 100) * MS, 200 * MS, 140 * MS);
+    // зоны: оттенок по карте зон, объекты — точками
+    const C = Zones.C * MS, TC = { naled: 'rgba(140,195,230,.55)', gar: 'rgba(43,47,58,.3)', kurum: 'rgba(108,113,120,.35)', golets: 'rgba(246,249,252,.6)', drill: 'rgba(184,57,45,.15)', meteo: 'rgba(63,111,122,.2)', zimnik: 'rgba(143,124,92,.2)', stoibishe: 'rgba(199,154,98,.3)' };
+    if (Zones.built !== null) for (let j = 0; j < Zones.NY; j++) for (let i = 0; i < Zones.NX; i++) { const z = Zones.zid(j * Zones.NX + i), id = z && Zones.IDS[z - 1]; if (id && TC[id]) { g.fillStyle = TC[id]; g.fillRect(i * C, j * C, C + 0.5, C + 0.5); } }
+    g.fillStyle = '#27394a'; for (const o of Zones.OBJS) if (o.type !== 'spot' && o.type !== 'steam') g.fillRect(o.x * MS - 1.5, o.y * MS - 1.5, 3, 3);
     mapFelled = felled();
   }
   function drawMap() {
@@ -613,14 +626,16 @@ const UI = (() => {
     const ox = mapWin.x, oy = mapWin.y, X = x => (x - ox) * MS, Y = y => (y - oy) * MS;
     mx.fillStyle = '#111a15'; mx.fillRect(0, 0, 128, 128);
     // открытые клетки тумана внутри окна
-    const fc = FOG.cell, c = fc * MS;
-    const i0 = Math.floor(ox / fc), i1 = Math.min(FOG.nx - 1, Math.floor((ox + MAP_SPAN - 1) / fc));
-    const j0 = Math.floor(oy / fc), j1 = Math.min(FOG.ny - 1, Math.floor((oy + MAP_SPAN - 1) / fc));
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (G.fog[j * FOG.nx + i]) mx.drawImage(mbase, i * c, j * c, c + 0.5, c + 0.5, X(i * fc), Y(j * fc), c + 0.5, c + 0.5);
+    const fc = World.FOG.cell, c = fc * MS;
+    const i0 = Math.floor(ox / fc), i1 = Math.min(World.FOG.nx - 1, Math.floor((ox + MAP_SPAN - 1) / fc));
+    const j0 = Math.floor(oy / fc), j1 = Math.min(World.FOG.ny - 1, Math.floor((oy + MAP_SPAN - 1) / fc));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (G.fog[j * World.FOG.nx + i]) mx.drawImage(mbase, i * c, j * c, c + 0.5, c + 0.5, X(i * fc), Y(j * fc), c + 0.5, c + 0.5);
     for (const k in POI) if (G.known[k] && k !== 'labaz') Icons.draw(mx, POI[k].ic, X(POI[k].x), Y(POI[k].y), 14, '#ebe6d3', 'rgba(11,18,14,.9)');
-    const tg = goalTarget();
+    const tg = Story.goalTarget();
     if (tg) { mx.fillStyle = '#ffd27a'; mx.beginPath(); mx.arc(clamp(X(tg.x), 3, 125), clamp(Y(tg.y), 3, 125), 3 + Math.sin(now * 5), 0, 7); mx.fill(); }
-    if (G.urk.state !== 'away') { mx.fillStyle = '#c89468'; mx.fillRect(X(G.urk.x) - 1.5, Y(G.urk.y) - 1.5, 3, 3); }
+    for (const n of Npc.list()) if (n.id === 'urk') { mx.fillStyle = '#c89468'; mx.fillRect(X(n.st.x) - 1.5, Y(n.st.y) - 1.5, 3, 3); }
+    for (const z of Zones.ACT) if (G.zoneSeen[z.id]) { const zx = X(z.x), zy = Y(z.y); if (zx > -8 && zx < 136 && zy > -8 && zy < 136) Icons.draw(mx, z.ic, zx, zy, 13, '#ebe6d3', 'rgba(11,18,14,.9)'); }
+    if (G.veh) for (const k of ['deer', 'buran']) { const v = G.veh[k]; if (v && G.p.ride !== k && (k === 'deer' || v.fixed)) Icons.draw(mx, k === 'deer' ? 'deer' : 'sled', X(v.x), Y(v.y), 11, '#ffd27a', 'rgba(11,18,14,.9)'); }
     mx.fillStyle = '#ff4f3a'; mx.beginPath(); mx.arc(X(p.x), Y(p.y), 3, 0, 7); mx.fill();
     mx.strokeStyle = '#fff'; mx.lineWidth = 1; mx.stroke();
     // видимая часть мира
@@ -633,51 +648,22 @@ const UI = (() => {
     GFX.lookAt(mapWin.x + (e.clientX - r.left) / r.width * MAP_SPAN, mapWin.y + (e.clientY - r.top) / r.height * MAP_SPAN); mapT = 0;
   }
   let mapDrag = false;
-  mm.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); mapDrag = true; try { mm.setPointerCapture(e.pointerId); } catch (_) {} mapLook(e); });
+  mm.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (document.body.classList.contains('narrow')) return openMap(); mapDrag = true; try { mm.setPointerCapture(e.pointerId); } catch (_) {} mapLook(e); });
   mm.addEventListener('pointermove', e => { if (mapDrag) mapLook(e); });
   for (const ev of ['pointerup', 'pointercancel']) mm.addEventListener(ev, () => { mapDrag = false; });
   $('cam-btn').addEventListener('click', () => { GFX.recenter(); GFX.setZoom(1); });
+  $('map-btn').addEventListener('click', () => { if (kind === 'map') closePanel(); else openMap(); });
 
-  // ---------- цель ----------
-  function resolveAt(at) {
-    const f = G.flags;
-    const hutPt = x => G.p.inside ? x : { x: HUT.x, y: HUT_IN.y1 + 40 };
-    switch (at) {
-      case 'hut': return { x: HUT.x, y: HUT_IN.y1 + 40 };
-      case 'cockpit': return POI.cockpit;
-      case 'note:log': return NOTES.log;
-      case 'stove': return hutPt(SPOT.stove);
-      case 'bed': return hutPt(SPOT.bed);
-      case 'bench': return hutPt(SPOT.bench);
-      case 'urk': return G.urk.state === 'away' ? null : G.urk;
-      case 'vera': return G.vera.state === 'tail' ? (G.known.tail ? POI.tail : null) : hutPt(SPOT.veraBed);
-      case 'battery': return has('battery', true) || G.chest.battery ? hutPt(SPOT.stove) : G.known.tail ? POI.tail : null;
-      case 'polynya': return G.known.polynya ? POI.polynya : null;
-      case 'mar': return G.known.mar ? POI.mar : null;
-    }
-    return null;
-  }
-  let goalCacheT = null, goalCalcT = 0;
-  function goalTarget() {
-    if (now - goalCalcT < 0.25) return goalCacheT;
-    goalCalcT = now;
-    const ch = CHAPTERS[G.chapter]; if (!ch) return (goalCacheT = null);
-    const g = ch.goals.find(g => !g.alt && !g.ok(G));
-    if (!g) return (goalCacheT = null);
-    let t = resolveAt(g.at);
-    if (G.chapter === 3 && G.flags.contact && !G.stacks.every(s => s.wood >= 4 || s.lit)) t = POI.mar;
-    goalCacheT = t ? { x: t.x, y: t.y, ic: g.ic } : null;
-    return goalCacheT;
-  }
+  // ---------- цель: метки компаса — MARKERS (js/content/chapters.js), выбор цели — Story.goalTarget ----------
 
   function ctxTarget() {
     const c = ctxCache; if (!c) return null;
     const o = c.o;
+    if (c.npc) return { x: o.x, y: o.y, h: NPCS[c.k].h || 60 };
     switch (c.k) {
       case 'tree': return { x: o.x, y: o.y, h: 100 * o.s };
       case 'wolf': return { x: o.x, y: o.y, h: 36 }; case 'bear': return { x: o.x, y: o.y, h: 60 };
       case 'hare': return { x: o.x, y: o.y, h: 26 };
-      case 'urk': return { x: G.urk.x, y: G.urk.y, h: 70 }; case 'vera': return { x: G.vera.x, y: G.vera.y, h: 50 };
       case 'note': return { x: NOTES[o].x, y: NOTES[o].y, h: 14 };
       case 'stove': return { x: SPOT.stove.x, y: SPOT.stove.y, h: 76 }; case 'bench': return { x: SPOT.bench.x, y: SPOT.bench.y, h: 36 };
       case 'chest': return { x: SPOT.chest.x, y: SPOT.chest.y, h: 22 }; case 'bed': return { x: SPOT.bed.x, y: SPOT.bed.y, h: 16 };
@@ -697,7 +683,7 @@ const UI = (() => {
     const free = GFX.free || Math.abs(GFX.zoom - 1) > 0.02; if ($('cam-btn').hidden === free) $('cam-btn').hidden = !free;
     tips.tick(dt);
     hudT -= dt; mapT -= dt;
-    if (hudT <= 0) { hudT = window.QUALITY === 'low' ? 0.16 : 0.08; ctxCache = context(); hud(); offscreen(); diaryTick(); layout(); }
+    if (hudT <= 0) { hudT = window.QUALITY === 'low' ? 0.16 : 0.08; ctxCache = Actions.context(); hud(); offscreen(); diaryTick(); layout(); }
     const n = G.col.sel.length; if (isTouch && n && !selN && !orderMode) setOrder(true);
     if (n !== selN) $('t-cmd').dataset.n = n || ''; selN = n;
     if (mapT <= 0) { mapT = 0.3; drawMap(); }
@@ -706,6 +692,7 @@ const UI = (() => {
       if (n !== typeN) { typeN = n; $('dlg-text').textContent = dlg.t.slice(0, n); if (n >= dlg.t.length) renderOpts(); }
     }
     if (kind === 'note') { noteT += dt; }
+    if (kind === 'map') WorldMap.tick(dt);
     if (kind === 'craft' || kind === 'chest' || kind === 'trade') { panelT = (panelT || 0) - dt; if (panelT <= 0) { panelT = 0.5; renderPanel(); } }
   }
   let panelT = 0;
@@ -714,13 +701,14 @@ const UI = (() => {
   // дневник партии для акта: тепло по дням (минимум за сутки) и дни вех — ведётся в кадре, живёт до новой игры
   let diary = { warm: {}, miles: {} };
   const MILES = [['hutFound', 'hut', 'Изба найдена'], ['metUrk', 'evenk', 'Встреча с Уркачаном'], ['radioBuilt', 'radio', 'Рация собрана'], ['siegeDone', 'wolf', 'Осада снята'],
-    ['contact', 'antenna', 'Связь с бортом'], ['bearDead', 'bear', 'Шатун проводили'], ['rescued', 'heli', 'Вертолёт сел']];
+    ['contact', 'antenna', 'Связь с бортом'], ['bearDead', 'bear', 'Шатун проводили'], ['rescued', 'heli', 'Вертолёт сел'],
+    ['bigStormDone', 'storm', 'Большая пурга пережита'], ['expArrived', 'mast', 'Дошли до Кербо-2'], ['expCalled', 'antenna', 'Сеанс с Турой'], ['expRescued', 'heli', 'Борт у мачты']];
   function diaryTick() {
     const d = G.day, w = Math.round(G.s.warm);
     if (diary.warm[d] == null || w < diary.warm[d]) diary.warm[d] = w;
     for (const [f] of MILES) if (G.flags[f] && !diary.miles[f]) diary.miles[f] = d;
   }
-  const END_META = { A: ['спасены', 'heli'], B: ['спасён', 'heli'], C: ['остался', 'tree'], D: ['остались', 'people'] };
+  const END_META = { A: ['спасены', 'heli'], B: ['спасён', 'heli'], C: ['остался', 'tree'], D: ['остались', 'people'], E: ['дошли', 'radio'] };
   const tileH = (i, v, l, cls) => `<div class="tile ${cls || ''}">${ic(i)}<b>${v}</b>${l}</div>`;
   function end(k, cause) {
     $('touch').hidden = true; closePanel(); tips.hide();
@@ -769,8 +757,8 @@ const UI = (() => {
   // ---------- старт ----------
   function start(fromSave) {
     Sound.init();
-    if (fromSave) { loadSave(fromSave); checkpoint = fromSave; }
-    else { newGame(); GFX.reset(); saveCheckpoint(); }
+    if (fromSave) { SaveGame.load(fromSave); checkpoint = fromSave; }
+    else { newGame(); GFX.reset(); SaveGame.checkpoint(); }
     bakeMap();
     state = 'play'; kind = null; goalCache = invCache = promptCache = skillCache = ''; tips.hide();
     ['menu', 'over', 'pause', 'slots', 'dialog', 'panel', 'note', 'chapter'].forEach(id => $(id).hidden = true);
@@ -803,14 +791,14 @@ const UI = (() => {
   function keyAction(k) {
     if (state !== 'play') return;
     tips.did({ E: 'act', F: 'fire', Q: 'eat', B: 'build', C: 'craft' }[k]);
-    if (k === 'E') { if (fishStrike()) return; if (G.col.ghost && G.col.ghost.touch) return Colony.place(); interact(false); }
+    if (k === 'E') { if (Actions.fishStrike()) return; if (G.col.ghost && G.col.ghost.touch) return Colony.place(); Actions.interact(false); }
     else if (k === 'H') Colony.alarm();
-    else if (k === 'V') sniff();
+    else if (k === 'V') Actions.sniff();
     else if (k === 'B') { if (!kind) openCraft('build'); }
     else if (k === '.') Colony.selectIdle();
-    else if (k === 'F') fireKey();
-    else if (k === 'Q') eat();
-    else if (k === 'R') placeKey();
+    else if (k === 'F') Actions.fireKey();
+    else if (k === 'Q') Actions.eat();
+    else if (k === 'R') Actions.placeKey();
     else if (k === 'C') { if (kind === 'craft') closePanel(); else if (!kind) openCraft(G.p.inside && G.hut.bench ? 'craft' : panelTab); }
   }
   function syncMove() {
@@ -835,7 +823,7 @@ const UI = (() => {
       return;
     }
     if (kind) {
-      if (e.code === 'Escape' || (e.code === 'KeyE' && kind === 'note' && noteT > 0.3) || (e.code === 'KeyC' && kind === 'craft') || (e.code === 'KeyE' && kind !== 'note' && !e.repeat)) closePanel();
+      if (e.code === 'Escape' || (e.code === 'KeyM' && kind === 'map') || (e.code === 'KeyE' && kind === 'note' && noteT > 0.3) || (e.code === 'KeyC' && kind === 'craft') || (e.code === 'KeyE' && kind !== 'note' && !e.repeat)) closePanel();
       return;
     }
     if (e.code === 'Escape' && G.col.ghost) { G.col.ghost = null; return; }
@@ -849,6 +837,7 @@ const UI = (() => {
     if (e.code === 'KeyR') keyAction('R');
     if (e.code === 'KeyC') keyAction('C');
     if (e.code === 'KeyH') keyAction('H');
+    if (e.code === 'KeyM') openMap();
     if (e.code === 'KeyV') keyAction('V');
     if (e.code === 'KeyB') keyAction('B');
     if (e.code === 'Period') keyAction('.');
@@ -937,13 +926,13 @@ const UI = (() => {
   }
   $('sl-list').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.save) { if (Saves.write(b.dataset.save, snapshot())) { toast(`:save: ${SLOT_N[b.dataset.save][1]} · :day:${G.day}`); Sound.pick(); } slotsRender(); }
+    if (b.dataset.save) { if (Saves.write(b.dataset.save, SaveGame.snapshot())) { toast(`:save: ${SLOT_N[b.dataset.save][1]} · :day:${G.day}`); Sound.pick(); } slotsRender(); }
     else if (b.dataset.load) loadSlot(b.dataset.load);
   });
 
   // ---------- настройки ----------
   const DIFF_KEYS = ['easy', 'normal', 'hard'], UI_SIZES = [[0.85, 'S'], [1, 'M'], [1.2, 'L']];
-  $('s-diff').innerHTML = DIFF_KEYS.map(k => `<button class="tab" data-v="${k}" title="${DIFF[k].n}">${DIFF[k].n}</button>`).join('');
+  $('s-diff').innerHTML = DIFF_KEYS.map(k => `<button class="tab" data-v="${k}" title="${Settings.DIFF[k].n}">${Settings.DIFF[k].n}</button>`).join('');
   $('s-ui').innerHTML = UI_SIZES.map(([v, t]) => `<button class="tab" data-v="${v}">${t}</button>`).join('');
   const Q_OPTS = [['auto', 'Авто'], ['high', 'Высокая'], ['low', 'Простая']];
   $('s-q').innerHTML = Q_OPTS.map(([v, t]) => `<button class="tab" data-v="${v}" title="${{ auto: 'Само упростит, если меньше 30 кадров/с', high: 'Высокое', low: 'Упрощённое — для слабых телефонов' }[v]}">${t}</button>`).join('');
@@ -1000,18 +989,18 @@ const UI = (() => {
     const dt = Math.min(0.05, iv); last = t; now = t / 1000;
     syncMove();
     if (state === 'play' && !kind) {
-      const steps = G.p.sleeping ? SLEEP_X : 1;
+      const steps = G.p.sleeping ? TUNE.time.sleepX : 1;
       for (let i = 0; i < steps && state === 'play'; i++) update(dt);
     }
     if (state === 'menu') {
       for (const f of G.fires) if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
       if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: HUT.x - 70, y: HUT.y - 150, vx: rnd(-5, 5) + 14, vy: rnd(-30, -20), life: 3, max: 3 });
-      for (let i = G.parts.length - 1; i >= 0; i--) { const q = G.parts[i]; q.life -= dt; if (q.life <= 0) G.parts.splice(i, 1); else { q.x += q.vx * dt; q.y += q.vy * dt; } }
+      FX.update(G.parts, dt); // единый слой частиц (js/particles.js)
     }
     frame(dt);
     GFX.render(state === 'play' && !kind || state === 'menu' ? dt : 0, state === 'play' ? ctxTarget() : null);
     if (state === 'play') {
-      const f = nearFire(260);
+      const f = Fire.near(260);
       Sound.frame(dt, { storm: stormOn(), night: 1 - daylight(), tension: G.D.tension, warm: G.s.warm,
         fire: f ? clamp(1 - dist(f, G.p) / 260, 0, 1) : (G.p.inside && G.hut.fuel > 0 ? 0.6 : 0) });
     }
@@ -1021,7 +1010,7 @@ const UI = (() => {
   requestAnimationFrame(loop);
 
   applyScale();
-  return { toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openTrade, end, goalTarget, reduced, modal: () => !!kind, get kind() { return kind; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
+  return { openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
     focusSel, groupSet, groupGet, setOrder, get orderMode() { return orderMode; }, slotsOpen, loadSlot };
 })();
 const Tips = UI.tips;

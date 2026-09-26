@@ -15,20 +15,20 @@
     fresh(); G.chapter = ch; G.day = ch + 1; G.time = tAt(G.day, 19.5); G.lastDawn = G.day; G.p.x = 1100; G.p.y = 2900; G.s.warm = 100; G.s.food = 100;
     G.gear.kukhl = 1; // чтобы не мёрзнуть
     G.inv.wood = 40; G.D.budget = 0; G.D.phase = 'build'; G.fired.E5 = 1;
-    if (fire) { fireKey(); }
-    const r = runFor(135, { each: () => { if (fire) { const f = nearest(G.fires, 100); if (f && f.fuel < 20) fireKey(); } if (G.s.warm < 60 && !fire) G.s.warm = 60; /* изолируем волков от холода */ } });
+    if (fire) { Actions.fireKey(); }
+    const r = runFor(135, { each: () => { if (fire) { const f = Actions.nearest(G.fires, 100); if (f && f.fuel < 20) Actions.fireKey(); } if (G.s.warm < 60 && !fire) G.s.warm = 60; /* изолируем волков от холода */ } });
     out.push(`волки гл.${ch + 1} ${fire ? 'у костра' : 'без огня'} 19:30→07:00 (135 с): появилось ${r.spawns}, укусов ${r.bites}, hp ${r.hp}, ${r.dead || 'жив'}`);
   }
   // 3. стая без боя, сразу в лоб (стоим, не бьём)
   fresh(); G.chapter = 2; G.day = 3; G.time = tAt(3, 22); G.p.x = 1100; G.p.y = 2900; G.gear.kukhl = 1; G.D.phase = 'relax'; G.D.calmT = 1e9; G.fired.E5 = 1;
-  spawnPack(4, false); const saveReflex = B.tick;
+  Wolves.spawnPack(4, false); const saveReflex = B.tick;
   let t0 = B.T, firstBite = null, dead = null;
   try { while (B.T - t0 < 120) { G.s.warm = 80; update(0.05); B.T += 0.05; if (G.s.hp < 100 && firstBite === null) firstBite = B.T - t0; if (state !== 'play') { dead = G.cause; break; } } } catch (e) {}
   out.push(`стая 4 волка, игрок пассивен: первый укус ${firstBite && firstBite.toFixed(1)} с, смерть ${dead ? (B.T - t0).toFixed(1) + ' с' : 'нет'}, hp ${G.s.hp.toFixed(0)}, волков ${G.wolves.length}`);
   state = 'play';
   // 3b. стая, игрок бьёт
   fresh(); G.chapter = 2; G.day = 3; G.time = tAt(3, 22); G.p.x = 1100; G.p.y = 2900; G.gear.kukhl = 1; G.D.phase = 'relax'; G.D.calmT = 1e9; G.fired.E5 = 1;
-  spawnPack(4, false); let r = runFor(120, { each: () => { G.s.warm = 80; } });
+  Wolves.spawnPack(4, false); let r = runFor(120, { each: () => { G.s.warm = 80; } });
   out.push(`стая 4, игрок бьёт: укусов ${r.bites}, hp ${r.hp}, убито ${G.stats.wolves}, осталось ${G.wolves.length}, ${r.dead || 'жив'}`);
   // 3c. осада дня 3 с вожаком, игрок в поле с факелами? без
   fresh(); G.chapter = 2; G.day = 3; G.time = tAt(3, 21.01); G.p.x = 1100; G.p.y = 2900; G.gear.kukhl = 1; G.D.phase = 'relax'; G.D.calmT = 1e9;

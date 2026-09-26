@@ -3,6 +3,7 @@ const fs = require('fs');
 const opts = JSON.parse(process.argv[2] || '{}');
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
   const pg = await b.newPage({ viewport: { width: 1280, height: 800 } });
   const errs = [];
   pg.on('pageerror', e => errs.push('PAGEERR ' + e.message + '\n' + e.stack));
@@ -31,5 +32,5 @@ const opts = JSON.parse(process.argv[2] || '{}');
   const { log, dlg, col, ...rest } = r; console.log("EV\n" + col.ev.join("\n")); console.log(JSON.stringify({gath: col.gath, workT: col.workT, allT: col.allT, deaths: col.deaths, hires: col.hires, epAt: col.epAt, built: col.built, trades: col.trades, tech: col.tech, eaten: col.eaten, unitMin: col.unitMin, epBlock: col.epBlock, chestWood: col.chestWood, alarmOn: col.alarmOn, bootHunt: col.bootHunt, bootWood: col.bootWood, soldHare: col.soldHare, series: col.series.filter((x,i)=>i%2==0)}));
   console.log(JSON.stringify(rest));
   console.log(errs.slice(0, 5).join('\n') || 'no page errors');
-  await b.close();
+  } finally { await b.close(); }
 })();

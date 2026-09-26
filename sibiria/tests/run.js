@@ -3,6 +3,7 @@ const fs = require('fs');
 const opts = JSON.parse(process.argv[2] || '{}');
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
   const pg = await b.newPage({ viewport: { width: 1280, height: 800 } });
   const errs = [];
   pg.on('pageerror', e => errs.push('PAGEERR ' + e.message + '\n' + e.stack));
@@ -30,5 +31,5 @@ const opts = JSON.parse(process.argv[2] || '{}');
   const { log, dlg, ...rest } = r;
   console.log(JSON.stringify(rest));
   console.log(errs.slice(0, 5).join('\n') || 'no page errors');
-  await b.close();
+  } finally { await b.close(); }
 })();

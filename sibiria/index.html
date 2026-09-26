@@ -172,6 +172,9 @@
   #goals .g .ic { width: var(--ic-s); height: var(--ic-s); color: var(--c11); }
   #goals .g.done { color: var(--c11); text-decoration: line-through; } #goals .g.done .ic { color: var(--s-ok); }
   #goals .g.alt { color: var(--c11); font-style: italic; }
+  #goals .qg { display: flex; gap: 6px; align-items: center; padding: 2px 12px; font-size: 12px; color: var(--c11); border-top: 1px dashed rgba(167,181,166,.25); }
+  #goals .qg .ic { width: var(--ic-s); height: var(--ic-s); color: #ffd27a; }
+  .narrow #goals .qg { display: none; }
   #skills { display: flex; gap: 6px; padding: 6px 8px; align-items: center; flex-wrap: wrap; }
   .ring { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--c9) calc(var(--p) * 360deg), var(--c1) 0); }
   .ring::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--c3); }
@@ -271,6 +274,7 @@
   .compact #minimap { width: 72px; height: 72px; }
   .compact .chips { flex-direction: column; align-items: flex-end; }
   .narrow .corner { top: var(--crt, 200px); bottom: auto; }
+  .narrow #map-btn { display: none; } /* телефон стоя: карта — тапом по мини-карте (ряд кнопок не шире колонки TR) */
   .narrow .bl { top: var(--blt, 240px); bottom: auto; }
   .narrow #goals .g.done, .narrow #goals .g:not(.done) ~ .g { display: none; }
   .narrow #goals { min-width: 0; }
@@ -324,6 +328,21 @@
   #ch-goals:empty { display: none; }
   #ch-goals span { display: flex; gap: 6px; align-items: center; font-size: var(--fs-m); }
   @media (max-width: 520px) { #ch-title { font-size: 36px; } .h1 { font-size: 40px; } }
+
+  /* большая карта (A9): бумага «геологической схемы» */
+  #bigmap { z-index: 9; }
+  .mapcard { width: min(1100px, calc((100vw - 24px) / var(--ui))); height: calc((100vh - 24px) / var(--ui)); display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+  .mapcard .plate-h { gap: var(--sp-4); } .mapcard .mh-t { flex: 1; font: var(--fs-s) var(--f-head); letter-spacing: .1em; }
+  .mapbody { position: relative; display: grid; place-items: center; min-height: 0; padding: 6px; }
+  #map-cv { display: block; box-shadow: 0 0 0 1.5px var(--c12), 0 0 0 5px #ece2c9, 0 0 0 6px var(--c7); cursor: crosshair; touch-action: none; }
+  .maptip { position: absolute; right: 12px; top: 12px; padding: 8px 10px; display: grid; gap: 4px; min-width: 180px; font-size: var(--fs-s); }
+  .maptip .mt-h { display: flex; gap: 6px; align-items: center; font: var(--fs-m) var(--f-head); }
+  .maptip .mt-r { display: flex; gap: 4px; align-items: center; } .maptip .dim { color: var(--c9); }
+  .mapfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 12px 8px; flex-wrap: wrap; }
+  .legend { display: flex; gap: 12px; font: var(--fs-xs) var(--f-body); color: var(--c11); flex-wrap: wrap; } .legend span { display: inline-flex; gap: 4px; align-items: center; }
+  .lg { width: 14px; height: 10px; display: inline-block; border: 1px dashed rgba(58,47,34,.55); }
+  .lg-full { background: repeating-linear-gradient(45deg, rgba(43,47,58,.35) 0 1px, rgba(143,124,92,.2) 1px 4px); border-style: solid; }
+  .lg-open { width: 8px; height: 8px; border-radius: 50%; background: #3f7a2a; border: 0; }
 
   /* упрощённая графика и движение */
   .lowq .bar.low .trk i, .lowq .chipline .alarm { animation: none; }
@@ -389,7 +408,7 @@
     <div class="plate cmdbar" id="cmdbar" hidden></div>
     <div class="plate tip" id="tip" hidden><span class="ti" id="tip-i"></span><span class="tt" id="tip-t"></span><button class="btn sec ico" id="tip-x" aria-label="Понятно"><svg class="ic s"><use href="#i-ok"/></svg></button><button class="btn sec ico" id="tip-off" title="Больше не показывать подсказки" aria-label="Выключить подсказки"><svg class="ic s"><use href="#i-close"/></svg></button></div>
   </div>
-  <div class="corner"><button class="btn sec ico" id="cam-btn" aria-label="Камера к герою" title="Камера к герою (0)" hidden><svg class="ic"><use href="#i-cam"/></svg></button><button class="btn sec ico" id="snd" aria-label="Звук"><svg class="ic"><use href="#i-sfx"/></svg></button><button class="btn sec ico" id="pause-btn" aria-label="Пауза"><svg class="ic"><use href="#i-pause"/></svg></button></div>
+  <div class="corner"><button class="btn sec ico" id="cam-btn" aria-label="Камера к герою" title="Камера к герою (0)" hidden><svg class="ic"><use href="#i-cam"/></svg></button><button class="btn sec ico" id="map-btn" aria-label="Карта" title="Карта (M)"><svg class="ic"><use href="#i-map"/></svg></button><button class="btn sec ico" id="snd" aria-label="Звук"><svg class="ic"><use href="#i-sfx"/></svg></button><button class="btn sec ico" id="pause-btn" aria-label="Пауза"><svg class="ic"><use href="#i-pause"/></svg></button></div>
 </div>
 
 <div id="chapter" hidden><div class="chc"><div id="ch-num"></div><div id="ch-title"></div><div id="ch-date"></div><div id="ch-goals"></div></div></div>
@@ -433,7 +452,18 @@
       <button class="btn sec" id="load-btn" hidden><svg class="ic"><use href="#i-load"/></svg>Загрузить</button>
       <button class="btn sec" id="about-btn" aria-expanded="false"><svg class="ic"><use href="#i-log"/></svg>Об игре</button>
     </div>
-    <div class="credits" id="about" hidden>«Сибирь» · Эвенкия, 1993<br>Icons: game-icons.net — Lorc, Delapouite, Caro Asercion, Skoll, Sbed, DarkZaitzev (CC BY 3.0); Lucide (ISC); Tabler (MIT)</div>
+    <div class="credits" id="about" hidden>«Сибирь» · Эвенкия, 1993<br>Иконки: game-icons.net — авторы Lorc, Delapouite, Caro Asercion, Skoll, Sbed, DarkZaitzev (лицензия CC BY 3.0); наборы Lucide (ISC) и Tabler (MIT)</div>
+  </div>
+</div>
+
+<div class="screen" id="bigmap" hidden>
+  <div class="plate doc mapcard">
+    <div class="plate-h"><svg class="ic"><use href="#i-map"/></svg><span class="mh-t">Лист Р-47-XII · съёмка 1993</span><span class="badge" id="map-open"></span><button class="btn sec ico" id="map-close" aria-label="Закрыть карту" title="Закрыть (M)"><svg class="ic"><use href="#i-close"/></svg></button></div>
+    <div class="mapbody"><canvas id="map-cv"></canvas><div class="plate doc maptip" id="map-tip" hidden></div></div>
+    <div class="mapfoot">
+      <div class="legend"><span><i class="lg lg-sk"></i>набросок</span><span><i class="lg lg-full"></i>съёмка</span><span><i class="lg lg-open"></i>переход</span></div>
+      <div class="tabs" id="map-marks" title="Пометки"></div>
+    </div>
   </div>
 </div>
 
@@ -477,20 +507,51 @@
       <button class="btn sec" id="again"><svg class="ic"><use href="#i-play"/></svg>Новая игра</button>
       <button class="btn sec" id="o-menu" hidden><svg class="ic"><use href="#i-back"/></svg>В меню</button>
     </div>
-    <div class="credits" id="o-credits" hidden>Icons: game-icons.net — Lorc, Delapouite, Caro Asercion, Skoll, Sbed, DarkZaitzev (CC BY 3.0); Lucide (ISC); Tabler (MIT)</div>
+    <div class="credits" id="o-credits" hidden>Иконки: game-icons.net — авторы Lorc, Delapouite, Caro Asercion, Skoll, Sbed, DarkZaitzev (лицензия CC BY 3.0); наборы Lucide (ISC) и Tabler (MIT)</div>
   </div>
 </div>
 
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
+<!-- контент: персонажи, задания, события, главы, зоны (только данные) -->
+<script src="js/content/npcs.js"></script>
+<script src="js/content/people.js"></script>
+<script src="js/content/quests.js"></script>
+<script src="js/content/events.js"></script>
+<script src="js/content/chapters.js"></script>
+<script src="js/content/zones.js"></script>
 <script src="js/audio.js"></script>
+<!-- логика: ядро → мир → герой → угрозы → сюжет → сохранение → главный шаг -->
+<script src="js/core.js"></script>
+<script src="js/noise.js"></script>
+<script src="js/time.js"></script>
+<script src="js/world.js"></script>
+<script src="js/zones.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/hero.js"></script>
+<script src="js/transport.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/fire.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/fauna.js"></script>
+<script src="js/director.js"></script>
+<script src="js/wolves.js"></script>
+<script src="js/bear.js"></script>
+<script src="js/npc.js"></script>
+<script src="js/quests.js"></script>
+<script src="js/story.js"></script>
+<script src="js/savegame.js"></script>
 <script src="js/game.js"></script>
+<script src="js/particles.js"></script>
 <script src="js/art-people.js"></script>
 <script src="js/art-animals.js"></script>
 <script src="js/art-world.js"></script>
+<script src="js/art-zones.js"></script>
 <script src="js/colony.js"></script>
 <script src="js/gfx.js"></script>
 <script src="js/finale.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/map.js"></script>
 <script>if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('has-touch');</script>
