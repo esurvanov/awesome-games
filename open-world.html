@@ -862,7 +862,7 @@ const GPUT = (() => {
  * instanced chunks carry userData.shCastDist). Layers 20 / 21 mark the casters of the static / dynamic passes.
  * SHADOW.on = false → engine cascades (the old path, A/B). */
 const SHADOW = (() => {
-  const LS = 20, LD = 21;
+  const LS = 20, LD = 21, LD1 = 22;   // static pass · dynamic casters (fine cascade) · dynamic casters also needed in the coarse one
   const S = { on: !!window.__sunChunkPatched, ready: false, stats: { rebuilds: 0, syncBuilds: 0, tilesDone: 0, statCasters: 0, dynCasters: 0, rects: 0, lastBuildFrames: 0 },
     front: null, back: null, live: null, W: 0, H: 0, cas: null, build: null, want: false, cool: 0, prevRects: [], classT: 0, frame: 0 };
   const gl = renderer.getContext();
@@ -882,9 +882,10 @@ const SHADOW = (() => {
     getViewportCount() { return this.cams.length; } getCamera(i) { return this.cams[i]; } getFrustum(i) { return this.frs[i]; } getViewport(i) { return this.vps[i]; }
     updateMatrices() {}
   }
-  const viewS = new View(), viewD = new View();
-  const lightS = { shadow: viewS, isPointLight: false, castShadow: true, name: 'moonCacheS' }, lightD = { shadow: viewD, isPointLight: false, castShadow: true, name: 'moonCacheD' };
-  const camS = new THREE.Camera(), camD = new THREE.Camera(); camS.layers.set(LS); camD.layers.set(LD);
+  const viewS = new View(), viewD = new View(), viewD1 = new View();
+  const lightS = { shadow: viewS, isPointLight: false, castShadow: true, name: 'moonCacheS' }, lightD = { shadow: viewD, isPointLight: false, castShadow: true, name: 'moonCacheD' },
+    lightD1 = { shadow: viewD1, isPointLight: false, castShadow: true, name: 'moonCacheD1' };
+  const camS = new THREE.Camera(), camD = new THREE.Camera(), camD1 = new THREE.Camera(); camS.layers.set(LS); camD.layers.set(LD); camD1.layers.set(LD1);
   const _pm = new THREE.Matrix4();
   function makeRT(w, h, compare) {
     const rt = new THREE.WebGLRenderTarget(w, h, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false });
@@ -940,8 +941,8 @@ const SHADOW = (() => {
     for (const rt of [S.front, S.back, S.live]) { rt.__shc = true; clearDepth(rt); }
     if (sh.map && !sh.map.__shc) sh.map.dispose();
     sh.cached = true; sh.autoUpdate = false; sh.needsUpdate = false; sh._frameExtents.set(1, 1); sh.mapSize.set(S.W, S.H); sh.map = S.live;
-    for (const v of [viewS, viewD]) { v.mapSize.set(S.W, S.H); v._frameExtents.set(1, 1); }
-    viewD.map = S.live;
+    for (const v of [viewS, viewD, viewD1]) { v.mapSize.set(S.W, S.H); v._frameExtents.set(1, 1); }
+    viewD.map = S.live; viewD1.map = S.live;
   }
   // one orthographic camera for a sub-square [a0,a1]×[b0,b1] (in -1..1 units of the cascade) of cascade c
   function cascadeCam(c, a0, a1, b0, b1, cam) {
@@ -969,7 +970,8 @@ const SHADOW = (() => {
       sh._updateMatrix(cam, sh._matrices[i], sh._frustums[i], vp);
       sh._cascadeData[i].set(c.x0 / S.W, (c.x0 + c.px) / S.W, c.px / S.H, c.bias);
     }
-    viewD.cams = [sh._cameras[0], sh._cameras[1]]; viewD.frs = [sh._frustums[0], sh._frustums[1]]; viewD.vps = [sh._viewports[0].clone(), sh._viewports[1].clone()];
+    viewD.cams = [sh._cameras[0]]; viewD.frs = [sh._frustums[0]]; viewD.vps = [sh._viewports[0].clone()];
+    viewD1.cams = [sh._cameras[1]]; viewD1.frs = [sh._frustums[1]]; viewD1.vps = [sh._viewports[1].clone()];
   }
   // draw through the engine's shadow renderer (depth materials, alpha test, skinning, batching) without its clear
   const noClear = () => {};
@@ -982,8 +984,6 @@ const SHADOW = (() => {
   const REC = new WeakMap();   // static caster → { sig, moved }
   const _v = new V3(), _s = new V3();
   let statList = [], dynList = [];
-  // dynamic casters skip the coarse cascade where they sit well inside the fine one (it is not sampled there)
-  function dynIntersects(fr) { if (this.__noC1 && fr === moon.shadow._frustums[1]) return false; return fr.intersectsObject(this); }
   function dynRoots() {
     const r = new Set([player.c.g, fox.g, sk.g, orm.g]);
     if (boss.g) r.add(boss.g);
@@ -1018,7 +1018,7 @@ const SHADOW = (() => {
         if (dyn || o.isSkinnedMesh) {
           // dynamic: casts within 30 m + 18 × radius of the camera (a stag ≈ 57 m, a crate ≈ 38 m); the player always
           const r = sphereOf(o, _v), near = pl || _v.distanceTo(camera.position) - r < 30 + 18 * r;
-          o.layers.disable(LS); if (near) { o.layers.enable(LD); dynList.push(o); if (!o.__shIF) { o.__shIF = true; o.intersectsFrustum = dynIntersects; } } else o.layers.disable(LD);
+          o.layers.disable(LS); if (near) { o.layers.enable(LD); dynList.push(o); } else { o.layers.disable(LD); o.layers.disable(LD1); }
         }
         else {
           o.layers.disable(LD);
@@ -1041,7 +1041,7 @@ const SHADOW = (() => {
     if (moved || Math.abs(sig - staticSig) > 1e-3) { staticSig = sig; return true; }
     return false;
   }
-  function restoreEngineLayers() { scene.traverse((o) => { o.layers.disable(LS); o.layers.disable(LD); }); }
+  function restoreEngineLayers() { scene.traverse((o) => { o.layers.disable(LS); o.layers.disable(LD); o.layers.disable(LD1); }); }
   // static casters of a build around (ax, az): layer LS on / off by cast distance
   function selectStatic(ax, az) {
     let n = 0;
@@ -1105,8 +1105,10 @@ const SHADOW = (() => {
     const out = [], cs = S.center, c0 = cs[0];
     for (const o of dynList) {
       if (!o.visible || !o.castShadow) continue;
-      const r = sphereOf(o, _v) + 0.3, lx = _v.dot(RIGHT), ly = _v.dot(UP);
-      o.__noC1 = Math.max(Math.abs(lx - c0.cx), Math.abs(ly - c0.cy)) + r < c0.R * 0.9;   // inside c0's full-weight core (4 % edge band)
+      const r = sphereOf(o, _v) + (o.isSkinnedMesh ? 1.5 : 0.3), lx = _v.dot(RIGHT), ly = _v.dot(UP);   // skinned: bones move the vertices off the pose sphere
+      // dynamic casters skip the coarse cascade where they sit well inside the fine one's full-weight core (not sampled there)
+      o.__noC1 = Math.max(Math.abs(lx - c0.cx), Math.abs(ly - c0.cy)) + r < c0.R * 0.9;
+      if (o.__noC1) o.layers.disable(LD1); else o.layers.enable(LD1);
       for (const c of cs) {
         if (c !== c0 && o.__noC1) continue;
         const t = 2 * c.R / c.px, u = (lx - c.cx) / t + c.px / 2, v = (ly - c.cy) / t + c.px / 2, rp = r / t + 4;
@@ -1139,7 +1141,7 @@ const SHADOW = (() => {
     if (S.fullCopy) { copyRects(S.front, [[0, 0, S.W, S.H]]); S.fullCopy = false; }
     else if (S.prevRects.length) copyRects(S.front, S.prevRects);
     const rects = rectsNow(); S.stats.rects = rects.length;
-    if (dynList.length) draw(lightD, camD);
+    if (dynList.length) { draw(lightD, camD); if (dynList.some((o) => !o.__noC1)) draw(lightD1, camD1); }
     S.prevRects = rects;
   }
   S.update = update; S.configure = () => { if (S.front || !S.on) configure(); };

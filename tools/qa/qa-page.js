@@ -140,9 +140,11 @@
     const rec = QA._rec = { t0: performance.now(), frames: [], thumbs: [], actors: actors.map((a) => ({ id: a.id, kind: a.kind, feet: a.feet.map((f) => f.bone) })), on: true, every: spec.every || 5, k: 0,
       tw: spec.tw || 320, th: spec.th || 183 };
     const tc = document.createElement('canvas'); tc.width = rec.tw; tc.height = rec.th; const tg = tc.getContext('2d');
-    const tick = () => {
+    const tick = (ts) => {
       if (!rec.on) return; requestAnimationFrame(tick);
-      const t = (performance.now() - rec.t0) / 1000, cam = D.camera.position;
+      // the frame's own timestamp (the one the game steps its dt from), not the moment this callback runs: callback
+      // jitter of a few ms made 10 m/s motions read as 15–19 m/s
+      const t = ((ts || performance.now()) - rec.t0) / 1000, cam = D.camera.position;
       const f = { t: +t.toFixed(4), cam: [r3(cam.x), r3(cam.y), r3(cam.z)], look: [r3(D.cam.look.x), r3(D.cam.look.y), r3(D.cam.look.z)], a: {}, px: spec.pixels === false ? null : QA.pixelStats(64, 36),
         climb: D.CLIMB.t >= 0 ? +D.CLIMB.t.toFixed(3) : -1, riding: !!D.G.riding, onGround: !!P.onGround, keys: Object.keys(D.keys).filter((k) => D.keys[k]).join('+') };
       for (const a of actors) {

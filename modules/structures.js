@@ -541,7 +541,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   }
 
   /* ============================ boss: crystal golem ============================ */
-  const GOLEM = { A: null, root: null, dieT: -1, prevX: 0, prevZ: 0, hurtCd: 0, lastSummon: false, lastSt: '', emBase: null };
+  const GOLEM = ST.golem = { A: null, root: null, dieT: -1, prevX: 0, prevZ: 0, hurtCd: 0, lastSummon: false, lastSt: '', emBase: null };
   ST.golem = GOLEM;   // debug / QA probes
   function buildGolem() {
     need('boss_crystal_golem', (gl) => {
@@ -551,7 +551,8 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       const mat = body.material.clone(); body.material = mat; GOLEM.emBase = mat.emissive.clone(); GOLEM.eiBase = mat.emissiveIntensity;
       const rock = root.getObjectByName('ThrowRock'); if (rock) rock.visible = false; GOLEM.rock = rock;
       for (const c of boss.g.children.slice()) c.visible = false;   // fallback crystal body
-      const wrap = new THREE.Group(); wrap.position.y = -1.2; wrap.add(root); boss.g.add(wrap); GOLEM.wrap = wrap; GOLEM.root = root;
+      const wrap = new THREE.Group(); wrap.position.y = -1.2; boss.g.add(wrap); GOLEM.wrap = wrap; GOLEM.root = root;
+      const fix = new THREE.Group(); fix.add(root); wrap.add(fix); GOLEM.fix = fix;   // FIX-PERF: hip-speed limiter offset (see hipLimit)
       // glows ride the bones: core on the chest, eyes on the head (compensating the bone scale)
       const bone = (n) => root.getObjectByName(n);
       root.updateMatrixWorld(true);
@@ -604,11 +605,39 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     A.loop(loopK, GOLEM.wakeOut > 0 ? 0.6 : 0.3); GOLEM.wakeOut = (GOLEM.wakeOut || 0) - dt;   // out of the stand-up clip: a longer blend
     if (!GOLEM.gait) { if (loopK === 'walk') A.speed('walk', clamp(sp / 3.2, 0.6, 1.7)); if (loopK === 'run') A.speed('run', clamp(sp / 6.5, 0.7, 1.5)); }
     if (GOLEM.rock) { GOLEM.showRock = (GOLEM.showRock || 0) - dt; GOLEM.rock.visible = GOLEM.showRock > 0; }
-    A.update(dt);
+    A.update(dt); hipLimit(dt);
     // glow: flash on hits, hotter while charging / rising
     const m = boss.mat, hot = st === 'charge' || st === 'rise' || st === 'drop';
     if (boss.flash > 0) { m.emissive.setRGB(1, 1, 1); m.emissiveIntensity = 2.2; }
     else { m.emissive.copy(GOLEM.emBase); if (hot) m.emissive.lerp(new THREE.Color(0xff5cc8), 0.5); m.emissiveIntensity = GOLEM.eiBase * (hot ? 2 : 1); }
+  }
+  // FIX-PERF: clamped root motion. The 8 m golem's attack / hurt clips (and their cross-fades) swing the hip faster than
+  // a giant moves (QA pose continuity ≤ 10 m/s). After the clips are sampled, any hip motion (in the boss group's space)
+  // above HIP_VMAX is taken out by shifting the whole model the other way; that offset then drains back to zero within
+  // the speed budget that is left, so the pose ends where the clip wants it, only never faster than a giant can move.
+  const HIP_VMAX = 8; let _hw = null, _q = null;
+  function hipLimit(dt) {
+    const fix = GOLEM.fix, g = C.boss.g; if (!fix || !(dt > 0)) return; _hw = _hw || new V3(); _q = _q || new THREE.Quaternion();
+    if (!GOLEM.hip) GOLEM.root.traverse((o) => { if (!GOLEM.hip && o.isSkinnedMesh) GOLEM.hip = o.skeleton.bones.find((b) => b.name === 'hip'); });   // the skeleton's bone (QA samples that one)
+    if (!GOLEM.hip) return;
+    const off = fix.position, now = performance.now();
+    if (!g.visible) { GOLEM.hipPrev = null; off.set(0, 0, 0); return; }   // hidden: start clean (a pause / dialog keeps the reference: the first frame after it is limited too)
+    GOLEM.hipT = now;
+    g.updateMatrixWorld(true);
+    // hip relative to the group's position, in world axes (turning counts: that is what the eye sees move)
+    const cur = _hw.setFromMatrixPosition(GOLEM.hip.matrixWorld).sub(g.position).clone(), toLocal = (v) => v.applyQuaternion(_q.copy(g.quaternion).invert()).divideScalar(g.scale.x || 1);
+    if (GOLEM.hipPrev) {
+      const d = cur.clone().sub(GOLEM.hipPrev), L = d.length(), max = HIP_VMAX * dt;
+      if (L > max) { const ex = d.multiplyScalar(1 - max / L); cur.sub(ex); off.sub(toLocal(ex)); }
+      else {   // drain the offset with the budget that is left
+        const left = (max - L) * 0.9, ol = off.length();
+        if (ol > 1e-4) { const k = Math.min(ol, left / (g.scale.x || 1)) / ol, step = off.clone().multiplyScalar(k); off.sub(step); cur.sub(step.applyQuaternion(g.quaternion).multiplyScalar(g.scale.x || 1)); }
+      }
+      if (off.length() > 6) off.setLength(6);
+      fix.updateMatrixWorld(true);
+    }
+    if (GOLEM.hipPrev) { const v = cur.distanceTo(GOLEM.hipPrev) / dt; GOLEM.hipMax = Math.max(GOLEM.hipMax || 0, v); }
+    GOLEM.hipPrev = cur;
   }
   function bossDeath() {
     const A = GOLEM.A; if (!A) return false;
@@ -618,7 +647,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   }
   function updateGolem(dt) {
     if (GOLEM.dieT < 0 || !GOLEM.A) return;
-    const boss = C.boss; GOLEM.dieT -= dt; GOLEM.A.update(dt);
+    const boss = C.boss; GOLEM.dieT -= dt; GOLEM.A.update(dt); hipLimit(dt);
     const m = boss.mat; m.emissiveIntensity = Math.max(0, m.emissiveIntensity - dt * 0.4);
     if (GOLEM.dieT <= 0) {
       GOLEM.dieT = -1; boss.g.visible = false;

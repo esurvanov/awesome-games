@@ -1119,7 +1119,9 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
           #include <fog_fragment>
         }`,
     });
-    addMesh('mist', geo, mat, { order: 2 });
+    const mist = addMesh('mist', geo, mat, { order: 2 });
+    mist.userData.qaIntentional = 'mist';   // transparent sheets that fade out within 3 m of the lens: not a surface the camera can be "inside"
+    mist.userData.noCollide = true;
     S.stats.tris.mist = triCount(geo);
   }
 
