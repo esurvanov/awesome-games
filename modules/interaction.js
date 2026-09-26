@@ -879,9 +879,11 @@
       // (open-world.html, after the pack loads) — replaces the flat Run clip with speed-matched walk/trot/canter/gallop.
       // Only one driver touches s.A.mixer per frame (s.gaitDriving tells open-world's updateStags to skip its own
       // s.A.update(dt) this frame): while fleeing, or still coasting down from it, the blender owns the mixer.
-      if (K.gaitBlend && !S.gait && s.gaitMeta && window.ANIMLIB) {
-        try { const clips = {}; for (const k in s.A.acts) clips[k] = s.A.acts[k].getClip(); S.gait = new ANIMLIB.GaitBlender(s.A.mixer, clips, s.gaitMeta, { idle: 'Idle' }); }
-        catch (e) { S.gait = null; console.warn('[interaction] stag gait blender', e); }
+      if (K.gaitBlend && !S.gait && !S.gaitFailed && s.gaitMeta && window.ANIMLIB) {
+        // the stag's idle clip is not always named 'Idle' (clipAction(undefined) threw here every frame): take whatever idle it has
+        try { const clips = {}; for (const k in s.A.acts) clips[k] = s.A.acts[k].getClip(); const idle = clips.Idle ? 'Idle' : Object.keys(clips).find((k) => /idle/i.test(k)) || null;
+          S.gait = new ANIMLIB.GaitBlender(s.A.mixer, clips, s.gaitMeta, { idle }); }
+        catch (e) { S.gait = null; S.gaitFailed = true; console.warn('[interaction] stag gait blender', e); }
       }
       if (S.gait && (s.st === 'flee' || S.v > 0.15)) { s.gaitDriving = true; try { S.gait.update(dt, S.v, S.turn || 0); } catch (e) { s.gaitDriving = false; } }
       else s.gaitDriving = false;
