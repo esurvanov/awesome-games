@@ -18,6 +18,8 @@
  *   --settle 1500      ms to wait after a teleport before the screenshot
  *   --eval "<js>"      evaluate an expression in the page after the new game starts and print it (debugging)
  *   --repeat 3         fps: N measurements per view (each --measure ms, default 900); median + spread, "noisy" if spread > 15 %
+ *   --variants f.json  per view, re-measure with each [{name, on, off, settle?, shot?}] toggle (cost breakdown)
+ *   --warm 25000       wait after the new game until the world has settled (first views otherwise measure the load transient)
  *   --quiet-check      refuse fps conclusions on a busy machine: wait ≤ 3 min for quiet (no other headless Chrome,
  *                      CPU/load low), else the run is marked fpsVerdict "refused" (numbers kept, no PASS/FAIL on fps)
  *
@@ -53,6 +55,7 @@ const label = argv[0] && !argv[0].startsWith('--') ? argv[0] : 'run-' + Date.now
 const [VW, VH] = String(opt('size', '1400x800')).split('x').map(Number);
 const views = (opt('views') ? String(opt('views')).split(',') : VIEWS).concat(opt('station-spots') ? ['station_n', 'station_e', 'station_s', 'station_w'] : []);
 const settle = Number(opt('settle', 1500));
+const VARIANTS = opt('variants') ? JSON.parse(fs.readFileSync(path.resolve(String(opt('variants'))), 'utf8')) : [];   // --variants file.json (see the view loop)
 
 /* ---------------------------------------------------------------- server */
 const CSP_USED = opt('no-wasm') ? CSP.replace(" 'wasm-unsafe-eval'", '') : CSP;   // --no-wasm: exercise the non-physics fallback
@@ -77,13 +80,14 @@ const PAGE_LIB = () => {
   L.measure = (ms) => new Promise((res) => {
     const r = D.renderer, ts = [];
     r.info.autoReset = false; r.info.reset();
+    const gp = D.gpuProf || null; if (gp) gp.start(window.__gpuQueries || false);
     const f = (t) => { ts.push(t); if (t - ts[0] < ms) requestAnimationFrame(f); else done(); };
     const done = () => {
       const n = Math.max(1, ts.length - 1), dts = []; for (let i = 1; i < ts.length; i++) dts.push(ts[i] - ts[i - 1]);
       const calls = r.info.render.calls / n, tris = r.info.render.triangles / n; r.info.autoReset = true;
       const sorted = [...dts].sort((a, b) => a - b);
       res({ fps: +(1000 / L.median(dts)).toFixed(1), frameMsMedian: +L.median(dts).toFixed(2), frameMsP95: +(sorted[Math.floor(sorted.length * 0.95)] || 0).toFixed(2),
-        frames: n, drawCalls: Math.round(calls), triangles: Math.round(tris) });
+        frames: n, drawCalls: Math.round(calls), triangles: Math.round(tris), gpu: gp ? gp.stop() : null });
     };
     requestAnimationFrame(f);
   });
@@ -326,6 +330,8 @@ async function run() {
   await page.evaluate(() => { window.__stand.closeDialogs(); if (DBG.G.pause) DBG.G.pause = false; document.getElementById('pause').hidden = true; });
   await sleep(300);
   await page.evaluate(() => window.__stand.closeDialogs());
+  // --warm ms: let the world settle first (packs, drift re-stamp, rock re-seat, footprint circles: ~20 s after a new game)
+  if (opt('warm')) { const w = Number(opt('warm')) || 25000; log(`warm-up ${w} ms`); await sleep(w); await page.evaluate(() => window.__stand.closeDialogs()); }
   if (opt('eval')) { for (const ex of [].concat(opt('eval'))) { try { log('eval', ex, '=>', JSON.stringify(await page.evaluate(ex), null, 1)); } catch (e) { log('eval failed', ex, e.message); } } }
   const result = { label, date: new Date().toISOString(), url, size: [VW, VH], gpu, otherHeadlessChromes: others, quality: qApplied, loadMs, loader, views: {}, collisions: null, errors, failed, warnings: warnings.slice(0, 40) };
 
@@ -356,7 +362,20 @@ async function run() {
     if (m.black) log(`  !! BLACK FRAME: ${v} (mean luma ${m.luma})`);
     const st = await page.evaluate(() => window.__stand.player());
     result.views[v] = Object.assign(m, { player: st, setup: info });
-    log(`  ${v.padEnd(12)} ${String(m.fps).padStart(5)} fps (${m.fpsSamples.join(' / ')}${m.noisy ? ' NOISY' : ''}) · ${m.drawCalls} calls · ${(m.triangles / 1e6).toFixed(2)}M tris`);
+    const gpuStr = (g) => g ? ' · gpu ' + Object.entries(g).filter(([k]) => k !== 'frames').map(([k, x]) => k + ' ' + x).join(' ') : '';
+    log(`  ${v.padEnd(12)} ${String(m.fps).padStart(5)} fps (${m.fpsSamples.join(' / ')}${m.noisy ? ' NOISY' : ''}) · ${m.drawCalls} calls · ${(m.triangles / 1e6).toFixed(2)}M tris${gpuStr(m.gpu)}`);
+    // --variants file.json: [{ name, on: "<js>", off: "<js>" }] — same view, re-measured with each toggle (A/B cost breakdown)
+    if (VARIANTS.length) { m.variants = {};
+      for (const va of VARIANTS) {
+        await page.evaluate(va.on); await sleep(Number(va.settle || 700));
+        const rv = []; for (let k = 0; k < Number(opt('repeat', 3)); k++) rv.push(await page.evaluate((ms) => window.__stand.measure(ms), Number(opt('measure', 900))));
+        const fv = spreadStats(rv.map((r) => r.fps)), md = rv.slice().sort((a, b) => a.fps - b.fps)[rv.length >> 1];
+        m.variants[va.name] = { fps: fv.median, ms: +(1000 / fv.median).toFixed(2), spread: fv.spreadPct, drawCalls: md.drawCalls, triangles: md.triangles, gpu: md.gpu };
+        if (va.shot) await page.screenshot({ path: path.join(dir, v + '.' + va.name + '.png') });
+        log(`    ${va.name.padEnd(14)} ${String(fv.median).padStart(5)} fps · ${(1000 / fv.median).toFixed(2)} ms (${rv.map((r) => r.fps).join(' / ')}) · ${md.drawCalls} calls · ${(md.triangles / 1e6).toFixed(2)}M tris${gpuStr(md.gpu)}`);
+        if (va.report) { const rep = await page.evaluate(va.report); m.variants[va.name].report = rep; log('      report', typeof rep === 'string' ? rep : JSON.stringify(rep)); }
+        if (va.off) await page.evaluate(va.off);
+      } }
   }
   await page.evaluate(() => { DBG.camOv = null; DBG.cam.dist = 7.5; });
   if (!opt('no-collide')) { log('collision tests'); result.collisions = await collideTests(page, log); }

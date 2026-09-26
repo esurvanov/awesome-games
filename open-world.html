@@ -481,6 +481,54 @@ class CascadedSunShadow extends SunLightShadow {
     }
   }
 }
+// FIX-PERF: cached moon shadows. The two sun cascades are fixed squares around the camera (not fitted to the view
+// frustum), rendered into a cached static map + a per-frame dynamic overlay (see SHADOW in the game). Cascade selection
+// is therefore by coverage: the fine square wins where it covers the point (soft 4 % edge band into the coarse one), the
+// coarse one fades out at its own edge. sunShadowCascade[i] = (u0, u1, v1, depth bias) of cascade i's atlas region.
+{
+  const CH = THREE_NS.ShaderChunk, src = CH.shadowmap_pars_fragment;
+  const a = src.indexOf('\t\tfloat getSunShadow('), b = src.indexOf('\t#if NUM_POINT_LIGHT_SHADOWS > 0\n\t#if defined( SHADOWMAP_TYPE_PCF )');
+  if (a > 0 && b > a) CH.shadowmap_pars_fragment = src.slice(0, a) + `		float getSunShadow(
+			#if defined( SHADOWMAP_TYPE_PCF )
+				sampler2DShadow shadowMap,
+			#else
+				sampler2D shadowMap,
+			#endif
+			SunLightShadow sunLightShadow,
+			int shadowIndex
+		) {
+			vec4 wp = vec4( vSunShadowWorldPosition.xyz + vSunShadowWorldNormal * sunLightShadow.shadowNormalBias, 1.0 );
+			int cascadeOffset = shadowIndex * SUN_LIGHT_CASCADES;
+			if ( sunShadowCascade[ cascadeOffset ].y > 1.5 ) {   // engine cascades (view-depth ranges): SHADOW cache off
+				float viewDepth = vSunShadowWorldPosition.w, shadow = 1.0;
+				for ( int i = SUN_LIGHT_CASCADES - 1; i >= 0; i -- ) {
+					vec4 cascade = sunShadowCascade[ cascadeOffset + i ];
+					if ( viewDepth >= cascade.x && viewDepth < cascade.y ) {
+						float cascadeShadow = getShadow( shadowMap, sunLightShadow.shadowMapSize, sunLightShadow.shadowIntensity, sunLightShadow.shadowBias, sunLightShadow.shadowRadius, sunShadowMatrix[ cascadeOffset + i ] * wp );
+						shadow = mix( cascadeShadow, shadow, smoothstep( cascade.z, cascade.y, viewDepth ) );
+					}
+				}
+				return shadow;
+			}
+			float acc = 0.0, rem = 1.0;
+			for ( int i = 0; i < SUN_LIGHT_CASCADES; i ++ ) {
+				if ( rem <= 0.0 ) break;
+				vec4 c = sunShadowCascade[ cascadeOffset + i ];
+				vec4 sc = sunShadowMatrix[ cascadeOffset + i ] * wp;
+				vec2 l = vec2( ( sc.x - c.x ) / max( c.y - c.x, 1e-6 ), sc.y / max( c.z, 1e-6 ) );
+				float w = smoothstep( 0.0, 0.04, min( min( l.x, 1.0 - l.x ), min( l.y, 1.0 - l.y ) ) );
+				if ( w > 0.0 ) {
+					float s = getShadow( shadowMap, sunLightShadow.shadowMapSize, sunLightShadow.shadowIntensity, c.w, sunLightShadow.shadowRadius, sc );
+					acc += rem * w * s; rem *= 1.0 - w;
+				}
+			}
+			return acc + rem;
+		}
+	#endif
+` + src.slice(b);
+  else console.warn('FIX-PERF: shadow chunk layout changed — cached-shadow cascade selection not installed');
+  window.__sunChunkPatched = a > 0 && b > a;
+}
 window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderPass, ShaderPass, UnrealBloomPass, OutputPass, GTAOPass, Pass, FullScreenQuad, CopyShader,
   SunLight, SunLightShadow, CascadedSunShadow, SkeletonUtils, BufferGeometryUtils });
 </script>
@@ -495,6 +543,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/atmosphere.js"></script>
 <script src="modules/interaction.js"></script>
 <script src="modules/structures.js"></script>
+<script src="modules/perf.js"></script>
 <script type="module">
 (function () {
 'use strict';
@@ -683,10 +732,14 @@ TX.sky.colorSpace = THREE.SRGBColorSpace; TX.sky.generateMipmaps = false; TX.sky
 // setQuality(name) only touches sizes, distances and pass toggles: no shader define changes, so switching at runtime
 // never recompiles materials (the "quality director" may call it every few seconds).
 const QUALITY = {
-  low:   { pixelRatio: 1,    msaa: 0, shadowDist: 90,  shadowMap: 1024, cascades: 2, split: 0.75, ao: false, aoScale: 0.5, bloomScale: 0.35, grass: 0.45, treeNear: 110, treeShadow: 45 },
-  med:   { pixelRatio: 1.25, msaa: 4, shadowDist: 170, shadowMap: 1536, cascades: 2, split: 0.8,  ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 0.75, treeNear: 150, treeShadow: 70 },
-  high:  { pixelRatio: 1.5,  msaa: 4, shadowDist: 250, shadowMap: 2048, cascades: 2, split: 0.85, ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 1,    treeNear: 175, treeShadow: 90 },
-  ultra: { pixelRatio: 2,    msaa: 4, shadowDist: 320, shadowMap: 3072, cascades: 2, split: 0.85, ao: true,  aoScale: 1,   bloomScale: 1,    grass: 1.3,  treeNear: 230, treeShadow: 140 },
+  low:   { pixelRatio: 1,    msaa: 0, shadowDist: 120, shadowMap: 1536, cascades: 2, split: 0.75, ao: false, aoScale: 0.5, bloomScale: 0.35, grass: 0.45, treeNear: 110, treeShadow: 45,
+           shC0: 64,  shMapFar: 1024, shTiles: 1, shTileGrid: 3, shMove: 12 },
+  med:   { pixelRatio: 1.25, msaa: 4, shadowDist: 180, shadowMap: 2048, cascades: 2, split: 0.8,  ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 0.75, treeNear: 150, treeShadow: 70,
+           shC0: 88,  shMapFar: 1024, shTiles: 1, shTileGrid: 4, shMove: 16 },
+  high:  { pixelRatio: 1.5,  msaa: 4, shadowDist: 250, shadowMap: 3072, cascades: 2, split: 0.85, ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 1,    treeNear: 175, treeShadow: 90,
+           shC0: 100, shMapFar: 1536, shTiles: 1, shTileGrid: 4, shMove: 16 },
+  ultra: { pixelRatio: 2,    msaa: 4, shadowDist: 320, shadowMap: 4096, cascades: 2, split: 0.85, ao: true,  aoScale: 1,   bloomScale: 1,    grass: 1.3,  treeNear: 230, treeShadow: 140,
+           shC0: 110, shMapFar: 2048, shTiles: 2, shTileGrid: 4, shMove: 18 },
 };
 const Q = Object.assign({ name: coarse ? 'low' : 'high' }, QUALITY[coarse ? 'low' : 'high']);
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
@@ -755,8 +808,376 @@ let composer = null, gradePass = null, bloomPass = null;
   });
   composer.addPass(gradePass);
 }
+// GPU profiler (EXT_disjoint_timer_query_webgl2), off unless DBG.gpuProf.start(): per-frame GPU ms per stage
+// (shadow / scene / ao / bloom / output / grade). Queries can't nest: the shadow pass, which the renderer runs inside
+// the scene render, splits the scene query in two.
+const GPUT = (() => {
+  const gl = renderer.getContext(), ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  const P = { on: false, ok: !!ext, acc: {}, frames: 0, live: [], active: null, cpu: [] };
+  // mode 'finish': gl.finish() at every stage boundary, wall time per stage ≈ its GPU time (serialises the frame: use
+  // for the split, not for fps). mode 'query': timer queries (ANGLE-Metal spans overlap: relative only).
+  P.begin = (name) => {
+    if (!P.on) return; if (P.active) P.end();
+    if (P.mode === 'finish') { gl.finish(); P.active = { name, t: performance.now() }; return; }
+    if (!ext) return; const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); P.active = { name, q };
+  };
+  P.end = () => {
+    if (!P.active) return; const n = P.active.name;
+    if (P.mode === 'finish') { gl.finish(); P.acc[n] = (P.acc[n] || 0) + performance.now() - P.active.t; P.active = null; return n; }
+    gl.endQuery(ext.TIME_ELAPSED_EXT); P.live.push(P.active); P.active = null; return n;
+  };
+  P.poll = () => {
+    for (let i = 0; i < P.live.length;) {
+      const { name, q } = P.live[i];
+      if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) { i++; continue; }
+      if (!gl.getParameter(ext.GPU_DISJOINT_EXT)) P.acc[name] = (P.acc[name] || 0) + gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+      gl.deleteQuery(q); P.live.splice(i, 1);
+    }
+  };
+  // start(true): GPU timer queries too (ANGLE-Metal reports overlapping spans: use them as relative numbers only)
+  P.start = (gpu) => { P.mode = gpu === 'finish' ? 'finish' : 'query'; P.on = gpu === 'finish' || (!!ext && !!gpu); P.cpuOn = true; P.acc = {}; P.frames = 0; P.cpu = []; P.cpuR = []; return true; };
+  P.stop = () => { P.on = false; P.cpuOn = false; P.poll(); const o = { frames: P.frames }; let t = 0; for (const k in P.acc) { o[k] = +(P.acc[k] / Math.max(1, P.frames)).toFixed(2); t += o[k]; } o.gpuTotal = +t.toFixed(2);
+    const md = (a) => { const c = a.slice().sort((x, y) => x - y); return c.length ? +c[c.length >> 1].toFixed(2) : 0; }; o.cpuMs = md(P.cpu); o.cpuRenderMs = md(P.cpuR); return o; };
+  const sm = renderer.shadowMap, smRender = sm.render.bind(sm);
+  sm.render = function (lights, sc, cam) {
+    // the cached moon shadows update here, inside the main scene render (the engine's render state is live)
+    if (sc === scene && cam === camera && SHADOW.on && !SHADOW.busy) {
+      const outer = P.on ? P.end() : null; if (P.on) P.begin('shadowCache');
+      SHADOW.busy = true; const rt = renderer.getRenderTarget(); try { SHADOW.update(); } finally { SHADOW.busy = false; renderer.setRenderTarget(rt); }
+      if (P.on) { P.end(); if (outer) P.begin(outer); }
+    }
+    if (!P.on) return smRender(lights, sc, cam); const outer = P.end(); P.begin('shadow'); smRender(lights, sc, cam); P.end(); if (outer) P.begin(outer); };
+  return P;
+})();
+/* ---------- cached moon shadows (FIX-PERF) ----------
+ * The moon never moves, so static casters are rendered once into a cached depth atlas around the camera and only
+ * dynamic casters (pilot, fox, stags, enemies, golem, snowmobile, props, bolts, anything skinned or seen moving) are
+ * drawn every frame. Atlas = [cascade 0 | cascade 1]: fixed squares centred on the camera in light space (c0 crisp,
+ * Q.shC0 half-size, Q.shadowMap texels; c1 soft, Q.shadowDist half-size, Q.shMapFar texels), texel-snapped.
+ *   front = static cache in use · back = the next cache, rebuilt tile by tile (Q.shTiles tiles/frame) when the camera
+ *   moved > Q.shMove m (c0) or a quarter of c1, or a static caster appeared / vanished / moved · live = what the shader
+ *   samples: front + dynamic casters. Each frame the previous frame's dynamic footprints are copied back from front
+ *   (depth blits of small rects) and the dynamic casters drawn again.
+ * Static casters cast within a distance of the cache centre (per category: 30 m + 18 × radius, radius ≥ 8 m unlimited;
+ * instanced chunks carry userData.shCastDist). Layers 20 / 21 mark the casters of the static / dynamic passes.
+ * SHADOW.on = false → engine cascades (the old path, A/B). */
+const SHADOW = (() => {
+  const LS = 20, LD = 21;
+  const S = { on: !!window.__sunChunkPatched, ready: false, stats: { rebuilds: 0, syncBuilds: 0, tilesDone: 0, statCasters: 0, dynCasters: 0, rects: 0, lastBuildFrames: 0 },
+    front: null, back: null, live: null, W: 0, H: 0, cas: null, build: null, want: false, cool: 0, prevRects: [], classT: 0, frame: 0 };
+  const gl = renderer.getContext();
+  const RIGHT = new V3(), UP = new V3(), LDIR = new V3(), QL = new THREE.Quaternion();
+  { const m = new THREE.Matrix4().lookAt(new V3(0, 0, 0), MOON_DIR.clone().normalize().negate(), new V3(0, 1, 0));
+    RIGHT.setFromMatrixColumn(m, 0); UP.setFromMatrixColumn(m, 1); LDIR.setFromMatrixColumn(m, 2); QL.setFromRotationMatrix(m); }
+  const sinE = Math.max(0.1, LDIR.y), cosE = UP.y;
+  let HMIN = -30, HMAX = 150;
+  function heightBounds() {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = -48; i <= 48; i++) for (let j = -48; j <= 48; j++) { const h = getH(i * 12, j * 12); if (h < lo) lo = h; if (h > hi) hi = h; }
+    HMIN = Math.min(lo, -4) - 12; HMAX = hi + 45;   // + trees / structures / crystals above the terrain
+  }
+  // a LightShadow the engine's shadow renderer can draw: N (camera, frustum, viewport) triples into one atlas target
+  class View extends THREE.LightShadow {
+    constructor() { super(new THREE.OrthographicCamera()); this.cams = []; this.frs = []; this.vps = []; }
+    getViewportCount() { return this.cams.length; } getCamera(i) { return this.cams[i]; } getFrustum(i) { return this.frs[i]; } getViewport(i) { return this.vps[i]; }
+    updateMatrices() {}
+  }
+  const viewS = new View(), viewD = new View();
+  const lightS = { shadow: viewS, isPointLight: false, castShadow: true, name: 'moonCacheS' }, lightD = { shadow: viewD, isPointLight: false, castShadow: true, name: 'moonCacheD' };
+  const camS = new THREE.Camera(), camD = new THREE.Camera(); camS.layers.set(LS); camD.layers.set(LD);
+  const _pm = new THREE.Matrix4();
+  function makeRT(w, h, compare) {
+    const rt = new THREE.WebGLRenderTarget(w, h, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false });
+    rt.depthTexture = new THREE.DepthTexture(w, h, THREE.UnsignedShortType); rt.depthTexture.format = THREE.DepthFormat;
+    if (compare) { rt.depthTexture.compareFunction = THREE.LessEqualCompare; rt.depthTexture.minFilter = rt.depthTexture.magFilter = THREE.LinearFilter; }
+    else { rt.depthTexture.compareFunction = null; rt.depthTexture.minFilter = rt.depthTexture.magFilter = THREE.NearestFilter; }
+    rt.depthTexture.name = 'moonShadowCache'; rt.texture.name = 'moonShadowCacheColor';
+    return rt;
+  }
+  // depth copies are drawn (a quad per rect writing gl_FragDepth from the source), never blitted: on tile GPUs every
+  // blit / target switch is a load + store of the whole atlas, so restores and dynamic casters share one pass
+  const copyGeo = new THREE.BufferGeometry(), copyPos = new Float32Array(6 * 3 * 64);
+  copyGeo.setAttribute('position', new THREE.BufferAttribute(copyPos, 3).setUsage(THREE.DynamicDrawUsage));
+  const copyMat = new THREE.ShaderMaterial({ uniforms: { tSrc: { value: null } }, depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth, colorWrite: false,
+    vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0., 1.); }',
+    fragmentShader: 'uniform sampler2D tSrc; void main(){ gl_FragDepth = texelFetch(tSrc, ivec2(gl_FragCoord.xy), 0).r; }' });
+  const copyMesh = new THREE.Mesh(copyGeo, copyMat); copyMesh.frustumCulled = false;
+  const copyCam = new THREE.OrthographicCamera(), copyScene = new THREE.Scene(); copyScene.add(copyMesh); copyScene.matrixWorldAutoUpdate = false;
+  // copy rects [[x0,y0,x1,y1], …] (atlas pixels) of src's depth into the currently bound target
+  function copyRects(src, rects) {
+    let k = 0;
+    for (let i = 0; i < rects.length; i += 64) {
+      const n = Math.min(64, rects.length - i);
+      for (let j = 0; j < n; j++) {
+        const [x0, y0, x1, y1] = rects[i + j], a = x0 / S.W * 2 - 1, b = y0 / S.H * 2 - 1, c = x1 / S.W * 2 - 1, d = y1 / S.H * 2 - 1, o = j * 18;
+        copyPos.set([a, b, 0, c, b, 0, c, d, 0, a, b, 0, c, d, 0, a, d, 0], o);
+      }
+      copyGeo.attributes.position.needsUpdate = true; copyGeo.setDrawRange(0, n * 6);
+      copyMat.uniforms.tSrc.value = src.depthTexture;
+      const ac = renderer.autoClear; renderer.autoClear = false;   // a nested render (uploads the quads, keeps the target)
+      try { renderer.render(copyScene, copyCam); } finally { renderer.autoClear = ac; }
+      k += n;
+    }
+    return k;
+  }
+  function clearDepth(rt) { const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.state.buffers.depth.setMask(true); renderer.clear(false, true, false); renderer.setRenderTarget(prev); }
+  // cascade layout from the quality preset
+  function layout() {
+    const px0 = Q.shadowMap, px1 = Q.shMapFar || Math.round(Q.shadowMap / 2);
+    return [{ R: Q.shC0 || 90, px: px0, x0: 0 }, { R: Q.shadowDist, px: px1, x0: px0 }];
+  }
+  function configure() {
+    for (const k of ['front', 'back', 'live']) if (S[k]) { S[k].dispose(); S[k] = null; }
+    S.cas = layout(); S.W = S.cas[0].px + S.cas[1].px; S.H = Math.max(S.cas[0].px, S.cas[1].px);
+    S.ready = false; S.build = null; S.prevRects = []; S.center = null;
+    const sh = moon.shadow;
+    if (!S.on) {   // engine cascades
+      sh.cached = false; sh.autoUpdate = true; sh._frameExtents.set(2, 1); sh.mapSize.set(Q.shadowMap, Q.shadowMap);
+      if (sh.map && sh.map.__shc) sh.map = null; for (let i = 0; i < 2; i++) sh._viewports[i].set(i, 0, 1, 1);
+      restoreEngineLayers(); return;
+    }
+    S.front = makeRT(S.W, S.H, false); S.back = makeRT(S.W, S.H, false); S.live = makeRT(S.W, S.H, true);
+    for (const rt of [S.front, S.back, S.live]) { rt.__shc = true; clearDepth(rt); }
+    if (sh.map && !sh.map.__shc) sh.map.dispose();
+    sh.cached = true; sh.autoUpdate = false; sh.needsUpdate = false; sh._frameExtents.set(1, 1); sh.mapSize.set(S.W, S.H); sh.map = S.live;
+    for (const v of [viewS, viewD]) { v.mapSize.set(S.W, S.H); v._frameExtents.set(1, 1); }
+    viewD.map = S.live;
+  }
+  // one orthographic camera for a sub-square [a0,a1]×[b0,b1] (in -1..1 units of the cascade) of cascade c
+  function cascadeCam(c, a0, a1, b0, b1, cam) {
+    cam = cam || new THREE.OrthographicCamera();
+    cam.left = c.R * a0; cam.right = c.R * a1; cam.bottom = c.R * b0; cam.top = c.R * b1;
+    cam.near = 0; cam.far = c.zfar;
+    cam.position.copy(c.eye); cam.quaternion.copy(QL); cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
+    cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
+    return cam;
+  }
+  function frustumOf(cam, fr) { _pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); (fr || (fr = new THREE.Frustum())).setFromProjectionMatrix(_pm, cam.coordinateSystem); return fr; }
+  // cascade placement for anchor point A (camera position)
+  function place(c, A) {
+    const t = 2 * c.R / c.px, ax = A.dot(RIGHT), ay = A.dot(UP), az = A.dot(LDIR);
+    const cx = Math.round(ax / t) * t, cy = Math.round(ay / t) * t;
+    const zTop = (HMAX - A.y + c.R * cosE) / sinE + 4, zBot = (HMIN - A.y - c.R * cosE) / sinE - 4;
+    return Object.assign({}, c, { cx, cy, zfar: zTop - zBot, eye: new V3().addScaledVector(RIGHT, cx).addScaledVector(UP, cy).addScaledVector(LDIR, az + zTop),
+      ax: A.x, az: A.z, ay: A.y, bias: -0.22 / (zTop - zBot) });
+  }
+  // publish the front cascades to the moon shadow (matrices + atlas regions)
+  function publish(cs) {
+    const sh = moon.shadow;
+    for (let i = 0; i < 2; i++) {
+      const c = cs[i], cam = cascadeCam(c, -1, 1, -1, 1, sh._cameras[i]), vp = sh._viewports[i].set(c.x0 / S.W, 0, c.px / S.W, c.px / S.H);
+      sh._updateMatrix(cam, sh._matrices[i], sh._frustums[i], vp);
+      sh._cascadeData[i].set(c.x0 / S.W, (c.x0 + c.px) / S.W, c.px / S.H, c.bias);
+    }
+    viewD.cams = [sh._cameras[0], sh._cameras[1]]; viewD.frs = [sh._frustums[0], sh._frustums[1]]; viewD.vps = [sh._viewports[0].clone(), sh._viewports[1].clone()];
+  }
+  // draw through the engine's shadow renderer (depth materials, alpha test, skinning, batching) without its clear
+  const noClear = () => {};
+  function draw(light, layerCam) {
+    const clr = renderer.clear; renderer.clear = noClear;
+    try { renderer.shadowMap.render([light], scene, layerCam); } finally { renderer.clear = clr; }
+  }
+
+  /* --- caster classification --- */
+  const REC = new WeakMap();   // static caster → { sig, moved }
+  const _v = new V3(), _s = new V3();
+  let statList = [], dynList = [];
+  // dynamic casters skip the coarse cascade where they sit well inside the fine one (it is not sampled there)
+  function dynIntersects(fr) { if (this.__noC1 && fr === moon.shadow._frustums[1]) return false; return fr.intersectsObject(this); }
+  function dynRoots() {
+    const r = new Set([player.c.g, fox.g, sk.g, orm.g]);
+    if (boss.g) r.add(boss.g);
+    for (const s of STAGS) r.add(s.g); for (const e of enemies) if (e.g) r.add(e.g); for (const b of bolts) if (b.g) r.add(b.g);
+    for (const e of Passport.byRole.pushable || []) if (e.obj) r.add(e.obj);
+    return r;
+  }
+  function sphereOf(o, out) {   // world bounding sphere → out (V3 centre), returns radius
+    let sp = null;
+    if (o.isInstancedMesh || o.isBatchedMesh || o.isSkinnedMesh) { if (!o.boundingSphere) o.computeBoundingSphere(); sp = o.boundingSphere; }
+    else if (o.geometry) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); sp = o.geometry.boundingSphere; }
+    if (!sp) { out.setFromMatrixPosition(o.matrixWorld); return 1; }
+    out.copy(sp.center).applyMatrix4(o.matrixWorld); _s.setFromMatrixScale(o.matrixWorld);
+    return sp.radius * Math.max(_s.x, _s.y, _s.z);
+  }
+  function sigOf(o) {
+    const e = o.matrixWorld.elements;
+    let k = e[12] * 7.1 + e[13] * 3.3 + e[14] * 5.7 + e[0] * 11 + e[2] * 13 + e[5] * 17 + (o.geometry ? o.geometry.id * 0.37 : 0);
+    if (o.isInstancedMesh) k += o.instanceMatrix.version * 0.91 + o.count * 1.3;
+    return k;
+  }
+  const instTris = (o) => ((o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3) * o.count;
+  let staticSig = 0;
+  function classify() {
+    const roots = dynRoots(); statList = []; dynList = []; let sig = 0, moved = 0;
+    const pg = player.c.g;
+    const walk = (o, dyn, pl) => {
+      if (!o.visible) return;
+      if (!dyn && (roots.has(o) || o.userData.shDyn)) dyn = true;
+      if (o === pg) pl = true;
+      if ((o.isMesh || o.isPoints) && o.castShadow) {
+        if (dyn || o.isSkinnedMesh) {
+          // dynamic: casts within 30 m + 18 × radius of the camera (a stag ≈ 57 m, a crate ≈ 38 m); the player always
+          const r = sphereOf(o, _v), near = pl || _v.distanceTo(camera.position) - r < 30 + 18 * r;
+          o.layers.disable(LS); if (near) { o.layers.enable(LD); dynList.push(o); if (!o.__shIF) { o.__shIF = true; o.intersectsFrustum = dynIntersects; } } else o.layers.disable(LD);
+        }
+        else {
+          o.layers.disable(LD);
+          if (o.userData.shOwned) statList.push(o);   // refilled by its owner when the cache recentres: not a change
+          else if (!o.isBatchedMesh) {
+            const k = sigOf(o); let r = REC.get(o);
+            if (!r) { r = { sig: k, moves: 0 }; REC.set(o, r); }
+            else if (Math.abs(r.sig - k) > 1e-4) {   // moved twice (a mesh) / re-filled 3× (a small instanced pool) → dynamic for good
+              r.sig = k; r.moves++;
+              if (o.isInstancedMesh ? r.moves >= 3 && instTris(o) < 60000 : r.moves >= 2) { o.userData.shDyn = true; moved++; }
+            }
+            if (!o.userData.shDyn) { statList.push(o); sig += k * ((statList.length % 97) + 1) + o.id; }
+          } else { statList.push(o); sig += o.id; }
+        }
+      }
+      for (const c of o.children) walk(c, dyn, pl);
+    };
+    walk(scene, false, false);
+    S.stats.statCasters = statList.length; S.stats.dynCasters = dynList.length;
+    if (moved || Math.abs(sig - staticSig) > 1e-3) { staticSig = sig; return true; }
+    return false;
+  }
+  function restoreEngineLayers() { scene.traverse((o) => { o.layers.disable(LS); o.layers.disable(LD); }); }
+  // static casters of a build around (ax, az): layer LS on / off by cast distance
+  function selectStatic(ax, az) {
+    let n = 0;
+    for (const o of statList) {
+      let on = true;
+      const cd = o.userData.shCastDist;
+      if (!o.isBatchedMesh) {
+        const r = sphereOf(o, _v), lim = cd !== undefined ? cd : (r >= 8 ? Infinity : 30 + 18 * r);
+        on = Math.hypot(_v.x - ax, _v.z - az) - r < lim;
+      }
+      if (on) { o.layers.enable(LS); n++; } else o.layers.disable(LS);
+    }
+    S.stats.statSelected = n;
+  }
+
+  /* --- builds --- */
+  function startBuild(A, sync) {
+    const cas = S.cas.map((c) => place(c, A)), old = S.center;
+    const redoFar = !old || sync || Math.hypot(A.x - old[1].ax, A.z - old[1].az) > S.cas[1].R * 0.25 || S.want === 'all';
+    if (!redoFar) cas[1] = old[1];
+    FOREST.shadowAt = { x: A.x, z: A.z }; if (FOREST.onShadowCenter) FOREST.onShadowCenter();
+    for (const f of S.onCenter || []) { try { f(A.x, A.z); } catch (e) { console.warn('shadow onCenter', e); } }   // modules/perf.js: scatter casters around the new centre
+    selectStatic(A.x, A.z);
+    // tile list: c0 in k0×k0 tiles, c1 (if re-placed) in k1×k1
+    const tiles = [];
+    const k0 = Math.max(1, Q.shTileGrid || 4), k1 = Math.max(1, Math.round(k0 / 2));
+    const add = (ci, k) => { for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) tiles.push([ci, a, b, k]); };
+    add(0, k0); if (redoFar) add(1, k1);
+    clearDepth(S.back);
+    if (!redoFar) { renderer.setRenderTarget(S.back); copyRects(S.front, [[cas[1].x0, 0, cas[1].x0 + cas[1].px, cas[1].px]]); }
+    S.build = { cas, tiles, i: 0, frames: 0 };
+    S.want = false;
+    if (sync) { while (S.build.i < tiles.length) stepBuild(1e9); finishBuild(); S.stats.syncBuilds++; }
+  }
+  const _tc = new THREE.OrthographicCamera(), _tf = new THREE.Frustum(), _tv = new THREE.Vector4();
+  function stepBuild(n) {
+    const B = S.build; viewS.map = S.back;
+    for (const f of S.beforeStatic || []) f(B.cas[0].ax, B.cas[0].ay, B.cas[0].az);   // e.g. tree shadow fade measured from the cache centre
+    try { stepTiles(B, n); } finally { for (const f of S.afterStatic || []) f(); }
+  }
+  function stepTiles(B, n) {
+    for (let j = 0; j < n && B.i < B.tiles.length; j++, B.i++) {
+      const [ci, a, b, k] = B.tiles[B.i], c = B.cas[ci];
+      const a0 = -1 + 2 * a / k, a1 = -1 + 2 * (a + 1) / k, b0 = -1 + 2 * b / k, b1 = -1 + 2 * (b + 1) / k;
+      cascadeCam(c, a0, a1, b0, b1, _tc); frustumOf(_tc, _tf);
+      _tv.set((c.x0 + c.px * a / k) / S.W, (c.px * b / k) / S.H, (c.px / k) / S.W, (c.px / k) / S.H);
+      viewS.cams = [_tc]; viewS.frs = [_tf]; viewS.vps = [_tv];
+      draw(lightS, camS); S.stats.tilesDone++;
+    }
+  }
+  function finishBuild() {
+    const B = S.build; S.build = null;
+    const t = S.front; S.front = S.back; S.back = t;
+    S.center = B.cas; publish(B.cas);
+    S.fullCopy = true; S.prevRects = [];   // live ← front, in this frame's dynamic pass
+    S.stats.rebuilds++; S.stats.lastBuildFrames = B.frames; S.ready = true;
+  }
+
+  /* --- per-frame dynamic overlay --- */
+  function rectsNow() {
+    const out = [], cs = S.center, c0 = cs[0];
+    for (const o of dynList) {
+      if (!o.visible || !o.castShadow) continue;
+      const r = sphereOf(o, _v) + 0.3, lx = _v.dot(RIGHT), ly = _v.dot(UP);
+      o.__noC1 = Math.max(Math.abs(lx - c0.cx), Math.abs(ly - c0.cy)) + r < c0.R * 0.9;   // inside c0's full-weight core (4 % edge band)
+      for (const c of cs) {
+        if (c !== c0 && o.__noC1) continue;
+        const t = 2 * c.R / c.px, u = (lx - c.cx) / t + c.px / 2, v = (ly - c.cy) / t + c.px / 2, rp = r / t + 4;
+        const x0 = Math.max(0, Math.floor(u - rp)), x1 = Math.min(c.px, Math.ceil(u + rp)), y0 = Math.max(0, Math.floor(v - rp)), y1 = Math.min(c.px, Math.ceil(v + rp));
+        if (x1 > x0 && y1 > y0) out.push([c.x0 + x0, y0, c.x0 + x1, y1]);
+      }
+    }
+    return out;
+  }
+  function update() {
+    if (!S.on) return;
+    if (S._pending) { const f = S._pending; S._pending = null; f(); }
+    if (!S.front) { heightBounds(); configure(); }
+    S.frame++;
+    const A = camera.position;
+    S.classT -= 1;
+    if (S.classT <= 0) { S.classT = 12; if (classify() && S.ready) S.want = S.want || true; }
+    // recentre / rebuild decisions
+    const cs = S.center;
+    if (!cs) { classify(); startBuild(A, true); }
+    else if (!S.build) {
+      const d0 = Math.hypot(A.x - cs[0].ax, A.z - cs[0].az), d1 = Math.hypot(A.x - cs[1].ax, A.z - cs[1].az);
+      if (d0 > cs[0].R * 0.6 || Math.abs(A.y - cs[0].ay) > 60) { classify(); startBuild(A, true); }          // teleport: build now
+      else if (S.cool <= 0 && (S.want || d0 > (Q.shMove || 16) || d1 > S.cas[1].R * 0.25)) { if (d1 > S.cas[1].R * 0.25) S.want = 'all'; startBuild(A, false); S.cool = 20; }
+    }
+    S.cool--;
+    if (S.build) { S.build.frames++; if (S.build.frames > 1) stepBuild(Q.shTiles || 1); if (S.build && S.build.i >= S.build.tiles.length) finishBuild(); }
+    // dynamic overlay, one pass on live: restore last frame's footprints from the cache, draw the dynamic casters
+    renderer.setRenderTarget(S.live);
+    if (S.fullCopy) { copyRects(S.front, [[0, 0, S.W, S.H]]); S.fullCopy = false; }
+    else if (S.prevRects.length) copyRects(S.front, S.prevRects);
+    const rects = rectsNow(); S.stats.rects = rects.length;
+    if (dynList.length) draw(lightD, camD);
+    S.prevRects = rects;
+  }
+  S.update = update; S.configure = () => { if (S.front || !S.on) configure(); };
+  S.setOn = (on) => { S.on = !!on && !!window.__sunChunkPatched; configure(); if (!S.on) { FOREST.shadowAt = null; FOREST.onShadowCenter && FOREST.onShadowCenter(); } return S.on; };
+  S.rebuild = () => { S.want = 'all'; S.cool = 0; };
+  S.layers = { LS, LD }; S._copy = (src, dst, rects) => new Promise((ok) => { S._pending = () => { const p = renderer.getRenderTarget(); renderer.setRenderTarget(dst); copyRects(src, rects); renderer.setRenderTarget(p); ok(true); }; });
+  // debug: cached depth at world point p vs the depth the shader would compare (cascade i)
+  S.probe = (p, i = 0, which = 'front') => {
+    const v = new THREE.Vector4(p.x, p.y, p.z, 1).applyMatrix4(moon.shadow._matrices[i]);
+    const px = Math.floor(v.x * S.W), py = Math.floor(v.y * S.H), rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType });
+    const m = new THREE.ShaderMaterial({ uniforms: { t: { value: S[which].depthTexture }, q: { value: new THREE.Vector2(px, py) } }, depthTest: false, depthWrite: false,
+      vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0., 1.); }', fragmentShader: 'uniform sampler2D t; uniform vec2 q; void main(){ gl_FragColor = vec4(texelFetch(t, ivec2(q), 0).r, 0., 0., 1.); }' });
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m), sc = new THREE.Scene(); sc.add(q);
+    const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(sc, copyCam); const o = new Float32Array(4); renderer.readRenderTargetPixels(rt, 0, 0, 1, 1, o); renderer.setRenderTarget(prev);
+    rt.dispose(); return { uv: [v.x, v.y], px: [px, py], z: v.z, cached: o[0], cas: moon.shadow._cascadeData[i].toArray() };
+  };
+  // debug: the static cache (front) as a PNG data URL, 1/k resolution (depth → grey, near = dark)
+  S.dump = (k = 4, which = 'front') => {
+    const src = S[which], w = Math.round(S.W / k), h = Math.round(S.H / k), rt = new THREE.WebGLRenderTarget(w, h);
+    const m = new THREE.ShaderMaterial({ uniforms: { t: { value: src.depthTexture } }, depthTest: false, depthWrite: false,
+      vertexShader: 'varying vec2 u; void main(){ u = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+      fragmentShader: 'uniform sampler2D t; varying vec2 u; void main(){ float d = texture2D(t, u).r; gl_FragColor = vec4(vec3(d < 1. ? pow(d, 4.) : 1.), 1.); }' });
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m), sc = new THREE.Scene(); sc.add(q);
+    const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(sc, copyCam); const px = new Uint8Array(w * h * 4); renderer.readRenderTargetPixels(rt, 0, 0, w, h, px); renderer.setRenderTarget(prev);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d'), im = g.createImageData(w, h);
+    for (let y = 0; y < h; y++) im.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+    g.putImageData(im, 0, 0); rt.dispose(); m.dispose(); return cv.toDataURL('image/png');
+  };
+  S.lists = () => ({ dyn: dynList.map((o) => o.name + (o.isSkinnedMesh ? '[sk]' : '') + (o.isInstancedMesh ? '[i' + o.count + ']' : '')), stat: statList.length });
+  return S;
+})();
 function render() {
   if (post.gtao.enabled) { const c = camera.position, r = post.aoRange; post.aoBox.min.set(c.x - r, c.y - r, c.z - r); post.aoBox.max.set(c.x + r, c.y + r, c.z + r); post.gtao.setSceneClipBox(post.aoBox); }
+  if (GPUT.on) {
+    GPUT.poll(); GPUT.frames++;
+    for (const ps of composer.passes) if (!ps.__gput) { const f = ps.render.bind(ps), n = ps === post.render ? 'scene' : ps === post.gtao ? 'ao' : ps === post.bloom ? 'bloom' : ps === post.output ? 'output' : 'grade';
+      ps.__gput = true; ps.render = (...a) => { if (!GPUT.on) return f(...a); GPUT.begin(n); f(...a); GPUT.end(); }; }
+  }
   composer.render();
 }
 function setQuality(name) {
@@ -764,7 +1185,8 @@ function setQuality(name) {
   const prev = Q.msaa; Object.assign(Q, q, { name });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.pixelRatio));
   moon.shadow.camera.far = q.shadowDist; moon.shadow.splitLambda = q.split;
-  if (moon.shadow.mapSize.x !== q.shadowMap) { moon.shadow.mapSize.set(q.shadowMap, q.shadowMap); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }   // per cascade; atlas is 2x1
+  if (SHADOW.on) SHADOW.configure();   // cached cascades: new sizes / ranges, rebuilt next frame
+  else if (moon.shadow.mapSize.x !== q.shadowMap) { moon.shadow.mapSize.set(q.shadowMap, q.shadowMap); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }   // per cascade; atlas is 2x1
   post.gtao.enabled = q.ao;
   if (prev !== q.msaa) { post.sceneRT.samples = q.msaa; post.sceneRT.dispose(); }
   FOREST.R = q.treeNear; FOREST.shadowR = q.treeShadow; FOREST.dirty = true;
@@ -3461,7 +3883,7 @@ function updateModules(dt) {
 // Wave-2 feature modules (modules/*.js) push { name, order, init(ctx), update(dt, ctx) } into window.GameModules.
 // ctx exposes the game's internals by reference; mutable scalars are getters. A failing module is disabled, never the game.
 const MODS = [];
-const MODCTX = {
+const MODCTX = { SHADOW,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
   H, VN, CELL, W, RES, getH, groundH, normalY, riftD, nearPOI, inRift, POI, RIFT_FLOOR, WORLD, WORLD_TERRAIN, DECOR, FOREST, STAGS, fox, orm, AV, sk, player, enemies, boss,
@@ -3489,6 +3911,7 @@ function updateGameModules(dt) {
 let lastT = performance.now(), saveT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  const cpu0 = GPUT.cpuOn ? performance.now() : 0;
   let dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
   if (window.AI) AI.tick(dt);
   if (G.mode === 'play') {
@@ -3519,7 +3942,9 @@ function frame(now) {
   if (colView.on) { if (Math.hypot(player.x - colView.at.x, player.z - colView.at.z) > 60) toggleColliderView(true); else Passport.debugUpdate(); }
   updateWorld(dt); updateModules(dt); updateGameModules(dt); if (WF_OK) { try { WorldFill.update(dt); } catch (e) { WF_OK = false; console.warn(e); } } updateParticles(dt);
   pressed.clear();
+  const cpu1 = GPUT.cpuOn ? performance.now() : 0;
   render();
+  if (GPUT.cpuOn) { const t = performance.now(); GPUT.cpu.push(t - cpu0); GPUT.cpuR.push(t - cpu1); }
 }
 
 /* ============================ BOOT ============================ */
@@ -3541,7 +3966,7 @@ function frame(now) {
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.
   if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
-    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX,
+    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW,
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
     STAGES, ZONES, enemies, boss, INTER, spawnShardling, save, continueGame, applySave, store, setPause, ENDINGS, heals,
     newGame: () => startGame(false),

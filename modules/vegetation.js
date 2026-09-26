@@ -86,6 +86,12 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
   /* ================================================================== init */
   function init(ctx) {
     C = ctx; THREE = ctx.THREE; V3 = THREE.Vector3; scene = ctx.scene; renderer = ctx.renderer; camera = ctx.camera;
+    C.FOREST.onShadowCenter = () => { F.dirty = true; try { updateForest(); } catch (e) { /* before the forest exists */ } };   // shadow cache moved: cast set now, before its tiles render
+    if (C.SHADOW) {   // cached shadow tiles: the per-tree shadow fade (uVSR) is measured from the cache centre, not the moving camera
+      const keep = new THREE.Vector3();
+      (C.SHADOW.beforeStatic = C.SHADOW.beforeStatic || []).push((x, y, z) => { if (U.uVCam) { keep.copy(U.uVCam.value); U.uVCam.value.set(x, y, z); } });
+      (C.SHADOW.afterStatic = C.SHADOW.afterStatic || []).push(() => { if (U.uVCam) U.uVCam.value.copy(keep); });
+    }
     for (const q in KNOBS) if (ctx.QUALITY[q]) for (const k in KNOBS[q]) if (ctx.QUALITY[q][k] === undefined) ctx.QUALITY[q][k] = KNOBS[q][k];
     const kq = KNOBS[ctx.Q.name] || KNOBS.high; for (const k in kq) if (ctx.Q[k] === undefined) ctx.Q[k] = kq[k];
     Object.assign(U, {
@@ -268,12 +274,15 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     U.uVFade.value.set(R, 14, Math.max(mid, R + 40), 30); U.uVSR.value = SR;
     if (!F.dirty && (cx - lastFX) ** 2 + (cz - lastFZ) ** 2 < 1) return;
     F.dirty = false; lastFX = cx; lastFZ = cz;
+    // FIX-PERF: with cached moon shadows the cast set follows the cache centre (changes only when the cache is rebuilt)
+    const sa = C.FOREST.shadowAt, sx = sa ? sa.x : cx, sz = sa ? sa.z : cz;
     const S2 = SR * SR;
     let nNear = 0, nCast = 0;
     for (const t of F.trees) {
       // shadow LOD per tree: tall trees cast up to shadowR, small ones stop earlier (alpha-tested foliage in 2 cascades is the
       // most expensive part of the shadow pass)
-      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) + 1.5, st = d2 < Math.min(S2, cr * cr) ? 1 : d2 < nr * nr ? 2 : 0;
+      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) + 1.5;
+      const st = d2 < nr * nr ? ((t[0] - sx) ** 2 + (t[2] - sz) ** 2 < Math.min(S2, cr * cr) ? 1 : 2) : 0;
       if (st) nNear++; if (st === 1) nCast++;
       if (st !== t.st) { setTreeState(t, st); t.st = st; }
     }
@@ -1098,7 +1107,8 @@ vec3 impNW;`)
         let s = DIR.st.get(o); if (!s) { s = {}; directorInit(o, s); DIR.st.set(o, s); }
         if (o.castShadow !== s.csSet) s.cs0 = o.castShadow;   // changed by its owner: new baseline
         if (o.isSkinnedMesh && !o.frustumCulled && !s.fc) { s.fc = true; try { o.computeBoundingSphere(); o.boundingSphere.radius = o.boundingSphere.radius * 1.5 + 0.8; o.frustumCulled = true; s.r = o.boundingSphere.radius; culled++; } catch (e) { /* keep as is */ } }
-        if (s.cs0 && (!o.isInstancedMesh || o.frustumCulled)) {
+        if (C.SHADOW && C.SHADOW.on) { if (o.castShadow !== s.cs0 && s.csSet === o.castShadow) o.castShadow = s.cs0; s.csSet = o.castShadow; }   // cached shadows: cast distance is the cache's job (vs its centre)
+        else if (s.cs0 && (!o.isInstancedMesh || o.frustumCulled)) {
           const sp = o.isSkinnedMesh || o.isInstancedMesh ? o.boundingSphere : o.geometry.boundingSphere;
           v.copy(sp ? sp.center : v.set(0, 0, 0)).applyMatrix4(o.matrixWorld);
           ms.setFromMatrixScale(o.matrixWorld); const r = s.r * Math.max(ms.x, ms.y, ms.z);
