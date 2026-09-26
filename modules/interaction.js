@@ -485,7 +485,7 @@
     const pr = C.footPress ? C.footPress(x, z) : 0.5; if (pr <= 0) return;
     let dx = b.x - w.x, dz = b.z - w.z; const dl = Math.hypot(dx, dz); if (dl < 0.03) { const f = C.player.c.g.rotation.y; dx = -Math.sin(f); dz = -Math.cos(f); } else { dx /= dl; dz /= dl; }
     let ok = false;
-    try { ok = C.snowStamp({ x, z, dx, dz, len: 1.3, wid: 1.3, type: 'blob', str: pr }) !== false;   /* FIX-PERF: pad plateau (r 0.33 m) wider than the GPU's mip + vertex-grid blur (≈ ±0.35 m): what the map shows = what the CPU replays */ if (ok) { C.snowStamp({ x, z, dx, dz, len: 0.31, wid: 0.135, type: 'boot', str: Math.min(1, pr + 0.15) }); STATS.trails++; } } catch (e) { return; }
+    try { ok = C.snowStamp({ x, z, dx, dz, len: 0.75, wid: 0.75, type: 'blob', str: pr }) !== false;   /* FIX-PERF: pad plateau (r 0.33 m) wider than the GPU's mip + vertex-grid blur (≈ ±0.35 m): what the map shows = what the CPU replays */ if (ok) { C.snowStamp({ x, z, dx, dz, len: 0.31, wid: 0.135, type: 'boot', str: Math.min(1, pr + 0.15) }); STATS.trails++; } } catch (e) { return; }
     if (ok) L.st = { x, z };   // rejected (outside the map until it re-centres after a teleport): try again next frame
   }
   function footfall(L, hs) {

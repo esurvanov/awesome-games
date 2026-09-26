@@ -726,7 +726,7 @@
   }
   // the map is read at mip ~0.8 (0.125 / 0.25 m texels) on a 0.22 m vertex grid: ≈ a ±0.35 m tent blur → 3 × 3 taps
   // (FIX-PERF: ±0.28 m — mip ~0.8 bilinear (0.25 m texels) and the 0.22 m vertex interpolation together blur ≈ ±0.3 m)
-  const TAPS = []; for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) TAPS.push([i * 0.36, j * 0.36, (i ? 0.25 : 0.5) * (j ? 0.25 : 0.5)]);
+  const TAPS = []; for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) TAPS.push([i * 0.32, j * 0.32, (i ? 0.25 : 0.5) * (j ? 0.25 : 0.5)]);
   function pressCPU(x, z) {   // [press, rim, edge] as the vertex shader sees them
     let P = 0, Rr = 0;
     for (const [ox, oz, w] of TAPS) {
