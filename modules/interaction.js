@@ -764,8 +764,72 @@
         rateMax: K.foxRate, enabled: () => SUB.fox && K.gait, speed: () => f.speed || 0, want: () => f.speed || 0 });
       if (FX.gait) f.vMax = FX.gait.vMax;
     } catch (e) { console.warn('[interaction] fox gait', e); }
+    try {
+      if (FX.gait && K.foxLegs !== false) FX.legs = legWarp(f.anim, root, FX.gait, [
+        { name: 'FR', foot: 'b_RightHand_08', bones: ['b_RightUpperArm_06', 'b_RightForeArm_07', 'b_RightHand_08'] },
+        { name: 'FL', foot: 'b_LeftHand_011', bones: ['b_LeftUpperArm_09', 'b_LeftForeArm_010', 'b_LeftHand_011'] },
+        { name: 'HL', foot: 'b_LeftFoot02_018', bones: ['b_LeftLeg01_015', 'b_LeftLeg02_016', 'b_LeftFoot01_017', 'b_LeftFoot02_018'] },
+        { name: 'HR', foot: 'b_RightFoot02_022', bones: ['b_RightLeg01_019', 'b_RightLeg02_020', 'b_RightFoot01_021', 'b_RightFoot02_022'] }]);
+    } catch (e) { console.warn('[interaction] fox legs', e); }
     FX.q = [new Q().setFromAxisAngle(new V3(0, 1, 0), Math.PI), new Q(), new Q(), new V3(1, 0, 0), new V3(0, 0, 1)];
     FX.ready = true; return true;
+  }
+  // FIX-PERF: per-leg retime. In the fox clips the paws sweep back at different speeds during their stance (front ≈ 3×
+  // slower than hind, and not even left = right), so at any rate one pair skates. Each leg whose stance speed differs
+  // from the body's stride gets its own action on a warped clock: its stance plays at the rate that keeps the paw
+  // planted (stance speed × warp slope = body stride), its swing takes the rest of the cycle, the stance centre stays
+  // where the clip has it (legs keep their order in the gait). Body tracks keep the gait's phase.
+  function legWarp(A, root, G, legs) {
+    const mixer = A.mixer, N = 64, W = { acts: {}, tab: {} };
+    for (const k of G.keys) {
+      const act0 = A.acts[k], clip = act0.getClip(), dur = clip.duration, L = G.len[k];
+      const clone = T3.SkeletonUtils.clone(root), mx = new T3.AnimationMixer(clone), a = mx.clipAction(clip); a.play();
+      const hip = clone.getObjectByName(G.o.ref), fw = G.o.fwd || 1, rows = legs.map(() => []);
+      for (let i = 0; i <= N; i++) {
+        mx.setTime(dur * i / N); clone.updateMatrixWorld(true); const h = new V3().setFromMatrixPosition(hip.matrixWorld);
+        legs.forEach((lg, j) => { const f = clone.getObjectByName(lg.foot), p = new V3().setFromMatrixPosition(f.matrixWorld); rows[j].push([(p.z - h.z) * fw, p.y]); });
+      }
+      a.stop(); mx.uncacheRoot(clone);
+      const warped = [];
+      legs.forEach((lg, j) => {
+        const r = rows[j], ys = r.map((q) => q[1]), y0 = Math.min(...ys), tol = Math.max(0.012, (Math.max(...ys) - y0) * 0.12);
+        const st = []; for (let i = 0; i < N; i++) st.push(r[i][1] - y0 < tol && r[i + 1][1] - y0 < tol);
+        const v = []; for (let i = 0; i < N; i++) if (st[i]) { const d = r[i][0] - r[i + 1][0]; if (d > 0) v.push(d); }
+        if (v.length < 3) return;
+        v.sort((x, y) => x - y); const vs = v[v.length >> 1];
+        const fs = st.filter(Boolean).length / N; let sl = Math.min(3.5, Math.max(0.4, (L / N) / vs));
+        if (Math.abs(sl - 1) < 0.12) return;
+        if (fs / sl > 0.85) sl = fs / 0.85;
+        const q = (1 - fs) / (1 - fs / sl);
+        // body phase at each clip step, stance centre anchored
+        const P = [0]; for (let i = 0; i < N; i++) P.push(P[i] + (st[i] ? 1 / (N * sl) : 1 / (N * q)));
+        const tot = P[N]; for (let i = 0; i <= N; i++) P[i] /= tot;
+        let c0 = 0, best = -1; for (let i = 0; i < N; i++) { let run = 0; while (run < N && st[(i + run) % N]) run++; if (run > best && (i === 0 || !st[i - 1])) { best = run; c0 = (i + run / 2) / N; } }
+        const Pc = P[Math.floor(c0 * N)] + (P[Math.floor(c0 * N) + 1] - P[Math.floor(c0 * N)]) * (c0 * N % 1);
+        // inverse: body phase b → leg clip phase w with P(w) − Pc = b − c0
+        const inv = new Float32Array(N + 1);
+        for (let t = 0; t <= N; t++) { const pb = t / N; let i = 0; while (i < N - 1 && P[i + 1] < pb) i++; const f = (pb - P[i]) / Math.max(1e-6, P[i + 1] - P[i]); inv[t] = (i + Math.min(1, Math.max(0, f))) / N; }
+        warped.push({ lg, inv, c0, Pc, sl: +sl.toFixed(2), q: +q.toFixed(2), fs: +fs.toFixed(2) });
+      });
+      if (!warped.length) continue;
+      const bonesOf = (lg) => new Set(lg.bones);
+      const isLeg = (tr, lg) => bonesOf(lg).has(tr.name.split('.')[0]);
+      const body = new T3.AnimationClip(clip.name + '_body', dur, clip.tracks.filter((tr) => !warped.some((w) => isLeg(tr, w.lg))));
+      const nb = mixer.clipAction(body); act0.stop(); A.acts[k] = nb;
+      W.acts[k] = warped.map((w) => { const c = new T3.AnimationClip(clip.name + '_' + w.lg.name, dur, clip.tracks.filter((tr) => isLeg(tr, w.lg)).map((tr) => tr.clone()));
+        const la = mixer.clipAction(c); la.setLoop(T3.LoopRepeat, Infinity); la.play(); la.setEffectiveWeight(0); la.setEffectiveTimeScale(0); return { la, w, dur }; });
+      W.tab[k] = warped.map((w) => ({ leg: w.lg.name, slope: w.sl, swing: w.q, stance: w.fs }));
+    }
+    const legTime = (e, b) => { const w = e.w, pb = (((w.Pc + (b - w.c0)) % 1) + 1) % 1, t = pb * N, i = Math.min(N - 1, Math.floor(t)); return (w.inv[i] + (w.inv[i + 1] - w.inv[i]) * (t - i)) * e.dur; };
+    const sync = (warp) => {
+      for (const k in W.acts) {
+        const main = A.acts[k], wt = main.isRunning() ? main.getEffectiveWeight() : 0, b = warp ? ((G.phase + G.off[k]) % 1) : (main.time / main.getClip().duration) % 1;
+        for (const e of W.acts[k]) { e.la.enabled = wt > 1e-3; e.la.setEffectiveWeight(wt); e.la.time = warp ? legTime(e, b) : main.time; }
+      }
+    };
+    const step = G.step; G.step = (dt) => { step(dt); sync(true); };
+    const upd = A.update; A.update = (dt) => { if (!G.on) sync(false); return upd(dt); };
+    return W;
   }
   function foxUpdate(dt) {
     if (!FX.ready && !foxSetup()) return;

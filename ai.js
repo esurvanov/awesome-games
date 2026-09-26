@@ -107,10 +107,21 @@
   }
 
   /* ================================================================ tracking (idle, deaths, stage time, fps) */
-  const T = { lastPos: null, idle: 0, deathsAt: [], lastDeaths: 0, stage: -1, stageT: 0, stageDeaths: 0, distHist: [], dts: [], time: 0 };
+  const T = { lastPos: null, idle: 0, deathsAt: [], lastDeaths: 0, stage: -1, stageT: 0, stageDeaths: 0, distHist: [], dts: [], time: 0, lastNow: 0, warm: 0, warmNeed: 8 };
+  // frame-time samples for the quality director: real (unclamped) frame intervals, only while playing with the tab
+  // visible, and never during a warm-up (8 s after entering play: packs, shader compiles, drift re-stamp; 2 s after a
+  // pause, dialog-free menu, hidden tab or a preset switch). Loading hitches must not read as a slow machine.
+  function trackFps() {
+    const t = performance.now(), G = g(), live = G.mode === 'play' && !G.pause && !document.hidden;
+    const d = T.lastNow ? (t - T.lastNow) / 1000 : 0; T.lastNow = t;
+    if (!live) { if (T.warm > 0) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 2); } return; }
+    T.warm += Math.min(d, 0.1);
+    if (T.warm < T.warmNeed) { T.dts.length = 0; return; }
+    if (d > 0 && d < 1) { T.dts.push(d); if (T.dts.length > 240) T.dts.shift(); }
+  }
   function track(dt) {
     T.time += dt;
-    T.dts.push(dt); if (T.dts.length > 240) T.dts.shift();
+    trackFps();
     const pl = X().player, G = g();
     if (pl && G.mode === 'play' && !G.pause) {
       if (T.lastPos) { const m = Math.hypot(pl.x - T.lastPos.x, pl.z - T.lastPos.z); T.idle = m < dt * 0.5 && !(X().dialogActive && X().dialogActive()) ? T.idle + dt : 0; }
@@ -293,6 +304,7 @@
   }
   function quality() {
     const x = X(); if (!x.setQuality) return;
+    const G0 = g(); if (G0.mode !== 'play' || G0.pause) return;   // menu / loader / pause: no fps verdict
     if (!AI.available && !AI.cfg.quality.offlineRules) return;
     if (T.time < Q.lockUntil || document.hidden) return;
     const f = fpsStats(); if (!f) return;
@@ -313,11 +325,14 @@
     Q.streak = Q.streak.dir === dir ? { dir, n: Q.streak.n + 1 } : { dir, n: 1 };
     const since = T.time - Q.lastChange;
     let go = false;
-    if (dir < 0) go = s.fpsAvg < 24 || (Q.streak.n >= AI.cfg.quality.downStreak && s.fpsAvg < 50 && since > 4); // drop fast, but only when frames really suffer
+    // drop only on a sustained drop (the offline rule's thresholds, two calls in a row ≈ 6 s): a model vote alone, or one
+    // bad window, never lowers the picture
+    if (dir < 0) go = Q.streak.n >= AI.cfg.quality.downStreak && (s.fpsAvg < 48 || s.fpsLow < 20) && since > 4;
     else go = Q.streak.n >= AI.cfg.quality.upStreak && since > AI.cfg.quality.minDwell * 2 && s.fpsLow >= 50;   // climb slowly, with headroom
     if (!go) return;
     const next = P[cur + dir]; // one step at a time
     Q.preset = next; Q.lastChange = T.time; Q.streak = { dir: 0, n: 0 };
+    T.dts.length = 0; T.warm = 0; T.warmNeed = 2;   // the new preset is judged on its own frames (after the switch spike)
     note('QUALITY', { preset: next, fps: s.fpsAvg, src });
     try { X().setQuality(next); } catch (e) { console.warn('[AI] setQuality', e); }
   }

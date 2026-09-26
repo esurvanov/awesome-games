@@ -196,12 +196,13 @@
     PERF.groups = [];
   }
 
-  let t = 0, lx = 1e9, lz = 1e9, discoverT = 0, syncT = 0;
+  let t = 0, lx = 1e9, lz = 1e9, discoverT = 0, syncT = 0, lastQ = '';
   function update(dt) {
     if (!PERF.on) return;
     t += dt; discoverT -= dt; syncT -= dt;
     if (discoverT <= 0) { discoverT = t < 40 ? 1 : 5; discover(); }   // packs keep arriving for ~20 s
     if (syncT <= 0) { syncT = 0.5; sync(); }
+    if (C.Q.name !== lastQ) { lastQ = C.Q.name; for (const G of PERF.groups) G.dirtyMain = true; }   // preset switch: new draw / LOD distances
     const cx = camera.position.x, cz = camera.position.z;
     if ((cx - lx) ** 2 + (cz - lz) ** 2 > 36 || PERF.groups.some((G) => G.dirtyMain)) {
       lx = cx; lz = cz; PERF.stats.mainInst = 0;
