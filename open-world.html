@@ -749,7 +749,7 @@ const Q = Object.assign({ name: coarse ? 'low' : 'high' }, QUALITY[coarse ? 'low
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
 
 /* ---------- post chain ---------- */
-const post = { composer: null, render: null, gtao: null, bloom: null, output: null };
+const post = { composer: null, render: null, gtao: null, bloom: null, output: null, invalidate: true };
 let composer = null, gradePass = null, bloomPass = null;
 {
   // MSAA only where it matters: the scene renders into its own multisampled target (color + depth), is resolved and
@@ -774,6 +774,9 @@ let composer = null, gradePass = null, bloomPass = null;
     setSize(w, h) { sceneRT.setSize(w, h); }
     render(r, w, readBuffer) {
       r.setRenderTarget(sceneRT); r.clear(); r.render(scene, camera);
+      // the multisampled buffers are resolved by now: tell the driver their contents are dead (on tile GPUs this saves
+      // storing 4 samples × (colour + depth) per pixel to memory every frame)
+      if (post.invalidate && sceneRT.samples > 0) { const fb = r.properties.get(sceneRT).__webglMultisampledFramebuffer; if (fb) { const gl = r.getContext(); r.state.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.invalidateFramebuffer(gl.FRAMEBUFFER, [gl.COLOR_ATTACHMENT0, gl.DEPTH_ATTACHMENT]); r.state.bindFramebuffer(gl.FRAMEBUFFER, null); } }
       this.quad.material.uniforms.tDiffuse.value = sceneRT.texture; r.setRenderTarget(readBuffer); this.quad.render(r);
     }
   })();
