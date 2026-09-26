@@ -9,6 +9,7 @@
  *   --station-spots    also render 4 camera spots around the station (station_n/e/s/w); every view gets a black-frame check (summary.blackFrames)
  *   --quality high     preset passed to window.DBG.setQuality (if the build has it)
  *   --size 1400x800    viewport
+ *   --dpr 2            device pixel ratio (Retina case: --size 1512x860 --dpr 2)
  *   --no-collide       skip collision tests        --only-collide  skip views
  *   --tests a,b        subset of collision tests (kestrel_n,kestrel_e,kestrel_s,kestrel_w,boulder,tree,climb_crate,jump_boulder)
  *   --headful          show the browser             --unlimited     disable vsync (fps headroom)
@@ -301,7 +302,7 @@ async function run() {
   // other GPU-heavy headless browsers (another agent's renders) halve vsync-locked fps: report them, never touch them
   let others = 0; try { others = Number(execSync("ps -Ao args | grep -c '[G]oogle Chrome --allow-pre-commit-input'").toString().trim()) || 0; } catch (e) { others = 0; }
   if (others) log(`note: ${others} other headless Chrome instance(s) running — fps may be lower than on an idle machine`);
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: !opt('headful'), args, userDataDir, protocolTimeout: 900000, defaultViewport: { width: VW, height: VH, deviceScaleFactor: 1 } });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: !opt('headful'), args, userDataDir, protocolTimeout: 900000, defaultViewport: { width: VW, height: VH, deviceScaleFactor: Number(opt('dpr', 1)) } });
   const closeAll = BROWSER_CLOSE = async () => { try { await browser.close(); } catch (e) { /* already closed */ } try { srv.close(); } catch (e) { /* */ } release(); };
   for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => closeAll().then(() => process.exit(130)));
   const page = await browser.newPage();

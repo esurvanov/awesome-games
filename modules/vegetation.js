@@ -602,7 +602,11 @@ vec3 impNW;`)
     m.onBeforeCompile = (sh) => {
       sharedUniforms(sh); sh.uniforms.uVGrass = U.uVGrass;
       const plant = kind === 'tuft' || kind === 'leaf';
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + '\nuniform vec4 uVGrass; varying float vVFade; varying vec3 vVWp; varying float vVHb;' + (kind === 'decal' ? '\nattribute float aCell;' : ''))
+      // GROUNDBLEND: one ground-contact rule — the base sits on the DRAWN snow surface (GPU field, per vertex near the base),
+      // sunk like before (tufts 7 cm + ≤ 6 cm of loose snow, shrubs 4 cm + ≤ 12 cm, decals 1.5 cm above), instead of the
+      // CPU physics height + snow depth (the render surface differs by −8…+25 cm plus the sastrugi relief → floating tufts)
+      const gb = window.GroundBlend && window.GroundBlend.attachVertex ? window.GroundBlend.attachVertex(sh) : '';
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + '\nuniform vec4 uVGrass; varying float vVFade; varying vec3 vVWp; varying float vVHb;' + (kind === 'decal' ? '\nattribute float aCell;' : '') + (gb ? '\n#define VEG_GB\n' + gb : ''))
         .replace('#include <uv_vertex>', '#include <uv_vertex>' + (kind === 'decal' ? '\n vMapUv = vec2(mod(aCell, 2.) * .5, floor(aCell / 2. + .01) * .5) + clamp(uv, .004, .996) * .5;' : ''))
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_INSTANCING
@@ -621,7 +625,19 @@ vec3 impNW;`)
             if (a.w > 0. && dl < a.w && abs(vW.y - a.y) < 2.5) { float f = (1. - dl / a.w); f *= f; vOff.xz += dd / max(dl, .05) * f * a.w * .55 * vK; vOff.y -= f * .35 * vK * ${kind === 'tuft' ? '.5' : '.35'}; } }
           transformed += (transpose(mat3(vM)) * vOff) / max(vS2, 1e-4);
           vVWp = vW + vOff; vVHb = position.y * sqrt(vS2);
-          vVFade = 1. - smoothstep(${kind === 'tuft' ? 'uVGrass.x - uVGrass.y, uVGrass.x' : 'uVGrass.z - uVGrass.w, uVGrass.z'}, vD);`}`);
+          vVFade = 1. - smoothstep(${kind === 'tuft' ? 'uVGrass.x - uVGrass.y, uVGrass.x' : 'uVGrass.z - uVGrass.w, uVGrass.z'}, vD);`}
+          #ifdef VEG_GB
+          { vec2 gs0 = gbSurfV(vOrg.xz);
+            if (gs0.x > -1e3) {
+              vec3 gWv = (modelMatrix * vM * vec4(position, 1.)).xyz; vec2 gsv = gbSurfV(gWv.xz);
+              float gHb = max(position.y, 0.) * sqrt(vS2);
+              float gSink = ${kind === 'tuft' ? '.035 + min(gs0.y, .05)' : kind === 'decal' ? '-.015' : '.045 + min(gs0.y, .1)'};
+              float dy = gs0.x - vOrg.y - gSink
+                + (gsv.x - gs0.x) * (1. - smoothstep(.02, .3, gHb));   // the base follows the surface under it, the tips follow the origin
+              transformed += inverse(mat3(vM)) * vec3(0., dy, 0.);   // exact for tilted, non-uniformly scaled instances
+              ${kind === 'decal' ? '' : 'vVWp.y += dy; vVHb = gHb - gSink;   // height above the snow surface: the snow-coloured base starts AT the surface'}
+            } }
+          #endif`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC;\n' + GLSL_DITHER)
         .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + (kind === 'twig' ? '\n if (vegDither() > vVFade) discard;' : ''))
         .replace('#include <map_fragment>', `#include <map_fragment>
@@ -636,13 +652,14 @@ vec3 impNW;`)
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + (plant || kind === 'twig' ? `
           normal = normalize(mix(normal, normalize((viewMatrix * vec4(0., 1., 0., 0.)).xyz), ${kind === 'tuft' ? '.75' : kind === 'leaf' ? '.4' : '.35'}));   // thin blades: lit like the snow they stand in` : ''))
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>' + (plant ? `
-          { float snowBase = 1. - smoothstep(.02, ${kind === 'tuft' ? '.12' : '.08'}, vVHb), snowRim = snowBase * (1. - snowBase) * 4.;
+          { float gbPn = fract(sin(dot(floor(vVWp.xz * 11.), vec2(12.9898, 78.233))) * 43758.5453);   // patchy, not a ring on every plant
+            float snowBase = (1. - smoothstep(-.01, ${kind === 'tuft' ? '.05' : '.05'} * (.4 + 1.2 * gbPn), vVHb)) * (.45 + .55 * step(.35, gbPn)), snowRim = snowBase * (1. - snowBase) * 4.;
             diffuseColor.rgb = mix(diffuseColor.rgb, uVSnowC, snowBase * .8) + uVSnowC * snowRim * .3; }   // snow at the base + a brighter rim where the blade breaks the surface
           { vec3 Vv = normalize(cameraPosition - vVWp); float bk = pow(max(dot(-Vv, uVMoonDir), 0.), ${kind === 'tuft' ? '4.' : '2.2'});   // light through the blades (backlit glow)
             totalEmissiveRadiance += diffuseColor.rgb * (uVMoonCol * (${kind === 'tuft' ? '.14 + 1.1' : '.16 + .9'} * bk) + uVHemiS * ${kind === 'tuft' ? '.12' : '.26'}); }   // heather: wider, less view-dependent transmission — never a flat dark ball` : ''));
       sh.fragmentShader = SAFE_END(sh.fragmentShader);
     };
-    m.customProgramCacheKey = () => 'vegGround' + kind;
+    m.customProgramCacheKey = () => 'vegGround' + kind + (window.GroundBlend ? 'gb' : '');
     return m;
   }
   // remap a glTF mesh's uv (0..1) into cell k of a 2x2 atlas (flipY=false convention: v=0 is the image top)

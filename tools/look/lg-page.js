@@ -147,6 +147,22 @@
   S.wreck_close = () => { const e = D.Passport.list.filter((q) => q.name === 'debris')[0]; if (!e) return { skip: 'no debris' }; const cx = (e.box.min[0] + e.box.max[0]) / 2, cz = (e.box.min[2] + e.box.max[2]) / 2, s = spotNear(cx, cz, 3, 2.0);
     const pos = eye(s.x, s.z, 1.6), look = [cx, e.box.min[1] + 0.3, cz]; park(pos, look); return { pos, look, fov: 55, note: 'wreck debris at 3 m' }; };
 
+  // 🦶 GROUNDBLEND: where objects meet the snow, framed like the player's close third-person camera (≈ 4–5 m behind,
+  // 2.2–2.5 m up, looking down ~20°) — the view the "pasted on the snow" complaint came from
+  const tp = (tx, tz, d, a0, h = 2.3, o = {}) => { const s = clearSpot(tx, surf(tx, tz) + 0.3, tz, d, h, a0, o); return eye(s.x, s.z, h); };
+  S.rock_close = () => { const B = D.targets.boulders().list; let b = null;
+    for (const c of B) { if (c.s < 0.9 || c.s > 2.2 || slope(c.x, c.z) > 14) continue; const d = Math.hypot(c.x - POI.crash.x, c.z - POI.crash.z); if (!b || d < b.d) b = Object.assign({}, c, { d }); }
+    if (!b) return { skip: 'no boulder 0.9–2.2' }; const pos = tp(b.x, b.z, b.s * 0.6 + 4.2, 0.4), look = [b.x, surf(b.x, b.z) + b.s * 0.15, b.z]; park(pos, look);
+    return { pos, look, fov: 55, note: `boulder s ${b.s.toFixed(1)} from a third-person height, ${Math.hypot(pos[0] - b.x, pos[2] - b.z).toFixed(1)} m` }; };
+  S.tuft_close = () => { const g = bestVeg('grass', POI.crash.x, POI.crash.z, 80); if (!g || !g.n) return { skip: 'no grass' };
+    const pos = tp(g.x, g.z, 3.2, 1.3, 2.0), look = [g.x, surf(g.x, g.z), g.z]; park(pos, look); return { pos, look, fov: 55, note: `tufts (${g.n} in 3 m), third-person 3.2 m` }; };
+  S.heather_close = () => { const g = bestVeg('shrub', POI.crash.x, POI.crash.z, 90) || bestVeg('shrub', POI.lake.x, POI.lake.z, 60); if (!g || !g.n) return { skip: 'no shrubs' };
+    const pos = tp(g.x, g.z, 3.4, 2.4, 2.1), look = [g.x, surf(g.x, g.z) + 0.1, g.z]; park(pos, look); return { pos, look, fov: 55, note: `heather (${g.n} in 3 m), third-person 3.4 m` }; };
+  S.hab_close = () => { const e = D.Passport.list.filter((q) => q.name === 'struct_hab_module' && q.box).sort((a, b) => (b.box.min[0] + b.box.max[0]) - (a.box.min[0] + a.box.max[0]))[0]; if (!e) return { skip: 'no hab module' };   // deterministic: the eastern one
+    const cx = (e.box.min[0] + e.box.max[0]) / 2, cz = (e.box.min[2] + e.box.max[2]) / 2, R = Math.max(e.box.max[0] - e.box.min[0], e.box.max[2] - e.box.min[2]) / 2;
+    const pos = tp(cx, cz, R + 5, 2.6, 2.3, { maxSlope: 30 }), look = [cx, e.box.min[1] + 1.2, cz]; park(pos, look);
+    return { pos, look, fov: 55, note: `NASA hab module from ${Math.hypot(pos[0] - cx, pos[2] - cz).toFixed(1)} m, third-person height` }; };
+
   /* ------------------------------------------------------------------ motion strips (camera pans with the subject) */
   // pilot walking across the view, side-on at 4 m, knee-to-head framing: foot plants / sliding / trail forming
   M.pilot_walk = { setup() { const o = openSnow(); const x0 = o.x + o.dz * 14 - o.dx * 3, z0 = o.z - o.dx * 14 - o.dz * 3;

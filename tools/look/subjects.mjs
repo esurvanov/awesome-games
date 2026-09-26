@@ -50,6 +50,10 @@ export const SUBJECTS = [
     anti: ['stripes', 'blobs', 'dither'] },
   { name: 'station_night', icon: '🏠', title: 'Station at night', shots: ['station_night'], refs: [['f01', [0, 0, 1, 1]], ['f02', [0.2, 0, 1, 1]], ['f04', [0, 0, 1, 1]], ['f05', [0, 0.4, 1, 0.95]]],
     criteria: ['contact'], anti: ['plastic', 'blobs', 'hover', 'dither'] },
+  // GROUNDBLEND (2026-09-27): close third-person framings of the ground contact (the player's "pasted on the snow" complaint)
+  { name: 'contact_close', icon: '🦶', title: 'Objects meeting the snow, third-person', shots: ['rock_close', 'tuft_close', 'heather_close', 'hab_close'],
+    refs: [['d01', [0, 0.3, 1, 0.95]], ['d04', [0, 0.2, 1, 1]], ['e06', [0, 0.35, 1, 1]], ['f01', [0, 0, 1, 1]]],
+    criteria: ['contact'], anti: ['hover', 'plastic', 'blobs', 'cards'] },
   { name: 'wreck', icon: '✈', title: 'Wreck', shots: ['wreck', 'wreck_close'], refs: [['j01', [0.4, 0.2, 1, 0.9]], ['j05', [0, 0.2, 1, 1]], ['j03', [0, 0, 1, 1]], ['j02', [0, 0, 1, 1]]],
     criteria: ['contact'], anti: ['plastic', 'hover', 'blobs', 'cards'] },
 ];

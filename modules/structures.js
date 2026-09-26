@@ -1076,6 +1076,42 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     if (window.WorldFill && WorldFill.setStoneGeometry) { try { WorldFill.setStoneGeometry(bParts[0].geo); } catch (e) { warn('stones', e.message); } }
   }
 
+  /* ---- NASA hab module (struct_hab_module, placed by open-world.html placeStatic) — GROUNDBLEND item 5 ----
+   * The pack's only material (glTF 'lambert2SG') has a base-colour texture and NO metallicRoughness block → glTF
+   * defaults metalness 1 / roughness 1: a fully metallic, fully rough shell has no diffuse term at all, so the moon and
+   * the baked sky light never reached its albedo — it rendered as a dark grey blob lit only by blurry env reflections.
+   * Painted composite panels: metalness 0.05, roughness ≈ 0.6 with world-space micro variation (the 1024² atlas spreads
+   * ~12 m of hull, ≈ 1–2 cm/texel with painted-in shading: it needs detail on top, not a sharper copy of itself), plus
+   * faint roof-edge streaks. Snow on top / snow skirt / grime at the base / contact AO come from modules/groundblend.js. */
+  const HAB = { t: 0, n: 0 };
+  function fixHabMat(mat) {
+    if (!mat || !mat.isMeshStandardMaterial || mat.userData.habFix) return false;
+    mat.userData.habFix = true; mat.metalness = 0.05; mat.roughness = 0.62; mat.metalnessMap = null; mat.envMapIntensity = 0.6;
+    const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHabW;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vHabW = (modelMatrix * vec4(transformed, 1.)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+        varying vec3 vHabW;
+        float habH(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+        float habN(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+          return mix(mix(mix(habH(i), habH(i + vec3(1,0,0)), f.x), mix(habH(i + vec3(0,1,0)), habH(i + vec3(1,1,0)), f.x), f.y),
+                     mix(mix(habH(i + vec3(0,0,1)), habH(i + vec3(1,0,1)), f.x), mix(habH(i + vec3(0,1,1)), habH(i + vec3(1,1,1)), f.x), f.y), f.z); }`)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+        { float n1 = habN(vHabW * 3.1), n2 = habN(vHabW * 17.);            // panel-scale blotches + fine grit
+          float st = habN(vec3(vHabW.x * 4.3, vHabW.y * .25, vHabW.z * 4.3));   // vertical run-off streaks
+          diffuseColor.rgb *= (.9 + .12 * n1 + .06 * n2) * (1. - .1 * smoothstep(.55, .9, st)); }`)
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = clamp(roughnessFactor + (habN(vHabW * 5.7) - .5) * .3, .35, .95);`); };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|hab1'; };
+    mat.needsUpdate = true; return true;
+  }
+  function updateHab(dt) {
+    if ((HAB.t -= dt) > 0 || HAB.n > 60) return; HAB.t = 1; HAB.n++;   // baked.js clones the material after load: keep checking a minute
+    C.scene.traverse((o) => { if (o.isMesh && (o.userData.source === 'struct_hab_module' || (o.geometry && o.geometry.userData && o.geometry.userData.source === 'struct_hab_module') || /HDU_lowRez/.test(o.name))) {
+      if (fixHabMat(o.material)) ST.stats.habFixed = (ST.stats.habFixed || 0) + 1; } });
+  }
+
   /* ============================ module ============================ */
   (window.GameModules = window.GameModules || []).push({
     name: 'structures',
@@ -1090,6 +1126,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     update(dt, ctx) {
       updateShardlings(dt); updateGolem(dt); updateSnowmobile(dt);
       tryRocks(); updateCase(dt); updateDebris(dt);
+      updateHab(dt);
     },
   });
 })();

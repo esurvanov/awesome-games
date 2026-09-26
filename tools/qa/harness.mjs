@@ -46,7 +46,7 @@ export async function openGame(o = {}) {
   if (o.unlimited) args.push('--disable-gpu-vsync', '--disable-frame-rate-limit');
   const userDataDir = o.cold ? undefined : path.join(ROOT, 'tools', '.chrome-profile');
   let browser;
-  try { browser = await puppeteer.launch({ executablePath: CHROME, headless: !o.headful, args, userDataDir, protocolTimeout: 900000, defaultViewport: { width: VW, height: VH, deviceScaleFactor: 1 } }); }
+  try { browser = await puppeteer.launch({ executablePath: CHROME, headless: !o.headful, args, userDataDir, protocolTimeout: 900000, defaultViewport: { width: VW, height: VH, deviceScaleFactor: o.dpr || 1 } }); }
   catch (e) { srv.close(); release(); throw e; }
   const close = async () => { try { await browser.close(); } catch (e) { /* closed */ } try { srv.close(); } catch (e) { /* */ } release(); };
   for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => close().then(() => process.exit(130)));
