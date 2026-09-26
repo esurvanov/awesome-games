@@ -1012,13 +1012,20 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
 
   /* ---- rocks: the 300 procedural boulders of the decor → real scans (boulder, two closed-back rock faces) ---- */
   const ROCK = { done: false, f1: null, f2: null, cell: 200 };
-  function gradeRock(mat) {   // same cool basalt grading the vegetation module gives its rocks (desaturate + grade)
+  function gradeRock(mat) {
+    // INT-LIGHT: was desat .5 / grade [.92,.95,1.02] — barely a no-op, so these rock-face scans (the "boulder" and
+    // "outcrop" look-gate subjects both use F1/F2, not the vegetation-owned boulder scan) kept whatever warm/tan
+    // tone the raw photogrammetry scan had (look-gate: "warm tan boulders"). Now uses the SAME cool basalt grade
+    // STYLE.material('rock_basalt') documents for the rest of the island's rocks (desat .7–.75, grade .55/.6/.72 —
+    // vegetation.js rockMaterialPatch's "flat & outcrop" variant), plus a small ambient floor so deep moon-shadow
+    // reads as dark basalt, not a flat near-black silhouette ("shadow blacker than the photos").
     if (!mat || mat.userData.fwGrade) return; mat.userData.fwGrade = true;
     const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+    mat.emissive = mat.emissive || new THREE.Color(); mat.emissive.setRGB(0.018, 0.022, 0.03); mat.emissiveIntensity = 1;
     mat.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r);
       sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-        { float fwL = dot(diffuseColor.rgb, vec3(.3, .55, .15)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(fwL), .5) * vec3(.92, .95, 1.02); }`); };
-    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|fwgrade'; };
+        { float fwL = dot(diffuseColor.rgb, vec3(.3, .55, .15)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(fwL), .72) * vec3(.55, .6, .72); }`); };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|fwgrade2'; };
     mat.needsUpdate = true;
   }
   function buildRocks() {
@@ -1037,7 +1044,11 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     const bBox = new THREE.Box3(); for (const p of bParts) bBox.union(p.geo.boundingBox);
     const FB = { parts: bParts, box: bBox };
     const F2 = flat('rock_rock_face_02_closed', ROCK.f2), F1 = flat('rock_rock_face_01_closed', ROCK.f1);
-    for (const F of [F1, F2]) for (const p of F.parts) { gradeRock(p.mat); cover(p.mat, { amount: 0.8, minUp: 0.6, soft: 0.22, skirt: 0.35 }); }
+    // snow pillow on top faces (d01–d05): minUp lowered + amount/soft raised so a visible cap forms on these large
+    // rock-face scans the way it already does on the vegetation-owned boulder scan (rockMaterialPatch's own cap) —
+    // was amount .8/minUp .6/soft .22, too tight to show on anything but the flattest top face (look-gate: "no snow
+    // cap / pillow").
+    for (const F of [F1, F2]) for (const p of F.parts) { gradeRock(p.mat); cover(p.mat, { amount: 1, minUp: 0.42, soft: 0.32, skirt: 0.4 }); }
     const models = [{ F: FB, w: bBox.max.x - bBox.min.x, key: 'b' }, { F: F2, w: F2.box.max.x - F2.box.min.x, key: 'f2' }, { F: F1, w: F1.box.max.x - F1.box.min.x, key: 'f1' }];
     const groups = new Map(), st = { n: 0, bury: [] };
     let sd = 7331; const r = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };

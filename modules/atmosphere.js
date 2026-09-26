@@ -258,11 +258,41 @@ uniform vec3 uAtmFog, uAtmMoon, uAtmRim, uAtmSnowK; uniform vec4 uAtmHaze; unifo
 
   /* ============================ sea ice: model icebergs / pressure ridges ============================ */
   const ICE_MODELS = ['env_iceberg_large', 'env_iceberg_tabular', 'env_iceberg_small', 'env_pressure_ridge', 'env_ice_chunk'];
+  // look-gate: "glossy blue cube" bergs — the raw scan materials render as a smooth, saturated-blue, mirror-like
+  // surface (low roughness + envMapIntensity picking up the moon/sky reflection as a hard highlight, plus a fairly
+  // saturated blue albedo). Real pack ice/bergy bits (g01–g06) read matte and near-white/pale-grey, with a soft snow
+  // dusting on the up-facing sides and cracked/weathered texture, not a polished specular sheen.
+  function iceLookPatch(mat) {
+    if (!mat || mat.userData.iceGrade) return; mat.userData.iceGrade = true;
+    mat.roughness = Math.max(mat.roughness || 0, 0.82); mat.metalness = 0; mat.envMapIntensity = 0.35;
+    const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIceN;\n#ifdef USE_INSTANCING_COLOR\n varying vec3 vIceTint;\n#endif')
+        .replace('#include <fog_vertex>', `#include <fog_vertex>
+          vIceN = normalize(normalMatrix * objectNormal);
+          #ifdef USE_INSTANCING_COLOR
+            vIceTint = instanceColor;
+          #endif`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vIceN;\n#ifdef USE_INSTANCING_COLOR\n varying vec3 vIceTint;\n#endif')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+        { // desaturate the glossy blue scan toward matte snowy ice + a snow dusting on up-facing surfaces
+          float icL = dot(diffuseColor.rgb, vec3(.3, .55, .15));
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(icL), .55) * vec3(.94, .97, 1.03);
+          float icSnow = smoothstep(.15, .75, vIceN.y);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.93, .95, 1.0), icSnow * .5);
+          #ifdef USE_INSTANCING_COLOR
+            diffuseColor.rgb *= vIceTint;   // per-berg tint/brightness variety (INT-LIGHT: "shape variety")
+          #endif
+        }`);
+    };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|iceGrade'; };
+    mat.needsUpdate = true;
+  }
   function buildIce() {
     const got = {}; let left = ICE_MODELS.length;
     for (const name of ICE_MODELS) {
       C.loadPacked(name, C.ASSET, (g) => {
-        const parts = C.bakeParts(g.scene); if (parts.length) got[name] = parts[0];
+        const parts = C.bakeParts(g.scene); if (parts.length) { got[name] = parts[0]; iceLookPatch(got[name].mat); }
         if (--left === 0) placeIce(got);
       });
     }
@@ -366,7 +396,11 @@ uniform vec3 uAtmFog, uAtmMoon, uAtmRim, uAtmSnowK; uniform vec4 uAtmHaze; unifo
       for (const sec of bySec) {
         if (!sec.length) continue;
         const im = new THREE.InstancedMesh(part.geo, mat, sec.length);
-        sec.forEach((it, i) => im.setMatrixAt(i, it.m));
+        sec.forEach((it, i) => { im.setMatrixAt(i, it.m);
+          // per-berg tint/brightness variety (iceLookPatch reads instanceColor when present) — breaks the "every
+          // berg is the same glossy cube" repetition without needing new geometry
+          const t = 0.86 + rnd() * 0.3, c = 0.97 + rnd() * 0.06; im.setColorAt(i, new THREE.Color(c * t, c * t, (c + 0.02) * t));
+        });
         im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); im.computeBoundingBox && im.computeBoundingBox();
         im.name = 'atm_' + name; im.castShadow = cast; im.receiveShadow = true;
         im.matrixAutoUpdate = false; im.updateMatrix();
@@ -503,8 +537,12 @@ float atmN(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f); ret
           vC = position.xy;
           vA = smoothstep(.3 + uStreak * .6, 1.2 + uStreak * 1.6, -mv.z) * (1. - smoothstep(uBox * .32, uBox * .5, length(p))) * mix(1., clamp(size / len * 10., .3, 1.), uStreak) * (.6 + .4 * aSeed.y);
         }`,
+      // INT-SNOW: was (1 − x²)(1 − |y|) — a hard-edged diamond/kite (read as square confetti up close). A round falloff
+      // in the quad's own unit space becomes a soft circular flake at rest and a naturally elongated streak in wind
+      // (the quad itself is stretched by `len` along the motion direction in the vertex stage above; a circle in its
+      // local space is automatically an ellipse once that stretch is applied).
       fragmentShader: `uniform vec3 uCol; varying vec2 vC; varying float vA;
-        void main(){ float a = (1. - vC.x * vC.x) * (1. - abs(vC.y)); gl_FragColor = vec4(uCol * a * vA, 1.); }`,
+        void main(){ float a = clamp(1. - dot(vC, vC), 0., 1.); a *= a; gl_FragColor = vec4(uCol * a * vA, 1.); }`,
     }));
     near.frustumCulled = false; near.name = 'atm_snow_near'; near.renderOrder = 5; near.userData.noCollide = true;
     // far layer: points in a large box, dimmed with distance/fog

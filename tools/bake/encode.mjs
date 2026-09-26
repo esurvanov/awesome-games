@@ -1,24 +1,33 @@
 #!/usr/bin/env node
 /* encode.mjs — bake output (tools/bake/out/bake/) → assets/baked/ (what the game ships). See BAKE.md.
  *
- *   node tools/bake/encode.mjs [--in tools/bake/out] [--out assets/baked] [--mode etc1s|uastc] [--q 190]
+ *   node tools/bake/encode.mjs [--in tools/bake/out] [--out assets/baked]
  *
- * Needs the Basis Universal CLI (`brew install basis_universal` → basisu). Per baked PNG:
- *   <name>.ktx2      KTX2 / Basis Universal (ETC1S by default: lightmaps are smooth; --mode uastc for max quality),
- *                    mipmapped, rows flipped (-y_flip) so row 0 = v 0 = the bake's UV origin (three samples
- *                    compressed textures with flipY = false: uv (u, v) → texel (u·w, v·h) from the first row).
- *   <name>.ktx2.js   the same bytes as a base64 JS pack — .ktx2 is not an artifact-served file type:
- *                    (window.__PACK = window.__PACK || {})['baked/<name>'] = '<base64>'
- * plus
- *   uv2.js           per-corner UV2 of every baked mesh (Uint16 normalised, pairs, exported index order) as one pack
- *                    'baked/uv2'; manifest.json gives each object's byte offset + corner count
- *   treeao.js        per-vertex crown AO + sky visibility of every tree part (Uint8 pairs), pack 'baked/treeao'
- *   basis_wasm.js    the three@0.186.1 Basis transcoder wasm as a pack 'basis_wasm' (CSP: no cross-origin fetch)
- *   manifest.json    everything the runtime needs to find and apply the bakes (BAKE.md §Runtime)
+ * INT-LIGHT (2026-09-26): dropped KTX2/Basis Universal entirely — under the artifact CSP, the CDN Basis
+ * transcoder's own Emscripten glue calls eval()/new Function() somewhere in its startup path, which
+ * script-src blocks ('wasm-unsafe-eval' only covers WebAssembly.instantiate, not eval); BAKED.ready never
+ * became true (see BAKE.md §A/B, INT-LIGHT.md). Every baked PNG now ships as a PLAIN PNG — an ordinary
+ * artifact-served file type, loaded by modules/baked.js with a normal THREE.TextureLoader, same as any other
+ * texture in this game (sky.jpg, packs, …): no fetch-to-blob, no worker, no wasm.
+ *
+ * Per baked target:
+ *   <name>.png       the bake.py PNG, copied byte-for-byte (already 8-bit sRGB-curve RGBA — see §Encoding
+ *                     in BAKE.md). Loaded with texture.flipY = false in modules/baked.js — bake.py writes
+ *                     rows in the same "row 0 = v 0" convention the world-space UV math below assumes, so
+ *                     the runtime must NOT apply three's normal flipY=true reversal (that's a `.flipY = false`
+ *                     on the loaded Texture, not anything this script needs to do to the file).
+ * plus (unchanged from the KTX2-era pipeline — neither is an artifact-served file type, so both still ship as
+ * base64 JS sidecars, just as BAKE.md's brief for this task specifies):
+ *   uv2.js            per-corner UV2 of every baked mesh (Uint16 normalised, pairs, exported index order),
+ *                      pack 'baked/uv2'; manifest.json gives each object's byte offset + corner count
+ *   treeao.js         per-vertex crown AO + sky visibility of every tree part (Uint8 pairs), pack 'baked/treeao'
+ *   manifest.json     everything the runtime needs to find and apply the bakes (BAKE.md §Runtime)
+ *
+ * basis_wasm.js / *.ktx2 / *.ktx2.js are no longer produced; any left over from an older bake are removed
+ * from --out on each run.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { GAME } from './lib.mjs';
 
 const argv = process.argv.slice(2);
@@ -26,11 +35,10 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? (argv[
 const IN = path.resolve(opt('in', path.join(GAME, 'tools', 'bake', 'out')));
 const BK = path.join(IN, 'bake');
 const OUT = path.resolve(opt('out', path.join(GAME, 'assets', 'baked')));
-const MODE = String(opt('mode', 'etc1s'));
-const Q = Number(opt('q', 190));
-const BASISU = opt('basisu', '/opt/homebrew/bin/basisu');
 fs.mkdirSync(OUT, { recursive: true });
-const tmp = path.join(IN, 'ktx2'); fs.mkdirSync(tmp, { recursive: true });
+
+// clean any stale KTX2-era output so a re-run never ships both formats at once
+for (const f of fs.readdirSync(OUT)) if (/\.ktx2(\.js)?$/.test(f) || f === 'basis_wasm.js') fs.rmSync(path.join(OUT, f));
 
 const R = JSON.parse(fs.readFileSync(path.join(BK, 'bake.json'), 'utf8'));
 const EXP = JSON.parse(fs.readFileSync(path.join(IN, 'export.json'), 'utf8'));
@@ -40,37 +48,29 @@ const pack = (key, buf, file) => {
   fs.writeFileSync(path.join(OUT, file), js); sizes[file] = js.length; return file;
 };
 
-function ktx2(name, { mode = MODE, linear = true, q = Q } = {}) {
+function png(name) {
   const src = path.join(BK, 'png', name + '.png'); if (!fs.existsSync(src)) throw new Error('missing ' + src);
-  const dst = path.join(tmp, name + '.ktx2');
-  const args = ['-ktx2', '-mipmap', '-y_flip', '-file', src, '-output_file', dst];
-  if (linear) args.push('-linear');   // values are already gamma-encoded by bake.py; no sRGB transfer flag, the runtime decodes
-  if (mode === 'uastc') args.push('-uastc', '-uastc_level', '2', '-uastc_rdo_l', '0.75', '-ktx2_zstandard_level', '18');
-  else args.push('-q', String(q), '-comp_level', '2');
-  const t0 = Date.now();
-  execFileSync(BASISU, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-  const b = fs.readFileSync(dst); sizes[name + '.ktx2'] = b.length;
-  fs.copyFileSync(dst, path.join(OUT, name + '.ktx2'));
-  pack('baked/' + name, b, name + '.ktx2.js');
-  console.log(`[encode] ${name}.ktx2 ${(b.length / 1024).toFixed(0)} KB (${mode}) ${Date.now() - t0} ms`);
+  const dst = path.join(OUT, name + '.png');
+  fs.copyFileSync(src, dst); sizes[name + '.png'] = fs.statSync(dst).size;
+  console.log(`[encode] ${name}.png ${(sizes[name + '.png'] / 1024).toFixed(0)} KB`);
   return name;
 }
 
 const man = {
-  version: 1, date: R.date, source: { export: EXP.date, blender: R.blender, samples: R.samples },
+  version: 2, date: R.date, source: { export: EXP.date, blender: R.blender, samples: R.samples },
   encoding: {
     rgb: 'gamma-2.2 of (irradiance / scale): linear = pow(texel.rgb, 2.2) * scale — Cycles "diffuse lighting, no colour" units; three lightMap irradiance = PI * that',
     a: 'moon visibility 0..1 (linear) from static casters',
-    uv: 'row 0 = v 0 (KTX2 flipped at encode); terrain / tiles: uv = (worldXZ - origin) / size; objects: uv1 = UV2 sidecar',
-    ktx2: MODE, pack: "(window.__PACK)['baked/<file>'] = base64 KTX2",
+    uv: 'row 0 = v 0 — plain PNG loaded with texture.flipY = false (modules/baked.js); terrain / tiles: uv = (worldXZ - origin) / size; objects: uv1 = UV2 sidecar',
+    pack: 'plain PNG per file: assets/baked/<file>.png (no KTX2/Basis/WASM) — UV2 and tree AO stay base64 JS packs (not an artifact-served file type)',
   },
   env: EXP.env,
   terrain: null, tileAtlas: null, atlases: [], instanced: [], trees: null, files: {},
 };
-if (R.terrain) { ktx2(R.terrain.file); man.terrain = Object.assign({}, R.terrain, { pack: R.terrain.file + '.ktx2.js' }); }
+if (R.terrain) { png(R.terrain.file); man.terrain = Object.assign({}, R.terrain); }
 // R.tiles is always [] (bake.py never fills it — the POI tiles are assembled into ONE atlas, R.tileAtlas); the
-// runtime (runtime/baked.js) reads man.tileAtlas, singular, same shape as man.terrain plus a `tiles` cell list.
-if (R.tileAtlas) { ktx2(R.tileAtlas.file); man.tileAtlas = Object.assign({}, R.tileAtlas, { pack: R.tileAtlas.file + '.ktx2.js' }); }
+// runtime (modules/baked.js) reads man.tileAtlas, singular, same shape as man.terrain plus a `tiles` cell list.
+if (R.tileAtlas) { png(R.tileAtlas.file); man.tileAtlas = Object.assign({}, R.tileAtlas); }
 
 // UV2: one Uint16 buffer for atlas objects and instanced geometries
 const uvChunks = []; let uvOff = 0;
@@ -83,12 +83,12 @@ const addUV = (rel) => {
   const e = { offset: uvOff, corners: f.length / 2 }; uvChunks.push(Buffer.from(u.buffer)); uvOff += u.byteLength; return e;
 };
 for (const a of R.atlases || []) {
-  ktx2(a.file);
-  man.atlases.push({ file: a.file, pack: a.file + '.ktx2.js', res: a.res, scale: a.scale, objects: a.objects.map((o) => Object.assign({ id: o.id }, addUV(o.uv2))) });
+  png(a.file);
+  man.atlases.push({ file: a.file, res: a.res, scale: a.scale, objects: a.objects.map((o) => Object.assign({ id: o.id }, addUV(o.uv2))) });
 }
 for (const g of R.instanced || []) {
-  ktx2(g.file, { q: 128 });
-  man.instanced.push({ file: g.file, pack: g.file + '.ktx2.js', res: g.res, ids: g.ids, mean: g.mean, uv2: addUV(g.uv2) });
+  png(g.file);
+  man.instanced.push({ file: g.file, res: g.res, ids: g.ids, mean: g.mean, uv2: addUV(g.uv2) });
 }
 if (uvChunks.length) { pack('baked/uv2', Buffer.concat(uvChunks), 'uv2.js'); man.uv2 = { pack: 'uv2.js', key: 'baked/uv2', format: 'Uint16 normalised (u, v) per corner, in the exported index order (use geometry.toNonIndexed())', bytes: uvOff }; }
 
@@ -99,16 +99,9 @@ if ((R.trees || []).length) {
   pack('baked/treeao', Buffer.concat(ch), 'treeao.js');
 }
 
-// transcoder wasm (three@0.186.1) as a pack
-{
-  const w = opt('wasm', path.join(IN, 'basis_transcoder.wasm'));
-  if (fs.existsSync(w)) pack('basis_wasm', fs.readFileSync(w), 'basis_wasm.js');
-  else console.warn('[encode] no basis_transcoder.wasm at', w, '— fetch it from cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/libs/basis/');
-}
-
 man.files = sizes;
 const shipped = Object.entries(sizes).filter(([k]) => k.endsWith('.js')).reduce((s, [, v]) => s + v, 0);
-const ktx = Object.entries(sizes).filter(([k]) => k.endsWith('.ktx2')).reduce((s, [, v]) => s + v, 0);
-man.totals = { packsBytes: shipped, ktx2Bytes: ktx };
+const png_ = Object.entries(sizes).filter(([k]) => k.endsWith('.png')).reduce((s, [, v]) => s + v, 0);
+man.totals = { packsBytes: shipped, pngBytes: png_ };
 fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(man, null, 1));
-console.log(`[encode] packs ${(shipped / 1e6).toFixed(2)} MB · raw ktx2 ${(ktx / 1e6).toFixed(2)} MB · ${Object.keys(sizes).length} files → ${OUT}`);
+console.log(`[encode] packs ${(shipped / 1e6).toFixed(2)} MB · png ${(png_ / 1e6).toFixed(2)} MB · ${Object.keys(sizes).length} files → ${OUT}`);
