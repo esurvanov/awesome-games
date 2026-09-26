@@ -34,8 +34,18 @@ const SaveGame = (() => {
     for (const k of REF_LISTS) (G[k] || []).forEach((o, i) => refs.set(o, [k, i, G[k]]));
     const o = { _v: V, gen: World.GEN_V, W, H };
     for (const k of Object.keys(G).sort()) if (!SKIP.has(k)) o[k] = G[k];
+    // treeD: [индекс, дрова, дрожь?, стадия отрастания?, время рубки (G.time)?] — хвост опускается, если по
+    // умолчанию (0); молодое деревце и пень уже отличаются по drова от wood0, поэтому попадают сюда сами
     o.treeD = [];
-    G.trees.forEach((t, i) => { if (t.wood !== World.wood0(t) || t.shake > 0) o.treeD.push(t.shake > 0 ? [i, t.wood, t.shake] : [i, t.wood]); });
+    G.trees.forEach((t, i) => {
+      if (t.wood === World.wood0(t) && t.shake <= 0 && t.cutAt == null) return;
+      // без округления: t.cutAt/t.shake остаются как в живом G, сравнение save→load — байт в байт
+      const row = [i, t.wood];
+      if (t.shake > 0 || t.stage || t.cutAt != null) row.push(t.shake || 0);
+      if (t.stage || t.cutAt != null) row.push(t.stage || 0);
+      if (t.cutAt != null) row.push(t.cutAt);
+      o.treeD.push(row);
+    });
     o.fogB = packFog(G.fog);
     o.live = {}; for (const k of LIVE) o.live[k] = packList(G[k] || []);
     o.amGot = []; (G.amuletsAt || []).forEach((a, i) => { if (a.got) o.amGot.push(i); });
@@ -68,7 +78,15 @@ const SaveGame = (() => {
     G = Object.assign(rest, { trees: [], drifts: [], cracks: [], tussocks: [], prints: [], parts: [] });
     const r = mulberry(G.seed);
     World.gen(r); World.genLiving(r);
-    for (const [i, w, sh] of treeD || []) { const t = G.trees[i]; if (t) { t.wood = w; if (sh) t.shake = sh; } }
+    // миграция старых сейвов (до отрастания леса): срубленное дерево без времени рубки — «пень со
+    // временем рубки давно», уже почти дошедший до стадии молодого деревца — регрочится дальше как обычно
+    for (const [i, w, sh, stage, cutAt] of treeD || []) {
+      const t = G.trees[i]; if (!t) continue;
+      t.wood = w; if (sh) t.shake = sh;
+      if (cutAt != null) { t.stage = stage || 0; t.cutAt = cutAt; }
+      else if (w <= 0) { t.stage = 0; t.cutAt = G.time - TUNE.world.regrowStumpDays * CYCLE * 0.7; }
+    }
+    G.stashes = G.stashes || [];
     G.fog = unpackFog(fogB);
     for (const k of LIVE) G[k] = unpackList(live && live[k]);
     for (const i of amGot || []) if (G.amuletsAt[i]) G.amuletsAt[i].got = 1;

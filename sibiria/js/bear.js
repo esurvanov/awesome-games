@@ -18,13 +18,22 @@ const Bear = (() => {
   function tick(dt, h, night) {
     const p = G.p;
     const nk = nightKey(h);
-    if (!G.bear && G.chapter >= B.chapter && !G.flags.bearDead && night > 0.6 && G.bearNight !== nk) {
+    if (!G.bear && G.chapter >= B.chapter && !G.flags.bearDead && !G.flags.bearGone && night > 0.6 && G.bearNight !== nk) {
+      // БЛОКЕР баланса (D): без предела шатун выходит каждую пригодную ночь до конца игры — «гроза»
+      // превращалась в вечный, неубиваемый (см. ниже) назойливый таймер. appsMax — сколько раз он вообще
+      // выйдет за игру; после этого — тихо перестаёт возвращаться («ушёл»), без отдельного тоста-спойлера
+      // на каждую последующую ночь (тост один раз, при исчерпании).
+      const apps = (G.flags.bearApps || 0) + 1;
+      if (apps > B.appsMax) { G.flags.bearGone = 1; G.bearNight = nk; Fx.toast(':bear: Шатун ушёл за перевал — больше не вернётся'); return; }
+      G.flags.bearApps = apps;
       G.bearNight = nk;
       const a = Math.random() * 6.28;
       const hp = G.flags.bearWounded ? B.hpWounded : B.hp;
-      G.bear = { x: POI.mar.x + Math.cos(a) * 420, y: POI.mar.y + Math.sin(a) * 420, hp, hp0: hp, st: 'wander', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0 };
+      // последний разрешённый выход — драка по-настоящему: без hurtFlee подранок не убегает недобитым,
+      // у вышек/стрелков/факела есть реальный шанс закрыть тему шатуна убийством, а не вечным подранком.
+      G.bear = { x: POI.mar.x + Math.cos(a) * 420, y: POI.mar.y + Math.sin(a) * 420, hp, hp0: hp, st: 'wander', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0, finalStand: apps >= B.appsMax };
       Sound.treeCrack(); setTimeout(() => Sound.growl(0.2), 1500);
-      Fx.toast(':bear: Треск в тайге. Шатун вышел');
+      Fx.toast(apps >= B.appsMax ? ':bear: Шатун вышел в последний раз — либо он, либо посёлок' : ':bear: Треск в тайге. Шатун вышел');
     }
     const b = G.bear; if (!b) return;
     b.t -= dt; b.cd = Math.max(0, b.cd - dt); b.stunCd = Math.max(0, b.stunCd - dt);
@@ -67,8 +76,9 @@ const Bear = (() => {
       case 'stun': if (b.t <= 0) b.st = 'hunt'; break;
       case 'flee': tx = b.x - Math.cos(ap) * 100; ty = b.y - Math.sin(ap) * 100; sp = 150; if (b.t <= 0 || dp > 1000) { G.bear = null; return; } break;
     }
-    // подранок уходит до следующей ночи
-    if (b.hp <= b.hp0 * B.hurtFlee && b.st !== 'fleeHurt' && b.st !== 'flee') { b.st = 'fleeHurt'; b.t = 10; G.flags.bearWounded = 1; Fx.toast(':bear: Шатун уходит, огрызаясь · вернётся'); Sound.growl(0.4); }
+    // подранок уходит до следующей ночи — кроме последнего разрешённого выхода (finalStand): там это
+    // и был бы вечный неубиваемый цикл «подранок → hpWounded → опять подранок», дерётся до конца.
+    if (!b.finalStand && b.hp <= b.hp0 * B.hurtFlee && b.st !== 'fleeHurt' && b.st !== 'flee') { b.st = 'fleeHurt'; b.t = 10; G.flags.bearWounded = 1; Fx.toast(':bear: Шатун уходит, огрызаясь · вернётся'); Sound.growl(0.4); }
     // дед стреляет — раз за ночь (исправление: раньше — раз за игру)
     if (G.urk.respect >= B.urkRespect && G.flags.urkShotN !== G.bearNight && (b.st === 'hunt' || b.st === 'windup' || b.st === 'charge') && dp < B.urkR) {
       G.flags.urkShot = 1; G.flags.urkShotN = G.bearNight; G.flags.bearWounded = 1; b.hp -= B.urkDmg; b.st = 'flee'; b.t = 6; Sound.shot(); Fx.shake(6);

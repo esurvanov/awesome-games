@@ -160,6 +160,7 @@ const WorldMap = (() => {
     for (const m of G.marks) Icons.draw(cx, MARKS[m.k] || ':pin:', X(m.x), Y(m.y), 14, RED, 'rgba(236,226,201,.9)');
     // транспорт, люди, цель, герой
     if (G.veh) { const v = G.veh; if (v.buran && (v.buran.fixed || fogAt(v.buran.x, v.buran.y) === 2) && G.p.ride !== 'buran') Icons.draw(cx, 'sled', X(v.buran.x), Y(v.buran.y), 12, INK); if (v.deer && G.p.ride !== 'deer') Icons.draw(cx, 'deer', X(v.deer.x), Y(v.deer.y), 12, INK); }
+    for (const s of G.stashes || []) Icons.draw(cx, 'pack', X(s.x), Y(s.y), 12, INK);
     // люди: дед — охра, Вера — бирюза, люди зон — чернила (только в открытых местах карты)
     for (const n of Npc.list()) { if (n.rec.zone !== 'core' && !fogAt(n.st.x, n.st.y)) continue; cx.fillStyle = n.id === 'urk' ? '#8a6a45' : n.id === 'vera' ? '#3f6f7a' : '#4e3f94'; cx.fillRect(X(n.st.x) - 2, Y(n.st.y) - 2, 4, 4); }
     if (G.col) { cx.fillStyle = 'rgba(43,47,58,.7)'; for (const u of G.col.units) if (!u.hidden) cx.fillRect(X(u.x) - 1, Y(u.y) - 1, 2, 2); }

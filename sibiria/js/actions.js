@@ -19,6 +19,7 @@ const Actions = (() => {
     const npc = Npc.context(p); if (npc) return npc;
     const zc = Zones.context(p) || Transport.urkContext(p); if (zc) return zc;
     if (!G.labaz && dist2(POI.labaz, p) < 70 * 70) return { k: 'labaz', label: 'Лабаз · :meat:2' };
+    const stash = World.nearestStash(p, 50); if (stash) return { k: 'stash', label: 'Тайник', o: stash };
     const am = G.amuletsAt && G.amuletsAt.find(a => !a.got && dist2(a, p) < 44 * 44); if (am) return { k: 'amulet', label: 'Сэвэки :sevek:', o: am };
     if (G.col) {
       const site = G.col.builds.find(b => !b.done && dist2(b, p) < (BUILDS[b.type].w / 2 + 30) ** 2); if (site) return { k: 'site', label: `Строить ${BUILDS[site.type].i} ${Math.floor(site.prog * 100)}%`, o: site };
@@ -71,6 +72,7 @@ const Actions = (() => {
       }
       case 'note': if (!silent) readNote(c.o); break;
       case 'labaz': G.labaz = 1; Inv.add('meat', 2); readNote('labaz'); Sound.pick(); break;
+      case 'stash': if (!silent) UI.openStash(c.o); break;
       case 'amulet': c.o.got = 1; G.amulets++; Fx.toast(`:sevek: Сэвэки ${G.amulets}/12`); Sound.ok2(); Fx.burst(c.o.x, c.o.y - 10, 14, '#ffd27a');
         Quests.check('amulets');
         break;
@@ -104,7 +106,7 @@ const Actions = (() => {
       case 'wreck': p.action = { k: 'wreck', t: 0, dur: A.wreckT, o: c.o }; break;
       case 'tube': G.flags.tube = 1; Inv.add('tube'); Fx.toast(':tube: Радиолампа Гоши'); Sound.ok2(); break;
       case 'tree':
-        if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Рюкзак полон'); p.cd = 0.5; break; }
+        if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
         p.action = { k: 'chop', t: 0, dur: Hero.chopTime() * (c.o.kind === 3 ? TUNE.zone.garChop : 1), o: c.o }; p.face = Math.sign(c.o.x - p.x) || p.face; break;
       case 'fish': p.action = { k: 'fish', ph: 'wait', t: 0, dur: rnd(1.5, 4) - 0.2 * (Hero.lvl('fish') - 1), o: c.o }; break;
       case 'dig': p.action = { k: 'dig', t: 0, dur: A.digT }; break;
@@ -116,7 +118,7 @@ const Actions = (() => {
     const p = G.p;
     if (a.k === 'chop') {
       const t = a.o; if (t.wood <= 0) return;
-      t.wood--; World.shakeTree(t, 0.35);
+      t.wood--; World.shakeTree(t, 0.35); if (t.wood <= 0) World.felled(t);
       let n = 1; if (Hero.lvl('chop') >= 5 && Math.random() < 0.25) n = 2;
       Inv.add('wood', n); G.stats.wood += n; Hero.xp('chop'); G.s.food = Math.max(0, G.s.food - A.chopFood);
       Fx.floatText(t.x, t.y - 50 * t.s, `+${n} :wood:`); ArtWorld.fx.chips(G.parts, t.x, t.y); ArtWorld.fx.snowPuff(G.parts, t.x, t.y - 4); Sound.chop();
@@ -248,6 +250,23 @@ const Actions = (() => {
     p.action = { k: 'place', t: 0, dur: 2, o: k };
   }
 
+  // ---------- T: тайник в поле («Оставить здесь») — рядом открывает свой, иначе создаёт новый ----------
+  function stashKey() {
+    if (state !== 'play' || UI.modal() || G.p.sleeping || G.p.action) return null;
+    const p = G.p;
+    if (p.inside || onIce(p.x, p.y)) { Fx.toast(':close: Здесь не оставить'); return null; }
+    const near = World.nearestStash(p, 70);
+    if (near) { UI.openStash(near); return near; }
+    if (!Inv.weight()) { Fx.toast(':close: Нечего оставить'); return null; }
+    G.stashes = G.stashes || [];
+    if (G.stashes.length >= TUNE.world.stashMax) { Fx.toast(':close: Тайников уже ' + TUNE.world.stashMax + ' — забери что-нибудь'); return null; }
+    const s = { id: (G.stashN = (G.stashN || 0) + 1), x: Math.round(p.x + p.face * 22), y: Math.round(p.y + 10), inv: {} };
+    G.stashes.push(s);
+    Fx.toast(':cache: Тайник — клади добро'); Sound.hit();
+    UI.openStash(s);
+    return s;
+  }
+
   // ---------- мастерская и изба ----------
   function stationOk(at) {
     const p = G.p;
@@ -333,6 +352,6 @@ const Actions = (() => {
     else UI.dialog({ who: 'radio', t: Math.random() < 0.6 ? lines[(Math.random() * lines.length) | 0] : DIALOG.radio_noise.t, opts: [{ t: 'Выключить' }] });
   }
 
-  return { nearest, liveHare, context, interact, finish, tick, fishStrike, sniff, fireKey, eat, placeKey,
+  return { nearest, liveHare, context, interact, finish, tick, fishStrike, sniff, fireKey, eat, placeKey, stashKey,
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession };
 })();

@@ -19,7 +19,7 @@ function newGame() {
     D: { phase: 'relax', budget: 15, tension: 0, calmT: 20, last: null, queued: null, omenT: 0, dir: 0 },
     pack: null, storm: null, heli: null, heliDay: 0, rescueT: 0, labaz: 0, bearNight: -1,
     fog: new Array(World.FOG.nx * World.FOG.ny).fill(0), mercy: 0, aurora: 0.7,
-    prints: [], parts: [],
+    prints: [], parts: [], stashes: [],
   };
   Npc.ensure(); // состояния персонажей (Уркачан → G.urk, Вера → G.vera, новые → G.npcs)
   World.gen(r);
@@ -67,6 +67,8 @@ function update(dt) {
 
   Fx.tickParts(dt);
   World.tickFog(dt);
+  World.tickRegrow(dt);
+  World.tickStashRaids(dt, night);
 
   if (G.s.hp <= 0) Game.die(G.cause || 'cold');
 }

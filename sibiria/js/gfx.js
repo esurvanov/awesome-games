@@ -234,6 +234,7 @@ const GFX = (() => {
   // ---------- объекты ----------
   function drawTree(t, wind) {
     if (t.wood <= 0) return ArtWorld.stump(cx, t.x, t.y, t.s);
+    if (t.stage === 1) return ArtWorld.sapling(cx, t.x, t.y, t.s, t.v);
     const sway = wind * 0.05 * (0.6 + 0.4 * Math.sin(now * 1.7 + t.x * 0.013)) + (t.shake > 0 ? Math.sin(now * 60) * t.shake * 0.25 : 0);
     cx.setTransform(dpr, 0, -sway * dpr, dpr, (t.x - cam.x + shx) * dpr, (t.y - cam.y + shy) * dpr);
     const tw = ArtWorld.treeW(t.kind); cx.drawImage(treeSprite(t), -tw / 2, -160, tw, 170);
@@ -400,6 +401,7 @@ const GFX = (() => {
     if (!G.notes[id]) EYES.push({ x: n.x + 6, y: n.y - 10, spark: 0.5 + Math.sin(now * 4 + n.x) * 0.5 });
   }
   function drawTrap(t) { ArtWorld.trap(cx, t); if (t.catch) mark('paw', t.x, t.y - 20, 13); }
+  function drawStash(s) { ArtWorld.stashPile(cx, s.x, s.y, Object.values(s.inv || {}).some(n => n > 0)); }
   // значок над объектом в мире: круглая жестяная плашка + иконка из спрайта
   function mark(id, x, y, px = 16, col = '#ffd27a') {
     if (ghost) return;
@@ -420,8 +422,9 @@ const GFX = (() => {
     for (const d of G.decals || []) if (near(d.x, d.y, 60)) ArtWorld.decal(cx, d);
     for (const f of G.prints) if (near(f.x, f.y, 40)) ArtWorld.print(cx, f);
     for (const c of G.corpses || []) if (near(c.x, c.y, 80, 60)) ArtAnimals.corpse(cx, c.kind, c.x, c.y, G.time - c.t0);
-    // ловушки и записки — с отсечением по экрану (C8)
+    // ловушки, тайники и записки — с отсечением по экрану (C8)
     for (const t of G.traps) if (near(t.x, t.y, 40)) drawTrap(t);
+    for (const s of G.stashes || []) if (near(s.x, s.y, 40)) drawStash(s);
     for (const id in NOTES) { const n = NOTES[id]; if (near(n.x, n.y, 30)) drawNote(id); }
     // зоны: промоины наледи, бурелом гари
     for (const o of Zones.OBJS) if (o.type === 'steam' && near(o.x, o.y, 40)) ArtZones.steamGround(cx, o, ENV);
@@ -437,7 +440,7 @@ const GFX = (() => {
       cx.save(); cx.translate(x, y); cx.rotate(sunA); cx.drawImage(SHADOW, -w * 0.3, -w / 2, len + w * 0.3, w); cx.restore();
       if (k !== 1) cx.globalAlpha = alpha;
     };
-    for (const t of treesNear(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 200)) if (t.wood > 0) cast(t.x, t.y, 44 * t.s * sunL, 22 * t.s);
+    for (const t of treesNear(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 200)) if (t.wood > 0) cast(t.x, t.y, (t.stage === 1 ? 16 : 44) * t.s * sunL, (t.stage === 1 ? 8 : 22) * t.s);
     const near = (x, y, m) => x > cam.x - m && x < cam.x + vw + m && y > cam.y - m && y < cam.y + vh + m;
     if (near(HUT.x, HUT.y, 400)) cast(HUT.x, HUT.y - 20, 70 * sunL, 150);
     if (near(POI.cockpit.x, POI.cockpit.y, 400)) cast(POI.cockpit.x, POI.cockpit.y, 30 * sunL, 110);
@@ -537,7 +540,7 @@ const GFX = (() => {
   const TREE_BOX = [[30, 118], [25, 105], [40, 105]];
   function occRect(k, o) {
     switch (k) {
-      case 0: { if (o.wood <= 0) return null; const [hw, ht] = TREE_BOX[o.kind] || TREE_BOX[0], s = o.s; return [o.x - hw * s, o.y - ht * s, o.x + hw * s, o.y - 10 * s]; }
+      case 0: { if (o.wood <= 0) return null; const [hw, ht] = o.stage === 1 ? [12, 40] : TREE_BOX[o.kind] || TREE_BOX[0], s = o.s; return [o.x - hw * s, o.y - ht * s, o.x + hw * s, o.y - 10 * s]; }
       case 9: case 29: case 30: { const c = POI.cockpit; return [c.x - 150, c.y - 110, c.x + 150, c.y + 40]; }
       case 10: { const t = POI.tail; return [t.x - 100, t.y - 80, t.x + 100, t.y + 20]; }
       case 11: { const c = POI.chum; return [c.x - 40, c.y - 110, c.x + 40, c.y]; }

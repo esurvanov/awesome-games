@@ -5,7 +5,11 @@
     wolfHits: 0, wolfDmg: 0, bearDmg: 0, frostEv: 0, coldDmg: 0, allowIce: false, deaths: [] };
   class Dead extends Error {}
   B.Dead = Dead;
-  const L = m => B.log.push(`[${(B.R / 60).toFixed(1)}m d${G.day} ${hourOf().toFixed(2)}h ch${G.chapter} hp${G.s.hp | 0} w${G.s.warm | 0} f${G.s.food | 0} 🪵${Inv.cnt('wood', false)}/${G.chest.wood || 0}] ${m}`);
+  // БЛОКЕР (E): вдали от избы сбросить лишний груз некуда (нет ни ящика, ни «выбросить») — герой
+  // копит дрова/пушнину/детали и рано или поздно упирается в перегруз (Inv.capKg): рубка (js/actions.js:
+  // case 'tree') тогда молча отказывает, а без дров нечем греться. Вес/потолок — в каждой строке лога,
+  // чтобы такой перегруз было видно сразу, а не только по симптому «рубка +0».
+  const L = m => B.log.push(`[${(B.R / 60).toFixed(1)}m d${G.day} ${hourOf().toFixed(2)}h ch${G.chapter} hp${G.s.hp | 0} w${G.s.warm | 0} f${G.s.food | 0} 🪵${Inv.cnt('wood', false)}/${G.chest.wood || 0} кг${Inv.weight()}/${Inv.capKg()}] ${m}`);
   B.L = L;
   let lastCh = 0;
   const $$ = s => document.querySelector(s);
@@ -138,7 +142,10 @@
     for (const t of treesNear(p.x, p.y, maxDist)) if (t.wood > 0 && !t.wall && !onIce(t.x, t.y)) { const d = dist2(t, p); if (d < bd && Math.hypot(t.x - HUT.x, t.y - HUT.y) > 150 && !(G.col && G.col.builds.some(b => dist2(b, t) < (BUILDS[b.type].w / 2 + 50) ** 2)) && !G.stacks.some(s => dist2(s, t) < 70 * 70)) { bd = d; best = t; } }
     if (!best) { L('нет деревьев рядом'); return false; }
     const a = Math.atan2(p.y - best.y, p.x - best.x);
-    goTo(best.x + Math.cos(a) * 30, best.y + Math.sin(a) * 30, 12, 40);
+    // БЛОКЕР (D): дальний поиск (см. plan.js warmUp) ищет за 1600+ px — за фиксированные 40 с туда
+    // пешком (тем более в мороз/с перегрузом) не успеть, и «дерево нашлось» превращалось в тот же
+    // «не смог», просто на маршруте; время в пути даём по факту расстояния до найденного дерева.
+    goTo(best.x + Math.cos(a) * 30, best.y + Math.sin(a) * 30, 12, 40 + Math.sqrt(bd) / 100);
     for (let k = 0; k < 6 && best.wood > 0; k++) {
       const c = Actions.context();
       if (!c) { rawGo(best.x, best.y, 30, 5); continue; }
@@ -151,9 +158,33 @@
     }
     return Inv.cnt('wood', false) > 0;
   }
+  // тайник в поле («Оставить здесь»): лишний груз — не бесконечная рубка, свалить и продолжить налегке.
+  // Держим при себе немного еды/дров/силков — только явный балласт (пушнина, лишние дрова) уходит в тайник.
+  function stashDrop(keep = { meat: 2, fish: 2, dried: 2, can: 1, stew: 1, honey: 1, wood: 3, snare: 2, trap: 1 }) {
+    const s = Actions.stashKey();
+    if (!s) { L('тайник: не вышло'); return false; }
+    let moved = 0;
+    for (const k in G.inv) { const n = (G.inv[k] || 0) - (keep[k] || 0); if (n > 0) { s.inv[k] = (s.inv[k] || 0) + n; G.inv[k] -= n; moved += n; } }
+    L(`тайник: оставил ${moved} шт, вес ${Inv.weight()}/${Inv.capKg()}`);
+    return moved > 0;
+  }
+  B.stashDrop = stashDrop;
   function chop(n, maxDist) {
-    if (Inv.weight() > Inv.capKg() + 2 && !G.p.inside) { enterHut(); chestAll(); L('перегруз → в ящик'); }
-    const t0 = B.T, w0 = Inv.cnt('wood', false); let g = 0; while (Inv.cnt('wood', false) < n && g++ < n * 4) { if (!chopOne(maxDist)) break; } B.chopTime = (B.chopTime || 0) + B.T - t0; L(`рубка +${Inv.cnt('wood', false) - w0} за ${(B.T - t0).toFixed(0)} с`); }
+    // БЛОКЕР (E): вдали от избы (глава VII — метеостанция за тысячи px) сбросить лишний груз было
+    // некуда — герой либо гонял домой через весь мир, либо просто терпел перегруз до Inv.capKg + 6,
+    // где рубка (js/actions.js: case 'tree') молча отказывает. Теперь рядом с избой — в ящик, вдали —
+    // в тайник на месте (js/actions.js: Actions.stashKey); лес отрастает сам (World.tickRegrow), но не
+    // мгновенно — перегруз всё равно надо куда-то девать по пути.
+    const dumpIfNeeded = () => {
+      if (Inv.weight() <= Inv.capKg() + 2) return;
+      if (G.p.inside) return;
+      if (Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 1500) { enterHut(); chestAll(); L('перегруз → в ящик'); }
+      else if (!onIce(G.p.x, G.p.y)) stashDrop();
+    };
+    dumpIfNeeded();
+    const t0 = B.T, w0 = Inv.cnt('wood', false); let g = 0;
+    while (Inv.cnt('wood', false) < n && g++ < n * 4) { if (!chopOne(maxDist)) break; dumpIfNeeded(); }
+    B.chopTime = (B.chopTime || 0) + B.T - t0; L(`рубка +${Inv.cnt('wood', false) - w0} за ${(B.T - t0).toFixed(0)} с`); }
   B.chop = chop;
   function warmUp() {
     input.mx = input.my = 0;

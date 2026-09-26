@@ -1637,6 +1637,36 @@ const ArtWorld = (() => {
 
   // ================= РЕКВИЗИТ И ЗЕМЛЯ (бывшие «островки» gfx.js, C1) =================
   // Правила: палитра-24, объём сверху-слева, контактная тень №5 строго под опорой, снег на верхах.
+  // молодое деревце: отросло на месте пня (World.tickRegrow) — один хвойный ярус, тоньше и ниже взрослого
+  function sapling(g, x, y, s = 1, v = 0) {
+    const r = rng(4051 + Math.round(v * 97) + Math.round(s * 100) * 13);
+    shadow(g, x, y + 1, 8 * s, 2.4 * s, 0.3);
+    g.fillStyle = lg(g, x - 1.6 * s, 0, x + 1.6 * s, 0, [[0, '#765436'], [0.5, '#5b3d27'], [1, '#3a2618']]);
+    g.beginPath(); g.moveTo(x - 1.6 * s, y); g.lineTo(x - 0.8 * s, y - 24 * s); g.lineTo(x + 0.8 * s, y - 24 * s); g.lineTo(x + 1.6 * s, y); g.fill();
+    el(g, x, y - 0.5 * s, 6 * s, 2 * s, '#f6f9fc'); // сугроб у комля
+    const w = (10 + r() * 2) * s, yb = y - 22 * s, top = yb - 15 * s;
+    g.fillStyle = lg(g, x - w, 0, x + w, 0, [[0, '#2f5a3a'], [0.5, '#1c4034'], [1, '#10271f']]);
+    g.beginPath();
+    g.moveTo(x, top);
+    g.quadraticCurveTo(x - w * 0.5, yb - 6 * s, x - w, yb + 2 * s);
+    g.quadraticCurveTo(x, yb + 5 * s, x + w, yb + 2 * s);
+    g.quadraticCurveTo(x + w * 0.5, yb - 6 * s, x, top);
+    g.fill();
+    // снежная шапка
+    g.fillStyle = lg(g, x - w, top, x + w * 0.4, yb, [[0, '#f6f9fc'], [0.6, '#f6f9fc'], [1, '#b6c9df']]);
+    g.beginPath();
+    g.moveTo(x, top - 1 * s);
+    g.quadraticCurveTo(x - w * 0.4, yb - 8 * s, x - w * 0.6, yb - 2 * s);
+    g.quadraticCurveTo(x, yb, x + w * 0.5, yb - 3 * s);
+    g.quadraticCurveTo(x + w * 0.2, yb - 9 * s, x, top - 1 * s);
+    g.fill();
+  }
+  // тайник: узел/нарты, припорошенные снегом
+  function stashPile(g, x, y, has) {
+    sled(g, x, y, has ? 3 : 1, 1);
+    el(g, x - 4, y - 10, 15, 7, 'rgba(246,249,252,0.85)');
+    el(g, x + 8, y - 6, 9, 5, 'rgba(234,239,245,0.85)');
+  }
   function stump(g, x, y, s = 1) {
     shadow(g, x, y + 1, 11 * s, 3.6 * s, 0.34);
     g.fillStyle = '#5b3d27'; g.beginPath(); g.moveTo(x - 7 * s, y); g.lineTo(x - 6.4 * s, y - 8 * s); g.lineTo(x + 6.4 * s, y - 8 * s); g.lineTo(x + 7 * s, y); g.fill();
@@ -1851,7 +1881,7 @@ const ArtWorld = (() => {
     paintSpruce, paintBirch, paintCedar, paintMi8, paintTail, paintChum, paintLabaz, paintMi8Fly, mi8Fly, rotor,
     treeSprite, treeW, spr, reset, rng, setScale, shadow,
     sprite, el, rr, poly, line, lg, rg, // примитивы — для js/art-zones.js (тот же кэш и масштаб)
-    stump, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
+    stump, sapling, stashPile, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
     hutFloor, hutNorth, hutFront, hutRoof, hutStove, hutBench, hutChest, hutBed, hutTop: HUT_TOP,
     fire, stack, building, flame,
     fx, drawParticle, decal, print,

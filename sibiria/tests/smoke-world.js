@@ -39,7 +39,7 @@ function scene() {
     const u = Colony.spawn(t, { x: hx + Math.cos(i) * 200, y: hy + 200 + Math.sin(i) * 100 });
     u.task = t === 'bich' ? { k: 'chop', ph: 'go', near: { x: u.x, y: u.y } } : t === 'evenk' ? { k: 'hunt', ph: 'go' } : { k: 'guard' };
   });
-  for (const t of G.trees) if (!t.wall && Math.hypot(t.x - hx, t.y - hy) < 700 && Math.random() < 0.3) t.wood = 0;
+  for (const t of G.trees) if (!t.wall && Math.hypot(t.x - hx, t.y - hy) < 700 && Math.random() < 0.3) { t.wood = 0; World.felled(t); }
   Object.assign(G.chest, { meat: 50, wood: 30 });
   G.p.x = hx + 300; G.p.y = hy + 400;
   G.traps.push({ x: hx + 500, y: hy, kind: 'snare', catch: null, t: 0 });

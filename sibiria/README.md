@@ -31,7 +31,7 @@ January 1993. Mi-8 board 24713 went down on a river bend in Evenkia. You are Lyo
 
 ## 🗺 A big world
 
-About 11 × 11 km of taiga around the crash site, in eight zones that each change a rule of play: an **aufeis** that soaks your boots, a **burnt forest** where fires last longer, a **boulder field** that twists ankles, a windswept **bald peak** with a view, an old **drill site**, the **Kerbo-2 weather station**, a **winter road** with a trading post, and an **Evenki camp**. Eleven people live out there — a meteorologist, drillers, a shaman, an Old Believer, a mail carrier and more — with 15 tasks between them. Travel on skis, by reindeer sledge or on a repaired «Buran» snowmobile, and plan routes on a full-screen geological map (`M`).
+About 11 × 11 km of taiga around the crash site, in eight zones that each change a rule of play: an **aufeis** that soaks your boots, a **burnt forest** where fires last longer, a **boulder field** that twists ankles, a windswept **bald peak** with a view, an old **drill site**, the **Kerbo-2 weather station**, a **winter road** with a trading post, and an **Evenki camp**. Eleven people live out there — a meteorologist, drillers, a shaman, an Old Believer, a mail carrier and more — with 15 tasks between them. Chopped forest grows back, you can leave a cache in the field (`T`), and you travel on skis, by reindeer sledge or on a repaired «Buran» snowmobile, and plan routes on a full-screen geological map (`M`).
 
 ## 📸 Screenshots
 
@@ -42,6 +42,12 @@ About 11 × 11 km of taiga around the crash site, in eight zones that each chang
 | ![Inside the hut](docs/screenshots/hut-inside.jpg) | ![Build panel](docs/screenshots/build-panel.jpg) |
 | **Urkachan** | **Rescue** |
 | ![Dialogue](docs/screenshots/dialog.jpg) | ![Finale](docs/screenshots/finale.jpg) |
+
+| The big map | Drill site at night |
+|---|---|
+| ![Map](docs/screenshots/map.png) | ![Drill site](docs/screenshots/drill-night.png) |
+| **The bald peak** | **People of the taiga** |
+| ![Bald peak](docs/screenshots/golets.png) | ![Dialogue](docs/screenshots/people-dialog.png) |
 
 | Menu | The final act |
 |---|---|

@@ -60,7 +60,7 @@ const Hero = (() => {
   // перегруз: один раз при переходе через предел
   function tickLoad() {
     const p = G.p, over = Inv.weight() > Inv.capKg();
-    if (over && !p.overW) Fx.toast(`:weight: Перегруз ${Inv.weight()}/${Inv.capKg()} кг — медленно · сложи в лабаз`);
+    if (over && !p.overW) Fx.toast(`:weight: Перегруз ${Inv.weight()}/${Inv.capKg()} кг — медленно · лабаз или тайник`);
     p.overW = over;
   }
   return { lvl, xp, chopTime, clothMul, maxWarm, speed, move, tickLoad };

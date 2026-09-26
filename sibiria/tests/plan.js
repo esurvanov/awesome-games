@@ -249,14 +249,31 @@
   B.warmUp = function () {
     // мёртвая зона: рядом с избой новый костёр не разжечь (fireKey отказывает «слишком близко»), а до
     // печи ещё не дошли — герой на подходе домой мог часами мёрзнуть без единой удачной попытки согреться.
-    if (G.chapter >= 4 && !G.p.inside && Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 500) { warmFails = 0; B.enterHut(); return; }
+    const homeDist = Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y);
+    if (G.chapter >= 4 && !G.p.inside && homeDist < 500) { warmFails = 0; B.enterHut(); return; }
     const w0 = G.s.warm;
     oWarmUp();
     if (G.chapter < 4 || G.p.inside || G.s.warm > w0 + 0.5) { warmFails = 0; return; }
     // не помогло — считаем подряд идущие провалы (даже если warmUp() зовут из разных мест: survive(),
-    // campNight()…): 2 подряд без толку — идём домой, чем бы то ни грозило по времени. Замёрзнуть насмерть
-    // на голой марочке/у буровой хуже, чем потратить лишние минуты на дорогу.
-    if (++warmFails >= 2) { warmFails = 0; B.enterHut(); return; }
+    // campNight()…): 2 подряд без толку — идём греться туда, где это реально быстро.
+    // БЛОКЕР (E): «туда, где реально быстро» раньше означало всегда избу — а в главе VII (метеостанция
+    // за тысячи px от избы) это верная смерть в дороге по морозу без единого шанса согреться: герой
+    // умирал «в чистом поле» на полпути домой, так и не дойдя. Далеко от избы — не идём домой, а просто
+    // рубим шире (локальный лес у долгой стоянки выбивается — деревья не отрастают, TUNE/js/world.js).
+    // БЛОКЕР (D): тот же голод по дровам бьёт и у избы — посёлок (col.js: bichs рубят на прокорм) сам
+    // выедает лес в 700–1300 px за 10–12 игровых дней (лог: «лес у (…) кончился → …»); герой упирается
+    // в ту же стену на подходе к зонам главы V. Радиус со временем только растёт (fails, не сбрасывается
+    // при неудаче) — рано или поздно долетаем до ещё не тронутого леса, а не топчемся на том же пятне.
+    // рядом с избой мороз убивает быстро (десятки секунд от полного тепла до 0, TUNE.body.coldDmg) —
+    // ждать вторую подряд неудачу здесь не время терять: изба рядом и дешева, отступаем сразу.
+    if (homeDist < 1500) { warmFails = 0; B.enterHut(); return; }
+    warmFails++;
+    if (warmFails >= 2) {
+      const r = Math.min(4500, 1500 + 900 * (warmFails - 1));
+      B.chop(3, r);
+      if (Inv.cnt('wood', false) >= 3) warmFails = 0;
+      return;
+    }
     B.goTo(G.p.x + rnd(-400, 400), G.p.y + rnd(-400, 400), 20, 25);
   };
   // обыск объекта зоны (буровая, метеостанция…) — как разбор обломков: подойти, E, пока не кончится
@@ -290,11 +307,19 @@
     return Inv.cnt('meat', false) >= n;
   }
   B.ensureMeat = ensureMeat;
-  // керосин для Тамары: хвост Ми-8 (уже разобран в главе II) → иначе Михалыч, буровая: мясо ×3 → :kero:×2
+  // керосин для Тамары: хвост Ми-8 (уже разобран в главе II) → сам дом метеостанции (там же и кабель на
+  // мачту) → иначе Михалыч, буровая: мясо ×3 → :kero:×2.
+  // БЛОКЕР (E): раньше сразу после хвоста шёл Михалыч на буровую — крюк через весь мир и обратно
+  // (метео на юго-западе, буровая на юго-востоке), хотя герой уже стоит у метеостанции и в её же доме
+  // лежит керосин (js/content/zones.js: meteoHouse.loot). Обыскиваем дом раньше похода к Михалычу.
   function ensureKero(n) {
     if (Inv.cnt('kero', false) >= n) return true;
     if (G.wreck.tail.length) wreckTail();
     if (Inv.cnt('kero', false) >= n) return true;
+    if (Zones.idAt(G.p.x, G.p.y) === 'meteo' && (G.loot.meteoHouse || []).length) {
+      zoneLoot('meteoHouse', 10);
+      if (Inv.cnt('kero', false) >= n) return true;
+    }
     if (!G.flags.mikhMeatDone) {
       if (!ensureMeat(3)) return false;
       zoneGo('drill'); talk('mikhalych'); return false;
@@ -350,6 +375,7 @@
     // к 20-му дню мороз днём уже за −55°: одна ушанка не спасает — доха (:wolf:×2 :hare:×2, холод −30%)
     // почти всегда есть с чего сшить (шкуры волков от ночных стычек и стаи в главах II–III)
     if (!G.gear.dokha && !G.gear.kukhl && G.day >= 10 && Inv.cnt('wpelt', true) >= 2 && Inv.cnt('hare', true) >= 2) { B.enterHut(); B.doCraft('dokha'); }
+    ensureSled();
     if (!plots.drill) {
       if (!f.mikhMeatDone) {
         if (!ensureMeat(3)) return;
@@ -375,9 +401,34 @@
     B.enterHut(); B.wait(5);
   }
 
+  // БЛОКЕР (D/E): в поле выбросить лишний груз некуда (нет ни склада, ни «выбросить») — за несколько
+  // суток похода/разъездов по зонам копятся дрова/пушнина/детали, и герой рано или поздно упирается в
+  // Inv.capKg: рубка (js/actions.js: case 'tree') тогда молча отказывает — без дров нечем греться,
+  // замерзает насмерть («рубка +0», хотя лес рядом есть). Нарты (+20 кг, RECIPES.sled) — обычные сборы
+  // в дальний поход/промысел; без флага-защёлки — G.gear.sled сам не откатывается чекпоинтом, условие
+  // само гаснет, когда сшиты. Общая для V (ch4, разъезды по зонам) и VII (ch6, поход к метеостанции).
+  function ensureSled() {
+    if (G.gear.sled || Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) >= 2000) return;
+    if (!G.p.inside) B.enterHut();
+    if (!Inv.canPay(RECIPES.find(r => r.id === 'sled').in, true)) { B.chop(6, 700); B.enterHut(); B.chestAll(); return; }
+    B.doCraft('sled');
+  }
+
   // VII «Экспедиция»: припасы в рюкзаке, Вера, дойти до метеостанции, керосин + кабель Тамаре, сеанс, борт у мачты
   function ch6() {
     const f = G.flags;
+    if (!f.expArrived) ensureSled();
+    // БЛОКЕР (E): герой уходит на несколько суток к метеостанции, а в ящике избы часто уже лежит
+    // керосин и кабель (хвост Ми-8, глава II) — забытые дома, они потом оборачивались крюком на
+    // буровую ради того же керосина (см. ensureKero). Собираем со склада, пока изба рядом.
+    // Флаг-защёлку на боте (B.*) намеренно не ставим: после смерти игра откатывается к чекпоинту
+    // главы (склад полон снова), а флаг на боте — нет, «один раз и хватит» тут просто теряет запас
+    // при повторной жизни. Условие само перестаёт быть верным, когда склад опустел — этого достаточно.
+    if (!f.expArrived && (G.chest.kero || G.chest.cable) && Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 2000) {
+      if (!G.p.inside) B.enterHut();
+      const k = G.chest.kero ? B.chestTake('kero', G.chest.kero) : 0, c = G.chest.cable ? B.chestTake('cable', G.chest.cable) : 0;
+      L(`в поход со склада: керосин +${k}, кабель +${c}`);
+    }
     if (!f.veraDead && G.vera.state === 'hut' && !f.expArrived) talk('vera');
     if (!f.expArrived) {
       // та же ловушка, что и с мясом Михалычу: survive() съедает добытое раньше, чем наберётся 4 —
@@ -388,6 +439,12 @@
       if (Inv.cnt('food', false) + Inv.cnt('honey', false) < 2) { B.huntHares(2, 60, () => true); return; }
       zoneGo('meteo'); return;
     }
+    // БЛОКЕР (E): у Тамары герой торчит сутками (сеанс, потом борт) — местный лес (в радиусе, где вообще
+    // что-то происходит: дом/мачта/будка) быстро выбивается и не отрастает (js/world.js), а «клиренсы»
+    // вокруг построек зоны (Zones: o.clear) и так режут ближайшие деревья. У Тамары есть печь — есть и
+    // запас дров в доме (js/content/zones.js: meteoHouse.loot); подбираем часть сразу, не весь стог разом
+    // (не раздувать вес), остальное — резерв на потом (см. ниже, в ожидании борта).
+    if (f.expArrived && (G.loot.meteoHouse || []).length > 6) zoneLoot('meteoHouse', G.loot.meteoHouse.length - 6);
     if (!f.tamaraKero) { if (!ensureKero(2)) return; talk('tamara'); return; }
     if (!f.mastFixed) {
       if (Inv.cnt('cable', false) < 2) { zoneLoot('meteoHouse', 4); return; }
@@ -395,7 +452,20 @@
     }
     if (!f.expCalled) { talk('tamara'); B.wait(5); return; }
     if (!f.expRescued) {
-      if (Inv.cnt('food', false) + Inv.cnt('honey', false) < 2) { B.huntHares(2, 60, () => true); return; }
+      // БЛОКЕР (E): борт садится, только если герой физически в зоне метеостанции ровно в окне 9–12ч
+      // (js/content/events.js: expHeli). Пока ждём борт — дрова/зайцы уводили героя за 1000+ px от
+      // мачты (радиус зоны), и он спокойно пропускал окно на день, а то и на несколько — до самой
+      // смерти от голода/холода в ожидании. Держимся в зоне; если унесло — сперва возвращаемся.
+      if (Zones.idAt(G.p.x, G.p.y) !== 'meteo') { zoneGo('meteo'); return; }
+      if (Inv.cnt('food', false) + Inv.cnt('honey', false) < 2) { B.huntHares(2, 60, () => Zones.idAt(G.p.x, G.p.y) === 'meteo'); return; }
+      if (Inv.cnt('wood', false) < 3) {
+        // сперва — резерв из дома Тамары (надёжнее, чем гонять по выбитому лесу), потом уже топор,
+        // сперва рядом (500), потом шире (1600) — локальный лес у долгой стоянки не бесконечен.
+        if ((G.loot.meteoHouse || []).length) zoneLoot('meteoHouse', 3);
+        if (Inv.cnt('wood', false) < 3) B.chop(4, 500);
+        if (Inv.cnt('wood', false) < 3) B.chop(4, 1600);
+        return;
+      }
       B.wait(10); return;
     }
     B.wait(5);

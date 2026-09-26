@@ -216,7 +216,7 @@ const Zones = (() => {
     }
     const f = G.fall; f.t -= dt; if (f.t > 0) return;
     G.fall = null;
-    const t = G.trees[f.tree]; if (t) t.wood = 0;
+    const t = G.trees[f.tree]; if (t) { t.wood = 0; World.felled(t); }
     const len = 110, ex = f.x + Math.cos(f.a) * len, ey = f.y + Math.sin(f.a) * len * 0.6;
     G.fallen.push({ x: f.x, y: f.y, a: f.a, len }); if (G.fallen.length > 24) G.fallen.shift();
     Fx.shake(6); Sound.hit(); ArtWorld.fx.snowPuff(G.parts, ex, ey, 1); ArtWorld.fx.snowPuff(G.parts, (f.x + ex) / 2, (f.y + ey) / 2, 1);

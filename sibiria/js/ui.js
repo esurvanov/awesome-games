@@ -259,6 +259,8 @@ const UI = (() => {
   let panelTab = 'craft';
   function openCraft(tab) { panelTab = tab || panelTab; kind = 'craft'; renderPanel(); $('panel').hidden = false; }
   function openChest() { kind = 'chest'; renderPanel(); $('panel').hidden = false; }
+  let curStash = null;
+  function openStash(s) { curStash = s; kind = 'stash'; renderPanel(); $('panel').hidden = false; }
   let tradeWho = 'urk';
   function openTrade(who) { tradeWho = who && NPCS[who] && NPCS[who].trade ? who : 'urk'; kind = 'trade'; renderPanel(); $('panel').hidden = false; }
   // большая карта (A9, js/map.js): пауза, как панель
@@ -350,6 +352,14 @@ const UI = (() => {
         <b>${G.inv[k] || 0}</b>
         <span class="arr"><button class="btn sec" data-put="${k}" ${G.inv[k] ? '' : 'disabled'}>Положить</button><button class="btn sec" data-take="${k}" ${G.chest[k] ? '' : 'disabled'}>Взять</button></span>
         <b>${G.chest[k] || 0}</b></div>`).join('') : '<p class="hint">Пусто</p>');
+    } else if (kind === 'stash') {
+      const s = curStash || { inv: {} };
+      head.innerHTML = `<span class="ph">${ic('pack', 's')}Тайник</span><button class="btn sec" data-all="stashput" style="margin-left:auto">Положить всё</button>`;
+      const ids = ITEM_ORDER.filter(k => (G.inv[k] || 0) + (s.inv[k] || 0) > 0);
+      setHtml(body, ids.length ? `<div class="chead"><span></span><span>${ic('pack', 's')}</span><span></span><span>${ic('pack', 's')}</span></div>` + ids.map(k => `<div class="crow"><span class="ri" title="${ITEMS[k].n}">${ic(ITEMS[k].i)}</span>
+        <b>${G.inv[k] || 0}</b>
+        <span class="arr"><button class="btn sec" data-sput="${k}" ${G.inv[k] ? '' : 'disabled'}>Положить</button><button class="btn sec" data-stake="${k}" ${s.inv[k] ? '' : 'disabled'}>Взять</button></span>
+        <b>${s.inv[k] || 0}</b></div>`).join('') : '<p class="hint">Пусто</p>');
     } else if (kind === 'trade') {
       // торг с персонажем tradeWho: валюта — его trade.pay (цены единицы — trade.val), остаток — в его состоянии
       const who = tradeWho, R = NPCS[who], T = R.trade, st = Npc.state(who), cur = T.cur || 'pelt', have = Npc.furTotal(who);
@@ -378,6 +388,9 @@ const UI = (() => {
     else if (b.dataset.buy) Colony.buy(b.dataset.buy);
     else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { G.inv[k]--; G.chest[k] = (G.chest[k] || 0) + 1; } }
     else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; Inv.add(k); } }
+    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { G.inv[k]--; curStash.inv[k] = (curStash.inv[k] || 0) + 1; } }
+    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { curStash.inv[k]--; Inv.add(k); } }
+    else if (b.dataset.all === 'stashput' && curStash) { for (const k in G.inv) if (G.inv[k] > 0) { curStash.inv[k] = (curStash.inv[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.all) { for (const k in G.inv) if (G.inv[k] > 0) { G.chest[k] = (G.chest[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.close) return closePanel();
     renderPanel(); hud(true);
@@ -501,6 +514,7 @@ const UI = (() => {
       if (f) items.push(['F', f.fuel > 0 ? `${ic('fire', 's')}Подбросить ${ic('wood', 's')}1<kbd>F</kbd>` : `${ic('fire', 's')}Разжечь ${ic('wood', 's')}2<kbd>F</kbd>`]);
       else if (Inv.cnt('wood', false) >= 3 && !c) items.push(['F', `${ic('fire', 's')}Костёр ${ic('wood', 's')}3<kbd>F</kbd>`]);
       if ((Inv.has('snare', false) || Inv.has('trap', false)) && !onIce(G.p.x, G.p.y)) items.push(['R', `${ic(World.inCedar(G.p.x, G.p.y) && Inv.has('trap', false) ? 'trap' : Inv.has('snare', false) ? 'snare' : 'trap', 's')}Поставить<kbd>R</kbd>`]);
+      if (!onIce(G.p.x, G.p.y) && Inv.weight() > Inv.capKg() && (!c || c.k !== 'stash')) items.push(['T', `${ic('pack', 's')}Тайник<kbd>T</kbd>`]);
     }
     if (G.s.food < 60 && FOOD_ORDER.some(k => Inv.cnt(k, G.p.inside) > 0)) items.push(['Q', `${ic('food', 's')}Есть<kbd>Q</kbd>`]);
     const ph = items.map(([k, t]) => `<button class="btn sec pbtn" data-k="${k}">${t}</button>`).join('');
@@ -636,6 +650,7 @@ const UI = (() => {
     for (const n of Npc.list()) if (n.id === 'urk') { mx.fillStyle = '#c89468'; mx.fillRect(X(n.st.x) - 1.5, Y(n.st.y) - 1.5, 3, 3); }
     for (const z of Zones.ACT) if (G.zoneSeen[z.id]) { const zx = X(z.x), zy = Y(z.y); if (zx > -8 && zx < 136 && zy > -8 && zy < 136) Icons.draw(mx, z.ic, zx, zy, 13, '#ebe6d3', 'rgba(11,18,14,.9)'); }
     if (G.veh) for (const k of ['deer', 'buran']) { const v = G.veh[k]; if (v && G.p.ride !== k && (k === 'deer' || v.fixed)) Icons.draw(mx, k === 'deer' ? 'deer' : 'sled', X(v.x), Y(v.y), 11, '#ffd27a', 'rgba(11,18,14,.9)'); }
+    for (const s of G.stashes || []) Icons.draw(mx, 'pack', X(s.x), Y(s.y), 11, '#ffd27a', 'rgba(11,18,14,.9)');
     mx.fillStyle = '#ff4f3a'; mx.beginPath(); mx.arc(X(p.x), Y(p.y), 3, 0, 7); mx.fill();
     mx.strokeStyle = '#fff'; mx.lineWidth = 1; mx.stroke();
     // видимая часть мира
@@ -799,6 +814,7 @@ const UI = (() => {
     else if (k === 'F') Actions.fireKey();
     else if (k === 'Q') Actions.eat();
     else if (k === 'R') Actions.placeKey();
+    else if (k === 'T') Actions.stashKey();
     else if (k === 'C') { if (kind === 'craft') closePanel(); else if (!kind) openCraft(G.p.inside && G.hut.bench ? 'craft' : panelTab); }
   }
   function syncMove() {
@@ -835,6 +851,7 @@ const UI = (() => {
     if (e.code === 'KeyF') keyAction('F');
     if (e.code === 'KeyQ') keyAction('Q');
     if (e.code === 'KeyR') keyAction('R');
+    if (e.code === 'KeyT') keyAction('T');
     if (e.code === 'KeyC') keyAction('C');
     if (e.code === 'KeyH') keyAction('H');
     if (e.code === 'KeyM') openMap();
@@ -1010,7 +1027,7 @@ const UI = (() => {
   requestAnimationFrame(loop);
 
   applyScale();
-  return { openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
+  return { openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
     focusSel, groupSet, groupGet, setOrder, get orderMode() { return orderMode; }, slotsOpen, loadSlot };
 })();
 const Tips = UI.tips;

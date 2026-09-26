@@ -101,11 +101,66 @@ const World = (() => {
   function buildGrid() {
     for (const k of ['trees', 'drifts', 'tussocks', 'rocks']) { Space[k].clear(); for (const o of G[k] || []) Space[k].add(o); }
     SHAKING.clear(); for (const t of G.trees) if (t.shake > 0) SHAKING.add(t);
+    REGROW.clear(); for (const t of G.trees) if (t.cutAt != null) REGROW.add(t);
   }
   // дрожь дерева от удара: обновляем только дрожащие, а не весь лес каждый кадр
   const SHAKING = new Set();
   function shakeTree(t, v) { t.shake = v; SHAKING.add(t); }
   function tickTrees(dt) { for (const t of SHAKING) { t.shake -= dt; if (t.shake <= 0) { t.shake = 0; SHAKING.delete(t); } } }
+
+  // ---------- отрастание леса: пень → молодое деревце (меньше дров) → взрослое дерево ----------
+  // Только срубленные деревья (wood ≤ 0) отслеживаются — REGROW маленький и не идёт по всему лесу.
+  // Не отрастает под постройками посёлка и на тропе у избы (canRegrow) — попытка просто откладывается.
+  const REGROW = new Set();
+  function canRegrow(x, y) {
+    if (Math.abs(x - HUT.x) < 260 && Math.abs(y - HUT.y) < 220) return false; // изба и тропа перед ней
+    if (G.col) for (const b of G.col.builds) { const B = BUILDS[b.type]; if (Math.abs(x - b.x) < B.w / 2 + 20 && Math.abs(y - b.y) < B.h / 2 + 20) return false; }
+    return true;
+  }
+  // дерево срублено «в ноль» — пуск отсчёта до молодого деревца (снова, если рубили повторно)
+  function felled(t) {
+    t.stage = 0; t.cutAt = G.time; REGROW.add(t);
+  }
+  function tickRegrow(dt) {
+    if (!REGROW.size) return;
+    const R = TUNE.world;
+    for (const t of REGROW) {
+      if (t.cutAt == null) { REGROW.delete(t); continue; }
+      if (!canRegrow(t.x, t.y)) continue; // постройка/тропа у избы — ждём, пока освободится
+      const age = G.time - t.cutAt;
+      if (!t.stage) {
+        if (age >= R.regrowStumpDays * CYCLE) { t.stage = 1; t.wood = R.regrowYoungWood; t.cutAt = G.time; }
+      } else if (t.stage === 1) {
+        if (age >= R.regrowYoungDays * CYCLE) { t.stage = 0; t.wood = wood0(t); delete t.cutAt; REGROW.delete(t); }
+      }
+    }
+  }
+  // ---------- тайники в поле: до TUNE.world.stashMax штук, хранятся в G.stashes (сейв — как есть) ----------
+  function nearestStash(p, r) {
+    let best = null, bd = r * r;
+    for (const s of G.stashes || []) { const d = dist2(s, p); if (d < bd) { bd = d; best = s; } }
+    return best;
+  }
+  // шатун/волки разоряют тайник с едой — раз за «ночь» на тайник, шанс как у налёта на склад
+  function tickStashRaids(dt, night) {
+    if (!G.stashes || !G.stashes.length || night < 0.6) return;
+    const h = hourOf(), nk = h < 12 ? G.day - 1 : G.day;
+    const predators = [];
+    if (G.bear && G.bear.st !== 'gone') predators.push(G.bear);
+    for (const w of G.wolves) if (w.st !== 'retreat') predators.push(w);
+    if (!predators.length) return;
+    const R = TUNE.world.stashRaidR;
+    for (const s of G.stashes) {
+      if (s.raidNight === nk) continue;
+      if (!FOOD_KEYS.some(k => (s.inv[k] || 0) > 0)) continue;
+      if (!predators.some(pr => dist2(pr, s) < R * R)) continue;
+      s.raidNight = nk;
+      if (Math.random() < TUNE.world.stashRaidP) {
+        let n = 0; for (const k of FOOD_KEYS) while (n < 2 && (s.inv[k] || 0) > 0) { s.inv[k]--; n++; }
+        if (n) { Fx.toast(':cache: Тайник разорён — унесли еду'); Fx.burst(s.x, s.y - 6, 10, '#c0392b'); Sound.growl(0.2); }
+      }
+    }
+  }
 
   // ---------- столкновения ----------
   function pushRect(o, r, R) {
@@ -161,7 +216,7 @@ const World = (() => {
   }
 
   return { FOG, COLL, GEN_V, TREE_I, wood0, nearHut, inCedar, onThinIce, gen, genLiving, buildGrid, shakeTree, tickTrees,
-    solid, reveal, tickFog, thinIce };
+    solid, reveal, tickFog, thinIce, felled, tickRegrow, nearestStash, tickStashRaids };
 })();
 
 // зоны мира (карта зон, правила, опасности) — js/zones.js
