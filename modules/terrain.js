@@ -17,10 +17,11 @@
   const DMAX = 1.0;                         // depth texture range (m)
   const DN = 1024;                          // world snow-depth / smooth-height texture resolution
   const KNOBS = {                           // added to QUALITY presets (see TERRAIN.md)
-    low:   { terrainLevels: 3, terrainGrid: 64,  deformRes: 512,  deformExt: 96 },
-    med:   { terrainLevels: 4, terrainGrid: 64,  deformRes: 1024, deformExt: 128 },
-    high:  { terrainLevels: 4, terrainGrid: 96,  deformRes: 1024, deformExt: 128 },
-    ultra: { terrainLevels: 4, terrainGrid: 160, deformRes: 1024, deformExt: 128 },
+    // footRes/footExt (INT-SNOW): the fine, fragment-only footprint-detail layer — small extent, ~1–2 cm texels.
+    low:   { terrainLevels: 3, terrainGrid: 64,  deformRes: 512,  deformExt: 96,  footRes: 768,  footExt: 16 },
+    med:   { terrainLevels: 4, terrainGrid: 64,  deformRes: 1024, deformExt: 128, footRes: 1024, footExt: 18 },
+    high:  { terrainLevels: 4, terrainGrid: 96,  deformRes: 1024, deformExt: 128, footRes: 1536, footExt: 20 },
+    ultra: { terrainLevels: 4, terrainGrid: 160, deformRes: 1024, deformExt: 128, footRes: 2048, footExt: 24 },
   };
 
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -82,13 +83,22 @@
       return mix(mix(texelFetch(tBase, a, 0).g, texelFetch(tBase, a + ivec2(1, 0), 0).g, f.x), mix(texelFetch(tBase, a + ivec2(0, 1), 0).g, texelFetch(tBase, a + ivec2(1, 1), 0).g, f.x), f.y);
     }
     float trLodW(float lambda, float s){ return clamp(lambda / s * .33 - 1., 0., 1.); }
+    // INT-SNOW (FIX-LOOK follow-up): sastrugi used to be one wavelength, one direction, everywhere the snow was thick
+    // enough (uniform "corduroy"). Now: (a) a slow patch mask makes them rare — sparse wind-exposed streaks, not a
+    // blanket; (b) the wind axis fans out ±~70° patch to patch instead of one exact direction; (c) the spacing itself
+    // varies ~0.55–1.4×. The caller also fades this out in the deepest drifts (smooth mounds there, see trSnow/snowSurfaceAt).
     float trMicro(vec2 p, float s, float expo){
-      vec2 w = uWind; vec2 q = vec2(dot(p, w), dot(p, vec2(-w.y, w.x)));
+      vec2 w = uWind;
+      float rot = (trVN(p * .012 + 151.) - .5) * 2.6;
+      float cr = cos(rot), sr = sin(rot); vec2 wv = vec2(w.x * cr - w.y * sr, w.x * sr + w.y * cr);
+      vec2 q = vec2(dot(p, wv), dot(p, vec2(-wv.y, wv.x)));
       float h = (trVN(p * .14) - .5) * .15 * trLodW(7., s) + (trVN(p * .37 + 17.) - .5) * .07 * trLodW(2.7, s);
-      float sa = trVN(vec2(q.x * .21, q.y * 1.25) + 5.); sa = 1. - abs(sa * 2. - 1.); sa *= sa;           // sastrugi: long along the wind
-      float sb = trVN(vec2(q.x * .55, q.y * 3.2) + 11.); sb = 1. - abs(sb * 2. - 1.);
-      h += ((sa - .45) * .10 * trLodW(.8, s) + (sb - .5) * .035 * trLodW(.31, s)) * expo;
-      return clamp(h, -.14, .14);
+      float freqJ = .55 + .85 * trVN(p * .021 + 71.);
+      float patchM = smoothstep(.6, .88, trVN(p * .017 + 91.));   // INT-LIGHT: 'patch' is a reserved GLSL word on some ANGLE/Metal drivers — renaming only, same value
+      float sa = trVN(vec2(q.x * .21 * freqJ, q.y * 1.25 * freqJ) + 5.); sa = 1. - abs(sa * 2. - 1.); sa *= sa;           // sastrugi: long along the (locally fanned) wind
+      float sb = trVN(vec2(q.x * .55 * freqJ, q.y * 3.2 * freqJ) + 11.); sb = 1. - abs(sb * 2. - 1.);
+      h += ((sa - .45) * .13 * trLodW(.8, s) + (sb - .5) * .045 * trLodW(.31, s)) * expo * patchM;
+      return clamp(h, -.16, .16);
     }
     vec2 trDefAt(vec2 p, float s){
       vec2 uv = (p - uDef.xy) / uDef.z + .5; vec2 e = min(uv, 1. - uv);
@@ -100,7 +110,7 @@
       vec2 dg = textureLod(tDD, (p + uW * .5) / uW, max(0., log2(s / uDT))).ba;
       dep = dg.r * ${DMAX.toFixed(2)}; grv = dg.g;
       vec2 pr = trDefAt(p, s);
-      float m = trMicro(p, s, smoothstep(.03, .14, dep)) * smoothstep(.0, .08, dep);
+      float m = trMicro(p, s, smoothstep(.03, .14, dep) * (1. - smoothstep(.2, .34, dep))) * smoothstep(.0, .08, dep);
       float loose = max(dep + m, 0.);
       return loose * (1. - pr.x) + pr.y * min(dep, .3) * .35 * (1. - pr.x);
     }
@@ -141,6 +151,12 @@
     uniform vec2 uWind; uniform vec3 uSunV; uniform vec2 uScanC; uniform float uScanR, uScanA, uTime;
     #ifdef TR_DETAIL
       uniform sampler2D tDef; uniform vec4 uDef; uniform float uDefOn; uniform float uDbgFlat;
+      // INT-SNOW: fine, small-extent, native-resolution footprint layer (~1–2 cm texels over ~16–24 m around the
+      // player) — separate from tDef (which stays coarse: it only drives the small blurred VERTEX dip + the wide
+      // trail/band/skimmer marks). The crisp boot sole+heel shape (fragment-only: normal/parallax + compaction
+      // darkening) is read from here, at its own native resolution — never blurred down to the terrain ring's
+      // vertex grid, so the geometry can stay shallow while the shading still looks like a real print.
+      uniform sampler2D tFDef; uniform vec4 uFDef;
     #endif
     varying vec3 vW; varying vec3 vN; varying vec3 vTint; varying float vRock; varying float vDepth; varying float vGrav;
     ${GLSL_NOISE}
@@ -178,16 +194,18 @@
     float depth = vDepth;
     float press = 0., rim = 0.; vec3 dN = vec3(0.);
     #ifdef TR_DETAIL
-    { vec2 duv = (P.xz - uDef.xy) / uDef.z + .5;
-      if (uDefOn > .5 && trDist < 70. && all(greaterThan(duv, vec2(.003))) && all(lessThan(duv, vec2(.997)))) {
+    // INT-SNOW: crisp shape comes from tFDef (native ~1–2 cm texels, small extent) — not tDef (that stays coarse,
+    // for the vertex dip only). Same parallax/finite-difference technique as before, just reading the fine layer.
+    { vec2 duv = (P.xz - uFDef.xy) / uFDef.z + .5;
+      if (uDefOn > .5 && trDist < uFDef.z * .55 && all(greaterThan(duv, vec2(.003))) && all(lessThan(duv, vec2(.997)))) {
         float dpt = min(depth, .45) + .02; vec3 V = normalize(cameraPosition - P);
-        vec2 d0 = textureLod(tDef, duv, 0.).rg; float h0 = (-d0.r + d0.g * .35 * (1. - d0.r)) * dpt;
-        duv += V.xz / max(V.y, .3) * h0 / uDef.z * .7;           // one-step parallax into the print
-        float e = uDef.w / uDef.z;
-        vec2 dA = textureLod(tDef, duv, 0.).rg, dX = textureLod(tDef, duv + vec2(e, 0.), 0.).rg, dZ = textureLod(tDef, duv + vec2(0., e), 0.).rg;
+        vec2 d0 = textureLod(tFDef, duv, 0.).rg; float h0 = (-d0.r + d0.g * .35 * (1. - d0.r)) * dpt;
+        duv += V.xz / max(V.y, .3) * h0 / uFDef.z * .7;           // one-step parallax into the print
+        float e = uFDef.w / uFDef.z;
+        vec2 dA = textureLod(tFDef, duv, 0.).rg, dX = textureLod(tFDef, duv + vec2(e, 0.), 0.).rg, dZ = textureLod(tFDef, duv + vec2(0., e), 0.).rg;
         float hA = -dA.r + dA.g * .35 * (1. - dA.r), hX = -dX.r + dX.g * .35 * (1. - dX.r), hZ = -dZ.r + dZ.g * .35 * (1. - dZ.r);
-        float fd = 1. - smoothstep(40., 68., trDist);
-        vec2 gr = vec2(hX - hA, hZ - hA) / uDef.w * dpt * fd;
+        float fd = 1. - smoothstep(uFDef.z * .32, uFDef.z * .48, trDist);
+        vec2 gr = vec2(hX - hA, hZ - hA) / uFDef.w * dpt * fd;
         dN = vec3(-gr.x, 0., -gr.y) * 1.1;
         float soft = smoothstep(.015, .07, depth);
         press = dA.r * fd * soft; rim = dA.g * (1. - dA.r) * fd * soft;
@@ -520,6 +538,10 @@
 
   /* ------------------------------------------------------ deformation map */
   const DEF = { res: 0, ext: 128, cx: 0, cz: 0, rt: [], cur: 0, stamps: [], mirN: 0, mir: null, mirC: 0.5 };
+  // INT-SNOW: fine footprint-detail layer — same stamp queue/geometry as DEF (rendered a second time with this
+  // layer's own transform uniforms), but its own small-extent, high-res, non-mipmapped render targets. Fragment-only
+  // (no CPU mirror): it never needs to answer "how deep is the snow here", only "what does the print look like".
+  const FD = { res: 0, ext: 20, cx: 0, cz: 0, rt: [], cur: 0 };
   const STAMP_T = { boot: 0, paw: 1, hoof: 2, band: 3, blob: 4 };
   function initDeform() {
     const MAXS = 768;
@@ -566,7 +588,8 @@
     }));
     DEF.copy.frustumCulled = false; DEF.copyScene = new THREE.Scene(); DEF.copyScene.add(DEF.copy);
     U.tDef = { value: null }; U.uDbgFlat = { value: 0 }; U.uDef = { value: new THREE.Vector4(0, 0, 128, 0.125) }; U.uDefOn = { value: 0 };
-    allocDeform();
+    U.tFDef = { value: null }; U.uFDef = { value: new THREE.Vector4(0, 0, 20, 20 / 1536) };
+    allocDeform(); allocFineDeform();
   }
   function allocDeform() {
     const res = ctx.Q.deformRes || 1024, ext = ctx.Q.deformExt || 128;
@@ -595,6 +618,26 @@
     if (keep < 1) for (const e of SL.list) e[7] *= keep;   // blizzard refill: the CPU stamp log fades with the map
     U.tDef.value = DEF.rt[DEF.cur].texture; U.uDef.value.set(nx, nz, DEF.ext, DEF.ext / DEF.res);
   }
+  // fine footprint-detail layer (INT-SNOW): same idea as allocDeform/recenterDeform, smaller/finer, no CPU mirror,
+  // no mipmaps (native-resolution reads are the whole point). Reuses DEF's copy quad/scene/ortho cam — generic.
+  function allocFineDeform() {
+    const res = ctx.Q.footRes || 1536, ext = ctx.Q.footExt || 20;
+    if (res === FD.res && ext === FD.ext && FD.rt.length) return;
+    for (const r of FD.rt) r.dispose();
+    FD.res = res; FD.ext = ext;
+    const mk = () => new THREE.WebGLRenderTarget(res, res, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false, depthBuffer: false, stencilBuffer: false });
+    FD.rt = [mk(), mk()]; FD.cur = 0; FD.fresh = true;
+    const p = ctx.player; FD.cx = snapFine(p.x); FD.cz = snapFine(p.z);
+    U.tFDef.value = FD.rt[0].texture; U.uFDef.value.set(FD.cx, FD.cz, ext, ext / res);
+  }
+  const snapFine = (v) => { const q = (FD.ext / FD.res) * 8; return Math.round(v / q) * q; };
+  function recenterFine(nx, nz) {
+    const src = FD.rt[FD.cur], dst = FD.rt[1 - FD.cur];
+    DEF.copyU.tPrev.value = src.texture; DEF.copyU.uOff.value.set((nx - FD.cx) / FD.ext, (nz - FD.cz) / FD.ext); DEF.copyU.uKeep.value = 1;
+    withTarget(dst, (r) => { r.setClearColor(0, 0); r.clear(true, false, false); r.render(DEF.copyScene, DEF.cam); });
+    FD.cur = 1 - FD.cur; FD.cx = nx; FD.cz = nz;
+    U.tFDef.value = FD.rt[FD.cur].texture; U.uFDef.value.set(nx, nz, FD.ext, FD.ext / FD.res);
+  }
   // queue a stamp; dx,dz = forward direction; len/wid in metres
   function stamp(o) {
     const x = o.x, z = o.z; if (Math.abs(x - DEF.cx) > DEF.ext / 2 - 2 || Math.abs(z - DEF.cz) > DEF.ext / 2 - 2) return false;
@@ -615,7 +658,7 @@
     return i < 0 || j < 0 || i >= n || j >= n ? 0 : DEF.mir[j * n + i];
   }
   function flushStamps() {
-    const n = DEF.stamps.length; if (!n && !DEF.fresh) return;
+    const n = DEF.stamps.length; if (!n && !DEF.fresh && !FD.fresh) return;
     const pos = DEF.geo.attributes.position.array, al = DEF.geo.attributes.aL.array, ap = DEF.geo.attributes.aP.array;
     for (let k = 0; k < n; k++) {
       const [x, z, fx, fz, len, wid, t, s] = DEF.stamps[k], rx = fz, rz = -fx, mw = 1.6, ml = t === 3 ? 1.02 : 1.35;
@@ -629,9 +672,16 @@
       }
     }
     DEF.geo.attributes.position.needsUpdate = true; DEF.geo.attributes.aL.needsUpdate = true; DEF.geo.attributes.aP.needsUpdate = true;
-    DEF.geo.setDrawRange(0, n * 6); DEF.uC.value.set(DEF.cx, DEF.cz);
-    const fresh = DEF.fresh; DEF.fresh = false;
-    withTarget(DEF.rt[DEF.cur], (r) => { if (fresh) { r.setClearColor(0, 0); r.clear(true, false, false); } if (n) r.render(DEF.scene, DEF.cam); });
+    DEF.geo.setDrawRange(0, n * 6);
+    // pass 1: the coarse trail/deform map — small blurred vertex dip + the wide trail/band/skimmer marks (unchanged).
+    DEF.uC.value.set(DEF.cx, DEF.cz); DEF.uE.value = DEF.ext;
+    const freshC = DEF.fresh; DEF.fresh = false;
+    withTarget(DEF.rt[DEF.cur], (r) => { if (freshC) { r.setClearColor(0, 0); r.clear(true, false, false); } if (n) r.render(DEF.scene, DEF.cam); });
+    // pass 2 (INT-SNOW): the SAME stamp geometry, re-projected into the fine footprint-detail layer's own small
+    // window — fragment-only crispness (normal/parallax + compaction darkening), decoupled from vertex geometry.
+    DEF.uC.value.set(FD.cx, FD.cz); DEF.uE.value = FD.ext;
+    const freshF = FD.fresh; FD.fresh = false;
+    withTarget(FD.rt[FD.cur], (r) => { if (freshF) { r.setClearColor(0, 0); r.clear(true, false, false); } if (n) r.render(DEF.scene, DEF.cam); });
     DEF.stamps.length = 0;
   }
 
@@ -742,24 +792,38 @@
   function trVN(x, y) { const i = Math.floor(x), j = Math.floor(y); let fx = x - i, fy = y - j; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
     const a = trHash(i, j), b = trHash(i + 1, j), c = trHash(i, j + 1), d = trHash(i + 1, j + 1); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fy; }
   const lodW = (l, s) => clamp(l / s * 0.33 - 1, 0, 1);
+  // keep in sync with GLSL_DETAIL_V's trMicro (INT-SNOW: rare/patchy, fanned direction, varied spacing — see its comment)
   function trMicro(x, z, s, expo) {
-    const wx = S.wind[0], wz = S.wind[1], qx = x * wx + z * wz, qz = -x * wz + z * wx;
+    const wx0 = S.wind[0], wz0 = S.wind[1];
+    const rot = (trVN(x * 0.012 + 151, z * 0.012 + 151) - 0.5) * 2.6;
+    const cr = Math.cos(rot), sr = Math.sin(rot), wx = wx0 * cr - wz0 * sr, wz = wx0 * sr + wz0 * cr;
+    const qx = x * wx + z * wz, qz = -x * wz + z * wx;
     let h = (trVN(x * 0.14, z * 0.14) - 0.5) * 0.15 * lodW(7, s) + (trVN(x * 0.37 + 17, z * 0.37 + 17) - 0.5) * 0.07 * lodW(2.7, s);
-    let sa = trVN(qx * 0.21 + 5, qz * 1.25 + 5); sa = 1 - Math.abs(sa * 2 - 1); sa *= sa;
-    const sb = 1 - Math.abs(trVN(qx * 0.55 + 11, qz * 3.2 + 11) * 2 - 1);
-    h += ((sa - 0.45) * 0.10 * lodW(0.8, s) + (sb - 0.5) * 0.035 * lodW(0.31, s)) * expo;
-    return clamp(h, -0.14, 0.14);
+    const freqJ = 0.55 + 0.85 * trVN(x * 0.021 + 71, z * 0.021 + 71);
+    const patchM = smooth(0.6, 0.88, trVN(x * 0.017 + 91, z * 0.017 + 91));   // 'patch' avoided (INT-LIGHT: reserved on some ANGLE/Metal GLSL) — kept matching on the CPU side too
+    let sa = trVN(qx * 0.21 * freqJ + 5, qz * 1.25 * freqJ + 5); sa = 1 - Math.abs(sa * 2 - 1); sa *= sa;
+    const sb = 1 - Math.abs(trVN(qx * 0.55 * freqJ + 11, qz * 3.2 * freqJ + 11) * 2 - 1);
+    h += ((sa - 0.45) * 0.13 * lodW(0.8, s) + (sb - 0.5) * 0.045 * lodW(0.31, s)) * expo * patchM;
+    return clamp(h, -0.16, 0.16);
   }
   function sampleHs(x, z) {
     const HALF = S.W / 2, T = S.W / DN, gx = (x + HALF) / T - 0.5, gz = (z + HALF) / T - 0.5, H = S.Hs;
     const i = clamp(Math.floor(gx), 0, DN - 2), j = clamp(Math.floor(gz), 0, DN - 2), fx = clamp(gx - i, 0, 1), fz = clamp(gz - j, 0, 1), k = j * DN + i;
     return (H[k] * (1 - fx) + H[k + 1] * fx) * (1 - fz) + (H[k + DN] * (1 - fx) + H[k + DN + 1] * fx) * fz;
   }
-  function snowSurfaceAt(x, z, pressMin = 0) {
+  // INT-SNOW (structural fix, per main-agent direction): this must read exactly what the terrain vertex shader draws,
+  // by construction — trHs+trSnow (GLSL_DETAIL_V) replayed with the same blur (pressCPU's tap kernel mirrors the
+  // vertex shader's mip read of tDef; keep both in sync). No artificial floor: a never-stamped point presses 0 (a
+  // boot resting on virgin snow, not yet compressing anything, is correct, not "hovering"); a stamped point presses
+  // whatever the honestly-blurred replay says, however small that is for a boot-scale stamp — the visible geometry
+  // is diluted by the exact same blur, so foot placement and the rendered surface can never disagree. This is what
+  // makes the crisp print (drawn separately, fragment-only, in the fine tFDef layer — see GLSL_FRAG_MAT) safe to
+  // keep small: the invariant no longer depends on the stamp being wide enough to survive the blur.
+  function snowSurfaceAt(x, z) {
     if (!S.Hs || !S.D) return ctx.groundH(x, z);
     const s = S.levels && S.levels.length ? S.levels[0].s : ctx.CELL / 16, dep = sampleD(x, z);
-    const m = trMicro(x, z, s, smooth(0.03, 0.14, dep)) * smooth(0, 0.08, dep), loose = Math.max(dep + m, 0);
-    const pr = pressCPU(x, z), on = !S.noDef && pr[2] > 0, p = on ? Math.max(pr[0], pressMin * pr[2]) : 0, r = on ? pr[1] : 0;
+    const m = trMicro(x, z, s, smooth(0.03, 0.14, dep) * (1 - smooth(0.2, 0.34, dep))) * smooth(0, 0.08, dep), loose = Math.max(dep + m, 0);
+    const pr = pressCPU(x, z), on = !S.noDef && pr[2] > 0, p = on ? pr[0] : 0, r = on ? pr[1] : 0;
     return sampleHs(x, z) + loose * (1 - p) + r * Math.min(dep, 0.3) * 0.35 * (1 - p);
   }
   // how hard a planted foot presses the loose snow (fraction of it): 8–20 cm sink in fresh snow, less on a thin crust
@@ -1018,12 +1082,18 @@
     ctx = c;
     updateLevels();
     // deformation: realloc on quality change, follow the pilot, stamp, render
-    allocDeform();
+    allocDeform(); allocFineDeform();
     const p = c.player, fx = p.x, fz = p.z;
     if (Math.abs(fx - DEF.cx) > DEF.ext * 0.18 || Math.abs(fz - DEF.cz) > DEF.ext * 0.18) {
       const far = Math.abs(fx - DEF.cx) > DEF.ext * 0.7 || Math.abs(fz - DEF.cz) > DEF.ext * 0.7;
       if (far) { DEF.cx = snapDef(fx); DEF.cz = snapDef(fz); DEF.fresh = true; DEF.mir.fill(0); U.uDef.value.set(DEF.cx, DEF.cz, DEF.ext, DEF.ext / DEF.res); }
       else recenterDeform(snapDef(fx), snapDef(fz), 1);
+    }
+    // INT-SNOW: fine footprint-detail layer follows the pilot too (much tighter window, no CPU mirror to carry over)
+    if (Math.abs(fx - FD.cx) > FD.ext * 0.18 || Math.abs(fz - FD.cz) > FD.ext * 0.18) {
+      const far = Math.abs(fx - FD.cx) > FD.ext * 0.7 || Math.abs(fz - FD.cz) > FD.ext * 0.7;
+      if (far) { FD.cx = snapFine(fx); FD.cz = snapFine(fz); FD.fresh = true; U.uFDef.value.set(FD.cx, FD.cz, FD.ext, FD.ext / FD.res); }
+      else recenterFine(snapFine(fx), snapFine(fz));
     }
     // blizzard slowly refills trails
     const storm = c.WX ? c.WX.storm : 0; DEF.fillT = (DEF.fillT || 0) + dt;

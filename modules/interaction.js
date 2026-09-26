@@ -326,7 +326,7 @@
       // down where it plants: footPress = the share of the loose snow a boot compresses (stamped by plantStamp below)
       L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowSurfaceAt === 'function';
       let gy = L.g.y;
-      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const v = C.snowSurfaceAt(sx, sz, C.footPress ? C.footPress(sx, sz) * 0.72 : 0); /* FIX-PERF: floor with the estimate even once logged — the shrunk pad (0.75 m) sits inside the CPU replay's ±0.32 m taps, whose blurred average now undershoots the true peak the GPU renders */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
+      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const v = C.snowSurfaceAt(sx, sz); /* INT-SNOW: no floor — snowSurfaceAt now reads exactly the same blurred stamp value the terrain vertex shader renders, so the boot always lands on the visible surface by construction, whatever that value honestly is (see terrain.js) */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
       else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat;
       L.gy = gy;
       L.tgt.set(L.anim.x, gy + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
@@ -475,9 +475,18 @@
     if (!grounded) for (const L of B.legs) L.up = 1;
     if (K.footStamp && grounded && B.wLegs > 0.5) for (const L of B.legs) plantStamp(L);
   }
-  // a planted boot on snow presses it: a flat pad (the rendered snow mesh is 0.22 m coarse, the map blurred: the pad's
-  // plateau is wider than that, so the visible surface under the sole is exactly the pressed height the IK aims at) and
-  // the boot print itself (tread detail, drawn by the snow shader). Once per plant, again if the foot moves 12 cm.
+  // a planted boot on snow presses it: just the one boot-shaped stamp (sole+heel, ~30×12 cm) — no separate support
+  // pad. INT-SNOW structural fix (per main-agent direction, replacing an earlier pad-based attempt): feet no longer
+  // need a stamp wide enough to survive terrain.js's vertex-grid/mip blur, because snowSurfaceAt() no longer floors
+  // its estimate — it reads exactly the same (honestly blurred) value the vertex shader renders, so the boot always
+  // lands on the visible surface whatever that value is, however small for a boot-scale stamp. The crisp, correctly
+  // boot-shaped look comes from a separate high-resolution layer (terrain.js's tFDef) that only the fragment shader
+  // reads, for normal/parallax + compaction darkening — never blurred, so it stays crisp regardless of how small or
+  // soft the real (vertex-level) geometric dip is. Once per plant, again if the foot moves 12 cm. Deep snow:
+  // postholing merges consecutive plants (either foot) into one continuous trench, like c05/c06, instead of discrete
+  // pads — tracked across both legs, a big jump (teleport, mount/dismount, first plant) is rejected by the distance
+  // cap so it can't draw a stray band across the map.
+  const FP = { x: null, z: null };
   function plantStamp(L) {
     if (!L.onSnow || L.c > 0.03 || !hasStamp()) return;
     const w = wpos(L.foot, _p[12]), b = L.ball ? wpos(L.ball, _p[13]) : w, x = (w.x + b.x) / 2, z = (w.z + b.z) / 2;
@@ -485,7 +494,18 @@
     const pr = C.footPress ? C.footPress(x, z) : 0.5; if (pr <= 0) return;
     let dx = b.x - w.x, dz = b.z - w.z; const dl = Math.hypot(dx, dz); if (dl < 0.03) { const f = C.player.c.g.rotation.y; dx = -Math.sin(f); dz = -Math.cos(f); } else { dx /= dl; dz /= dl; }
     let ok = false;
-    try { ok = C.snowStamp({ x, z, dx, dz, len: 0.75, wid: 0.75, type: 'blob', str: pr }) !== false;   /* FIX-PERF: pad plateau (r 0.33 m) wider than the GPU's mip + vertex-grid blur (≈ ±0.35 m): what the map shows = what the CPU replays */ if (ok) { C.snowStamp({ x, z, dx, dz, len: 0.31, wid: 0.135, type: 'boot', str: Math.min(1, pr + 0.15) }); STATS.trails++; } } catch (e) { return; }
+    try {
+      ok = C.snowStamp({ x, z, dx, dz, len: 0.31, wid: 0.135, type: 'boot', str: Math.min(1, pr + 0.15) }) !== false;
+      if (ok) {
+        STATS.trails++;
+        const dep = C.snowDepthAt ? C.snowDepthAt(x, z) : 0;
+        if (dep > 0.19 && FP.x !== null) {
+          const tx = x - FP.x, tz = z - FP.z, td = Math.hypot(tx, tz);
+          if (td > 0.05 && td < 1.2) C.snowStamp({ x: (x + FP.x) / 2, z: (z + FP.z) / 2, dx: tx / td, dz: tz / td, len: td + 0.22, wid: 0.24, type: 'band', str: Math.min(1, pr + 0.1) });
+        }
+        FP.x = x; FP.z = z;
+      }
+    } catch (e) { return; }
     if (ok) L.st = { x, z };   // rejected (outside the map until it re-centres after a teleport): try again next frame
   }
   function footfall(L, hs) {
