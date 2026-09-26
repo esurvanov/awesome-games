@@ -422,7 +422,6 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { SunLight } from 'three/addons/lights/SunLight.js';
 import { SunLightShadow } from 'three/addons/lights/SunLightShadow.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -529,7 +528,7 @@ class CascadedSunShadow extends SunLightShadow {
   else console.warn('FIX-PERF: shadow chunk layout changed — cached-shadow cascade selection not installed');
   window.__sunChunkPatched = a > 0 && b > a;
 }
-window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderPass, ShaderPass, UnrealBloomPass, OutputPass, GTAOPass, Pass, FullScreenQuad, CopyShader,
+window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderPass, ShaderPass, UnrealBloomPass, OutputPass, Pass, FullScreenQuad, CopyShader,
   SunLight, SunLightShadow, CascadedSunShadow, SkeletonUtils, BufferGeometryUtils });
 </script>
 <script type="module" src="qa-hooks.js"></script>
@@ -697,7 +696,7 @@ const Sound = (() => {
 /* ============================ RENDERER ============================ */
 // Color pipeline (see FOUNDATION.md): materials shade in linear light; sRGB inputs (albedo textures, hex colors,
 // vertex colors authored as display values) are decoded once at the source; the frame renders into a HalfFloat MSAA
-// target -> GTAO contact shadows -> bloom -> OutputPass (ACES tone map + sRGB encode) -> grade (display-space
+// target -> bloom -> OutputPass (ACES tone map + sRGB encode) -> grade (display-space
 // vignette / grain / hurt / scan). No per-object color compensation anywhere.
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
@@ -788,16 +787,9 @@ let composer = null, gradePass = null, bloomPass = null;
     }
   })();
   composer.addPass(post.render);
-  // GTAO reads the depth the scene pass just wrote (no extra geometry pass); normals are reconstructed from depth
-  const gtao = post.gtao = new THREE.GTAOPass(scene, camera, 16, 16);
-  gtao.setGBuffer(sceneRT.depthTexture);   // depth-only mode (the addon needs its internal target to exist first)
-  gtao.updateGtaoMaterial({ radius: 1.4, distanceExponent: 1.5, thickness: 1.6, scale: 1.35, samples: 12, distanceFallOff: 1, screenSpaceRadius: false });
-  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 });
-  gtao.blendIntensity = 1;
-  post.aoBox = new THREE.Box3(); post.aoRange = 70;   // AO only near the camera: contact grounding, no far-depth banding
-  const gtaoSize = gtao.setSize.bind(gtao);
-  gtao.setSize = (w, h) => { gtaoSize(Math.max(1, Math.round(w * Q.aoScale)), Math.max(1, Math.round(h * Q.aoScale))); gtao.normalRenderTarget.setSize(1, 1); };
-  composer.addPass(gtao);
+  // no screen-space AO: the baked light (modules/baked.js) carries the occlusion. GTAO flickered black up to a vertical
+  // line on the player's Retina screen (block-by-block test: ?off=ao removed it) and cost a pass; removed 2026-09-27.
+  post.gtao = { enabled: false };
   bloomPass = post.bloom = new THREE.UnrealBloomPass(new THREE.Vector2(16, 16), 0.5, 0.45, 1.15);
   const bloomSize = bloomPass.setSize.bind(bloomPass);
   bloomPass.setSize = (w, h) => bloomSize(Math.max(8, Math.round(w * Q.bloomScale * 2)), Math.max(8, Math.round(h * Q.bloomScale * 2)));
@@ -1187,8 +1179,23 @@ const SHADOW = (() => {
   S.lists = () => ({ dyn: dynList.map((o) => o.name + (o.isSkinnedMesh ? '[sk]' : '') + (o.isInstancedMesh ? '[i' + o.count + ']' : '')), stat: statList.length });
   return S;
 })();
+// test switches for the flicker hunt: ?off=bloom,shafts,rover,fx,scene,post,ui — whole blocks turned off, checked on the player's own screen
+const OFF = new Set((new URLSearchParams(location.search).get('off') || '').split(',').filter(Boolean));
+if (OFF.size) console.log('[test] off:', [...OFF].join(','));
+if (OFF.has('ui')) { const st = document.createElement('style'); st.textContent = 'body > *:not(#c):not(script):not(style){visibility:hidden !important}'; document.head.appendChild(st); }   // 'ui': only the 3D canvas on screen
+function applyOff() {
+  if (OFF.has('bloom')) post.bloom.enabled = false;
+  if (OFF.has('shafts')) for (const ps of composer.passes) if (ps.constructor && /Shaft/.test(ps.constructor.name)) ps.enabled = false;
+  if (OFF.has('rover') || OFF.has('fx')) scene.traverse((o) => {
+    if (OFF.has('rover') && /rover_sev|MMSEV/i.test(o.name || '')) o.visible = false;
+    if (OFF.has('fx') && (o.isPoints || o.isSprite)) o.visible = false;
+  });
+}
 function render() {
-  if (post.gtao.enabled) { const c = camera.position, r = post.aoRange; post.aoBox.min.set(c.x - r, c.y - r, c.z - r); post.aoBox.max.set(c.x + r, c.y + r, c.z + r); post.gtao.setSceneClipBox(post.aoBox); }
+  if (OFF.size) applyOff();
+  // big blocks: 'scene' = draw nothing but a flat grey (is it the game's picture at all?), 'post' = no post-processing
+  if (OFF.has('scene')) { renderer.setRenderTarget(null); renderer.setClearColor(0x55606e, 1); renderer.clear(); return; }
+  if (OFF.has('post')) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
   if (GPUT.on) {
     GPUT.poll(); GPUT.frames++;
     for (const ps of composer.passes) if (!ps.__gput) { const f = ps.render.bind(ps), n = ps === post.render ? 'scene' : ps === post.gtao ? 'ao' : ps === post.bloom ? 'bloom' : ps === post.output ? 'output' : 'grade';
@@ -1203,7 +1210,6 @@ function setQuality(name) {
   moon.shadow.camera.far = q.shadowDist; moon.shadow.splitLambda = q.split;
   if (SHADOW.on) SHADOW.configure();   // cached cascades: new sizes / ranges, rebuilt next frame
   else if (moon.shadow.mapSize.x !== q.shadowMap) { moon.shadow.mapSize.set(q.shadowMap, q.shadowMap); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }   // per cascade; atlas is 2x1
-  post.gtao.enabled = q.ao;
   const f = post.sceneFmt(q.sceneFmt), t = post.sceneRT.texture;
   if (prev !== q.msaa || t.type !== f.type) { post.sceneRT.samples = q.msaa; t.format = f.format; t.type = f.type; post.sceneRT.dispose(); }
   FOREST.R = q.treeNear; FOREST.shadowR = q.treeShadow; FOREST.dirty = true;
@@ -1212,7 +1218,6 @@ function setQuality(name) {
   return name;
 }
 moon.shadow.camera.far = Q.shadowDist; moon.shadow.splitLambda = Q.split; moon.shadow.mapSize.set(Q.shadowMap, Q.shadowMap);
-post.gtao.enabled = Q.ao;
 
 const NOISE_GLSL = `
 float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }

@@ -235,8 +235,7 @@
     applyQ();
   }
   function applyQ() {
-    // GTAO: the baked AO / sky occlusion covers static surfaces; keep the screen-space pass off while baked
-    if (BAKED.gtaoOff && C.post && C.post.gtao) C.post.gtao.enabled = !BAKED.on && !!C.Q.ao;
+    // GTAO was removed from the game (2026-09-27): the baked AO / sky occlusion is the only occlusion
     // baked far moon shadows: the coarse cascade only has to cover dynamic casters + near detail
     if (BAKED._sd0 === undefined) BAKED._sd0 = C.Q.shadowDist;
     const want = BAKED.on && BAKED.shadowDist ? BAKED.shadowDist : BAKED._sd0;
