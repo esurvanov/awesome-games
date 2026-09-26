@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>awesome-games</title>
+<meta name="description" content="Three open-source games that run in your browser: a medieval RTS, a winter open world and a taiga survival game.">
+<style>
+:root { --bg: #11151c; --card: #1b212b; --line: #2a3240; --ink: #e8ecf2; --dim: #97a3b6; --accent: #d7263d; }
+:root[data-theme="light"] { --bg: #f4f6f9; --card: #fff; --line: #dde3eb; --ink: #141a22; --dim: #5b6778; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f4f6f9; --card: #fff; --line: #dde3eb; --ink: #141a22; --dim: #5b6778; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { max-width: 1120px; margin: 0 auto; padding: 28px 16px 8px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 26px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 12px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+main { max-width: 1120px; margin: 0 auto; padding: 12px 16px 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.card img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; }
+.body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+h2 { margin: 0; font-size: 19px; }
+.one { margin: 0; color: var(--dim); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 6px; text-align: center; }
+.stat b { display: block; font-size: 17px; }
+.stat span { font-size: 11px; color: var(--dim); }
+.row { margin-top: auto; display: flex; gap: 8px; align-items: center; }
+.play { background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; border-radius: 8px; padding: 9px 16px; }
+.src { color: var(--dim); text-decoration: none; font-size: 13px; }
+.src:hover, .play:hover { text-decoration: underline; }
+.tech { font-size: 12px; color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 awesome-games</h1>
+  <div class="tags"><span class="tag">🆓 open source</span><span class="tag">🌐 in the browser</span><span class="tag">📦 nothing to install</span></div>
+</header>
+<main>
+  <article class="card">
+    <a href="age-of-empires/web/"><img src="age-of-empires/docs/screenshots/battle.jpg" alt="Chronicles of Kingdoms: open-field battle with siege engines"></a>
+    <div class="body">
+      <h2>⚔️ Chronicles of Kingdoms</h2>
+      <p class="one">Medieval RTS in the spirit of Age of Empires II</p>
+      <div class="stats">
+        <div class="stat"><b>14</b><span>civilizations</span></div>
+        <div class="stat"><b>75+</b><span>units</span></div>
+        <div class="stat"><b>8</b><span>players</span></div>
+      </div>
+      <div class="tech">JavaScript · Canvas 2D · ⏳ ~65 MB first load</div>
+      <div class="row"><a class="play" href="age-of-empires/web/">▶ Play</a><a class="src" href="https://github.com/esurvanov/awesome-games/tree/main/age-of-empires">Source</a></div>
+    </div>
+  </article>
+  <article class="card">
+    <a href="berezovka/"><img src="berezovka/docs/screenshots/street.jpg" alt="Berezovka: a snowy village street"></a>
+    <div class="body">
+      <h2>❄️ Berezovka</h2>
+      <p class="one">3D open-world winter village</p>
+      <div class="stats">
+        <div class="stat"><b>1 km²</b><span>world</span></div>
+        <div class="stat"><b>12</b><span>story steps</span></div>
+        <div class="stat"><b>12</b><span>matryoshkas</span></div>
+      </div>
+      <div class="tech">three.js · WebGL 2</div>
+      <div class="row"><a class="play" href="berezovka/">▶ Play</a><a class="src" href="https://github.com/esurvanov/awesome-games/tree/main/berezovka">Source</a></div>
+    </div>
+  </article>
+  <article class="card">
+    <a href="sibiria/"><img src="sibiria/docs/screenshots/village-day.jpg" alt="Sibiria: a hut, settlers and a watchtower in the snow"></a>
+    <div class="body">
+      <h2>🐺 Sibiria</h2>
+      <p class="one">Taiga survival and settlement, 1993</p>
+      <div class="stats">
+        <div class="stat"><b>4</b><span>chapters</span></div>
+        <div class="stat"><b>4</b><span>endings</span></div>
+        <div class="stat"><b>8</b><span>buildings</span></div>
+      </div>
+      <div class="tech">JavaScript · Canvas 2D · 📱 phone-ready</div>
+      <div class="row"><a class="play" href="sibiria/">▶ Play</a><a class="src" href="https://github.com/esurvanov/awesome-games/tree/main/sibiria">Source</a></div>
+    </div>
+  </article>
+</main>
+</body>
+</html>

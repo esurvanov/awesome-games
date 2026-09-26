@@ -61,6 +61,24 @@ python3 -m venv .venv
 | 🧠 RAM | 4 GB |
 | 💽 Disk | ~300 MB (assets ≈ 210 MB + venv) |
 
+## 🌐 Play in the browser
+
+The whole game also runs in a browser as a plain static site: no server code, no build step, no install.
+The browser version lives in `web/` (JavaScript ES modules, Canvas 2D, Web Audio, saves in IndexedDB) and reads the same `assets/`.
+
+| Where | How |
+|---|---|
+| 💻 Locally | from the repository root: `python3 -m http.server 8000`, then open <http://localhost:8000/web/> (any static server works: `npx serve`, nginx, …) |
+| 🌍 GitHub Pages | Settings → Pages → *Deploy from a branch* → `main`, folder `/ (root)`; the game is at `https://<user>.github.io/<repo>/` (redirects to `web/`) |
+| 🗂 Any static hosting | upload the repository as is (at least `web/`, `assets/`, `CREDITS.md`, `index.html`, `.nojekyll`) and open `web/` |
+
+| Note | |
+|---|---|
+| 📂 `file://` | does not work: browsers block ES modules from local files, so use any static server |
+| ⏳ First start | downloads ≈ 65 MB (UI, terrain, buildings, portraits); unit sprites and music stream in as needed |
+| 💾 Saves, settings | stay in this browser (IndexedDB), separate from the Python version's `~/.cache/khroniki` |
+| 🧪 Checks | `node --test web/tests/test_*.mjs` (logic vs CPython, incl. a lockstep AI-vs-AI match) · `node web/tests/e2e.mjs` (headless Chromium: menu → skirmish → build → save/load → settings → exit) |
+
 ## 🎮 Controls
 
 | Keys | Action |

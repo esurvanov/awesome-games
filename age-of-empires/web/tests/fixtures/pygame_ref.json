@@ -1,0 +1,409 @@
+{
+ "pygame": "2.5.8",
+ "fonts": {
+  "PTSerif-Bold.ttf:15": {
+   "file": "assets/fonts/PTSerif-Bold.ttf",
+   "size": 15,
+   "height": 20,
+   "ascent": 16,
+   "descent": -4,
+   "linesize": 20,
+   "widths": {
+    "Villager": 57,
+    "Wood: 1,250": 88,
+    "Castle Age": 74,
+    "Жители": 59,
+    "Hello, world!": 93,
+    "Ä": 11
+   },
+   "render": [
+    57,
+    20
+   ],
+   "empty": [
+    0,
+    20
+   ]
+  },
+  "PTSerif-Bold.ttf:21": {
+   "file": "assets/fonts/PTSerif-Bold.ttf",
+   "size": 21,
+   "height": 28,
+   "ascent": 22,
+   "descent": -6,
+   "linesize": 28,
+   "widths": {
+    "Villager": 80,
+    "Wood: 1,250": 124,
+    "Castle Age": 104,
+    "Жители": 82,
+    "Hello, world!": 128,
+    "Ä": 16
+   },
+   "render": [
+    80,
+    28
+   ],
+   "empty": [
+    0,
+    28
+   ]
+  },
+  "FreeSans.ttf:12": {
+   "file": "assets/fonts/FreeSans.ttf",
+   "size": 12,
+   "height": 14,
+   "ascent": 11,
+   "descent": -2,
+   "linesize": 15,
+   "widths": {
+    "Villager": 41,
+    "Wood: 1,250": 67,
+    "Castle Age": 59,
+    "Жители": 42,
+    "Hello, world!": 66,
+    "Ä": 8
+   },
+   "render": [
+    41,
+    15
+   ],
+   "empty": [
+    0,
+    14
+   ]
+  },
+  "FreeSans.ttf:14": {
+   "file": "assets/fonts/FreeSans.ttf",
+   "size": 14,
+   "height": 16,
+   "ascent": 13,
+   "descent": -2,
+   "linesize": 17,
+   "widths": {
+    "Villager": 46,
+    "Wood: 1,250": 79,
+    "Castle Age": 68,
+    "Жители": 49,
+    "Hello, world!": 76,
+    "Ä": 10
+   },
+   "render": [
+    46,
+    17
+   ],
+   "empty": [
+    0,
+    16
+   ]
+  },
+  "CormorantSC-Bold.ttf:29": {
+   "file": "assets/fonts/CormorantSC-Bold.ttf",
+   "size": 29,
+   "height": 36,
+   "ascent": 27,
+   "descent": -8,
+   "linesize": 36,
+   "widths": {
+    "Villager": 118,
+    "Wood: 1,250": 149,
+    "Castle Age": 148,
+    "Жители": 114,
+    "Hello, world!": 188,
+    "Ä": 22
+   },
+   "render": [
+    118,
+    36
+   ],
+   "empty": [
+    0,
+    36
+   ]
+  },
+  "CormorantSC-Bold.ttf:74": {
+   "file": "assets/fonts/CormorantSC-Bold.ttf",
+   "size": 74,
+   "height": 90,
+   "ascent": 69,
+   "descent": -21,
+   "linesize": 90,
+   "widths": {
+    "Villager": 297,
+    "Wood: 1,250": 369,
+    "Castle Age": 373,
+    "Жители": 281,
+    "Hello, world!": 470,
+    "Ä": 55
+   },
+   "render": [
+    297,
+    90
+   ],
+   "empty": [
+    0,
+    90
+   ]
+  },
+  "LinBiolinum_RBah.ttf:13": {
+   "file": "assets/fonts/LinBiolinum_RBah.ttf",
+   "size": 13,
+   "height": 15,
+   "ascent": 12,
+   "descent": -3,
+   "linesize": 15,
+   "widths": {
+    "Villager": 48,
+    "Wood: 1,250": 72,
+    "Castle Age": 62,
+    "Жители": 49,
+    "Hello, world!": 76,
+    "Ä": 9
+   },
+   "render": [
+    48,
+    15
+   ],
+   "empty": [
+    0,
+    15
+   ]
+  }
+ },
+ "rotate": {
+  "0": [
+   100,
+   50
+  ],
+  "45": [
+   106,
+   106
+  ],
+  "-45": [
+   106,
+   106
+  ],
+  "90": [
+   50,
+   100
+  ],
+  "30": [
+   111,
+   93
+  ],
+  "180": [
+   100,
+   50
+  ],
+  "270": [
+   50,
+   100
+  ],
+  "13.5": [
+   108,
+   71
+  ]
+ },
+ "rotozoom": {
+  "0:0.5": [
+   50,
+   25
+  ],
+  "0:0.37": [
+   37,
+   18
+  ],
+  "0:1.3": [
+   129,
+   64
+  ],
+  "30:1.0": [
+   112,
+   94
+  ],
+  "45:0.5": [
+   54,
+   54
+  ]
+ },
+ "pixels": {
+  "fill_replace": [
+   0,
+   0,
+   255,
+   100
+  ],
+  "fill_opaque_alpha": [
+   10,
+   20,
+   30,
+   255
+  ],
+  "blit_alpha": [
+   128,
+   128,
+   128,
+   255
+  ],
+  "blit_set_alpha": [
+   50,
+   25,
+   12,
+   255
+  ],
+  "fill_rgb_mult": [
+   100,
+   50,
+   25,
+   255
+  ],
+  "fill_rgb_add_alpha": [
+   110,
+   10,
+   10,
+   77
+  ],
+  "fill_rgba_mult": [
+   100,
+   150,
+   200,
+   100
+  ],
+  "blit_rgba_sub": [
+   0,
+   0,
+   0,
+   125
+  ],
+  "blit_rgb_sub": [
+   240,
+   0,
+   15,
+   255
+  ],
+  "blit_rgb_add_srcalpha": [
+   150,
+   160,
+   170,
+   255
+  ],
+  "blit_rgba_min": [
+   100,
+   200,
+   50,
+   90
+  ],
+  "grayscale": [
+   125,
+   125,
+   125,
+   180
+  ],
+  "sub_parent": [
+   [
+    9,
+    8,
+    7,
+    255
+   ],
+   [
+    9,
+    8,
+    7,
+    255
+   ],
+   [
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0,
+    0
+   ]
+  ],
+  "clip_fill": [
+   [
+    255,
+    255,
+    255,
+    255
+   ],
+   [
+    0,
+    0,
+    0,
+    255
+   ]
+  ],
+  "bounding": [
+   3,
+   2,
+   13,
+   8
+  ],
+  "bounding_128": [
+   3,
+   4,
+   5,
+   6
+  ],
+  "draw_circle": [
+   13,
+   13,
+   14,
+   14
+  ],
+  "draw_rect": [
+   5,
+   6,
+   10,
+   12
+  ],
+  "draw_replace": [
+   0,
+   255,
+   0,
+   60
+  ],
+  "draw_opaque_alpha": [
+   255,
+   255,
+   255,
+   255
+  ],
+  "colorkey": [
+   [
+    1,
+    2,
+    3,
+    255
+   ],
+   [
+    10,
+    20,
+    30,
+    255
+   ]
+  ],
+  "mask_count": 30,
+  "frombuffer_rgb": [
+   [
+    4,
+    5,
+    6,
+    255
+   ],
+   0
+  ],
+  "convert_alpha_drop": [
+   50,
+   60,
+   70,
+   255
+  ]
+ }
+}

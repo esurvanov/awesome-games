@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runtime demo</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+  #screen { display: block; image-rendering: auto; touch-action: none; }
+</style>
+</head>
+<body data-entry="./demo.js" data-preload="boot" data-prefetch="sfx">
+<div id="stage"><canvas id="screen" width="1280" height="800"></canvas></div>
+<script type="module" src="./boot.js"></script>
+</body>
+</html>

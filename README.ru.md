@@ -4,10 +4,10 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Хроники Королевств и Берёзовка" width="100%">
 
-### Три законченные открытые игры: средневековая стратегия в реальном времени, зимний открытый мир и игра-выживание с посёлком в тайге. Скачайте и играйте — или запустите одну прямо сейчас в браузере.
+### Три законченные открытые игры: средневековая стратегия в реальном времени, зимний открытый мир и игра-выживание с посёлком в тайге. Все три запускаются прямо в браузере — или скачайте и играйте локально.
 
 [![Играть в Берёзовку в браузере](https://img.shields.io/badge/▶_Играть_в_Берёзовку-прямо_в_браузере-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/berezovka/)
-[![Хроники Королевств: быстрый старт](https://img.shields.io/badge/⚔_Хроники_Королевств-быстрый_старт-3776AB?style=for-the-badge)](age-of-empires/README.ru.md)
+[![Играть в Хроники Королевств в браузере](https://img.shields.io/badge/⚔_Играть_в_Хроники_Королевств-прямо_в_браузере-3776AB?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/age-of-empires/web/)
 
 ![Игр](https://img.shields.io/badge/игр-3-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
 
@@ -33,9 +33,9 @@
 - 🗺 6 случайных карт · 🤖 шесть уровней сложности
 - 🌍 7 языков · 💾 сохранения
 
-`Python 3.12` · `pygame-ce` · macOS / Windows / Linux
+`JavaScript` · `Canvas 2D` · любой браузер на компьютере · есть и версия на `Python` + `pygame-ce` для macOS / Windows / Linux
 
-**[→ Быстрый старт](age-of-empires/README.ru.md)**
+**[▶ Играть](https://hedgehogues.github.io/awesome-games/age-of-empires/web/)** · [запуск версии на Python](age-of-empires/README.ru.md)
 
 </td>
 <td width="50%" valign="top">
@@ -104,7 +104,7 @@
 |---|---|
 | ❄️ Берёзовка | Откройте **[hedgehogues.github.io/awesome-games/berezovka](https://hedgehogues.github.io/awesome-games/berezovka/)** — или `cd berezovka && python3 -m http.server` |
 | 🐺 Сибирь | Откройте **[hedgehogues.github.io/awesome-games/sibiria](https://hedgehogues.github.io/awesome-games/sibiria/)** — или `cd sibiria && python3 -m http.server` |
-| ⚔️ Хроники Королевств | `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (на macOS — двойной клик по `Play.command`) |
+| ⚔️ Хроники Королевств | Откройте **[hedgehogues.github.io/awesome-games/age-of-empires](https://hedgehogues.github.io/awesome-games/age-of-empires/web/)** — или `python3 -m http.server` в корне репозитория и откройте `/age-of-empires/web/`; версия на Python: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (на macOS — двойной клик по `Play.command`) |
 
 ## 📜 Лицензии
 
