@@ -6,7 +6,7 @@
 
 **Заснеженная русская деревня, в которую можно войти: 3D-игра с открытым миром прямо в браузере. Ничего не нужно устанавливать.**
 
-[![Играть в браузере](https://img.shields.io/badge/▶_Играть_в_браузере-hedgehogues.github.io-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/berezovka/)
+[![Играть в браузере](https://img.shields.io/badge/▶_Играть_в_браузере-esurvanov.github.io-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 
 [![three.js r158](https://img.shields.io/badge/three.js-r158-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![WebGL 2](https://img.shields.io/badge/WebGL-2-990000?logo=webgl&logoColor=white)](#-что-нужно)

@@ -6,8 +6,8 @@
 
 ### Three complete open-source games: a medieval real-time strategy, a winter open world and a taiga survival-and-settlement game. All three run right in your browser — or clone and play locally.
 
-[![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/berezovka/)
-[![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/age-of-empires/web/)
+[![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
+[![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 
 ![Games](https://img.shields.io/badge/games-3-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
@@ -35,12 +35,12 @@ Build a village in the Dark Age, wall it, raise a castle, reach the Imperial Age
 
 `JavaScript` · `Canvas 2D` · any desktop browser · also `Python` + `pygame-ce` for macOS / Windows / Linux
 
-**[▶ Play now](https://hedgehogues.github.io/awesome-games/age-of-empires/web/)** · [Python quick start](age-of-empires/README.md#-quick-start)
+**[▶ Play now](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** · [Python quick start](age-of-empires/README.md#-quick-start)
 
 </td>
 <td width="50%" valign="top">
 
-<a href="https://hedgehogues.github.io/awesome-games/berezovka/"><img src="berezovka/docs/screenshots/street.jpg" alt="Snowy village street in Berezovka"></a>
+<a href="https://esurvanov.github.io/awesome-games/berezovka/"><img src="berezovka/docs/screenshots/street.jpg" alt="Snowy village street in Berezovka"></a>
 
 ### ❄️ [Berezovka](berezovka/)
 **A snowbound Russian village you can walk into — 3D open world in the browser.**
@@ -54,7 +54,7 @@ Back home after five years: firewood for grandma, a 1979 Zhiguli that won't star
 
 `three.js` · `WebGL 2` · any desktop browser, nothing to install
 
-**[▶ Play now](https://hedgehogues.github.io/awesome-games/berezovka/)**
+**[▶ Play now](https://esurvanov.github.io/awesome-games/berezovka/)**
 
 </td>
 </tr>
@@ -75,7 +75,7 @@ Your Mi-8 went down in Evenkia and the radio is smashed. Light the stove, meet t
 
 `JavaScript` · `Canvas 2D` · any browser, nothing to install
 
-**[▶ Play now](https://hedgehogues.github.io/awesome-games/sibiria/)**
+**[▶ Play now](https://esurvanov.github.io/awesome-games/sibiria/)**
 
 </td>
 </tr>
@@ -102,9 +102,9 @@ Your Mi-8 went down in Evenkia and the radio is smashed. Light the stove, meet t
 
 | Game | How |
 |---|---|
-| ❄️ Berezovka | Open **[hedgehogues.github.io/awesome-games/berezovka](https://hedgehogues.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
-| 🐺 Sibiria | Open **[hedgehogues.github.io/awesome-games/sibiria](https://hedgehogues.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
-| ⚔️ Chronicles of Kingdoms | Open **[hedgehogues.github.io/awesome-games/age-of-empires](https://hedgehogues.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
+| ❄️ Berezovka | Open **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
+| 🐺 Sibiria | Open **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
+| ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
 
 ## 📜 Licence
 

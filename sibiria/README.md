@@ -6,7 +6,7 @@
 
 **Survive four nights in the Evenki taiga, 1993 — then build a settlement around your hut. A top-down survival and settlement game that runs right in your browser. No install, no build.**
 
-[![Play in browser](https://img.shields.io/badge/▶_Play_in_browser-hedgehogues.github.io-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/sibiria/)
+[![Play in browser](https://img.shields.io/badge/▶_Play_in_browser-esurvanov.github.io-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/sibiria/)
 
 [![Canvas 2D](https://img.shields.io/badge/Canvas-2D-E34F26?logo=html5&logoColor=white)](#-run-it-yourself)
 [![Vanilla JS](https://img.shields.io/badge/vanilla-JavaScript-F7DF1E?logo=javascript&logoColor=black)](#-under-the-hood)

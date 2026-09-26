@@ -6,7 +6,7 @@
 
 **A snowbound Russian village you can walk into — an open-world 3D game that runs right in your browser. No install, no download.**
 
-[![Play in browser](https://img.shields.io/badge/▶_Play_in_browser-hedgehogues.github.io-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/berezovka/)
+[![Play in browser](https://img.shields.io/badge/▶_Play_in_browser-esurvanov.github.io-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 
 [![three.js r158](https://img.shields.io/badge/three.js-r158-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![WebGL 2](https://img.shields.io/badge/WebGL-2-990000?logo=webgl&logoColor=white)](#-requirements)

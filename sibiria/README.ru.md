@@ -6,7 +6,7 @@
 
 **Переживи четыре ночи в эвенкийской тайге, 1993 год, — и построй посёлок вокруг своей избы. Игра-выживание и застройка с видом сверху, прямо в браузере. Без установки и без сборки.**
 
-[![Играть в браузере](https://img.shields.io/badge/▶_Играть-прямо_в_браузере-D7263D?style=for-the-badge)](https://hedgehogues.github.io/awesome-games/sibiria/)
+[![Играть в браузере](https://img.shields.io/badge/▶_Играть-прямо_в_браузере-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/sibiria/)
 
 [![Canvas 2D](https://img.shields.io/badge/Canvas-2D-E34F26?logo=html5&logoColor=white)](#-запуск)
 [![Чистый JS](https://img.shields.io/badge/чистый-JavaScript-F7DF1E?logo=javascript&logoColor=black)](#-устройство)
