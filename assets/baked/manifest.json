@@ -1,0 +1,1655 @@
+{
+ "version": 1,
+ "date": "2026-09-26 07:45",
+ "source": {
+  "export": "2026-09-26T02:33:11.434Z",
+  "blender": "4.2.9 LTS",
+  "samples": 24
+ },
+ "encoding": {
+  "rgb": "gamma-2.2 of (irradiance / scale): linear = pow(texel.rgb, 2.2) * scale — Cycles \"diffuse lighting, no colour\" units; three lightMap irradiance = PI * that",
+  "a": "moon visibility 0..1 (linear) from static casters",
+  "uv": "row 0 = v 0 (KTX2 flipped at encode); terrain / tiles: uv = (worldXZ - origin) / size; objects: uv1 = UV2 sidecar",
+  "ktx2": "etc1s",
+  "pack": "(window.__PACK)['baked/<file>'] = base64 KTX2"
+ },
+ "env": {
+  "moon": {
+   "dir": [
+    0.756466827810095,
+    0.3536728026125119,
+    0.5501576929527964
+   ],
+   "color": [
+    0.8713671191959567,
+    0.8227857543924378,
+    0.775822218312646
+   ],
+   "intensity": 4.4,
+   "note": "three DirectionalLight: light travels from +dir towards the origin"
+  },
+  "aurora": {
+   "dir": [
+    0,
+    0.5144957554275266,
+    -0.8574929257125443
+   ],
+   "color": [
+    0.07421356837213867,
+    1,
+    0.2704977910022518
+   ],
+   "intensity": 0.12
+  },
+  "hemi": {
+   "sky": [
+    0.20155625378383743,
+    0.2917706498067337,
+    0.6583748172725346
+   ],
+   "ground": [
+    0.018500220124016652,
+    0.025186859622305935,
+    0.06480326668529614
+   ],
+   "intensity": 0.75
+  },
+  "envIntensity": 0.3,
+  "backgroundIntensity": 1,
+  "exposure": 0.64,
+  "toneMapping": 4,
+  "fog": {
+   "type": "linear",
+   "color": [
+    0.010329823026364548,
+    0.025186859622305935,
+    0.061246054224174035
+   ],
+   "near": 90,
+   "far": 640
+  },
+  "sky": {
+   "texture": "assets/sky.jpg",
+   "mapping": "equirect",
+   "uniforms": {
+    "uTime": 23.61529999999968,
+    "uInt": 1,
+    "uStorm": 0,
+    "uStars": 1,
+    "uExp": 1,
+    "uStarK": 1,
+    "uVeil": 0,
+    "uScat": 0.55
+   }
+  },
+  "style": {
+   "palette": {
+    "moon": 15788772,
+    "hemiSky": 8164308,
+    "hemiGround": 2436168,
+    "auroraA": 5111694,
+    "fog": 1715270
+   }
+  }
+ },
+ "terrain": {
+  "file": "terrain",
+  "res": 1024,
+  "origin": [
+   -450,
+   -450
+  ],
+  "size": 900,
+  "scale": 0.41246337890625,
+  "meanAmb": 0.09041580557823181,
+  "litFrac": 0.3440227508544922,
+  "pack": "terrain.ktx2.js"
+ },
+ "tileAtlas": {
+  "file": "tiles",
+  "res": 1024,
+  "grid": 4,
+  "tileRes": 256,
+  "scale": 0.431689453125,
+  "tiles": [
+   {
+    "site": "crash",
+    "origin": [
+     -84,
+     136
+    ],
+    "size": 128,
+    "cell": [
+     0.00048828125,
+     0.00048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "station",
+    "origin": [
+     116,
+     41
+    ],
+    "size": 128,
+    "cell": [
+     0.25048828125,
+     0.00048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "lake",
+    "origin": [
+     -249,
+     -9
+    ],
+    "size": 128,
+    "cell": [
+     0.50048828125,
+     0.00048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "rift",
+    "origin": [
+     -64,
+     -104
+    ],
+    "size": 128,
+    "cell": [
+     0.75048828125,
+     0.00048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "spireN",
+    "origin": [
+     -29,
+     -349
+    ],
+    "size": 128,
+    "cell": [
+     0.00048828125,
+     0.25048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "spireW",
+    "origin": [
+     -336,
+     -149
+    ],
+    "size": 128,
+    "cell": [
+     0.25048828125,
+     0.25048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "spireE",
+    "origin": [
+     228,
+     -174
+    ],
+    "size": 128,
+    "cell": [
+     0.50048828125,
+     0.25048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "camp",
+    "origin": [
+     -97.56834935485608,
+     73.43493086789968
+    ],
+    "size": 128,
+    "cell": [
+     0.75048828125,
+     0.25048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "ship",
+    "origin": [
+     -121.52149854337948,
+     347.8859581291036
+    ],
+    "size": 128,
+    "cell": [
+     0.00048828125,
+     0.50048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "ruins1",
+    "origin": [
+     -332.2222280371934,
+     -25.85760515742004
+    ],
+    "size": 128,
+    "cell": [
+     0.25048828125,
+     0.50048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "ruins2",
+    "origin": [
+     55.99521112535149,
+     111.9837781265378
+    ],
+    "size": 128,
+    "cell": [
+     0.50048828125,
+     0.50048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   },
+   {
+    "site": "ruins3",
+    "origin": [
+     -146.2622824786231,
+     161.28058337047696
+    ],
+    "size": 128,
+    "cell": [
+     0.75048828125,
+     0.50048828125,
+     0.2490234375
+    ],
+    "scale": 0.431689453125
+   }
+  ],
+  "pack": "tiles.ktx2.js"
+ },
+ "atlases": [
+  {
+   "file": "atlas_crash",
+   "pack": "atlas_crash.ktx2.js",
+   "res": 512,
+   "scale": 0.3807667238920927,
+   "objects": [
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Details/Cube017|Dark_Metal@-20.0,21.0,196.5",
+     "offset": 0,
+     "corners": 648
+    },
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Details/Cube017_1|Interior_Primer@-20.0,21.0,196.5",
+     "offset": 2592,
+     "corners": 10944
+    },
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Details/Cube017_3|Engine@-20.0,21.0,196.5",
+     "offset": 46368,
+     "corners": 936
+    },
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Fus_Front|kestrel_fus_front@-16.0,21.0,197.0",
+     "offset": 50112,
+     "corners": 13299
+    },
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Fus_Inner|Interior_Primer@-16.0,21.0,197.0",
+     "offset": 103308,
+     "corners": 18864
+    },
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Fus_Rear|kestrel_fus_rear@-16.0,21.0,197.0",
+     "offset": 178764,
+     "corners": 10515
+    },
+    {
+     "id": "Group/kestrel_wreck/Scene/Root/Wings|kestrel_wings@-18.0,21.0,199.0",
+     "offset": 220824,
+     "corners": 2532
+    },
+    {
+     "id": "st_kestrel_TailSection|Interior_Primer@2.5,20.5,216.5",
+     "offset": 230952,
+     "corners": 2640
+    },
+    {
+     "id": "st_kestrel_TailSection|kestrel_debris@2.5,20.5,216.5",
+     "offset": 241512,
+     "corners": 5496
+    },
+    {
+     "id": "st_kestrel_WingSection|Interior_Primer@0.5,21.0,189.5",
+     "offset": 263496,
+     "corners": 360
+    },
+    {
+     "id": "st_kestrel_WingSection|kestrel_debris@0.5,21.0,189.5",
+     "offset": 264936,
+     "corners": 9048
+    },
+    {
+     "id": "st_kestrel_debris_cargo_door|Dark_Metal@-8.0,21.5,193.5",
+     "offset": 301128,
+     "corners": 264
+    },
+    {
+     "id": "st_kestrel_debris_cargo_door|kestrel_debris@-8.0,21.5,193.5",
+     "offset": 302184,
+     "corners": 2502
+    },
+    {
+     "id": "st_kestrel_debris_cargo_door|Interior_Primer@-8.0,21.5,193.5",
+     "offset": 312192,
+     "corners": 1350
+    },
+    {
+     "id": "st_kestrel_debris_wheel|Rubber@-23.5,21.0,201.0",
+     "offset": 317592,
+     "corners": 3360
+    },
+    {
+     "id": "st_kestrel_debris_wheel|Dark_Metal@-23.5,21.0,201.0",
+     "offset": 331032,
+     "corners": 672
+    },
+    {
+     "id": "st_kestrel_debris_skin_panel_a|Interior_Primer@-12.5,21.5,205.5",
+     "offset": 333720,
+     "corners": 1236
+    },
+    {
+     "id": "st_kestrel_debris_skin_panel_a|kestrel_debris@-12.5,21.5,205.5",
+     "offset": 338664,
+     "corners": 1980
+    },
+    {
+     "id": "st_kestrel_debris_prop_blade|Dark_Metal@-6.5,21.5,200.5",
+     "offset": 346584,
+     "corners": 1296
+    },
+    {
+     "id": "st_kestrel_debris_cowling|Interior_Primer@-5.0,21.0,204.5",
+     "offset": 351768,
+     "corners": 264
+    },
+    {
+     "id": "st_kestrel_debris_cowling|kestrel_debris@-5.0,21.0,204.5",
+     "offset": 352824,
+     "corners": 816
+    },
+    {
+     "id": "st_kestrel_debris_window_frame|kestrel_debris@-13.0,21.5,209.0",
+     "offset": 356088,
+     "corners": 2508
+    },
+    {
+     "id": "st_kestrel_debris_window_frame|Interior_Primer@-13.0,21.5,209.0",
+     "offset": 366120,
+     "corners": 1212
+    },
+    {
+     "id": "st_kestrel_debris_skin_strip|Interior_Primer@-9.5,21.5,210.0",
+     "offset": 370968,
+     "corners": 1296
+    },
+    {
+     "id": "st_kestrel_debris_skin_strip|kestrel_debris@-9.5,21.5,210.0",
+     "offset": 376152,
+     "corners": 1968
+    },
+    {
+     "id": "st_kestrel_debris_cable_bundle|Rubber@-5.0,21.5,209.5",
+     "offset": 384024,
+     "corners": 1008
+    },
+    {
+     "id": "st_kestrel_debris_cable_bundle|Cable_Orange@-5.0,21.5,209.5",
+     "offset": 388056,
+     "corners": 672
+    },
+    {
+     "id": "st_kestrel_debris_cable_bundle|Cable_Grey@-5.0,21.5,209.5",
+     "offset": 390744,
+     "corners": 336
+    },
+    {
+     "id": "st_kestrel_debris_cable_bundle|Dark_Metal@-5.0,21.5,209.5",
+     "offset": 392088,
+     "corners": 264
+    },
+    {
+     "id": "st_kestrel_debris_seat|Dark_Metal@-4.0,21.5,212.5",
+     "offset": 393144,
+     "corners": 504
+    },
+    {
+     "id": "st_kestrel_debris_seat|Seat_Leather@-4.0,21.5,212.5",
+     "offset": 395160,
+     "corners": 1296
+    },
+    {
+     "id": "st_kestrel_debris_skin_panel_b|Interior_Primer@1.5,21.5,210.5",
+     "offset": 400344,
+     "corners": 1284
+    },
+    {
+     "id": "st_kestrel_debris_skin_panel_b|kestrel_debris@1.5,21.5,210.5",
+     "offset": 405480,
+     "corners": 1932
+    }
+   ]
+  },
+  {
+   "file": "atlas_station",
+   "pack": "atlas_station.ktx2.js",
+   "res": 1024,
+   "scale": 0.0010500000000000002,
+   "objects": [
+    {
+     "id": "Group/Group/st_crate_stack|wooden_military_crate@189.5,20.5,106.0",
+     "offset": 413208,
+     "corners": 8985
+    },
+    {
+     "id": "Group/Group/st_crate_stack|wooden_military_crate@189.5,20.5,106.5",
+     "offset": 449148,
+     "corners": 8985
+    },
+    {
+     "id": "Group/Group/st_crate_stack|wooden_military_crate@189.5,21.0,106.0",
+     "offset": 485088,
+     "corners": 8985
+    },
+    {
+     "id": "Group/Group/st_crate_stack|wooden_military_crate@189.5,21.0,106.5",
+     "offset": 521028,
+     "corners": 8985
+    },
+    {
+     "id": "Group/Group/st_crate_stack|wooden_military_crate@189.5,21.0,106.0#1",
+     "offset": 556968,
+     "corners": 8985
+    },
+    {
+     "id": "Group/Group/st_crate_stack|wooden_military_crate@189.5,21.0,106.5#1",
+     "offset": 592908,
+     "corners": 8985
+    },
+    {
+     "id": "Group/Group/st_station_dome|seam_steel@179.0,20.5,106.0",
+     "offset": 628848,
+     "corners": 4152
+    },
+    {
+     "id": "Group/Group/st_station_dome|panel_white@179.0,20.5,106.0",
+     "offset": 645456,
+     "corners": 1113
+    },
+    {
+     "id": "Group/Group/st_station_dome|window_glass@179.0,20.5,106.0",
+     "offset": 649908,
+     "corners": 51
+    },
+    {
+     "id": "Group/Group/st_station_dome|paint_orange@179.0,20.5,106.0",
+     "offset": 650112,
+     "corners": 600
+    },
+    {
+     "id": "Group/Group/st_station_dome|lamp@179.0,20.5,106.0",
+     "offset": 652512,
+     "corners": 72
+    },
+    {
+     "id": "Group/Group/st_station_dome|base_steel@179.0,20.5,106.0",
+     "offset": 652800,
+     "corners": 636
+    },
+    {
+     "id": "Group/Group/st_station_module|steel_galv@188.5,20.5,115.0",
+     "offset": 655344,
+     "corners": 2616
+    },
+    {
+     "id": "Group/Group/st_station_module|paint_orange@188.5,20.5,115.0",
+     "offset": 665808,
+     "corners": 840
+    },
+    {
+     "id": "Group/Group/st_station_module|window_glass@188.5,20.5,115.0",
+     "offset": 669168,
+     "corners": 84
+    },
+    {
+     "id": "Group/Group/st_station_module|seam_steel@188.5,20.5,115.0",
+     "offset": 669504,
+     "corners": 8484
+    },
+    {
+     "id": "Group/Group/st_station_module|panel_white@188.5,20.5,115.0",
+     "offset": 703440,
+     "corners": 2652
+    },
+    {
+     "id": "Scene/Root/HDU_lowRez_part1|lambert2SG@167.5,20.0,92.5",
+     "offset": 714048,
+     "corners": 6792
+    },
+    {
+     "id": "Scene/Root/HDU_lowRez_part1|lambert2SG@177.5,20.0,125.0",
+     "offset": 741216,
+     "corners": 6792
+    },
+    {
+     "id": "Scene/Root/guam/guamlayer/guamlayer_1|Default@187.0,20.5,85.0",
+     "offset": 768384,
+     "corners": 672
+    },
+    {
+     "id": "Scene/Root/guam/guamlayer/guamlayer_2|Default@187.0,20.5,85.0",
+     "offset": 771072,
+     "corners": 144
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@158.5,20.5,106.5",
+     "offset": 771648,
+     "corners": 8835
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@158.5,20.5,106.5#1",
+     "offset": 806988,
+     "corners": 84
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@166.5,20.5,120.5",
+     "offset": 807324,
+     "corners": 8835
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@166.5,20.5,120.5#1",
+     "offset": 842664,
+     "corners": 84
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@185.0,20.5,122.5",
+     "offset": 843000,
+     "corners": 8835
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@185.0,20.5,122.5#1",
+     "offset": 878340,
+     "corners": 84
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@189.0,20.5,96.0",
+     "offset": 878676,
+     "corners": 8835
+    },
+    {
+     "id": "Group/Mesh|street_lamp_01@189.0,20.5,96.0#1",
+     "offset": 914016,
+     "corners": 84
+    },
+    {
+     "id": "Scene/Root/dish|radio_dish@196.5,25.5,107.0",
+     "offset": 914352,
+     "corners": 6432
+    },
+    {
+     "id": "Scene/Root/support|radio_dish@196.5,20.5,107.0",
+     "offset": 940080,
+     "corners": 4278
+    },
+    {
+     "id": "Scene/Root/pipes|radio_dish@196.5,20.5,107.0",
+     "offset": 957192,
+     "corners": 648
+    },
+    {
+     "id": "Scene/Root/MMSEV|MMSEV@158.5,22.5,100.5",
+     "offset": 959784,
+     "corners": 59763
+    },
+    {
+     "id": "Scene/stone_fire_pit|stone_fire_pit@171.5,20.5,112.5",
+     "offset": 1198836,
+     "corners": 11661
+    }
+   ]
+  },
+  {
+   "file": "atlas_camp",
+   "pack": "atlas_camp.ktx2.js",
+   "res": 256,
+   "scale": 0.4397249099537728,
+   "objects": [
+    {
+     "id": "wf_stone|MeshStandardMaterial@0.0,0.0,0.0",
+     "offset": 1245480,
+     "corners": 1260
+    },
+    {
+     "id": "st_tent_tunnel|guy_cord@-28.0,24.0,140.5",
+     "offset": 1250520,
+     "corners": 480
+    },
+    {
+     "id": "st_tent_tunnel|pole_alu@-28.0,24.0,140.5",
+     "offset": 1252440,
+     "corners": 2280
+    },
+    {
+     "id": "st_tent_tunnel|nylon_dark@-28.0,24.0,140.5",
+     "offset": 1261560,
+     "corners": 264
+    },
+    {
+     "id": "st_tent_tunnel|nylon@-28.0,24.0,140.5",
+     "offset": 1262616,
+     "corners": 6048
+    },
+    {
+     "id": "st_snowcat|planks@-42.5,23.0,130.0",
+     "offset": 1286808,
+     "corners": 144
+    },
+    {
+     "id": "st_snowcat|rust_dark@-42.5,23.0,130.0",
+     "offset": 1287384,
+     "corners": 6636
+    },
+    {
+     "id": "st_snowcat|paint_green_rust@-42.5,23.0,130.0",
+     "offset": 1313928,
+     "corners": 3672
+    },
+    {
+     "id": "st_snowcat|glass_dirty@-42.5,23.0,130.0",
+     "offset": 1328616,
+     "corners": 408
+    },
+    {
+     "id": "st_pole_tr|modular_electricity_poles_pieces@-27.0,24.0,144.5",
+     "offset": 1330248,
+     "corners": 13308
+    },
+    {
+     "id": "st_pole_tr|modular_electricity_poles@-27.0,24.0,144.5",
+     "offset": 1383480,
+     "corners": 138
+    },
+    {
+     "id": "st_sledge|ash_wood@-26.0,23.5,135.0",
+     "offset": 1384032,
+     "corners": 2184
+    },
+    {
+     "id": "st_sledge|crate_planks@-26.0,23.5,135.0",
+     "offset": 1392768,
+     "corners": 396
+    },
+    {
+     "id": "st_sledge|rope@-26.0,23.5,135.0",
+     "offset": 1394352,
+     "corners": 852
+    },
+    {
+     "id": "st_sledge|iron@-26.0,23.5,135.0",
+     "offset": 1397760,
+     "corners": 72
+    },
+    {
+     "id": "st_sledge|canvas@-26.0,23.5,135.0",
+     "offset": 1398048,
+     "corners": 1344
+    }
+   ]
+  },
+  {
+   "file": "atlas_misc",
+   "pack": "atlas_misc.ktx2.js",
+   "res": 2048,
+   "scale": 0.6802615758329631,
+   "objects": [
+    {
+     "id": "Group/ship_part/Group/Mesh|Interior_Primer@34.5,75.0,-278.5",
+     "offset": 1403424,
+     "corners": 264
+    },
+    {
+     "id": "Group/ship_part/Group/Mesh|kestrel_debris@34.5,75.0,-278.5",
+     "offset": 1404480,
+     "corners": 816
+    },
+    {
+     "id": "Group/Group/st_spireN|rock@35.0,66.5,-285.0",
+     "offset": 1407744,
+     "corners": 3840
+    },
+    {
+     "id": "Group/Group/st_spireN|crystal_cyan@35.0,66.5,-285.0",
+     "offset": 1423104,
+     "corners": 3672
+    },
+    {
+     "id": "Group/Group/st_altar|ancient_stone@34.0,73.0,-278.5",
+     "offset": 1437792,
+     "corners": 3960
+    },
+    {
+     "id": "Group/ship_part/Group/Mesh|Dark_Metal@-266.0,29.0,-83.0",
+     "offset": 1453632,
+     "corners": 1296
+    },
+    {
+     "id": "Group/Group/st_spireW|rock@-272.0,20.0,-85.0",
+     "offset": 1458816,
+     "corners": 3840
+    },
+    {
+     "id": "Group/Group/st_spireW|crystal_cyan@-272.0,20.0,-85.0",
+     "offset": 1474176,
+     "corners": 3672
+    },
+    {
+     "id": "Group/Group/st_altar|ancient_stone@-266.0,26.5,-83.0",
+     "offset": 1488864,
+     "corners": 3960
+    },
+    {
+     "id": "Group/ship_part/Group/Mesh|Rubber@286.0,28.5,-107.5",
+     "offset": 1504704,
+     "corners": 1008
+    },
+    {
+     "id": "Group/ship_part/Group/Mesh|Cable_Orange@286.0,28.5,-107.5",
+     "offset": 1508736,
+     "corners": 672
+    },
+    {
+     "id": "Group/ship_part/Group/Mesh|Cable_Grey@286.0,28.5,-107.5",
+     "offset": 1511424,
+     "corners": 336
+    },
+    {
+     "id": "Group/ship_part/Group/Mesh|Dark_Metal@286.0,28.5,-107.5",
+     "offset": 1512768,
+     "corners": 264
+    },
+    {
+     "id": "Group/Group/st_spireE|rock@292.0,19.5,-110.0",
+     "offset": 1513824,
+     "corners": 3840
+    },
+    {
+     "id": "Group/Group/st_spireE|crystal_cyan@292.0,19.5,-110.0",
+     "offset": 1529184,
+     "corners": 3672
+    },
+    {
+     "id": "Group/Group/st_altar|ancient_stone@286.0,26.0,-107.5",
+     "offset": 1543872,
+     "corners": 3960
+    },
+    {
+     "id": "Group/cell_prop/Group/Mesh|Dark_Metal@-179.0,15.5,51.0",
+     "offset": 1559712,
+     "corners": 1308
+    },
+    {
+     "id": "Group/cell_prop/Group/Mesh|kestrel_debris@-179.0,15.5,51.0",
+     "offset": 1564944,
+     "corners": 2640
+    },
+    {
+     "id": "Group/Group/Scene/Root/heart|crystal_violet@0.0,17.5,-40.0",
+     "offset": 1575504,
+     "corners": 2124
+    },
+    {
+     "id": "inst:atm_env_iceberg_tabular|iceberg_tabular|3213|1@778.5,-535.5",
+     "offset": 1584000,
+     "corners": 14994
+    },
+    {
+     "id": "inst:atm_env_iceberg_tabular|iceberg_tabular|3213|1@35.5,705",
+     "offset": 1643976,
+     "corners": 14994
+    },
+    {
+     "id": "st_rowboat|trim_wood@-212.5,15.5,74.0",
+     "offset": 1703952,
+     "corners": 2406
+    },
+    {
+     "id": "st_rowboat|hull_planks@-212.5,15.5,74.0",
+     "offset": 1713576,
+     "corners": 11340
+    },
+    {
+     "id": "st_rowboat|iron@-212.5,15.5,74.0",
+     "offset": 1758936,
+     "corners": 120
+    },
+    {
+     "id": "st_pole_fallen|modular_electricity_poles_pieces@39.5,22.5,125.0",
+     "offset": 1759416,
+     "corners": 13302
+    },
+    {
+     "id": "st_pole_fallen|modular_electricity_poles@39.5,22.5,125.0",
+     "offset": 1812624,
+     "corners": 180
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@250.0,27.5,25.0",
+     "offset": 1813344,
+     "corners": 3960
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@-79.5,67.0,-166.0",
+     "offset": 1829184,
+     "corners": 3960
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@-120.0,24.0,170.0",
+     "offset": 1845024,
+     "corners": 8718
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@-191.5,36.5,-202.5",
+     "offset": 1879896,
+     "corners": 8718
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@-271.5,19.5,132.5",
+     "offset": 1914768,
+     "corners": 8718
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@95.0,19.0,225.0",
+     "offset": 1949640,
+     "corners": 10950
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@165.0,63.5,-220.0",
+     "offset": 1993440,
+     "corners": 10950
+    },
+    {
+     "id": "st_echo_ruin|ancient_stone@60.0,18.0,85.0",
+     "offset": 2037240,
+     "corners": 10950
+    },
+    {
+     "id": "st_cairn|cairn_stone@31.0,56.5,-177.5",
+     "offset": 2081040,
+     "corners": 7200
+    },
+    {
+     "id": "inst:st_rock|rock_face_02|3460|1@284.5,-201.5",
+     "offset": 2109840,
+     "corners": 8964
+    },
+    {
+     "id": "inst:st_rock|rock_face_02_back|1188|1@284.5,-201.5",
+     "offset": 2145696,
+     "corners": 4701
+    },
+    {
+     "id": "inst:st_rock|rock_face_01|3153|1@255,-93",
+     "offset": 2164500,
+     "corners": 8982
+    },
+    {
+     "id": "inst:st_rock|rock_face_01_back|1563|1@255,-93",
+     "offset": 2200428,
+     "corners": 5571
+    },
+    {
+     "id": "inst:st_rock|boulder_01|2515|1@277.5,-220.5",
+     "offset": 2222712,
+     "corners": 9000
+    }
+   ]
+  }
+ ],
+ "instanced": [
+  {
+   "file": "ao_inst_wf_flags_MeshStandardMaterial_21_35_10_182",
+   "pack": "ao_inst_wf_flags_MeshStandardMaterial_21_35_10_182.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:wf_flags|MeshStandardMaterial|21|35@10,182"
+   ],
+   "mean": 0.6601170301437378,
+   "uv2": {
+    "offset": 2258712,
+    "corners": 72
+   }
+  },
+  {
+   "file": "ao_inst_boulder_boulder_01_2515_70_48_185_5",
+   "pack": "ao_inst_boulder_boulder_01_2515_70_48_185_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:boulder|boulder_01|2515|70@48,185.5",
+    "inst:st_rock|boulder_01|2515|9@-188.5,153",
+    "inst:st_rock|boulder_01|2515|12@186,-198.5",
+    "inst:st_rock|boulder_01|2515|8@-308,-64.5",
+    "inst:st_rock|boulder_01|2515|9@110.5,31",
+    "inst:st_rock|boulder_01|2515|11@108,-328",
+    "inst:st_rock|boulder_01|2515|5@261,209.5",
+    "inst:st_rock|boulder_01|2515|6@-92.5,215",
+    "inst:st_rock|boulder_01|2515|10@276.5,-182.5",
+    "inst:st_rock|boulder_01|2515|6@-231,88.5",
+    "inst:st_rock|boulder_01|2515|7@-75,-215.5",
+    "inst:st_rock|boulder_01|2515|11@105,280",
+    "inst:st_rock|boulder_01|2515|2@232.5,55",
+    "inst:st_rock|boulder_01|2515|5@-43.5,-180.5",
+    "inst:st_rock|boulder_01|2515|2@-222,-259"
+   ],
+   "mean": 0.7532433271408081,
+   "uv2": {
+    "offset": 2259000,
+    "corners": 9000
+   }
+  },
+  {
+   "file": "ao_inst_st_tent_dome_guy_cord_112_2_-33_5_137_5",
+   "pack": "ao_inst_st_tent_dome_guy_cord_112_2_-33_5_137_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_tent_dome|guy_cord|112|2@-33.5,137.5"
+   ],
+   "mean": 0.26677247881889343,
+   "uv2": {
+    "offset": 2295000,
+    "corners": 240
+   }
+  },
+  {
+   "file": "ao_inst_st_tent_dome_pole_alu_392_2_-33_5_137_5",
+   "pack": "ao_inst_st_tent_dome_pole_alu_392_2_-33_5_137_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_tent_dome|pole_alu|392|2@-33.5,137.5"
+   ],
+   "mean": 0.3999549150466919,
+   "uv2": {
+    "offset": 2295960,
+    "corners": 1440
+   }
+  },
+  {
+   "file": "ao_inst_st_tent_dome_nylon_dark_260_2_-33_5_137_5",
+   "pack": "ao_inst_st_tent_dome_nylon_dark_260_2_-33_5_137_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_tent_dome|nylon_dark|260|2@-33.5,137.5"
+   ],
+   "mean": 0.1036994606256485,
+   "uv2": {
+    "offset": 2301720,
+    "corners": 696
+   }
+  },
+  {
+   "file": "ao_inst_st_tent_dome_nylon_1792_2_-33_5_137_5",
+   "pack": "ao_inst_st_tent_dome_nylon_1792_2_-33_5_137_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_tent_dome|nylon|1792|2@-33.5,137.5"
+   ],
+   "mean": 0.351296603679657,
+   "uv2": {
+    "offset": 2304504,
+    "corners": 8256
+   }
+  },
+  {
+   "file": "ao_inst_atm_env_iceberg_large_iceberg_large_3280_2_-501_-544_5",
+   "pack": "ao_inst_atm_env_iceberg_large_iceberg_large_3280_2_-501_-544_5.ktx2.js",
+   "res": 512,
+   "ids": [
+    "inst:atm_env_iceberg_large|iceberg_large|3280|2@-501,-544.5",
+    "inst:atm_env_iceberg_large|iceberg_large|3280|2@-156,-550.5",
+    "inst:atm_env_iceberg_large|iceberg_large|3280|2@766,-673.5",
+    "inst:atm_env_iceberg_large|iceberg_large|3280|3@-551.5,479.5"
+   ],
+   "mean": 0.47188594937324524,
+   "uv2": {
+    "offset": 2337528,
+    "corners": 14985
+   }
+  },
+  {
+   "file": "ao_inst_atm_env_iceberg_tabular_iceberg_tabular_3213_3_289_-686",
+   "pack": "ao_inst_atm_env_iceberg_tabular_iceberg_tabular_3213_3_289_-686.ktx2.js",
+   "res": 512,
+   "ids": [
+    "inst:atm_env_iceberg_tabular|iceberg_tabular|3213|3@289,-686.5",
+    "inst:atm_env_iceberg_tabular|iceberg_tabular|3213|2@424,600.5",
+    "inst:atm_env_iceberg_tabular|iceberg_tabular|3213|2@-786,381"
+   ],
+   "mean": 0.5231070518493652,
+   "uv2": {
+    "offset": 2397468,
+    "corners": 14994
+   }
+  },
+  {
+   "file": "ao_inst_atm_env_iceberg_small_iceberg_small_2125_3_-549_5_-399",
+   "pack": "ao_inst_atm_env_iceberg_small_iceberg_small_2125_3_-549_5_-399.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:atm_env_iceberg_small|iceberg_small|2125|3@-549.5,-399",
+    "inst:atm_env_iceberg_small|iceberg_small|2125|9@-137,-870.5",
+    "inst:atm_env_iceberg_small|iceberg_small|2125|3@704,-150.5",
+    "inst:atm_env_iceberg_small|iceberg_small|2125|6@599.5,560",
+    "inst:atm_env_iceberg_small|iceberg_small|2125|3@193,525.5",
+    "inst:atm_env_iceberg_small|iceberg_small|2125|4@-475,753"
+   ],
+   "mean": 0.8068462014198303,
+   "uv2": {
+    "offset": 2457444,
+    "corners": 8586
+   }
+  },
+  {
+   "file": "ao_inst_atm_env_pressure_ridge_rubble_5835_6_-399_-39",
+   "pack": "ao_inst_atm_env_pressure_ridge_rubble_5835_6_-399_-39.ktx2.js",
+   "res": 256,
+   "ids": [
+    "inst:atm_env_pressure_ridge|rubble|5835|6@-399,-39",
+    "inst:atm_env_pressure_ridge|rubble|5835|15@715.5,-359.5",
+    "inst:atm_env_pressure_ridge|rubble|5835|5@224,542.5",
+    "inst:atm_env_pressure_ridge|rubble|5835|5@-356,432.5"
+   ],
+   "mean": 0.3430713713169098,
+   "uv2": {
+    "offset": 2491788,
+    "corners": 14637
+   }
+  },
+  {
+   "file": "ao_inst_atm_env_ice_chunk_ice_chunk_1140_9_-438_5_-359",
+   "pack": "ao_inst_atm_env_ice_chunk_ice_chunk_1140_9_-438_5_-359.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:atm_env_ice_chunk|ice_chunk|1140|9@-438.5,-359",
+    "inst:atm_env_ice_chunk|ice_chunk|1140|14@80.5,-606",
+    "inst:atm_env_ice_chunk|ice_chunk|1140|22@474.5,-262.5",
+    "inst:atm_env_ice_chunk|ice_chunk|1140|19@524.5,290.5",
+    "inst:atm_env_ice_chunk|ice_chunk|1140|15@-264,534",
+    "inst:atm_env_ice_chunk|ice_chunk|1140|11@-371,22"
+   ],
+   "mean": 0.8478683829307556,
+   "uv2": {
+    "offset": 2550336,
+    "corners": 3489
+   }
+  },
+  {
+   "file": "ao_inst_st_pole_modular_electricity_poles_pieces_6599_3_106_112",
+   "pack": "ao_inst_st_pole_modular_electricity_poles_pieces_6599_3_106_112.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_pole|modular_electricity_poles_pieces|6599|3@106,112"
+   ],
+   "mean": 0.012136589735746384,
+   "uv2": {
+    "offset": 2564292,
+    "corners": 13302
+   }
+  },
+  {
+   "file": "ao_inst_st_pole_modular_electricity_poles_90_3_106_112",
+   "pack": "ao_inst_st_pole_modular_electricity_poles_90_3_106_112.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_pole|modular_electricity_poles|90|3@106,112"
+   ],
+   "mean": 0.7946597933769226,
+   "uv2": {
+    "offset": 2617500,
+    "corners": 180
+   }
+  },
+  {
+   "file": "ao_inst_st_ruin_column_ancient_stone_1293_8_-32_88",
+   "pack": "ao_inst_st_ruin_column_ancient_stone_1293_8_-32_88.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_ruin_column|ancient_stone|1293|8@-32,88"
+   ],
+   "mean": 0.6988123655319214,
+   "uv2": {
+    "offset": 2618220,
+    "corners": 3960
+   }
+  },
+  {
+   "file": "ao_inst_st_ruin_arch_ancient_stone_2647_4_-28_5_92",
+   "pack": "ao_inst_st_ruin_arch_ancient_stone_2647_4_-28_5_92.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_ruin_arch|ancient_stone|2647|4@-28.5,92"
+   ],
+   "mean": 0.6211068630218506,
+   "uv2": {
+    "offset": 2634060,
+    "corners": 8718
+   }
+  },
+  {
+   "file": "ao_inst_st_inuksuk_cairn_stone_572_6_78_148_5",
+   "pack": "ao_inst_st_inuksuk_cairn_stone_572_6_78_148_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_inuksuk|cairn_stone|572|6@78,148.5"
+   ],
+   "mean": 0.6947112679481506,
+   "uv2": {
+    "offset": 2668932,
+    "corners": 1728
+   }
+  },
+  {
+   "file": "ao_inst_st_ruin_wall_ancient_stone_3157_4_-24_5_87",
+   "pack": "ao_inst_st_ruin_wall_ancient_stone_3157_4_-24_5_87.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_ruin_wall|ancient_stone|3157|4@-24.5,87"
+   ],
+   "mean": 0.5871886014938354,
+   "uv2": {
+    "offset": 2675844,
+    "corners": 10950
+   }
+  },
+  {
+   "file": "ao_inst_st_pier_modular_wooden_pier_planks_5604_2_-222_86",
+   "pack": "ao_inst_st_pier_modular_wooden_pier_planks_5604_2_-222_86.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_pier|modular_wooden_pier_planks|5604|2@-222,86"
+   ],
+   "mean": 0.29797765612602234,
+   "uv2": {
+    "offset": 2719644,
+    "corners": 14490
+   }
+  },
+  {
+   "file": "ao_inst_st_pier_modular_wooden_pier_poles_001_2634_2_-222_86",
+   "pack": "ao_inst_st_pier_modular_wooden_pier_poles_001_2634_2_-222_86.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_pier|modular_wooden_pier_poles.001|2634|2@-222,86"
+   ],
+   "mean": 0.578179121017456,
+   "uv2": {
+    "offset": 2777604,
+    "corners": 9498
+   }
+  },
+  {
+   "file": "ao_inst_st_rift_crystal_crystal_neutral_2096_90_15_2_5",
+   "pack": "ao_inst_st_rift_crystal_crystal_neutral_2096_90_15_2_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rift_crystal|crystal_neutral|2096|90@15,2.5"
+   ],
+   "mean": 0.6044788360595703,
+   "uv2": {
+    "offset": 2815596,
+    "corners": 2964
+   }
+  },
+  {
+   "file": "ao_inst_st_crystal_tree_crystal_neutral_2096_184_-207_5_-21_5",
+   "pack": "ao_inst_st_crystal_tree_crystal_neutral_2096_184_-207_5_-21_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_crystal_tree|crystal_neutral|2096|184@-207.5,-21.5"
+   ],
+   "mean": 0.6044788360595703,
+   "uv2": {
+    "offset": 2827452,
+    "corners": 2964
+   }
+  },
+  {
+   "file": "ao_inst_st_rift_cluster_rock_1121_6_77_5_-39_5",
+   "pack": "ao_inst_st_rift_cluster_rock_1121_6_77_5_-39_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rift_cluster|rock|1121|6@77.5,-39.5"
+   ],
+   "mean": 0.835617184638977,
+   "uv2": {
+    "offset": 2839308,
+    "corners": 3840
+   }
+  },
+  {
+   "file": "ao_inst_st_rift_cluster_crystal_neutral_4980_6_77_5_-39_5",
+   "pack": "ao_inst_st_rift_cluster_crystal_neutral_4980_6_77_5_-39_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rift_cluster|crystal_neutral|4980|6@77.5,-39.5"
+   ],
+   "mean": 0.2507375478744507,
+   "uv2": {
+    "offset": 2854668,
+    "corners": 7044
+   }
+  },
+  {
+   "file": "ao_inst_st_rock_rock_face_02_3460_8_-312_5_-119_5",
+   "pack": "ao_inst_st_rock_rock_face_02_3460_8_-312_5_-119_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rock|rock_face_02|3460|8@-312.5,-119.5",
+    "inst:st_rock|rock_face_02|3460|19@177.5,-18",
+    "inst:st_rock|rock_face_02|3460|17@50.5,149.5",
+    "inst:st_rock|rock_face_02|3460|5@228.5,251.5",
+    "inst:st_rock|rock_face_02|3460|15@-53,-98",
+    "inst:st_rock|rock_face_02|3460|8@-272.5,197.5",
+    "inst:st_rock|rock_face_02|3460|12@-23.5,273",
+    "inst:st_rock|rock_face_02|3460|7@-132.5,67.5",
+    "inst:st_rock|rock_face_02|3460|6@262.5,5",
+    "inst:st_rock|rock_face_02|3460|5@-122,-226.5",
+    "inst:st_rock|rock_face_02|3460|3@-246,-239.5",
+    "inst:st_rock|rock_face_02|3460|4@7,-244.5",
+    "inst:st_rock|rock_face_02|3460|8@271,-95.5",
+    "inst:st_rock|rock_face_02|3460|2@153,304"
+   ],
+   "mean": 0.5451992750167847,
+   "uv2": {
+    "offset": 2882844,
+    "corners": 8964
+   }
+  },
+  {
+   "file": "ao_inst_st_rock_rock_face_02_back_1188_8_-312_5_-119_5",
+   "pack": "ao_inst_st_rock_rock_face_02_back_1188_8_-312_5_-119_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rock|rock_face_02_back|1188|8@-312.5,-119.5",
+    "inst:st_rock|rock_face_02_back|1188|19@177.5,-18",
+    "inst:st_rock|rock_face_02_back|1188|17@50.5,149.5",
+    "inst:st_rock|rock_face_02_back|1188|5@228.5,251.5",
+    "inst:st_rock|rock_face_02_back|1188|15@-53,-98",
+    "inst:st_rock|rock_face_02_back|1188|8@-272.5,197.5",
+    "inst:st_rock|rock_face_02_back|1188|12@-23.5,273",
+    "inst:st_rock|rock_face_02_back|1188|7@-132.5,67.5",
+    "inst:st_rock|rock_face_02_back|1188|6@262.5,5",
+    "inst:st_rock|rock_face_02_back|1188|5@-122,-226.5",
+    "inst:st_rock|rock_face_02_back|1188|3@-246,-239.5",
+    "inst:st_rock|rock_face_02_back|1188|4@7,-244.5",
+    "inst:st_rock|rock_face_02_back|1188|8@271,-95.5",
+    "inst:st_rock|rock_face_02_back|1188|2@153,304"
+   ],
+   "mean": 0.8333414793014526,
+   "uv2": {
+    "offset": 2918700,
+    "corners": 4701
+   }
+  },
+  {
+   "file": "ao_inst_st_rock_rock_face_01_3153_4_-190_5_-234",
+   "pack": "ao_inst_st_rock_rock_face_01_3153_4_-190_5_-234.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rock|rock_face_01|3153|4@-190.5,-234",
+    "inst:st_rock|rock_face_01|3153|6@128,266",
+    "inst:st_rock|rock_face_01|3153|8@-346,13.5",
+    "inst:st_rock|rock_face_01|3153|7@-26,21",
+    "inst:st_rock|rock_face_01|3153|7@-55.5,-68.5",
+    "inst:st_rock|rock_face_01|3153|5@207,182.5",
+    "inst:st_rock|rock_face_01|3153|3@283,240",
+    "inst:st_rock|rock_face_01|3153|5@124,182",
+    "inst:st_rock|rock_face_01|3153|9@-312,-60.5",
+    "inst:st_rock|rock_face_01|3153|4@1,-272.5",
+    "inst:st_rock|rock_face_01|3153|9@127.5,-117",
+    "inst:st_rock|rock_face_01|3153|3@-58.5,201.5",
+    "inst:st_rock|rock_face_01|3153|2@-272,-211.5"
+   ],
+   "mean": 0.5234312415122986,
+   "uv2": {
+    "offset": 2937504,
+    "corners": 8982
+   }
+  },
+  {
+   "file": "ao_inst_st_rock_rock_face_01_back_1563_4_-190_5_-234",
+   "pack": "ao_inst_st_rock_rock_face_01_back_1563_4_-190_5_-234.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:st_rock|rock_face_01_back|1563|4@-190.5,-234",
+    "inst:st_rock|rock_face_01_back|1563|6@128,266",
+    "inst:st_rock|rock_face_01_back|1563|8@-346,13.5",
+    "inst:st_rock|rock_face_01_back|1563|7@-26,21",
+    "inst:st_rock|rock_face_01_back|1563|7@-55.5,-68.5",
+    "inst:st_rock|rock_face_01_back|1563|5@207,182.5",
+    "inst:st_rock|rock_face_01_back|1563|3@283,240",
+    "inst:st_rock|rock_face_01_back|1563|5@124,182",
+    "inst:st_rock|rock_face_01_back|1563|9@-312,-60.5",
+    "inst:st_rock|rock_face_01_back|1563|4@1,-272.5",
+    "inst:st_rock|rock_face_01_back|1563|9@127.5,-117",
+    "inst:st_rock|rock_face_01_back|1563|3@-58.5,201.5",
+    "inst:st_rock|rock_face_01_back|1563|2@-272,-211.5"
+   ],
+   "mean": 0.668060839176178,
+   "uv2": {
+    "offset": 2973432,
+    "corners": 5571
+   }
+  },
+  {
+   "file": "ao_inst_rock_flat_boulder_02_2376_70_55_183_5",
+   "pack": "ao_inst_rock_flat_boulder_02_2376_70_55_183_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:rock_flat|boulder_02|2376|70@55,183.5"
+   ],
+   "mean": 0.5373200178146362,
+   "uv2": {
+    "offset": 2995716,
+    "corners": 8979
+   }
+  },
+  {
+   "file": "ao_inst_rock_outcrop_rock_face_02_3460_34_272_5_-226_5",
+   "pack": "ao_inst_rock_outcrop_rock_face_02_3460_34_272_5_-226_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:rock_outcrop|rock_face_02|3460|34@272.5,-226.5"
+   ],
+   "mean": 0.5451992750167847,
+   "uv2": {
+    "offset": 3031632,
+    "corners": 8964
+   }
+  },
+  {
+   "file": "ao_inst_rock_outcrop_rock_face_02_back_1188_34_272_5_-226_5",
+   "pack": "ao_inst_rock_outcrop_rock_face_02_back_1188_34_272_5_-226_5.ktx2.js",
+   "res": 128,
+   "ids": [
+    "inst:rock_outcrop|rock_face_02_back|1188|34@272.5,-226.5"
+   ],
+   "mean": 0.8333414793014526,
+   "uv2": {
+    "offset": 3067488,
+    "corners": 4701
+   }
+  }
+ ],
+ "trees": {
+  "pack": "treeao.js",
+  "key": "baked/treeao",
+  "format": "Uint8 (ao, sky) per vertex, exported vertex order",
+  "parts": [
+   {
+    "id": "tree:veg_tree_e_bark|1",
+    "species": "tree_spruce_small_snow",
+    "offset": 0,
+    "verts": 1768,
+    "meanAO": 0.32491984963417053,
+    "meanSky": 0.2783983647823334
+   },
+   {
+    "id": "tree:veg_tree_e_leaves|1",
+    "species": "tree_spruce_small_snow",
+    "offset": 3536,
+    "verts": 7680,
+    "meanAO": 0.5854654908180237,
+    "meanSky": 0.44544270634651184
+   },
+   {
+    "id": "tree:veg_tree_e_leaves_snow|1",
+    "species": "tree_spruce_small_snow",
+    "offset": 18896,
+    "verts": 7680,
+    "meanAO": 0.5833658576011658,
+    "meanSky": 0.44544270634651184
+   },
+   {
+    "id": "tree:veg_tree_e_bark|0",
+    "species": "tree_spruce_tall_snow",
+    "offset": 34256,
+    "verts": 2328,
+    "meanAO": 0.26558917760849,
+    "meanSky": 0.22077250480651855
+   },
+   {
+    "id": "tree:veg_tree_e_leaves|0",
+    "species": "tree_spruce_tall_snow",
+    "offset": 38912,
+    "verts": 7680,
+    "meanAO": 0.5529459714889526,
+    "meanSky": 0.42771264910697937
+   },
+   {
+    "id": "tree:veg_tree_e_leaves_snow|0",
+    "species": "tree_spruce_tall_snow",
+    "offset": 54272,
+    "verts": 7680,
+    "meanAO": 0.5535644292831421,
+    "meanSky": 0.42771264910697937
+   },
+   {
+    "id": "tree:veg_tree_e_birch_bark|0",
+    "species": "tree_dead_birch",
+    "offset": 69632,
+    "verts": 5361,
+    "meanAO": 0.875287652015686,
+    "meanSky": 0.7880448698997498
+   },
+   {
+    "id": "tree:veg_tree_needles|1",
+    "species": "tree_spruce_young_dusted",
+    "offset": 80354,
+    "verts": 2696,
+    "meanAO": 0.4575296640396118,
+    "meanSky": 0.3500865399837494
+   },
+   {
+    "id": "tree:veg_tree_pbark|1",
+    "species": "tree_spruce_young_dusted",
+    "offset": 85746,
+    "verts": 1131,
+    "meanAO": 0.053529322147369385,
+    "meanSky": 0.02052018977701664
+   },
+   {
+    "id": "tree:veg_tree_needles|2",
+    "species": "tree_spruce_dense_tall",
+    "offset": 88008,
+    "verts": 3556,
+    "meanAO": 0.4560718834400177,
+    "meanSky": 0.34078553318977356
+   },
+   {
+    "id": "tree:veg_tree_pbark|2",
+    "species": "tree_spruce_dense_tall",
+    "offset": 95120,
+    "verts": 1947,
+    "meanAO": 0.0502268485724926,
+    "meanSky": 0.04192347079515457
+   },
+   {
+    "id": "tree:veg_tree_needles|0",
+    "species": "tree_spruce_snowladen",
+    "offset": 99014,
+    "verts": 3338,
+    "meanAO": 0.44392848014831543,
+    "meanSky": 0.3092046082019806
+   },
+   {
+    "id": "tree:veg_tree_pbark|0",
+    "species": "tree_spruce_snowladen",
+    "offset": 105690,
+    "verts": 1707,
+    "meanAO": 0.04601152241230011,
+    "meanSky": 0.02008885145187378
+   },
+   {
+    "id": "tree:veg_tree_needles|3",
+    "species": "tree_fir_windbent",
+    "offset": 109104,
+    "verts": 2196,
+    "meanAO": 0.5403574705123901,
+    "meanSky": 0.4212014079093933
+   },
+   {
+    "id": "tree:veg_tree_pbark|3",
+    "species": "tree_fir_windbent",
+    "offset": 113496,
+    "verts": 915,
+    "meanAO": 0.04212203621864319,
+    "meanSky": 0.07354281097650528
+   },
+   {
+    "id": "tree:veg_tree_needles|6",
+    "species": "tree_snag_dead",
+    "offset": 115326,
+    "verts": 136,
+    "meanAO": 0.907475471496582,
+    "meanSky": 0.811887264251709
+   },
+   {
+    "id": "tree:veg_tree_dbark|0",
+    "species": "tree_snag_dead",
+    "offset": 115598,
+    "verts": 580,
+    "meanAO": 0.2905890643596649,
+    "meanSky": 0.45481324195861816
+   },
+   {
+    "id": "tree:veg_tree_needles|4",
+    "species": "tree_spruce_krummholz",
+    "offset": 116758,
+    "verts": 856,
+    "meanAO": 0.579049825668335,
+    "meanSky": 0.44577494263648987
+   },
+   {
+    "id": "tree:veg_tree_pbark|4",
+    "species": "tree_spruce_krummholz",
+    "offset": 118470,
+    "verts": 135,
+    "meanAO": 0.10493827611207962,
+    "meanSky": 0.2651234269142151
+   }
+  ]
+ },
+ "files": {
+  "terrain.ktx2": 170153,
+  "terrain.ktx2.js": 226927,
+  "tiles.ktx2": 178964,
+  "tiles.ktx2.js": 238673,
+  "atlas_crash.ktx2": 105624,
+  "atlas_crash.ktx2.js": 140891,
+  "atlas_station.ktx2": 2030,
+  "atlas_station.ktx2.js": 2769,
+  "atlas_camp.ktx2": 35196,
+  "atlas_camp.ktx2.js": 46986,
+  "atlas_misc.ktx2": 492762,
+  "atlas_misc.ktx2.js": 657074,
+  "ao_inst_wf_flags_MeshStandardMaterial_21_35_10_182.ktx2": 994,
+  "ao_inst_wf_flags_MeshStandardMaterial_21_35_10_182.ktx2.js": 1426,
+  "ao_inst_boulder_boulder_01_2515_70_48_185_5.ktx2": 4023,
+  "ao_inst_boulder_boulder_01_2515_70_48_185_5.ktx2.js": 5455,
+  "ao_inst_st_tent_dome_guy_cord_112_2_-33_5_137_5.ktx2": 1947,
+  "ao_inst_st_tent_dome_guy_cord_112_2_-33_5_137_5.ktx2.js": 2691,
+  "ao_inst_st_tent_dome_pole_alu_392_2_-33_5_137_5.ktx2": 3331,
+  "ao_inst_st_tent_dome_pole_alu_392_2_-33_5_137_5.ktx2.js": 4539,
+  "ao_inst_st_tent_dome_nylon_dark_260_2_-33_5_137_5.ktx2": 2731,
+  "ao_inst_st_tent_dome_nylon_dark_260_2_-33_5_137_5.ktx2.js": 3741,
+  "ao_inst_st_tent_dome_nylon_1792_2_-33_5_137_5.ktx2": 4088,
+  "ao_inst_st_tent_dome_nylon_1792_2_-33_5_137_5.ktx2.js": 5545,
+  "ao_inst_atm_env_iceberg_large_iceberg_large_3280_2_-501_-544_5.ktx2": 31252,
+  "ao_inst_atm_env_iceberg_large_iceberg_large_3280_2_-501_-544_5.ktx2.js": 41782,
+  "ao_inst_atm_env_iceberg_tabular_iceberg_tabular_3213_3_289_-686.ktx2": 32008,
+  "ao_inst_atm_env_iceberg_tabular_iceberg_tabular_3213_3_289_-686.ktx2.js": 42791,
+  "ao_inst_atm_env_iceberg_small_iceberg_small_2125_3_-549_5_-399.ktx2": 3317,
+  "ao_inst_atm_env_iceberg_small_iceberg_small_2125_3_-549_5_-399.ktx2.js": 4534,
+  "ao_inst_atm_env_pressure_ridge_rubble_5835_6_-399_-39.ktx2": 13924,
+  "ao_inst_atm_env_pressure_ridge_rubble_5835_6_-399_-39.ktx2.js": 18669,
+  "ao_inst_atm_env_ice_chunk_ice_chunk_1140_9_-438_5_-359.ktx2": 3429,
+  "ao_inst_atm_env_ice_chunk_ice_chunk_1140_9_-438_5_-359.ktx2.js": 4674,
+  "ao_inst_st_pole_modular_electricity_poles_pieces_6599_3_106_112.ktx2": 1461,
+  "ao_inst_st_pole_modular_electricity_poles_pieces_6599_3_106_112.ktx2.js": 2059,
+  "ao_inst_st_pole_modular_electricity_poles_90_3_106_112.ktx2": 3484,
+  "ao_inst_st_pole_modular_electricity_poles_90_3_106_112.ktx2.js": 4750,
+  "ao_inst_st_ruin_column_ancient_stone_1293_8_-32_88.ktx2": 3979,
+  "ao_inst_st_ruin_column_ancient_stone_1293_8_-32_88.ktx2.js": 5406,
+  "ao_inst_st_ruin_arch_ancient_stone_2647_4_-28_5_92.ktx2": 4065,
+  "ao_inst_st_ruin_arch_ancient_stone_2647_4_-28_5_92.ktx2.js": 5518,
+  "ao_inst_st_inuksuk_cairn_stone_572_6_78_148_5.ktx2": 3989,
+  "ao_inst_st_inuksuk_cairn_stone_572_6_78_148_5.ktx2.js": 5413,
+  "ao_inst_st_ruin_wall_ancient_stone_3157_4_-24_5_87.ktx2": 4198,
+  "ao_inst_st_ruin_wall_ancient_stone_3157_4_-24_5_87.ktx2.js": 5698,
+  "ao_inst_st_pier_modular_wooden_pier_planks_5604_2_-222_86.ktx2": 3546,
+  "ao_inst_st_pier_modular_wooden_pier_planks_5604_2_-222_86.ktx2.js": 4833,
+  "ao_inst_st_pier_modular_wooden_pier_poles_001_2634_2_-222_86.ktx2": 4029,
+  "ao_inst_st_pier_modular_wooden_pier_poles_001_2634_2_-222_86.ktx2.js": 5480,
+  "ao_inst_st_rift_crystal_crystal_neutral_2096_90_15_2_5.ktx2": 4168,
+  "ao_inst_st_rift_crystal_crystal_neutral_2096_90_15_2_5.ktx2.js": 5662,
+  "ao_inst_st_crystal_tree_crystal_neutral_2096_184_-207_5_-21_5.ktx2": 4168,
+  "ao_inst_st_crystal_tree_crystal_neutral_2096_184_-207_5_-21_5.ktx2.js": 5669,
+  "ao_inst_st_rift_cluster_rock_1121_6_77_5_-39_5.ktx2": 3637,
+  "ao_inst_st_rift_cluster_rock_1121_6_77_5_-39_5.ktx2.js": 4946,
+  "ao_inst_st_rift_cluster_crystal_neutral_4980_6_77_5_-39_5.ktx2": 3829,
+  "ao_inst_st_rift_cluster_crystal_neutral_4980_6_77_5_-39_5.ktx2.js": 5213,
+  "ao_inst_st_rock_rock_face_02_3460_8_-312_5_-119_5.ktx2": 4181,
+  "ao_inst_st_rock_rock_face_02_3460_8_-312_5_-119_5.ktx2.js": 5673,
+  "ao_inst_st_rock_rock_face_02_back_1188_8_-312_5_-119_5.ktx2": 3608,
+  "ao_inst_st_rock_rock_face_02_back_1188_8_-312_5_-119_5.ktx2.js": 4914,
+  "ao_inst_st_rock_rock_face_01_3153_4_-190_5_-234.ktx2": 4171,
+  "ao_inst_st_rock_rock_face_01_3153_4_-190_5_-234.ktx2.js": 5659,
+  "ao_inst_st_rock_rock_face_01_back_1563_4_-190_5_-234.ktx2": 3537,
+  "ao_inst_st_rock_rock_face_01_back_1563_4_-190_5_-234.ktx2.js": 4816,
+  "ao_inst_rock_flat_boulder_02_2376_70_55_183_5.ktx2": 4234,
+  "ao_inst_rock_flat_boulder_02_2376_70_55_183_5.ktx2.js": 5741,
+  "ao_inst_rock_outcrop_rock_face_02_3460_34_272_5_-226_5.ktx2": 4181,
+  "ao_inst_rock_outcrop_rock_face_02_3460_34_272_5_-226_5.ktx2.js": 5678,
+  "ao_inst_rock_outcrop_rock_face_02_back_1188_34_272_5_-226_5.ktx2": 3608,
+  "ao_inst_rock_outcrop_rock_face_02_back_1188_34_272_5_-226_5.ktx2.js": 4919,
+  "uv2.js": 4115107,
+  "treeao.js": 158374,
+  "basis_wasm.js": 703164
+ },
+ "uv2": {
+  "pack": "uv2.js",
+  "key": "baked/uv2",
+  "format": "Uint16 normalised (u, v) per corner, in the exported index order (use geometry.toNonIndexed())",
+  "bytes": 3086292
+ },
+ "totals": {
+  "packsBytes": 6523859,
+  "ktx2Bytes": 1157846
+ }
+}
