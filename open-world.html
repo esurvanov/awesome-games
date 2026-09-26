@@ -754,7 +754,10 @@ let composer = null, gradePass = null, bloomPass = null;
 {
   // MSAA only where it matters: the scene renders into its own multisampled target (color + depth), is resolved and
   // copied once into the composer chain; every post pass after that works on plain single-sample targets.
-  const sceneRT = post.sceneRT = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: Q.msaa });
+  // scene colour: RGBA16F, or R11G11B10F (Q.sceneFmt 'r11': half the bytes per sample; HDR range kept, no alpha needed)
+  const sceneFmt = (f) => f === 'r11' ? { format: THREE.RGBFormat, type: THREE.UnsignedInt101111Type } : { format: THREE.RGBAFormat, type: THREE.HalfFloatType };
+  post.sceneFmt = sceneFmt;
+  const sceneRT = post.sceneRT = new THREE.WebGLRenderTarget(16, 16, Object.assign({ samples: Q.msaa }, sceneFmt(Q.sceneFmt)));
   sceneRT.depthTexture = new THREE.DepthTexture(16, 16); sceneRT.depthTexture.type = THREE.UnsignedIntType;
   composer = post.composer = new THREE.EffectComposer(renderer, new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType }));
   post.render = new (class ScenePass extends THREE.Pass {
@@ -1197,7 +1200,8 @@ function setQuality(name) {
   if (SHADOW.on) SHADOW.configure();   // cached cascades: new sizes / ranges, rebuilt next frame
   else if (moon.shadow.mapSize.x !== q.shadowMap) { moon.shadow.mapSize.set(q.shadowMap, q.shadowMap); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }   // per cascade; atlas is 2x1
   post.gtao.enabled = q.ao;
-  if (prev !== q.msaa) { post.sceneRT.samples = q.msaa; post.sceneRT.dispose(); }
+  const f = post.sceneFmt(q.sceneFmt), t = post.sceneRT.texture;
+  if (prev !== q.msaa || t.type !== f.type) { post.sceneRT.samples = q.msaa; t.format = f.format; t.type = f.type; post.sceneRT.dispose(); }
   FOREST.R = q.treeNear; FOREST.shadowR = q.treeShadow; FOREST.dirty = true;
   if (window.WorldFill && WorldFill.knobs) WorldFill.knobs.density = q.grass;   // grass density knob (applies to newly generated clutter cells)
   resize();
