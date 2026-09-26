@@ -18,7 +18,7 @@
     ik: true, ikRay: 1.7, pelvisMin: -0.5, pelvisMax: 0.4, tiltMax: 0.6, stride: true, strideMin: 0.55, strideMax: 1.9,
     lean: 1, look: true, lookRange: 6, snowFloat: 0.3, bob: 0.018, dip: 1, iceAccel: 0.3, iceDecel: 0.14, stepVol: 1,
     stagTurn: 2.4, stagTop: 9.5, stagAlign: 0.85, foxAlign: 0.8, trees: true,
-    gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]], stagRate: 2.4, foxRate: 4.5, footStamp: true,
+    gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]], stagRate: 2.4, foxRate: 4.5, footStamp: true, foxLegs: false,
   };
   const STATS = { ms: 0, msMax: 0, frames: 0, steps: 0, cracks: 0, shakes: 0, lands: 0, pounces: 0, trails: 0 };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
