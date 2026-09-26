@@ -1121,10 +1121,12 @@ vec3 impNW;`)
           if (m && !m.transparent) {
             v.copy(o.geometry.boundingSphere.center).applyMatrix4(o.matrixWorld); ms.setFromMatrixScale(o.matrixWorld);
             const r = s.r * Math.max(ms.x, ms.y, ms.z), d = v.distanceTo(cam), tiny = r < 2.5 && r / Math.max(d, 1) < (emi ? 0.002 : 0.0036);
-            if (s.maskSet !== undefined && o.layers.mask !== s.maskSet) { s.mask0 = o.layers.mask; }   // owner changed layers
-            if (s.mask0 === undefined) s.mask0 = o.layers.mask;
+            // layers 20–22 belong to the cached moon shadows (open-world SHADOW): never part of the owner's baseline
+            const SHB = 7 << 20, cur = o.layers.mask & ~SHB, keep = o.layers.mask & SHB;
+            if (s.maskSet !== undefined && cur !== s.maskSet) { s.mask0 = cur; }   // owner changed layers
+            if (s.mask0 === undefined) s.mask0 = cur;
             const want = tiny ? (s.mask0 & ~1) : s.mask0;
-            if (o.layers.mask !== want) o.layers.mask = want; s.maskSet = want; if (tiny) hid++;
+            if (cur !== want) o.layers.mask = want | keep; s.maskSet = want; if (tiny) hid++;
           }
         }
         n++;
