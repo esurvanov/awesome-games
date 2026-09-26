@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scan Preview</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- All mesh packs from assets/incoming4/scan/index.json in a row under the game's night rig (style.js numbers).
+     ?lod=auto|0|1|2  &ktx2=1 (KTX2 packs via KTX2Loader)  &spin=0  &dist=N (camera distance, m)  &only=a,b
+     window.__bench = { ready, errors, assets: [{ name, tris, levels }] } for tools/scan/shot.mjs -->
+<style>
+  :root { --bg: #0b1422; --fg: #cfe0ff; --dim: #7d8fb0; --ok: #5cf5c0; --bad: #ff5c7d; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 12px/1.4 ui-monospace, Menlo, monospace; overflow: hidden; }
+  #hud { position: fixed; left: 8px; top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  #hud button { background: #16233a; color: var(--fg); border: 1px solid #2a3b5c; border-radius: 5px; padding: 3px 8px; font: inherit; cursor: pointer; }
+  #hud button.on { border-color: var(--ok); color: var(--ok); }
+  #info { position: fixed; left: 8px; bottom: 8px; white-space: pre; color: var(--dim); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+} }
+</script>
+<script src="../../style.js"></script>
+<script src="scan-lod.js"></script>
+</head>
+<body>
+<div id="hud"></div><div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const Q = new URLSearchParams(location.search), DIR = Q.get('dir') || '../../assets/incoming4/scan/';
+const B = window.__bench = { ready: false, errors: [], assets: [] };
+addEventListener('error', (e) => B.errors.push(String(e.message)));
+addEventListener('unhandledrejection', (e) => B.errors.push('rejection: ' + String(e.reason && e.reason.message || e.reason)));
+document.addEventListener('securitypolicyviolation', (e) => B.errors.push('CSP: ' + e.violatedDirective + ' ' + e.blockedURI));
+const S = window.STYLE, P = S.palette, A = S.atmosphere.clear_aurora;
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = A.exposure; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(P.fog); scene.fog = new THREE.Fog(P.fog, 60, 260);
+scene.add(new THREE.HemisphereLight(P.hemiSky, P.hemiGround, A.hemi));
+const moon = new THREE.DirectionalLight(P.moon, A.moon); moon.position.set(-6, 9, 7); moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048);
+Object.assign(moon.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, far: 60 }); scene.add(moon);
+const snow = S.materials.snow;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: snow.color, roughness: snow.roughness }));
+ground.receiveShadow = true; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.05, 1000);
+
+const idx = await fetch(DIR + 'index.json').then((r) => r.json());
+const only = Q.get('only') ? Q.get('only').split(',') : null;
+const names = Object.keys(idx).filter((n) => idx[n].kind === 'mesh' && (!only || only.includes(n)));
+const ktx2 = Q.get('ktx2') === '1';
+const loader = new GLTFLoader();
+if (ktx2) {
+  const { KTX2Loader } = await import('three/addons/loaders/KTX2Loader.js');
+  const k = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/libs/basis/').detectSupport(renderer);
+  loader.setKTX2Loader(k);
+}
+// same path as the game's loadPacked: <script> pack → base64 → GLTFLoader.parse with createImageBitmap hidden (fetch(blob:) is blocked)
+const loadPack = (name, key) => new Promise((res, rej) => {
+  const sc = document.createElement('script'); sc.src = DIR + name + '/' + key + '.js';
+  sc.onerror = () => rej(new Error('pack missing ' + key));
+  sc.onload = () => { const b64 = window.__PACK[key]; const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); delete window.__PACK[key];
+    const cib = window.createImageBitmap; window.createImageBitmap = undefined;
+    loader.parse(u.buffer, '', (g) => { window.createImageBitmap = cib; res(g); }, (e) => { window.createImageBitmap = cib; rej(e); }); };
+  document.head.appendChild(sc);
+});
+const lods = []; let x = 0; const gap = 0.8;
+for (const n of names) {
+  try {
+    const t = performance.now(); const g = await loadPack(n, ktx2 ? n + '_ktx2' : n);
+    const lod = ScanLOD.fromGLTF(g, THREE); const w = (idx[n].size || [1, 1, 1])[0];
+    x += w / 2; lod.position.set(x, 0, 0); x += w / 2 + gap; scene.add(lod); lods.push(lod);
+    B.assets.push({ name: n, ms: Math.round(performance.now() - t), levels: lod.levels.map((l) => l.object.geometry.index.count / 3), scan: lod.userData.scan });
+  } catch (e) { B.errors.push(n + ': ' + (e.message || e)); }
+}
+const total = Math.max(1, x - gap), cx = total / 2; lods.forEach((l) => (l.position.x -= cx));
+const H = Math.max(1, ...names.map((n) => (idx[n].size || [1, 1, 1])[1]));
+let mode = Q.get('lod') || 'auto', spin = Q.get('spin') !== '0', ang = 0;
+const dist = Number(Q.get('dist')) || Math.max(total * 1.05, H * 3.2);
+const hud = document.getElementById('hud');
+const btn = (label, on, fn) => { const b = document.createElement('button'); b.textContent = label; b.className = on ? 'on' : ''; b.onclick = fn; hud.appendChild(b); return b; };
+function drawHud() { hud.innerHTML = ''; for (const m of ['auto', '0', '1', '2']) btn('◆ LOD ' + m, mode === m, () => { mode = m; drawHud(); }); btn(spin ? '⏸ spin' : '▶ spin', spin, () => { spin = !spin; drawHud(); });
+  btn(ktx2 ? '▣ KTX2' : '▢ JPG', ktx2, () => { Q.set('ktx2', ktx2 ? '0' : '1'); location.search = Q.toString(); }); }
+drawHud();
+const info = document.getElementById('info');
+function frame() {
+  if (spin) ang += 0.003;
+  lods.forEach((l) => { l.rotation.y = ang; if (mode !== 'auto') { l.autoUpdate = false; l.levels.forEach((lv, i) => (lv.object.visible = String(i) === mode)); } else l.autoUpdate = true; });
+  camera.position.set(0, H * 0.9, dist); camera.lookAt(0, H * 0.35, 0);
+  renderer.render(scene, camera);
+  info.textContent = B.assets.map((a) => `${a.name}  ${a.levels.join('/')} tris  ${a.ms} ms`).join('\n') + (B.errors.length ? '\n' + B.errors.join('\n') : '');
+  requestAnimationFrame(frame);
+}
+B.ready = true; frame();
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+</script>
+</body>
+</html>

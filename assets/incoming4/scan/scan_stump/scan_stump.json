@@ -1,0 +1,130 @@
+{
+ "name": "scan_stump",
+ "role": "wood",
+ "source": "stump.glb",
+ "created": "2026-09-26T02:45:10.710Z",
+ "seconds": 35.2,
+ "size": [
+  1.41,
+  0.571,
+  1.572
+ ],
+ "bounds": {
+  "min": [
+   -0.704,
+   0,
+   -0.786
+  ],
+  "max": [
+   0.706,
+   0.572,
+   0.786
+  ]
+ },
+ "radius": 1.094,
+ "volume": 0.4109,
+ "lods": [
+  {
+   "name": "scan_stump_LOD0",
+   "tris": 5000,
+   "verts": 2506
+  },
+  {
+   "name": "scan_stump_LOD1",
+   "tris": 1500,
+   "verts": 756
+  },
+  {
+   "name": "scan_stump_LOD2",
+   "tris": 300,
+   "verts": 156
+  }
+ ],
+ "lodDist": [
+  0,
+  15.3,
+  43.8
+ ],
+ "highTris": 41046,
+ "highTrisIn": 41046,
+ "texture": {
+  "size": 1024,
+  "uvUsed": 0.599,
+  "jpgBytes": {
+   "normal": 177943,
+   "orm": 65069,
+   "albedo": 305164
+  },
+  "ktx2Bytes": {
+   "albedo": 227053,
+   "normal": 769330,
+   "orm": 64203
+  }
+ },
+ "bytes": {
+  "glb": 859388,
+  "pack": 1145904,
+  "glbKtx2": 1372000,
+  "packKtx2": 1829393
+ },
+ "passport": {
+  "role": "solid",
+  "why": "static",
+  "opts": {
+   "name": "scan_stump",
+   "shape": "mesh",
+   "cell": 0.04
+  },
+  "massIfDynamic": 226
+ },
+ "clean": {
+  "groundCutAt": null,
+  "groundProbe": {
+   "z": 0.095,
+   "flatArea": 0.012,
+   "bboxFootprint": 2.267
+  },
+  "islandsRemoved": 0,
+  "voxel": 0.0085,
+  "scaleApplied": 1
+ },
+ "delight": {
+  "aoStrength": 0.6,
+  "dirStrength": 1.93,
+  "lightDirGame": [
+   -0.39,
+   0.725,
+   0.567
+  ],
+  "corrShadingBefore": 0.467,
+  "corrShadingAfter": 0.149,
+  "medianLumIn": 0.0558,
+  "medianLumDelit": 0.0361,
+  "targetLum": 0.12,
+  "medianLumOut": 0.0697,
+  "grade": {
+   "desat": 0.35,
+   "mul": [
+    0.800000011920929,
+    0.7799999713897705,
+    0.7599999904632568
+   ]
+  }
+ },
+ "gradeFrom": "STYLE.materials.bark.lin",
+ "roughness": 0.95,
+ "metalness": 0,
+ "bakeDevice": "GPU",
+ "steps": {
+  "import": 0.24,
+  "orient": 0,
+  "clean": 0.26,
+  "lod0": 6.1,
+  "bake": 11.18,
+  "delight": 0.79,
+  "lods": 0.04,
+  "export": 0.23,
+  "thumbs": 6.3
+ },
+ "usage": "copy scan_stump.js → assets/pack/; ctx.loadPacked('scan_stump', ctx.ASSET, (g) => { const lod = ScanLOD.fromGLTF(g, ctx.THREE); lod.position.set(x, ctx.groundH(x, z), z); ctx.scene.add(lod); ctx.Passport.register(lod.levels[0].object, 'solid', {...}); })"
+}
