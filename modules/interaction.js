@@ -326,7 +326,7 @@
       // down where it plants: footPress = the share of the loose snow a boot compresses (stamped by plantStamp below)
       L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowSurfaceAt === 'function';
       let gy = L.g.y;
-      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const stamped = L.st && Math.hypot(sx - L.st.x, sz - L.st.z) < 0.12, v = C.snowSurfaceAt(sx, sz, stamped || !C.footPress ? 0 : C.footPress(sx, sz) * 0.72); /* stamped: the logged pad (as the map shows it); not yet: its blurred centre value (×0.72) */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
+      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const v = C.snowSurfaceAt(sx, sz, C.footPress ? C.footPress(sx, sz) * 0.72 : 0); /* FIX-PERF: floor with the estimate even once logged — the shrunk pad (0.75 m) sits inside the CPU replay's ±0.32 m taps, whose blurred average now undershoots the true peak the GPU renders */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
       else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat;
       L.gy = gy;
       L.tgt.set(L.anim.x, gy + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
