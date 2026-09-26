@@ -725,7 +725,8 @@
     return [p * e[7], r * e[7]];
   }
   // the map is read at mip ~0.8 (0.125 / 0.25 m texels) on a 0.22 m vertex grid: ≈ a ±0.35 m tent blur → 3 × 3 taps
-  const TAPS = []; for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) TAPS.push([i * 0.2, j * 0.2, (i ? 0.25 : 0.5) * (j ? 0.25 : 0.5)]);
+  // (FIX-PERF: ±0.28 m — mip ~0.8 bilinear (0.25 m texels) and the 0.22 m vertex interpolation together blur ≈ ±0.3 m)
+  const TAPS = []; for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) TAPS.push([i * 0.36, j * 0.36, (i ? 0.25 : 0.5) * (j ? 0.25 : 0.5)]);
   function pressCPU(x, z) {   // [press, rim, edge] as the vertex shader sees them
     let P = 0, Rr = 0;
     for (const [ox, oz, w] of TAPS) {
@@ -1007,7 +1008,7 @@
     Object.assign(TR, { snowDepthAt, surfaceAt, slopeAt, snowCover, stamp, windDir: { x: S.wind[0], z: S.wind[1] }, S, DEF, U,
       addFootprint(x, z, face, o = {}) { const fx = -Math.sin(face || 0), fz = -Math.cos(face || 0); stamp(Object.assign({ x, z, dx: fx, dz: fz, type: 'boot', len: 0.31, wid: 0.135, str: 0.92 }, o)); puff(x, z, sampleD(x, z)); } });
     Object.assign(c, { snowDepthAt, surfaceAt, slopeAt, snowCover, addFootprint: TR.addFootprint, snowStamp: stamp, windDir: TR.windDir, snowSurfaceAt, footPress });
-    Object.assign(TR, { snowSurfaceAt, footPress, pressCPU, SL });
+    Object.assign(TR, { snowSurfaceAt, footPress, pressCPU, SL, stampShape });
     if (c.WORLD_TERRAIN) c.WORLD_TERRAIN.detail = S.root;
     S.initMs = performance.now() - t0;
   }
