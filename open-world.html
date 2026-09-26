@@ -538,6 +538,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="worldfill.js"></script>
 <script src="ai-content.js"></script>
 <script src="ai.js"></script>
+<script src="assets/pack/animlib-runtime.js"></script>
 <script src="modules/terrain.js"></script>
 <script src="modules/vegetation.js"></script>
 <script src="modules/atmosphere.js"></script>
@@ -3477,19 +3478,24 @@ function makeAnimator(root, clips, map) {
 }
 function driveAvatar(dt, mode) {
   const A = AV.player; if (!A) return;
-  const hs = Math.hypot(player.vx, player.vz);
-  let k;
-  if (mode === 'ride') k = 'drive';
-  else if (mode === 'still') k = 'idle';
-  else if (player.sliding) k = 'slide';
-  else if (!player.onGround) k = 'jump';
-  else if (player.aimT > 0 && hs < 1.5) k = player.fireCd > 0.05 ? 'shoot' : 'aim';
-  else k = hs > 9 ? 'run' : hs > 3.2 ? 'jog' : hs > 0.6 ? 'walk' : 'idle';
-  if (!A.acts[k]) k = k === 'run' && A.acts.jog ? 'jog' : 'idle';
-  A.loop(k, 0.18);
-  if (k === 'walk') A.speed('walk', clamp(hs / 1.8, 0.6, 1.6));
-  if (k === 'jog') A.speed('jog', clamp(hs / 5, 0.7, 1.5));
-  if (k === 'run') A.speed('run', clamp(hs / 8, 0.8, 1.5));
+  // the interaction module's contact layer (leaning on a rock, hand on a wall, vault…) owns A.cur while its 'play'
+  // phase is active — it sets the clip itself (modules/interaction.js); we still have to advance the mixer every frame
+  const CTplaying = window.INTERACTION && INTERACTION.CT && INTERACTION.CT.state === 'play';
+  if (!CTplaying) {
+    const hs = Math.hypot(player.vx, player.vz);
+    let k;
+    if (mode === 'ride') k = 'drive';
+    else if (mode === 'still') k = 'idle';
+    else if (player.sliding) k = 'slide';
+    else if (!player.onGround) k = 'jump';
+    else if (player.aimT > 0 && hs < 1.5) k = player.fireCd > 0.05 ? 'shoot' : 'aim';
+    else k = hs > 9 ? 'run' : hs > 3.2 ? 'jog' : hs > 0.6 ? 'walk' : 'idle';
+    if (!A.acts[k]) k = k === 'run' && A.acts.jog ? 'jog' : 'idle';
+    A.loop(k, 0.18);
+    if (k === 'walk') A.speed('walk', clamp(hs / 1.8, 0.6, 1.6));
+    if (k === 'jog') A.speed('jog', clamp(hs / 5, 0.7, 1.5));
+    if (k === 'run') A.speed('run', clamp(hs / 8, 0.8, 1.5));
+  }
   A.update(dt);
 }
 function loadPacked(name, path, cb) {
@@ -3523,6 +3529,7 @@ if (GL) {
       aim: 'Pistol_Idle_Loop', shoot: 'Pistol_Shoot', roll: 'Roll', interact: 'Interact', wave: 'Idle_Talking_Loop', hit: 'Hit_Chest', death: 'Death01', drive: 'Driving_Loop', slide: 'Slide_Loop', climb: 'ClimbUp_1m' });
     AV.hand = root.getObjectByName('hand_r') || null;
     AV.player.loop('idle');
+    attachContactLib(root, AV.player);
   });
   loadPacked('npc_hermit', ASSET, (g) => {
     const root = prepModel(g.scene, 1.84);
@@ -3531,6 +3538,18 @@ if (GL) {
       Passport.register({ point: [c.x, b.min.y, c.z] }, 'trunk', { name: 'orm', radius: Math.min(sz.x, sz.z) * 0.5, height: sz.y }); }
     AV.orm = makeAnimator(root, g.animations, { idle: 'Idle_Loop', wave: 'Yes', talk: 'Idle_Talking_Loop', yes: 'Yes', no: 'Idle_No_Loop', arms: 'Idle_FoldArms_Loop' });
     AV.orm.loop('idle');
+    attachContactLib(root, AV.orm);
+  });
+}
+// pilot + hermit share the UAL contact-clip skeleton (ANIMLIB.md): merge the 37 clips into the animator's own clip
+// list (keyed by clip name, playable via A.loop/A.once like any other state) and give it a ContactLayer for hand IK.
+function attachContactLib(root, A) {
+  if (!window.ANIMLIB) return;
+  loadPacked('anim_pilot_contact', ASSET, (lib) => {
+    ANIMLIB.mergeClips(A.mixer._contactSrc || (A.mixer._contactSrc = []), lib);   // dedupe guard across repeated loads
+    for (const c of lib.animations) if (!A.acts[c.name]) A.acts[c.name] = A.mixer.clipAction(c);
+    A.contactMeta = ANIMLIB.meta(lib);
+    A.contact = new ANIMLIB.ContactLayer(root, A.contactMeta);
   });
 }
 
@@ -3834,7 +3853,17 @@ loadPacked('prop_lamp_post', ASSET, (g) => {
 // wildlife: a small reindeer-like herd that grazes and bolts
 const STAGS = [];
 loadPacked('animal_stag', ASSET, (g) => {
-  const base = prepModel(g.scene, 0);
+  // i01–i05 reference photos: pale grey-fawn hide, matte. The shipped pack's diffuse texture is a saturated red-brown
+  // ("red deer" in the baseline review) — multiplying material.color by a near-uniform grey only scales brightness,
+  // it can't desaturate a hue (every channel gets the same factor, so the ratio between them — the hue — is
+  // unchanged; confirmed by look-gate's own render still reading brown after that first attempt). Dropping the map
+  // and using a flat pale hide colour does change the hue, same fix pattern already proven on the fox below.
+  const base = prepModel(g.scene, 0, (m) => {
+    m.map = null; if (m.color) m.color.setHex(0xc9c2b4);
+    m.roughness = 0.92; m.metalness = 0;
+    if ('envMapIntensity' in m) m.envMapIntensity = 0.4;
+    m.needsUpdate = true;
+  });
   const spots = [[-110, 40], [-95, 55], [-120, 58], [135, -45], [150, -30], [60, 150]];
   for (const [x, z] of spots) {
     if (getH(x, z) < 1 || inRift(x, z)) continue;
@@ -3845,6 +3874,13 @@ loadPacked('animal_stag', ASSET, (g) => {
     A.loop(['idle', 'eat', 'look'][STAGS.length % 3]);
     STAGS.push({ g: grp, A, x, z, hx: x, hz: z, yaw: Math.random() * 6.28, st: 'graze', t: rand(3, 8), vx: 0, vz: 0 });
   }
+  // 20-clip phase-synced gait set (ANIMLIB.md): merge once the pack lands, into every stag already built above (the
+  // spots loop just ran synchronously; this pack's <script> tag resolves later). modules/interaction.js drives the
+  // per-stag ANIMLIB.GaitBlender from s.A.acts + s.gaitMeta while fleeing (walk/trot/canter/gallop, speed-matched).
+  if (window.ANIMLIB) loadPacked('anim_stag_gaits', ASSET, (lib) => {
+    const meta = ANIMLIB.meta(lib); if (!meta) return;
+    for (const s of STAGS) { for (const c of lib.animations) if (!s.A.acts[c.name]) s.A.acts[c.name] = s.A.mixer.clipAction(c); s.gaitMeta = meta; }
+  });
 });
 function updateStags(dt) {
   for (const s of STAGS) {
@@ -3871,7 +3907,9 @@ function updateStags(dt) {
     }
     s.g.position.set(s.x, groundH(s.x, s.z), s.z); s.g.rotation.y = s.yaw;
     s.g.visible = camD < 320;
-    if (camD < 220) s.A.update(dt);
+    // interaction.js drives s.A.mixer itself (via ANIMLIB.GaitBlender) while gaitDriving is set — one mixer.update() per
+    // frame either way, never both (double-advances idle/eat/look clips otherwise)
+    if (camD < 220 && !s.gaitDriving) s.A.update(dt);
   }
 }
 

@@ -62,6 +62,7 @@
 | 📖 `HINTS` | every 15 s, only after a local "maybe stuck" check | noul "stuck?" · choice of 1–4 spoiler-free hints for the stage | noul ≥ 0.6 · 120 s cooldown → `stuckRules` / `hintRules` |
 | 🖥 `QUALITY_DIRECTOR` | every 3 s | preset {low, med, high, ultra} · focus {enemy, landscape, dialogue, vehicle} | conf ≥ 0.4 → `qualityRules`; then **local hysteresis** |
 | 📦 `PRELOAD` | every 20 s and on stage change | next zone from the zones not yet preloaded | conf ≥ 0.3 → `preloadRules` (stage → zone) |
+| 🤝 `CONTACT_INTENT` | only when the probed surface state changes near the player (surface/distance/height/player-state bucket), ≥ 1.2 s apart | one contact action (`rest_on_rock, touch_surface, climb_slope, cross_obstacle, inspect_ground, pick_up, clear_branch`) + `none`, from surface type/height/distance/angle, player speed/state, fatigue (hp⁄hpMax proxy), cold (`WX.storm` proxy), animals/NPC nearby | conf ≥ 0.4 → `contactRules` (same gates as `ANIMLIB.chooseContact`'s own `within()` check: close + slow/idle, never mid-run/combat/ride/climb). See `INT-CONTACT.md` / `modules/interaction.js` (`CT`). |
 
 **Quality hysteresis:** go down one step after 2 samples in a row below 50 fps, or at once below 24 fps. Go up one step only after 3 samples in a row with the worst frame ≥ 50 fps and at least 24 s since the last change. Never skip a level. A manual command locks the preset for 5 minutes.
 
@@ -101,6 +102,7 @@ Voice uses the Web Speech API with `ru-RU`. If it's missing or the microphone is
 | QUALITY_DIRECTOR | 657 | $0.000028 | 24 fps → low ✓ · phone → med ✓ · 118 fps → high ✓ |
 | HINTS | 539 | $0.000023 | stuck 0.90 vs progressing 0.08 ✓ |
 | PRELOAD | 492 | $0.000021 | stage 2 → lake ✓ · stage 6 → rift ✓ |
+| CONTACT_INTENT | 739 | $0.000031 | **5/5** (idle at rock → rest_on_rock ✓ · slow approach → touch_surface ✓ · sprinting past → none ✓ · low crate → cross_obstacle ✓ · fighting → none ✓), 2026-09-26 |
 
 **Cost of an hour of play (worst case, no cache hits):** director 120 calls + quality 1200 + creatures ≈ 430 → about 1.4M tokens → **≈ $0.06/h**. Cache hits usually cut this by half or more.
 

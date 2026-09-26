@@ -12,13 +12,15 @@
  */
 (function () {
   let C = null, T3 = null;
-  const SUB = { body: true, look: true, arms: true, steps: true, world: true, ice: true, stags: true, fox: true, camera: true };
+  const SUB = { body: true, look: true, arms: true, steps: true, world: true, ice: true, stags: true, fox: true, camera: true, contact: true };
   const ERR = {};
   const K = {                       // knobs (documented in INTERACTION.md)
     ik: true, ikRay: 1.7, pelvisMin: -0.5, pelvisMax: 0.4, tiltMax: 0.6, stride: true, strideMin: 0.55, strideMax: 1.9,
     lean: 1, look: true, lookRange: 6, snowFloat: 0.3, bob: 0.018, dip: 1, iceAccel: 0.3, iceDecel: 0.14, stepVol: 1,
     stagTurn: 2.4, stagTop: 9.5, stagAlign: 0.85, foxAlign: 0.8, trees: true,
     gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]], stagRate: 2.4, foxRate: 4.5, footStamp: true, foxLegs: false,
+    gaitBlend: true,   // stags: ANIMLIB 20-clip walk/trot/canter/gallop blender (replaces the flat Run clip while fleeing)
+    contact: true, contactRange: 1.7, contactAsk: 1.2,   // pilot: rock/wall/branch/ledge contact layer (INT-CONTACT)
   };
   const STATS = { ms: 0, msMax: 0, frames: 0, steps: 0, cracks: 0, shakes: 0, lands: 0, pounces: 0, trails: 0 };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -461,6 +463,159 @@
     return { w: smooth(1.05, 0.5, h.distance) };
   }
 
+  /* ------------------------------------------------------------------ contact: lean on a rock, hand on a wall, brace a
+   * slope, step over / vault low obstacles, brush a branch, inspect/pick up — the "bumps into a rock from a distance"
+   * fix. ANIMLIB.md's 37 pilot/hermit clips (assets/pack/anim_pilot_contact.js) carry, per clip, which hand/foot holds
+   * where on the real surface and the ideal stand-off; ANIMLIB.chooseContact(intent, sense, meta) turns a probed
+   * "sense" + a high-level intent into {clip, enter, standOff}. The intent itself (which of the 7 actions, if any) is
+   * asked of Jev (CONTACT_INTENT, ai-content.js) only when the probed surface state actually changes near the player;
+   * offline / low-confidence falls back to AI_CONTENT.contactRules (deterministic, same file). */
+  const CT = { ready: false, meta: null, layer: null, state: 'idle', phase: null, pick: null, t: 0, sense: null,
+    wantIntent: 'none', wantSrc: 'rules', askKey: '', askAt: -9, senseT: 0 };
+  function contactReady() {
+    const A = C.AV && C.AV.player;
+    if (A && A.contact && A.contactMeta) { CT.meta = A.contactMeta; CT.layer = A.contact; CT.ready = true; }
+    return CT.ready;
+  }
+  // one probe: horizontal ray at height `oy` above the feet, then a downward ray to the real top of whatever it hit
+  // (= "height = top of the hit surface above the feet", per ANIMLIB.md's sense spec)
+  function probeDir(ox, oz, len, oy) {
+    const P = C.player, PH = C.PH;
+    // rocks/walls/ruins are STATIC, tree trunks are their own TRUNK group, static/pushable props are PROP (see
+    // physics.js) — a contact probe wants all three (unlike hitDown()'s foot-ground ray, which stays STATIC-only)
+    const grp = PH.P.groups.STATIC | PH.P.groups.TRUNK | PH.P.groups.PROP;
+    const h = PH.P.raycast({ x: P.x, y: P.y + oy, z: P.z }, { x: ox, y: 0, z: oz }, len, { groups: grp });
+    if (!h) return null;
+    const hx = P.x + ox * (h.distance + 0.05), hz = P.z + oz * (h.distance + 0.05);
+    const top = PH.P.raycast({ x: hx, y: P.y + 3.5, z: hz }, { x: 0, y: -1, z: 0 }, 4.2, { groups: grp });
+    const height = top ? clamp(top.point.y - P.y, 0, 3) : 1.2;   // a vertical probe with no top (a real cliff) reads as a tall wall, which is the right default
+    const nx = h.normal ? h.normal.x : -ox, ny = h.normal ? h.normal.y : 0, nz = h.normal ? h.normal.z : -oz;
+    return { dist: h.distance, height, nx, ny, nz, px: h.point.x, py: h.point.y, pz: h.point.z, tag: h.tag };
+  }
+  function contactSense() {
+    const P = C.player, PH = C.PH; if (!PH.ok) return null;
+    const face = P.c.g.rotation.y, fx = -Math.sin(face), fz = -Math.cos(face), rx = Math.cos(face), rz = -Math.sin(face);
+    const front = probeDir(fx, fz, K.contactRange, 1.0), left = probeDir(-rx, -rz, 1.15, 1.0), right = probeDir(rx, rz, 1.15, 1.0), back = probeDir(-fx, -fz, 1.15, 1.0);
+    const knee = probeDir(fx, fz, 1.5, 0.38), obstacle = knee && knee.height <= 1.3 && knee.height > 0.12 ? knee : null;
+    // slope AHEAD (not just under the player's own feet): signed rise angle over the next 1.2 m along facing —
+    // positive = uphill, what climb_slope / brace_slope actually needs
+    const slope = Math.atan2(C.groundH(P.x + fx * 1.2, P.z + fz * 1.2) - C.groundH(P.x, P.z), 1.2);
+    const g0 = B.legs[0] ? B.legs[0].g : null;
+    return { front, left, right, back, knee, obstacle, ground: { slope, normal: g0 ? [g0.nx, g0.ny, g0.nz] : [0, 1, 0] }, speed: Math.hypot(P.vx, P.vz), onIce: B.lastSurf === 'ice' };
+  }
+  // coarse surface classification for the Jev question + the rule fallback (chooseContact does its own, finer-grained
+  // thresholding once an intent is picked)
+  function senseKind(sense) {
+    if (sense.obstacle) return { surface: 'obstacle_top', height: sense.obstacle.height, dist: sense.obstacle.dist };
+    const f = sense.front; if (!f) return { surface: 'none', height: 0, dist: 3 };
+    if (f.tag && f.tag.name && /branch|krummholz|shrub/i.test(f.tag.name)) return { surface: 'branch', height: f.height, dist: f.dist };
+    if (sense.ground.slope > 0.5 && f.dist > 1.1) return { surface: 'slope', height: f.height, dist: f.dist };
+    if (f.tag && f.tag.kind === 'prop') return { surface: 'object_face', height: f.height, dist: f.dist };
+    if (f.height > 0.45 && f.height < 0.95) return { surface: 'ledge', height: f.height, dist: f.dist };
+    if (f.height >= 0.95) return { surface: 'wall', height: f.height, dist: f.dist };
+    return { surface: 'ground', height: f.height, dist: f.dist };
+  }
+  function contactDecide() {
+    const sense = CT.sense; if (!sense) { CT.wantIntent = 'none'; return; }
+    const P = C.player, G = C.G, AC = window.AI_CONTENT;
+    const kind = senseKind(sense);
+    const state = G.riding ? 'riding' : (C.enemies && C.enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return')) || (C.boss && C.boss.active && !C.boss.dead) ? 'combat'
+      : (C.CLIMB && C.CLIMB.t >= 0) ? 'climbing' : P.sliding ? 'sliding' : sense.speed > 6 ? 'running' : sense.speed > 0.15 ? 'walking' : 'idle';
+    let animalsNear = 0; for (const s of C.STAGS || []) if (Math.hypot(s.x - P.x, s.z - P.z) < 30) animalsNear++;
+    if (C.fox && C.fox.joined && Math.hypot(C.fox.x - P.x, C.fox.z - P.z) < 15) animalsNear++;
+    const npcNear = !!(C.orm && C.orm.pos && Math.hypot(C.orm.pos.x - P.x, C.orm.pos.z - P.z) < 10);
+    const raw = { surface: kind.surface, height: kind.height || 0, distance: clamp(kind.dist, 0, 3), angleDeg: 0, speed: sense.speed, state,
+      stamina: clamp(P.hp / Math.max(1, P.hpMax), 0, 1), cold: clamp((C.WX && C.WX.storm) || 0, 0, 1), animalsNear: Math.min(9, animalsNear), npcNear, onIce: sense.onIce };
+    CT.wantIntent = AC && AC.contactRules ? AC.contactRules(raw) : 'none';
+    const key = raw.surface + '|' + Math.round(raw.distance * 4) + '|' + raw.state + '|' + Math.round(raw.height * 4) + '|' + (raw.onIce ? 1 : 0);
+    if (window.AI && window.AI.available && window.AI.ask && (key !== CT.askKey) && (C.T - CT.askAt > K.contactAsk)) {
+      CT.askKey = key; CT.askAt = C.T; STATS.contactAsks = (STATS.contactAsks || 0) + 1;
+      window.AI.ask('CONTACT_INTENT', raw).then((r) => { if (r && r.intent) { CT.wantIntent = r.intent; CT.wantSrc = r.src; } });
+    }
+  }
+  function playPick(A, name) {
+    const m = CT.meta.clips[name]; if (!A.acts[name]) return false;
+    if (m && m.loop === false) A.once(name, m.duration, 0.15); else A.loop(name, 0.2);
+    return true;
+  }
+  // hand/foot IK target for a clip's contact window: obstacle-top contacts (vault, step_over) pin to the knee-height
+  // probe, everything else (wall, ledge_top, slope) pins to the front probe — approach.facing is always [0,0,1] in
+  // this clip set (the surface is authored to be in front of the character; bone side just says which hand, not which
+  // side to probe)
+  function contactHit(c) {
+    const s = CT.sense; if (!s) return null;
+    if (c.surface && c.surface.type === 'obstacle_top') return s.obstacle ? { point: new V3(s.obstacle.px, s.obstacle.py, s.obstacle.pz), normal: new V3(s.obstacle.nx, s.obstacle.ny, s.obstacle.nz) } : null;
+    // the periodic front/knee probes are ONE point straight ahead — good enough to classify the surface and steer to
+    // it, but the two hands of a *_both clip sit ~0.2 m apart sideways (see the clip's own surface.point[0], character
+    // space, +X = left) and a boulder is rarely flat across that span. Re-probe per hand, at query time (cheap: 2
+    // rays, only while a hold is looping), offset by the clip's own local point so each hand pins to what is really
+    // under IT, not a shared centre point.
+    const P = C.player, PH = C.PH;
+    if (PH.ok && c.surface && c.surface.point) {
+      // world forward = rotate the model's local +Z by (face + π) (the wrap group's 180° flip, see attach()); world
+      // left (local +X, ANIMLIB.md's convention) by the same rotation = (-cos(face), sin(face))
+      const face = P.c.g.rotation.y, fx = -Math.sin(face), fz = -Math.cos(face), lx = -Math.cos(face), lz = Math.sin(face);
+      const lo = c.surface.point[0] || 0, ly = c.surface.point[1] || 0;
+      const h = PH.P.raycast({ x: P.x + lx * lo, y: P.y + ly, z: P.z + lz * lo }, { x: fx, y: 0, z: fz }, K.contactRange, { groups: PH.P.groups.STATIC | PH.P.groups.TRUNK | PH.P.groups.PROP });
+      if (h) { const n = h.normal || { x: -fx, y: 0, z: -fz }; return { point: new V3(h.point.x, h.point.y, h.point.z), normal: new V3(n.x, n.y, n.z) }; }
+    }
+    return s.front ? { point: new V3(s.front.px, s.front.py, s.front.pz), normal: new V3(s.front.nx, s.front.ny, s.front.nz) } : null;
+  }
+  function contactExit() { CT.state = 'idle'; CT.pick = null; CT.phase = null; }
+  function contactStep(dt) {
+    const A = C.AV.player;
+    if (CT.state === 'idle') {
+      if (CT.wantIntent !== 'none' && CT.sense) {
+        let pick = null; try { pick = window.ANIMLIB.chooseContact(CT.wantIntent, CT.sense, CT.meta); } catch (e) { pick = null; }
+        if (pick && A.acts[pick.clip] && CT.meta.clips[pick.clip]) { CT.pick = pick; CT.state = 'steer'; }
+      }
+      return;
+    }
+    const pick = CT.pick; if (!pick) { contactExit(); return; }
+    const P = C.player;
+    // no per-frame key/velocity check here on purpose: a player who keeps holding W into a wall they've already
+    // reached is capsule-blocked, but a kinematic character controller can keep reporting a non-trivial "grinding"
+    // velocity for several frames while it's blocked (or during the steer nudge itself) — gating cancellation on
+    // that every frame flip-flopped the state (idle→steer→play→idle…) and, worse, kept restarting the one-shot enter
+    // clip from t=0 (A.once() always restarts) so it never reached the loop hold. contactDecide() already re-derives
+    // CT.wantIntent from distance/speed/state every 0.2 s (contactRules' own gates) — that's the single source of
+    // truth for "should this still be happening", checked here, not re-derived per frame from raw motion.
+    if (CT.state === 'steer') {
+      if (CT.steerDist == null || CT.wantIntent === 'none') { contactExit(); return; }
+      const standOff = pick.standOff || 0.45, need = CT.steerDist - standOff, face = P.c.g.rotation.y;
+      if (Math.abs(need) > 0.03) {   // the capsule already stopped the player a few cm out; close the last bit smoothly.
+        // track the closing distance locally (not the probe, which only refreshes every 0.2 s / ~12 frames — using the
+        // stale value directly would keep pushing at a near-constant rate for that whole window and overshoot)
+        const dx = -Math.sin(face), dz = -Math.cos(face), step = clamp(need, -0.35, 0.35) * Math.min(1, dt * 4);
+        P.x += dx * step; P.z += dz * step; CT.steerDist -= step; if (C.PH.ok) C.PH.ch.setPosition(P.x, P.y, P.z);
+        return;
+      }
+      CT.state = 'play'; CT.t = 0; CT.phase = pick.enter ? 'enter' : 'main';
+      playPick(A, pick.enter || pick.clip);
+    } else if (CT.state === 'play') {
+      const cmMain = CT.meta.clips[pick.clip];
+      CT.t += dt;
+      if (CT.phase === 'enter') {   // committed once started: a clean 0.6 s transition, never re-triggered mid-way
+        const cm = CT.meta.clips[pick.enter || pick.clip], dur = cm ? cm.duration : 0.6;
+        if (CT.t >= dur - 0.03) { CT.phase = 'main'; CT.t = 0; playPick(A, pick.clip); }
+      } else {
+        if (CT.wantIntent === 'none' && cmMain && cmMain.loop) { contactExit(); return; }   // holds end once the reason is gone (re-decided every 0.2 s)
+        if (!cmMain || cmMain.loop === false) { if (CT.t >= (cmMain ? cmMain.duration : 0.6) - 0.03) { contactExit(); return; } }   // one-shot main clip (vault, step_over, pickup, crouch) finished
+        else playPick(A, pick.clip);   // re-assert the hold (idempotent: same key each frame, no crossfade churn)
+      }
+    }
+    if (A.cur && CT.layer && A.acts[A.cur]) { try { CT.layer.update(A.acts[A.cur], contactHit, 1); } catch (e) { /* clip has no hand/foot contacts */ } }
+  }
+  function contactUpdate(dt) {
+    if (!K.contact || !B.ready || (!CT.ready && !contactReady())) return;
+    const P = C.player, G = C.G;
+    const active = (C.mode === 'play' || C.mode === 'menu') && P.onGround && !G.riding && G.deadT <= 0 && !(C.CLIMB && C.CLIMB.t >= 0) && P.aimT <= 0 && B.arms.mode !== 'push';
+    if (!active) { if (CT.state !== 'idle') contactExit(); return; }
+    CT.senseT -= dt;
+    if (CT.senseT <= 0) { CT.senseT = 0.2; CT.sense = contactSense(); contactDecide(); CT.steerDist = CT.sense && CT.sense.front ? CT.sense.front.dist : null; }
+    contactStep(dt);
+  }
+
   /* ------------------------------------------------------------------ footsteps from the pose */
   function stepsFromPose(dt, grounded, hs) {
     if (!SUB.steps) return;
@@ -713,8 +868,23 @@
         const top = ST.runV > 0.5 ? Math.min(K.stagTop, ST.runV * K.stagRate) : K.stagTop;
         S.v = Math.min(top, (S.v || 0) + dt * top / 0.9);
         const m = S.v / 11; s.fx = Math.sin(S.dir) * m; s.fz = Math.cos(S.dir) * m; S.wroteX = s.fx; S.wroteZ = s.fz;
-        if (ST.runV > 0.5 && s.A.acts.run) s.A.acts.run.setEffectiveTimeScale(clamp(S.v / ST.runV, 0.3, K.stagRate));
-      } else { S.dir = s.yaw; S.wroteX = null; S.turn = 0; S.v = 0; }
+        if (!S.gait && ST.runV > 0.5 && s.A.acts.run) s.A.acts.run.setEffectiveTimeScale(clamp(S.v / ST.runV, 0.3, K.stagRate));
+      } else {
+        S.dir = s.yaw; S.wroteX = null; S.turn = damp(S.turn || 0, 0, 6, dt);
+        // coast the speed down through the gait bands instead of snapping to idle: a flat st==='flee'→'graze' switch used
+        // to cut straight from the Run clip to Idle mid-stride ("rears in place" in the QA baseline)
+        S.v = damp(S.v || 0, 0, 2.2, dt); if (S.v < 0.12) S.v = 0;
+      }
+      // 20-clip phase-synced gait set (ANIMLIB.md): built lazily once anim_stag_gaits merges into s.A.acts
+      // (open-world.html, after the pack loads) — replaces the flat Run clip with speed-matched walk/trot/canter/gallop.
+      // Only one driver touches s.A.mixer per frame (s.gaitDriving tells open-world's updateStags to skip its own
+      // s.A.update(dt) this frame): while fleeing, or still coasting down from it, the blender owns the mixer.
+      if (K.gaitBlend && !S.gait && s.gaitMeta && window.ANIMLIB) {
+        try { const clips = {}; for (const k in s.A.acts) clips[k] = s.A.acts[k].getClip(); S.gait = new ANIMLIB.GaitBlender(s.A.mixer, clips, s.gaitMeta, { idle: 'Idle' }); }
+        catch (e) { S.gait = null; console.warn('[interaction] stag gait blender', e); }
+      }
+      if (S.gait && (s.st === 'flee' || S.v > 0.15)) { s.gaitDriving = true; try { S.gait.update(dt, S.v, S.turn || 0); } catch (e) { s.gaitDriving = false; } }
+      else s.gaitDriving = false;
       const camD = Math.hypot(s.x - cam.x, s.z - cam.z);
       if (camD > 160 || !s.g.visible) continue;
       // ---- slope alignment (plane through front/back/left/right ground samples) + bank in turns
@@ -992,11 +1162,54 @@
     const all = rows.flat(), ref = B.hRest - 0.0;
     return { planted: all.length, ankle: stat([all], 'ankle', all.reduce((a, f) => a + f.ankle, 0) / Math.max(1, all.length)), steps: STATS.steps };
   }
+  // walk the pilot into the nearest sizeable boulder and measure hand-to-surface IK error once the contact layer
+  // settles into its hold (tools/stand.mjs <label> --eval "INTERACTION.testContact()")
+  async function testContact() {
+    const D = window.DBG; if (!D) return { error: 'needs #dbg' };
+    if (!B.ready || (!CT.ready && !contactReady())) return { error: 'contact layer not ready' };
+    const P = C.player;
+    let best = null;
+    for (const e of (C.Passport && C.Passport.list) || []) {
+      if (!e.name || !/boulder|rock/i.test(e.name) || !e.box) continue;
+      const sx = e.box.max[0] - e.box.min[0], sy = e.box.max[1] - e.box.min[1], sz = e.box.max[2] - e.box.min[2], size = Math.max(sx, sy, sz);
+      if (size < 2.0) continue;
+      const cx = (e.box.min[0] + e.box.max[0]) / 2, cz = (e.box.min[2] + e.box.max[2]) / 2, d = Math.hypot(cx - P.x, cz - P.z);
+      if (!best || d < best.d) best = { x: cx, z: cz, size, d };
+    }
+    if (!best) return { error: 'no boulder ≥ 2 m found' };
+    // ux,uz points from the boulder OUT to wherever the player already is (so `from` stays clear on that same side);
+    // the face must point the other way, back AT the boulder (forward = -sin(face),-cos(face), see contactSense) —
+    // i.e. face = atan2(ux, uz), not atan2(-ux,-uz) (that walked the pilot away from the rock, not into it)
+    const dx = P.x - best.x, dz = P.z - best.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
+    const from = { x: best.x + ux * (best.size * 0.7 + 3.2), z: best.z + uz * (best.size * 0.7 + 3.2) }, fa = Math.atan2(ux, uz);
+    await place(from.x, from.z, fa);
+    D.keys.KeyW = true;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 4000 && CT.state !== 'play') await wait(50);
+    D.keys.KeyW = false;
+    if (CT.state !== 'play') return { error: 'contact never engaged (steered ' + CT.state + ')', wantIntent: CT.wantIntent, playerAt: [+P.x.toFixed(2), +P.z.toFixed(2)], boulderAt: [+best.x.toFixed(2), +best.z.toFixed(2), best.size], sense: CT.sense, ready: CT.ready };
+    await wait(1200);   // settle into the held pose (enter clip finished, loop holding)
+    const A = C.AV.player, m = CT.meta.clips[A.cur], out = { intent: CT.wantIntent, clip: A.cur, errors: [] };
+    if (m && m.contacts) {
+      const scale = B.root.getWorldScale(new V3()).x;
+      for (const c of m.contacts) {
+        if (!c.bone.startsWith('hand')) continue;
+        const bone = B.root.getObjectByName(c.bone); if (!bone) continue;
+        const wp = wpos(bone, new V3()), hit = contactHit(c); if (!hit) continue;
+        const tgt = hit.point.clone().add(hit.normal.clone().multiplyScalar(0.035 * scale));
+        out.errors.push({ bone: c.bone, cm: +(wp.distanceTo(tgt) * 100).toFixed(2) });
+      }
+    }
+    out.maxCm = out.errors.length ? Math.max(...out.errors.map((e) => e.cm)) : null;
+    out.pass = out.maxCm !== null ? out.maxCm < 3 : null;
+    return out;
+  }
 
   /* ------------------------------------------------------------------ module */
   // switch everything off / on (A/B measurements: tools/stand.mjs --eval "INTERACTION.off()")
   function off() {
     for (const k in SUB) SUB[k] = false;
+    CT.state = 'idle'; CT.pick = null; CT.phase = null;
     if (B.wrap) B.wrap.position.set(0, 0, 0);
     for (const [s, S] of ST.per) { S.wrap.position.set(0, 0, 0); S.wrap.quaternion.identity(); if (s.st === 'flee' && S.wroteX !== null) { const l = Math.hypot(s.fx, s.fz) || 1; s.fx /= l; s.fz /= l; } }
     if (FX.wrap) { FX.wrap.position.set(0, 0, 0); FX.wrap.quaternion.setFromAxisAngle(new V3(0, 1, 0), Math.PI); }
@@ -1004,7 +1217,7 @@
     return 'interaction off';
   }
   function on() { for (const k in SUB) SUB[k] = true; return 'interaction on'; }
-  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, testIK, testWalk, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
+  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, testIK, testWalk, testContact, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
   (window.GameModules = window.GameModules || []).push({
     name: 'interaction',
     order: 50,
@@ -1024,6 +1237,7 @@
     update(dt, ctx) {
       const t0 = performance.now();
       guard('body', () => bodyUpdate(dt));
+      guard('contact', () => contactUpdate(dt));
       guard('world', () => worldUpdate(dt));
       guard('ice', () => ICE.update(dt));
       guard('stags', () => stagUpdate(dt));

@@ -158,6 +158,14 @@ Walking across the same slope (`INTERACTION.testWalk(25)`): planted-frame ankle 
 | `stag_flee.png` | stag galloping, body on the slope |
 | `climb_hands.png` | hands on the crate edge mid-climb |
 
+## 🤝 Contact layer, stag gaits (wave 3 — see INT-CONTACT.md)
+
+Rock/wall/ledge/slope/obstacle/branch contact (probe → Jev `CONTACT_INTENT` or rules → steer to stand-off → clip →
+hand/foot IK on the real hit) is `CT` in this file; the 37 pilot/hermit clips + 20 stag gait clips live in
+`assets/pack/anim_pilot_contact.js` / `anim_stag_gaits.js` / `animlib-runtime.js` (`ANIMLIB` global), wired from
+`open-world.html`. Stags now blend `walk/trot/canter/gallop` by real speed instead of one flat `Run` clip. Full
+design, limits and measurements: `INT-CONTACT.md`.
+
 ## ⚠️ Known limits
 
 - Fox and stags still slide a little at top speed: their clips stride 1.4–1.7 m/s, the game moves them at 6–18 m/s; rates are capped (2.6 / 2.0) so legs don't blur.

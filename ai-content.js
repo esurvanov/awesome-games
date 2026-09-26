@@ -257,6 +257,38 @@
   }
   const focusRules = (s) => s.activity === 'combat' ? 'enemy' : s.activity === 'dialogue' ? 'dialogue' : s.activity === 'driving' ? 'vehicle' : 'landscape';
 
+  /* ------------------------------------------------------------------ h. CONTACT_INTENT (pilot body-to-surface contact) */
+  const CONTACT_SURF_EN = {
+    wall: 'a flat rock or wall face directly ahead, taller than the player', ledge: 'a flat top at waist-to-chest height directly ahead',
+    slope: 'a steep rising snow or rock slope ahead', object_face: 'the flat side of a pushable prop or wreck panel ahead',
+    obstacle_top: 'a low obstacle (crate, fallen log, low rock) ahead, knee-to-waist height', branch: 'a low tree branch ahead, at head/chest height',
+    ground: 'bare ground or something small on the ground just ahead', none: 'nothing close enough ahead to react to',
+  };
+  const CONTACT_STATE_EN = { idle: 'standing still', walking: 'walking slowly', running: 'running or sprinting', riding: 'riding the skimmer', combat: 'fighting', climbing: 'climbing a ledge', sliding: 'sliding down a slope' };
+  const CONTACT_ACTS = {
+    rest_on_rock: 'Lean a hand, shoulder or the back against the surface, or rest both hands on a ledge top, and hold that pose. Only when standing still or moving under about 0.6 m/s right next to it.',
+    touch_surface: 'Reach out and place one or both hands flat on the wall while approaching it slowly (under about 1.4 m/s).',
+    climb_slope: 'Brace a hand and the lead foot against a steep slope directly ahead.',
+    cross_obstacle: 'Step over (low) or vault (higher, hands-first) the obstacle ahead instead of walking around it.',
+    inspect_ground: 'Crouch or kneel to look closely at the ground just ahead. Only when standing still or nearly so.',
+    pick_up: 'Bend down and pick up a small object on the ground just ahead.',
+    clear_branch: 'Sweep a low branch aside with a hand while passing it.',
+    none: 'Do nothing special; keep the normal walk/run/idle pose.',
+  };
+  /** deterministic fallback for CONTACT_INTENT — offline, or the model's confidence is too low */
+  function contactRules(s) {
+    if (s.surface === 'branch') return s.speed > 0.3 ? 'clear_branch' : 'none';
+    if (s.surface === 'obstacle_top') return s.state !== 'combat' && s.state !== 'riding' ? 'cross_obstacle' : 'none';
+    if (s.surface === 'slope') return s.speed < 3 && s.state !== 'riding' ? 'climb_slope' : 'none';
+    if (s.surface === 'ground') return (s.state === 'idle' || s.speed < 0.8) && s.distance < 1.0 ? 'inspect_ground' : 'none';
+    if (s.surface === 'wall' || s.surface === 'ledge' || s.surface === 'object_face') {
+      if (s.distance > 1.15 || s.state === 'combat' || s.state === 'riding' || s.state === 'climbing') return 'none';
+      if (s.state === 'idle' || s.speed < 0.6) return 'rest_on_rock';
+      if (s.speed < 1.4) return 'touch_surface';
+    }
+    return 'none';
+  }
+
   /* ------------------------------------------------------------------ g. PRELOAD */
   const STAGE_ZONE = ['crash', 'station', 'lake', 'station', 'spireN', 'station', 'rift', 'rift', 'crash', 'crash'];
   function preloadRules(s) {
@@ -434,11 +466,29 @@
         return { zone: preloadRules(s), src: 'rules' };
       },
     },
+    CONTACT_INTENT: {
+      ttl: 20, timeoutMs: 1200,
+      schema: S.obj({ surface: S.enu(['wall', 'ledge', 'slope', 'object_face', 'obstacle_top', 'branch', 'ground', 'none']), height: S.num(0, 4), distance: S.num(0, 3), angleDeg: S.int(0, 180),
+        speed: S.num(0, 15), state: S.enu(['idle', 'walking', 'running', 'riding', 'combat', 'climbing', 'sliding']), stamina: S.num(0, 1), cold: S.num(0, 1), animalsNear: S.int(0, 9), npcNear: S.bool(), onIce: S.bool() }),
+      normalize: (s) => ({ ...s, distance: +s.distance.toFixed(2), height: +s.height.toFixed(2), speed: Math.round(s.speed * 10) / 10 }),
+      build(s) {
+        return {
+          state: { surface_ahead: CONTACT_SURF_EN[s.surface], surface_height_m: s.height.toFixed(1), distance_to_surface_m: s.distance.toFixed(1), approach_angle_deg: s.angleDeg,
+            player_state: CONTACT_STATE_EN[s.state], player_speed_ms: s.speed.toFixed(1), fatigue: bucket(s.stamina, [0.3, 0.7], ['tired', 'somewhat tired', 'fresh']),
+            cold_exposure: bucket(s.cold, [0.3, 0.7], ['comfortable', 'cold', 'freezing']), animals_nearby: String(s.animalsNear), npc_nearby: s.npcNear ? 'yes' : 'no', standing_on_ice: s.onIce ? 'yes' : 'no' },
+          questions: { intent: { type: 'choice', instructions: 'Should the player\'s body react to the surface ahead, and how? Only pick a contact action when close enough and slow enough (or standing still); never mid-run, mid-climb, riding or fighting. Choose `none` if nothing ahead deserves a reaction.', criteria: CONTACT_ACTS } },
+        };
+      },
+      interpret(a, s) {
+        if (a && a.intent && CONTACT_ACTS[a.intent.choice] && a.intent.confidence >= 0.4) return { intent: a.intent.choice, src: 'model' };
+        return { intent: contactRules(s), src: 'rules' };
+      },
+    },
   };
 
   const API = {
     VERSION, SETS, ORM, ormById, ormAvailable, ormKeyword, EVENTS, CREATURE, creatureRules, CMD, CMD_RU, CMD_ICON, cmdKeyword, HINTS, PRESETS, POIS, POI_RU, POI_EN, STAGE_EN,
-    directorRules, qualityRules, focusRules, preloadRules, hintRules, stuckRules, normPhrase, check,
+    directorRules, qualityRules, focusRules, preloadRules, hintRules, stuckRules, contactRules, CONTACT_ACTS, normPhrase, check,
     /** validate + normalize client state for a whitelisted set; throws on bad input */
     prepare(setId, raw) { const set = SETS[setId]; if (!set) throw new Error('unknown set'); const s = set.normalize(check(set.schema, raw)); return { set, s }; },
   };

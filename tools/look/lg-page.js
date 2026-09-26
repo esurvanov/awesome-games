@@ -94,7 +94,8 @@
       if (hit) h = { x: hit.point.x, z: hit.point.z, dx: dx / l, dz: dz / l }; }
     if (!h) { const dx = b.x - from.x, dz = b.z - from.z, l = Math.hypot(dx, dz); h = { x: b.x - dx / l * b.s * 0.75, z: b.z - dz / l * b.s * 0.75, dx: dx / l, dz: dz / l, guess: true }; }
     let px = from.x, pz = from.z; if (h) { px = h.x - h.dx * 0.38; pz = h.z - h.dz * 0.38; }
-    const fa = h ? Math.atan2(-h.dx, -h.dz) : 0; D.teleport(px, pz, fa, gh(px, pz)); P.face = fa; await QA.wait(300);
+    const fa = h ? Math.atan2(-h.dx, -h.dz) : 0; D.teleport(px, pz, fa, gh(px, pz)); P.face = fa;
+    await QA.wait(1800);   // INT-CONTACT: modules/interaction.js's contact layer needs ~1-1.5 s (sense refresh + steer + enter clip) to settle into its held lean/hand-on-rock pose before the still shot
     const pos = eye(cs.x, cs.z, 1.6), look = [b.x * 0.8 + px * 0.2, gh(b.x, b.z) + b.s * 0.35, b.z * 0.8 + pz * 0.2];
     return { pos, look, fov: 50, keepPilot: true, note: `boulder s ${b.s.toFixed(1)}, pilot ${h.guess ? '≈ at the rock (surface guessed)' : '0.38 m from its surface'}, camera ${Math.hypot(cs.x - b.x, cs.z - b.z).toFixed(1)} m` }; };
   // ⛰ rock outcrop from below, 10 m (d03, d02)
@@ -164,6 +165,34 @@
       const ax = s.x - c.x, az = s.z - c.z, al = Math.hypot(ax, az) || 1; this.s = s; this.dir = [az / al, -ax / al];   // across the line of sight
       return { pos, look: [s.x, gh(s.x, s.z) + 1, s.z], fov: 32, only: ['stag'], follow: () => [s.x, gh(s.x, s.z) + 1, s.z], note: 'flee across the view, 20 m' }; },
     async run() { const s = this.s; s.st = 'flee'; s.t = 8; s.fx = this.dir[0]; s.fz = this.dir[1]; s.A.loop('run', 0.15); await QA.wait(2400); } };
+
+  // 🪨 pilot walks up to a boulder and leans — INT-CONTACT's modules/interaction.js CT: steer the last few cm to the
+  // clip's stand-off, then hand/shoulder IK onto the real raycast hit. Same boulder as S.boulder, but reached on foot
+  // (hold W into it) instead of teleported straight onto the touch point, so the strip shows the whole
+  // steer → enter → loop sequence, not just the held pose.
+  M.pilot_lean_boulder = { setup() {
+      const b = bigBoulder(); if (!b) return { skip: 'no boulder ≥ 2.2' };
+      const y = gh(b.x, b.z) + 0.9, cs = clearSpot(b.x, y, b.z, b.s * 0.9 + 5.5, 1.6, 0.7);
+      const ax = cs.x - b.x, az = cs.z - b.z, al = Math.hypot(ax, az) || 1, ux = ax / al, uz = az / al;
+      // close enough that the walk-in + contact steer/enter settles inside the strip's ~1.3 s thumbnail window
+      // (QA.startRec caps thumbnails, not the take's own duration — a longer run() still measures fine, but only
+      // its first ~1.3 s is visible in the .strip.jpg, so the interesting part has to happen early)
+      const from = { x: b.x + ux * (b.s * 0.5 + 2.0), z: b.z + uz * (b.s * 0.5 + 2.0) };
+      const h = hitToward(from, b.x, b.z, y), fa = h ? Math.atan2(-h.dx, -h.dz) : Math.atan2(-ux, -uz);
+      D.teleport(from.x, from.z, fa, gh(from.x, from.z)); P.face = fa;
+      const rx = uz, rz = -ux, pos = eye(cs.x + rx * 1.6, cs.z + rz * 1.6, 1.5);
+      return { pos, look: [b.x, y, b.z], fov: 50, only: ['player'], follow: () => [P.x, P.y + 1.1, P.z], note: 'walks up to the boulder and leans (contact layer)' }; },
+    async run() { QA.keys(['KeyW'], true); await QA.wait(2000); QA.keys(['KeyW'], false); await QA.wait(2000); } };
+  // 🌲 pilot walks into a low krummholz branch — clear_branch (arm sweep, INT-CONTACT) alongside the existing
+  // shakeTree snow curtain (vegetation module)
+  M.pilot_branch = { setup() {
+      const L = D.FOREST.list.filter((t) => t.v === 7); if (!L.length) return { skip: 'no krummholz' };
+      let best = null; for (const t of L) { const d = Math.hypot(t[0] - POI.crash.x, t[2] - POI.crash.z); if (!best || d < best.d) best = { t, d }; }
+      const t = best.t, a = Math.atan2(t[0] - POI.crash.x, t[2] - POI.crash.z), from = { x: t[0] + Math.sin(a) * 3.5, z: t[2] + Math.cos(a) * 3.5 };
+      D.teleport(from.x, from.z, a + Math.PI, gh(from.x, from.z)); P.face = a + Math.PI;
+      const rx = Math.cos(a), rz = -Math.sin(a), pos = eye(from.x + rx * 3.2, from.z + rz * 3.2, 1.5);
+      return { pos, look: [t[0], gh(t[0], t[2]) + 1.1, t[2]], fov: 48, only: ['player'], follow: () => [P.x, P.y + 1.1, P.z], note: `walks into a krummholz at ${best.d.toFixed(1)} m` }; },
+    async run() { await QA.wait(200); QA.keys(['KeyW'], true); await QA.wait(2600); QA.keys(['KeyW'], false); await QA.wait(1400); } };
 
   // one motion strip: setup → camera → record thumbnails with QA.startRec → run
   LG.take = async (name, o = {}) => {

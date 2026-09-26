@@ -66,6 +66,14 @@ const PRE_CASES = [
   { s: { stage: 2, at: 'station', heading: 'lake', riding: false, visited: ['crash', 'station'], zones: ['lake', 'spireN', 'spireW', 'spireE', 'rift'] }, want: ['lake'] },
   { s: { stage: 6, at: 'station', heading: 'rift', riding: true, visited: ['crash', 'station', 'lake', 'spireN', 'spireW', 'spireE'], zones: ['rift', 'crash'] }, want: ['rift'] },
 ];
+const CONTACT_CASE = { surface: 'wall', height: 1.3, distance: 0.5, angleDeg: 0, speed: 0.1, state: 'idle', stamina: 0.9, cold: 0.1, animalsNear: 0, npcNear: false, onIce: false };
+const CONTACT_CASES = [
+  { name: 'idle at a rock face', s: { ...CONTACT_CASE }, want: ['rest_on_rock'] },
+  { name: 'slow approach to a wall', s: { surface: 'wall', height: 1.4, distance: 0.9, angleDeg: 0, speed: 1.0, state: 'walking', stamina: 0.8, cold: 0.2, animalsNear: 0, npcNear: false, onIce: false }, want: ['touch_surface', 'rest_on_rock'] },
+  { name: 'sprinting past a wall', s: { surface: 'wall', height: 1.4, distance: 0.8, angleDeg: 0, speed: 9, state: 'running', stamina: 0.6, cold: 0.2, animalsNear: 0, npcNear: false, onIce: false }, want: ['none'] },
+  { name: 'low crate ahead, walking', s: { surface: 'obstacle_top', height: 0.45, distance: 0.9, angleDeg: 0, speed: 1.2, state: 'walking', stamina: 0.9, cold: 0.1, animalsNear: 0, npcNear: false, onIce: false }, want: ['cross_obstacle'] },
+  { name: 'fighting next to a wall', s: { surface: 'wall', height: 1.3, distance: 0.5, angleDeg: 0, speed: 3, state: 'combat', stamina: 0.4, cold: 0.1, animalsNear: 0, npcNear: false, onIce: false }, want: ['none'] },
+];
 
 /* ------------------------------------------------------------------ 1. offline: content, validation, fallbacks */
 console.log('\n[1] content & rule fallbacks (no network)');
@@ -73,7 +81,7 @@ ok(C.ORM.length >= 40, 'ORM replies ≥ 40', { n: C.ORM.length });
 ok(C.CMD.length >= 25, 'commands ≥ 25', { n: C.CMD.length });
 ok(C.ORM.every((r) => r.t.length <= 80), 'Orm lines short (≤80 chars)', { max: Math.max(...C.ORM.map((r) => r.t.length)) });
 for (const id of Object.keys(C.SETS)) {
-  const sample = { ORM_TALK: { phrase: 'привет', ...base }, DIRECTOR: DIR_CASES[0].s, CREATURE: CREATURE_CASES[0], COMMANDS: { text: 'карта', ...cmdCtx }, HINTS: HINT_CASES[0], QUALITY_DIRECTOR: Q_CASES[0].s, PRELOAD: PRE_CASES[0].s }[id];
+  const sample = { ORM_TALK: { phrase: 'привет', ...base }, DIRECTOR: DIR_CASES[0].s, CREATURE: CREATURE_CASES[0], COMMANDS: { text: 'карта', ...cmdCtx }, HINTS: HINT_CASES[0], QUALITY_DIRECTOR: Q_CASES[0].s, PRELOAD: PRE_CASES[0].s, CONTACT_INTENT: CONTACT_CASE }[id];
   const { set, s } = C.prepare(id, sample); const b = set.build(s);
   ok(Object.keys(b.questions).length > 0 && set.interpret(null, s) != null, `${id}: builds questions & rules fallback works`, { q: Object.keys(b.questions).length });
 }
@@ -214,6 +222,14 @@ else {
   // PRELOAD
   const pRows = [];
   for (const c of PRE_CASES) { const [, j] = await call('PRELOAD', c.s); const r = C.SETS.PRELOAD.interpret(j.ok ? j.answers : null, C.prepare('PRELOAD', c.s).s); pRows.push({ stage: c.s.stage, zone: r.zone, src: r.src }); ok(c.want.includes(r.zone), `PRELOAD stage ${c.s.stage} → ${r.zone}`); }
+  // CONTACT_INTENT (INT-CONTACT)
+  const ctRows = []; let ctHits = 0;
+  for (const c of CONTACT_CASES) {
+    const [, j] = await call('CONTACT_INTENT', c.s); const r = C.SETS.CONTACT_INTENT.interpret(j.ok ? j.answers : null, C.prepare('CONTACT_INTENT', c.s).s);
+    const hit = c.want.includes(r.intent); ctHits += hit;
+    ctRows.push({ case: c.name, intent: r.intent, conf: j.answers && j.answers.intent && +j.answers.intent.confidence.toFixed(2), src: r.src, hit });
+  }
+  ok(ctHits >= 4, `CONTACT_INTENT accuracy ${ctHits}/${CONTACT_CASES.length}`, ctRows);
   // cache replay (0 upstream calls)
   const before = calls, hitLat = [];
   for (const [p] of ORM_CASES.slice(0, 5)) { const [, j] = await post(port, { set: 'ORM_TALK', state: { phrase: p + '  ', ...base } }); if (j.meta && j.meta.cached) hitLat.push(j.meta.ms); }
@@ -229,7 +245,7 @@ else {
     upstreamCalls: calls, inputTokens: inTok, usd: +(inTok * USD_PER_INPUT_TOKEN).toFixed(6), latencyMs: { p50: pct(lat, 0.5), p95: pct(lat, 0.95), max: Math.max(...lat) }, cacheHitMs: { p50: pct(hitLat, 0.5) }, parallelBurstMs: burst,
     tokensPerCall: Object.fromEntries(Object.entries(per).map(([k, v]) => [k, Math.round(v.reduce((a, b) => a + b, 0) / v.length)])),
     usdPerCall: Object.fromEntries(Object.entries(per).map(([k, v]) => [k, +(v.reduce((a, b) => a + b, 0) / v.length * USD_PER_INPUT_TOKEN).toFixed(7)])),
-    orm: ormRows, commands: cmdRows, director: dirRows, creature: crRows, hints: hintRows, quality: qRows, preload: pRows, serverStats: st.sets,
+    orm: ormRows, commands: cmdRows, director: dirRows, creature: crRows, hints: hintRows, quality: qRows, preload: pRows, contact: ctRows, serverStats: st.sets,
   };
   console.log(`\n  upstream calls ${calls} · input tokens ${inTok} · $${R.real.usd} · p50 ${R.real.latencyMs.p50} ms · p95 ${R.real.latencyMs.p95} ms · cache hit p50 ${R.real.cacheHitMs.p50} ms · 3-set burst ${burst} ms`);
   console.log('  tokens/call', R.real.tokensPerCall);

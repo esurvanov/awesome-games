@@ -1,5 +1,5 @@
 {
- "at": "2026-09-25T15:01:15.396Z",
+ "at": "2026-09-26T11:20:16.551Z",
  "checks": [
   {
    "name": "ORM replies ≥ 40",
@@ -72,6 +72,13 @@
    }
   },
   {
+   "name": "CONTACT_INTENT: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 1
+   }
+  },
+  {
    "name": "schema rejects malformed state",
    "ok": true
   },
@@ -121,7 +128,7 @@
    "name": "529 persistent → fails fast (<1.7 s)",
    "ok": true,
    "extra": {
-    "ms": 519,
+    "ms": 542,
     "upstreamCalls": 3
    }
   },
@@ -140,7 +147,7 @@
    "name": "hung upstream → timeout at ~1.5 s",
    "ok": true,
    "extra": {
-    "ms": 1503
+    "ms": 1505
    }
   },
   {
@@ -166,7 +173,7 @@
    "name": "decide() resolves null instantly offline",
    "ok": true,
    "extra": {
-    "ms": 0.02
+    "ms": 0.04
    }
   },
   {
@@ -189,7 +196,7 @@
    "name": "AI.tick cost per frame",
    "ok": true,
    "extra": {
-    "ms": 0.0006
+    "ms": 0.0029
    }
   },
   {
@@ -204,18 +211,16 @@
    "ok": true,
    "extra": {
     "set": [
-     "ultra",
-     "high"
+     "ultra"
     ]
    }
   },
   {
    "name": "quality hysteresis: fps 20 → immediate single step down (no jump to low)",
-   "ok": true,
+   "ok": false,
    "extra": {
     "set": [
-     "ultra",
-     "high"
+     "ultra"
     ]
    }
   }
@@ -226,7 +231,7 @@
  },
  "client": {
   "probeMs": 0,
-  "offlineDecideMs": 0.024,
-  "tickMs": 0.0006
+  "offlineDecideMs": 0.038,
+  "tickMs": 0.0029
  }
 }
