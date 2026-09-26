@@ -58,8 +58,8 @@ float vsN(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3. - 2. * f);
              mix(mix(vsH(i + vec3(0, 0, 1)), vsH(i + vec3(1, 0, 1)), f.x), mix(vsH(i + vec3(0, 1, 1)), vsH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
 vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
   float nz = vsN(wp * .9) * .65 + vsN(wp * 2.6 + 7.) * .35;
-  float m = smoothstep(.18, .62, n.y + (nz - .5) * 1.1) * k * uVSnowK;
-  return mix(alb, uVSnowC * (.82 + .3 * nz), clamp(m, 0., .92));
+  float m = smoothstep(.02, .5, n.y + (nz - .5) * 1.35) * k * uVSnowK;   // wider, chunkier clumps (b03/b04): heavier engulfing snow, not fine speckle
+  return mix(alb, uVSnowC * (.85 + .25 * nz), clamp(m, 0., .97));
 }`;
   // last line of defence: a NaN/Inf pixel would be smeared over the whole frame by bloom (black screen)
   const SAFE_END = (fs) => fs.replace(/}\s*$/, '  gl_FragColor = (any(isnan(gl_FragColor)) || any(isinf(gl_FragColor))) ? vec4(0., 0., 0., 1.) : min(gl_FragColor, vec4(64.));\n}');
@@ -190,7 +190,13 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     VEG.stats.trees = list.length; VEG.stats.species = SP.map((sp, i) => list.filter((t) => t.v === i).length);
   }
 
-  // --- tree materials (near): wind, shake wobble, dithered fade-out at the near radius ---
+  // --- tree materials (near): wind, shake wobble, alpha-to-coverage LOD fade (no screen-door dither — B. Golus,
+  // "Anti-aliased Alpha Test"), mip-aware alpha sharpening ---
+  // NOTE: an earlier version of this patch also wired a per-vertex baked crown-AO attribute (assets/baked/treeao.js)
+  // in here. It hit an unresolved 'treeAO'/'vTreeAO' redefinition error from the GLSL compiler on every tree material
+  // (BatchedMesh + custom onBeforeCompile) that couldn't be root-caused quickly under this session's shared-lock time
+  // pressure — reverted rather than risk shipping a broken shader or spending more of the team's benchmark queue time
+  // on speculative fixes. See INT-VEG.md "Open" for the state this was left in.
   function patchTreeNear(mat, needles, depth, mul = 1) {
     const prev = mat.onBeforeCompile;
     mat.onBeforeCompile = (sh, r) => {
@@ -214,8 +220,19 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           float vD = length(vOrg.xz - uVCam.xz); vVFade = 1. - smoothstep(uVFade.x * ${mul.toFixed(2)} - uVFade.y, uVFade.x * ${mul.toFixed(2)}, vD);
           ${depth ? 'vVFade *= 1. - smoothstep(uVSR - 10., uVSR, vD);' : ''}
           vVW = (modelMatrix * vM * vec4(transformed, 1.)).xyz;`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW))
-        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if (vegDither() > vVFade) discard;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
+      if (depth) {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if (vegDither() > vVFade) discard;');
+      } else {
+        // near↔far LOD fade + the needle cutout's own texture alpha are folded into diffuseColor.a (no discard here);
+        // material.alphaTest + alphaToCoverage (set where these materials are built) make three's built-in
+        // <alphatest_fragment> chunk resolve both as real MSAA sub-pixel coverage on the scene's multisampled render
+        // target — no screen-door dither pattern on the LOD transition or on the needle-card cutout edges.
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); float vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2))));
+            diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.); }
+          diffuseColor.a *= clamp(vVFade, 0., 1.);`);
+      }
       if (!depth) sh.fragmentShader = SAFE_END(sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
           diffuseColor.rgb = vegSnow(diffuseColor.rgb, normalize((vec4(normal, 0.) * viewMatrix).xyz), vVW, ${needles ? '1.' : '.7'});`));
     };
@@ -328,6 +345,8 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
   function nearMat(src, mul) {
     const m = src.clone(); m.name = src.name;
     if (m.transparent && m.alphaTest === 0) { m.transparent = false; m.alphaTest = 0.3; }
+    if (!m.alphaTest) m.alphaTest = 0.5;   // activate USE_ALPHATEST so the LOD fade can ride the scene's alpha-to-coverage
+    m.alphaToCoverage = true;
     return patchTreeNear(m, /leaves|needles/i.test(src.name), false, mul);
   }
   // FOREST.parts[vi] = near meshes of that species (stand.mjs raycasts FOREST.parts[0] bark for the trunk test)
@@ -389,7 +408,7 @@ vec3 impDec(vec2 g){ float x = (g.x + g.y) * .5, z = (g.x - g.y) * .5; return no
 void impBasis(vec3 D, out vec3 T, out vec3 B){ T = cross(vec3(0., 1., 0.), D); T = dot(T, T) < 1e-8 ? vec3(1., 0., 0.) : normalize(T); B = cross(D, T); }`;
   function impostorMaterial(s) {
     const sp = SP[s], M = IMP_META[sp.name], k = sp.impK || 1;
-    const m = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, side: THREE.DoubleSide, alphaTest: 0.02, alphaToCoverage: true });
     m.name = 'veg_imp_' + sp.name;
     const u = {
       tImpA: { value: IMP.tex[s].a }, tImpN: { value: IMP.tex[s].n }, tImpD: { value: IMP.tex[s].d },
@@ -438,20 +457,21 @@ void impFrame(vec2 fr, float w, vec3 ro, vec3 rd){
   iAccC += c.rgb * wa; iAccN += (texture2D(tImpN, a).xyz * 2. - 1.) * wa; iAccA += wa;
 }
 vec3 impNW;`)
-        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-  if (vegDither() < 1. - vIFade) discard;                                     // complementary to the near models' dither`)
         .replace('#include <map_fragment>', `
 { vec3 ro = vIRo, rd = normalize(vIP - vIRo); vec3 V = normalize(ro - uImpC); float G = uImpR.z;
   vec2 f = (impEnc(V) * .5 + .5) * (G - 1.); vec2 b = clamp(floor(f), vec2(0.), vec2(G - 2.)); vec2 w = clamp(f - b, 0., 1.);
   iAccC = vec3(0.); iAccN = vec3(0.); iAccA = 0.;
   impFrame(b, (1. - w.x) * (1. - w.y), ro, rd); impFrame(b + vec2(1., 0.), w.x * (1. - w.y), ro, rd);
   impFrame(b + vec2(0., 1.), (1. - w.x) * w.y, ro, rd); impFrame(b + vec2(1., 1.), w.x * w.y, ro, rd);
-  float dith = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 17., vec2(.06711056, .00583715))));
-  if (iAccA < 1e-3 || iAccA < .45 + (dith - .5) * .5) discard;
+  if (iAccA < 1e-3) discard;
   diffuseColor.rgb *= iAccC / iAccA;
   vec3 nl = normalize(iAccN + vec3(0., 1e-4, 0.));
   impNW = normalize(vec3(vICs.x * nl.x + vICs.y * nl.z, nl.y, -vICs.y * nl.x + vICs.x * nl.z));
   diffuseColor.rgb = vegSnow(diffuseColor.rgb, impNW, vIW, uImpK.y) * uImpK.x;   // x: crown self-shadow the atlas lacks
+  // alpha-to-coverage: fold the ray-hit coverage AND the near/impostor cross-fade into alpha instead of two dithered
+  // discards — the scene's MSAA target resolves both as real sub-pixel coverage (Golus, alpha-to-coverage): no
+  // screen-door pattern on the impostor's own cutout or on the near/impostor LOD transition.
+  diffuseColor.a = smoothstep(.25, .65, iAccA) * clamp(vIFade, 0., 1.);
 }`)
         .replace('#include <normal_fragment_maps>', 'normal = normalize((viewMatrix * vec4(impNW, 0.)).xyz);');
       sh.fragmentShader = SAFE_END(sh.fragmentShader);
@@ -548,9 +568,9 @@ vec3 impNW;`)
     return es;
   }
   function buildNewSpecies() {
-    const needles = new THREE.MeshStandardMaterial({ name: 'needles', map: TEX.needles, alphaTest: 0.42, vertexColors: true, roughness: 0.88, metalness: 0 });
-    const pbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.pbark, normalMap: TEX.pbarkN, roughness: 0.95, metalness: 0 }); pbark.color.setRGB(0.8, 0.78, 0.76);
-    const dbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.dbark, normalMap: TEX.dbarkN, roughness: 0.95, metalness: 0 }); dbark.color.setRGB(0.85, 0.85, 0.85);
+    const needles = new THREE.MeshStandardMaterial({ name: 'needles', map: TEX.needles, alphaTest: 0.42, alphaToCoverage: true, vertexColors: true, roughness: 0.88, metalness: 0 });
+    const pbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.pbark, normalMap: TEX.pbarkN, alphaTest: 0.5, alphaToCoverage: true, roughness: 0.95, metalness: 0 }); pbark.color.setRGB(0.8, 0.78, 0.76);
+    const dbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.dbark, normalMap: TEX.dbarkN, alphaTest: 0.5, alphaToCoverage: true, roughness: 0.95, metalness: 0 }); dbark.color.setRGB(0.85, 0.85, 0.85);
     const gN = [], gP = [], gD = [];
     for (let s = 3; s < NSP; s++) {
       const P = PACK[SP[s].name]; if (!P) { console.warn('[veg] missing', SP[s].name); continue; }
@@ -603,9 +623,10 @@ vec3 impNW;`)
           vVWp = vW + vOff; vVHb = position.y * sqrt(vS2);
           vVFade = 1. - smoothstep(${kind === 'tuft' ? 'uVGrass.x - uVGrass.y, uVGrass.x' : 'uVGrass.z - uVGrass.w, uVGrass.z'}, vD);`}`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC;\n' + GLSL_DITHER)
-        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + (kind === 'decal' ? '' : ' if (vegDither() > vVFade) discard;'))
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + (kind === 'twig' ? '\n if (vegDither() > vVFade) discard;' : ''))
         .replace('#include <map_fragment>', `#include <map_fragment>
-          ${kind === 'decal' ? 'diffuseColor.a *= vVFade * .55;' : `{ vec2 dx = dFdx(vMapUv * 1024.), dy = dFdy(vMapUv * 1024.); float mp = max(0., .5 * log2(max(dot(dx, dx), dot(dy, dy)))); diffuseColor.a = clamp(diffuseColor.a * (1. + mp * .3), 0., 1.); }`}
+          ${kind === 'decal' ? 'diffuseColor.a *= vVFade * .55;' : `{ vec2 dx = dFdx(vMapUv * 1024.), dy = dFdy(vMapUv * 1024.); float mp = max(0., .5 * log2(max(dot(dx, dx), dot(dy, dy)))); diffuseColor.a = clamp(diffuseColor.a * (1. + mp * .3), 0., 1.); }
+          ${plant ? 'diffuseColor.a *= clamp(vVFade, 0., 1.);' : ''}`}
           ${plant ? `{ // photo texture → relative detail (≈ 1); the albedo itself comes from the instance colour (STYLE.palette straw / heather)
             vec2 cc = floor(clamp(vMapUv, 0., .999) * 2.); float ci = cc.x + 2. * cc.y;
             vec4 ref = ${kind === 'tuft' ? 'vec4(.056, .054, .074, .071)' : 'vec4(.105, .106, .034, .1)'};
@@ -613,11 +634,12 @@ vec3 impNW;`)
             float tl = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
             diffuseColor.rgb = clamp(mix(vec3(tl), diffuseColor.rgb * (tl / max(dot(diffuseColor.rgb, vec3(.3333)), 1e-4)), ${kind === 'tuft' ? '.3' : '.1'}) / rl, .3, 1.7); }` : ''}`)
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + (plant || kind === 'twig' ? `
-          normal = normalize(mix(normal, normalize((viewMatrix * vec4(0., 1., 0., 0.)).xyz), ${kind === 'tuft' ? '.75' : kind === 'leaf' ? '.55' : '.35'}));   // thin blades: lit like the snow they stand in` : ''))
+          normal = normalize(mix(normal, normalize((viewMatrix * vec4(0., 1., 0., 0.)).xyz), ${kind === 'tuft' ? '.75' : kind === 'leaf' ? '.4' : '.35'}));   // thin blades: lit like the snow they stand in` : ''))
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>' + (plant ? `
-          diffuseColor.rgb = mix(diffuseColor.rgb, uVSnowC, (1. - smoothstep(.02, ${kind === 'tuft' ? '.12' : '.08'}, vVHb)) * .8);   // snow caught at the base
-          { vec3 Vv = normalize(cameraPosition - vVWp); float bk = pow(max(dot(-Vv, uVMoonDir), 0.), 4.);   // light through the blades (backlit glow)
-            totalEmissiveRadiance += diffuseColor.rgb * (uVMoonCol * (${kind === 'tuft' ? '.14 + 1.1' : '.1 + .8'} * bk) + uVHemiS * .12); }` : ''));
+          { float snowBase = 1. - smoothstep(.02, ${kind === 'tuft' ? '.12' : '.08'}, vVHb), snowRim = snowBase * (1. - snowBase) * 4.;
+            diffuseColor.rgb = mix(diffuseColor.rgb, uVSnowC, snowBase * .8) + uVSnowC * snowRim * .3; }   // snow at the base + a brighter rim where the blade breaks the surface
+          { vec3 Vv = normalize(cameraPosition - vVWp); float bk = pow(max(dot(-Vv, uVMoonDir), 0.), ${kind === 'tuft' ? '4.' : '2.2'});   // light through the blades (backlit glow)
+            totalEmissiveRadiance += diffuseColor.rgb * (uVMoonCol * (${kind === 'tuft' ? '.14 + 1.1' : '.16 + .9'} * bk) + uVHemiS * ${kind === 'tuft' ? '.12' : '.26'}); }   // heather: wider, less view-dependent transmission — never a flat dark ball` : ''));
       sh.fragmentShader = SAFE_END(sh.fragmentShader);
     };
     m.customProgramCacheKey = () => 'vegGround' + kind;
@@ -709,21 +731,22 @@ vec3 impNW;`)
     const lk = LAKE(), sites = siteList();
     const bad = (x, z, h) => h < 0.35 || C.riftD(x, z) < 58 || C.nearPOI(x, z, -8) || sites.some((q) => (q.x - x) ** 2 + (q.z - z) ** 2 < 196);
     // tufts
-    const nT = Math.round(46 * dens);
+    const nT = Math.round(58 * dens);
     for (let k = 0; k < nT; k++) {
       const x = (ci + r()) * CS, z = (cj + r()) * CS, h = C.getH(x, z); if (bad(x, z, h)) continue;
       const ny = C.normalY(x, z); if (ny < 0.6) continue;
       const dl = Math.hypot(x - lk.x, z - lk.z); if (dl < 50.5) continue;
       const shore = dl < 66 ? sstep(66, 52, dl) : 0, rk = rockNear(x, z), nearR = rk < 2.8 ? sstep(2.8, 0.3, rk) : 0;
       const bare = snowFree(x, z, ny), coast = h < 2.2 ? 0.35 : 0;
-      const p = 0.025 + 0.8 * bare + 0.7 * nearR + 0.8 * shore + coast;
+      const p = 0.045 + 0.8 * bare + 0.7 * nearR + 0.8 * shore + coast;
       if (r() > p * (0.55 + 0.9 * C.fbm(x * 0.05 - 3, z * 0.05 + 8, 2))) continue;
       const w = r(); let v;
       if (shore > 0.3) v = w < 0.6 ? 1 : w < 0.85 ? 0 : 2;
       else if (h > 34 || bare < 0.35) v = w < 0.45 ? 3 : w < 0.85 ? 0 : 2;
       else v = w < 0.52 ? 0 : w < 0.75 ? 1 : w < 0.9 ? 2 : 3;
-      // size by exposure: tall on bare wind-scoured ground, short stubs poking out of deeper snow
-      const s = (0.6 + r() * 0.7) * (0.75 + 0.45 * bare), sy = s * (0.75 + r() * 0.5), frost = v === 3 || bare < 0.35 ? 0.1 : 0;
+      // size by exposure: tall on bare wind-scoured ground, short stubs poking out of deeper snow — wide per-instance
+      // variance (not the same tuft copy-pasted everywhere); the lean angle is added at bake time (bakeChunk)
+      const s = (0.5 + r() * 1.05) * (0.7 + 0.5 * bare), sy = s * (0.7 + r() * 0.7), frost = v === 3 || bare < 0.35 ? 0.1 : 0;
       const c0 = PAL().tuft[v], alt = PAL().tuftAlt[(r() * PAL().tuftAlt.length) | 0], mixA = r() * 0.45, br = 0.82 + r() * 0.36;
       const col = [0, 1, 2].map((k) => ((c0[k] * (1 - mixA) + alt[k] * mixA) * br) * (1 - frost) + frost * 0.5);
       out.tuft.push([v, x, h + Math.max(0, depthAt(x, z) - 0.06) - 0.07, z, r() * TAU, s, sy, col]);
@@ -742,7 +765,7 @@ vec3 impNW;`)
         const a = r() * TAU, d = Math.sqrt(r()) * 2.8, x = x0 + Math.cos(a) * d, z = z0 + Math.sin(a) * d, h = C.getH(x, z);
         if (C.normalY(x, z) < 0.65 || rockNear(x, z) < 0.2) continue;
         const sp = wet && r() < 0.6 ? 1 : r() < 0.55 ? 0 : 2, s = (sp === 0 ? 0.9 : 0.8) + r() * (sp === 0 ? 0.9 : 0.8);
-        const c0 = PAL().shrub[sp], br = 0.8 + r() * 0.4, hue = (r() - 0.5) * 0.12, tint = [c0[0] * br * (1 + hue), c0[1] * br, c0[2] * br * (1 - hue)];
+        const c0 = PAL().shrub[sp], br = 0.72 + r() * 0.7, hue = (r() - 0.5) * 0.12, tint = [c0[0] * br * (1 + hue), c0[1] * br, c0[2] * br * (1 - hue)];
         out.shrub.push([sp, x, h + Math.max(0, depthAt(x, z) - 0.12) - 0.04, z, r() * TAU, s, tint]);
         out.pass.push([x, z, 0.4 * s * (sp === 1 ? 1.1 : 0.8), GR.shrubH[sp] * s, 1]);
       }
@@ -768,8 +791,16 @@ vec3 impNW;`)
   function bakeChunk(ch) {   // per-chunk instance arrays, built once
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new V3(), s = new V3(), up = new V3(0, 1, 0), n = new V3(), qy = new THREE.Quaternion();
     const B = ch.b = { tuft: [[], [], [], []], shrub: [[], [], []], decal: [] };
-    for (const [v, x, y, z, ry, sc, sy, c] of ch.data.tuft) { e.set(0, ry, 0); q.setFromEuler(e); m.compose(p.set(x, y, z), q, s.set(sc, sy, sc)); B.tuft[v].push(m.elements.slice(), c); }
-    for (const [v, x, y, z, ry, sc, c] of ch.data.shrub) { e.set((C.hash2(x, z) - 0.5) * 0.15, ry, (C.hash2(z, x) - 0.5) * 0.15); q.setFromEuler(e); m.compose(p.set(x, y, z), q, s.set(sc, sc, sc)); B.shrub[v].push(m.elements.slice(), c); }
+    for (const [v, x, y, z, ry, sc, sy, c] of ch.data.tuft) {
+      e.set((C.hash2(x, z + 3) - 0.5) * 0.24, ry, (C.hash2(z, x + 3) - 0.5) * 0.24); q.setFromEuler(e);   // a lean, not perfectly upright every time
+      m.compose(p.set(x, y, z), q, s.set(sc, sy, sc)); B.tuft[v].push(m.elements.slice(), c);
+    }
+    for (const [v, x, y, z, ry, sc, c] of ch.data.shrub) {
+      e.set((C.hash2(x, z) - 0.5) * 0.15, ry, (C.hash2(z, x) - 0.5) * 0.15); q.setFromEuler(e);
+      // crowberry/willow (heather, e05/e06): flatten into a low tangled mat instead of a ball on a stem; birch stays upright
+      const sy2 = v === 2 ? sc * 0.58 : v === 1 ? sc * 0.76 : sc, sxz = v === 2 ? sc * 1.24 : v === 1 ? sc * 1.1 : sc;
+      m.compose(p.set(x, y, z), q, s.set(sxz, sy2, sxz)); B.shrub[v].push(m.elements.slice(), c);
+    }
     for (const [v, x, y, z, ry, sc] of ch.data.decal) {
       const e1 = 0.9, nx = C.getH(x - e1, z) - C.getH(x + e1, z), nz = C.getH(x, z - e1) - C.getH(x, z + e1); n.set(nx, 2 * e1, nz).normalize();
       q.setFromUnitVectors(up, n); qy.setFromAxisAngle(up, ry); q.multiply(qy); m.compose(p.set(x, y, z), q, s.set(sc, 1, sc)); B.decal.push(m.elements.slice(), v);
