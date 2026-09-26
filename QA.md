@@ -24,6 +24,8 @@ Options: `--label x` · `--no-stand` · `--no-eye` · `--no-motion` · `--views 
 | `tools/qa/hygiene.mjs` | lock, machine load, spread stats |
 | `tools/qa/probe.mjs "<js>"` | open the game, evaluate expressions (debugging a check) |
 
+> 🎯 **Appearance is NOT accepted by these numbers.** Visual acceptance = `LOOKGATE.md` (`node tools/look-gate.mjs run|check|accept`); a visual reject is never overridden by a QA PASS.
+
 ## 🔒 Measurement hygiene
 
 | | |

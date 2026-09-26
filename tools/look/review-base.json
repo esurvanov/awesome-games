@@ -1,0 +1,207 @@
+{
+ "label": "base",
+ "reviewer": "look-gate agent (vision), first baseline",
+ "date": "2026-09-26",
+ "baseline": null,
+ "subjects": {
+  "snow_open": {
+   "scores": {
+    "silhouette": [3, "rolling snow + ring mountains read, but peaks are faceted low-poly"],
+    "surface": [3, "fine grain OK, scattered dark smudges read as dirt, not wind texture"],
+    "lighting": [2, "one flat light level over the whole field, no lit/shadow modelling of drifts"],
+    "color": [3, "neutral grey snow, green aurora OK; shadows not bluer than light"]
+   },
+   "anti": { "stripes": false, "dither": false, "plastic": false, "craters": false },
+   "vsAccepted": "n/a",
+   "note": "give open snow real relief lighting (drift shadows bluer); square white snowflake particles read as confetti"
+  },
+  "footprints": {
+   "scores": {
+    "silhouette": [1, "prints are round ~1 m bowls — moon craters, not boot shapes"],
+    "surface": [2, "trail craters + regular wavy corduroy beside it; photos: small crisp boot prints"],
+    "lighting": [3, "crater interiors shade plausibly, soft contact shadow on the pilot"],
+    "color": [3, "snow neutral grey; crater floor too dark/blue vs photo prints"],
+    "motion": [2, "jog frames with deep lunging crouch, visor flares white; ~12 fps capture on a loaded machine"],
+    "contact": [2, "standing pilot keeps one boot lifted above the snow; prints far wider than the soles"]
+   },
+   "anti": {
+    "craters": "every print is a 0.8–1 m round bowl, 3–4× boot size (trail + boots shots)",
+    "sliding": false,
+    "hover": "boots shot: stationary pilot, one boot raised clear of the surface",
+    "stripes": "left of the trail: parallel wavy ridges, one spacing, one direction"
+   },
+   "vsAccepted": "n/a",
+   "note": "FIRST FIX: boot-sized elongated prints (≈30×12 cm, 3–8 cm deep) instead of round pads"
+  },
+  "deep_drift": {
+   "scores": {
+    "silhouette": [2, "the 'drift' in front is a flat tilted sheet with a straight hard edge"],
+    "surface": [2, "no cornice / sastrugi carving like d06/d05; smooth plane"],
+    "lighting": [2, "dark smudge on the sledge, drift edge unshaded"],
+    "color": [3, "neutral snow"],
+    "contact": [2, "pilot stands in a dark round hole; drift sheet cuts through the sledge"]
+   },
+   "anti": {
+    "stripes": false,
+    "craters": "dark round hollow around the pilot's feet",
+    "hover": "drift sheet intersects the sledge / snowcat",
+    "dither": "hatched aliasing along the drift sheet edge"
+   },
+   "vsAccepted": "n/a",
+   "note": "deepest loose snow sits at the camp sledge; drift mesh reads as a card"
+  },
+  "boulder": {
+   "scores": {
+    "silhouette": [3, "jagged rock reads, but two slabs merge into one long ridge"],
+    "surface": [3, "scan detail OK; pale stretched skirt at the base"],
+    "lighting": [2, "no snow cap on top faces, no ground darkening where it meets snow"],
+    "color": [2, "warm brown/tan sandstone under blue moonlight; photos dark grey-blue"],
+    "contact": [3, "sits in the snow with a hard line, no pillow drift; pilot's boots planted"]
+   },
+   "anti": { "hover": "left end: pale stretched base skirt reads as lifted edge", "plastic": false, "blobs": false, "dither": false },
+   "vsAccepted": "n/a",
+   "note": "snow on top faces + snow pillow at the base; cooler rock albedo"
+  },
+  "outcrop": {
+   "scores": {
+    "silhouette": [1, "no outcrop form: a dark flat-topped block at the rift edge"],
+    "surface": [2, "no crack / ledge detail visible"],
+    "lighting": [1, "huge blown-out white glow sphere beside it, block nearly black"],
+    "color": [2, "purple rift light dominates"],
+    "contact": [2, "block edge sits on a snow lip, no transition"]
+   },
+   "anti": { "hover": false, "plastic": false, "blobs": "outcrop block near-black, no inner shading", "cards": false },
+   "vsAccepted": "n/a",
+   "note": "white bloom sphere (also in wreck) + black outcrop; outcrops need d03-like stacked blocks"
+  },
+  "ruin_wall": {
+   "scores": {
+    "silhouette": [3, "stone arch reads, proportions fine"],
+    "surface": [3, "block texture OK, a bit clean"],
+    "lighting": [3, "soft, no snow on top ledges (d02 would have)"],
+    "color": [3, "grey stone OK"],
+    "contact": [3, "base sits in snow, no drift against it"]
+   },
+   "anti": { "hover": false, "plastic": false, "blobs": false },
+   "vsAccepted": "n/a",
+   "note": "no direct photo; snow on ledges/top would help most"
+  },
+  "tree_close": {
+   "scores": {
+    "silhouette": [2, "sparse flat branch planes, gappy — not a dense spruce cone"],
+    "surface": [1, "needles read as flat torn-paper cutouts, snow as white paper shapes"],
+    "lighting": [2, "crown interior near-black, no light through"],
+    "color": [2, "green-cyan tint inside branches; photos snow-white over black-green"],
+    "contact": [3, "trunk base fine"]
+   },
+   "anti": {
+    "cards": "branch cards visible edge-on, white snow cut-outs on card planes",
+    "blobs": "crown interior near-black mass",
+    "dither": false,
+    "hover": false
+   },
+   "vsAccepted": "n/a",
+   "note": "second fix: close spruce needs volume (layered branches, snow clumps on top faces)"
+  },
+  "forest_mid": {
+   "scores": {
+    "silhouette": [2, "thin sparse spruces; photos: heavy snow-laden columns"],
+    "surface": [2, "foreground snow corduroy stronger than the trees"],
+    "lighting": [3, "crowns shaded, readable"],
+    "color": [3, "OK under the aurora"]
+   },
+   "anti": {
+    "cards": false,
+    "blobs": "big dark crown right of centre",
+    "dither": false,
+    "stripes": "foreground: parallel wavy ripples across the whole field"
+   },
+   "vsAccepted": "n/a",
+   "note": "more snow load on crowns; break up the ripple pattern"
+  },
+  "forest_far": {
+   "scores": {
+    "silhouette": [3, "impostor skyline of spires reads"],
+    "surface": [2, "foreground ripple stripes dominate the frame"],
+    "lighting": [3, "flat but plausible at 150 m"],
+    "color": [3, "OK"]
+   },
+   "anti": { "cards": false, "dither": false, "blobs": false },
+   "vsAccepted": "n/a",
+   "note": "the far forest is fine; the snow in front is the problem"
+  },
+  "grass": {
+   "scores": {
+    "silhouette": [3, "straw tufts shaped OK"],
+    "surface": [2, "few tufts, all same size; heavy snow ripples; heather = dark brown balls"],
+    "lighting": [3, "tufts lit, soft shadows"],
+    "color": [3, "straw colour matches e04; heather too red-brown"],
+    "contact": [3, "tufts rooted in snow"]
+   },
+   "anti": { "cards": false, "dither": false, "blobs": "heather clumps read as near-black round balls", "hover": false },
+   "vsAccepted": "n/a",
+   "note": "denser, varied grass (thin blades poking through like e04/e05)"
+  },
+  "stag": {
+   "scores": {
+    "silhouette": [3, "reads as a deer with antlers"],
+    "surface": [2, "smooth satin hide, no fur texture"],
+    "lighting": [2, "flat, no rim / form shading"],
+    "color": [2, "red-brown red deer vs grey-white caribou/reindeer photos"],
+    "motion": [2, "flee: rears/hops almost in place for ~1 s before running; graze loop static; low capture fps"],
+    "contact": [3, "hooves on the snow, no prints / kicked snow"]
+   },
+   "anti": { "sliding": false, "hover": false, "plastic": "uniform satin sheen on the hide", "blobs": false },
+   "vsAccepted": "n/a",
+   "note": "reindeer colouring (grey-white, pale neck) and fur"
+  },
+  "sea_ice": {
+   "scores": {
+    "silhouette": [2, "flat sheet; bergs are small blue cubes"],
+    "surface": [2, "no pressure ridges / rubble like g01/g02"],
+    "lighting": [2, "moon glint blows out a broad white band"],
+    "color": [3, "OK"]
+   },
+   "anti": { "plastic": "glossy blue cube icebergs", "stripes": false, "hover": false, "dither": false },
+   "vsAccepted": "n/a",
+   "note": "ridges and broken blocks; bergs not cubes"
+  },
+  "mountains": {
+   "scores": {
+    "silhouette": [3, "peaks read, faceted low-poly"],
+    "surface": [2, "no rock/snow banding like h01/h04"],
+    "lighting": [3, "plausible moonlit falloff"],
+    "color": [3, "OK"]
+   },
+   "anti": { "stripes": false, "blobs": false, "dither": false },
+   "vsAccepted": "n/a",
+   "note": "rock outcrops + snow gullies on faces"
+  },
+  "station_night": {
+   "scores": {
+    "silhouette": [4, "dome, radome, module on stilts — like f04"],
+    "surface": [3, "clean panels, little wear"],
+    "lighting": [3, "warm windows + fire good; door red glow a bit flat"],
+    "color": [4, "warm/cool contrast matches f01/f04"],
+    "contact": [3, "sits on snow, no drift against walls"]
+   },
+   "anti": { "plastic": "radome and module panels clean CG", "blobs": false, "hover": false, "dither": false },
+   "vsAccepted": "n/a",
+   "note": "best subject; add drifts against walls"
+  },
+  "wreck": {
+   "scores": {
+    "silhouette": [3, "fuselage reads DC-3-like; far shot small"],
+    "surface": [3, "close debris: weathered aluminium good"],
+    "lighting": [2, "large white glow blob left of the wreck washes the frame"],
+    "color": [3, "OK"],
+    "contact": [3, "half-buried plausibly"]
+   },
+   "anti": { "plastic": false, "hover": false, "blobs": false, "cards": false },
+   "vsAccepted": "n/a",
+   "note": "remove / tame the white glow sphere near the crash"
+  }
+ },
+ "verdict": "accept",
+ "reason": "first run: no accepted baseline to regress from; absolute scores are the fix list"
+}
