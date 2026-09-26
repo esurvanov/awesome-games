@@ -733,14 +733,16 @@ TX.sky.colorSpace = THREE.SRGBColorSpace; TX.sky.generateMipmaps = false; TX.sky
 /* ---------- quality presets ---------- */
 // setQuality(name) only touches sizes, distances and pass toggles: no shader define changes, so switching at runtime
 // never recompiles materials (the "quality director" may call it every few seconds).
+// pixelRatio: measured on a Retina M1 Pro (1512x860 css @2x), high: 1.5 → 2268x1290 = 25 ms/frame (40 fps), 1.0 → 15 ms (69–81 fps);
+// fill (pixels x MSAA) was the whole cost, geometry < 1 ms per group. Look-gate references were always captured at 1.0.
 const QUALITY = {
   low:   { pixelRatio: 1,    msaa: 0, shadowDist: 120, shadowMap: 1536, cascades: 2, split: 0.75, ao: false, aoScale: 0.5, bloomScale: 0.35, grass: 0.45, treeNear: 110, treeShadow: 45,
            shC0: 64,  shMapFar: 1024, shTiles: 1, shTileGrid: 3, shMove: 12,
            perfDraw: 0.6, perfLod: 0.6, perfCast: 0.7 },
-  med:   { pixelRatio: 1.25, msaa: 4, shadowDist: 180, shadowMap: 2048, cascades: 2, split: 0.8,  ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 0.75, treeNear: 150, treeShadow: 70,
+  med:   { pixelRatio: 1,    msaa: 4, shadowDist: 180, shadowMap: 2048, cascades: 2, split: 0.8,  ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 0.75, treeNear: 150, treeShadow: 70,
            shC0: 88,  shMapFar: 1024, shTiles: 1, shTileGrid: 4, shMove: 16,
            perfDraw: 0.8, perfLod: 0.8, perfCast: 0.85 },
-  high:  { pixelRatio: 1.5,  msaa: 4, shadowDist: 250, shadowMap: 3072, cascades: 2, split: 0.85, ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 1,    treeNear: 175, treeShadow: 90,
+  high:  { pixelRatio: 1,    msaa: 4, shadowDist: 250, shadowMap: 3072, cascades: 2, split: 0.85, ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 1,    treeNear: 175, treeShadow: 90,
            shC0: 100, shMapFar: 1536, shTiles: 1, shTileGrid: 4, shMove: 16,
            perfDraw: 1, perfLod: 1, perfCast: 1 },
   ultra: { pixelRatio: 2,    msaa: 4, shadowDist: 320, shadowMap: 4096, cascades: 2, split: 0.85, ao: true,  aoScale: 1,   bloomScale: 1,    grass: 1.3,  treeNear: 230, treeShadow: 140,
