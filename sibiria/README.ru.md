@@ -103,4 +103,6 @@ cd sibiria/tests && npm i && node run-all.js
 
 ## 📜 Лицензия
 
+История версий — [CHANGELOG.md](CHANGELOG.md).
+
 Код — MIT, см. [LICENSE](LICENSE). Иконки и шрифты сохраняют свои лицензии, они перечислены в [CREDITS.md](CREDITS.md).

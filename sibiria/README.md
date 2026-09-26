@@ -103,4 +103,6 @@ Design research behind the last big rework — audits, style guide, specs — is
 
 ## 📜 Licence
 
+Version history — [CHANGELOG.md](CHANGELOG.md).
+
 Code — MIT, see [LICENSE](LICENSE). Icons and fonts keep their licences, listed in [CREDITS.md](CREDITS.md).
