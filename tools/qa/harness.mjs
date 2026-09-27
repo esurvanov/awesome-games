@@ -52,7 +52,9 @@ export async function openGame(o = {}) {
   for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => close().then(() => process.exit(130)));
   const page = await browser.newPage();
   const errors = [], failed = [], warnings = [];
-  page.on('console', (m) => { const t = m.type(), s = m.text(); if (t === 'error') { if (!/^Failed to load resource/.test(s)) errors.push(s); } else if (t === 'warning' || t === 'warn') warnings.push(s); });
+  const texSeen = new Set();   // TEXUNITS.md: texture-unit overflow = the material draws wrong without any GL error → an error line (once per text)
+  page.on('console', (m) => { const t = m.type(), s = m.text(); if (t === 'error') { if (!/^Failed to load resource/.test(s)) errors.push(s); } else if (t === 'warning' || t === 'warn') warnings.push(s);
+    if (/Trying to use \d+ texture units|\[TEXBUDGET\]/.test(s) && !texSeen.has(s)) { texSeen.add(s); errors.push('texture budget: ' + s); } });
   page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.message)));
   page.on('requestfailed', (r) => failed.push(r.url() + ' ' + (r.failure() && r.failure().errorText)));
   page.on('response', (r) => { if (r.status() >= 400 && !/favicon\.ico$/.test(r.url())) failed.push(r.status() + ' ' + r.url()); });
