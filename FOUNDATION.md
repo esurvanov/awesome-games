@@ -195,6 +195,31 @@ Current results (`stand/before` → `stand/after`, M1 Pro, 1400×800, *high*):
 
 Zero JS errors, 12/12 loader modules, load ≈ 2.5 s warm.
 
+## 6b. Texture-unit budget (TEXUNITS.md) — read before adding a sampler
+
+three.js takes **every** sampler of a program (vertex + fragment) from ONE pool of `MAX_TEXTURE_IMAGE_UNITS` = **16**
+(M1 / ANGLE-Metal; also the WebGL2 minimum). Over 16 there is no link error — only `Trying to use N texture units`,
+and that material draws wrong. The sum is what counts: your patch + every other module's patch on the same material.
+
+| Family (max program, all presets) | Units now | Headroom | Who samples what |
+|---|---|---|---|
+| 🏔 terrain contact patch | **15** | 1 | groundblend tGb·tGbSh (v) · terrain tBase·tDD·tDef·tNS·tNR (v) · baked tBakeT·tBakeTiles · terrain tTrD·tTrN (arrays) ·tNz · three envMap·dfgLUT·sunShadowMap |
+| 🏔 terrain detail rings | 14 | 2 | same minus tNS, plus tNR in fragment |
+| 🏔 terrain far mesh | 10 | 6 | tGb·tGbSh (v) · tBakeT·tBakeTiles · tTrD·tTrN·tNz · three 3 |
+| 🌲 trees near (bark) | 12 | 4 | batching 2 (v) · tScDD·tGb · tBakeT·tBakeTiles · map·aoMap·normalMap · three 3 |
+| 🌲 trees near (needles/leaves) | 8 | 8 | batching 2 (v) · tBakeT·tBakeTiles · map · three 3 |
+| 🌌 impostors | 6 | 10 | tImpA·tImpN·tImpD · three 3 |
+| 🌾 tufts / shrubs / decals | 6 | 10 | tGb·tGbFar (v) · map · three 3 |
+| 🪨 rocks / boulders / outcrops | 13 | 3 | tGb · tVLichen·tVSnow · tScD·tScN·tScDD · map·normal·rough·metal · three 3 |
+| 🧱 worldfill stone | **14** | 2 | tGb · tScD·tScN·tScDD · tSnow·tSnowN·tSnowR·tRock·tRockN·tRockR · lightMap · three 3 |
+| 🏠 structures (station, Kestrel; NASA hab = 9) | 12 | 4 | tGb · tScD·tScN·tScDD · map·lightMap·normal·rough·metal · three 3 |
+| 🧑‍🚀 pilot | 8 | 8 | boneTexture (v) · map·aoMap·rough·metal · three 3 |
+
+Rules: same texture sampled by two patches → share ONE uniform · several greyscale masks → one RGBA · same-size
+detail maps → one `sampler2DArray` (see terrain `texArray`) · low-frequency lookups → vertex stage (still counts,
+but frees fragment ALU) · a patch that is invisible on a material → skip it there.
+Check: `node tools/qa/texunits.mjs --presets all` (exit 1 = FAIL) · in game: `[TEXBUDGET] material "…"` warning.
+
 ## 7. Known issues
 
 - Frame cost rose ≈ 55 % (uncapped ~115 → ~75 fps median): AO, 2 shadow cascades, MSAA scene target. vsync fps holds 59.9; weaker GPUs → `setQuality('med'|'low')`.
