@@ -285,7 +285,11 @@
         #ifndef TR_PATCH
           fd *= 1. - smoothstep(22., 34., trDist);
         #endif
-        dN = (cmN - gN) * fd;
+        // LOOKGATE (👣 footprints): the pressed surface's exact normal, used at full strength, reads as a sharp bright
+        // cut-paper rim under directional light where the wall meets the untouched snow — soften its contrast and
+        // break its smoothness with a little fine noise so it shades like loose compacted snow, not folded card
+        vec2 wn2 = vec2(trVN(P.xz * 41. + 5.2), trVN(P.xz * 41. - 8.7)) - .5;
+        dN = (cmN - gN) * fd * .7 + vec3(wn2.x, 0., wn2.y) * .12 * fd;
         press = cmPress(P.xz) * fd * smoothstep(.01, .05, depth);
       } }
     #endif
@@ -316,7 +320,7 @@
       snowFlat = cS;
       // packed snow in a print: a little denser / smoother, no painted outline (walls shade by their real normal)
       cS = cS * mix(vec3(1.), vec3(.93, .95, .98), press);
-      rS = mix(rS, .62, press);
+      rS = mix(rS, .74, press);   // LOOKGATE: was .62 — less gloss, so the wall doesn't catch a hard bright highlight
     }
     if (wR > .003) {
       if (up > .88) { vec3 t; trNT(tRSd, tRSn, P.xz / 11., dPx.xz / 11., dPy.xz / 11., nzA.a, cR, t); vec2 n = trNrmXY(t); nR3 = vec3(n.x, 0., n.y) * .8; rR = t.z; }
@@ -345,13 +349,17 @@
     float trSnowW = lb.x * (1. - press);
   `;
   const GLSL_FRAG_EMIT = /* glsl */`
-    { // snow sparkle: sparse random facets that flash when they mirror the moon (or the sky) into the eye
+    { // snow sparkle: sparse random facets that flash when they mirror the moon (or the sky) into the eye. Each
+      // candidate cell used to light up as a flat filled square (a grid of tiny bright tiles) — give it a soft round
+      // shape at a jittered spot inside the cell instead, so it reads as a random grain catching the light, not a tile.
       vec2 gc = floor(P.xz * 26.); float hh = trHash(gc);
       if (hh > .965 && trDist < 38. && trSnowW > .2) {
+        vec2 fOff = vec2(trHash(gc + 4.1), trHash(gc + 8.3)) * .6 + .2;
+        float fMask = 1. - smoothstep(.14, .42, length(fract(P.xz * 26.) - fOff));
         vec3 V = normalize(cameraPosition - P);
         vec3 fn = normalize(vec3((trHash(gc + 3.1) - .5) * 1.5, 1., (trHash(gc + 7.7) - .5) * 1.5));
         float g1 = smoothstep(.975, .998, dot(fn, normalize(V + uSunV))), g2 = smoothstep(.985, .999, dot(fn, normalize(V + vec3(0., 1., 0.))));
-        totalEmissiveRadiance += vec3(.7, .85, 1.) * (g1 * 3. + g2 * .8) * trSnowW * (1. - smoothstep(18., 38., trDist));
+        totalEmissiveRadiance += vec3(.7, .85, 1.) * fMask * (g1 * 3. + g2 * .8) * trSnowW * (1. - smoothstep(18., 38., trDist));
       }
     }
     { float sd = length(P.xz - uScanC);
@@ -699,7 +707,7 @@
   //   boot sinks into the loose snow (interaction.js) and this map then holds exactly that boot — so the boot stands in its
   //   own print by construction. Nothing is read back to the CPU at run time (see pressCache).
   const CM = { ok: false, on: true, res: 0, ext: 0, e: 0, cx: 0, cz: 0, cur: 0, P: [], S: null, R: null, rebake: true,
-    roots: [], rootsT: 0, kRim: 0.45, layer: 30,
+    roots: [], rootsT: 0, kRim: 0.32, layer: 30,   // LOOKGATE (👣 footprints): was .45 — a taller, crisper rim reads as a cut-paper edge
     stats: { frames: 0, recenters: 0, actorDraws: 0, coarseDraws: 0, regionTexels: 0, cpuMs: 0, staticTris: 0 } };
   const CONTACT_V = `#include <common>
 #include <batching_pars_vertex>
@@ -767,7 +775,7 @@ void main() {
     // surface: drawn height = S0 − press + rim. The press is shown with sloped walls (a cone dilation of the object's own
     // press: the bottom stays exactly the sole, the wall leans out ≈ 60°, with a world-anchored crumble), never a one-texel
     // vertical step; the rim is the moving-object press blurred over ≈ 2–7 cm minus the press, × kRim (displaced snow).
-    CM.surfU = { uRim: { value: new THREE.Vector4(1.7, CM.kRim, 1.5, 0) } };
+    CM.surfU = { uRim: { value: new THREE.Vector4(1.7, CM.kRim, 2.1, 0) } };   // LOOKGATE: wider ring step (was 1.5) — a gentler rim falloff, less cut-paper edge
     CM.surfMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, CM.surfU), depthTest: false, depthWrite: false, toneMapped: false, vertexShader: QUAD_V,
       fragmentShader: `uniform sampler2D tNS, tNP; uniform vec4 uCM; uniform vec4 uRim; varying vec2 vUv;
         float sh1(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -787,7 +795,9 @@ void main() {
               dil = max(dil, v.x - kS * (r - 1.3) * e); b += v.y * wt; w += wt; } }
           b /= w;
           float d = min(c.x, pmax), dd = min(dil, pmax);
-          float rim = uRim.y * max(b - cc.y, 0.) * smoothstep(0., .03, loose);
+          // LOOKGATE (👣 footprints): a perfectly smooth ridge of the same height all the way round reads as a folded
+          // card, not loose snow — break its crest up a little so it looks crumbled, not moulded
+          float rim = uRim.y * max(b - cc.y, 0.) * smoothstep(0., .03, loose) * (.62 + .6 * svn(wp / .05 + 19.));
           gl_FragColor = vec4(s.x - dd + rim, clamp(d / max(loose, .01), 0., 1.), 0., 1.); }` });
     // down: fine → coarse (box mean of the drawn depression and rim over each 12.5 cm coarse texel; overwrite: the fine map is exact)
     CM.downU = { tNRf: { value: null }, uDefW: { value: new THREE.Vector4() } };
