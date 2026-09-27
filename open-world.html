@@ -454,7 +454,8 @@ import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-
 THREE_NS.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE_NS.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE_NS.Mesh.prototype.raycast = acceleratedRaycast;
-THREE_NS.InstancedMesh.prototype.raycast = acceleratedRaycast;
+// InstancedMesh keeps its own raycast (it loops the instances through Mesh.raycast = the accelerated one): replacing it
+// with acceleratedRaycast made every THREE.Raycaster query against instanced rocks / boulders / crates miss (INTERACT.md)
 const { Matrix4, Vector3, WebGPUCoordinateSystem } = THREE_NS;
 
 // SunLightShadow (2 cascades, engine-native in r186) with a tunable split: splitLambda blends uniform (0) and
