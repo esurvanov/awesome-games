@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { SUBJECTS, CRITERIA, ANTI, criteriaOf } from './look/subjects.mjs';
+import './look/subjects-snow.mjs';   // SNOW-CONTACT: + snow_contact (player-camera boots / prints)
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const OUT = path.join(ROOT, 'stand');
@@ -47,7 +48,7 @@ async function run() {
     H = await openGame({ label: 'look-gate ' + label, lock: false, quality: opt('quality', 'high'), size, headful: !!opt('headful'), log });
     meta.gpu = H.gpu;
     await H.newGame();
-    for (const f of ['tools/qa/qa-views.js', 'tools/look/lg-page.js']) await H.page.evaluate(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+    for (const f of ['tools/qa/qa-views.js', 'tools/look/lg-page.js', 'tools/look/lg-snow.js']) await H.page.evaluate(fs.readFileSync(path.join(ROOT, f), 'utf8'));
     await H.page.evaluate(() => LG.hud(false));
     await sleep(2500);
   };

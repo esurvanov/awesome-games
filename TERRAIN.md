@@ -13,7 +13,7 @@ Module `modules/terrain.js` (order −10, runs first) · textures `assets/tr_*.j
 | Materials | 1 snow + 1 rock, triplanar | fresh snow · wind-packed snow · rock-with-snow · grey cliff (triplanar, snow on ledges) · frozen gravel; height blend |
 | Anti-tiling | none | rotated multi-scale sampling (snow, ice), 8-offset no-tile (rock, gravel), macro noise |
 | Sparkle | random dots | facets that flash toward the moon / sky |
-| Trails | flat decals, fade 45 s | deformation map 128 m × 12.5 cm, persistent, pushes ground down, rims, darker packed snow; blizzard refills |
+| Trails | flat decals, fade 45 s | SNOW-CONTACT: objects press a fine 1.6 cm map with their own geometry (real print geometry near the pilot); coarse 128 m × 12.5 cm map follows; blizzard refills |
 | Actors | — | pilot (walk/run/landing/roll/slide), fox, stags, skimmer (2 skis + track), snow puffs |
 | Sea ice | crack canvas | cracked-plate ice, floes, pressure ridges, snow patches, depth layer |
 | Lake ice | crack canvas | clear blue ice, depth layer, cracks, snow at the shore |
@@ -29,8 +29,9 @@ Physics heightfield `H` / `getH` untouched. Drawn snow sits on it: loose depth �
 | `surfaceAt(x, z, y?)` | `'snow' 'deep_snow' 'ice' 'rock' 'metal' 'wood'` · with `y`: physics ray → object name (kestrel/station → metal, crate/pier → wood) |
 | `slopeAt(x, z, r = 1)` | physics slope, degrees (for placing structures: reject > ~30°) |
 | `snowCover(matOrObject3D, opts \| amount)` | snow on up-facing surfaces + skirt where the object meets the snow. Any MeshStandard/Physical/Lambert/Phong, instanced, skinned. Idempotent (a 2nd call updates amounts). Chains existing `onBeforeCompile`. +3 texture units |
-| `snowStamp({x, z, dx, dz, len, wid, type, str})` | print into the trail map; `type`: `boot paw hoof band blob` |
-| `addFootprint(x, z, face, o?)` | boot print + puff (old API) |
+| `snowContact(x, z)` | `{ s0, floor, dep, surf, press }` — undisturbed snow y (CPU = GPU to ≈ 0.1 mm), compacted floor, loose depth (SNOW-CONTACT.md) |
+| `snowFine(x, z)` | 1 inside the fine object-pressed window, 0 outside |
+| `snowStamp(...)` / `addFootprint(...)` | shims only (no caller left): prints come from the objects' own geometry — SNOW-CONTACT.md |
 | `windDir` | `{x, z}` wind blows toward (same as WorldFill) |
 
 `snowCover` opts: `amount 1 · minUp 0.55 · soft 0.25 · skirt 0.45 (m, 0 = off) · scale 0.35`.
@@ -45,6 +46,9 @@ Gameplay: pilot speed × (1 − 0.4 · smooth(0.18, 0.7, depth ahead)) via a wra
 | `terrainGrid` (cells per ring side → radius) | 64 · 56 m | 64 · 56 m | 96 · 84 m | 160 · 140 m |
 | `deformRes` (texels) | 512 | 1024 | 1024 | 1024 |
 | `deformExt` (m) | 96 | 128 | 128 | 128 |
+| `contactRes` · `contactExt` (fine pressed map, SNOW-CONTACT) | 512 · 12.8 m | 768 · 14.4 m | 1024 · 16 m | 1024 · 16 m |
+| `contactPatch` · `contactStep` (real-geometry snow patch, m · map texels per quad) | 5 · 2 | 6 · 2 | 7 · 2 | 8 · 1 |
+| `contactStatic` (small static props press once) | 1 | 1 | 1 | 1 |
 
 Runtime switch: rings rebuild (no recompile); trail map re-allocates only when res/ext change.
 

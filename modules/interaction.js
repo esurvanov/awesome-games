@@ -103,13 +103,11 @@
     if (typeof C.snowDepthAt === 'function') { try { const d = +C.snowDepthAt(x, z); return isFinite(d) ? Math.max(0, d) : 0; } catch (e) { return 0; } }
     return 0;
   }
-  // terrain deformation (terrain module: ctx.snowStamp({x, z, dx, dz, len, wid, type, str})). The terrain module tracks
-  // the pilot, fox and stags itself; we only stamp events it cannot know about (landing, the fox's dive).
+  // SNOW-CONTACT: nothing here draws prints. The terrain module presses its snow map with the objects' own geometry
+  // (boots, body, paws, hooves, skis), every frame, from below; this module only places the feet on / into that surface
+  // and makes the contact event (sound + puff) when a foot plants. hasStamp = a terrain module is present (else the
+  // game's old decal prints are the fallback for the stags).
   const hasStamp = () => typeof C.snowStamp === 'function';
-  function stamp(x, z, len, wid, type, str, yaw) {
-    if (!hasStamp()) return false;
-    try { C.snowStamp({ x, z, dx: Math.sin(yaw || 0), dz: Math.cos(yaw || 0), len, wid, type, str }); STATS.trails++; return true; } catch (e) { return false; }
-  }
 
   /* ------------------------------------------------------------------ audio (own context; the game's Sound is closed) */
   const AU = { ac: null, out: null, nb: null, scrape: null, scrapeG: null, scrapeF: null };
@@ -324,11 +322,20 @@
       if (h) { L.g = h; } else { L.g = { y: P.y - 0.02, nx: 0, ny: 1, nz: 0, tag: null }; }
       const ny = clamp(L.g.ny, 0.6, 1);
       // loose snow (terrain module) lies above the physics ground: a boot compresses it and rests K.snowFloat of the way up
-      // on terrain the boot stands on the VISIBLE snow (terrain module: smooth relief + loose snow + micro relief), pressed
-      // down where it plants: footPress = the share of the loose snow a boot compresses (stamped by plantStamp below)
-      L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowSurfaceAt === 'function';
+      // on terrain the boot stands on the DRAWN snow (terrain module, SNOW-CONTACT: the object-pressed snow map read back
+      // from the GPU). Swinging, the foot follows that surface; planting, it sinks into the loose snow — footPress = the
+      // share of the loose snow a boot compresses — unless an older, deeper print is already there. The terrain draws the
+      // boot itself into its snow map, so the print under the planted boot IS the boot sole: foot and print coincide.
+      L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowContact === 'function';
       let gy = L.g.y;
-      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z; try { const v = C.snowSurfaceAt(sx, sz); /* INT-SNOW: no floor — snowSurfaceAt now reads exactly the same blurred stamp value the terrain vertex shader renders, so the boot always lands on the visible surface by construction, whatever that value honestly is (see terrain.js) */ if (isFinite(v) && Math.abs(v - L.g.y) < 1) gy = v; } catch (e) { /* terrain busy */ } }
+      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z;
+        try { const q = C.snowContact(sx, sz);
+          if (isFinite(q.s0) && Math.abs(q.s0 - L.g.y) < 1) {
+            // swing: on the undisturbed snow (exact CPU replay of what the GPU draws); planted: sunk footPress × loose depth,
+            // never below the compacted layer the terrain draws. An older print here has the same depth (same rule, same spot)
+            const plant = 1 - smooth(0.02, 0.08, L.c), sink = (C.footPress ? C.footPress(sx, sz) : 0.5) * q.dep;
+            gy = q.s0 + (Math.max(q.s0 - sink, q.floor) - q.s0) * plant;
+          } } catch (e) { /* terrain busy */ } }
       else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat;
       L.gy = gy;
       L.tgt.set(L.anim.x, gy + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
@@ -628,43 +635,11 @@
       }
     }
     if (!grounded) for (const L of B.legs) L.up = 1;
-    if (K.footStamp && grounded && B.wLegs > 0.5) for (const L of B.legs) plantStamp(L);
   }
-  // a planted boot on snow presses it: just the one boot-shaped stamp (sole+heel, ~30×12 cm) — no separate support
-  // pad. INT-SNOW structural fix (per main-agent direction, replacing an earlier pad-based attempt): feet no longer
-  // need a stamp wide enough to survive terrain.js's vertex-grid/mip blur, because snowSurfaceAt() no longer floors
-  // its estimate — it reads exactly the same (honestly blurred) value the vertex shader renders, so the boot always
-  // lands on the visible surface whatever that value is, however small for a boot-scale stamp. The crisp, correctly
-  // boot-shaped look comes from a separate high-resolution layer (terrain.js's tFDef) that only the fragment shader
-  // reads, for normal/parallax + compaction darkening — never blurred, so it stays crisp regardless of how small or
-  // soft the real (vertex-level) geometric dip is. Once per plant, again if the foot moves 12 cm. Deep snow:
-  // postholing merges consecutive plants (either foot) into one continuous trench, like c05/c06, instead of discrete
-  // pads — tracked across both legs, a big jump (teleport, mount/dismount, first plant) is rejected by the distance
-  // cap so it can't draw a stray band across the map.
-  const FP = { x: null, z: null };
-  function plantStamp(L) {
-    if (!L.onSnow || L.c > 0.03 || !hasStamp()) return;
-    const w = wpos(L.foot, _p[12]), b = L.ball ? wpos(L.ball, _p[13]) : w, x = (w.x + b.x) / 2, z = (w.z + b.z) / 2;
-    if (L.st && Math.hypot(x - L.st.x, z - L.st.z) < 0.12) return;
-    const pr = C.footPress ? C.footPress(x, z) : 0.5; if (pr <= 0) return;
-    let dx = b.x - w.x, dz = b.z - w.z; const dl = Math.hypot(dx, dz); if (dl < 0.03) { const f = C.player.c.g.rotation.y; dx = -Math.sin(f); dz = -Math.cos(f); } else { dx /= dl; dz /= dl; }
-    let ok = false;
-    try {
-      ok = C.snowStamp({ x, z, dx, dz, len: 0.31, wid: 0.135, type: 'boot', str: Math.min(1, pr + 0.15) }) !== false;
-      if (ok) {
-        STATS.trails++;
-        const dep = C.snowDepthAt ? C.snowDepthAt(x, z) : 0;
-        if (dep > 0.19 && FP.x !== null) {
-          const tx = x - FP.x, tz = z - FP.z, td = Math.hypot(tx, tz);
-          if (td > 0.05 && td < 1.2) C.snowStamp({ x: (x + FP.x) / 2, z: (z + FP.z) / 2, dx: tx / td, dz: tz / td, len: td + 0.22, wid: 0.24, type: 'band', str: Math.min(1, pr + 0.1) });
-        }
-        FP.x = x; FP.z = z;
-      }
-    } catch (e) { return; }
-    if (ok) L.st = { x, z };   // rejected (outside the map until it re-centres after a teleport): try again next frame
-  }
+  // SNOW-CONTACT: one contact event per plant — footfall(): the step sound + a puff at the boot. The print is not drawn
+  // here (no stamp, no re-stamp while the foot slides): the terrain module's snow map is pressed by the boot mesh itself.
   function footfall(L, hs) {
-    const P = C.player, x = L.anim.x, z = L.anim.z, y = L.g.y, surf = surfaceAt(x, y, z, L.g);
+    const P = C.player, x = L.anim.x, z = L.anim.z, y = L.gy !== undefined ? L.gy : L.g.y, surf = surfaceAt(x, L.g.y, z, L.g);
     B.lastSurf = surf; STATS.steps++;
     const k = clamp(0.45 + hs / 11, 0.4, 1.3) * K.stepVol;
     sfx(surf, k);
@@ -733,7 +708,7 @@
     for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + rnd(-0.2, 0.2), s = rnd(1.5, 3.5) * (0.6 + k); C.emit(P.x + Math.sin(a) * 0.3, P.y + 0.06, P.z + Math.cos(a) * 0.3, Math.sin(a) * s, rnd(0.3, 1.2) * (0.5 + k), Math.cos(a) * s, rnd(0.5, 0.9), col, rnd(0.35, 0.6), 3.5, 2); }
     CAM.dipV -= (0.8 + v * 0.12) * K.dip;
     if (surf === 'ice' && inLake(P.x, P.z)) ICE.crackAt(P.x, P.z, 0.6 + k);
-    if (surf === 'snow') stamp(P.x, P.z, 0.7, 0.6, 'blob', 0.5 + 0.5 * k, 0);
+    // SNOW-CONTACT: no landing stamp — the two boots press their own prints (the terrain draws them into the snow map)
   }
   function shake(ti, t, s, dx, dz) {
     STATS.shakes++;
@@ -847,9 +822,33 @@
       ST.per.set(s, { wrap, feet: ST.feet.map((n) => root2.getObjectByName(n)), off: 0, roll: 0, pitch: 0, dir: null, wantX: s.fx, wantZ: s.fz, wroteX: null, wroteZ: null, lastYaw: s.yaw,
         prevH: [0, 0, 0, 0], up: [1, 1, 1, 1], trailN: 0, skins: [] });
       root2.traverse((o) => { if (o.isSkinnedMesh) ST.per.get(s).skins.push(o); });
-
+      try { hoofPoints(ST.per.get(s)); } catch (e) { console.warn('[interaction] stag hoof points', e); }
     }
     ST.ready = true; return true;
+  }
+  // SNOW-CONTACT: the real bottom of each hoof. The hoof vertices move rigidly with their hoof bone, so they are stored once
+  // in bone space (vertices ≥ 70 % weighted to that bone) and the lowest one is found per frame (≈ 40 points × 4 hooves).
+  // A constant bone → sole offset was up to 6 cm off in the grazing pose (hooves hovering or buried).
+  function hoofPoints(S) {
+    S.hoof = S.feet.map(() => null); const v = new V3(), M = new T3.Matrix4();
+    for (const sm of S.skins) {
+      const g = sm.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, pos = g.attributes.position; if (!si || !sw) continue;
+      S.feet.forEach((b, fi) => {
+        if (!b) return; const k = sm.skeleton.bones.indexOf(b); if (k < 0) return;
+        M.multiplyMatrices(sm.skeleton.boneInverses[k], sm.bindMatrix);   // bind space → this bone's space (pose independent)
+        const pts = S.hoof[fi] || [];
+        for (let i = 0; i < pos.count; i++) { let w = 0; for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === k) w += sw.getComponent(i, c); if (w < 0.7) continue;
+          v.fromBufferAttribute(pos, i).applyMatrix4(M); pts.push(v.x, v.y, v.z); }
+        S.hoof[fi] = pts;
+      });
+    }
+    S.hoof = S.hoof.map((a) => { if (!a || a.length < 9) return null; const n = a.length / 3, step = Math.max(1, Math.floor(n / 48)), out = []; for (let i = 0; i < n; i += step) out.push(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]); return new Float32Array(out); });
+  }
+  function hoofSole(S, i, boneY) {   // lowest world y of hoof i (falls back to the old constant offset)
+    const P = S.hoof && S.hoof[i]; if (!P) return boneY - ST.sole[i];
+    const e = S.feet[i].matrixWorld.elements; let m = Infinity;
+    for (let k = 0; k < P.length; k += 3) { const y = e[1] * P[k] + e[5] * P[k + 1] + e[9] * P[k + 2] + e[13]; if (y < m) m = y; }
+    return m;
   }
   const _qY = [];
   function stagUpdate(dt) {
@@ -898,22 +897,19 @@
       const q = _qY[1].setFromAxisAngle(_qY[3], -(S.pitch + (S.pf || 0))).premultiply(_qY[2].setFromAxisAngle(_qY[4], S.roll + (S.rf || 0)));
       S.wrap.quaternion.copy(q).multiply(_qY[0]);
       S.wrap.position.y = 0; s.g.updateMatrixWorld(true);
-      // ---- ground: hooves on the VISIBLE snow (pressed where planted). Standing: a plane through the 4 hoof errors sets
+      // ---- ground: hooves on the DRAWN snow (SNOW-CONTACT: the object-pressed map); a planted hoof sinks into the loose
+      // snow like a boot and the hoof mesh itself presses that print. Standing: a plane through the 4 hoof errors sets
       // height, pitch and roll (all four hooves down on uneven snow); running: the lowest hoof touches down
-      let gap = 1e9; const fit = [0, 0, 0, 0, 0, 0, 0, 0, 0], sv = C.snowSurfaceAt, fp = C.footPress, gx = s.g.position.x, gz = s.g.position.z;
+      let gap = 1e9; const fit = [0, 0, 0, 0, 0, 0, 0, 0, 0], sv = C.snowContact, fp = C.footPress, gx = s.g.position.x, gz = s.g.position.z;
       for (let i = 0; i < 4; i++) {
-        const b = S.feet[i]; if (!b) continue; const p = wpos(b, _p[9]), sole = p.y - ST.sole[i];
-        let g; if (typeof sv === 'function') { g = sv(p.x, p.z, 0); /* the logged hoof pads, as the map shows them */ if (!isFinite(g)) g = C.groundH(p.x, p.z); } else g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
+        const b = S.feet[i]; if (!b) continue; const p = wpos(b, _p[9]), sole = hoofSole(S, i, p.y);
+        let g; if (typeof sv === 'function') { const q = sv(p.x, p.z, camD > 25); g = q.s0; if (!S.up[i]) { const fw = C.snowFine ? 0.3 + 0.7 * C.snowFine(p.x, p.z) : 1; g = Math.max(q.s0 - (fp ? fp(p.x, p.z) : 0.5) * q.dep * fw, q.floor); } if (!isFinite(g)) g = C.groundH(p.x, p.z); }
+        else g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
         const e = sole - g; gap = Math.min(gap, e);
         if (standing) { const a = (p.x - gx) * fx + (p.z - gz) * fz, bb = (p.x - gx) * rx + (p.z - gz) * rz; fit[0] += 1; fit[1] += a; fit[2] += bb; fit[3] += a * a; fit[4] += a * bb; fit[5] += bb * bb; fit[6] += e; fit[7] += e * a; fit[8] += e * bb; }
-        if (typeof sv === 'function' && !S.up[i] && hasStamp() && K.footStamp && (!S.st || !S.st[i] || Math.hypot(p.x - S.st[i][0], p.z - S.st[i][1]) > 0.1)) {   // planted hoof presses the snow
-          const pr = fp ? fp(p.x, p.z) : 0.5; let ok = pr <= 0;
-          if (pr > 0) { try { ok = C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.9, wid: 0.9, type: 'blob', str: pr }) !== false; if (ok) C.snowStamp({ x: p.x, z: p.z, dx: fx, dz: fz, len: 0.13, wid: 0.12, type: 'hoof', str: Math.min(1, pr + 0.15) }); } catch (er) { /* */ } }
-          if (ok) (S.st || (S.st = []))[i] = [p.x, p.z];
-        }
         // hoof plants → trail (terrain deformation if present; else the shared footprint decal near the player)
-        const hh = p.y - g; if (hh > ST.sole[i] + 0.12) S.up[i] = 1;
-        else if (S.up[i] && hh < ST.sole[i] + 0.04) {
+        const hh = sole - g; if (hh > 0.1) S.up[i] = 1;
+        else if (S.up[i] && hh < 0.03) {
           S.up[i] = 0; if (s.st !== 'flee') continue;
           if (!hasStamp() && (S.trailN++ & 1) === 0 && Math.hypot(p.x - P.x, p.z - P.z) < 70) C.addFootprint(p.x, p.z, yaw + Math.PI);   // no terrain module: decal prints
           if (Math.random() < 0.6) C.emit(p.x, g + 0.05, p.z, rnd(-0.8, 0.8) - fx * 2, rnd(0.6, 1.6), rnd(-0.8, 0.8) - fz * 2, 0.6, 0xdce6f6, 0.4, 2.5, 2);
@@ -930,7 +926,10 @@
           S.pf = clamp((S.pf || 0) - Math.atan(c1) * k, -0.35, 0.35); S.rf = clamp((S.rf || 0) - Math.atan(c2) * k, -0.35, 0.35);
         }
       }
-      if (gap < 1e8) { const w = damp(S.off, clamp(offT, -1.2, 1.2), 12, dt); S.off += clamp(w - S.off, -3 * dt, 3 * dt); S.wrap.position.y = S.off; }   // ≤ 1.5 m/s: no body snap when standing ↔ running switches the fit
+      // a teleport / spawn (≥ 2 m in one frame) snaps the height: rate-limited, the hooves would spend frames on the hard ground
+      // and press holes deeper than the hoof (SNOW-CONTACT: every object presses the snow map with its own shape)
+      const jumped = S.px !== undefined && Math.hypot(s.x - S.px, s.z - S.pz) > 2; S.px = s.x; S.pz = s.z;
+      if (gap < 1e8) { if (jumped) S.off = clamp(offT, -1.2, 1.2); else { const w = damp(S.off, clamp(offT, -1.2, 1.2), 12, dt); S.off += clamp(w - S.off, -3 * dt, 3 * dt); } S.wrap.position.y = S.off; }   // ≤ 1.5 m/s: no body snap when standing ↔ running switches the fit
     }
     // keep each stag's skinned bounds honest for tools that read bounding boxes (world validator): one per 0.4 s
     ST.bbT -= dt;
@@ -1039,7 +1038,7 @@
       if (t - dt < 0.75 && t >= 0.75) {
         const x = f.x + fx * 0.7, z = f.z + fz * 0.7, g = C.groundH(x, z);
         for (let i = 0; i < 22; i++) { const a = rnd(0, 6.283), s = rnd(0.8, 2.4); C.emit(x, g + 0.05, z, Math.sin(a) * s, rnd(1, 2.6), Math.cos(a) * s, rnd(0.5, 0.9), 0xe4ecfa, rnd(0.3, 0.5), 3, 3); }
-        stamp(x, z, 0.55, 0.4, 'blob', 0.9, yaw); sfx('pounce');
+        sfx('pounce');   // the fox's own body presses the hole it dives into (SNOW-CONTACT)
       }
     }
     // slope alignment
@@ -1047,7 +1046,11 @@
     FX.pitch = damp(FX.pitch, Math.atan2(hF - hB, 0.6) * K.foxAlign, 8, dt); FX.roll = damp(FX.roll, Math.atan2(hR - hL, 0.24) * K.foxAlign, 8, dt);
     const Qs = FX.q, q = Qs[1].setFromAxisAngle(Qs[3], FX.pitch + pp).premultiply(Qs[2].setFromAxisAngle(Qs[4], FX.roll));
     FX.wrap.quaternion.copy(q).multiply(Qs[0]);
-    FX.snow = damp(FX.snow || 0, Math.min(snowDepth(f.x, f.z), 0.6) * K.snowFloat, 4, dt);   // paws rest on compressed snow, like the pilot's boots
+    // paws: on the drawn snow, sunk a little into the loose snow (a light animal: half a boot's share); the paw meshes then
+    // press exactly that into the terrain's snow map (SNOW-CONTACT)
+    let fsT = Math.min(snowDepth(f.x, f.z), 0.6) * K.snowFloat;
+    if (typeof C.snowContact === 'function') { try { const q = C.snowContact(f.x, f.z), sink = (C.footPress ? C.footPress(f.x, f.z) : 0.5) * 0.5 * q.dep * (C.snowFine ? 0.3 + 0.7 * C.snowFine(f.x, f.z) : 1); const y = Math.max(q.s0 - sink, q.floor) - C.groundH(f.x, f.z); if (isFinite(y)) fsT = clamp(y, 0, 0.6); } catch (e) { /* terrain busy */ } }
+    FX.snow = damp(FX.snow || 0, fsT, 4, dt);
     FX.wrap.position.set(0, py + FX.snow, pz);   // fox group local: -z is forward
   }
 
@@ -1232,9 +1235,6 @@
       if (orig) S.step = function () { if (SUB.steps && B.ready && auOK() && !C.G.riding) return; return orig.apply(this, arguments); };
       ctx.surfaceAtPlayer = () => B.lastSurf;
       ctx.interaction = window.INTERACTION;
-      // boots and hooves stamp their own prints where they plant (plantStamp / stagUpdate): the terrain module's
-      // stride-spaced trail for the pilot and the stags steps aside
-      if (window.Terrain) Terrain.feetByActors = { pilot: () => K.footStamp && SUB.body && SUB.steps && B.ready && typeof C.snowSurfaceAt === 'function', stags: () => K.footStamp && SUB.stags && ST.ready && typeof C.snowSurfaceAt === 'function' };
     },
     update(dt, ctx) {
       const t0 = performance.now();
