@@ -160,10 +160,20 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   // real-world size fixes (CAMP.md, sizes against tools/qa/sizes.json): the blue HDPE drum pack is 0.49 m across — a 55-gal
   // drum is 0.58 m across at the same 0.88–0.93 m height
   const REAL = { prop_drum_plastic_blue: [1.18, 1, 1.18] };
+  // REALISM-QA rule 5 (texel density): tiled Poly Haven wood/hessian textures (UV baked well past [0,1] — genuine
+  // repeat, not one unwrap) at a repeat frequency meant for a much bigger surface than this 4 m sledge → 5271 px/m,
+  // ×9–11 its neighbours. Same fix direction as any tiled material: fewer repeats over the same UV span = a coarser,
+  // correctly-scaled weave/grain. Applied once, in `flat()`, to every map on the cached parts (shared by both the
+  // camp and the station sledge — same pack, same fix).
+  const TEX_REPEAT = { prop_sledge_loaded: 0.23, prop_rowboat: 0.1, struct_pier_wood: 3.5 };
   function flat(name, g, filter) {
     if (flatCache[name]) return flatCache[name];
     const F = flatCache[name] = flatten(g.scene, filter), k = REAL[name];
     if (k) { for (const p of F.parts) { p.geo.scale(k[0], k[1], k[2]); p.geo.computeBoundingBox(); p.geo.computeBoundingSphere(); } F.box.min.multiply(new V3(...k)); F.box.max.multiply(new V3(...k)); }
+    const tr = TEX_REPEAT[name];
+    if (tr) for (const p of F.parts) for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+      const t = p.mat && p.mat[slot]; if (t) { t.repeat.multiplyScalar(tr); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; }
+    }
     return F;
   }
   const partsGroup = (parts, filter) => { const r = new THREE.Group(); for (const p of parts) if (!filter || filter(p)) r.add(new THREE.Mesh(p.geo, p.mat)); r.updateMatrixWorld(true); return r; };
@@ -296,8 +306,9 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     const p = F.parts[0]; if (!p) return null;
     snowify(p.mat, 0.8);
     const m = new THREE.Mesh(p.geo, p.mat); m.castShadow = m.receiveShadow = true; m.name = name;
-    if (o.lying) { const r = (F.box.max.x - F.box.min.x) / 2; m.rotation.set(0, ry, Math.PI / 2); m.position.set(x, H(x, z) + r + 0.02, z); }
-    else { const g = groundUnder(x, z, ry, F.box); m.rotation.set(0, ry, 0); m.position.set(x, (o.onTop ?? g.max) - F.box.min.y + 0.01 + (o.up || 0), z); }
+    const snowH = Math.max(0, DRAWN(x, z) - H(x, z));   // groundUnder samples bare H (slope needs solid ground); the loose snow it ignores is what QA's burial check measures against — add it back so a crate doesn't read as sunk into drift it was never seated on
+    if (o.lying) { const r = (F.box.max.x - F.box.min.x) / 2; m.rotation.set(0, ry, Math.PI / 2); m.position.set(x, H(x, z) + snowH + r + 0.02, z); }
+    else { const g = groundUnder(x, z, ry, F.box); m.rotation.set(0, ry, 0); m.position.set(x, (o.onTop ?? g.max + snowH) - F.box.min.y + 0.01 + (o.up || 0), z); }
     const px = ST.hullProxy(m); px.userData.struct = true; C.scene.add(px); px.updateMatrixWorld(true);
     C.Passport.register(px, 'pushable', { name, mass }); count(name); return px;
   }
@@ -394,7 +405,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       }
       // corner pole tips crossing above the apex
       const dir = new V3(-a[0], H, -a[1]).normalize();
-      ttube(wood, new V3(-a[0] * 0.02, H - 0.08, -a[1] * 0.02), new V3(0, H, 0).addScaledVector(dir, 0.34), 0.022, 5);
+      ttube(wood, new V3(-a[0] * 0.02, H - 0.08, -a[1] * 0.02), new V3(0, H, 0).addScaledVector(dir, 0.34), 0.022, 16);   // was 5 sides: REALISM-QA facet rule (dihedral > 20°) — a round pole tip
       // guy lines: corner ridge → stake on the diagonal, mid-face → stake straight out
       const gy = (p0, p1) => { let prev = p0; for (let s = 1; s <= 4; s++) { const t = s / 4, q = p0.clone().lerp(p1, t); q.y -= 0.05 * 4 * t * (1 - t); ttube(cord, prev, q, 0.006, 3); prev = q; } };
       const ridge = new V3(a[0] * 0.45, H * 0.55, a[1] * 0.45), sd = new V3(a[0], 0, a[1]).normalize(), st1 = new V3(a[0], 0, a[1]).addScaledVector(sd, 1.25);
@@ -414,9 +425,9 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     let stoveTop = null;
     if (stove) {
       const J = panelPt(jack.k, jack.u, jack.v), m = new V3(J.mx, 0, J.mz), j0 = new V3(J.x, J.y, J.z), e = j0.clone().addScaledVector(m, 0.3), top = e.clone().setY(H + 0.5);
-      ttube(metal, j0.clone().addScaledVector(m, -0.08), e, 0.055, 8); ttube(metal, e.clone().addScaledVector(m, 0.055).setY(e.y - 0.05), top, 0.055, 8);
-      ttube(metal, j0.clone().addScaledVector(m, -0.01), j0.clone().addScaledVector(m, 0.02), 0.14, 10);   // flashing ring on the jack
-      ttube(metal, top.clone().setY(top.y + 0.06), top.clone().setY(top.y + 0.14), 0.12, 8, 0.1, 0.03);  // rain cap
+      ttube(metal, j0.clone().addScaledVector(m, -0.08), e, 0.055, 18); ttube(metal, e.clone().addScaledVector(m, 0.055).setY(e.y - 0.05), top, 0.055, 18);   // was 8 sides: same rule — a round stove pipe
+      ttube(metal, j0.clone().addScaledVector(m, -0.01), j0.clone().addScaledVector(m, 0.02), 0.14, 18);   // flashing ring on the jack (was 10 sides)
+      ttube(metal, top.clone().setY(top.y + 0.06), top.clone().setY(top.y + 0.14), 0.12, 18, 0.1, 0.03);  // rain cap (was 8 sides)
       stoveTop = top.clone().setY(top.y + 0.16);
     }
     // wind-packed drift against the windward (−X) side
@@ -496,7 +507,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
           const rad = Math.hypot(F.box.max.x - F.box.min.x, F.box.max.z - F.box.min.z) * 0.5 * sc; taken.push([sp.x, sp.z, rad * 0.8]);
           let rx = 0, rz = 0, y;
           if (K.fit === 'tilt') { [rx, rz] = groundTilt(sp.x, sp.z, s.yaw, F.box, sc, K.proc ? 0.06 : 0.2); y = (K.proc ? visUnder(sp.x, sp.z, s.yaw, F.box, sc).mean : sp.g.mean) - (s.sink || 0.04) - F.box.min.y * sc; if (s.tilt) { rx += s.tilt[0]; rz += s.tilt[1]; } }   // polar tents: pitched on the visible snow, nearly upright
-          else y = seatY(F, mat4(sp.x, 0, sp.z, s.yaw, sc), 0.05, { maxGap: 0.02 }).dy;   // upright masonry: ~5 % under the visible snow (+ the drift piled later), never floats
+          else y = seatY(F, mat4(sp.x, 0, sp.z, s.yaw, sc), 0.05, { maxGap: 0.02, grid: 4, surf: DRAWN }).dy;   // upright masonry: ~5 % under the visible snow (+ the drift piled later), never floats — DRAWN + 4×4 grid: same surface/cells REALISM-QA's own burial check samples (was VIS + 3×3: missed drift piled against cairns/inuksuit on uneven ground, read up to 46 % buried)
           mats.push(mat4(sp.x, y, sp.z, s.yaw, sc, rx, rz));
           s.placed = { x: sp.x, y, z: sp.z };
           fitLog(kind, sp, y + F.box.min.y * sc, K.fit);
@@ -1042,6 +1053,12 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
    * counter-scaled along the chord so it grows ×1.15 uniformly (a ×1.55 chord would read as a wing twice too deep). The debris
    * trail is laid out ×1.55 longer; the tail / wing sections follow the hull (×1.15); small pieces were already real-size. */
   const KES = { yaw: 0.7, buryTail: 0.3, buryNose: 1.15, roll: -0.08, ok: false, S: { x: 1.15, y: 1.15, z: 1.55, toArray() { return [this.x, this.y, this.z]; } }, trail: 1.55, big: 1.15 };
+  function fixKestrelUV(mat, ru, rv) {
+    if (mat.userData.kesUV) return; mat.userData.kesUV = true;
+    for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+      const t = mat[slot]; if (t) { t.repeat.set(ru, rv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; }
+    }
+  }
   function buildKestrel() {
     const K = C.WORLD.kestrel; if (!K) return;
     const k = K.g; k.rotation.order = 'YXZ'; k.rotation.set(0, KES.yaw, 0);
@@ -1055,7 +1072,14 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       KES.len = +(new THREE.Box3().setFromObject(root.getObjectByName('Fus_Inner') || root).getSize(new V3()).toArray().sort((a, b) => b - a)[0]).toFixed(2);
       // the baked atlases carry the weathered aluminium (metal .45 + real roughness): colours/metal untouched; snow on top
       root.traverse((o) => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true;
-        for (const m of [].concat(o.material)) { if (/Glass/i.test(m.name)) continue; cover(m, /Primer/i.test(m.name) ? { amount: 0.4, minUp: 0.72, soft: 0.2, skirt: 0.1 } : { amount: 0.95, minUp: 0.58, soft: 0.24, skirt: 0.4 }); } });
+        for (const m of [].concat(o.material)) { if (/Glass/i.test(m.name)) continue;
+          // REALISM-QA rule 5: the panel-line texture tiles (UV goes well past [0,1] — a genuine repeat, baked for the
+          // pack's original 12.75 m hull); the ×1.55/×1.15 real-size stretch (CAMP.md) carried the tile frequency with
+          // it, so each panel/rivet row is now ×1.55 too long (Fus_*) — repeat.x runs along the fuselage length, .y
+          // around its girth. The wing stub ends up uniformly ×S.x after its own chord counter-scale below.
+          if (/kestrel_fus_(front|rear)/i.test(m.name)) fixKestrelUV(m, KES.S.z, KES.S.x);
+          else if (/kestrel_wings/i.test(m.name)) fixKestrelUV(m, KES.S.x, KES.S.x);
+          cover(m, /Primer/i.test(m.name) ? { amount: 0.4, minUp: 0.72, soft: 0.2, skirt: 0.1 } : { amount: 0.95, minUp: 0.58, soft: 0.24, skirt: 0.4 }); } });
       fitKestrel(k, wrap);
       K.base && K.base.pos && K.base.pos.copy(k.position);
       if (C.WORLD.kestrelBase) { C.WORLD.kestrelBase.pos.copy(k.position); C.WORLD.kestrelBase.rot.copy(k.rotation); }
@@ -1282,7 +1306,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       // 12–20 % of it under the visible snow, counting the drift the terrain will pile against it
       const drift = Math.min(0.26, hgt * 0.16) * smooth01(0.3, 1.2, hgt) * 0.5, want = 0.12 + r() * 0.08;
       const M0 = new THREE.Matrix4().compose(new V3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, yaw, rz, 'YXZ')), new V3(k, ky, k));
-      const fit = seatY(F, M0, want, { extra: drift }), M = withY(M0, fit.dy);
+      const fit = seatY(F, M0, want, { extra: drift, grid: 4, surf: DRAWN }), M = withY(M0, fit.dy);   // DRAWN + 4×4 grid: matches REALISM-QA's own burial cells (was VIS + 3×3 — a handful of rocks on drifted/uneven ground read 33–40 % buried against the real surface despite fitting to a 12–20 % target against the approximate one)
       const cx = Math.floor(x / ROCK.cell), cz = Math.floor(z / ROCK.cell), key = Md.key + ':' + cx + ':' + cz;
       if (!groups.has(key)) groups.set(key, { Md, mats: [] }); groups.get(key).mats.push(M); st.n++; st.bury.push(fit.buried); (ST.stats.rockFits = ST.stats.rockFits || []).push([+x.toFixed(1), +z.toFixed(1), mi, +hgt.toFixed(2), +want.toFixed(2), +fit.buried.toFixed(2), +fit.gap.toFixed(2), +drift.toFixed(2)]);
     }

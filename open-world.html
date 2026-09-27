@@ -3950,7 +3950,7 @@ FIRE.flame = (() => {
       void main(){ float f = uT * 13. + vOff, i0 = mod(floor(f), 16.), k = fract(f);
         vec2 uv = vec2(vUv.x, vUv.y / (.72 + .34 * uFlick));
         float h = mix(cell(i0, uv), cell(mod(i0 + 1., 16.), uv), k) * (.8 + .25 * uFlick);
-        vec3 c = vec3(clamp(h * 2.2, 0., 1.), clamp(h * 1.5 - .32, 0., 1.) * .85, clamp(h * 1.4 - .95, 0., 1.) * .4) * 1.5;
+        vec3 c = vec3(clamp(h * 1.9, 0., 1.), clamp(h * 1.5 - .32, 0., 1.) * .85, clamp(h * 1.4 - .95, 0., 1.) * .4) * 1.02;   // core toned down (was ×1.5 → blown out/bloomed solid within ~4 m)
         gl_FragColor = vec4(c * h * vFade, 1.); }` });
   const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = 6; mesh.name = 'fire_flame'; mesh.userData.noCollide = true; mesh.userData.qaIntentional = 'fire';
   mesh.position.set(FIRE.pos.x, FIRE.baseY, FIRE.pos.z); scene.add(mesh); return mesh;
@@ -4204,10 +4204,10 @@ loadPacked('animal_stag', ASSET, (g) => {
       m.color.setRGB(1, 1, 1);
       m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         { float hl = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)); float hb = diffuseColor.b / max(diffuseColor.r, 1e-3);
-          float t = smoothstep(.015, .16, hl);
-          vec3 hide = mix(vec3(.10, .085, .068), vec3(.40, .37, .32), t);          // dark brown-grey → grey-fawn (linear)
-          hide = mix(hide, vec3(.62, .60, .55), smoothstep(.14, .32, hl));          // cream neck / rump / belly
-          diffuseColor.rgb = hide * mix(1., .6, smoothstep(1.4, 2.4, hb)); }`); };
+          float t = smoothstep(.015, .12, hl);
+          vec3 hide = mix(vec3(.16, .14, .115), vec3(.46, .43, .37), t);           // grey-brown → grey-fawn (linear, paler than i01–i05's night read)
+          hide = mix(hide, vec3(.66, .64, .58), smoothstep(.12, .28, hl));          // cream neck / rump / belly
+          diffuseColor.rgb = hide * mix(1., .7, smoothstep(1.4, 2.4, hb)); }`); };
       m.customProgramCacheKey = () => 'stagHide';
     } else if (m.map && /antler/i.test(m.name || '')) { m.color.setRGB(0.75, 0.68, 0.6); }
     else if (!m.map && m.color && !/eye/i.test(m.name || '')) m.color.setHex(0xc9c2b4);
