@@ -10,7 +10,7 @@ look-gate `tools/look/subjects-camp.mjs` + `lg-camp.js` (2-line hook in `tools/l
 | # | Subject | Before | After | Cost |
 |---|---|---|---|---|
 | 1 | ⛺ tents | 2× hiking dome 1.3 m + tunnel 1.2 m | 2× polar pyramid 2.3 m (stove tent lit + smoking) | 5.1k tris · 6–7 draws per tent |
-| 2 | 🔥 fire | 2 glowing points/frame + flicker light | flipbook flame ×2 crossed, embers, smoke, coal bed, stone glow | +3 draws · 72 smoke puffs · 1 png 65 KB |
+| 2 | 🔥 fire | 2 glowing points/frame + flicker light | flipbook flame ×2 crossed, embers, smoke, coal bed, stone glow | +3–4 draws · ≤ 0.1 ms · 1 png 65 KB |
 | 3 | ✈ Kestrel | 12.75 m hull, 2.46 m wide | 19.7 m hull, 2.83 m wide, trail ×1.55 | 0 (same mesh) |
 | 4 | 🏠 hab | 1024² colour, no normal | 2048² colour + 2048² normal (seams, rivets) | pack 0.21 → 1.33 MB · +1 sampler |
 | 5 | 📦 crate | 0.04 m (lid only drawn) | whole crate 0.99×0.42×0.49 m | 0 |
@@ -42,7 +42,7 @@ square base 2.5 m ─► 4 corner poles to apex 2.3 m ─► canvas sags 19 cm b
 |---|---|---|
 | flame: 2 crossed quads, 16-frame flipbook `flame_atlas.png` (512×1024, noise-baked offline, seamless loop), frames cross-faded, edge-on fade | 1 | flicker → height + brightness |
 | embers: shared particle pool, ~10/s, buoyant, drift with wind | 0 | wind |
-| smoke: 72 instanced camera-facing puffs; station fire + stove pipe (`STRUCT.stove`) + camp ring | 1 | wind dir (terrain) × speed (0.5 + 4.5·storm) |
+| smoke: 48 instanced camera-facing puffs; station fire + stove pipe (`STRUCT.stove`) + camp ring | 1 | wind dir (terrain) × speed (0.5 + 4.5·storm) |
 | heat decal: charcoal coal bed (premultiplied) + warm pool on snow; camp ring smoulders | 2 | flicker |
 | stones: ember emissive on the fire-pit inner faces | 0 | flicker |
 | point light | — | flicker (0.55–1.25) |
@@ -76,16 +76,17 @@ square base 2.5 m ─► 4 corner poles to apex 2.3 m ─► canvas sags 19 cm b
 | st_sledge | l 2.2–4.5 | ✅ 4.14 |
 | st_snowcat · pole · propane · generator · firepit | — | ✅ unchanged, in range |
 
-## ⚡ Cost / fps (1512×860 @2x, M1 Pro, shared machine)
+## ⚡ Cost / fps (1512×860 @2x, M1 Pro, uncapped, shared machine; fire A/B = `FIREFX.off`, alternating on/off/on/off)
 
 | View | Preset | CPU 1× | CPU 4× |
 |---|---|---|---|
-| camp | high | 38 fps | 48 fps* |
-| station fire | high · fire on / off | 61.7 / 61.0 | 39.5 / 44.4 |
-| camp | air | see report | |
+| ⛺ camp | high | 17.8 ms · 56 fps | 19.1 ms · 52 fps |
+| ⛺ camp | air | 9.6 ms · 104 fps | 18.8 ms · 53 fps |
+| 🔥 fire on / off | high | 17.8–18.0 / 17.8–17.9 ms | 19.7–19.8 / 20.9–21.8 ms |
+| 🔥 fire on / off | air | 14.1 / 14.0–14.1 ms | 20.2–22.4 / 20.7–24.1 ms |
 
-\* noisy: 5+ other agents queued on the GPU. Fire system: no measurable difference at 1×; at 4× one run +2.8 ms, the
-other −0.3 ms → inside noise. CPU work: 72-puff loop + ~10 emits/s.
+Fire system: difference ≤ 0.1 ms at 1× and inside the noise at 4× (≤ 0.3 ms target met). Smoke pool 48 puffs, its draw
+skipped when none is alive. Air preset holds ≥ 44 fps with CPU 4× at the camp and the fire (target 30).
 
 ## 🔒 Checks
 
@@ -93,6 +94,8 @@ other −0.3 ms → inside noise. CPU work: 72-puff loop + ~10 emits/s.
 |---|---|
 | `tools/qa/texunits.mjs` 1512×860 @2x | ✅ PASS · 333 programs · max 15 |
 | JS errors in all runs | 0 |
+| story `autoplay --runs take`, HEAD + only these changes (isolated worktree) | ✅ stage 0 → 9, Kestrel take-off ok · saves 13/13 |
+| same on the shared tree (all agents' WIP) | ❌ stops at stage 5 «Orm, the Rift» — not reproduced without the other agents' uncommitted changes |
 | compare `stand/compare-camp/` | station_fire · camp_tents · wreck_side · hab_close · station_props |
 | look-gate `stand/lookgate-camp1/` | review.json written (check/accept not run) |
 
