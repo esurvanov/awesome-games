@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Splat Test</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Viewer / benchmark for splat packs (tools/scan/splat.mjs). Query:
+     ?name=splat_cactus_464k  &r=spark|three|none  &webgl=1 (three: WebGPURenderer forceWebGL)  &orbit=1  &shim=0
+     &dir=../../assets/incoming4/scan/   Stats in window.__bench (tools/scan/splat-bench.mjs reads them). -->
+<style>
+  :root { --bg: #0b1422; --fg: #cfe0ff; --dim: #7d8fb0; --ok: #5cf5c0; --bad: #ff5c7d; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 12px/1.4 ui-monospace, Menlo, monospace; overflow: hidden; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 8px; top: 8px; background: rgba(8, 14, 26, .78); padding: 6px 9px; border-radius: 6px; white-space: pre; pointer-events: none; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .dim { color: var(--dim); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+  "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.tsl.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+  "@sparkjsdev/spark": "https://cdn.jsdelivr.net/npm/@sparkjsdev/spark@2.2.0/dist/spark.module.js"
+} }
+</script>
+<script src="scan-splat.js"></script>
+</head>
+<body>
+<div id="hud">loading…</div>
+<script type="module">
+const Q = new URLSearchParams(location.search);
+const R = Q.get('r') || 'spark', NAME = Q.get('name') || 'splat_cactus_464k', DIR = Q.get('dir') || '../../assets/incoming4/scan/';
+const B = window.__bench = { renderer: R, name: NAME, ready: false, errors: [], fps: [], frameMs: [], t0: performance.now() };
+window.addEventListener('error', (e) => B.errors.push(String(e.message || e)));
+window.addEventListener('unhandledrejection', (e) => B.errors.push('rejection: ' + String(e.reason && e.reason.message || e.reason)));
+document.addEventListener('securitypolicyviolation', (e) => B.errors.push('CSP: ' + e.violatedDirective + ' ' + e.blockedURI));
+const hud = document.getElementById('hud');
+const say = (s) => { hud.innerHTML = s; };
+// artifact CSP: blob:/data: workers are refused → Spark's inline worker is served as a same-origin file
+if (R === 'spark' && Q.get('shim') !== '0') ScanSplat.shimWorkers('vendor/spark-worker-2.2.0.js');
+
+const spz = await new Promise((res) => ScanSplat.load(NAME, DIR, res, (i) => say(`chunk ${i}…`)));
+B.loadMs = Math.round(performance.now() - B.t0); B.spzBytes = spz.length;
+const FOG = 0x1a2c46;
+let THREE, renderer, scene, camera, splat, extra = {};
+const t1 = performance.now();
+if (R === 'three') {
+  THREE = await import('three/webgpu');
+  const { GaussianSplat } = await import('three/addons/objects/GaussianSplat.js');
+  const { createGaussianSplatGeometry } = await import('three/addons/utils/GaussianSplatUtils.js');
+  renderer = new THREE.WebGPURenderer({ antialias: false, forceWebGL: Q.get('webgl') === '1' });
+  await renderer.init();
+  const d = await ScanSplat.decodeSpz(spz);
+  // three's splat material treats the colour bytes as linear: SPZ colours are display (sRGB) values → convert
+  const L = new Uint8Array(256).map((_, v) => Math.round(255 * (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4)));
+  for (let i = 0; i < d.colors.length; i++) if ((i & 3) !== 3) d.colors[i] = L[d.colors[i]];
+  const geo = createGaussianSplatGeometry(d.centers, ScanSplat.covariances(d), d.colors);
+  splat = new GaussianSplat(geo); B.count = d.n;
+  extra.backend = renderer.backend && renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2 (forceWebGL)';
+} else {
+  THREE = await import('three');
+  renderer = new THREE.WebGLRenderer({ antialias: false });
+  extra.backend = 'WebGL2';
+  if (R === 'spark') {
+    const { SparkRenderer, SplatMesh } = await import('@sparkjsdev/spark');
+    scene = new THREE.Scene(); scene.add(new SparkRenderer({ renderer }));
+    splat = new SplatMesh({ fileBytes: spz, fileType: 'spz' }); await splat.initialized; B.count = splat.packedSplats ? splat.packedSplats.numSplats : undefined;
+  }
+}
+B.decodeMs = Math.round(performance.now() - t1);
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.8;
+scene = scene || new THREE.Scene(); scene.background = new THREE.Color(FOG); scene.fog = new THREE.Fog(FOG, 40, 200);
+camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.05, 500);
+// context: dark snow ground + moon/hemi (splats are unlit — their colours already carry the night grade)
+const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9aa6bb, roughness: 0.85 }));
+scene.add(ground); scene.add(new THREE.HemisphereLight(0x7c93d4, 0x252c48, 1.2)); const moon = new THREE.DirectionalLight(0xf0eae4, 2.8); moon.position.set(-3, 6, 4); scene.add(moon);
+if (splat) scene.add(splat);
+const meta = await fetch(DIR + NAME + '/' + NAME + '.json').then((r) => r.json()).catch(() => ({ size: [1, 1, 1], bounds: { min: [0, 0, 0], max: [1, 1, 1] } }));
+const size = meta.size || [1, 1, 1], H = size[1], Rr = Math.max(size[0], size[2]) * 0.5;
+const target = new THREE.Vector3(0, H * 0.45, 0), dist = Math.max(H, Rr * 2) * 1.9;
+B.gpu = (() => { try { const gl = renderer.getContext && renderer.getContext(); const e = gl && gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : extra.backend; } catch { return extra.backend; } })();
+let last = performance.now(), acc = [], frames = 0, ang = 0.6;
+// &sync=1: burst of frames, each render followed by a GPU sync (readPixels / onSubmittedWorkDone) → real frame cost in ms
+// (uncapped rAF only measures how fast the CPU can queue frames)
+if (Q.get('sync') === '1') {
+  const gl = renderer.backend ? renderer.backend.gl : renderer.getContext(), px = new Uint8Array(4);
+  const dev = renderer.backend && renderer.backend.device;
+  const sync = async () => { if (dev) await dev.queue.onSubmittedWorkDone(); else if (gl) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
+  const ms = [];
+  for (let i = 0; i < 150; i++) {
+    ang += 0.01; camera.position.set(Math.sin(ang) * dist, H * 0.75, Math.cos(ang) * dist); camera.lookAt(target);
+    const t = performance.now(); renderer.render(scene, camera); await sync(); if (i >= 30) ms.push(performance.now() - t);
+    if (i % 10 === 0) await new Promise((r) => setTimeout(r, 0));
+  }
+  ms.sort((a, b) => a - b); B.syncMs = { median: +ms[ms.length >> 1].toFixed(2), p95: +ms[Math.floor(ms.length * 0.95)].toFixed(2), n: ms.length };
+}
+B.ready = true; B.readyMs = Math.round(performance.now() - B.t0);
+function frame() {
+  const now = performance.now(), dt = now - last; last = now; frames++;
+  if (Q.get('orbit') !== '0') ang += dt * 0.0004;                       // slow orbit: forces re-sorting every frame
+  camera.position.set(Math.sin(ang) * dist, H * 0.75, Math.cos(ang) * dist); camera.lookAt(target);
+  renderer.render(scene, camera);
+  if (frames > 5) { acc.push(dt); B.frameMs.push(+dt.toFixed(2)); if (B.frameMs.length > 600) B.frameMs.shift(); }
+  if (acc.length >= 30) { const f = 1000 / (acc.reduce((a, b) => a + b, 0) / acc.length); B.fps.push(+f.toFixed(1)); acc = [];
+    const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(0) + ' MB heap' : '';
+    say(`<b>${R}</b> ${extra.backend} · ${B.count ? B.count.toLocaleString() : '?'} splats\n<span class="${f >= 55 ? 'ok' : 'bad'}">${f.toFixed(1)} fps</span>  load ${B.loadMs} ms · decode ${B.decodeMs} ms · ${mem}\n<span class="dim">${(spz.length / 1e6).toFixed(2)} MB spz · ${B.errors.length} errors</span>`); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+</script>
+</body>
+</html>

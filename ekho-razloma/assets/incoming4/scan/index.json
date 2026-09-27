@@ -1,0 +1,74 @@
+{
+ "scan_boulder_ground": {
+  "kind": "mesh",
+  "role": "rock",
+  "size": [
+   1.275,
+   0.958,
+   1.827
+  ],
+  "tris": [
+   5000,
+   1500,
+   300
+  ],
+  "pack": 1694157,
+  "packKtx2": 2741258,
+  "passport": "solid",
+  "source": "boulder_ground.glb"
+ },
+ "scan_rock_split": {
+  "kind": "mesh",
+  "role": "rock",
+  "size": [
+   2.517,
+   1.896,
+   2.495
+  ],
+  "tris": [
+   5000,
+   1500,
+   300
+  ],
+  "pack": 1274801,
+  "packKtx2": 2025438,
+  "passport": "solid",
+  "source": "rock_split.obj"
+ },
+ "scan_stump": {
+  "kind": "mesh",
+  "role": "wood",
+  "size": [
+   1.41,
+   0.571,
+   1.572
+  ],
+  "tris": [
+   5000,
+   1500,
+   300
+  ],
+  "pack": 1145904,
+  "packKtx2": 1829393,
+  "passport": "solid",
+  "source": "stump.glb"
+ },
+ "scan_cactus": {
+  "kind": "mesh",
+  "role": "prop",
+  "size": [
+   0.652,
+   0.943,
+   0.657
+  ],
+  "tris": [
+   5000,
+   1500,
+   300
+  ],
+  "pack": 1676385,
+  "packKtx2": 1751286,
+  "passport": "solid",
+  "source": "cactus.obj"
+ }
+}

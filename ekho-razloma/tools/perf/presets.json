@@ -1,0 +1,6 @@
+[
+  { "name": "low", "on": "DBG.setQuality('low')", "settle": 900 },
+  { "name": "med", "on": "DBG.setQuality('med')", "settle": 900 },
+  { "name": "high", "on": "DBG.setQuality('high')", "settle": 900 },
+  { "name": "ultra", "on": "DBG.setQuality('ultra')", "settle": 900 }
+]

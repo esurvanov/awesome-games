@@ -1,0 +1,803 @@
+{
+ "at": "2026-09-26T11:29:42.393Z",
+ "checks": [
+  {
+   "name": "ORM replies ≥ 40",
+   "ok": true,
+   "extra": {
+    "n": 47
+   }
+  },
+  {
+   "name": "commands ≥ 25",
+   "ok": true,
+   "extra": {
+    "n": 27
+   }
+  },
+  {
+   "name": "Orm lines short (≤80 chars)",
+   "ok": true,
+   "extra": {
+    "max": 72
+   }
+  },
+  {
+   "name": "ORM_TALK: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 3
+   }
+  },
+  {
+   "name": "DIRECTOR: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 2
+   }
+  },
+  {
+   "name": "CREATURE: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 4
+   }
+  },
+  {
+   "name": "COMMANDS: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 1
+   }
+  },
+  {
+   "name": "HINTS: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 2
+   }
+  },
+  {
+   "name": "QUALITY_DIRECTOR: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 2
+   }
+  },
+  {
+   "name": "PRELOAD: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 1
+   }
+  },
+  {
+   "name": "CONTACT_INTENT: builds questions & rules fallback works",
+   "ok": true,
+   "extra": {
+    "q": 1
+   }
+  },
+  {
+   "name": "schema rejects malformed state",
+   "ok": true
+  },
+  {
+   "name": "unknown set rejected",
+   "ok": true
+  },
+  {
+   "name": "429 → exponential backoff retry succeeds",
+   "ok": true,
+   "extra": {
+    "attempts": 2
+   }
+  },
+  {
+   "name": "identical state → cache hit",
+   "ok": true,
+   "extra": {
+    "ms": 0
+   }
+  },
+  {
+   "name": "non-whitelisted set → 400",
+   "ok": true
+  },
+  {
+   "name": "bad state → 422",
+   "ok": true
+  },
+  {
+   "name": "foreign Origin → 403",
+   "ok": true
+  },
+  {
+   "name": ".env is never served",
+   "ok": true
+  },
+  {
+   "name": "server/ folder is never served",
+   "ok": true
+  },
+  {
+   "name": "ai.js served, contains no key",
+   "ok": true
+  },
+  {
+   "name": "529 persistent → fails fast (<1.7 s)",
+   "ok": true,
+   "extra": {
+    "ms": 545,
+    "upstreamCalls": 3
+   }
+  },
+  {
+   "name": "circuit breaker open → instant 503",
+   "ok": true,
+   "extra": {
+    "reason": "cooldown"
+   }
+  },
+  {
+   "name": "stats show circuit open",
+   "ok": true
+  },
+  {
+   "name": "hung upstream → timeout at ~1.5 s",
+   "ok": true,
+   "extra": {
+    "ms": 1503
+   }
+  },
+  {
+   "name": "rate limit → 429 beyond burst",
+   "ok": true,
+   "extra": {
+    "ok": 10,
+    "limited": 6
+   }
+  },
+  {
+   "name": "no key → stats.ai=false, decide 503 (client uses rules)",
+   "ok": true
+  },
+  {
+   "name": "probe detects missing server quickly",
+   "ok": true,
+   "extra": {
+    "ms": 0
+   }
+  },
+  {
+   "name": "decide() resolves null instantly offline",
+   "ok": true,
+   "extra": {
+    "ms": 0.03
+   }
+  },
+  {
+   "name": "Orm talk falls back to keyword rules",
+   "ok": true,
+   "extra": {
+    "id": "lidia_who"
+   }
+  },
+  {
+   "name": "director rules fire offline (low HP → supply_drop)",
+   "ok": true,
+   "extra": {
+    "toasts": [
+     "Старый ящик «Полярной». Лекарства"
+    ]
+   }
+  },
+  {
+   "name": "AI.tick cost per frame",
+   "ok": true,
+   "extra": {
+    "ms": 0.002
+   }
+  },
+  {
+   "name": "quality hysteresis: alternating advice → 0 changes",
+   "ok": true,
+   "extra": {
+    "changes": 0
+   }
+  },
+  {
+   "name": "quality hysteresis: 3 consistent \"up\" samples → one step up",
+   "ok": true,
+   "extra": {
+    "set": [
+     "ultra"
+    ]
+   }
+  },
+  {
+   "name": "quality hysteresis: fps 20 → immediate single step down (no jump to low)",
+   "ok": false,
+   "extra": {
+    "set": [
+     "ultra"
+    ]
+   }
+  },
+  {
+   "name": "ORM_TALK accuracy 10/10",
+   "ok": true,
+   "extra": {
+    "keywordBaseline": "7/10"
+   }
+  },
+  {
+   "name": "COMMANDS accuracy 10/10 (gate ≥0.6)",
+   "ok": true,
+   "extra": {
+    "keywordBaseline": "10/10"
+   }
+  },
+  {
+   "name": "DIRECTOR \"calm explorer\" → fox_find (tension 3)",
+   "ok": true
+  },
+  {
+   "name": "DIRECTOR \"hurt after death\" → supply_drop (tension 4)",
+   "ok": true
+  },
+  {
+   "name": "DIRECTOR \"in combat\" → none (tension 5)",
+   "ok": true
+  },
+  {
+   "name": "CREATURE: stag 8 m from running armed player flees",
+   "ok": true,
+   "extra": {
+    "c0:stag@8": "flee",
+    "c1:stag@55": "graze",
+    "c2:fox@4": "lead_player_to_shard",
+    "c3:shardling@12": "retreat"
+   }
+  },
+  {
+   "name": "HINTS: stuck detection (10 min + 2 deaths = stuck; progressing = not)",
+   "ok": true,
+   "extra": [
+    {
+     "stage": 2,
+     "stuck": true,
+     "noul": 0.9,
+     "id": "h2a"
+    },
+    {
+     "stage": 4,
+     "stuck": false,
+     "noul": 0.08,
+     "id": "h4a"
+    }
+   ]
+  },
+  {
+   "name": "QUALITY \"struggling laptop\" → low/enemy",
+   "ok": true
+  },
+  {
+   "name": "QUALITY \"strong desktop\" → high/landscape",
+   "ok": true
+  },
+  {
+   "name": "QUALITY \"phone ok\" → med/vehicle",
+   "ok": true
+  },
+  {
+   "name": "PRELOAD stage 2 → lake",
+   "ok": true
+  },
+  {
+   "name": "PRELOAD stage 6 → rift",
+   "ok": true
+  },
+  {
+   "name": "CONTACT_INTENT accuracy 5/5",
+   "ok": true,
+   "extra": [
+    {
+     "case": "idle at a rock face",
+     "intent": "rest_on_rock",
+     "conf": 0.78,
+     "src": "model",
+     "hit": true
+    },
+    {
+     "case": "slow approach to a wall",
+     "intent": "touch_surface",
+     "conf": 0.96,
+     "src": "model",
+     "hit": true
+    },
+    {
+     "case": "sprinting past a wall",
+     "intent": "none",
+     "conf": 0.92,
+     "src": "model",
+     "hit": true
+    },
+    {
+     "case": "low crate ahead, walking",
+     "intent": "cross_obstacle",
+     "conf": 0.83,
+     "src": "model",
+     "hit": true
+    },
+    {
+     "case": "fighting next to a wall",
+     "intent": "none",
+     "conf": 0.98,
+     "src": "model",
+     "hit": true
+    }
+   ]
+  },
+  {
+   "name": "cache: 5/5 replays served from cache (phrase normalised)",
+   "ok": true,
+   "extra": {
+    "p50ms": 0
+   }
+  }
+ ],
+ "keywordBaseline": {
+  "orm": "7/10",
+  "commands": "10/10"
+ },
+ "client": {
+  "probeMs": 0,
+  "offlineDecideMs": 0.027,
+  "tickMs": 0.002
+ },
+ "real": {
+  "upstreamCalls": 40,
+  "inputTokens": 39675,
+  "usd": 0.001666,
+  "latencyMs": {
+   "p50": 333,
+   "p95": 560,
+   "max": 614
+  },
+  "cacheHitMs": {
+   "p50": 0
+  },
+  "parallelBurstMs": 382,
+  "tokensPerCall": {
+   "ORM_TALK": 1464,
+   "COMMANDS": 992,
+   "DIRECTOR": 786,
+   "CREATURE": 1193,
+   "HINTS": 539,
+   "QUALITY_DIRECTOR": 657,
+   "PRELOAD": 492,
+   "CONTACT_INTENT": 739
+  },
+  "usdPerCall": {
+   "ORM_TALK": 0.0000615,
+   "COMMANDS": 0.0000417,
+   "DIRECTOR": 0.000033,
+   "CREATURE": 0.0000501,
+   "HINTS": 0.0000226,
+   "QUALITY_DIRECTOR": 0.0000276,
+   "PRELOAD": 0.0000207,
+   "CONTACT_INTENT": 0.000031
+  },
+  "orm": [
+   {
+    "phrase": "Привет, старик!",
+    "got": "greet",
+    "src": "model",
+    "top": 1,
+    "conf": 1,
+    "mood": 4,
+    "lidia": 0.03,
+    "hit": true
+   },
+   {
+    "phrase": "Кто такая Лидия?",
+    "got": "lidia_who",
+    "src": "model",
+    "top": 1,
+    "conf": 1,
+    "mood": 3,
+    "lidia": 0.71,
+    "hit": true
+   },
+   {
+    "phrase": "Почему ты не пошёл за ней?",
+    "got": "lidia_guilt",
+    "src": "model",
+    "top": 1,
+    "conf": 1,
+    "mood": 3,
+    "lidia": 0.7,
+    "hit": true
+   },
+   {
+    "phrase": "Куда мне теперь идти?",
+    "got": "goal_spires",
+    "src": "model",
+    "top": 0.99,
+    "conf": 0.99,
+    "mood": 3,
+    "lidia": 0.05,
+    "hit": true
+   },
+   {
+    "phrase": "что это за штуки светятся в небе",
+    "got": "aurora",
+    "src": "model",
+    "top": 1,
+    "conf": 1,
+    "mood": 3,
+    "lidia": 0.05,
+    "hit": true
+   },
+   {
+    "phrase": "расскажи про лису",
+    "got": "fox_joined",
+    "src": "model",
+    "top": 0.51,
+    "conf": 0.48,
+    "mood": 3,
+    "lidia": 0.04,
+    "hit": true
+   },
+   {
+    "phrase": "ты тупой",
+    "got": "rude",
+    "src": "model",
+    "top": 1,
+    "conf": 1,
+    "mood": 1,
+    "lidia": 0.03,
+    "hit": true
+   },
+   {
+    "phrase": "сколько будет 17 умножить на 23",
+    "got": "dont_know",
+    "src": "model",
+    "top": 1,
+    "conf": 1,
+    "mood": 3,
+    "lidia": 0.03,
+    "hit": true
+   },
+   {
+    "phrase": "фывапролд",
+    "got": "dont_understand",
+    "src": "model",
+    "top": 0.72,
+    "conf": 0.7,
+    "mood": 3,
+    "lidia": 0.11,
+    "hit": true
+   },
+   {
+    "phrase": "как мне починить корабль?",
+    "got": "ship",
+    "src": "model",
+    "top": 0.86,
+    "conf": 0.85,
+    "mood": 3,
+    "lidia": 0.03,
+    "hit": true
+   }
+  ],
+  "commands": [
+   {
+    "text": "открой карту",
+    "want": "open_map",
+    "got": "open_map",
+    "conf": 1,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "позови скиммер",
+    "want": "call_skimmer",
+    "got": "call_skimmer",
+    "conf": 1,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "где костёр?",
+    "want": "where_campfire",
+    "got": "where_campfire",
+    "conf": 1,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "куда идти дальше",
+    "want": "where_objective",
+    "got": "where_objective",
+    "conf": 0.98,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "выключи звук",
+    "want": "mute",
+    "got": "mute",
+    "conf": 1,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "игра тормозит",
+    "want": "quality_low",
+    "got": "quality_low",
+    "conf": 0.72,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "просканируй местность",
+    "want": "scan",
+    "got": "scan",
+    "conf": 1,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "Искра, ищи!",
+    "want": "fox_seek",
+    "got": "fox_seek",
+    "conf": 0.99,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "поставь на паузу",
+    "want": "pause",
+    "got": "pause",
+    "conf": 1,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "text": "какая сегодня погода в москве",
+    "want": "none",
+    "got": "none",
+    "conf": 1,
+    "src": "rules",
+    "hit": true
+   }
+  ],
+  "director": [
+   {
+    "case": "calm explorer",
+    "event": "fox_find",
+    "conf": 0.44,
+    "tension": 3,
+    "src": "model"
+   },
+   {
+    "case": "hurt after death",
+    "event": "supply_drop",
+    "conf": 1,
+    "tension": 4,
+    "src": "model"
+   },
+   {
+    "case": "in combat",
+    "event": "none",
+    "conf": 1,
+    "tension": 5,
+    "src": "model"
+   }
+  ],
+  "creature": [
+   {
+    "c0:stag@8": "flee",
+    "c1:stag@55": "graze",
+    "c2:fox@4": "lead_player_to_shard",
+    "c3:shardling@12": "retreat"
+   },
+   {
+    "c0:stag@25": "alert",
+    "c1:fox@3": "alert",
+    "c2:shardling@45": "alert",
+    "c3:shardling@9": "approach"
+   }
+  ],
+  "hints": [
+   {
+    "stage": 2,
+    "stuck": true,
+    "noul": 0.9,
+    "id": "h2a"
+   },
+   {
+    "stage": 4,
+    "stuck": false,
+    "noul": 0.08,
+    "id": "h4a"
+   }
+  ],
+  "quality": [
+   {
+    "case": "struggling laptop",
+    "preset": "low",
+    "focus": "enemy",
+    "src": "model"
+   },
+   {
+    "case": "strong desktop",
+    "preset": "high",
+    "focus": "landscape",
+    "src": "rules"
+   },
+   {
+    "case": "phone ok",
+    "preset": "med",
+    "focus": "vehicle",
+    "src": "model"
+   }
+  ],
+  "preload": [
+   {
+    "stage": 2,
+    "zone": "lake",
+    "src": "model"
+   },
+   {
+    "stage": 6,
+    "zone": "rift",
+    "src": "model"
+   }
+  ],
+  "contact": [
+   {
+    "case": "idle at a rock face",
+    "intent": "rest_on_rock",
+    "conf": 0.78,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "case": "slow approach to a wall",
+    "intent": "touch_surface",
+    "conf": 0.96,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "case": "sprinting past a wall",
+    "intent": "none",
+    "conf": 0.92,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "case": "low crate ahead, walking",
+    "intent": "cross_obstacle",
+    "conf": 0.83,
+    "src": "model",
+    "hit": true
+   },
+   {
+    "case": "fighting next to a wall",
+    "intent": "none",
+    "conf": 0.98,
+    "src": "model",
+    "hit": true
+   }
+  ],
+  "serverStats": {
+   "ORM_TALK": {
+    "requests": 15,
+    "cacheHits": 5,
+    "upstream": 10,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 14643,
+    "outputTokens": 3179,
+    "usd": 0.000615,
+    "p50ms": 327,
+    "p95ms": 614,
+    "hitP50ms": 0
+   },
+   "COMMANDS": {
+    "requests": 10,
+    "cacheHits": 0,
+    "upstream": 10,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 9923,
+    "outputTokens": 2392,
+    "usd": 0.000417,
+    "p50ms": 347,
+    "p95ms": 401,
+    "hitP50ms": 0
+   },
+   "DIRECTOR": {
+    "requests": 4,
+    "cacheHits": 0,
+    "upstream": 4,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 3144,
+    "outputTokens": 343,
+    "usd": 0.000132,
+    "p50ms": 333,
+    "p95ms": 370,
+    "hitP50ms": 0
+   },
+   "CREATURE": {
+    "requests": 3,
+    "cacheHits": 0,
+    "upstream": 3,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 3580,
+    "outputTokens": 609,
+    "usd": 0.00015,
+    "p50ms": 381,
+    "p95ms": 417,
+    "hitP50ms": 0
+   },
+   "HINTS": {
+    "requests": 2,
+    "cacheHits": 0,
+    "upstream": 2,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 1077,
+    "outputTokens": 135,
+    "usd": 0.000045,
+    "p50ms": 442,
+    "p95ms": 442,
+    "hitP50ms": 0
+   },
+   "QUALITY_DIRECTOR": {
+    "requests": 4,
+    "cacheHits": 0,
+    "upstream": 4,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 2628,
+    "outputTokens": 369,
+    "usd": 0.00011,
+    "p50ms": 321,
+    "p95ms": 381,
+    "hitP50ms": 0
+   },
+   "PRELOAD": {
+    "requests": 2,
+    "cacheHits": 0,
+    "upstream": 2,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 984,
+    "outputTokens": 87,
+    "usd": 0.000041,
+    "p50ms": 413,
+    "p95ms": 413,
+    "hitP50ms": 0
+   },
+   "CONTACT_INTENT": {
+    "requests": 5,
+    "cacheHits": 0,
+    "upstream": 5,
+    "errors": 0,
+    "rejected": 0,
+    "inputTokens": 3696,
+    "outputTokens": 437,
+    "usd": 0.000155,
+    "p50ms": 318,
+    "p95ms": 560,
+    "hitP50ms": 0
+   }
+  }
+ }
+}

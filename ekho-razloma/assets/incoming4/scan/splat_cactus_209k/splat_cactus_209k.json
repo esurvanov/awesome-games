@@ -1,0 +1,90 @@
+{
+ "steps": {
+  "decode": 893,
+  "level": 206,
+  "clean": 2492,
+  "scale_budget": 14,
+  "delight": 389,
+  "encode": 218
+ },
+ "name": "splat_cactus_209k",
+ "role": "prop",
+ "source": "cactus_209k.ply",
+ "countIn": 204684,
+ "bytesIn": 48306901,
+ "shIn": 3,
+ "removedAlphaSize": 1895,
+ "level": {
+  "normal": [
+   0,
+   1,
+   0
+  ],
+  "inlierShare": 0,
+  "levelled": true
+ },
+ "crop": {
+  "radius": 0.846,
+  "removed": 4956,
+  "cutGround": false
+ },
+ "objectTop": 2.4355971813201904,
+ "removedIsolated": 1176,
+ "scaleApplied": 0.12317,
+ "delight": {
+  "flatSplatsUsed": 37653,
+  "dirStrength": 0.204,
+  "lightDir": [
+   0.039,
+   0.999,
+   -0.018
+  ],
+  "corrShadingBefore": 0.136,
+  "corrShadingAfter": 0.054,
+  "strength": 0.7,
+  "exposure": 1.014,
+  "grade": {
+   "desat": 0.4,
+   "mul": [
+    0.713,
+    0.782,
+    0.9199999999999999
+   ]
+  }
+ },
+ "kind": "splat",
+ "format": "spz-v2",
+ "count": 196657,
+ "sh": 0,
+ "bytes": {
+  "spz": 2671899,
+  "packTotal": 3562636,
+  "perSplat": 13.59
+ },
+ "chunks": [
+  "splat_cactus_209k.spz.0.js"
+ ],
+ "bounds": {
+  "min": [
+   -0.103,
+   -0.007,
+   -0.103
+  ],
+  "max": [
+   0.102,
+   0.305,
+   0.102
+  ]
+ },
+ "size": [
+  0.205,
+  0.313,
+  0.205
+ ],
+ "gpuBytesEstimate": {
+  "spark": 3146512,
+  "threeNative": 9439536
+ },
+ "seconds": 4.2,
+ "usage": "ScanSplat.load('splat_cactus_209k', '<dir>/', (spz) => scene.add(new SplatMesh({ fileBytes: spz })))  — see SCAN.md"
+}

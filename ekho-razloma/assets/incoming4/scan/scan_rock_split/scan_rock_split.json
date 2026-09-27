@@ -1,0 +1,130 @@
+{
+ "name": "scan_rock_split",
+ "role": "rock",
+ "source": "rock_split.obj",
+ "created": "2026-09-26T02:43:08.263Z",
+ "seconds": 38.2,
+ "size": [
+  2.517,
+  1.896,
+  2.495
+ ],
+ "bounds": {
+  "min": [
+   -1.258,
+   0.001,
+   -1.246
+  ],
+  "max": [
+   1.259,
+   1.896,
+   1.249
+  ]
+ },
+ "radius": 2.01,
+ "volume": 4.9906,
+ "lods": [
+  {
+   "name": "scan_rock_split_LOD0",
+   "tris": 5000,
+   "verts": 2502
+  },
+  {
+   "name": "scan_rock_split_LOD1",
+   "tris": 1500,
+   "verts": 752
+  },
+  {
+   "name": "scan_rock_split_LOD2",
+   "tris": 300,
+   "verts": 152
+  }
+ ],
+ "lodDist": [
+  0,
+  28.1,
+  80.4
+ ],
+ "highTris": 59066,
+ "highTrisIn": 59066,
+ "texture": {
+  "size": 1024,
+  "uvUsed": 0.577,
+  "jpgBytes": {
+   "normal": 158055,
+   "orm": 168312,
+   "albedo": 300180
+  },
+  "ktx2Bytes": {
+   "albedo": 227053,
+   "normal": 799982,
+   "orm": 162282
+  }
+ },
+ "bytes": {
+  "glb": 956056,
+  "pack": 1274801,
+  "glbKtx2": 1519032,
+  "packKtx2": 2025438
+ },
+ "passport": {
+  "role": "solid",
+  "why": "large: exact trimesh",
+  "opts": {
+   "name": "scan_rock_split",
+   "shape": "mesh",
+   "cell": 0.08
+  },
+  "massIfDynamic": 12976
+ },
+ "clean": {
+  "groundCutAt": null,
+  "groundProbe": {
+   "z": 0.358,
+   "flatArea": 0.001,
+   "bboxFootprint": 6.296
+  },
+  "islandsRemoved": 0,
+  "voxel": 0.0155,
+  "scaleApplied": 1
+ },
+ "delight": {
+  "aoStrength": 0.6,
+  "dirStrength": 1.141,
+  "lightDirGame": [
+   -0.458,
+   0.69,
+   0.56
+  ],
+  "corrShadingBefore": 0.704,
+  "corrShadingAfter": 0.059,
+  "medianLumIn": 0.0543,
+  "medianLumDelit": 0.0765,
+  "targetLum": 0.16,
+  "medianLumOut": 0.0894,
+  "grade": {
+   "desat": 0.55,
+   "mul": [
+    0.6200000047683716,
+    0.6800000071525574,
+    0.800000011920929
+   ]
+  }
+ },
+ "gradeFrom": "STYLE.materials.rock_basalt.grade",
+ "roughness": 0.9,
+ "metalness": 0,
+ "bakeDevice": "GPU",
+ "steps": {
+  "import": 0.47,
+  "orient": 0,
+  "clean": 0.29,
+  "lod0": 4.92,
+  "bake": 12.77,
+  "delight": 1.33,
+  "lods": 0.09,
+  "export": 0.4,
+  "thumbs": 6.74
+ },
+ "usage": "copy scan_rock_split.js → assets/pack/; ctx.loadPacked('scan_rock_split', ctx.ASSET, (g) => { const lod = ScanLOD.fromGLTF(g, ctx.THREE); lod.position.set(x, ctx.groundH(x, z), z); ctx.scene.add(lod); ctx.Passport.register(lod.levels[0].object, 'solid', {...}); })"
+}

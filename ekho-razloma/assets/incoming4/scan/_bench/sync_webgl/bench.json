@@ -1,0 +1,134 @@
+{
+ "date": "2026-09-26T03:30:35.392Z",
+ "size": [
+  1400,
+  800
+ ],
+ "vsync": false,
+ "machine": {
+  "otherHeadless": 6,
+  "otherHeadlessPids": [
+   69187,
+   70337,
+   70688,
+   71176,
+   72070,
+   72096
+  ],
+  "idleHeadless": 2,
+  "cpuPct": 84.5,
+  "cpuCores": 8,
+  "load1": 51.51,
+  "busy": true,
+  "reasons": [
+   "6 other headless/automation Chrome (pid 69187, 70337, 70688, 71176, 72070, 72096)",
+   "other processes use 84 % of 8 cores",
+   "load average 51.5 on 8 cores",
+   "top: chrome-headless-shell 81 %, XprotectService 52 %, chrome-headless-shell 52 %"
+  ],
+  "top": [
+   "chrome-headless-shell 81 %",
+   "XprotectService 52 %",
+   "chrome-headless-shell 52 %"
+  ],
+  "quiet": false
+ },
+ "results": [
+  {
+   "name": "splat_cactus_209k",
+   "renderer": "three-webgl",
+   "csp": "on",
+   "ok": true,
+   "count": 196657,
+   "loadMs": 22,
+   "decodeMs": 107,
+   "readyMs": 953,
+   "spzBytes": 2671899,
+   "backend": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+   "fpsMedian": 521.7,
+   "syncMs": {
+    "median": 4.7,
+    "p95": 6.1,
+    "n": 120
+   },
+   "syncMsNoSplats": {
+    "median": 1.1,
+    "p95": 1.6,
+    "n": 120
+   },
+   "frameMsP95": 3.4,
+   "jsHeapMB": 8.9,
+   "gpuProcessMB": 277,
+   "gpuBaseMB": 120,
+   "gpuDeltaMB": 157,
+   "errors": [
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)"
+   ],
+   "wallMs": 7480
+  },
+  {
+   "name": "splat_cactus_464k",
+   "renderer": "three-webgl",
+   "csp": "on",
+   "ok": true,
+   "count": 341971,
+   "loadMs": 69,
+   "decodeMs": 163,
+   "readyMs": 1221,
+   "spzBytes": 4680054,
+   "backend": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+   "fpsMedian": null,
+   "syncMs": {
+    "median": 5.5,
+    "p95": 7.9,
+    "n": 120
+   },
+   "syncMsNoSplats": {
+    "median": 1,
+    "p95": 1.5,
+    "n": 120
+   },
+   "frameMsP95": 1084.9,
+   "jsHeapMB": 9.5,
+   "gpuProcessMB": 373,
+   "gpuBaseMB": 133,
+   "gpuDeltaMB": 240,
+   "errors": [
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)"
+   ],
+   "wallMs": 14026
+  },
+  {
+   "name": "splat_cactus_scene",
+   "renderer": "three-webgl",
+   "csp": "on",
+   "ok": true,
+   "count": 446094,
+   "loadMs": 42,
+   "decodeMs": 164,
+   "readyMs": 1333,
+   "spzBytes": 6129066,
+   "backend": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+   "fpsMedian": 7894.7,
+   "syncMs": {
+    "median": 6,
+    "p95": 8.6,
+    "n": 120
+   },
+   "syncMsNoSplats": {
+    "median": 1.3,
+    "p95": 3.1,
+    "n": 120
+   },
+   "frameMsP95": 0.5,
+   "jsHeapMB": 9.9,
+   "gpuProcessMB": 456,
+   "gpuBaseMB": 152,
+   "gpuDeltaMB": 304,
+   "errors": [
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)"
+   ],
+   "wallMs": 11449
+  }
+ ]
+}

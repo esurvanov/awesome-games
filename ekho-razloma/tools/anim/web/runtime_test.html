@@ -1,0 +1,76 @@
+<!doctype html><html><body style="margin:0;background:#dfe5ea">
+<script type="importmap">{"imports":{"three":"./three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+window.THREE = THREE;
+const addScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+const parsePack = async (name) => { await addScript(name + '.js?' + Date.now()); const b = atob(window.__PACK[name]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return new Promise((res, rej) => new GLTFLoader().parse(u.buffer, '', res, rej)); };
+await addScript('animlib-runtime.js?' + Date.now());
+const R = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); R.setSize(1200, 400); document.body.appendChild(R.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xdfe5ea);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 2.2)); const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(2, 5, 3); scene.add(sun);
+const g0 = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0xb7c2cc })); g0.rotation.x = -Math.PI / 2; scene.add(g0);
+scene.add(new THREE.GridHelper(60, 120, 0x8896a3, 0x9aa7b3));
+window.runPilot = async () => {
+  const pilot = await parsePack('pilot_aces_textured'), lib = await parsePack('anim_pilot_contact');
+  const meta = ANIMLIB.meta(lib); const clips = ANIMLIB.mergeClips(pilot.animations.slice(), lib);
+  const out = {}; const imgs = [];
+  const cases = [
+    { clip: 'hand_wall_r_loop', wall: { z: 0.60, h: 2.0 }, t: 1.2 },          // wall 15 cm farther than authored
+    { clip: 'hand_wall_both_loop', wall: { z: 0.40, h: 2.0 }, t: 1.2 },       // closer
+    { clip: 'lean_hands_ledge_loop', ledge: { z: 0.30, y: 0.85 }, t: 1.0 },  // ledge 15 cm higher than authored
+  ];
+  for (const cs of cases) {
+    const root = SkeletonUtils.clone(pilot.scene); scene.add(root);
+    const mixer = new THREE.AnimationMixer(root); const clip = clips.find((c) => c.name === cs.clip); const act = mixer.clipAction(clip); act.play();
+    const layer = new ANIMLIB.ContactLayer(root, meta);
+    const helpers = [];
+    let hit;
+    if (cs.wall) { const w = new THREE.Mesh(new THREE.BoxGeometry(1.6, cs.wall.h, 0.2), new THREE.MeshStandardMaterial({ color: 0x7d8a96 })); w.position.set(0, cs.wall.h / 2, cs.wall.z + 0.1); scene.add(w); helpers.push(w);
+      hit = (c) => { const p = new THREE.Vector3(...c.surface.point); p.z = cs.wall.z; return { point: p, normal: new THREE.Vector3(0, 0, -1) }; }; }
+    if (cs.ledge) { const d = cs.ledge.depth || 0.5; const w = new THREE.Mesh(new THREE.BoxGeometry(1.2, cs.ledge.y, d), new THREE.MeshStandardMaterial({ color: 0x7d8a96 })); w.position.set(0, cs.ledge.y / 2, cs.ledge.z + d / 2); scene.add(w); helpers.push(w);
+      hit = (c) => { const p = new THREE.Vector3(...c.surface.point); p.y = cs.ledge.y; p.z = Math.max(p.z, cs.ledge.z + 0.08); return { point: p, normal: new THREE.Vector3(0, 1, 0) }; }; }
+    mixer.setTime(cs.t); root.updateMatrixWorld(true);
+    const before = {}; for (const s of ['l', 'r']) before[s] = root.getObjectByName('hand_' + s).getWorldPosition(new THREE.Vector3());
+    const snap = (tag) => { const cam = new THREE.PerspectiveCamera(35, 1, 0.05, 50); cam.position.set(2.6, 1.3, 0.5); cam.lookAt(0, 1.0, 0.3); R.setSize(400, 400); R.render(scene, cam); imgs.push(R.domElement.toDataURL('image/jpeg', 0.85)); };
+    snap('raw');
+    layer.update(act, hit); root.updateMatrixWorld(true);
+    const res = {};
+    for (const c of meta.clips[cs.clip].contacts) { if (!c.bone.startsWith('hand')) continue;
+      const hb = root.getObjectByName(c.bone), mid = root.getObjectByName('middle_01_' + c.bone.slice(-1));
+      const hp = hb.getWorldPosition(new THREE.Vector3()), mp = mid.getWorldPosition(new THREE.Vector3()); const palm = hp.clone().lerp(mp, 0.6);
+      const h = hit(c); const d = palm.clone().sub(h.point).dot(h.normal);
+      res[c.bone] = { palmToSurface_cm: +(d * 100).toFixed(1), moved_cm: +(hp.distanceTo(before[c.bone.slice(-1)]) * 100).toFixed(1) };
+    }
+    snap('ik');
+    out[cs.clip] = res;
+    scene.remove(root); helpers.forEach((h) => scene.remove(h));
+  }
+  return { out, imgs };
+};
+window.runStag = async () => {
+  const stag = await parsePack('animal_stag'), lib = await parsePack('anim_stag_gaits'); const meta = ANIMLIB.meta(lib);
+  const clips = {}; for (const c of [...stag.animations, ...lib.animations]) clips[c.name] = c;
+  const res = {}; const imgs = [];
+  for (const v of [0.8, 2.2, 4.5, 8.0, 11.0]) {
+    const root = SkeletonUtils.clone(stag.scene); const grp = new THREE.Group(); grp.add(root); scene.add(grp);
+    const mixer = new THREE.AnimationMixer(root); const gb = new ANIMLIB.GaitBlender(mixer, clips, meta, { idle: 'Idle' });
+    const hooves = ['Backleg_L002', 'Backleg_R002', 'Frontleg_L002', 'Frontleg_R002'].map((n) => root.getObjectByName(n) || root.getObjectByName(n.replace('002', '.002')));
+    const hist = hooves.map(() => []); const dt = 1 / 60; let z = 0;
+    for (let f = 0; f < 240; f++) { gb.update(dt, v, 0); z += v * dt; grp.position.z = z; grp.updateMatrixWorld(true);
+      hooves.forEach((h, i) => { const p = h.localToWorld(new THREE.Vector3(0, (i < 2 ? 0.1415 : 0.1466) / 0.305, 0)); hist[i].push([p.x, p.y, p.z]); }); }   // hoof tip (pastern bone +Y * length)
+    // slide: hoof (fetlock) horizontal speed while it is at its lowest (within 2 cm of min height)
+    let worst = 0;
+    hist.forEach((hs) => { const ys = hs.map((p) => p[1]), mn = Math.min(...ys.slice(60));
+      for (let f = 61; f < hs.length; f++) if (hs[f][1] < mn + 0.008 && hs[f - 1][1] < mn + 0.008) worst = Math.max(worst, Math.hypot(hs[f][0] - hs[f - 1][0], hs[f][2] - hs[f - 1][2]) / dt); });
+    res['v=' + v] = { weights: gb.weights(v), plantedHoofSpeed_mps: +worst.toFixed(2) };
+    const cam = new THREE.PerspectiveCamera(35, 1, 0.05, 80); cam.position.set(4.5, 1.2, z); cam.lookAt(0, 0.7, z); R.setSize(400, 400); R.render(scene, cam); imgs.push(R.domElement.toDataURL('image/jpeg', 0.85));
+    scene.remove(grp);
+  }
+  return { res, imgs };
+};
+window.ready = true;
+</script></body></html>

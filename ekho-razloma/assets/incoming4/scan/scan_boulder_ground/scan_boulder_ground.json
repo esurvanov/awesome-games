@@ -1,0 +1,130 @@
+{
+ "name": "scan_boulder_ground",
+ "role": "rock",
+ "source": "boulder_ground.glb",
+ "created": "2026-09-26T02:42:30.093Z",
+ "seconds": 52.5,
+ "size": [
+  1.275,
+  0.958,
+  1.827
+ ],
+ "bounds": {
+  "min": [
+   -0.636,
+   -0.001,
+   -0.914
+  ],
+  "max": [
+   0.639,
+   0.957,
+   0.912
+  ]
+ },
+ "radius": 1.213,
+ "volume": 0.7347,
+ "lods": [
+  {
+   "name": "scan_boulder_ground_LOD0",
+   "tris": 5000,
+   "verts": 2504
+  },
+  {
+   "name": "scan_boulder_ground_LOD1",
+   "tris": 1500,
+   "verts": 754
+  },
+  {
+   "name": "scan_boulder_ground_LOD2",
+   "tris": 300,
+   "verts": 154
+  }
+ ],
+ "lodDist": [
+  0,
+  17,
+  48.5
+ ],
+ "highTris": 65953,
+ "highTrisIn": 73322,
+ "texture": {
+  "size": 1024,
+  "uvUsed": 0.476,
+  "jpgBytes": {
+   "normal": 283571,
+   "orm": 199274,
+   "albedo": 325516
+  },
+  "ktx2Bytes": {
+   "albedo": 260096,
+   "normal": 1124197,
+   "orm": 209193
+  }
+ },
+ "bytes": {
+  "glb": 1270572,
+  "pack": 1694157,
+  "glbKtx2": 2055892,
+  "packKtx2": 2741258
+ },
+ "passport": {
+  "role": "solid",
+  "why": "large: exact trimesh",
+  "opts": {
+   "name": "scan_boulder_ground",
+   "shape": "mesh",
+   "cell": 0.08
+  },
+  "massIfDynamic": 1910
+ },
+ "clean": {
+  "groundCutAt": 0.045,
+  "groundProbe": {
+   "z": 0.035,
+   "flatArea": 16.342,
+   "bboxFootprint": 16.215
+  },
+  "islandsRemoved": 0,
+  "voxel": 0.0093,
+  "scaleApplied": 1
+ },
+ "delight": {
+  "aoStrength": 0.6,
+  "dirStrength": 1.275,
+  "lightDirGame": [
+   -0.444,
+   0.653,
+   0.614
+  ],
+  "corrShadingBefore": 0.643,
+  "corrShadingAfter": 0.063,
+  "medianLumIn": 0.0431,
+  "medianLumDelit": 0.0568,
+  "targetLum": 0.16,
+  "medianLumOut": 0.0832,
+  "grade": {
+   "desat": 0.55,
+   "mul": [
+    0.6200000047683716,
+    0.6800000071525574,
+    0.800000011920929
+   ]
+  }
+ },
+ "gradeFrom": "STYLE.materials.rock_basalt.grade",
+ "roughness": 0.9,
+ "metalness": 0,
+ "bakeDevice": "GPU",
+ "steps": {
+  "import": 0.38,
+  "orient": 0,
+  "clean": 0.37,
+  "lod0": 4.05,
+  "bake": 19.02,
+  "delight": 1.01,
+  "lods": 0.05,
+  "export": 0.36,
+  "thumbs": 8.78
+ },
+ "usage": "copy scan_boulder_ground.js → assets/pack/; ctx.loadPacked('scan_boulder_ground', ctx.ASSET, (g) => { const lod = ScanLOD.fromGLTF(g, ctx.THREE); lod.position.set(x, ctx.groundH(x, z), z); ctx.scene.add(lod); ctx.Passport.register(lod.levels[0].object, 'solid', {...}); })"
+}

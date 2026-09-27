@@ -1,0 +1,584 @@
+/* physics.js — Rapier-backed physics for open-world.html
+ *
+ * Classic script (no `type="module"` needed). Loads Rapier (WASM embedded as base64,
+ * no extra fetches) via dynamic import from jsDelivr, exposes:
+ *   window.Phys       — API object (usable after PhysReady resolves)
+ *   window.PhysReady  — Promise<Phys>
+ *
+ * Coordinates: world units = metres, Y up. Positions of characters are FEET positions
+ * (same convention as `player.y` in open-world.html).
+ *
+ * Override the engine URL (e.g. for Node tests / offline) by setting
+ * globalThis.PHYS_RAPIER_URL before this script runs.
+ */
+(function (root) {
+  'use strict';
+  const RAPIER_URL = root.PHYS_RAPIER_URL || 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.20.0/dist/rapier.mjs';
+
+  // collision groups (membership bits). STATIC = terrain, ice and exact 'solid' shapes (camera collides with these);
+  // TRUNK = thin tree/pole colliders (block bodies, ignored by the camera ray)
+  const G_STATIC = 1, G_CHAR = 2, G_DEBRIS = 4, G_PROP = 8, G_VEHICLE = 16, G_TRUNK = 32, G_ALL = 0xffff;
+  const groups = (member, filter) => ((member & 0xffff) << 16) | (filter & 0xffff);
+
+  let R = null, world = null, cfg = null;
+  const debris = [], vehicles = [], characters = [], tags = new Map(); // collider handle -> tag
+  let acc = 0, alpha = 0, dirtyStatic = false, stepCount = 0;
+  const FIXED = 1 / 60, MAX_SUB = 5;
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const v3 = (x = 0, y = 0, z = 0) => ({ x, y, z });
+  const len3 = (v) => Math.hypot(v.x, v.y, v.z);
+  // rotate vector by quaternion
+  function qrot(q, v, out = v3()) {
+    const { x, y, z } = v, qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+    const ix = qw * x + qy * z - qz * y, iy = qw * y + qz * x - qx * z, iz = qw * z + qx * y - qy * x, iw = -qx * x - qy * y - qz * z;
+    out.x = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+    out.y = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+    out.z = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+    return out;
+  }
+  function slerpInto(out, a, b, t) { // nlerp is enough for small per-step deltas
+    let d = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w, s = d < 0 ? -1 : 1;
+    out.x = a.x + (b.x * s - a.x) * t; out.y = a.y + (b.y * s - a.y) * t; out.z = a.z + (b.z * s - a.z) * t; out.w = a.w + (b.w * s - a.w) * t;
+    const l = Math.hypot(out.x, out.y, out.z, out.w) || 1; out.x /= l; out.y /= l; out.z /= l; out.w /= l; return out;
+  }
+  function need() { if (!world) throw new Error('Phys: call Phys.init() after PhysReady'); }
+  function flushQueries() { // make freshly-added static colliders visible to queries before first step
+    if (!dirtyStatic) return;
+    const ts = world.timestep; world.timestep = 1e-6; world.step(); world.timestep = ts; dirtyStatic = false;
+  }
+  function tag(col, t) { tags.set(col.handle, t); return col; }
+
+  /* ------------------------------------------------------------------ init */
+  function init(o) {
+    const { H, VN, CELL, W } = o;
+    const seaLevel = o.seaLevel ?? 0;
+    cfg = { gravity: o.gravity ?? 20, seaLevel, W, CELL, VN };
+    world = new R.World(v3(0, -cfg.gravity, 0));
+    world.timestep = FIXED;
+    const RES = VN - 1;
+    // Rapier heightfield = column-major matrix, row index -> local z, column index -> local x.
+    // hs[iz + ix*VN] = H[iz*VN + ix] reproduces getH() exactly, including the
+    // (a,b,d)/(b,c,d) triangle split (verified in tests: max error ~1e-5 m).
+    const hs = new Float32Array(VN * VN);
+    for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) hs[iz + ix * VN] = H[iz * VN + ix];
+    const hf = R.ColliderDesc.heightfield(RES, RES, hs, v3(W, 1, W))
+      .setFriction(0.8).setCollisionGroups(groups(G_STATIC, G_ALL));
+    tag(world.createCollider(hf), { kind: 'terrain' });
+    // frozen sea: a thick slab whose top is y = seaLevel (walkable, covers terrain below 0)
+    const sea = R.ColliderDesc.cuboid(W * 2, 5, W * 2).setTranslation(0, seaLevel - 5, 0)
+      .setFriction(0.15).setCollisionGroups(groups(G_STATIC, G_ALL));
+    tag(world.createCollider(sea), { kind: 'ice' });
+    world.step(); // build broad-phase so queries work immediately
+    return api;
+  }
+
+  /* --------------------------------------------------------------- statics */
+  function addStaticCylinder(x, z, r, yBottom, height, userTag, group) {
+    need();
+    const d = R.ColliderDesc.cylinder(height / 2, r).setTranslation(x, yBottom + height / 2, z)
+      .setFriction(0.5).setCollisionGroups(groups(group ?? G_STATIC, G_ALL));
+    dirtyStatic = true;
+    return tag(world.createCollider(d), userTag || { kind: 'static' });
+  }
+  // exact static mesh (object passport 'solid'): world-space vertices + triangle indices
+  function addStaticTrimesh(vertices, indices, userTag, o = {}) {
+    need();
+    const v = vertices instanceof Float32Array ? vertices : new Float32Array(vertices);
+    const ix = indices instanceof Uint32Array ? indices : new Uint32Array(indices);
+    const TF = R.TriMeshFlags, flags = TF && !o.raw ? (TF.FIX_INTERNAL_EDGES | TF.DELETE_BAD_TOPOLOGY_TRIANGLES | TF.DELETE_DEGENERATE_TRIANGLES) : undefined; // fixed internal edges: no bumps sliding over seams
+    let d = null;
+    try { d = flags !== undefined ? R.ColliderDesc.trimesh(v, ix, flags) : R.ColliderDesc.trimesh(v, ix); } catch (e) { d = null; }
+    if (!d) d = R.ColliderDesc.trimesh(v, ix);
+    d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
+    dirtyStatic = true;
+    return tag(world.createCollider(d), userTag || { kind: 'static' });
+  }
+  // static convex hull of world-space points (small rocks, crystals)
+  function addStaticConvex(points, userTag, o = {}) {
+    need();
+    const d = R.ColliderDesc.convexHull(points instanceof Float32Array ? points : new Float32Array(points));
+    if (!d) return null;
+    d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
+    dirtyStatic = true;
+    return tag(world.createCollider(d), userTag || { kind: 'static' });
+  }
+  function addStaticBox(c, he, q, userTag) {
+    need();
+    const d = R.ColliderDesc.cuboid(he.x, he.y, he.z).setTranslation(c.x, c.y, c.z)
+      .setFriction(0.6).setCollisionGroups(groups(G_STATIC, G_ALL));
+    if (q) d.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
+    dirtyStatic = true;
+    return tag(world.createCollider(d), userTag || { kind: 'static' });
+  }
+  function removeCollider(col) { if (col) { tags.delete(col.handle); world.removeCollider(col, true); } }
+
+  /* ------------------------------------------------------------- raycast */
+  const _ray = { o: v3(), d: v3() };
+  function raycast(origin, dir, maxDist = 1000, opts = {}) {
+    need(); flushQueries();
+    const l = len3(dir) || 1;
+    const ray = new R.Ray(v3(origin.x, origin.y, origin.z), v3(dir.x / l, dir.y / l, dir.z / l));
+    // default: ignore characters and debris shards (camera / aiming)
+    const filter = opts.groups ?? (G_STATIC | G_TRUNK | G_PROP | G_VEHICLE | (opts.debris ? G_DEBRIS : 0) | (opts.characters ? G_CHAR : 0));
+    const hit = world.castRayAndGetNormal(ray, maxDist, true, undefined, groups(G_ALL, filter), opts.excludeCollider, opts.excludeBody);
+    if (!hit) return null;
+    const t = hit.timeOfImpact;
+    return {
+      distance: t,
+      point: v3(ray.origin.x + ray.dir.x * t, ray.origin.y + ray.dir.y * t, ray.origin.z + ray.dir.z * t),
+      normal: v3(hit.normal.x, hit.normal.y, hit.normal.z),
+      collider: hit.collider, tag: tags.get(hit.collider.handle) || null,
+    };
+  }
+  // swept sphere (camera boom, ledge probes). Same filters as raycast.
+  function sphereCast(origin, dir, maxDist, radius, opts = {}) {
+    need(); flushQueries();
+    const l = len3(dir) || 1, d = v3(dir.x / l, dir.y / l, dir.z / l);
+    const filter = opts.groups ?? (G_STATIC | G_TRUNK | G_PROP | G_VEHICLE);
+    const hit = world.castShape(v3(origin.x, origin.y, origin.z), { x: 0, y: 0, z: 0, w: 1 }, d, new R.Ball(radius), 0, maxDist, false, undefined, groups(G_ALL, filter), opts.excludeCollider, opts.excludeBody);
+    if (!hit) return null;
+    const t = hit.time_of_impact ?? hit.toi;
+    return { distance: t, point: v3(origin.x + d.x * t, origin.y + d.y * t, origin.z + d.z * t), normal: hit.normal1 ? v3(hit.normal1.x, hit.normal1.y, hit.normal1.z) : null,
+      collider: hit.collider, tag: tags.get(hit.collider.handle) || null };
+  }
+  // ground height (terrain/ice/static tops) under x,z — handy replacement for groundH()
+  function groundY(x, z, fromY = 500) { const h = raycast(v3(x, fromY, z), v3(0, -1, 0), fromY + 50, { groups: G_STATIC }); return h ? h.point.y : cfg.seaLevel; }
+
+  /* ----------------------------------------------------------- character */
+  function createCharacter(o = {}) {
+    need(); flushQueries();
+    const P = {
+      radius: o.radius ?? 0.4, height: o.height ?? 1.8,
+      gravity: o.gravity ?? 28,          // game used 28
+      jumpHeight: o.jumpHeight ?? 2.0,   // -> v0 = sqrt(2 g h) ≈ 10.6 m/s (game used 10.5)
+      groundAccel: o.groundAccel ?? 60,  // m/s² towards desired velocity
+      groundDecel: o.groundDecel ?? 45,  // m/s² friction when no input
+      airAccel: o.airAccel ?? 9,         // reduced air control
+      airDrag: o.airDrag ?? 0.05,
+      maxSlope: (o.maxSlopeDeg ?? 45) * Math.PI / 180,
+      slideFriction: o.slideFriction ?? 0.15,
+      stepHeight: o.stepHeight ?? 0.4,
+      snap: o.snapDistance ?? 0.5,
+      coyote: o.coyoteTime ?? 0.12, buffer: o.jumpBuffer ?? 0.12,
+      mass: o.mass ?? 80, skin: 0.02,
+    };
+    const halfCyl = Math.max(0.01, P.height / 2 - P.radius);
+    const centerOff = P.height / 2 + P.skin;               // feet -> capsule center
+    const col = world.createCollider(R.ColliderDesc.capsule(halfCyl, P.radius)
+      .setTranslation(o.x ?? 0, (o.y ?? 0) + centerOff, o.z ?? 0)
+      .setCollisionGroups(groups(G_CHAR, G_STATIC | G_TRUNK | G_PROP | G_VEHICLE)));
+    tag(col, { kind: 'character' });
+    const kcc = world.createCharacterController(P.skin);
+    kcc.setUp(v3(0, 1, 0));
+    kcc.setMaxSlopeClimbAngle(P.maxSlope);
+    kcc.setMinSlopeSlideAngle(P.maxSlope + 0.02);
+    kcc.enableAutostep(P.stepHeight, 0.15, false);
+    kcc.enableSnapToGround(P.snap);
+    kcc.setSlideEnabled(true);
+    kcc.setApplyImpulsesToDynamicBodies(true);
+    kcc.setCharacterMass(P.mass);
+    const kccGroups = groups(G_CHAR, G_STATIC | G_TRUNK | G_PROP | G_VEHICLE);
+    const cosMax = Math.cos(P.maxSlope);
+
+    const s = {
+      vel: v3(), pos: v3(o.x ?? 0, o.y ?? 0, o.z ?? 0), prev: v3(o.x ?? 0, o.y ?? 0, o.z ?? 0),
+      acc: 0, grounded: false, walkable: false, coyoteT: 0, bufT: 0, jumping: false, enabled: true,
+      normal: v3(0, 1, 0), slideDir: null, airT: 0, actual: v3(),
+    };
+    const out = { position: v3(), velocity: v3(), grounded: false, landed: false, landingSpeed: 0, slideDir: null, groundNormal: v3(0, 1, 0), sliding: false, jumped: false };
+    const tmpT = v3();
+
+    const probeBall = new R.Ball(P.radius * 0.9), qId = { x: 0, y: 0, z: 0, w: 1 }, down = v3(0, -1, 0);
+    const probeGroups = groups(G_ALL, G_STATIC | G_PROP | G_VEHICLE);
+    function probeGround(c) {
+      const foot = v3(c.x, c.y - halfCyl, c.z);
+      // 1) straight ray: exact support under the feet (step tops, flat ground)
+      const h = world.castRayAndGetNormal(new R.Ray(foot, down), P.radius + 0.35, true, undefined, probeGroups, col);
+      if (h && h.normal.y >= cosMax - 1e-3) return { d: h.timeOfImpact - P.radius, n: h.normal };
+      // 2) sphere sweep: catches steep slopes the ray misses (contact is off to the side)
+      const sh = world.castShape(foot, qId, down, probeBall, 0, 0.3, false, undefined, probeGroups, col);
+      if (sh) { const n = sh.normal1, k = n.y < 0 ? -1 : 1; return { d: sh.time_of_impact - P.radius * 0.1, n: v3(n.x * k, n.y * k, n.z * k) }; }
+      return h ? { d: h.timeOfImpact - P.radius, n: h.normal } : null;
+    }
+
+    function sub(dt, desired, jumpNow) {
+      const v = s.vel;
+      if (jumpNow) s.bufT = P.buffer;
+      // --- horizontal control
+      const tx = desired.x || 0, tz = desired.z || 0, hasInput = tx * tx + tz * tz > 1e-4;
+      if (s.walkable) {
+        const a = hasInput ? P.groundAccel : P.groundDecel;
+        let dx = tx - v.x, dz = tz - v.z; const dl = Math.hypot(dx, dz), m = a * dt;
+        if (dl > m) { dx *= m / dl; dz *= m / dl; }
+        v.x += dx; v.z += dz;
+      } else if (s.slideDir) { // steep slope: gravity along the plane, tiny control
+        const n = s.normal, g = P.gravity;
+        // g_par = g_vec - (g_vec·n) n, with g_vec = (0,-g,0)
+        const gx = -(-g * n.y) * n.x, gy = -g - (-g * n.y) * n.y, gz = -(-g * n.y) * n.z;
+        const fr = P.slideFriction * g * n.y; // kinetic friction decel
+        const sp = Math.hypot(v.x, v.y, v.z);
+        v.x += gx * dt; v.y += gy * dt; v.z += gz * dt;
+        if (sp > 0.01) { const k = Math.max(0, 1 - fr * dt / sp); v.x *= k; v.y *= k; v.z *= k; }
+        if (hasInput) { v.x += tx * 0.15 * dt; v.z += tz * 0.15 * dt; }
+      } else { // air
+        if (hasInput) {
+          let dx = tx - v.x, dz = tz - v.z; const dl = Math.hypot(dx, dz), m = P.airAccel * dt;
+          if (dl > m) { dx *= m / dl; dz *= m / dl; }
+          v.x += dx; v.z += dz;
+        }
+        const k = Math.exp(-P.airDrag * dt); v.x *= k; v.z *= k;
+      }
+      // --- jump (buffer + coyote)
+      let jumped = false;
+      if (s.bufT > 0 && s.coyoteT > 0 && !s.jumping) {
+        v.y = Math.sqrt(2 * P.gravity * P.jumpHeight);
+        s.bufT = 0; s.coyoteT = 0; s.jumping = true; jumped = true; s.walkable = false;
+      }
+      // --- gravity
+      const vy0 = v.y;
+      if (!s.slideDir) v.y -= P.gravity * dt;
+      if (s.walkable && v.y < -2) v.y = -2; // keep contact on ground, no accumulated fall
+      const preVy = v.y;
+      // --- resolve with KCC
+      if (v.y > 0.5) kcc.disableSnapToGround(); else kcc.enableSnapToGround(P.snap);
+      tmpT.x = v.x * dt; tmpT.y = (s.slideDir ? v.y : (vy0 + v.y) * 0.5) * dt; tmpT.z = v.z * dt; // trapezoid: exact ballistic arcs
+      kcc.computeColliderMovement(col, tmpT, undefined, kccGroups);
+      const mv = kcc.computedMovement();
+      const c = col.translation();
+      const nc = v3(c.x + mv.x, c.y + mv.y, c.z + mv.z);
+      col.setTranslation(nc);
+      // --- post: ground classification
+      const g = kcc.computedGrounded();
+      const pr = probeGround(nc);
+      const wasAir = !s.walkable && !s.slideDir;
+      s.normal = pr ? v3(pr.n.x, pr.n.y, pr.n.z) : v3(0, 1, 0);
+      const near = pr && pr.d < 0.12;
+      const onGround = (g || near) && preVy <= 0.5;
+      s.walkable = onGround && s.normal.y >= cosMax - 1e-3;
+      const steep = onGround && !s.walkable;
+      if (steep) {
+        const h = Math.hypot(s.normal.x, s.normal.z) || 1;
+        s.slideDir = { x: s.normal.x / h, z: s.normal.z / h };
+      } else s.slideDir = null;
+      // --- velocity from actual movement (walls / ceilings / slopes kill momentum)
+      const ax = mv.x / dt, ay = mv.y / dt, az = mv.z / dt;
+      s.actual.x = ax; s.actual.y = ay; s.actual.z = az;
+      // on walkable ground keep the intended velocity (the character keeps pushing, which lets
+      // autostep work); in the air / while sliding, collisions eat momentum.
+      if (!s.walkable) { const hv2 = v.x * v.x + v.z * v.z, ah2 = ax * ax + az * az; if (ah2 < hv2 * 0.998) { v.x = ax; v.z = az; } }
+      if (steep) { v.y = ay; }
+      else if (s.walkable) { v.y = 0; }
+      else if (v.y > 0 && ay < v.y * 0.9) v.y = ay; // bonked a ceiling
+      // --- landing / timers
+      let landed = false, landingSpeed = 0;
+      if (s.walkable) {
+        if (wasAir || s.airT > 0.05) { landed = s.airT > 0.05; landingSpeed = Math.max(0, -preVy); }
+        s.coyoteT = P.coyote; s.jumping = false; s.airT = 0;
+      } else {
+        s.coyoteT -= dt; s.airT += dt;
+        if (s.jumping && v.y <= 0) s.jumping = false;
+      }
+      s.bufT -= dt;
+      return { landed, landingSpeed, jumped };
+    }
+
+    // Un-stick: a capsule that starts *inside* a trimesh (teleport, respawn, a collider appearing around the player)
+    // makes the controller grind through every overlapping triangle each substep (tens of ms per frame). Detect real
+    // penetration with a slightly shrunk capsule and lift the character onto the surface above (or push it out).
+    const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.12));
+    const stuckGroups = groups(G_ALL, G_STATIC | G_TRUNK);
+    function unstick() {
+      const c = col.translation(); let hit = null;
+      world.intersectionsWithShape(c, qId, coreShape, (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = other; return false; } return true; }, undefined, stuckGroups, col);
+      if (!hit) return false;
+      const feetY = c.y - centerOff, top = world.castRayAndGetNormal(new R.Ray(v3(c.x, feetY + 40, c.z), down), 80, true, undefined, groups(G_ALL, G_STATIC), col);
+      if (top && top.timeOfImpact < 40 + P.height * 1.5) { const y = feetY + 40 - top.timeOfImpact; col.setTranslation(v3(c.x, y + centerOff + 0.02, c.z)); }
+      else { // no reachable top (tall wall): push out horizontally away from the collider centre
+        const o = hit.translation(); let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.5, c.y, c.z + dz / l * 0.5)); }
+      s.vel.y = Math.min(s.vel.y, 0); s.prev = v3(col.translation().x, col.translation().y - centerOff, col.translation().z); out.unstuck = (out.unstuck || 0) + 1;
+      return true;
+    }
+    const ch = {
+      collider: col, controller: kcc, params: P, state: out, unstick,
+      move(dt, desired = { x: 0, z: 0 }, jumpPressed = false) {
+        out.landed = false; out.landingSpeed = 0; out.jumped = false;
+        if (!s.enabled) return out;
+        flushQueries();
+        for (let k = 0; k < 4 && unstick(); k++) { /* lift out of whatever we were placed inside */ }
+        s.acc += Math.min(Math.max(dt, 0) || 0, 0.1);
+        let first = true, n = 0;
+        while (s.acc >= FIXED && n < 8) {
+          const c = col.translation(); s.prev.x = c.x; s.prev.y = c.y - centerOff; s.prev.z = c.z;
+          const r = sub(FIXED, desired, jumpPressed && first);
+          if (r.landed) { out.landed = true; out.landingSpeed = Math.max(out.landingSpeed, r.landingSpeed); }
+          if (r.jumped) out.jumped = true;
+          first = false; s.acc -= FIXED; n++;
+        }
+        if (first && jumpPressed) s.bufT = P.buffer; // no substep this frame: buffer the press
+        const c = col.translation(), a = s.acc / FIXED;
+        s.pos.x = c.x; s.pos.y = c.y - centerOff; s.pos.z = c.z;
+        out.position.x = s.prev.x + (s.pos.x - s.prev.x) * a;
+        out.position.y = s.prev.y + (s.pos.y - s.prev.y) * a;
+        out.position.z = s.prev.z + (s.pos.z - s.prev.z) * a;
+        out.velocity.x = s.actual.x; out.velocity.y = s.vel.y; out.velocity.z = s.actual.z; // horizontal = real displacement rate
+        out.grounded = s.walkable; out.sliding = !!s.slideDir; out.slideDir = s.slideDir;
+        out.groundNormal = s.normal;
+        return out;
+      },
+      setPosition(x, y, z) {
+        col.setTranslation(v3(x, y + centerOff, z)); s.prev = v3(x, y, z); s.pos = v3(x, y, z);
+        s.vel = v3(); s.acc = 0; out.position = v3(x, y, z);
+      },
+      setVelocity(x, y, z) { s.vel.x = x; s.vel.y = y; s.vel.z = z; if (y > 0.5) { s.walkable = false; s.jumping = true; } },
+      addVelocity(x, y, z) { ch.setVelocity(s.vel.x + x, s.vel.y + y, s.vel.z + z); },
+      setEnabled(on) { s.enabled = on; col.setEnabled(on); if (on) s.acc = 0; },
+      destroy() { world.removeCharacterController(kcc); removeCollider(col); characters.splice(characters.indexOf(ch), 1); },
+    };
+    characters.push(ch);
+    return ch;
+  }
+
+  /* -------------------------------------------------------------- debris */
+  const MAX_DEBRIS = 160;
+  function spawnDebris(mesh, o = {}) {
+    need();
+    const shape = o.shape || 'box', mass = o.mass ?? 1;
+    const p = o.position || mesh.position, q = o.quaternion || mesh.quaternion;
+    const bd = R.RigidBodyDesc.dynamic().setTranslation(p.x, p.y, p.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
+      .setLinearDamping(o.linearDamping ?? 0.05).setAngularDamping(o.angularDamping ?? (shape === 'sphere' ? 0.8 : 0.3))
+      .setCcdEnabled(o.ccd ?? true);
+    if (o.velocity) bd.setLinvel(o.velocity.x, o.velocity.y, o.velocity.z);
+    if (o.angularVelocity) bd.setAngvel(o.angularVelocity);
+    const body = world.createRigidBody(bd);
+    let cd;
+    const sc = mesh.scale || { x: 1, y: 1, z: 1 };
+    if (shape === 'sphere') cd = R.ColliderDesc.ball(typeof o.size === 'number' ? o.size : (o.size?.x ?? 0.25));
+    else if (shape === 'convex') {
+      let pts = o.points;
+      if (!pts) {
+        const arr = mesh.geometry.attributes.position.array; pts = new Float32Array(arr.length);
+        for (let i = 0; i < arr.length; i += 3) { pts[i] = arr[i] * sc.x; pts[i + 1] = arr[i + 1] * sc.y; pts[i + 2] = arr[i + 2] * sc.z; }
+      }
+      cd = R.ColliderDesc.convexHull(pts instanceof Float32Array ? pts : new Float32Array(pts));
+      if (!cd) cd = R.ColliderDesc.ball(0.2);
+    } else {
+      const s = typeof o.size === 'number' ? { x: o.size, y: o.size, z: o.size } : (o.size || { x: 0.5, y: 0.5, z: 0.5 });
+      cd = R.ColliderDesc.cuboid(s.x / 2, s.y / 2, s.z / 2); // size = full extents
+    }
+    const prop = !!o.prop;
+    cd.setMass(mass).setFriction(o.friction ?? 0.7).setRestitution(o.restitution ?? 0.25)
+      .setCollisionGroups(prop ? groups(G_PROP, G_ALL) : groups(G_DEBRIS, G_STATIC | G_TRUNK | G_DEBRIS | G_PROP | G_VEHICLE));
+    const col = world.createCollider(cd, body);
+    const d = {
+      mesh, body, collider: col, prop, t: 0, life: o.lifetime ?? (prop ? Infinity : 8), fade: o.fade ?? 0.5,
+      baseScale: { x: sc.x, y: sc.y, z: sc.z }, onDespawn: o.onDespawn, keepMesh: !!o.keepMesh,
+      prevP: v3(p.x, p.y, p.z), prevQ: { x: q.x, y: q.y, z: q.z, w: q.w }, sleepT: 0,
+    };
+    tag(col, { kind: prop ? 'prop' : 'debris', ref: d, userData: o.userData });
+    debris.push(d);
+    if (!prop) { let n = 0; for (const e of debris) if (!e.prop) n++; if (n > MAX_DEBRIS) { const i = debris.findIndex((e) => !e.prop); if (i >= 0) killDebris(debris[i], i); } }
+    return d;
+  }
+  function killDebris(d, i) {
+    tags.delete(d.collider.handle); world.removeRigidBody(d.body);
+    if (!d.keepMesh && d.mesh.parent) d.mesh.parent.remove(d.mesh);
+    if (d.onDespawn) d.onDespawn(d);
+    debris.splice(i ?? debris.indexOf(d), 1);
+  }
+
+  /* ----------------------------------------------------------- explosion */
+  function applyExplosion(c, radius, force, opts = {}) {
+    need();
+    const up = opts.upBias ?? 0.35;
+    const push = (p, applyFn) => {
+      let dx = p.x - c.x, dy = p.y - c.y, dz = p.z - c.z; const d = Math.hypot(dx, dy, dz);
+      if (d > radius) return;
+      const f = force * (1 - d / radius) / (d || 1);
+      dx *= f; dy = dy * f + force * (1 - d / radius) * up; dz *= f;
+      applyFn(dx, dy, dz);
+    };
+    for (const d of debris) { const p = d.body.translation(); push(p, (x, y, z) => d.body.applyImpulse(v3(x, y, z), true)); }
+    for (const vh of vehicles) { const p = vh.body.translation(); push(p, (x, y, z) => vh.body.applyImpulse(v3(x, y, z), true)); }
+    if (opts.characters !== false) for (const ch of characters) {
+      const p = ch.collider.translation(); push(p, (x, y, z) => ch.addVelocity(x / ch.params.mass, y / ch.params.mass, z / ch.params.mass));
+    }
+  }
+
+  /* -------------------------------------------------------- hover vehicle */
+  function createHoverVehicle(o = {}) {
+    need(); flushQueries();
+    const P = {
+      mass: o.mass ?? 250, half: o.halfExtents ?? v3(1.0, 0.3, 1.9),
+      hover: o.hoverHeight ?? 1.2, accel: o.accel ?? 30, reverseAccel: o.reverseAccel ?? 22,
+      maxSpeed: o.maxSpeed ?? 44, boostSpeed: o.boostSpeed ?? 58, reverseMax: o.reverseMax ?? 12,
+      turnRate: o.turnRate ?? 1.9, grip: o.grip ?? 6, driftGrip: o.driftGrip ?? 1.2,
+      jump: o.jumpSpeed ?? 9, coast: o.coastDrag ?? 0.9, drag: o.drag ?? 0.35,
+      stiffness: o.stiffness ?? 1, damping: o.damping ?? 0.9,
+    };
+    const x = o.x ?? 0, z = o.z ?? 0, y = o.y ?? (groundY(x, z) + P.hover);
+    const yaw = o.yaw ?? 0;
+    const body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(x, y, z)
+      .setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) })
+      .setLinearDamping(0.05).setAngularDamping(2.5).setCcdEnabled(true).setCanSleep(false));
+    const col = world.createCollider(R.ColliderDesc.cuboid(P.half.x, P.half.y, P.half.z)
+      .setMass(P.mass).setFriction(0.15).setRestitution(0.1)
+      .setCollisionGroups(groups(G_VEHICLE, G_ALL & ~G_CHAR)), body);
+    tag(col, { kind: 'vehicle' });
+    const g = cfg.gravity;
+    // springs: equilibrium exactly at hover height; zeta ≈ damping
+    const k = P.mass * g / 4 / 0.35 * P.stiffness, c = 2 * Math.sqrt(k * P.mass / 4) * P.damping;
+    const corners = [v3(P.half.x * 0.85, 0, P.half.z * 0.8), v3(-P.half.x * 0.85, 0, P.half.z * 0.8), v3(P.half.x * 0.85, 0, -P.half.z * 0.8), v3(-P.half.x * 0.85, 0, -P.half.z * 0.8)];
+    const maxRay = P.hover * 2.2;
+    const rayGroups = groups(G_VEHICLE, G_STATIC | G_PROP);   // hover pads ride on terrain + solids, not on trunks
+    const inp = { throttle: 0, steer: 0, boost: false, jump: false };
+    const out = { position: v3(x, y, z), quaternion: { x: 0, y: 0, z: 0, w: 1 }, velocity: v3(), speed: 0, grounded: false, height: 0, yaw, bank: 0, impact: 0 };
+    let lastV = null;
+    const prevP = v3(x, y, z), prevQ = { x: 0, y: 0, z: 0, w: 1 };
+    let grounded = false, hitSpeed = 0;
+    const w0 = v3(), dn = v3(), up = v3(), fw = v3(), rt = v3();
+
+    function pre(dt) {
+      const p = body.translation(), q = body.rotation(), lv = body.linvel();
+      qrot(q, { x: 0, y: 1, z: 0 }, up); qrot(q, { x: 0, y: 0, z: -1 }, fw); qrot(q, { x: 1, y: 0, z: 0 }, rt);
+      dn.x = -up.x; dn.y = -up.y; dn.z = -up.z;
+      let hits = 0, hsum = 0, sx = 0, sz = 0;
+      for (const cl of corners) {
+        qrot(q, cl, w0); w0.x += p.x; w0.y += p.y; w0.z += p.z;
+        const h = world.castRay(new R.Ray(w0, dn), maxRay, true, undefined, rayGroups, col, body);
+        if (!h) continue;
+        hits++; hsum += h.timeOfImpact;
+        const pv = body.velocityAtPoint ? body.velocityAtPoint(w0) : lv;
+        const vAlong = pv.x * up.x + pv.y * up.y + pv.z * up.z; // + = moving away from ground
+        let F = P.mass * g / 4 + k * (P.hover - h.timeOfImpact) - c * vAlong;
+        F = clamp(F, 0, P.mass * g * 3);
+        body.applyImpulseAtPoint(v3(up.x * F * dt, up.y * F * dt, up.z * F * dt), w0, true);
+        sx += up.x * F * dt; sz += up.z * F * dt; // horizontal part of pad thrust (slides it downhill)
+      }
+      grounded = hits > 0;
+      out.height = hits ? hsum / hits : maxRay;
+      // planar frame (forward/right projected on horizontal)
+      const fl = Math.hypot(fw.x, fw.z) || 1, fx = fw.x / fl, fz = fw.z / fl, rx = -fz, rz = fx;
+      const vf = lv.x * fx + lv.z * fz, vr = lv.x * rx + lv.z * rz;
+      const m = P.mass;
+      if (grounded) {
+        // thrust
+        const vmax = inp.boost ? P.boostSpeed : P.maxSpeed;
+        let a = 0;
+        if (inp.throttle > 0) a = inp.throttle * P.accel * (inp.boost ? 1.3 : 1) * clamp(1 - vf / vmax, 0, 1);
+        else if (inp.throttle < 0) a = inp.throttle * (vf > 0 ? P.accel * 1.3 : P.reverseAccel * clamp(1 + vf / P.reverseMax, 0, 1));
+        a -= vf * (inp.throttle === 0 ? P.coast : P.drag) * 0.5;
+        // lateral grip (drift when boosting + hard steer)
+        const drifting = inp.boost && Math.abs(inp.steer) > 0.5 || inp.drift;
+        const gl = drifting ? P.driftGrip : P.grip;
+        const ar = -vr * Math.min(gl, 1 / dt);
+        let ix = (fx * a + rx * ar) * m * dt, iz = (fz * a + rz * ar) * m * dt;
+        // parking brake: idle + slow -> hold position (otherwise it would drift down slopes)
+        if (inp.throttle === 0 && Math.hypot(lv.x, lv.z) < 3) { const kb = Math.min(10, 1 / dt); ix = -lv.x * kb * m * dt - sx; iz = -lv.z * kb * m * dt - sz; }
+        body.applyImpulse(v3(ix, 0, iz), true);
+        if (inp.jump) { body.applyImpulse(v3(0, P.jump * m, 0), true); inp.jump = false; }
+      } else {
+        // airborne: self-right slowly
+        const av = body.angvel(), K = 6, D = 2;
+        const tx = up.z * K - av.x * D, tz = -up.x * K - av.z * D; // torque ~ up × worldUp
+        body.applyTorqueImpulse(v3(tx * m * dt * 0.8, 0, tz * m * dt * 0.8), true);
+      }
+      inp.jump = false;
+      // yaw control around world up (arcade-precise, physically applied via angvel)
+      const av = body.angvel();
+      const tgt = -inp.steer * P.turnRate * clamp(Math.abs(vf) / 12, 0.35, 1) * (vf < -0.5 ? -1 : 1) * (grounded ? 1 : 0.4);
+      const blend = Math.min(1, 10 * dt);
+      body.setAngvel(v3(av.x, av.y + (tgt - av.y) * blend, av.z), true);
+      out.bank = -inp.steer * clamp(vf / 40, 0, 1) * 0.35;
+    }
+    const vh = {
+      body, collider: col, state: out, params: P, _pre: pre,
+      _save() { const p = body.translation(), q = body.rotation(); prevP.x = p.x; prevP.y = p.y; prevP.z = p.z; prevQ.x = q.x; prevQ.y = q.y; prevQ.z = q.z; prevQ.w = q.w; },
+      _sync(a) {
+        const p = body.translation(), q = body.rotation(), lv = body.linvel();
+        // impact = horizontal speed lost since last sync (crash into rocks/pillars -> shake/sound)
+        if (lastV) { const lost = Math.hypot(lastV.x, lastV.z) - Math.hypot(lv.x, lv.z); out.impact = lost > 0 ? lost : 0; }
+        lastV = { x: lv.x, z: lv.z };
+        out.position.x = prevP.x + (p.x - prevP.x) * a; out.position.y = prevP.y + (p.y - prevP.y) * a; out.position.z = prevP.z + (p.z - prevP.z) * a;
+        slerpInto(out.quaternion, prevQ, q, a);
+        out.velocity.x = lv.x; out.velocity.y = lv.y; out.velocity.z = lv.z;
+        qrot(q, { x: 0, y: 0, z: -1 }, fw); out.yaw = Math.atan2(-fw.x, -fw.z);
+        out.speed = -(lv.x * Math.sin(out.yaw) + lv.z * Math.cos(out.yaw));
+        out.grounded = grounded;
+        if (o.mesh) { o.mesh.position.set(out.position.x, out.position.y, out.position.z); o.mesh.quaternion.set(out.quaternion.x, out.quaternion.y, out.quaternion.z, out.quaternion.w); }
+      },
+      /** throttle -1..1, steer -1..1 (+1 = right), boost bool, jump bool (edge). Forces are applied in Phys.step. */
+      update(dt, throttle = 0, steer = 0, boost = false, jump = false, drift = false) {
+        inp.throttle = clamp(throttle, -1, 1); inp.steer = clamp(steer, -1, 1); inp.boost = !!boost; inp.drift = !!drift;
+        if (jump && grounded) inp.jump = true;
+        return out;
+      },
+      teleport(x, y, z, yaw = 0) {
+        body.setTranslation(v3(x, y, z), true); body.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
+        body.setLinvel(v3(), true); body.setAngvel(v3(), true); vh._save(); vh._sync(1);
+      },
+      setEnabled(on) { body.setEnabled(on); },
+      destroy() { tags.delete(col.handle); world.removeRigidBody(body); vehicles.splice(vehicles.indexOf(vh), 1); },
+    };
+    vh._save(); vh._sync(1);
+    vehicles.push(vh);
+    return vh;
+  }
+
+  /* ---------------------------------------------------------------- step */
+  function step(dt) {
+    need();
+    acc += Math.min(Math.max(dt, 0) || 0, 0.25);
+    let n = 0;
+    while (acc >= FIXED) {
+      if (n >= MAX_SUB) { acc = 0; break; } // spiral-of-death guard
+      for (const d of debris) { const p = d.body.translation(), q = d.body.rotation(); d.prevP.x = p.x; d.prevP.y = p.y; d.prevP.z = p.z; d.prevQ.x = q.x; d.prevQ.y = q.y; d.prevQ.z = q.z; d.prevQ.w = q.w; }
+      for (const vh of vehicles) { vh._save(); if (vh.body.isEnabled()) vh._pre(FIXED); }
+      world.step(); dirtyStatic = false; stepCount++;
+      acc -= FIXED; n++;
+    }
+    alpha = acc / FIXED;
+    // debris sync + lifetime
+    const qi = { x: 0, y: 0, z: 0, w: 1 };
+    for (let i = debris.length - 1; i >= 0; i--) {
+      const d = debris[i], p = d.body.translation(), q = d.body.rotation();
+      d.t += dt;
+      if (d.body.isSleeping()) d.sleepT += dt; else d.sleepT = 0;
+      if (p.y < -60 || d.t > d.life + d.fade) { killDebris(d, i); continue; }
+      const m = d.mesh;
+      m.position.set(d.prevP.x + (p.x - d.prevP.x) * alpha, d.prevP.y + (p.y - d.prevP.y) * alpha, d.prevP.z + (p.z - d.prevP.z) * alpha);
+      slerpInto(qi, d.prevQ, q, alpha); m.quaternion.set(qi.x, qi.y, qi.z, qi.w);
+      if (d.t > d.life) { const k = Math.max(0.01, 1 - (d.t - d.life) / d.fade); m.scale.set(d.baseScale.x * k, d.baseScale.y * k, d.baseScale.z * k); }
+    }
+    for (const vh of vehicles) vh._sync(alpha);
+    return n;
+  }
+
+  function stats() { return { bodies: world.bodies.len(), colliders: world.colliders.len(), debris: debris.length, vehicles: vehicles.length, characters: characters.length, steps: stepCount }; }
+
+  const api = {
+    RAPIER: null, get world() { return world; }, get config() { return cfg; }, FIXED,
+    groups: { STATIC: G_STATIC, CHAR: G_CHAR, DEBRIS: G_DEBRIS, PROP: G_PROP, VEHICLE: G_VEHICLE, TRUNK: G_TRUNK },
+    init, addStaticCylinder, addStaticBox, addStaticTrimesh, addStaticConvex, removeCollider, createCharacter, spawnDebris, applyExplosion,
+    createHoverVehicle, raycast, sphereCast, groundY, step, stats, debris,
+    /** push whatever a raycast hit (debris / props / vehicle); impulse in N·s */
+    applyImpulseAt(collider, point, impulse) {
+      const b = collider && collider.parent(); if (!b || !b.isDynamic()) return false;
+      b.applyImpulseAtPoint(v3(impulse.x, impulse.y, impulse.z), v3(point.x, point.y, point.z), true); return true;
+    },
+    clearDebris() { for (let i = debris.length - 1; i >= 0; i--) if (!debris[i].prop) killDebris(debris[i], i); },
+    removeDebris(d) { const i = debris.indexOf(d); if (i >= 0) killDebris(d, i); },
+  };
+  root.Phys = api;
+  root.PhysReady = import(RAPIER_URL).then(async (m) => {
+    R = m.default || m;
+    try { await R.init(); } catch (e) {
+      const csp = /Content Security|unsafe-eval|CompileError/i.test(String(e && e.message));
+      throw new Error(csp ? 'Phys: WebAssembly compilation blocked by CSP (page needs script-src \'wasm-unsafe-eval\')' : 'Phys: Rapier init failed: ' + (e && e.message));
+    }
+    api.RAPIER = R;
+    return api;
+  });
+  root.PhysReady.catch(() => {});   // consumers get the rejection through their own .then/.catch; never an unhandled one
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
