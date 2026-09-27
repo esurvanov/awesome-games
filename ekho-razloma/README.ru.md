@@ -41,7 +41,7 @@
 | В браузере | **[esurvanov.github.io/awesome-games/ekho-razloma/open-world.html](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** |
 | Локально | `cd ekho-razloma && python3 -m http.server` → `http://localhost:8000/open-world.html` |
 | С ИИ-отшельником | `node server/server.mjs --page open-world.html --open`, ключ `TYPESAFE_API_KEY=…` в `.env` (не коммитить) |
-| Бонус | `index.html` — «Северный Разлом», маленькая леталка по каньону в том же мире |
+| Бонус | [Северный Разлом](../severny-razlom/README.ru.md) — полёт по каньону, первая игра в этом мире (здесь же `index.html`) |
 
 Любой браузер на компьютере с WebGL 2. Качество подстраивается под машину.
 

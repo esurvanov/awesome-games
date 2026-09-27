@@ -4,7 +4,7 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Хроники Королевств и Берёзовка" width="100%">
 
-### Пять законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, история очереди на Верхнем Ларсе в 2022 году от первого лица и сюжетный открытый мир на полярном острове. Все пять запускаются прямо в браузере — или скачайте и играйте локально.
+### Шесть законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, история очереди на Верхнем Ларсе в 2022 году от первого лица, сюжетный открытый мир на полярном острове и бесконечный полёт по ледяному каньону. Все шесть запускаются прямо в браузере — или скачайте и играйте локально.
 
 [![Играть в Берёзовку в браузере](https://img.shields.io/badge/▶_Играть_в_Берёзовку-прямо_в_браузере-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Играть в Хроники Королевств в браузере](https://img.shields.io/badge/⚔_Играть_в_Хроники_Королевств-прямо_в_браузере-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
@@ -121,6 +121,22 @@
 
 </td>
 <td width="50%" valign="top">
+
+<a href="severny-razlom/README.ru.md"><img src="severny-razlom/docs/screenshots/menu.jpg" alt="Северный Разлом: маленький корабль у входа в ледяной каньон под северным сиянием"></a>
+
+### 🛩 [Северный Разлом](severny-razlom/README.ru.md)
+**Бесконечный ледяной каньон под сиянием — 3D-аркада в одном файле.**
+
+Собирай осколки, копи энергию и пробивай ледяные стены. Облетай препятствия, проходи над ними и под ними ради множителя ×8, пока три удара не собьют корабль.
+
+- ♾ бесконечный каньон · 💎 осколки → энергия → лёд вдребезги
+- ✖️ множитель ×2 … ×8 · 🛡 3 удара
+- 🌌 картинка и звук — всё кодом · 📱 сенсорное управление
+
+`three.js r128` · один файл 71 КБ · любой браузер
+
+**[▶ Играть](https://esurvanov.github.io/awesome-games/severny-razlom/)**
+
 </td>
 </tr>
 </table>
@@ -149,6 +165,7 @@
 | ❄️ Берёзовка | Откройте **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — или `cd berezovka && python3 -m http.server` |
 | 🐺 Сибирь | Откройте **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — или `cd sibiria && python3 -m http.server` |
 | 🏔 Ларс | Откройте **[urvanov.com/lars](https://www.urvanov.com/lars/)** — или двойной щелчок по `lars/index.html` |
+| 🛩 Северный Разлом | Откройте **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — или двойной щелчок по `severny-razlom/index.html` |
 | 🌌 Эхо Разлома | Откройте **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — или `cd ekho-razloma && python3 -m http.server` и откройте `/open-world.html` |
 | ⚔️ Хроники Королевств | Откройте **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — или `python3 -m http.server` в корне репозитория и откройте `/age-of-empires/web/`; версия на Python: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (на macOS — двойной клик по `Play.command`) |
 

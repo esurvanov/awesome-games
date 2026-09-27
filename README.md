@@ -4,14 +4,14 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Five complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars and an open-world story on a polar island. All five run right in your browser — or clone and play locally.
+### Six complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars, an open-world story on a polar island and an endless ice-canyon flyer. All six run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 [![Play Lars in your browser](https://img.shields.io/badge/🏔_Play_Lars-in_your_browser-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
 [![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 
-![Games](https://img.shields.io/badge/games-5-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+![Games](https://img.shields.io/badge/games-6-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
 </div>
 
@@ -121,6 +121,22 @@ Your plane goes down under the aurora. A station AI wakes you in the wreck; an o
 
 </td>
 <td width="50%" valign="top">
+
+<a href="https://esurvanov.github.io/awesome-games/severny-razlom/"><img src="severny-razlom/docs/screenshots/menu.jpg" alt="Northern Rift: a small ship at the mouth of an ice canyon under the northern lights"></a>
+
+### 🛩 [Northern Rift](severny-razlom/)
+**An endless ice canyon under the aurora — a one-file 3D arcade flyer.**
+
+Collect shards, turn them into energy and burst through the ice walls. Weave around, over and under the obstacles for a ×8 combo before three hits bring you down.
+
+- ♾ endless generated canyon · 💎 shards → energy → break the ice
+- ✖️ combo ×2 … ×8 · 🛡 3 hits
+- 🌌 everything drawn and voiced in code · 📱 touch controls
+
+`three.js r128` · one 71 KB file · any browser
+
+**[▶ Play now](https://esurvanov.github.io/awesome-games/severny-razlom/)**
+
 </td>
 </tr>
 </table>
@@ -149,6 +165,7 @@ Your plane goes down under the aurora. A station AI wakes you in the wreck; an o
 | ❄️ Berezovka | Open **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
 | 🐺 Sibiria | Open **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
 | 🏔 Lars | Open **[urvanov.com/lars](https://www.urvanov.com/lars/)** — or double-click `lars/index.html` |
+| 🛩 Northern Rift | Open **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — or double-click `severny-razlom/index.html` |
 | 🌌 Echo of the Rift | Open **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — or `cd ekho-razloma && python3 -m http.server` and open `/open-world.html` |
 | ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
 
