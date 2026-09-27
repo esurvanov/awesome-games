@@ -197,6 +197,21 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
   // (BatchedMesh + custom onBeforeCompile) that couldn't be root-caused quickly under this session's shared-lock time
   // pressure — reverted rather than risk shipping a broken shader or spending more of the team's benchmark queue time
   // on speculative fixes. See INT-VEG.md "Open" for the state this was left in.
+  //
+  // ASSET-QUALITY-1: no new attribute, no new sampler this time. The needle geometry already ships a per-vertex
+  // 'color' attribute (itemSize 4, alpha channel always 1 → unused) that is already near-greyscale (R≈G≈B for
+  // every sampled vertex) and already correlates with distance from the local trunk axis (r ≈ 0.44 measured via
+  // tools/qa/probe.mjs on the live 'veg_tree_needles' BatchedMesh) — i.e. it is baked per-vertex crown shading /
+  // AO from the source authoring, just applied as a weak *linear* tint (mean 0.73, sd 0.19, 98.5% of vertices in
+  // 0.4–1.0) that all but disappears under the scene's hemisphere/moon fill light. `vegCrownAO` below re-reads
+  // that same raw value and reshapes it with an S-curve + floor so the existing signal actually reads as depth
+  // instead of a flat card, with zero new texture units.
+  const GLSL_CROWN_AO = `
+#if defined(USE_COLOR_ALPHA) || defined(USE_COLOR)
+  { float vAo = clamp(vColor.r, 0.0, 1.0);
+    float vAoK = mix(0.4, 1.0, smoothstep(0.42, 0.95, vAo));
+    diffuseColor.rgb *= vAoK; }
+#endif`;
   function patchTreeNear(mat, needles, depth, mul = 1) {
     const prev = mat.onBeforeCompile;
     mat.onBeforeCompile = (sh, r) => {
@@ -232,6 +247,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); float vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2))));
             diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.); }
           diffuseColor.a *= clamp(vVFade, 0., 1.);`);
+        if (needles) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>${GLSL_CROWN_AO}`);
       }
       if (!depth) sh.fragmentShader = SAFE_END(sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
           diffuseColor.rgb = vegSnow(diffuseColor.rgb, normalize((vec4(normal, 0.) * viewMatrix).xyz), vVW, ${needles ? '1.' : '.7'});`));

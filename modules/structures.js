@@ -1082,7 +1082,15 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
    * the baked sky light never reached its albedo — it rendered as a dark grey blob lit only by blurry env reflections.
    * Painted composite panels: metalness 0.05, roughness ≈ 0.6 with world-space micro variation (the 1024² atlas spreads
    * ~12 m of hull, ≈ 1–2 cm/texel with painted-in shading: it needs detail on top, not a sharper copy of itself), plus
-   * faint roof-edge streaks. Snow on top / snow skirt / grime at the base / contact AO come from modules/groundblend.js. */
+   * faint roof-edge streaks. Snow on top / snow skirt / grime at the base / contact AO come from modules/groundblend.js.
+   *
+   * ASSET-QUALITY-1: the blotch/streak/roughness noise above only ever modulates the existing 1024² colour map — it
+   * breaks up the flat *tone*, but a soft source photo stays soft: no new edge/rivet/seam frequency was ever added, so
+   * up close the panels still read as a blurry photo instead of built hardware. No source texture is authored here
+   * (out of scope, see ASSET-QUALITY-1.md); the `normal_fragment_maps` hook below adds a small procedural
+   * detail-normal perturbation instead (see its own comment for what was tried first and rejected) — a modest,
+   * real sharpening of what the eye reads as "surface detail", independent of the (unchanged) colour-map
+   * resolution. */
   const HAB = { t: 0, n: 0 };
   function fixHabMat(mat) {
     if (!mat || !mat.isMeshStandardMaterial || mat.userData.habFix) return false;
@@ -1102,8 +1110,20 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
           float st = habN(vec3(vHabW.x * 4.3, vHabW.y * .25, vHabW.z * 4.3));   // vertical run-off streaks
           diffuseColor.rgb *= (.9 + .12 * n1 + .06 * n2) * (1. - .1 * smoothstep(.55, .9, st)); }`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = clamp(roughnessFactor + (habN(vHabW * 5.7) - .5) * .3, .35, .95);`); };
-    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|hab1'; };
+        roughnessFactor = clamp(roughnessFactor + (habN(vHabW * 5.7) - .5) * .3, .35, .95);`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        { // procedural detail-normal overlay (no source texture): a first attempt used the full Mikkelsen
+          // tangent-free derivative bump (dividing the screen-space height gradient through the surface-derivative
+          // determinant) and it was **rejected on look-gate** — near-tangent screen directions on this cylindrical
+          // hull send that determinant toward 0, blowing the perturbation up into a harsh camo/dazzle pattern that
+          // hid the decals entirely (see ASSET-QUALITY-1.md, "what was tried and rejected"). Safe replacement:
+          // perturb normal.xy by a small CLAMPED screen-space gradient of the same coarse noise field (no
+          // division anywhere, so no blow-up) — a gentle micro-facet cue instead of a chaotic flip.
+          float habBH = habN(vHabW * 2.2) * .6 + habN(vHabW * 8.0) * .4;
+          vec2 habG = clamp(vec2(dFdx(habBH), dFdy(habBH)) * 1.6, vec2(-0.3), vec2(0.3));
+          normal = normalize(normal + vec3(habG, 0.0));
+        }`); };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|hab2'; };
     mat.needsUpdate = true; return true;
   }
   function updateHab(dt) {
