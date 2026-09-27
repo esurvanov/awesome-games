@@ -33,20 +33,42 @@
     await QA.wait(900); const c = D.camera, f = new D.THREE.Vector3(); c.getWorldDirection(f);
     return { pos: c.position.toArray(), look: [c.position.x + f.x * 10, c.position.y + f.y * 10, c.position.z + f.z * 10], fov: 62, keepPilot: true }; };
   const S = LG.shots, M = LG.motions;
-  const shot = (re, want, note, yawOff = 2.5, dist = 4.2) => async () => {
+  // pitch is now a per-subject knob (was fixed 0.3 for every subject). Tried: a bigger dist + steeper pitch for
+  // lean_wreck/lean_tree, on the theory that more headroom above the obstruction gives the boom-vs-solid shortening
+  // room before it collapses. Re-checked with a real look-gate run (interact2): it did NOT fix it — lean_wreck still
+  // fills the frame with the Kestrel's own hull (no pilot, no contact point) and lean_tree lands on an unrelated patch
+  // of snow with no pilot in frame at all. Leaving the tuned numbers in (not worse than the untuned ones, which failed
+  // the same way per INTERACT.md) but the framing itself is still broken — see INTERACT.md's "This wave" note for the
+  // actual diagnosis (a fixed dist/yaw can't out-run a boom-vs-solid collapse against an object this size; the shot
+  // needs to steer yaw away from the object's own bulk, not just move further back).
+  const shot = (re, want, note, yawOff = 2.5, dist = 4.2, pitch = 0.3) => async () => {
     const e = await engage(re, want); if (!e) return { skip: 'contact never engaged on ' + re };
-    await QA.wait(600); const r = await playCam(dist, 0.3, yawOff);
+    await QA.wait(600); const r = await playCam(dist, pitch, yawOff);
     return Object.assign(r, { note: `${note}: ${e.name}, ${CT().pick && CT().pick.clip}` }); };
   S.lean_wall = shot(/^st_ruin_wall$|^st_ruin_arch$/, /hand_wall|lean_shoulder|ledge/, 'palms / shoulder on the ruin wall');
-  S.lean_wreck = shot(/^kestrel(_wing|_tail)?$/, null, 'contact on the Kestrel wreck');
-  S.lean_tree = shot(/^tree_(dead_birch|snag_dead|spruce_tall_snow|fir_windbent)$/, /lean_shoulder|hand_wall/, 'shoulder / palm on a trunk', 2.0);
-  // pushing: W held into a crate / drum by the station; frozen mid-push
+  S.lean_wreck = shot(/^kestrel(_wing|_tail)?$/, null, 'contact on the Kestrel wreck', 1.3, 6.5, 0.55);
+  S.lean_tree = shot(/^tree_(dead_birch|snag_dead|spruce_tall_snow|fir_windbent)$/, /lean_shoulder|hand_wall/, 'shoulder / palm on a trunk', 2.0, 5.2, 0.5);
+  // pushing: W held into a crate / drum by the station; frozen mid-push. Was one fixed angle (a = 0.6) — missed every
+  // engaging side on a given instance (INTERACT.md: crate_wood engages only 2/4 approach angles, unrelated to this
+  // camera code); retries several angles / entries the same way `engage()` does for the other subjects, but the success
+  // condition is the push mechanic itself (arms.mode 'push', not the CT contact layer, which pushables never use).
+  async function walkInPush(e, a) {
+    const c = cen(e), R = rad(e) + 1.6, sx = c.x + Math.sin(a) * R, sz = c.z + Math.cos(a) * R;
+    D.teleport(sx, sz, a); P.face = a; P.c.g.rotation.y = a; D.cam.yaw = a; reset(); await QA.wait(700);
+    QA.keys(['KeyW'], true); const t0 = performance.now(); const Aa = window.INTERACTION.B.arms;
+    while (performance.now() - t0 < 2200) { await QA.wait(50); if (Aa.mode === 'push' && Aa.w > 0.5) return true; }
+    QA.keys(['KeyW'], false); await QA.wait(200);
+    return false;
+  }
+  async function engagePush(re, angles = 8, maxEntries = 3) {
+    for (const e of entries(re).slice(0, maxEntries)) for (let k = 0; k < angles; k++) { if (await walkInPush(e, k / angles * Math.PI * 2 + 0.3)) return e; QA.keys(['KeyW'], false); }
+    return null;
+  }
+  const PUSHABLE_RE = /^(crate_wood_02|drum_blue|prop_crate_military|crate_wood|prop_barrel_01|barrel_steel|prop_crate_wood)$/;
   S.push_crate = async () => {
-    const L = entries(/^(crate_wood_02|drum_blue|prop_crate_military|crate_wood|prop_barrel_01|barrel_steel)$/); if (!L.length) return { skip: 'no pushable' };
-    const e = L[0], c = cen(e), a = 0.6, R = rad(e) + 1.6;
-    D.teleport(c.x + Math.sin(a) * R, c.z + Math.cos(a) * R, a); P.face = a; D.cam.yaw = a; reset(); await QA.wait(900);
-    QA.keys(['KeyW'], true); await QA.wait(1500);
-    D.camOv = null; D.cam.dist = 4.2; D.cam.boom = 4.2; D.cam.pitch = 0.3; D.cam.yaw = P.face + 2.2; await QA.wait(500);
+    const e = await engagePush(PUSHABLE_RE); if (!e) return { skip: 'push never engaged on ' + PUSHABLE_RE };
+    await QA.wait(600); QA.keys(['KeyW'], true); await QA.wait(500);
+    D.camOv = null; D.cam.dist = 4.2; D.cam.boom = 4.2; D.cam.pitch = 0.3; D.cam.yaw = P.face + 2.2; D.camera.fov = 62; D.camera.updateProjectionMatrix(); await QA.wait(500);
     QA.keys(['KeyW'], false);
     const cm = D.camera, f = new D.THREE.Vector3(); cm.getWorldDirection(f);
     return { pos: cm.position.toArray(), look: [cm.position.x + f.x * 10, cm.position.y + f.y * 10, cm.position.z + f.z * 10], fov: 62, keepPilot: true, note: 'pushing ' + e.name + ', hands ' + (window.INTERACTION.B.arms.mode || '-') };

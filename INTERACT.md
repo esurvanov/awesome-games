@@ -208,16 +208,49 @@ not yet a clean pass; left for the main agent alongside the rest of this list.
 ## 🧾 Left for later
 
 - Engage rate: from some sides no stand spot passes (face below palm height, stand spot on another solid). Needs points on
-  lower faces for the one-palm / ledge clips and a "turn to the side that works" step.
+  lower faces for the one-palm / ledge clips and a "turn to the side that works" step. (Not attempted this wave —
+  substantial authoring/data work; see the pushable-specific fix below, which is a different bug.)
 - Hab module / ruin column / tool crate still 10–25 cm; the vault clip is only planned for 0.88–1.22 m tops (its palms
   can't reach lower); step_over has no root motion applied (the body snaps back at the end — pre-existing).
 - Trunk radius per height for 5 spruce kinds hit the 0.3 clamp (bark hidden in branches): leans on them are unmeasured.
 - Pushables: the drawn-mesh palm snap works while pushing, but the harness measured too few frames to give a gap number.
 - Kinds are keyed by vertex count: when another agent changes a model, re-run `node tools/interact/author.mjs` (~4 min).
-- Look-gate camera bugs (not engine bugs): `lg-interact.js`'s `shot()` framing for `pilot_wreck` and `pilot_tree` puts
-  the camera almost inside the pilot's own helmet / under the tree canopy — the contact itself engages (`run.json`
-  confirms the clip), but the screenshot doesn't show it. Needs per-subject `dist`/`yawOff` tuning before it's a usable
-  visual check.
-- `pilot_push` look-gate take: the single scripted approach angle (`a = 0.6`) missed every engaging side of that
-  `crate_wood` instance this run (`hands -` in `run.json`); re-run with `engage()`-style multi-angle retry (already
-  used by `pilot_wall`/`pilot_wreck`/`pilot_tree`'s `shot()`) instead of one fixed angle.
+  Checked this wave: `modules/interact-data.js` was generated (commit `569d30b`) *after* the Camp commit that resized
+  crate/drum/sledge/tents/Kestrel (`e409671`), and no model file has changed since — no re-run needed right now.
+
+### 🔧 This wave (CONTACT/CT owner)
+
+- **Root cause found for the pushable engage-rate problem**: `senseKind()` classified *any* object in front matching the
+  knee/chest "obstacle" height window as `obstacle_top` (→ vault/step-over), and anything taller as `object_face` (→
+  lean/touch) — with no check for the object's Passport role. A pushable crate/drum/barrel satisfies one of those two
+  windows on most approaches, so the CT contact layer routinely hijacked control (vaulted it, or leaned on it) *before*
+  the pilot got close enough for the dedicated push mechanic (`pushState()` in `armsUpdate`) to ever take over — this is
+  exactly the "pilot running past / hopping over the crate instead of pushing it" symptom from the `pilot_push` look-gate
+  take, and plausibly a good part of the < 4/4 engage numbers in the pushables table above. Fix (`modules/interaction.js`
+  `senseKind()`): any front/knee probe hit tagged `kind: 'prop'` (only pushables use that tag — verified: `spawnDebris`
+  with `prop: true` is called nowhere else in the codebase) now returns `surface: 'none'` immediately, before the
+  obstacle/wall checks — CT never engages on a pushable, so `pushState()` always gets first (and only) claim on it.
+  Verified live: an `interact2` look-gate run this wave shows both `push_crate` and the `pilot_push` motion take
+  actually pushing (`INTERACTION.B.arms.mode === 'push'`, "hands push" / "pushes crate_wood across the snow") — the
+  earlier `pilot_push` failure mode (`hands -`, never engaged) did not reproduce. A standalone `tools/interact/run.mjs
+  --test` re-measure of the 7 pushable kinds' engage rate was attempted but landed on an extremely loaded shared machine
+  (lock queue 6–8 deep, load average up to 46 on 8 cores) — the numbers came back noisy and partly contradictory
+  (one kind up, several down versus the table above, which is not the expected direction for a fix that can only ever
+  remove a competing system, never add a new failure) — **not trusted**, and not written into the table. Re-measure
+  `node tools/interact/run.mjs <label> --test '^(crate_wood_02|crate_wood|drum_blue|barrel_steel|prop_barrel_01|prop_crate_military|prop_crate_wood)\|'`
+  on a quiet machine before taking this as the final number.
+- **Look-gate `pilot_push`**: `lg-interact.js` now retries several angles/entries with the push mechanic itself as the
+  success condition (`walkInPush`/`engagePush`, same shape as the existing `engage()`), instead of one fixed approach
+  angle. Confirmed engaging in this wave's `interact2` run.
+- **Look-gate `pilot_wreck` / `pilot_tree` camera framing — attempted, did NOT fix it.** Gave `shot()` a per-subject
+  `pitch` (previously hard-coded 0.3) and tuned `dist`/`yawOff`/`pitch` for both subjects. Re-ran `interact2`: still
+  broken — `pilot_wreck` shows the Kestrel's own hull filling the entire frame (no pilot, no contact point), `pilot_tree`
+  shows an unrelated patch of snow with a small dark prop, no pilot in frame at all. Both are look-gate-owned images
+  (`stand/lookgate-interact2/{lean_wreck,lean_tree}.png`), looked at directly before writing this. Diagnosis this time:
+  a constant `dist`/`yawOff` tweak can't fix it, because the game's own camera keeps the boom outside solids — leaning a
+  shoulder against the *side* of a huge nearby hull (the Kestrel) or standing right under a tree's canopy means almost
+  every camera position along the requested boom direction is inside or grazing that same object, so the boom collapses
+  regardless of the requested distance. A real fix needs the shot to pick a `yawOff` that steers the camera-to-pilot
+  line away from the object's own bulk (e.g. using the entry's box/trunk radius to bias yaw toward open ground), not a
+  fixed per-subject number. Left for the next pass; `pilot_wall`/`pilot_push` (smaller / farther objects) aren't
+  affected by this.

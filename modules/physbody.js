@@ -32,7 +32,10 @@
     },
     accMax: 900, sub: 1 / 120, snap: 0.8, shoulderR: 0.27,
     hitKick: 1, couple: 0.45, wind: 1,
-    checkPen: false, ragCcd: false, fallV: 15.5, fallH: 4.5, slideHitDv: 6, heavyR: 10, ragMin: 0.7, ragMax: 2.0, settleV: 0.45, settleT: 0.25, rollMax: 0.7, blendOut: 0.3,
+    checkPen: false, ragCcd: false, fallV: 15.5, fallH: 4.5, slideHitDv: 6, heavyR: 10, ragMin: 0.7, ragMax: 2.0, settleV: 0.45, settleT: 0.25,
+    rollMax: 0.4, rollMinS: 0.12, rollTorque: 16,   // face-down roll onto the back: hard cap, min time before an early exit, torso torque (was 0.7 / 0.25 / 9)
+    blendOut: 0.3,
+    ragSolverIter: 2,   // world.numSolverIterations while a ragdoll is live (default 4): rare, ~1-2 s, brief quality dip is not visible
   };
   const STATS = { frames: 0, msSpring: 0, msRag: 0, msSpringMax: 0, contacts: 0, kicks: 0, hits: 0, ragdolls: 0, fallClips: 0, getups: 0, nan: 0, err: null };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -269,6 +272,7 @@
     if (PH.ok && PH.ch && !C.G.riding) { PH.ch.setEnabled(true); PH.ch.setPosition(P.x, P.y + 0.05, P.z); PH.ch.setVelocity(0, 0, 0); const o = PH.ch.state; if (o && o.velocity) o.velocity.x = o.velocity.z = 0; }
     if (I && I.K && RG.savedContact !== null) I.K.contact = RG.savedContact;
     RG.savedContact = null;
+    if (RG.solverSaved != null) { try { const w = C.PH.ok && C.PH.P.world; if (w) w.numSolverIterations = RG.solverSaved; } catch (e) { /* world gone */ } RG.solverSaved = null; }
     if (S.A) S.A.lock = 0;
     RG.st = null; RG.t = 0;
   }
@@ -289,7 +293,13 @@
     RG.why = why; RG.t = 0; RG.t0 = performance.now(); RG.pen = 0; RG.still = 0; RG.log = [];
     console.warn('[physbody] ' + why + ' → ' + (K.ragdoll && C.PH.ok ? 'ragdoll' : 'fall clip') + ' at ' + P.x.toFixed(1) + ',' + P.z.toFixed(1));   // visible in QA logs
     const useRag = K.ragdoll && C.PH.ok && C.PH.P.createRagdoll;
-    if (useRag && buildRagdoll(imp)) { RG.st = 'rag'; STATS.ragdolls++; freezeStart(); S.A.lock = 99; return true; }
+    if (useRag && buildRagdoll(imp)) {
+      RG.st = 'rag'; STATS.ragdolls++; freezeStart(); S.A.lock = 99;
+      // cheaper solve while the ragdoll is live (1-2 s, rare): the whole world briefly gets fewer solver iterations —
+      // restored in freezeEnd(). A ragdoll lying down / getting up needs no more contact precision than that.
+      try { const w = C.PH.P.world; if (w) { RG.solverSaved = w.numSolverIterations; w.numSolverIterations = K.ragSolverIter; } } catch (e) { RG.solverSaved = null; }
+      return true;
+    }
     if (!clipsReady()) return false;
     // no WebAssembly (or no ragdoll): knocked back onto the back, then get up — same clips the ragdoll hands over to
     RG.st = 'clip'; STATS.fallClips++; freezeStart();
@@ -373,12 +383,15 @@
     if (RG.st === 'rag' && RG.t > K.ragMin && (RG.still > K.settleT || RG.t > K.ragMax)) {
       if (faceDown() && K.rollMax > 0) { RG.st = 'roll'; RG.rollT = 0; }
       else startGetup();
-    } else if (RG.st === 'roll') {   // on the chest: roll over onto the back (the get-up starts on the back)
+    } else if (RG.st === 'roll') {   // on the chest: roll over onto the back (the get-up starts on the back) — no
+      // stomach get-up clip exists (UAL1 has none, see PHYSBODY.md), so this stays a physical roll; kept quick and
+      // brief rather than a slow visible tumble: stronger torque flips it in a few frames, a short min-gate lets it
+      // cut to the get-up as soon as it's over (was 9/4 torque, 0.25 s min, 0.7 s cap — visibly rolled for up to 0.7 s)
       RG.rollT += dt;
-      const ax = axisHeadToFeet(); const s = RG.rollSign || (RG.rollSign = 1);
-      rd.torque(1, { x: ax.x * 9 * s * dt * 60 * 0.05, y: ax.y * 9 * s * dt * 60 * 0.05, z: ax.z * 9 * s * dt * 60 * 0.05 });
-      rd.torque(0, { x: ax.x * 4 * s * dt * 60 * 0.05, y: ax.y * 4 * s * dt * 60 * 0.05, z: ax.z * 4 * s * dt * 60 * 0.05 });
-      if (!faceDown() && RG.rollT > 0.25 || RG.rollT > K.rollMax) startGetup();
+      const ax = axisHeadToFeet(); const s = RG.rollSign || (RG.rollSign = 1), tq = K.rollTorque;
+      rd.torque(1, { x: ax.x * tq * s * dt * 60 * 0.05, y: ax.y * tq * s * dt * 60 * 0.05, z: ax.z * tq * s * dt * 60 * 0.05 });
+      rd.torque(0, { x: ax.x * tq * 0.44 * s * dt * 60 * 0.05, y: ax.y * tq * 0.44 * s * dt * 60 * 0.05, z: ax.z * tq * 0.44 * s * dt * 60 * 0.05 });
+      if (!faceDown() && RG.rollT > K.rollMinS || RG.rollT > K.rollMax) startGetup();
     }
   }
   function chestNormal() {

@@ -614,6 +614,12 @@
   // thresholding once an intent is picked)
   function senseKind(sense) {
     const f = sense.front;
+    // a pushable prop directly ahead (or under the knee probe) is never a lean / vault / step-over target: the
+    // dedicated push mechanic (pushState() in armsUpdate) owns it. Before this check, a waist-high crate satisfying
+    // the knee+chest obstacle_top height window got read as a low obstacle and vaulted/stepped-over — and a taller
+    // one (object_face, below) still competed with push at walking speed (< 1.4 m/s) — either way CT took over
+    // control before the pilot ever got close enough to push (INTERACT.md: crate_wood engage rate, pilot_push look-gate).
+    if ((f && f.tag && f.tag.kind === 'prop') || (sense.obstacle && sense.obstacle.tag && sense.obstacle.tag.kind === 'prop')) return { surface: 'none', height: 0, dist: 3 };
     // `obstacle` (the knee-height probe) is only a genuine low object when the chest-height probe flew OVER it (per
     // its own doc: "a chest-height ray flies over anything short"). If the front probe ALSO reads a wall/ledge height
     // right there, the surface keeps going up past knee height — it is not a crate to vault, it is the base of a
