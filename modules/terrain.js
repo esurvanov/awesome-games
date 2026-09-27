@@ -175,6 +175,32 @@
   const GLSL_CM = /* glsl */`
     uniform sampler2D tNR; uniform vec4 uCM; uniform float uCMOn; uniform vec4 uPc;
     float cmH(ivec2 t){ return texelFetch(tNR, clamp(t, ivec2(0), ivec2(int(uCM.w) - 1)), 0).r; }
+    // SNOW-PRINTS2 (🩹 shard) + deep-snow sink: the patch's real geometry sits on the near map's texels every h·2
+    // texels (contactStep, ≈ 3 cm on high) — a single vertex per cell. A touchdown/lift-off frame can etch one texel
+    // much deeper than its neighbour (a fast press change lands on only one sample of the coarse grid) and, being
+    // MAX-blended forever into tNP, that one-texel scar never heals: one patch vertex then sits far below its
+    // ps-spaced neighbour, a near-vertical wall one quad (≈ 3 cm) wide that the smooth shading normal (cmHG, unaware
+    // of the coarse grid) lights as if it were the gentle surrounding slope — a bright, jagged sliver next to the
+    // boot. Deep snow has the same root cause with the opposite symptom: the coarsely-spaced vertex can straddle a
+    // real print's deepest point and never sample it, so the drawn hole reads shallower than the boot that made it
+    // (foot sinks below what is shown). Both are the same aliasing: point-sampling a grid coarser than the map.
+    // Fix: read the deepest texels in a small neighbourhood around the vertex (radius = half the vertex spacing, so
+    // every texel is seen by at least one of its two bracketing vertices) and average the two lowest, not just one.
+    // A single hard min still leaves the wall standing when the scar sits exactly ON a vertex's own texel (its
+    // neighbour's window never reaches it, so the two stay just as far apart as an unfiltered point-sample would);
+    // averaging the two deepest halves that particular case's height gap while a real, several-texel-wide print
+    // still has its second-deepest texel almost as deep as its deepest, so its measured depth barely changes — no
+    // extra resolution, no extra passes, a handful more taps in the vertex stage only (skipped at contactStep 1,
+    // where the geometry already matches the texels).
+    float cmHDeep(ivec2 t, int h){
+      if (h < 1) return cmH(t);
+      float m1 = cmH(t), m2 = 1e6;
+      #define CMH_TAP(o) { float v = cmH(t + (o)); if (v < m1) { m2 = m1; m1 = v; } else if (v < m2) m2 = v; }
+      CMH_TAP(ivec2(-h, -h)) CMH_TAP(ivec2(h, -h)) CMH_TAP(ivec2(-h, h)) CMH_TAP(ivec2(h, h))
+      CMH_TAP(ivec2(-h, 0)) CMH_TAP(ivec2(h, 0)) CMH_TAP(ivec2(0, -h)) CMH_TAP(ivec2(0, h))
+      #undef CMH_TAP
+      return (m1 + m2) * .5;
+    }
     // height (x) + gradient (yz) of the drawn surface at a world point: central differences at the 4 surrounding texels,
     // blended bilinearly (C0-continuous normal, no faceting at texel scale)
     vec3 cmHG(vec2 p){
@@ -212,7 +238,7 @@
     ivec2 tc = ivec2(uPt.xy) + pg * ps;
     float ce = uCM.z / uCM.w, cst = float(ps) * ce;
     vec2 trP = uCM.xy - uCM.z * .5 + (vec2(tc) + .5) * ce;
-    float trH = cmH(tc);
+    float trH = cmHDeep(tc, ps / 2);
     // SNOW-PRINTS2: the vertex normal (it picks the ground layers: snow / rock / cliff by steepness) is the UNDISTURBED
     // snow's. It was the pressed surface's: a print wall steeper than ≈ 45° turned into the cliff / rock layer inside the
     // patch only — a pale, jagged, rock-textured sheet in the boot's print (the "shard"). The pressed shape still shades
