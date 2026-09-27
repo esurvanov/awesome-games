@@ -93,6 +93,8 @@ Tests (Node + Playwright):
 | | |
 |---|---|
 | `node sim-queue.js` | the queue day by day against the research numbers, wait time, step speed |
+| `node invariants.js` | engine invariants: driving gates the car (no jumping/ending the game without a driver), walking costs time proportional to the game clock (not frame rate or pause), save/load rebuilds sellers and the queue lane exactly |
+| `node reachability.js` | "role window" test: plays the single role across many seeds × choice policies, records its real (km, day, hour) trajectory and everything that actually fired, then checks every event/phone message/rumour/calendar rule's declared `when` window against that trajectory — fails on rules never entered, rumour reveals never seen after being learned, or events whose window never overlaps the role's reach at all; writes `reachability-report.{json,md}` |
 | `node smoke.js` | no errors over a server and `file://`; walking, menus, car, map, shop, phone, save; voices and talk with a fake OpenAI |
 | `node perf.js` | slowed CPU: laptop and phone, first person, in the car, at night, map |
 | `node shots.js` | screenshots as PNG into `docs/screenshots/` (`ANGLE=swiftshader` for a software GPU) |

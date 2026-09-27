@@ -35,6 +35,7 @@ function check(c, w, ctx = {}) {
   if (c.kpp && !inRange(w.playerKpp() / 1000, c.kpp)) return 'не здесь';
   if (c.near && !w.isNear(c.near)) return 'далеко';
   if (c.inCar != null && !!p.inCar !== c.inCar) return c.inCar ? 'не в машине' : 'в машине';
+  if (c.signal != null && !!w.signal() !== c.signal) return 'нет сети';
   if (c.weather && !arr(c.weather).includes(w.env.weather())) return 'погода';
   if (c.night != null && w.env.night() !== c.night) return c.night ? 'днём' : 'ночью';
   if (c.trust) for (const k in c.trust) if (!cmp(c.trust[k], w.trustOf(k === 'npc' ? ctx.npc : k))) return 'мало доверия';
@@ -78,7 +79,10 @@ function apply(fx, w, ctx = {}) {
   if (fx.money) for (const k in fx.money) { const v = fx.money[k]; if (!v) continue; w.addMoney(k, v); chip(k === 'usd' ? 'dollar' : k === 'rub_card' ? 'card' : 'cash', (v > 0 ? '+' : '−') + fmtMoney(Math.abs(v), k), v > 0 ? 1 : -1); }
   if (fx.needs) for (const k in fx.needs) { const v = fx.needs[k]; if (!v) continue; w.addNeed(k, v); chip(NEED_ICON[k], (v > 0 ? '+' : '−') + Math.abs(v), v > 0 ? 1 : -1); }
   if (fx.items) for (const k in fx.items) { const v = fx.items[k]; if (!v) continue; w.addItem(k, v); const g = w.econ.goods.get(k); chip(g?.icon || 'bag', (v > 0 ? '+' : '−') + Math.abs(v) + ' ' + (g?.name || k).toLowerCase(), v > 0 ? 1 : -1); }
-  if (fx.fuel) { const c = w.playerCar(); if (c) { c.fuel = Math.max(0, Math.min(w.role.car?.tank || 60, c.fuel + fx.fuel)); chip('fuel', (fx.fuel > 0 ? '+' : '−') + Math.abs(fx.fuel) + ' л', fx.fuel > 0 ? 1 : -1); } }
+  if (fx.fuel) {
+    if (w.playerDrives()) { const c = w.playerCar(); if (c) { c.fuel = Math.max(0, Math.min(w.role.car?.tank || 60, c.fuel + fx.fuel)); chip('fuel', (fx.fuel > 0 ? '+' : '−') + Math.abs(fx.fuel) + ' л', fx.fuel > 0 ? 1 : -1); } }
+    else chip('alert', 'тебя нет в машине', -1);
+  }
   if (fx.trust) for (const k in fx.trust) {
     const id = k === 'npc' || k === 'target' ? ctx.npc : k; if (!id) continue;
     const v = fx.trust[k]; w.addTrust(id, v);
@@ -86,9 +90,21 @@ function apply(fx, w, ctx = {}) {
   }
   if (fx.flag) for (const k in fx.flag) p.flags[k] = fx.flag[k];
   if (fx.rumour && !p.knows.has(fx.rumour)) { w.learn(fx.rumour); chip('ear', 'слух', 0); }
-  if (fx.places) { const n = w.shiftPlaces(fx.places); if (n) chip('car', (n > 0 ? '+' : '−') + Math.abs(n) + ' место', n > 0 ? 1 : -1); }
-  if (fx.advance) { const km = w.advance(fx.advance); chip('arrowUp', '+' + km.toFixed(1).replace('.', ',') + ' км', 1); }
-  if (fx.passenger) { const id = fx.passenger === 'npc' ? ctx.npc : fx.passenger; if (w.addPassenger(id || ctx.who)) chip('user', '+пассажир', 1); }
+  // машина двигается/принимает эффекты только с водителем внутри (playerDrives) — единый гейт (world.js);
+  // если игрок не за рулём (событие всё же пришло, напр. без when:{inCar:true} в контенте) — молча не
+  // применяем и честно объясняем чипом, вместо тихого действия «на пустую машину» (F4)
+  if (fx.places) {
+    if (w.playerDrives()) { const n = w.shiftPlaces(fx.places); if (n) chip('car', (n > 0 ? '+' : '−') + Math.abs(n) + ' место', n > 0 ? 1 : -1); }
+    else chip('alert', 'тебя нет в машине', -1);
+  }
+  if (fx.advance) {
+    if (w.playerDrives()) { const km = w.advance(fx.advance); chip('arrowUp', '+' + km.toFixed(1).replace('.', ',') + ' км', 1); }
+    else chip('alert', 'тебя нет в машине', -1);
+  }
+  if (fx.passenger) {
+    if (w.playerDrives()) { const id = fx.passenger === 'npc' ? ctx.npc : fx.passenger; if (w.addPassenger(id || ctx.who)) chip('user', '+пассажир', 1); }
+    else chip('alert', 'тебя нет в машине', -1);
+  }
   if (fx.msg) w.phoneMsg(fx.msg.chat, tpl(fx.msg.text, { ...vars, km: (w.playerKpp() / 1000).toFixed(1) }), 'me');
   if (fx.time) { w.skipTime(fx.time); chip('clock', fx.time + ' мин', 0); }
   if (fx.helped) { const s = tpl(fx.helped, vars); w.ledgerAdd('helped', s, ctx.icon); chip('heart', 'помог: ' + s, 1); }

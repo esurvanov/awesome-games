@@ -164,17 +164,15 @@ class FP {
     this.prompt();
     this.carMarker();
   }
-  // шаг с проверкой: препятствия, скалы (крутой подъём), Терек
+  // шаг с проверкой: препятствия (v.collide — машины, дома, лотки), затем «можно ли тут стоять» — одна
+  // проверка на реку/мосты/склоны/КПП/хвост (road.walkable), общая с авто-подходом и кликом по карте
+  // (audit 3-spatial.md, причина 1). Если игрок уже стоит не там (ловушка — finding 9), не блокируем шаг: даём
+  // уйти в любую сторону, а гейт снова включается, как только текущая точка опять проходима.
   moveTo(nx, nz) {
-    const w = this.G.w, p = w.player, v = this.v, T = v.T;
+    const w = this.G.w, p = w.player, v = this.v, road = w.road;
     let [x, z] = v.collide(nx, nz, R);
-    const g0 = T.ground(p.x, p.y, v.sCam), h0 = g0.h, g1 = T.ground(x, z, v.sCam);
-    const riv = T.RIV[g1.i] + T.DEV[g1.i], inRiver = Math.abs(g1.o - riv) < 11;
-    const tooSteep = g1.h - h0 > 0.9 * Math.max(0.3, Math.hypot(x - p.x, z - p.y)) + 0.25 && g1.kind === 3;
-    if (inRiver || tooSteep || g1.h - T.E[g1.i] > 40) { // скользим вдоль: пробуем по осям
-      const a = T.ground(x, p.y, v.sCam), b = T.ground(p.x, z, v.sCam);
-      const ok = gg => Math.abs(gg.o - (T.RIV[gg.i] + T.DEV[gg.i])) >= 11 && !(gg.h - h0 > 0.6 && gg.kind === 3) && gg.h - T.E[gg.i] <= 40;
-      if (ok(a)) z = p.y; else if (ok(b)) x = p.x; else { x = p.x; z = p.y; }
+    if (road.walkable(p.x, p.y) && !road.walkable(x, z)) { // скользим вдоль осей — как раньше
+      if (road.walkable(x, p.y)) z = p.y; else if (road.walkable(p.x, z)) x = p.x; else { x = p.x; z = p.y; }
     }
     p.x = x; p.y = z;
   }

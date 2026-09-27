@@ -68,7 +68,7 @@ class World {
     const car = Q.spawnCar(null, { model: this.C.CARS.models.findIndex(m => m.name === r.car.model), colorHex: r.car.color, n: 1, seats: r.car.seats });
     car.pl = 1; car.fuel = r.car.fuel; car.hu = car.th = car.wa = car.ne = 50;
     this.player = {
-      carId: car.id, inCar: true, x: 0, y: 0, tx: null, ty: null, then: null, sleeping: false,
+      carId: car.id, inCar: true, x: 0, y: 0, tx: null, ty: null, then: null, goal: null, sleeping: false,
       needs: { ...r.needs }, money: { ...r.money }, items: { ...r.items }, charges: {},
       flags: {}, knows: new Set(), passengers: [], startT: this.clock.t, startAhead: Q.ahead(car), startKm: car.s / 1000,
     };
@@ -81,7 +81,10 @@ class World {
         // занять машину рядом с игроком: n впереди (−) / позади (+) в той же полосе
         const same = Q.cars.filter(c => c.lane === car.lane), i = same.indexOf(car), j = clamp(i - p.place.car, 0, same.length - 1);
         let host = same[j];
-        if (host === car) { host = Q.spawnCar(car.s + Q.spacing * (p.place.car < 0 ? 1 : -1) * Math.abs(p.place.car), { lane: car.lane }); }
+        // слот уже занят игроком или другим именным NPC (не хватило машин позади в этой полосе — finding 8:
+        // Гена и Оля садились в одну машину, последний вызов «переписывал» её на себя) — своя новая машина,
+        // как и в случае host === car чуть ниже
+        if (host === car || host.npc) { host = Q.spawnCar(car.s + Q.spacing * (p.place.car < 0 ? 1 : -1) * Math.abs(p.place.car), { lane: car.lane }); }
         host.npc = p.id; if (p.car) { host.mi = Math.max(0, this.C.CARS.models.findIndex(m => m.name === p.car.model)); host.color = p.car.color; host.seats = p.car.seats; }
         st.carId = host.id;
       } else if (p.kind === 'walker') {
@@ -151,10 +154,13 @@ class World {
     const busy = this.busy && this.busy();
     const e = this.dir.tick(this.clock.t, busy);
     if (e) this.bus.emit('event', this.prepareEvent(e));
-    // КПП: машина игрока у шлагбаума держится, пока не пройден последний разговор
-    if (this.pcar) this.pcar.hold = this.pcar.s < 200 && !this.dir.fired['dog_question'] ? 1 : 0;
+    this.syncGateHold();
     if (this.clock.over && !this.ended) this.end({ id: 'time', title: 'Календарь кончился', icon: 'clock' });
   }
+  // КПП: машина игрока у шлагбаума держится, пока не пройден последний разговор (dog_question).
+  // Вызывается и раз в минуту, и сразу после advance()/jump() — иначе объезд, приземливший машину
+  // у шлагбаума между двумя minuteTick, успевает проехать КПП до того, как сцена получит шанс сработать.
+  syncGateHold() { if (this.pcar) this.pcar.hold = this.pcar.s < 200 && !this.dir.fired['dog_question'] ? 1 : 0; }
   hourTick() {
     const Q = this.queue;
     this.stats.hist.push([Math.round(this.clock.t), Q.cars.length, Q.people, Math.round(Q.tailS), Q.passed.cars]);
@@ -163,12 +169,19 @@ class World {
 
   // ─────────── игрок ───────────
   playerCar() { return this.pcar && this.queue.cars.includes(this.pcar) ? this.pcar : null; }
+  // единственная проверка «за рулём» — всё, что двигает/использует машину, идёт через неё
+  playerDrives() { return !!(this.player && this.player.inCar && this.pcar); }
   syncPlayerPos() {
     const p = this.player; if (!p) return;
     if (p.inCar && this.pcar) { const q = this.road.at(this.pcar.s, LANE_OFF[this.pcar.lane]); p.x = q.x; p.y = q.y; }
   }
   playerS() { return this.player.inCar && this.pcar ? this.pcar.s : this.road.project(this.player.x, this.player.y).s; }
-  playerKpp() { return this.pcar ? Math.max(0, this.pcar.s - this.queue.gateS) : 0; }
+  // км до КПП — по телу, не по машине (F10 / audit content-graph 6): «рядом», связь и продавцы уже
+  // считались по playerS() (body), а when.kpp/{km} до этой правки — по pcar.s (car), так что события
+  // «по км до КПП» срабатывали у чужой машины, а не там, где реально стоит игрок, стоит он пешком
+  // рядом с продавцом в стороне от дороги. playerS() сама уже возвращает pcar.s, когда игрок в машине,
+  // так что для водителя поведение не меняется — меняется только пешеход.
+  playerKpp() { return this.player ? Math.max(0, this.playerS() - this.queue.gateS) : 0; }
   stepPlayer(dt, prevS) {
     const p = this.player, N = this.T.needs, h = dt / 3600, car = this.pcar, env = this.env, n = p.needs;
     n.hunger -= N.hunger * h; n.thirst -= N.thirst * h;
@@ -192,30 +205,88 @@ class World {
     n.nerves += (N.nervesBase + mood - low * N.nervesLow) * h + (car ? Math.max(0, prevS - car.s) / 1000 * 3 : 0);
     for (const k in n) n[k] = clamp(n[k], 0, 100);
     if (p.sleeping && (n.sleep >= 99)) this.wake('Выспался');
-    if (!p.sleeping && n.sleep <= 0) { p.sleeping = true; this.bus.emit('toast', { icon: 'moon', text: 'Уснул сам', tone: -1 }); }
-    // машина без водителя стоит
-    if (car) {
-      const d = Math.hypot(p.x - this.road.at(car.s, LANE_OFF[car.lane]).x, p.y - this.road.at(car.s, LANE_OFF[car.lane]).y);
-      car.stall = !p.inCar && d > this.T.player.leaveCar ? 1 : 0;
-      car.eng = p.flags.engine ? 1 : 0;
-    }
+    // засыпаешь сам — где стоишь; чтобы не «идти во сне», отменяем текущую цель ходьбы
+    if (!p.sleeping && n.sleep <= 0) { p.sleeping = true; p.tx = p.ty = null; p.path = null; p.then = null; p.goal = null; this.bus.emit('toast', { icon: 'moon', text: 'Уснул сам', tone: -1 }); }
+    // машина без водителя стоит — единственное условие: водитель не за рулём (playerDrives), без порога по расстоянию
+    if (car) { car.stall = this.playerDrives() ? 0 : 1; car.eng = p.flags.engine ? 1 : 0; }
     this.syncPlayerPos();
+    this.stepWalkers(dt);
     // пассажиры тратят и твои силы: их нужды — поверх (упрощённо: чуть тревожнее и теплее)
   }
+  // пешие именные (Кирилл, Сослан) держатся рядом с игроком — приближение к «своей» точке у машины, раз
+  // за игровой шаг (step), а не за каждый вызов npcPos() (тот читался и картой, и 3D, и разными игровыми
+  // проверками — раньше сдвиг на 2% случался ПРИ КАЖДОМ таком вызове, и итоговое положение зависело от
+  // числа кадров/вызовов в секунду: карта и 3D расходились на глазах — finding 19). Теперь npcPos() —
+  // чистое чтение, а тут одно детерминированное обновление на игровое dt, общее для всех потребителей.
+  stepWalkers(dt) {
+    if (!this.pcar) return;
+    for (const p of this.C.PEOPLE) {
+      if (p.kind !== 'walker') continue;
+      const st = this.npcs[p.id]; if (!st) continue;
+      const target = this.pcar.s + st.home;
+      st.s += (target - st.s) * (1 - Math.exp(-dt / 12));
+    }
+  }
   wake(why) { if (!this.player.sleeping) return; this.player.sleeping = false; this.bus.emit('toast', { icon: 'sun', text: why, tone: 1 }); }
-  // игрок идёт пешком (вызывает рендер-кадр с реальным dt)
+  // «колёса» игрока (content-graph 2.10): раньше велосипед/самокат ничего не давали хозяину, только
+  // безымянным пешеходам в очереди (queue.js). Тут — тот же дух: быстрее пешком вне машины
+  playerSpeedMul() {
+    const it = this.player && this.player.items; if (!it) return 1;
+    if (it.scooter > 0) return 2.0;
+    if (it.bike > 0) return 1.6;
+    return 1;
+  }
+  // игрок идёт пешком (вызывает рендер-кадр с dt, уже пересчитанным в игровое время — см. main.js frame())
+  // p.path — остаток маршрута (waypoints) для длинной ходьбы вдоль дороги (walkPathTo, finding 11):
+  // дошли до p.tx/ty — берём следующую точку пути, а не сразу финиш/колбэк.
   frame(dtReal) {
     const p = this.player; if (!p || p.tx == null) return;
-    const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy), v = this.T.player.walk * dtReal;
-    if (d <= v) { p.x = p.tx; p.y = p.ty; p.tx = p.ty = null; const f = p.then; p.then = null; if (f) f(); }
-    else { p.x += dx / d * v; p.y += dy / d * v; }
+    const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy), v = this.T.player.walk * dtReal * this.playerSpeedMul();
+    if (d <= v) {
+      p.x = p.tx; p.y = p.ty;
+      if (p.path && p.path.length) { const n = p.path.shift(); p.tx = n.x; p.ty = n.y; return; }
+      p.tx = p.ty = null; p.path = null;
+      const f = p.then; p.then = null; if (f) f();
+      // цель ходьбы вместо колбэка — переживает сохранение/загрузку (js/JSON не хранит функции)
+      if (p.goal && p.goal.type === 'car') { p.goal = null; this.enterCar(); }
+      else if (p.goal) p.goal = null;
+    } else { p.x += dx / d * v; p.y += dy / d * v; }
   }
+  // then — колбэк только для мгновенных, не сохраняемых UI-жестов (напр. «дошёл — открой меню снова»);
+  // всё, что должно пережить save/load (напр. «дошёл до машины — сесть»), идёт через p.goal (see frame()).
   walkTo(x, y, then = null) {
     const p = this.player; if (p.sleeping) this.wake('Проснулся');
     if (p.inCar) { p.inCar = false; this.syncPlayerPos(); const q = this.road.at(this.pcar.s, LANE_OFF[this.pcar.lane] + (this.pcar.lane ? 3 : -3)); p.x = q.x; p.y = q.y; }
-    p.tx = x; p.ty = y; p.then = then;
+    p.path = null; p.tx = x; p.ty = y; p.then = then; p.goal = null;
   }
-  enterCar() { const p = this.player; if (!this.pcar) return; p.tx = p.ty = null; p.inCar = true; this.syncPlayerPos(); }
+  // как walkTo, но идёт вдоль оси дороги (road.at(s, off) — как ездят машины), а не по прямой через реку и
+  // склоны (finding 11: раньше «К машине» после объезда на несколько км шло напролом через Терек и скалы).
+  roadPath(x0, y0, x1, y1) {
+    const r = this.road, a = r.project(x0, y0), b = r.project(x1, y1);
+    const STEP_S = 60, ds = b.s - a.s, n = Math.max(1, Math.ceil(Math.abs(ds) / STEP_S)), out = [];
+    for (let i = 1; i <= n; i++) {
+      const t = i / n, s = clamp(a.s + ds * t, 0, r.len), off = a.off + (b.off - a.off) * t;
+      const q = r.at(s, off); out.push({ x: q.x, y: q.y });
+    }
+    out.push({ x: x1, y: y1 }); // точная конечная точка (дверь машины могла быть чуть вне оси)
+    return out;
+  }
+  walkPathTo(x, y, then = null) {
+    const p = this.player; if (p.sleeping) this.wake('Проснулся');
+    if (p.inCar) { p.inCar = false; this.syncPlayerPos(); const q = this.road.at(this.pcar.s, LANE_OFF[this.pcar.lane] + (this.pcar.lane ? 3 : -3)); p.x = q.x; p.y = q.y; }
+    p.then = then; p.goal = null;
+    const path = this.roadPath(p.x, p.y, x, y);
+    const n0 = path.shift();
+    p.tx = n0.x; p.ty = n0.y; p.path = path.length ? path : null;
+  }
+  // как walkTo, но цель — «дойти до своей машины и сесть»; переживает save/load (p.goal, не колбэк);
+  // идёт вдоль дороги (walkPathTo), не по прямой — машина могла уехать далеко (объезд, эскорт)
+  walkToCar() {
+    const p = this.player, car = this.pcar; if (!car) return;
+    const q = this.road.at(car.s, LANE_OFF[car.lane]);
+    this.walkPathTo(q.x, q.y); p.goal = { type: 'car' };
+  }
+  enterCar() { const p = this.player; if (!this.pcar) return; p.tx = p.ty = null; p.path = null; p.goal = null; p.inCar = true; this.syncPlayerPos(); }
   addNeed(k, v) { const n = this.player.needs; n[k] = clamp(n[k] + v, 0, 100); }
   addMoney(k, v) { const m = this.player.money; m[k] = Math.max(0, (m[k] || 0) + v); if (v < 0) this.ledger.spent[k] += -v; else this.ledger.earned[k] += v; }
   addItem(k, v) {
@@ -228,22 +299,39 @@ class World {
   learn(id) {
     const p = this.player; if (p.knows.has(id)) return false;
     p.knows.add(id); const r = this.rum.byId.get(id);
-    if (r) this.bus.emit('rumour:learn', r);
+    if (r) {
+      this.bus.emit('rumour:learn', r);
+      // разоблачение — событие «на шине», разовое, в момент r.revealed: true (rumours.js step()); если
+      // это произошло РАНЬШЕ, чем игрок вообще узнал слух (даже раньше, чем появилась роль — audit
+      // content-graph 1.2/3.7, r_noon_close: revealAt 22.09, роль стартует 25.09), onReveal() тогда
+      // не находит игрока/знания и тихо ничего не шлёт — разоблачение теряется навсегда для всех, кто
+      // узнал слух позже. Раз мы узнаём слух уже после разоблачения — досылаем его сейчас, один раз
+      // (onReveal() сам не шлёт повторно: если игрок уже знал слух к моменту живого reveal, тот случай
+      // обработан там; эта ветка — ровно дополняющий случай «узнал позже»).
+      if (r.revealed) this.onReveal(r);
+    }
     return true;
   }
+  // все три ниже двигают/наполняют машину — гейт playerDrives() и здесь (не только в apply()),
+  // чтобы никакой другой вызывающий код (напр. действия swapAhead/letAhead) не обошёл проверку
   shiftPlaces(n) {
-    const car = this.pcar; if (!car) return 0;
+    const car = this.pcar; if (!car || !this.playerDrives()) return 0;
     const k = this.queue.shift(car, n);
     if (n < 0) this.ledger.placesGiven += -k; else this.ledger.placesGained += k;
     return n < 0 ? -Math.abs(k) : Math.abs(k);
   }
-  advance(km) { const car = this.pcar; if (!car) return 0; const s0 = car.s; this.queue.jump(car, km); this.ledger.placesGained += 0; return (s0 - car.s) / 1000; }
+  advance(km) {
+    const car = this.pcar; if (!car || !this.playerDrives()) return 0;
+    const s0 = car.s; this.queue.jump(car, km); this.ledger.placesGained += 0;
+    this.syncGateHold(); // объезд мог посадить машину у самого шлагбаума — не дать сцене КПП пропасть
+    return (s0 - car.s) / 1000;
+  }
   skipTime(min) {
     const steps = Math.round(min * 60 / this.T.time.step);
     for (let i = 0; i < steps && !this.ended; i++) this.step(this.T.time.step);
   }
   addPassenger(who) {
-    const p = this.player, car = this.pcar; if (!car || p.passengers.length >= car.seats - 1) return false;
+    const p = this.player, car = this.pcar; if (!car || !this.playerDrives() || p.passengers.length >= car.seats - 1) return false;
     let entry;
     if (typeof who === 'string' && this.npcs[who]) { this.npcs[who].passenger = true; entry = { id: who, name: this.nameOf(who), icon: this.npcDefs.get(who).icon }; }
     else if (who && who.ped) { const i = this.queue.peds.indexOf(who.ped); if (i >= 0) this.queue.peds.splice(i, 1); entry = { id: who.key, name: who.name, icon: 'user' }; }
@@ -281,11 +369,9 @@ class World {
     if (st.passenger) return this.pcar ? this.road.at(this.pcar.s, LANE_OFF[this.pcar.lane]) : null;
     if (d.kind === 'seller') { const s = this.econ.sellers.find(o => o.npc === id); return s ? { x: s.x, y: s.y, s: s.s } : null; }
     if (d.kind === 'driver') { const c = this.npcCar(id); return c ? { ...this.road.at(c.s, LANE_OFF[c.lane]), s: c.s } : null; }
-    if (d.kind === 'walker') {
-      // пешие держатся рядом с игроком, пока он в очереди
-      if (this.pcar) { st.s += (this.pcar.s + st.home - st.s) * 0.02; }
-      return { ...this.road.at(st.s, st.lat), s: st.s };
-    }
+    // пешие держатся рядом с игроком, пока он в очереди — само приближение st.s → цель считает stepWalkers()
+    // (раз на игровой шаг), тут только чтение, без побочных эффектов (иначе карта и 3D расходятся — finding 19)
+    if (d.kind === 'walker') return { ...this.road.at(st.s, st.lat), s: st.s };
     return null;
   }
   // случайный незнакомец рядом (для npc: 'near')
@@ -304,6 +390,31 @@ class World {
     if (kind === 'place') { const pl = this.C.ROUTE.places.find(x => x.id === id); return pl ? Math.abs(this.playerS() - pl.s * 1000) < 450 : false; }
     if (kind === 'npc') { const q = this.npcPos(id); return q ? Math.hypot(q.x - p.x, q.y - p.y) < R && this.npcPresent(id) : false; }
     return false;
+  }
+  // все, кого можно выбрать целью рядом с точкой (x, y) — продавцы, именные, пешие, безымянные в машинах;
+  // по расстоянию, без лимита прорисовки. Рендер (view3d/view) сам решает, кого рисовать (LOD, производительность),
+  // но выбор цели для прицела/E/тапа не должен зависеть от того, что рендер решил не рисовать в этом кадре
+  // (finding 7: у КПП пешие съедали весь лимит людей, и продавец с видимым лотком не ловился прицелом).
+  peopleNear(x, y, R = 30) {
+    const out = [];
+    const add = (tg, qx, qy) => { const d = Math.hypot(qx - x, qy - y); if (d <= R) out.push({ tg, d }); };
+    for (const o of this.econ.sellers) if (this.econ.active(o)) add({ kind: 'seller', seller: o, npc: o.npc }, o.x, o.y);
+    for (const q of this.queue.peds) { const p = this.road.at(q.s, q.lat); add({ kind: 'person', ped: q, who: this.pedPerson(q) }, p.x, p.y); }
+    for (const id in this.npcs) {
+      const d = this.npcDefs.get(id); if (!d || !this.npcPresent(id) || this.npcs[id].passenger) continue;
+      const q = this.npcPos(id); if (!q) continue;
+      const kind = d.kind === 'seller' ? 'seller' : d.kind === 'driver' ? 'car' : 'person';
+      const tg = { kind, npc: id }; if (kind === 'seller') tg.seller = this.econ.sellers.find(o => o.npc === id); if (kind === 'car') tg.car = this.npcCar(id);
+      add(tg, q.x, q.y);
+    }
+    const near = this.road.project(x, y), cars = this.queue.cars;
+    for (let i = this.queue.lowerBound(near.s - R); i < cars.length && cars[i].s <= near.s + R; i++) {
+      const c = cars[i]; if (c.pl || c.npc) continue;
+      const q = this.road.at(c.s, LANE_OFF[c.lane]);
+      for (let k = 0; k < Math.min(2, c.n); k++) add({ kind: 'person', who: this.person(c.id, k + 1), car: c }, q.x, q.y);
+    }
+    out.sort((a, b) => a.d - b.d);
+    return out;
   }
 
   // ─────────── события ───────────
@@ -358,11 +469,14 @@ class World {
     return '';
   }
   targetPos(tg) {
+    // tg.pos — фактическое положение (напр. из view3d: где человек реально нарисован сейчас, если он
+    // отошёл от своей машины погулять) — приоритетнее домысленного «у машины». Без этого дистанция до
+    // гуляющего считалась от машины, а не от него самого, и E не срабатывал рядом с человеком (finding 13)
+    if (tg.pos) return tg.pos;
     if (tg.seller) return { x: tg.seller.x, y: tg.seller.y };
     if (tg.car) return this.road.at(tg.car.s, LANE_OFF[tg.car.lane] + (tg.car.lane ? 2.6 : -2.6));
     if (tg.npc && this.npcDefs.has(tg.npc)) return this.npcPos(tg.npc);
     if (tg.ped) return this.road.at(tg.ped.s, tg.ped.lat);
-    if (tg.pos) return tg.pos;
     return null;
   }
   inReach(tg) {
@@ -378,9 +492,11 @@ class World {
     const ctx = { npc: tg.npc, who: tg.who, vars: { name: tg.who?.name || this.nameOf(tg.npc) }, icon: a.icon };
     const say = t => res.out = t;
     switch (a.op) {
-      case 'shop': res.ui = { kind: 'shop', seller: tg.seller, only: a.arg || null }; return res;
-      case 'exchange': res.ui = { kind: 'exchange', seller: tg.seller }; return res;
-      case 'give': res.ui = { kind: 'give', tg }; return res;
+      // time у shop/exchange/give — это время самой сделки (F15): открытие окна ничего не стоит,
+      // а каждая покупка/обмен/«дать» списывает его в момент завершения — см. js/ui/bag.js
+      case 'shop': res.ui = { kind: 'shop', seller: tg.seller, only: a.arg || null, time: a.time }; return res;
+      case 'exchange': res.ui = { kind: 'exchange', seller: tg.seller, time: a.time }; return res;
+      case 'give': res.ui = { kind: 'give', tg, time: a.time }; return res;
       case 'phone': res.ui = { kind: 'phone' }; return res;
       case 'backpack': res.ui = { kind: 'bag' }; return res;
       case 'freeTalk': res.ui = { kind: 'talk', tg }; return res;
@@ -388,9 +504,13 @@ class World {
         const d = tg.npc && this.npcDefs.get(tg.npc), tr = this.trustOf(tg.npc);
         if (d) { const L = d.lines; const pool = tr < 0 ? L.low : tr >= 30 && L.high ? L.high : L.hi; say('«' + R.pick(pool) + '»'); }
         else if (tg.who) say(`«Я ${tg.who.job}. ${R.pick(['Третьи сутки тут.', 'Жена ждёт в Тбилиси.', 'Главное — не глушить мотор.', 'Ничего, прорвёмся.', 'Кто бы знал, что так будет.'])}»`);
-        this.addTrust(tg.npc, 3); chips.push({ icon: 'handshake', text: (this.nameOf(tg.npc) || '') + ' +3', tone: 1 });
-        this.addNeed('nerves', 3); chips.push({ icon: 'heart', text: '+3', tone: 1 });
-        if (R.chance(0.35)) this.hearFrom(tg, chips);
+        // отдача от разговора падает, если только что говорили с тем же человеком (F9: раньше было бесплатно и без предела)
+        const talkKey = 'talkT:' + (tg.npc || tg.who?.key || 'x'), lastTalk = p.flags[talkKey] || -1e9, fresh = this.clock.t - lastTalk >= this.T.player.talkCooldown;
+        p.flags[talkKey] = this.clock.t;
+        const trustV = fresh ? 3 : 0, nervesV = fresh ? 3 : 1;
+        if (trustV) { this.addTrust(tg.npc, trustV); chips.push({ icon: 'handshake', text: (this.nameOf(tg.npc) || '') + ' +' + trustV, tone: 1 }); }
+        this.addNeed('nerves', nervesV); chips.push({ icon: 'heart', text: '+' + nervesV, tone: 1 });
+        if (fresh && R.chance(0.35)) this.hearFrom(tg, chips);
         break;
       }
       case 'news': if (!this.hearFrom(tg, chips)) say('«Ничего нового. Стоим»'); break;
@@ -423,9 +543,9 @@ class World {
       case 'honk': this.addTrust(tg.npc, -6); this.addNeed('nerves', 2); chips.push({ icon: 'handshake', text: '−6', tone: -1 }); say('Сзади ответили тем же'); break;
       case 'sleep': p.sleeping = true; say('Глаза закрываются'); break;
       case 'engine': p.flags.engine = a.arg; if (car) car.eng = a.arg; if (a.arg && car && car.fuel <= 0) { p.flags.engine = 0; say('Бензина нет'); } break;
-      case 'toCar': { const q = this.road.at(car.s, LANE_OFF[car.lane]); this.walkTo(q.x, q.y, () => this.enterCar()); res.walking = true; return res; }
-      case 'leaveCar': { const q = this.road.at(car.s, LANE_OFF[car.lane] + (car.lane ? 3.2 : -3.2)); p.inCar = false; p.x = q.x; p.y = q.y; break; }
-      case 'refuel': this.addItem('fuel', -1); car.fuel = Math.min(this.role.car.tank, car.fuel + 10); chips.push({ icon: 'fuel', text: '+10 л', tone: 1 }); break;
+      case 'toCar': { this.walkToCar(); res.walking = true; return res; }
+      case 'leaveCar': { if (p.sleeping) this.wake('Проснулся'); const q = this.road.at(car.s, LANE_OFF[car.lane] + (car.lane ? 3.2 : -3.2)); p.inCar = false; p.x = q.x; p.y = q.y; break; }
+      case 'refuel': if (!this.playerDrives()) { say('Ты не в машине'); break; } this.addItem('fuel', -1); car.fuel = Math.min(this.role.car.tank, car.fuel + 10); chips.push({ icon: 'fuel', text: '+10 л', tone: 1 }); break;
       case 'callHome': this.addNeed('charge', -6); this.addNeed('nerves', 9); chips.push({ icon: 'battery', text: '−6', tone: -1 }, { icon: 'heart', text: '+9', tone: 1 }); say('«Ты поел? Только честно»'); break;
       case 'rest': this.addNeed('nerves', 4); this.addNeed('sleep', 2); chips.push({ icon: 'heart', text: '+4', tone: 1 }); break;
     }
@@ -440,9 +560,11 @@ class World {
     this.learn(r.id); chips.push({ icon: r.icon, text: r.text, tone: 0, rumour: r.id });
     return true;
   }
-  // покупка у продавца
+  // покупка у продавца — сначала проверяем, что товар вообще есть (F7: раньше деньги/часовой лимит
+  // на бесплатное списывались, даже когда склад пуст и покупка всё равно срывалась «Кончилось»)
   buy(sel, goodId, opt) {
     const p = this.player, g = this.goods.get(goodId), rub = this.econ.price(sel, goodId, this.trustOf(sel.npc));
+    if ((sel.stock[goodId] ?? 0) < 1) return { chips: [], out: 'Кончилось' };
     if (opt.method !== 'free') {
       if ((p.money[opt.cur] || 0) < opt.amount) return null;
       this.addMoney(opt.cur, -opt.amount);
@@ -453,7 +575,6 @@ class World {
       if (this.clock.t - last < 3600) return { chips: [], out: 'Уже брал. Другим тоже нужно' };
       p.flags[key] = this.clock.t;
     }
-    if ((sel.stock[goodId] ?? 0) < 1) return { chips: [], out: 'Кончилось' };
     this.econ.sold(sel, goodId, 1, rub);
     const chips = [];
     if (opt.method !== 'free') chips.push({ icon: opt.cur === 'usd' ? 'dollar' : 'cash', text: '−' + (opt.cur === 'usd' ? '$' + opt.amount : opt.amount.toLocaleString('ru') + ' ₽'), tone: -1 });
@@ -536,7 +657,17 @@ class World {
   // ─────────── проход КПП и конец ───────────
   onPass(car) {
     if (car.pl && !this.ended) {
-      this.end({ id: 'car', title: 'Через КПП на своей машине', icon: 'car' });
+      if (this.playerDrives()) {
+        this.end({ id: 'car', title: 'Через КПП на своей машине', icon: 'car' });
+      } else {
+        // брошенная машина сама через КПП не проходит: возвращаем к шлагбауму, стоит стальная,
+        // задние объедут её как обычно (queue.js). Обычно сюда не попадаем вовсе — car.stall
+        // уже не даёт очереди выбрать её для прохода, это подстраховка на случай гонки за один шаг.
+        this.queue.passed.cars--; this.queue.passed.people -= car.n;
+        car.s = this.queue.gateS; car.stall = 1; car.mv = 0; car.hold = 0;
+        this.queue.insert(car);
+        return;
+      }
     }
     if (car.npc) this.npcs[car.npc] && (this.npcs[car.npc].passed = true);
   }
@@ -567,9 +698,11 @@ class World {
     return {
       v: 1, t: this.clock.t, rng: this.rng.s, role: this.role.id, stepN: this.stepN,
       q: { id: Q.nextId, acc: [Q.accCar, Q.accArr, Q.accPed, Q.accPedArr], passed: Q.passed, lost: Q.stallLost,
-        cars: Q.cars.map(c => [c.id, +c.s.toFixed(2), c.lane, c.mi, c.ci, c.n, c.seats, c.hu | 0, c.th | 0, c.wa | 0, c.ne | 0, +c.fuel.toFixed(1), c.eng, c.npc, c.pl, c.stall, c.reg, c.color, c.mv]),
+        cars: Q.cars.map(c => [c.id, +c.s.toFixed(2), c.lane, c.mi, c.ci, c.n, c.seats, c.hu | 0, c.th | 0, c.wa | 0, c.ne | 0, +c.fuel.toFixed(1), c.eng, c.npc, c.pl, c.stall, c.reg, c.color, c.mv, c.l2 | 0]),
         peds: Q.peds.map(q => [q.id, +q.s.toFixed(1), +q.lat.toFixed(1), q.st, q.bike]) },
-      sellers: this.econ.sellers.map(o => [o.id, o.stock, o.demand, o.sold, o.earned]),
+      // продавцы — целиком (не пересобираются из RNG на загрузке: та случайность уже сдвинута дальше);
+      // JSON-клон, чтобы сохранённый снимок не делил вложенные объекты (stock/demand/stock0) с живым миром
+      sellers: this.econ.sellers.map(o => JSON.parse(JSON.stringify(o))),
       rum: this.rum.save(), dir: this.dir.save(), rules: [...this.env.active],
       player: { ...p, knows: [...p.knows] }, npcs: this.npcs, trust: this.trustMap,
       phone: { ...this.phone, deliv: [...(this._deliv || [])] }, ledger: this.ledger, stats: this.stats, ended: this.ended, talks: this.talks,
@@ -579,12 +712,13 @@ class World {
     const w = new World(C, { seed: 1 });
     w.role = C.ROLES.find(r => r.id === o.role) || C.ROLES[0];
     w.clock.t = o.t; w.rng.s = o.rng; w.stepN = o.stepN;
-    w.econ.build();
+    // НЕ econ.build(): продавцы были собраны из RNG-потока в момент init(), задолго до сохранённого
+    // состояния случайности — пересборка на текущем rng.s даёт других продавцов (F6). Восстанавливаем
+    // сохранённый снимок продавцов напрямую — детерминизм не нужен, состояние уже записано целиком.
+    w.econ.sellers = o.sellers.map(s => JSON.parse(JSON.stringify(s)));
     const Q = w.queue; Q.nextId = o.q.id; [Q.accCar, Q.accArr, Q.accPed, Q.accPedArr] = o.q.acc; Q.passed = o.q.passed; Q.stallLost = o.q.lost;
-    Q.cars = o.q.cars.map(a => ({ id: a[0], s: a[1], lane: a[2], mi: a[3], ci: a[4], n: a[5], seats: a[6], hu: a[7], th: a[8], wa: a[9], ne: a[10], fuel: a[11], eng: a[12], npc: a[13], pl: a[14], stall: a[15], reg: a[16], color: a[17], mv: a[18] }));
+    Q.cars = o.q.cars.map(a => ({ id: a[0], s: a[1], lane: a[2], mi: a[3], ci: a[4], n: a[5], seats: a[6], hu: a[7], th: a[8], wa: a[9], ne: a[10], fuel: a[11], eng: a[12], npc: a[13], pl: a[14], stall: a[15], reg: a[16], color: a[17], mv: a[18], l2: a[19] | 0 }));
     Q.peds = o.q.peds.map(a => ({ id: a[0], s: a[1], lat: a[2], st: a[3], bike: a[4], ph: (a[0] * 0.77) % 6.28 }));
-    const byId = new Map(w.econ.sellers.map(s => [s.id, s]));
-    for (const [id, stock, demand, sold, earned] of o.sellers) { const s = byId.get(id); if (s) Object.assign(s, { stock, demand, sold, earned }); }
     w.rum.load(o.rum); w.dir.load(o.dir);
     w.env.active = new Set(o.rules); w.env._ruleT = w.clock.t;
     w.player = { ...o.player, knows: new Set(o.player.knows) };

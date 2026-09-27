@@ -94,7 +94,9 @@ const PEOPLE = [
       high: ['Я вам песню сыграю, хотите? Ночью.'],
     } },
   { id: 'vitalik', name: 'Виталик', age: 38, job: 'велосипеды оптом', icon: 'bike', kind: 'seller',
-    place: { s: 3.1, side: -1 }, from: '2022-09-24 10:00',
+    // s было 3.1 — совпадало с мостом на 3,096 км: лоток (в 11 м от оси) оказывался в русле Терека, на
+    // 2,8 м ниже дороги (audit 3-spatial.md #15). 3.3 — то же место по духу (у моста), но на сухом берегу
+    place: { s: 3.3, side: -1 }, from: '2022-09-24 10:00',
     good: ['закрыл дефицит', 'не врёт про размер'], bad: ['цена ×10', 'только наличные'],
     trust: -5, sells: ['bike', 'scooter', 'fuel', 'powerbank', 'raincoat'], priceMul: 1.1, accepts: ['cash_rub', 'cash_usd'],
     stock: { bike: 18, scooter: 10, fuel: 30, powerbank: 10, raincoat: 25 },

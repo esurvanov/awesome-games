@@ -545,6 +545,9 @@ class View3D {
   }
   // x, y, z — мир (double); в буфер — относительно камеры
   person(x, y, z, fx, fz, pose, ph, seed, tg = null, name = '', icon = 'user', o = {}) {
+    // фактическое положение на экране — targetPos()/inReach() должны мерить дистанцию от него, а не
+    // домысливать «у своей машины»: гуляющие пассажиры отходят от машины на десятки метров (finding 13)
+    if (tg) tg.pos = { x, y: z };
     const fb = this.dyn.ppl.fb, kid = o.kid ? 1 : 0, cam = this.cam;
     const coat = hex(o.coat || COATS[Math.floor(hash01(seed, 11) * COATS.length)]), pants = hex(PANTS[Math.floor(hash01(seed, 12) * PANTS.length)]);
     const hat = hash01(seed, 14) < (this.env.temp < 12 ? 0.55 : 0.2), hair = hex(hat ? ['#7a2f2f', '#2d4f82', '#333333', '#6f7446', '#c9b48a'][Math.floor(hash01(seed, 15) * 5)] : HAIR[Math.floor(hash01(seed, 13) * HAIR.length)]);
@@ -570,6 +573,26 @@ class View3D {
     const dtR = Math.min(0.1, Math.max(0, t - (this.pplT ?? t))); this.pplT = t;
     const hidden = (x, y, z) => Math.hypot(x - cam.x, z - cam.z) > 70 || this.visible(x, y + 1, z, 1.2) < 0;
     const X = { share: lerp(0.4, 0.17, smooth(0.3, 0.7, e.night)), cold, night, fast, t, dtR, hidden, pp };
+    // продавцы — раньше очереди из людей и без общего лимита на самого продавца (только на декоративную
+    // очередь покупателей у прилавка): у КПП пешие иначе съедают весь бюджет maxN первыми, и лоток остаётся
+    // видимым, но без продавца — прицел бьёт в пустоту (finding 7, 3-spatial.md причина 3)
+    for (const s of this.sellers) {
+      const o = s.o; if (!w.econ.active(o) || Math.hypot(s.x - cam.x, s.z - cam.z) > R * 1.6) continue;
+      const npc = o.npc && w.npcDefs.get(o.npc);
+      const bx = s.x - s.fx * 0.45, bz = s.z - s.fz * 0.45;
+      this.person(bx, s.g, bz, s.fx, s.fz, 6, o.s % 7, (o.s | 0) + 5, { kind: 'seller', seller: o, npc: o.npc }, npc ? npc.name : o.name, npc ? npc.icon : 'seller', { coat: npc ? (o.priceMul === 0 ? '#2d6fb3' : '#6b3b2a') : null });
+      if (this.stats.ppl < maxN) {
+        const n = Math.min(9, Math.round(((o.demand[o.goods[0]] || 1) - 1) * 12 + (o.priceMul === 0 ? 5 : 2)) - (night ? 1 : 0));
+        for (let k = 0; k < n; k++) {
+          const dist = 1.7 + k * 0.75, lat = (hash01(k, o.s | 0) - 0.5) * 1.6 + (k % 2 ? 0.4 : -0.4);
+          const x = s.x + s.fx * dist + (-s.fz) * lat, z = s.z + s.fz * dist + s.fx * lat, gg = this.T.ground(x, z, this.sCam).h;
+          const pose = k === 0 ? 5 : cold && night ? 4 : hash01(k, 3 + (o.s | 0)) < 0.4 ? 2 : 0;
+          const who = w.person(900000 + (o.s | 0) + k, 0);
+          this.person(x, gg, z, -s.fx, -s.fz, pose, k * 3.3, (o.s | 0) * 13 + k, { kind: 'person', who }, who.name, 'user');
+        }
+      }
+      if (e.night > 0.3) { this.dyn.glow.fb.push(s.lamp[0] - cam.x, s.lamp[1] - cam.y, s.lamp[2] - cam.z, 0.35, 1, 0.85, 0.55, 3.0); this.dyn.glow.fb.push(s.x - cam.x, s.g + 0.05 - cam.y, s.z - cam.z, 5, 1, 0.75, 0.45, 12); this.lightCand.push({ x: s.lamp[0], y: s.lamp[1], z: s.lamp[2], c: [1, 0.78, 0.45], r: 11, k: Math.hypot(s.x - cam.x, s.z - cam.z) / 11, i: 1.5 }); }
+    }
     // машины от камеры наружу: при лимите людей отпадают дальние, а не «те, что дальше по s»
     let lo = Q.lowerBound(camS) - 1, hi = lo + 1;
     while (this.stats.ppl < maxN) {
@@ -617,22 +640,6 @@ class View3D {
       const g = T.surf(wv.s, lat), sg = Math.sign(D) || 1;
       this.person(pp.x, g, pp.y, moving ? pp.ny * sg : -pp.nx, moving ? -pp.nx * sg : -pp.ny, moving ? 1 : 5, 3, id.length * 97, { kind: 'person', npc: id }, d.name, d.icon, { coat: '#3d6e8f' });
       if (d.id === 'soslan') this.dyn.scooter.fb.push(pp.x - pp.nx * 0.8 - cam.x, g - cam.y, pp.y - pp.ny * 0.8 - cam.z, 1, pp.ny, -pp.nx, 1.6, 1.6, 0.2, 0.2, 0.2, 0);
-    }
-    // продавцы и очередь к ним (стоят у лотка — лоток не двигается)
-    for (const s of this.sellers) {
-      const o = s.o; if (!w.econ.active(o) || Math.hypot(s.x - cam.x, s.z - cam.z) > R * 1.6 || this.stats.ppl >= maxN) continue;
-      const npc = o.npc && w.npcDefs.get(o.npc);
-      const bx = s.x - s.fx * 0.45, bz = s.z - s.fz * 0.45;
-      this.person(bx, s.g, bz, s.fx, s.fz, 6, o.s % 7, (o.s | 0) + 5, { kind: 'seller', seller: o, npc: o.npc }, npc ? npc.name : o.name, npc ? npc.icon : 'seller', { coat: npc ? (o.priceMul === 0 ? '#2d6fb3' : '#6b3b2a') : null });
-      const n = Math.min(9, Math.round(((o.demand[o.goods[0]] || 1) - 1) * 12 + (o.priceMul === 0 ? 5 : 2)) - (night ? 1 : 0));
-      for (let k = 0; k < n; k++) {
-        const dist = 1.7 + k * 0.75, lat = (hash01(k, o.s | 0) - 0.5) * 1.6 + (k % 2 ? 0.4 : -0.4);
-        const x = s.x + s.fx * dist + (-s.fz) * lat, z = s.z + s.fz * dist + s.fx * lat, gg = this.T.ground(x, z, this.sCam).h;
-        const pose = k === 0 ? 5 : cold && night ? 4 : hash01(k, 3 + (o.s | 0)) < 0.4 ? 2 : 0;
-        const who = w.person(900000 + (o.s | 0) + k, 0);
-        this.person(x, gg, z, -s.fx, -s.fz, pose, k * 3.3, (o.s | 0) * 13 + k, { kind: 'person', who }, who.name, 'user');
-      }
-      if (e.night > 0.3) { this.dyn.glow.fb.push(s.lamp[0] - cam.x, s.lamp[1] - cam.y, s.lamp[2] - cam.z, 0.35, 1, 0.85, 0.55, 3.0); this.dyn.glow.fb.push(s.x - cam.x, s.g + 0.05 - cam.y, s.z - cam.z, 5, 1, 0.75, 0.45, 12); this.lightCand.push({ x: s.lamp[0], y: s.lamp[1], z: s.lamp[2], c: [1, 0.78, 0.45], r: 11, k: Math.hypot(s.x - cam.x, s.z - cam.z) / 11, i: 1.5 }); }
     }
   }
   // люди одной машины. st.m: 0 — в машине, 1 — стоит, 2 — идёт к своей точке, 3 — идёт к двери (садится)

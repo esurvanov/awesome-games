@@ -9,7 +9,7 @@ const { Api } = L.use('ai/api');
 const { openKeyCard } = L.use('ui/onboard');
 
 class Menu {
-  constructor(game) { this.G = game; this.el = $('menu'); this.tg = null; this.res = null; }
+  constructor(game) { this.G = game; this.el = $('menu'); this.tg = null; this.res = null; this.touch = matchMedia('(pointer: coarse)').matches; }
   get open() { return !this.el.hidden; }
   show(tg, sx, sy) {
     this.tg = tg; this.res = null; this.at = [sx, sy];
@@ -18,6 +18,11 @@ class Menu {
     const W = innerWidth, H = innerHeight, r = this.el.getBoundingClientRect();
     const x = sx == null ? W / 2 - r.width / 2 : sx + 16, y = sy == null ? H / 2 - r.height / 2 : sy - r.height / 2;
     this.el.style.left = clamp(x, 8, W - r.width - 8) + 'px'; this.el.style.top = clamp(y, 8, H - r.height - 8) + 'px';
+    // тач: меню часто открывается тем же касанием, что и «Действие» (fp.js) — палец ещё не оторвался, и
+    // браузер после touchend посылает синтетический click в кнопку меню, оказавшуюся под пальцем (finding 6:
+    // тап у Лёхи открывал меню и сразу же бил по первой кнопке). Гейт — только на тач (coarse pointer): с
+    // мышью/пером клик сразу после открытия — обычное дело, не тот же жест, что открыл меню
+    this.guardUntil = this.touch ? performance.now() + 350 : 0;
   }
   hide() { this.el.hidden = true; this.tg = null; this.G.view.sel = null; }
   head(tg) {
@@ -64,7 +69,7 @@ class Menu {
     this.el.innerHTML = this.head(tg) + body;
     this.el.querySelector('[data-close]').onclick = () => this.hide();
     this.el.querySelector('[data-back]')?.addEventListener('click', () => { this.res = null; this.render(); });
-    this.el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => this.act(this.list[+b.dataset.a].a));
+    this.el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { if (performance.now() < this.guardUntil) return; this.act(this.list[+b.dataset.a].a); });
   }
   act(a) {
     const G = this.G, w = G.w, tg = this.tg;

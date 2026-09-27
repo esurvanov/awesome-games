@@ -33,12 +33,27 @@ const G = {
   speed: 1, pending: [], saveT: 0, ended: false, mode: 'map', view3: null, fp: null,
   // ─── время ───
   setSpeed(i) { this.speed = clamp(i, 0, T.time.scales.length - 1); },
+  // «одни часы»: раньше ходьба двигала игрока в РЕАЛЬНЫХ м/с независимо от множителя времени — 300 м стоили
+  // 0,7 игрового часа на ×1 и 11 ч на ×16 (те же реальные секунды ходьбы, но разное игровое время за них).
+  // Пока игрок реально идёт пешком (не за рулём), держим время как на ×1 — так стоимость шага в игровых
+  // часах не зависит от того, что было выставлено на спидометре, и не бывает бесплатной на паузе.
+  isWalking() {
+    const w = this.w; if (!w || !w.player || w.player.inCar) return false;
+    if (w.player.tx != null) return true; // идёт к точке (клик по карте, «В машину», меню)
+    if (this.mode === '3d' && this.input) {
+      const k = this.input.keys;
+      if (k.has('KeyW') || k.has('KeyA') || k.has('KeyS') || k.has('KeyD') || k.has('ArrowUp') || k.has('ArrowDown') || k.has('ArrowLeft') || k.has('ArrowRight')) return true;
+      if (this.fp && this.fp.stick && (Math.abs(this.fp.stick.x) > 0.05 || Math.abs(this.fp.stick.y) > 0.05)) return true;
+    }
+    return false;
+  },
   scale() {
     const w = this.w; if (!w || this.ended) return 0;
     const base = T.time.scales[this.speed];
-    if (!base) return 0;
     if (Modal.open || this.menu.open) return T.time.sceneScale;
     if (w.player.sleeping) return T.time.sleepScale;
+    if (this.isWalking()) return 1;
+    if (!base) return 0;
     return base;
   },
   // ─── окна ───
@@ -55,9 +70,9 @@ const G = {
   },
   openMenu(tg, sx, sy) { this.view.sel = tg.kind === 'self' || tg.kind === 'own' ? null : tg; this.menu.show(tg, sx, sy); },
   openUi(ui) {
-    if (ui.kind === 'shop') openShop(this, ui.seller, ui.only);
-    else if (ui.kind === 'exchange') openExchange(this, ui.seller);
-    else if (ui.kind === 'give') openGive(this, ui.tg);
+    if (ui.kind === 'shop') openShop(this, ui.seller, ui.only, null, ui.time);
+    else if (ui.kind === 'exchange') openExchange(this, ui.seller, null, ui.time);
+    else if (ui.kind === 'give') openGive(this, ui.tg, ui.time);
     else if (ui.kind === 'phone') this.openPhone();
     else if (ui.kind === 'bag') this.openBag();
     else if (ui.kind === 'talk') openTalk(this, ui.tg);
@@ -146,7 +161,13 @@ const G = {
     const tg = this.view.pick(sx, sy), w = this.w;
     if (tg.kind === 'ground') {
       this.menu.hide();
-      if (!w.player.inCar) { w.walkTo(tg.pos.x, tg.pos.y); this.input.follow = true; }
+      if (!w.player.inCar) {
+        // клик по карте — тоже через road.walkable(): не пускаем прямиком в реку/КПП насквозь/пустой хвост
+        // (finding 1, 9, 10, 16), а обрезаем до ближайшей проходимой точки на пути к клику
+        const q = w.road.walkableTarget(w.player.x, w.player.y, tg.pos.x, tg.pos.y);
+        if (q) { w.walkTo(q.x, q.y); this.input.follow = true; }
+        else this.toast({ icon: 'walk', text: 'Туда не пройти', tone: -1 });
+      }
       return;
     }
     this.openMenu(tg, sx, sy);

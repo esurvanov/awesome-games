@@ -7,6 +7,17 @@ L.def('sim/road', () => {
 const { clamp, lerp } = L.use('core');
 
 const STEP = 4; // м
+// «можно ли тут стоять» — единая проверка для ходьбы (fp.js), авто-подхода к машине (world.js) и клика по
+// карте (view.js/main.js): раньше каждый решал сам и не знал про мосты/КПП/хвост (audit 3-spatial.md, причина 1)
+const RIVER_HALF = 11;   // м: полуширина «в реке» от оси Терека (как было в fp.js)
+const CLIFF_PAD = 45;    // м: сколько ещё разрешено от края дна ущелья (GW/GE) вверх по склону/осыпи
+// половина длины мостового коридора вдоль дороги: больше видимого полотна scene.js (±26 м), чтобы у самого
+// въезда на мост (особенно на крайних полосах, ±5,4 м) не попасть в узкую необработанную полоску реки —
+// на самом мосту (по центру) разница не видна, а на подходе по обочине лишние метры реки — не крюк
+const BRIDGE_LEN = 40;
+const BRIDGE_HALF = 6;   // м: половина ширины мостового полотна поперёк (обе полосы + отбойники)
+const GATE_PAD = 20;     // м: за шлагбаумом КПП (s < −GATE_PAD) — уже Грузия, пешком не пройти (finding 10)
+const TAIL_PAD = 50;     // м: за концом дороги — пустое ущелье без земли (finding 16, 18)
 
 function catmull(p0, p1, p2, p3, t) {
   const t2 = t * t, t3 = t2 * t;
@@ -93,6 +104,15 @@ class Road {
       }
       this.chunks.push({ i0: i, i1: Math.min(n - 1, i + this.CH), x0, y0, x1, y1 });
     }
+    // 5) мосты: там, где ось Терека (RIV) пересекает дорогу (меняет знак) — та же логика, что строит
+    //    геометрию мостов в render/scene.js (buildBridges), на тех же данных (this.RIV) → одно место истины
+    this.bridges = [];
+    for (let i = 10; i < n - 10; i++) {
+      if (Math.sign(this.RIV[i]) === Math.sign(this.RIV[i + 1])) continue;
+      const s = i * STEP;
+      this.bridges.push({ s, s0: s - BRIDGE_LEN, s1: s + BRIDGE_LEN, half: BRIDGE_HALF });
+      i += 20;
+    }
   }
   idx(s) { return clamp(Math.round(s / STEP), 0, this.n - 1); }
   // точка на оси + смещение off по нормали (м)
@@ -114,7 +134,43 @@ class Road {
     }
     for (let i = Math.max(0, bi - 3); i <= Math.min(this.n - 1, bi + 3); i++) { const d = (this.X[i] - x) ** 2 + (this.Y[i] - y) ** 2; if (d < best) { best = d; bi = i; } }
     const off = (x - this.X[bi]) * this.NX[bi] + (y - this.Y[bi]) * this.NY[bi];
-    return { s: bi * STEP, off, d: Math.sqrt(best) };
+    let s = bi * STEP;
+    // за концами дороги (КПП и хвост) — продолжаем s по касательной вместо того, чтобы прилипать к 0/len:
+    // иначе walkable() никогда не увидит «уже за шлагбаумом» или «уже за пустым хвостом» (findings 10, 16, 18)
+    if (bi === 0) { const tx = this.NY[0], ty = -this.NX[0], along = (x - this.X[0]) * tx + (y - this.Y[0]) * ty; if (along < 0) s = along; }
+    else if (bi === this.n - 1) { const tx = this.NY[bi], ty = -this.NX[bi], along = (x - this.X[bi]) * tx + (y - this.Y[bi]) * ty; if (along > 0) s = bi * STEP + along; }
+    return { s, off, d: Math.sqrt(best) };
+  }
+  onBridge(s, off) {
+    for (const b of this.bridges) if (s >= b.s0 && s <= b.s1 && Math.abs(off) <= b.half) return true;
+    return false;
+  }
+  // можно ли стоять/идти в точке мира (x, y)? Одна проверка на всех: река (кроме мостов — коридор поперёк),
+  // склоны/скалы за пределами дна ущелья, КПП насквозь и пустой хвост за концом дороги.
+  // Только «входит ли точка НАЗНАЧЕНИЯ» — вызывающий код сам решает не блокировать выход из уже плохой точки
+  // (finding 9: ловушка в реке — см. fp.js moveTo).
+  walkable(x, y) {
+    const { s, off } = this.project(x, y);
+    if (s < -GATE_PAD || s > this.len + TAIL_PAD) return false;
+    if (this.onBridge(s, off)) return true;
+    const i = this.idx(clamp(s, 0, this.len));
+    if (Math.abs(off - this.RIV[i]) < RIVER_HALF) return false;
+    if (off < -this.GW[i] - CLIFF_PAD || off > this.GE[i] + CLIFF_PAD) return false;
+    return true;
+  }
+  // ближайшая проходимая точка на отрезке (x0,y0)→(x1,y1) — для клика по карте и любого «иди туда, куда
+  // указали»: если конец недоступен, обрезаем путь до последней проходимой точки, а не отменяем ходьбу
+  // целиком; если сам игрок уже стоит не там (ловушка — finding 9), не запираем его — пусть идёт, куда велели,
+  // а дальше шаг за шагом контролирует уже сам вызывающий (fp.js moveTo).
+  walkableTarget(x0, y0, x1, y1) {
+    if (!this.walkable(x0, y0)) return { x: x1, y: y1 };
+    if (this.walkable(x1, y1)) return { x: x1, y: y1 };
+    let lo = 0, hi = 1, ok = false;
+    for (let i = 0; i < 18; i++) {
+      const t = (lo + hi) / 2, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+      if (this.walkable(x, y)) { lo = t; ok = true; } else hi = t;
+    }
+    return ok ? { x: x0 + (x1 - x0) * lo, y: y0 + (y1 - y0) * lo } : null;
   }
   // интервалы s (м), чьи куски пересекают прямоугольник вида
   visible(x0, y0, x1, y1, pad = 0) {

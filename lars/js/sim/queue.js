@@ -4,11 +4,15 @@
 // Машина хранит усреднённые потребности своих людей (LOD: отдельные люди появляются только рядом с камерой).
 'use strict';
 L.def('sim/queue', () => {
-const { clamp } = L.use('core');
+const { clamp, hash01 } = L.use('core');
 
 class Queue {
   constructor(C, road, env, rng) {
     this.C = C; this.T = C.TUNING.queue; this.road = road; this.env = env; this.rng = rng;
+    // сид «дрожи» пропуска КПП — берём как есть, до того как rng успел сделать хоть один next()
+    // (World создаёт Queue сразу после RNG, до econ.build()/spawnCar), чтобы это был чистый сид мира,
+    // а не текущая позиция в потоке случайности (иначе throughJitter() расходился бы с save/load)
+    this.seed = rng.s >>> 0;
     this.laneZones = (C.ROUTE.lanes || [{ from: 0, to: 99, n: 1 }]).map(z => ({ a: z.from * 1000, b: z.to * 1000, n: z.n }));
     this.lanes = Math.max(...this.laneZones.map(z => z.n));
     this.spacing = this.T.carLen + this.T.gap;
@@ -26,6 +30,22 @@ class Queue {
     this.stallLost = 0;
   }
   lanesAt(s) { for (const z of this.laneZones) if (s >= z.a && s < z.b) return z.n; return 1; }
+  // сид-детерминированная «дрожь» пропускной способности КПП: без неё очередь идёт по календарю один в один
+  // (content-graph 3.x — «при любом сиде игрок у шлагбаума 27.09 22:12», ноль разброса между партиями).
+  // Не белый шум по часам: независимая дрожь в каждый час в среднем сама себя гасит за десятки часов
+  // (закон больших чисел) и час прохода игрока почти не сдвигается. Вместо этого — плавный шум по опорным
+  // точкам каждые 4 игровых часа (как temp() в env.js, только через hash01, не rng, — воспроизводимо без
+  // хранения состояния и не задевает поток rng, от которого зависят остальные системы и save/load).
+  // Амплитуда ограничена T.throughJitter, среднее по многим опорным точкам ≈1, поэтому дневной итог
+  // (tests/sim-queue.js REF) не уезжает далеко, а конкретные 40–60 часов прохода — вполне могут.
+  throughJitter(kind) {
+    const A = this.T.throughJitter; if (!A) return 1;
+    const STEP = 12 * 3600, t = this.env.clock.t, i = Math.floor(t / STEP), f = (t - i * STEP) / STEP;
+    const salt = this.seed + (kind === 'ped' ? 977 : 131);
+    const v0 = hash01(i, salt) * 2 - 1, v1 = hash01(i + 1, salt) * 2 - 1;
+    const k = f * f * (3 - 2 * f); // smoothstep — без изломов на границах опорных точек
+    return 1 + (v0 + (v1 - v0) * k) * A;
+  }
   spawnCar(s = null, opt = {}) {
     const R = this.rng, CARS = this.C.CARS, [n0, n1] = this.T.peoplePerCar;
     if (s == null) s = Math.max(this.gateS, this.tailS + this.spacing + R.range(0, 3));
@@ -51,8 +71,8 @@ class Queue {
   step(dt) {
     const T = this.T, env = this.env, a = this.cars;
     this.tick++;
-    // 1) КПП: пропуск машин (первая, стоящая у шлагбаума)
-    this.accCar += env.through('car') * dt / 3600;
+    // 1) КПП: пропуск машин (первая, стоящая у шлагбаума) — с сид-детерминированной дрожью пропуска (см. throughJitter)
+    this.accCar += env.through('car') * this.throughJitter('car') * dt / 3600;
     while (this.accCar >= 1 && a.length) {
       let k = -1;
       for (let i = 0; i < Math.min(a.length, this.lanes + 2); i++) if (a[i].s <= this.gateS + 1 && !a[i].stall && !a[i].hold) { k = i; break; }

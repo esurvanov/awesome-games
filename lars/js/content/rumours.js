@@ -33,16 +33,24 @@ const RUMOURS = [
     confirm: 'pedBan', reveal: 'Правда: с 29-го пеших разворачивают' },
   { id: 'r_caucasus', icon: 'alert', text: 'Чеченцев и ингушей в Грузию не пускают', truth: 'false', from: '2022-09-23 18:00', at: 'kpp', share: 0.1, spread: 1.1, mood: -0.4,
     revealAt: '2022-09-27 12:00', reveal: 'Пускали, после допроса' },
-  { id: 'r_222', icon: 'door', text: 'Только не заходите в 222-й кабинет!', truth: 'true', from: '2022-09-22 20:00', at: 'kpp', share: 0.15, spread: 1.0, mood: -0.3, reveal: 'Правда: там долгие проверки' },
+  // revealAt было не выставлено: у reveal-текста без revealAt/confirm нет ничего, что ставит r.revealed
+  // (sim/rumours.js step()) — так «Правда: там долгие проверки» не могла попасть в чат вообще никогда,
+  // ни при каком сиде/политике (reachability.js, RUM_REVEAL_SEEN всегда 0%). truth:'true' — не нужно ждать
+  // календарного правила, ставим revealAt вскоре после from (как у r_noon_close)
+  { id: 'r_222', icon: 'door', text: 'Только не заходите в 222-й кабинет!', truth: 'true', from: '2022-09-22 20:00', at: 'kpp', share: 0.15, spread: 1.0, mood: -0.3,
+    revealAt: '2022-09-23 06:00', reveal: 'Правда: там долгие проверки' },
   { id: 'r_tyres', icon: 'alert', text: 'Прокалывают шины, чтобы продать велик', truth: 'unknown', from: '2022-09-25 16:00', at: 3.1, share: 0.1, spread: 1.3, mood: -0.8, demand: { bike: 1.3 } },
   { id: 'r_million', icon: 'wallet', text: 'Местные за ночь заработали миллион', truth: 'unknown', from: '2022-09-24 12:00', at: 9.8, share: 0.1, spread: 1.0, mood: -0.3 },
   { id: 'r_escort', icon: 'siren', text: 'Кортеж с мигалками — 200 000 ₽', truth: 'half', from: '2022-09-25 10:00', at: 6, share: 0.08, spread: 1.2, mood: -0.4,
     revealAt: '2022-09-28 18:00', reveal: 'Были рассказы; ДПС отстранили за взятки' },
-  { id: 'r_evac', icon: 'car', text: 'Брошенные машины эвакуируют', truth: 'true', from: '2022-09-29 10:00', at: 1, share: 0.15, spread: 1.0, mood: -0.2, reveal: 'Правда: ~80 машин увезли' },
+  // тот же пропуск revealAt, что у r_222/r_storage — reveal-текст без него не достижим никогда
+  { id: 'r_evac', icon: 'car', text: 'Брошенные машины эвакуируют', truth: 'true', from: '2022-09-29 10:00', at: 1, share: 0.15, spread: 1.0, mood: -0.2,
+    revealAt: '2022-09-29 20:00', reveal: 'Правда: ~80 машин увезли' },
   { id: 'r_visa', icon: 'doc', text: 'Грузия введёт визы для русских', truth: 'false', from: '2022-09-26 20:00', at: 'tail', share: 0.1, spread: 1.4, mood: -1.2,
     revealAt: '2022-09-29 18:00', reveal: 'Власти Грузии отказались' },
+  // тот же пропуск revealAt — а по шапке файла у truth:'half' revealAt как раз обязателен
   { id: 'r_storage', icon: 'house', text: 'Местные бесплатно берут машины на хранение', truth: 'half', from: '2022-09-26 10:00', at: 10, share: 0.1, spread: 0.9, mood: 0.3,
-    reveal: 'Бывали и честные, и «с выкупом»' },
+    revealAt: '2022-09-26 20:00', reveal: 'Бывали и честные, и «с выкупом»' },
   { id: 'r_volunteers', icon: 'heart', text: 'Ниже Эзми волонтёры раздают чай и еду бесплатно', truth: 'true', from: '2022-09-23 10:00', at: 6.1, share: 0.2, spread: 1.0, mood: 0.8 },
   { id: 'r_fuel', icon: 'fuel', text: 'Бензин с рук — 1000 за литр', truth: 'true', from: '2022-09-26 20:00', at: 'tail', share: 0.1, spread: 1.1, mood: -0.5, demand: { fuel: 1.3 } },
   { id: 'r_cards', icon: 'card', text: '«Мир» в Грузии не работает нигде', truth: 'true', from: '2022-09-22 10:00', at: 'kpp', share: 0.1, spread: 1.0, mood: -0.3 },

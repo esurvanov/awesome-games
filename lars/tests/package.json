@@ -5,7 +5,9 @@
     "smoke": "node smoke.js",
     "perf": "node perf.js",
     "shots": "node shots.js",
-    "test": "node sim-queue.js && node smoke.js && node perf.js",
+    "invariants": "node invariants.js",
+    "reachability": "node reachability.js",
+    "test": "node sim-queue.js && node smoke.js && node perf.js && node invariants.js",
     "sim": "node sim-queue.js"
   },
   "dependencies": {

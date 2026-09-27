@@ -60,11 +60,15 @@ await G(() => { LARS.pending.length = 0; LARS.Modal.closeAll(); LARS.menu.hide()
 await pg.keyboard.press('KeyF'); await pg.waitForTimeout(150);
 const out = await G(() => ({ inCar: LARS.w.player.inCar, x: LARS.w.player.x, y: LARS.w.player.y }));
 ok(!out.inCar, 'F — вышел из машины');
-await G(() => { LARS.fp.yaw -= Math.PI / 2; });
+await G(() => { LARS.fp.yaw -= Math.PI / 2; LARS.w.dir.next = LARS.w.clock.t + 3600; }); // не даём режиссёру дёрнуть карточку событие ровно во время замера WASD
 await pg.keyboard.down('KeyW'); await pg.waitForTimeout(1200); await pg.keyboard.up('KeyW');
 const walked = await G(() => ({ x: LARS.w.player.x, y: LARS.w.player.y, cy: LARS.view3.cam.y }));
 const dist = Math.hypot(walked.x - out.x, walked.y - out.y);
 ok(dist > 0.8, 'WASD — идёт пешком', dist.toFixed(1) + ' м');
+// ходьба теперь не бесплатна на паузе (движок держит время как на ×1, пока игрок реально идёт — см. G.isWalking
+// в main.js): за 1,2 с реальной ходьбы могла успеть выпасть карточка события поверх «замороженного» мира,
+// который этот тест держит на паузе намеренно ради детерминизма кликов. Сбрасываем на случай, если так и было.
+await G(() => { LARS.pending.length = 0; LARS.Modal.closeAll(); LARS.menu.hide(); });
 // взгляд на человека → подсказка → E → меню
 const aimed = await G(() => new Promise(res => {
   const G2 = LARS, v = G2.view3, w = G2.w;

@@ -28,7 +28,7 @@ function openBag(game, msg = null) {
   }, 'bag');
 }
 
-function openShop(game, sel, only = null, msg = null) {
+function openShop(game, sel, only = null, msg = null, time = 0) {
   const w = game.w, p = w.player, E = w.econ, trust = w.trustOf(sel.npc), d = sel.npc && w.npcDefs.get(sel.npc);
   const goods = sel.goods.filter(g => !only || g === only).map(id => w.goods.get(id)).filter(Boolean);
   const rows = goods.map(g => {
@@ -47,21 +47,28 @@ function openShop(game, sel, only = null, msg = null) {
     close(el);
     el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => {
       const g = b.dataset.g, price = E.price(sel, g, trust), o = E.payOptions(p, sel, g, price)[+b.dataset.o];
-      const r = w.buy(sel, g, o); Modal.close(); openShop(game, sel, only, r ? [...r.chips, ...(r.out ? [{ icon: 'alert', text: r.out, tone: -1 }] : [])] : null);
+      const r = w.buy(sel, g, o);
+      // время самой сделки списываем тут, в момент реальной покупки (F15) — открытие лавки само по себе бесплатно
+      if (r && r.out === '' && time) { w.skipTime(time); r.chips.push({ icon: 'clock', text: time + ' мин', tone: 0 }); }
+      Modal.close(); openShop(game, sel, only, r ? [...r.chips, ...(r.out ? [{ icon: 'alert', text: r.out, tone: -1 }] : [])] : null, time);
       game.afterAction();
     });
   }, 'shop');
 }
 
-function openExchange(game, sel, msg = null) {
+function openExchange(game, sel, msg = null, time = 0) {
   const w = game.w, rate = w.econ.usdRate(), off = w.env.rates().usd;
   const amounts = [50, 100, 200, 500];
   const html = `<div class="plate card"><div class="hd"><span class="big">${ic('dollar', 'l')}</span><div><h2>Обмен с рук</h2><div class="who">1 $ = <b class="num">${rate}</b> ₽ · ЦБ ${off.toFixed(2).replace('.', ',')}</div></div>${xbtn}</div>
     <div class="btns">${amounts.map(a => `<button class="btn${w.player.money.usd >= a ? '' : ' off'}" data-u="${a}" ${w.player.money.usd >= a ? '' : 'disabled'}>${ic('dollar', 's')}${a} → ${fmt(a * rate)} ₽</button>`).join('')}</div>${msg ? chips(msg) : ''}</div>`;
-  Modal.show(html, el => { close(el); el.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { const r = w.exchange(sel, +b.dataset.u); Modal.close(); openExchange(game, sel, r?.chips); }); }, 'shop');
+  Modal.show(html, el => { close(el); el.querySelectorAll('[data-u]').forEach(b => b.onclick = () => {
+    const r = w.exchange(sel, +b.dataset.u);
+    if (r && time) w.skipTime(time);
+    Modal.close(); openExchange(game, sel, r?.chips, time);
+  }); }, 'shop');
 }
 
-function openGive(game, tg) {
+function openGive(game, tg, time = 0) {
   const w = game.w, p = w.player;
   const items = Object.entries(p.items).filter(([id, n]) => n > 0 && w.goods.get(id));
   const name = tg.who?.name || w.nameOf(tg.npc) || '';
@@ -70,7 +77,7 @@ function openGive(game, tg) {
     ${[500, 1000, 5000].map(v => `<button class="btn cell${p.money.rub_cash >= v ? '' : ' off'}" data-m="${v}" ${p.money.rub_cash >= v ? '' : 'disabled'}>${ic('cash')}<span>${fmt(v)} ₽</span></button>`).join('')}</div></div>`;
   Modal.show(html, el => {
     close(el);
-    const done = r => { Modal.close(); if (r) game.toastChips(r.chips, r.out); game.afterAction(); };
+    const done = r => { if (r && time) w.skipTime(time); Modal.close(); if (r) game.toastChips(r.chips, r.out); game.afterAction(); };
     el.querySelectorAll('[data-i]').forEach(b => b.onclick = () => done(w.give(tg, b.dataset.i)));
     el.querySelectorAll('[data-m]').forEach(b => b.onclick = () => done(w.give(tg, 'money', +b.dataset.m)));
   }, 'give');
