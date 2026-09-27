@@ -569,6 +569,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/vegetation.js"></script>
 <script src="modules/atmosphere.js"></script>
 <script src="modules/interaction.js"></script>
+<script src="modules/interact.js"></script>
 <script src="modules/structures.js"></script>
 <script src="modules/perf.js"></script>
 <script src="modules/baked.js"></script>
@@ -2673,7 +2674,16 @@ const INTER = [
   ...WORLD.spires.map((s, i) => ({ pos: () => s.altar, r: 3.4, pri: 3, label: 'Извлечь деталь', icon: 'i-part', when: () => G.stage === 4 && !s.taken, act: () => takePart(s, i) })),
   ...WORLD.echoes.map((eo) => ({ pos: () => eo.pos, r: 3.2, pri: 1, label: 'Слушать эхо', icon: 'i-echo', when: () => !G.echoes.includes(eo.i), act: () => readEcho(eo) })),
   { pos: () => WORLD.heart.g.position, r: 6, pri: 3, label: 'Коснуться Сердца', icon: 'i-aurora', when: () => G.stage === 7 && boss.dead && !G.ending, act: heartChoice },
-  { pos: () => WORLD.kestrel.g.position, r: 9, get pri() { return G.stage === 8 ? 3 : 1; }, label: '«Кестрел»', icon: 'i-ship', when: () => G.stage >= 1 && !G.riding, act: shipInteract },
+  // INTERACT.md: the 19.7 m hull is reachable along its whole length — the prompt point is the nearest point of the hull's
+  // long axis (principal axis of its drawn footprint, from the Passport entry), within 4.5 m of the player
+  { pos: (() => { let seg = null, id = -1; const P = new V3(); return () => { const e = WORLD.kestrelCol, g = WORLD.kestrel.g.position;
+      if (!e || !e.alive || !e.geo) return g;
+      if (id !== e.id) { id = e.id; const V = e.geo.v, n = e.geo.vn; let mx = 0, mz = 0; for (let i = 0; i < n; i++) { mx += V[i * 3]; mz += V[i * 3 + 2]; } mx /= n; mz /= n;
+        let a = 0, b = 0, c = 0; for (let i = 0; i < n; i++) { const dx = V[i * 3] - mx, dz = V[i * 3 + 2] - mz; a += dx * dx; b += dx * dz; c += dz * dz; }
+        const ang = 0.5 * Math.atan2(2 * b, a - c), ux = Math.cos(ang), uz = Math.sin(ang), us = []; for (let i = 0; i < n; i++) us.push((V[i * 3] - mx) * ux + (V[i * 3 + 2] - mz) * uz); us.sort((p, q) => p - q);
+        seg = { mx, mz, ux, uz, u0: us[Math.floor(n * 0.02)], u1: us[Math.floor(n * 0.98)] }; }
+      const t = Math.max(seg.u0, Math.min(seg.u1, (player.x - seg.mx) * seg.ux + (player.z - seg.mz) * seg.uz));
+      return P.set(seg.mx + seg.ux * t, g.y, seg.mz + seg.uz * t); }; })(), r: 4.5, get pri() { return G.stage === 8 ? 3 : 1; }, label: '«Кестрел»', icon: 'i-ship', when: () => G.stage >= 1 && !G.riding, act: shipInteract },
   { pos: () => sk, r: 3.6, pri: 1, label: 'Сесть в скиммер', icon: 'i-skimmer', when: () => sk.unlocked && !G.riding, act: mount },
   { pos: () => sk, r: 3.6, pri: 0, label: 'Скиммер · нет заряда', icon: 'i-skimmer', off: true, when: () => !sk.unlocked, act: () => toast('i-skimmer', 'Нет заряда', 'c-pink') },
 ];

@@ -340,10 +340,43 @@
   }
 
   /* -------------------------------------------------------------- debris */
-  const MAX_DEBRIS = 160;
+  const MAX_DEBRIS = 160, PROP_FAR = 40; let propTick = 0;
+  // box / upright-cylinder fit of a prop's local points (null = keep the convex hull): the points must span the
+  // primitive's faces (box: the xz outline fills its rectangle; cylinder: equal x/z extents and every mid-height point
+  // on the same radius), so a genuinely irregular prop stays a hull
+  function fitPrimitive(pts) {
+    const n = pts.length / 3; if (n < 8) return null;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < n; i++) { const x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+    if (Math.min(dx, dy, dz) < 0.08) return null;   // a sheet (broken / flat prop): leave it alone
+    // outline occupancy on a 12 × 12 grid of the xz rectangle, and radial spread of the mid-height ring
+    const G = 12, occ = new Uint8Array(G * G), rs = [];
+    for (let i = 0; i < n; i++) {
+      const x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2];
+      occ[Math.min(G - 1, Math.floor((x - x0) / dx * G)) * G + Math.min(G - 1, Math.floor((z - z0) / dz * G))] = 1;
+      if (y > y0 + dy * 0.2 && y < y1 - dy * 0.2) rs.push(Math.hypot(x - cx, z - cz));
+    }
+    // corners of the outline: a box fills them, a cylinder leaves them empty
+    let corner = 0; for (const [i, j] of [[0, 0], [0, G - 1], [G - 1, 0], [G - 1, G - 1]]) corner += occ[i * G + j];
+    const round = Math.abs(dx - dz) / Math.max(dx, dz) < 0.12 && corner <= 1;
+    if (round && rs.length >= 8) {
+      rs.sort((a, b) => a - b); const r = rs[Math.floor(rs.length * 0.9)], rMid = rs[rs.length >> 1];
+      if (rMid / r > 0.8 && r > 0.05) {   // hollow shell or solid: the outer ring dominates → round
+        const b = Math.min(0.02, r * 0.1, dy * 0.1);
+        return { cd: R.ColliderDesc.roundCylinder(dy / 2 - b, r - b, b).setTranslation(cx, cy, cz), info: { kind: 'cylinder', r: +r.toFixed(3), h: +dy.toFixed(3) } };
+      }
+    }
+    if (corner >= 3) {
+      const b = Math.min(0.015, Math.min(dx, dy, dz) * 0.08);
+      return { cd: R.ColliderDesc.roundCuboid(dx / 2 - b, dy / 2 - b, dz / 2 - b, b).setTranslation(cx, cy, cz), info: { kind: 'box', size: [+dx.toFixed(3), +dy.toFixed(3), +dz.toFixed(3)] } };
+    }
+    return null;
+  }
   function spawnDebris(mesh, o = {}) {
     need();
     const shape = o.shape || 'box', mass = o.mass ?? 1;
+    let fitInfo = null;
     const p = o.position || mesh.position, q = o.quaternion || mesh.quaternion;
     const bd = R.RigidBodyDesc.dynamic().setTranslation(p.x, p.y, p.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
       .setLinearDamping(o.linearDamping ?? 0.05).setAngularDamping(o.angularDamping ?? (shape === 'sphere' ? 0.8 : 0.3))
@@ -360,7 +393,12 @@
         const arr = mesh.geometry.attributes.position.array; pts = new Float32Array(arr.length);
         for (let i = 0; i < arr.length; i += 3) { pts[i] = arr[i] * sc.x; pts[i + 1] = arr[i + 1] * sc.y; pts[i + 2] = arr[i + 2] * sc.z; }
       }
-      cd = R.ColliderDesc.convexHull(pts instanceof Float32Array ? pts : new Float32Array(pts));
+      // pushable props (INTERACT.md): a crate / drum / barrel whose points fill a box or an upright cylinder gets that exact
+      // primitive — it topples over a clean edge, rolls round and rests on a flat face; a scanned prop's hull of hundreds of
+      // near-coplanar faces rocks between them at rest (jitter) and rolls like a polygon
+      const fitted = o.prop && o.fit !== false && root.PHYS_PROP_FIT !== false && !root.INTERACT_OFF ? fitPrimitive(pts) : null;
+      if (fitted) { cd = fitted.cd; fitInfo = fitted.info; }
+      else cd = R.ColliderDesc.convexHull(pts instanceof Float32Array ? pts : new Float32Array(pts));
       if (!cd) cd = R.ColliderDesc.ball(0.2);
     } else {
       const s = typeof o.size === 'number' ? { x: o.size, y: o.size, z: o.size } : (o.size || { x: 0.5, y: 0.5, z: 0.5 });
@@ -373,7 +411,7 @@
     const d = {
       mesh, body, collider: col, prop, t: 0, life: o.lifetime ?? (prop ? Infinity : 8), fade: o.fade ?? 0.5,
       baseScale: { x: sc.x, y: sc.y, z: sc.z }, onDespawn: o.onDespawn, keepMesh: !!o.keepMesh,
-      prevP: v3(p.x, p.y, p.z), prevQ: { x: q.x, y: q.y, z: q.z, w: q.w }, sleepT: 0,
+      prevP: v3(p.x, p.y, p.z), prevQ: { x: q.x, y: q.y, z: q.z, w: q.w }, sleepT: 0, fit: fitInfo,
     };
     tag(col, { kind: prop ? 'prop' : 'debris', ref: d, userData: o.userData });
     debris.push(d);
@@ -582,3 +620,13 @@
   root.PhysReady.catch(() => {});   // consumers get the rejection through their own .then/.catch; never an unhandled one
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+    // pushable props far from every character (> PROP_FAR m) and nearly still go to sleep: the solver only ever works on
+    // the few props next to the pilot (a sleeping body costs nothing and wakes on contact / impulse)
+    if (++propTick % 30 === 0 && characters.length) {
+      for (const d of debris) {
+        if (!d.prop || d.body.isSleeping()) continue;
+        const p = d.body.translation(), lv = d.body.linvel(); let near = false;
+        for (const ch of characters) { const c = ch.collider.translation(); if ((c.x - p.x) ** 2 + (c.z - p.z) ** 2 < PROP_FAR * PROP_FAR) { near = true; break; } }
+        if (!near && lv.x * lv.x + lv.y * lv.y + lv.z * lv.z < 0.25) d.body.sleep();
+      }
+    }

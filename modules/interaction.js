@@ -467,7 +467,7 @@
       const hand = b['hand_' + s], cur = wpos(hand, _p[12]), tgt = _p[13];
       const pv = wpos(b.pelvis || b.spine_01, _p[14]), side = (cur.x - pv.x) * R.x + (cur.z - pv.z) * R.z >= 0 ? 1 : -1;   // which side of the body this hand is on
       if (Aa.mode === 'climb' && Aa.edge) { const e = Aa.edge, rx = -e.uz, rz = e.ux; tgt.set(e.x + rx * 0.24 * side, e.y, e.z + rz * 0.24 * side); }
-      else if (Aa.mode === 'push' && Aa.push) { const pp = Aa.push; tgt.set(pp.x + R.x * 0.22 * side, pp.y, pp.z + R.z * 0.22 * side); }
+      else if (Aa.mode === 'push' && Aa.push) { const pp = Aa.push, hh = pp.hands && pp.hands[side]; if (hh) tgt.copy(hh); else tgt.set(pp.x + R.x * 0.22 * side, pp.y, pp.z + R.z * 0.22 * side); }
       else continue;
       if (Aa.mode === 'climb') { const sp = wpos(b['upperarm_' + s], _p[14]); if (sp.distanceTo(tgt) > 0.95) continue; }   // out of reach early in the clip: let the clip lead
       tgt.lerp(cur, 1 - Aa.w);
@@ -499,7 +499,10 @@
    * asked of Jev (CONTACT_INTENT, ai-content.js) only when the probed surface state actually changes near the player;
    * offline / low-confidence falls back to AI_CONTENT.contactRules (deterministic, same file). */
   const CT = { ready: false, meta: null, layer: null, state: 'idle', phase: null, pick: null, t: 0, sense: null,
-    wantIntent: 'none', wantSrc: 'rules', askKey: '', askAt: -9, senseT: 0 };
+    wantIntent: 'none', wantSrc: 'rules', askKey: '', askAt: -9, senseT: 0, plan: null, keyT: 0 };
+  // INTERACT (modules/interact.js): kinds with authored contact points go through the mediator — stand spot, facing
+  // and hand/foot targets come from the object's interaction passport; unmarked surfaces keep the probe + BVH path below
+  K.passport = true; K.passportOnly = true; K.steerSpeed = 1.4; K.steerTurn = 4.5; K.steerMax = 2.2;
   function contactReady() {
     const A = C.AV && C.AV.player;
     if (A && A.contact && A.contactMeta) { CT.meta = A.contactMeta; CT.layer = A.contact; CT.ready = true; }
@@ -519,6 +522,20 @@
     // craggy, so a single vertical column at the near edge can land on a low crack or foot of the rock and read as
     // knee-height even when the same surface is a 3 m wall a few dozen cm further in (this under-read is what made
     // senseKind() classify tall rocks/walls as a step-over "obstacle" — see CONTACT-SURFACE.md).
+  // INTERACT: each palm on the DRAWN prop (not the physics hull): a horizontal ray at the hand's spot onto the prop's own
+  // mesh; a prop lower than the hands gets the palms on its top, just behind the near edge. Wrist = surface + palm (3.5 cm)
+  function pushHands(e, pp, F) {
+    const I = window.INTERACT; if (!I || !K.passport) return null;
+    const out = {}, Rx = -F.z, Rz = F.x;
+    for (const side of [1, -1]) {
+      const x = pp.x + Rx * 0.22 * side, z = pp.z + Rz * 0.22 * side;
+      let h = I.castOn(e, x - F.x * 0.4, pp.y, z - F.z * 0.4, F.x, 0, F.z, 1.0), n = h && h.normal;
+      if (!h) { h = I.castOn(e, x + F.x * 0.08, pp.y + 0.5, z + F.z * 0.08, 0, -1, 0, 0.9); n = h && h.normal; }   // low prop: onto its top
+      if (!h) return null;
+      out[side] = new V3(h.point.x + n.x * 0.035, h.point.y + n.y * 0.035, h.point.z + n.z * 0.035);
+    }
+    return out;
+  }
     let height = 0;
     for (const push of [0.05, 0.35, 0.65]) {
       const hx = P.x + ox * (h.distance + push), hz = P.z + oz * (h.distance + push);
@@ -531,6 +548,7 @@
   }
   function contactSense() {
     const P = C.player, PH = C.PH; if (!PH.ok) return null;
+    B.arms.push.hands = pushHands(best, B.arms.push, F);
     const face = P.c.g.rotation.y, fx = -Math.sin(face), fz = -Math.cos(face), rx = Math.cos(face), rz = -Math.sin(face);
     const front = probeDir(fx, fz, K.contactRange, 1.0), left = probeDir(-rx, -rz, 1.15, 1.0), right = probeDir(rx, rz, 1.15, 1.0), back = probeDir(-fx, -fz, 1.15, 1.0);
     const knee = probeDir(fx, fz, 1.5, 0.38), obstacle = knee && knee.height <= 1.3 && knee.height > 0.12 ? knee : null;
@@ -569,7 +587,7 @@
     const npcNear = !!(C.orm && C.orm.pos && Math.hypot(C.orm.pos.x - P.x, C.orm.pos.z - P.z) < 10);
     const raw = { surface: kind.surface, height: kind.height || 0, distance: clamp(kind.dist, 0, 3), angleDeg: 0, speed: sense.speed, state,
       stamina: clamp(P.hp / Math.max(1, P.hpMax), 0, 1), cold: clamp((C.WX && C.WX.storm) || 0, 0, 1), animalsNear: Math.min(9, animalsNear), npcNear, onIce: sense.onIce };
-    CT.wantIntent = AC && AC.contactRules ? AC.contactRules(raw) : 'none';
+    CT.wantIntent = AC && AC.contactRules ? AC.contactRules(raw) : 'none'; CT.wantState = state;
     const key = raw.surface + '|' + Math.round(raw.distance * 4) + '|' + raw.state + '|' + Math.round(raw.height * 4) + '|' + (raw.onIce ? 1 : 0);
     if (window.AI && window.AI.available && window.AI.ask && (key !== CT.askKey) && (C.T - CT.askAt > K.contactAsk)) {
       CT.askKey = key; CT.askAt = C.T; STATS.contactAsks = (STATS.contactAsks || 0) + 1;
@@ -688,9 +706,29 @@
         if (bh) { const n = faceNormalTowards(bh, dx, dz); if (n) return { point: bh.point.clone(), normal: n.clone().normalize() }; }
       } catch (err) { /* correction only: any failure keeps the physics hit below */ }
     }
+    if (CT.plan) { const t = CT.plan.targets && CT.plan.targets[c.bone]; return t ? { point: t.point, normal: t.normal } : null; }
     return physHit;
   }
-  function contactExit() { CT.state = 'idle'; CT.pick = null; CT.phase = null; }
+  function contactExit() { CT.state = 'idle'; CT.pick = null; CT.phase = null; CT.plan = null; CT.keyT = 0; }
+  const moveKeys = () => { const k = C.keys; return !!(k && (k.KeyW || k.KeyA || k.KeyS || k.KeyD || k.ArrowUp || k.ArrowDown || k.ArrowLeft || k.ArrowRight)); };
+  // the Passport entries the probes touched (their physics tags carry the entry id)
+  function sensedEntries(s) {
+    const I = window.INTERACT, out = []; if (!I || !s) return out;
+    for (const pr of [s.front, s.knee, s.left, s.right]) { const e = pr && pr.tag ? I.entryById(pr.tag.passport) : null; if (e && !out.includes(e)) out.push(e); }
+    return out;
+  }
+  // mediator: kinds with an interaction passport get their stand spot / facing / targets from it
+  function contactPlan() {
+    const I = window.INTERACT; if (!K.passport || !I || !CT.sense) return { marked: false, plan: null };
+    const ents = sensedEntries(CT.sense), marked = ents.some((e) => I.hasPoints(e)); if (!marked) return { marked: false, plan: null };
+    const P = C.player; let plan = null;
+    // the same situation that just failed is not re-planned every 0.2 s (standing still next to a rock with no valid point)
+    const key = CT.wantIntent + '|' + ents.map((e) => e.id).join(',') + '|' + Math.round(P.x * 8) + ',' + Math.round(P.z * 8) + ',' + Math.round(P.face * 8);
+    if (CT.missKey === key && C.T - CT.missAt < 1.5) return { marked, plan: null };
+    try { plan = I.plan(CT.wantIntent, ents, { x: P.x, y: P.y, z: P.z, face: P.face }, CT.meta); } catch (e) { plan = null; STATS.planErr = String(e && e.message); }
+    if (!plan) { CT.missKey = key; CT.missAt = C.T; }
+    return { marked, plan };
+  }
   function contactStep(dt) {
     const A = C.AV.player;
     if (CT.state === 'idle') {
@@ -738,6 +776,12 @@
   function contactUpdate(dt) {
     if (!K.contact || !B.ready || (!CT.ready && !contactReady())) return;
     const P = C.player, G = C.G;
+        const mp = contactPlan();
+        if (mp.plan && A.acts[mp.plan.clip] && CT.meta.clips[mp.plan.clip]) {
+          CT.plan = mp.plan; CT.pick = { clip: mp.plan.clip, enter: mp.plan.enter, standOff: mp.plan.standOff, heightScale: mp.plan.heightScale }; CT.state = 'steer'; CT.t = 0; CT.keyT = 0; STATS.planned = (STATS.planned || 0) + 1;
+          return;
+        }
+        if (mp.marked && K.passportOnly) return;   // marked kind, no valid point from here: no contact (never a hand in the air)
     const active = (C.mode === 'play' || C.mode === 'menu') && P.onGround && !G.riding && G.deadT <= 0 && !(C.CLIMB && C.CLIMB.t >= 0) && P.aimT <= 0 && B.arms.mode !== 'push';
     if (!active) { if (CT.state !== 'idle') contactExit(); return; }
     CT.senseT -= dt;
@@ -745,6 +789,7 @@
     contactStep(dt);
   }
 
+    if (CT.plan) { planStep(dt, A, P); return; }
   /* ------------------------------------------------------------------ footsteps from the pose */
   function stepsFromPose(dt, grounded, hs) {
     if (!SUB.steps) return;
@@ -777,6 +822,49 @@
     const list = W.treeList = treeList();
     W.treeGrid = new Map();
     list.forEach((t, i) => { const k = Math.floor(t[0] / 8) * 4096 + Math.floor(t[2] / 8); if (!W.treeGrid.has(k)) W.treeGrid.set(k, []); W.treeGrid.get(k).push(i); });
+  }
+  // planned contact: walk the last bit to the stand spot while turning to the planned facing, then play; the hold ends
+  // when the player moves (a movement key held past the enter clip) or the pose is knocked off the stand spot
+  function planStep(dt, A, P) {
+    const pl = CT.plan, PH = C.PH;
+    if (CT.state === 'steer') {
+      CT.t += dt;
+      if (moveKeys()) { CT.keyT += dt; if (CT.keyT > 0.5) contactExit(); return; }   // the player is steering: wait, then give up
+      const dx = pl.sx - P.x, dz = pl.sz - P.z, d = Math.hypot(dx, dz), dy = wrapA(pl.yaw - P.face);
+      if (CT.t > K.steerMax || d > 2.5) { contactExit(); return; }
+      if (d > 0.01 || Math.abs(dy) > 0.02) {
+        const st = Math.min(d, K.steerSpeed * dt); if (d > 1e-4) { P.x += dx / d * st; P.z += dz / d * st; }
+        P.face += clamp(dy, -K.steerTurn * dt, K.steerTurn * dt); P.c.g.rotation.y = P.face; P.c.g.position.x = P.x; P.c.g.position.z = P.z;
+        if (PH.ok) PH.ch.setPosition(P.x, P.y, P.z);
+        return;
+      }
+      P.x = pl.sx; P.z = pl.sz; P.face = pl.yaw; P.c.g.rotation.y = pl.yaw; if (PH.ok) PH.ch.setPosition(P.x, P.y, P.z);
+      CT.state = 'play'; CT.t = 0; CT.phase = pl.enter ? 'enter' : 'main'; CT.keyT = 0; pl.at = { x: P.x, z: P.z };
+      playPick(A, pl.enter || pl.clip);
+    } else if (CT.state === 'play') {
+      const cmMain = CT.meta.clips[pl.clip]; CT.t += dt;
+      if (CT.phase === 'enter') {
+        const cm = CT.meta.clips[pl.enter], dur = cm ? cm.duration : 0.6;
+        if (CT.t >= dur - 0.03) { CT.phase = 'main'; CT.t = 0; playPick(A, pl.clip); }
+      } else {
+        const oneShot = !cmMain || cmMain.loop === false;
+        if (oneShot) { if (CT.t >= (cmMain ? cmMain.duration : 0.6) - 0.03) { contactExit(); return; } }
+        else {
+          if (moveKeys()) { CT.keyT += dt; if (CT.keyT > 0.12) { contactExit(); return; } } else CT.keyT = 0;
+          if (Math.hypot(P.x - pl.at.x, P.z - pl.at.z) > 0.25 || CT.wantState === 'combat' || CT.wantState === 'riding') { contactExit(); return; }
+          playPick(A, pl.clip);
+        }
+      }
+      // hold still on the stand spot (the capsule may be nudged by the controller's own snap)
+      if (!moveKeys()) { P.face = pl.yaw; P.c.g.rotation.y = pl.yaw; }
+      // a shoulder lean has no limb IK: slide the pilot along the surface normal until the shoulder (bone + the clip's
+      // 10 cm of shoulder) meets the face — the capsule may have been pushed off it by a lower bulge (wheels, a plinth)
+      if (pl.shoulder && CT.phase === 'main' && !moveKeys() && B.root) {
+        const sb = B.root.getObjectByName(pl.shoulder.bone); if (sb) { const w = wpos(sb, _p[18]), q = pl.shoulder;
+          const d = (w.x - q.x) * q.ex + (w.z - q.z) * q.ez - 0.1 * B.root.getWorldScale(_p[19]).x, st = clamp(d, -0.3, 0.3) * Math.min(1, dt * 6);
+          if (Math.abs(d) > 0.01 && Math.abs(pl.slid || 0) < 0.45) { P.x -= q.ex * st; P.z -= q.ez * st; pl.at.x -= q.ex * st; pl.at.z -= q.ez * st; pl.slid = (pl.slid || 0) + st; if (PH.ok) PH.ch.setPosition(P.x, P.y, P.z); } } }
+    }
+    if (A.cur && CT.layer && A.acts[A.cur]) { try { CT.layer.update(A.acts[A.cur], contactHit, 1); } catch (e) { /* clip has no hand/foot contacts */ } }
   }
   function worldUpdate(dt) {
     const P = C.player, G = C.G; if (C.mode !== 'play') return;
@@ -969,6 +1057,42 @@
   function hoofSole(S, i, boneY) {   // lowest world y of hoof i (falls back to the old constant offset)
     const P = S.hoof && S.hoof[i]; if (!P) return boneY - ST.sole[i];
     const e = S.feet[i].matrixWorld.elements; let m = Infinity;
+  /* ------------------------------------------------------------------ animals steer around solids (INTERACT.md)
+   * Look-ahead rays against Passport solids / trunks / props (the terrain and sea-ice colliders are excluded: the ground
+   * is not an obstacle); the heading turns to the free direction closest to where the animal wants to go, keeping the
+   * side it already chose (no left/right dithering). Stags: before the game moves them (their flee heading is ours);
+   * fox: its step this frame is re-aimed after the game made it. */
+  K.avoid = true; K.avoidTurn = 5.5;
+  const AVD = { exc: null, n: 0 };
+  const OFFS = [0, 0.3, 0.6, 0.9, 1.2, 1.55, 1.9, 2.3];
+  function groundHandles() {
+    const P = C.PH.P, ex = new Set();
+    for (const [x, z] of [[0, 0], [300, 300], [-300, -300], [450, 450]]) { const h = P.raycast({ x, y: 400, z }, { x: 0, y: -1, z: 0 }, 800, { groups: P.groups.STATIC }); if (h && h.tag && (h.tag.kind === 'terrain' || h.tag.kind === 'ice')) ex.add(h.collider.handle); }
+    return ex;
+  }
+  let _aRay = null;
+  function solidRay(ox, oy, oz, dx, dz, len) {
+    const P = C.PH.P, R = P.RAPIER, W = P.world; if (!R || !W) return null;
+    if (!AVD.exc || !AVD.exc.size) AVD.exc = groundHandles();
+    if (!_aRay) _aRay = new R.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
+    _aRay.origin = { x: ox, y: oy, z: oz }; _aRay.dir = { x: dx, y: 0, z: dz }; AVD.n++;
+    const G = P.groups, h = W.castRay(_aRay, len, true, undefined, (0xffff << 16) | (G.STATIC | G.TRUNK | G.PROP), undefined, undefined, (col) => !AVD.exc.has(col.handle));
+    return h ? h.timeOfImpact : null;
+  }
+  // is the corridor (width 2·half, rays at the given heights above the ground) along angle a free for `len` m?
+  function corridorFree(x, gy, z, a, len, half, hs) {
+    const dx = Math.sin(a), dz = Math.cos(a), rx = dz, rz = -dx;
+    for (const hy of hs) for (const o of [0, half, -half]) if (solidRay(x + rx * o, gy + hy, z + rz * o, dx, dz, len) !== null) return false;
+    return true;
+  }
+  // free heading closest to `want`, preferring the side chosen last time (mem.side); null = keep `want`
+  function steerAround(x, gy, z, want, len, half, hs, mem) {
+    if (corridorFree(x, gy, z, want, len, half, hs)) { mem.side = 0; return { a: want, blocked: false }; }
+    const first = mem.side || 1;
+    for (const o of OFFS) { if (!o) continue; for (const sg of [first, -first]) { const a = want + o * sg; if (corridorFree(x, gy, z, a, len, half, hs)) { mem.side = sg; return { a, blocked: true, off: o * sg }; } } }
+    return { a: want + Math.PI * (mem.side || 1) * 0.5, blocked: true, off: null };   // boxed in: turn away hard
+  }
+
     for (let k = 0; k < P.length; k += 3) { const y = e[1] * P[k] + e[5] * P[k + 1] + e[9] * P[k + 2] + e[13]; if (y < m) m = y; }
     return m;
   }
@@ -982,7 +1106,17 @@
       // ---- flee turning: the game snaps the run direction; we turn it at a finite rate (the yaw follows)
       if (s.st === 'flee') {
         if (S.wroteX === null || Math.abs(s.fx - S.wroteX) > 1e-6 || Math.abs(s.fz - S.wroteZ) > 1e-6) { S.wantX = s.fx; S.wantZ = s.fz; if (S.dir === null) S.dir = Math.atan2(Math.sin(s.yaw), Math.cos(s.yaw)); }
-        const want = Math.atan2(S.wantX, S.wantZ), d = wrapA(want - S.dir), mx = K.stagTurn * dt;
+        let want = Math.atan2(S.wantX, S.wantZ), turnK = K.stagTurn;
+        if (K.avoid && C.PH.ok) {   // look ahead ~0.9 s (≥ 3 m) plus half a body; re-evaluated 20× a second
+          S.avT = (S.avT || 0) - dt;
+          if (S.avT <= 0) { S.avT = 0.05; const gy = C.groundH(s.x, s.z), look = clamp((S.v || 0) * 0.9, 3, 9) + 1.0;
+            S.av = steerAround(s.x, gy, s.z, want, look, 0.3, [0.5, 1.1], S.avMem || (S.avMem = {}));
+            // something right ahead of the current heading: turn harder and ease off
+            S.close = !corridorFree(s.x, gy, s.z, S.dir, 2.4, 0.3, [0.5, 1.1]); }
+          if (S.av && S.av.blocked) { want = S.av.a; turnK = K.avoidTurn; }
+          if (S.close) S.v = Math.min(S.v || 0, 4);
+        }
+        const d = wrapA(want - S.dir), mx = turnK * dt;
         S.dir += clamp(d, -mx, mx); S.turn = clamp(d, -mx, mx) / Math.max(dt, 1e-3);
         // speed ramps up from a standstill (the game moves them at a flat 11 m/s × |f|)
         // top speed = what the gallop clip strides at its fastest believable rate (hooves stay planted: rate = speed ÷ stride)
@@ -1187,8 +1321,28 @@
     const kS = 160, cS = 2 * Math.sqrt(kS) * 0.75;
     CAM.bobV += (-kS * CAM.bob - cS * CAM.bobV) * dt; CAM.bob += CAM.bobV * dt;
     const kD = 70, cD = 2 * Math.sqrt(kD) * 0.8;
+  // the game moved the fox straight at its target this frame; re-aim that step around solids (and never into one)
+  function foxAvoid(dt) {
+    const f = C.fox; if (!K.avoid || !C.PH.ok) { FX.px = f.x; FX.pz = f.z; return; }
+    if (FX.px === undefined || Math.hypot(f.x - FX.px, f.z - FX.pz) > 3) { FX.px = f.x; FX.pz = f.z; return; }   // spawn / teleport
+    const mx = f.x - FX.px, mz = f.z - FX.pz, L = Math.hypot(mx, mz);
+    if (L > 1e-4) {
+      const want = Math.atan2(mx, mz), gy = C.groundH(FX.px, FX.pz), look = L + 0.5 + Math.min(1.2, (f.speed || 0) * 0.12);
+      const r = steerAround(FX.px, gy, FX.pz, want, look, 0.12, [0.28], FX.avMem || (FX.avMem = {}));
+      if (r.blocked) {
+        const a = r.off === null ? want : r.a, nx = FX.px + Math.sin(a) * L, nz = FX.pz + Math.cos(a) * L;
+        if (r.off !== null && solidRay(FX.px, gy + 0.28, FX.pz, Math.sin(a), Math.cos(a), L + 0.2) === null) { f.x = nx; f.z = nz; }
+        else { f.x = FX.px; f.z = FX.pz; }   // boxed in: hold, the next frames pick a side
+        const oy = f.g.position.y - f.y; f.y = C.groundH(f.x, f.z); f.g.position.set(f.x, f.y + oy, f.z);
+        f.yaw += wrapA(Math.atan2(-Math.sin(a), -Math.cos(a)) - f.yaw) * Math.min(1, dt * 10); f.g.rotation.y = f.yaw;
+        STATS.foxDetours = (STATS.foxDetours || 0) + 1;
+      }
+    }
+    FX.px = f.x; FX.pz = f.z;
+  }
     CAM.dipV += (-kD * CAM.dip - cD * CAM.dipV) * dt; CAM.dip += CAM.dipV * dt;
     let dy = clamp(CAM.bob, -0.05, 0.03) + clamp(CAM.dip, -0.4, 0.08);
+    foxAvoid(dt);
     const boom = C.cam.boom || C.cam.dist; dy *= clamp(boom / 3, 0.25, 1);   // close to a wall: smaller moves
     if (Math.abs(dy) < 1e-4) return;
     // stay outside solids (Passport 'solid' + terrain), as the game's own boom does
@@ -1421,7 +1575,7 @@
     return 'interaction off';
   }
   function on() { for (const k in SUB) SUB[k] = true; return 'interaction on'; }
-  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, testIK, testWalk, testContact, testContactSurface, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
+  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, contactTarget: (c) => contactHit(c), testIK, testWalk, testContact, testContactSurface, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
   (window.GameModules = window.GameModules || []).push({
     name: 'interaction',
     order: 50,
@@ -1448,3 +1602,4 @@
     },
   });
 })();
+      if (window.INTERACT_OFF) { K.passport = false; K.avoid = false; }   // A/B: the pre-INTERACT behaviour (tools/interact/run.mjs --init)

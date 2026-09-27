@@ -90,7 +90,8 @@
       let want = endWorldQ;
       if (palmNormal && this.isHand) {
         // UAL hand bones: the palm faces local +X (hand_l) / -X (hand_r) (measured from the T-pose bind)
-        const cur = new THREE.Vector3(this.side === '_l' ? 1 : -1, 0, 0).applyQuaternion(endWorldQ).normalize();
+        const pa = (!window.INTERACT_OFF && A.PALM[this.side]) || [this.side === '_l' ? 1 : -1, 0, 0];   // INTERACT_OFF: the pre-INTERACT axis (A/B)
+        const cur = new THREE.Vector3(pa[0], pa[1], pa[2]).applyQuaternion(endWorldQ).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(cur, n.copy(palmNormal).negate().normalize());
         want = q.multiply(endWorldQ);
       }
@@ -108,6 +109,8 @@
 
   // ------------------------------------------------------------------ contact layer (per character)
   A.SURF_OFF = { hand: 0.035, shoulder: 0.10, back: 0.16, foot: 0 };
+  // hand-bone local axis that points out of the palm (per side); INTERACT.md: measured on the pilot's drawn glove
+  A.PALM = { _l: [0, 1, 0], _r: [0, 1, 0] };   // was ±X (the finger axis on this rig: fingers went 8–9 cm into the wall)
   A.ContactLayer = class {
     constructor(root, meta) { this.root = root; this.meta = meta; this.ik = {}; this.active = null; }
     // call each frame after mixer.update(dt). action = the playing THREE.AnimationAction; hit(contact) -> {point: Vector3, normal: Vector3} in world or null
