@@ -4,13 +4,14 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Four complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game and a first-person story of the 2022 border queue at Verkhny Lars. All four run right in your browser — or clone and play locally.
+### Five complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars and an open-world story on a polar island. All five run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 [![Play Lars in your browser](https://img.shields.io/badge/🏔_Play_Lars-in_your_browser-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
+[![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 
-![Games](https://img.shields.io/badge/games-4-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+![Games](https://img.shields.io/badge/games-5-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
 </div>
 
@@ -99,6 +100,29 @@ You are Artyom, 27, a programmer, alone in a car bound for Tbilisi. Ahead: 25 km
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+<a href="https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html"><img src="ekho-razloma/docs/screenshots/camp-night.jpg" alt="Echo of the Rift: the polar station camp at night under the northern lights"></a>
+
+### 🌌 [Echo of the Rift](ekho-razloma/)
+**A crashed pilot, a polar island and a rift in the ice that sings — 3D open world with a story.**
+
+Your plane goes down under the aurora. A station AI wakes you in the wreck; an old hermit has lived here alone for eleven years. Take the three crystal spires apart, face what lives in the Rift and choose what the northern lights do next.
+
+- 🗺 900 × 900 m island · 📖 5 chapters · 2 endings
+- 👣 snow pressed by every boot, hoof and paw · ✋ the pilot leans on rocks and walls
+- 🛷 a skimmer on the ice · 🦌 stags and a fox · ⚔️ a little combat
+- 🤖 optional AI hermit through a local server
+
+`three.js r186` · `WebGL 2` · any desktop browser, nothing to install
+
+**[▶ Play now](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)**
+
+</td>
+<td width="50%" valign="top">
+</td>
+</tr>
 </table>
 
 ## 📸 A closer look
@@ -125,8 +149,9 @@ You are Artyom, 27, a programmer, alone in a car bound for Tbilisi. Ahead: 25 km
 | ❄️ Berezovka | Open **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
 | 🐺 Sibiria | Open **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
 | 🏔 Lars | Open **[urvanov.com/lars](https://www.urvanov.com/lars/)** — or double-click `lars/index.html` |
+| 🌌 Echo of the Rift | Open **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — or `cd ekho-razloma && python3 -m http.server` and open `/open-world.html` |
 | ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
 
 ## 📜 Licence
 
-Code — MIT, see each game's `LICENSE`. Art and sound keep their original licences, listed in [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md) and [berezovka/CREDITS.md](berezovka/CREDITS.md).
+Code — MIT, see each game's `LICENSE`. Art and sound keep their original licences, listed in [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md) and [berezovka/CREDITS.md](berezovka/CREDITS.md) and [ekho-razloma/CREDITS.md](ekho-razloma/CREDITS.md).
