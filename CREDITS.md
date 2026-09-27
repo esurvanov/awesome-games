@@ -19,6 +19,8 @@ Code: MIT (see `LICENSE`). Everything below keeps its original licence. Only the
 | Asset | Author / source | Licence |
 |---|---|---|
 | Habitat module, radome, pressurized rover, Global Hawk | [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources) | Public domain (NASA insignia used only as set dressing, no endorsement implied) |
+| Habitat module 2k colour + normal map (seams, rivet rows) | derived from NASA 3D Resources "Habitat Demonstration Unit (part 1)" — only a 1024² map is published; detail pass made for this project | Public domain |
+| Polar camp tents (procedural), campfire flame flipbook (noise-baked) | Built for this project; tent canvas weave: "Rough Linen" — [Poly Haven](https://polyhaven.com/a/rough_linen), photography colormass, processing Rico Cilliers | CC0 |
 | "Sci-Fi Radio Dish Antenna" | [david-w-cg](https://opengameart.org/content/sci-fi-radio-dish-antenna) (OpenGameArt) | CC-BY 4.0 |
 | Barrels, drums, crates, propane tank, generator, lamp post, pier, fire pit | [Poly Haven](https://polyhaven.com): Jorge Camacho, James Ray Cock, Jurita Burger, Slinc, Josh Dean, Rico Cilliers | CC0 |
 | Kestrel wreck and debris, station dome and module, tents, snowcat, snowmobile, sledge, rowboat, ruins, cairn, inuksuk, icebergs, pressure ridge, mountain ring, crystals | Built for this project (Blender), textured with CC0 scans from Poly Haven and ambientCG | CC0 |

@@ -116,6 +116,12 @@
       const r = CMP.place(x, z, yawTo(x, z, st.x, st.z), { pitch: 0.2 }); r.fire = [+f.x.toFixed(1), +f.z.toFixed(1)]; return r; },
     async run() { const y0 = D.cam.yaw, t0 = performance.now(); while (performance.now() - t0 < 5000) { D.cam.yaw = y0 + Math.sin((performance.now() - t0) / 5000 * Math.PI * 2) * 0.9; await wait(16); } D.cam.yaw = y0; return {}; },
   };
+  /* CAMP (CAMP.md) — objects that changed size / model: framed from the player's follow camera, same spot in both builds */
+  const faceFrom = (tx, tz, d, a, o) => { const x = tx + Math.sin(a) * d, z = tz + Math.cos(a) * d; const r = CMP.place(x, z, yawTo(x, z, tx, tz), o); return r; };
+  S.camp_tents = { setup() { const c = D.MODCTX && window.WorldFill && WorldFill.stats.camp; if (!c) return { skip: 'no camp' }; const r = faceFrom(c.x, c.z, 9, 0.9, { dist: 5.5, pitch: 0.22 }); r.camp = [+c.x.toFixed(1), +c.z.toFixed(1)]; return r; } };
+  S.wreck_side = { setup() { const k = W.kestrel.g; return faceFrom(k.position.x, k.position.z, 19, k.rotation.y - Math.PI / 2 + 0.35, { dist: 5.5, pitch: 0.18 }); } };
+  S.hab_close = { setup() { const v = W.stationW(16, 11); return faceFrom(v.x, v.z, 9.5, 2.2, { dist: 4.5, pitch: 0.25 }); } };
+  S.station_props = { setup() { const v = W.stationW(-4.5, 14.8); return faceFrom(v.x, v.z, 3.5, 0.6, { dist: 3.8, pitch: 0.45 }); } };
   /* 8 — stags: walk at the herd until it flees */
   S.stags = {
     setup() { const s0 = D.STAGS.filter((s) => land(s.x, s.z)).sort((a, b) => Math.hypot(a.x - POI.crash.x, a.z - POI.crash.z) - Math.hypot(b.x - POI.crash.x, b.z - POI.crash.z))[0] || D.STAGS[0];

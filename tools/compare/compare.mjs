@@ -50,6 +50,10 @@ const SHOTS = [
   { name: 'forest_mid', still: 'pre', clip: true },
   { name: 'station_fire', still: 'pre', clip: true, black: true },
   { name: 'stags', still: 'pre', clip: true },
+  { name: 'camp_tents', still: 'pre', clip: false },
+  { name: 'wreck_side', still: 'pre', clip: false },
+  { name: 'hab_close', still: 'pre', clip: false },
+  { name: 'station_props', still: 'pre', clip: false },
 ];
 
 /* ------------------------------------------------------------------ worktrees + server */
