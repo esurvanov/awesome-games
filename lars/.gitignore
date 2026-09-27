@@ -1,0 +1,6 @@
+.cache/
+tests/node_modules/
+tests/shots/
+# разборы Telegram-чатов: дословные цитаты и номера сообщений реальных людей — только локально
+docs/research/chat/
+docs/screenshots/*.png

@@ -4,12 +4,13 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Хроники Королевств и Берёзовка" width="100%">
 
-### Три законченные открытые игры: средневековая стратегия в реальном времени, зимний открытый мир и игра-выживание с посёлком в тайге. Все три запускаются прямо в браузере — или скачайте и играйте локально.
+### Четыре законченные открытые игры: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге и история очереди на Верхнем Ларсе в 2022 году от первого лица. Все четыре запускаются прямо в браузере — или скачайте и играйте локально.
 
 [![Играть в Берёзовку в браузере](https://img.shields.io/badge/▶_Играть_в_Берёзовку-прямо_в_браузере-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Играть в Хроники Королевств в браузере](https://img.shields.io/badge/⚔_Играть_в_Хроники_Королевств-прямо_в_браузере-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
+[![Играть в Ларс в браузере](https://img.shields.io/badge/🏔_Играть_в_Ларс-прямо_в_браузере-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
 
-![Игр](https://img.shields.io/badge/игр-3-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
+![Игр](https://img.shields.io/badge/игр-4-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
 
 </div>
 
@@ -59,12 +60,11 @@
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top">
+<td width="50%" valign="top">
 
-<a href="sibiria/README.ru.md"><img src="sibiria/docs/screenshots/village-day.jpg" alt="Сибирь: изба, поселенцы и сторожевая вышка в снегу" width="100%"></a>
+<a href="sibiria/README.ru.md"><img src="sibiria/docs/screenshots/village-day.jpg" alt="Сибирь: изба, поселенцы и сторожевая вышка в снегу"></a>
 
 ### 🐺 [Сибирь](sibiria/README.ru.md)
-
 **Переживи четыре ночи в эвенкийской тайге, 1993 год, — и построй посёлок вокруг своей избы.**
 
 Твой Ми-8 упал в Эвенкии, рация разбита. Растопи печь, найди старика-эвенка Уркачана, вытащи Веру из обломков, отбейся от волков и шатуна и вызови вертолёт — или останься и построй посёлок.
@@ -77,6 +77,25 @@
 `JavaScript` · `Canvas 2D` · любой браузер, ничего ставить не нужно
 
 **[▶ Играть](https://esurvanov.github.io/awesome-games/sibiria/)**
+
+</td>
+<td width="50%" valign="top">
+
+<a href="lars/README.ru.md"><img src="lars/docs/screenshots/checkpoint-night.jpg" alt="Ларс: ночью цепочка машин с красными стоп-сигналами тянется к КПП Верхний Ларс"></a>
+
+### 🏔 [Ларс](lars/README.ru.md)
+**Сентябрь 2022-го, очередь на КПП Верхний Ларс — проживи её от первого лица.**
+
+Ты — Артём, 27 лет, программист, один в машине до Тбилиси. Впереди 25 км очереди по Дарьяльскому ущелью, тысячи незнакомых людей и десять дней. В игре нет злодеев и нет чьей-то стороны.
+
+- 🚗 очередь 25 км · ~4 000 машин · ~12 000 человек · реальные цифры по дням
+- 🥪 еда, вода, тепло, сон, нервы, заряд · 💸 ₽ / $ / ₾, цены растут по часам
+- 📣 слухи · 📱 телефон и чаты · 👥 люди с хорошим и плохим
+- 🏔 Дарьяльское ущелье на WebGL вручную · 🔊 голоса по желанию
+
+`WebGL` · `чистый JS` · любой браузер, двойной щелчок по `index.html`
+
+**[▶ Играть](https://www.urvanov.com/lars/)**
 
 </td>
 </tr>
@@ -96,7 +115,7 @@
 |---|---|
 | 🆓 **Открыто до последнего файла** | Код под MIT. Спрайты, модели, текстуры и звуки — из открытых проектов под CC0, CC-BY, CC BY-SA и MIT, авторы указаны в `CREDITS.md` каждой игры. |
 | 🎯 **Законченные игры** | У каждой есть начало, цели и финал. Их можно пройти. |
-| 📏 **Сверено с реальностью** | Цифры проверены по настоящим: войска — по классической стратегии, а у Берёзовки размеры построек, скорость шага и разгон машины проверяются автоматически. |
+| 📏 **Сверено с реальностью** | Цифры проверены по настоящим: войска — по классической стратегии, у Берёзовки размеры построек, скорость шага и разгон машины проверяются автоматически, а очередь в Ларсе идёт по реальным цифрам по дням. |
 | 🧩 **Читаемый код** | Без редакторов движков и закрытых инструментов. Скачайте репозиторий и читайте код. |
 
 ## 🚀 Как играть
@@ -105,6 +124,7 @@
 |---|---|
 | ❄️ Берёзовка | Откройте **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — или `cd berezovka && python3 -m http.server` |
 | 🐺 Сибирь | Откройте **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — или `cd sibiria && python3 -m http.server` |
+| 🏔 Ларс | Откройте **[urvanov.com/lars](https://www.urvanov.com/lars/)** — или двойной щелчок по `lars/index.html` |
 | ⚔️ Хроники Королевств | Откройте **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — или `python3 -m http.server` в корне репозитория и откройте `/age-of-empires/web/`; версия на Python: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (на macOS — двойной клик по `Play.command`) |
 
 ## 📜 Лицензии

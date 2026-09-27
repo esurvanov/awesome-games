@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "scripts": {
+    "serve": "node serve.js",
+    "smoke": "node smoke.js",
+    "perf": "node perf.js",
+    "shots": "node shots.js",
+    "test": "node sim-queue.js && node smoke.js && node perf.js",
+    "sim": "node sim-queue.js"
+  },
+  "dependencies": {
+    "playwright": "^1.57.0"
+  },
+  "type": "module"
+}
