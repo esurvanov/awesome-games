@@ -93,7 +93,7 @@ const UI = (() => {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const isTouch = matchMedia('(pointer: coarse)').matches;
   let kind = null, ctxCache = null, hudT = 0, mapT = 0, goalCache = '', invCache = '', promptCache = '', skillCache = '';
-  let dlg = null, typeT = 0, typeN = 0, noteT = 0;
+  let dlg = null, typeT = 0, typeN = 0, noteT = 0, dlgT = 0; // dlgT — сколько текст реплики уже на экране целиком (ритм «слушает/говорит»)
   const esc = s => icx(s); // текст → HTML: экранирование + токены :id: → иконки спрайта
   const setText = (el, v) => { v = String(v); if (el.textContent !== v) el.textContent = v; };
   const setHtmlOnce = (el, h) => { if (el._h !== h) { el._h = h; el.innerHTML = h; } };
@@ -220,7 +220,7 @@ const UI = (() => {
   function dialog(node) {
     if (!node) return;
     closePanel(true);
-    dlg = node; kind = 'dialog'; typeN = 0; typeT = 0;
+    dlg = node; kind = 'dialog'; typeN = 0; typeT = 0; dlgT = 0;
     if (node.act) Story.act(node.act);
     const w = NPCS[node.who];
     face(w); $('dlg-name').textContent = w.n;
@@ -509,6 +509,8 @@ const UI = (() => {
     const K = (key, i) => (isTouch ? '' : `<kbd>${key}</kbd>`) + ic(i, 's');
     const c = ctxCache;
     if (c) items.push(['E', `${ic('axe', 's')}${esc(c.label)}<kbd>E</kbd>`]);
+    const al = !G.p.sleeping && Actions.altLabel(c); // второе действие: X или долгое E (на таче — удержать кнопку)
+    if (al) items.push(['X', `${ic(al[1], 's')}${esc(al[0])}` + (isTouch ? '' : `<kbd>${c && c.alt && !c.rep ? 'E…' : 'X'}</kbd>`)]);
     if (!G.p.inside && !G.p.sleeping) {
       const f = Actions.nearest(G.fires, 70);
       if (f) items.push(['F', f.fuel > 0 ? `${ic('fire', 's')}Подбросить ${ic('wood', 's')}1<kbd>F</kbd>` : `${ic('fire', 's')}Разжечь ${ic('wood', 's')}2<kbd>F</kbd>`]);
@@ -685,6 +687,8 @@ const UI = (() => {
       case 'trap': return { x: o.x, y: o.y, h: 18 }; case 'stack': return { x: o.x, y: o.y, h: 30 };
       case 'wreck': return { x: POI[o].x, y: POI[o].y, h: 70 }; case 'tube': return { x: TUBE_POS.x, y: TUBE_POS.y, h: 8 };
       case 'labaz': return { x: POI.labaz.x, y: POI.labaz.y, h: 76 }; case 'fish': return { x: o.x, y: o.y, h: 10 };
+      case 'throw': return { x: o.x, y: o.y, h: 36 }; case 'dog': return { x: o.x, y: o.y, h: 30 }; case 'fire': return { x: o.x, y: o.y, h: 34 };
+      case 'drift': return { x: G.p.x + G.p.face * 16, y: G.p.y, h: 8 }; case 'tracks': return { x: o.x, y: o.y, h: 6 }; case 'rest': return { x: o.x, y: o.y, h: 16 };
     }
     return null;
   }
@@ -706,6 +710,7 @@ const UI = (() => {
       typeT += dt * 45; const n = Math.min(dlg.t.length, Math.floor(typeT));
       if (n !== typeN) { typeN = n; $('dlg-text').textContent = dlg.t.slice(0, n); if (n >= dlg.t.length) renderOpts(); }
     }
+    if (kind === 'dialog' && dlg && typeN >= dlg.t.length) dlgT += dt;
     if (kind === 'note') { noteT += dt; }
     if (kind === 'map') WorldMap.tick(dt);
     if (kind === 'craft' || kind === 'chest' || kind === 'trade') { panelT = (panelT || 0) - dt; if (panelT <= 0) { panelT = 0.5; renderPanel(); } }
@@ -775,6 +780,7 @@ const UI = (() => {
     if (fromSave) { SaveGame.load(fromSave); checkpoint = fromSave; }
     else { newGame(); GFX.reset(); SaveGame.checkpoint(); }
     bakeMap();
+    Hero.bodyReset(); // автомат тела — под новое G (память прошлой партии не переносится)
     state = 'play'; kind = null; goalCache = invCache = promptCache = skillCache = ''; tips.hide();
     ['menu', 'over', 'pause', 'slots', 'dialog', 'panel', 'note', 'chapter'].forEach(id => $(id).hidden = true);
     if (isTouch) setOrder(false);
@@ -807,6 +813,7 @@ const UI = (() => {
     if (state !== 'play') return;
     tips.did({ E: 'act', F: 'fire', Q: 'eat', B: 'build', C: 'craft' }[k]);
     if (k === 'E') { if (Actions.fishStrike()) return; if (G.col.ghost && G.col.ghost.touch) return Colony.place(); Actions.interact(false); }
+    else if (k === 'X') Actions.alt();
     else if (k === 'H') Colony.alarm();
     else if (k === 'V') Actions.sniff();
     else if (k === 'B') { if (!kind) openCraft('build'); }
@@ -849,6 +856,7 @@ const UI = (() => {
     if (e.repeat) return;
     if (e.code === 'KeyE' || e.code === 'Space') { input.act = true; keyAction('E'); }
     if (e.code === 'KeyF') keyAction('F');
+    if (e.code === 'KeyX') keyAction('X');
     if (e.code === 'KeyQ') keyAction('Q');
     if (e.code === 'KeyR') keyAction('R');
     if (e.code === 'KeyT') keyAction('T');
@@ -1005,6 +1013,7 @@ const UI = (() => {
     const iv = (t - last) / 1000, w0 = performance.now();
     const dt = Math.min(0.05, iv); last = t; now = t / 1000;
     syncMove();
+    if (state === 'play' && kind) Game.visual(dt); // панель/диалог: игра стоит, мир «дышит»
     if (state === 'play' && !kind) {
       const steps = G.p.sleeping ? TUNE.time.sleepX : 1;
       for (let i = 0; i < steps && state === 'play'; i++) update(dt);
@@ -1015,7 +1024,7 @@ const UI = (() => {
       FX.update(G.parts, dt); // единый слой частиц (js/particles.js)
     }
     frame(dt);
-    GFX.render(state === 'play' && !kind || state === 'menu' ? dt : 0, state === 'play' ? ctxTarget() : null);
+    GFX.render(state === 'play' || state === 'menu' ? dt : 0, state === 'play' ? ctxTarget() : null);
     if (state === 'play') {
       const f = Fire.near(260);
       Sound.frame(dt, { storm: stormOn(), night: 1 - daylight(), tension: G.D.tension, warm: G.s.warm,
@@ -1027,7 +1036,10 @@ const UI = (() => {
   requestAnimationFrame(loop);
 
   applyScale();
-  return { openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
+  return { openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; },
+    // кто в разговоре и чей черёд: пока печатается реплика — говорит собеседник; варианты на экране — герой отвечает с паузами (hero)
+    get talk() { return kind === 'dialog' && dlg ? { who: dlg.who, typing: typeN < dlg.t.length, hero: typeN >= dlg.t.length && dlgT % 5 > 0.8 && dlgT % 5 < 3.4 } : null; },
+    get panel() { return { tab: panelTab, stash: curStash, trade: tradeWho }; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
     focusSel, groupSet, groupGet, setOrder, get orderMode() { return orderMode; }, slotsOpen, loadSlot };
 })();
 const Tips = UI.tips;

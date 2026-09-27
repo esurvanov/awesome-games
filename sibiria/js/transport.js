@@ -70,14 +70,14 @@ const Transport = (() => {
   }
   function mount(kind) {
     const p = G.p, v = G.veh[kind]; if (!v) return;
-    p.ride = kind; p.x = v.x; p.y = v.y; p.action = null; p.vx = p.vy = 0;
+    p.ride = kind; p.x = v.x; p.y = v.y; p.action = null; Hero.snap();
     Fx.toast(kind === 'deer' ? ':deer: В нартах · E — слезть' : ':sled: «Буран» заведён · E — заглушить'); Sound.pick();
   }
   // слезть: транспорт остаётся на месте; msg — почему (дальше не пройти, бензин кончился)
   function dismount(msg) {
     const p = G.p, v = G.veh[p.ride];
     if (v) { v.x = p.x; v.y = p.y; v.face = p.face; }
-    p.ride = null; p.x += 26; p.vx = p.vy = 0;
+    p.ride = null; p.x += 26; Hero.snap();
     if (msg) Fx.toast(msg);
   }
   // шаг движения верхом: транспорт идёт с героем, «Буран» тратит бензин, в запретную местность не въехать
@@ -127,7 +127,7 @@ const Transport = (() => {
     G.time += c.t;
     G.s.food = Math.max(0, G.s.food - c.food);
     G.s.warm = Math.max(Math.min(G.s.warm, TUNE.tr.travel.warmMin), G.s.warm - c.warm);
-    p.x = c.x; p.y = c.y; p.lx = p.x; p.ly = p.y; p.sx = p.x - 30; p.sy = p.y; p.vx = p.vy = 0; p.action = null;
+    p.x = c.x; p.y = c.y; p.sx = p.x - 30; p.sy = p.y; p.action = null; Hero.snap();
     if (p.ride) { const v = G.veh[p.ride]; v.x = p.x; v.y = p.y; if (p.ride === 'buran') v.fuel = Math.max(1, v.fuel - c.km * 825 / T.travel.wind); }
     // спутники: Вера идёт следом, лайки посёлка — тоже
     if (G.vera && G.vera.state === 'follow') { G.vera.x = p.x - 30; G.vera.y = p.y + 10; }

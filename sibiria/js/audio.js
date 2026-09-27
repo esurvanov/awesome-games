@@ -11,7 +11,7 @@ const Sound = {
   SFX_K: 2.4, MUS_K: 2.518,
   mood: null, lay: null, mT: 0, mStep: 0,
   // калибровка по аудиту: множитель громкости на эффект; EXT — для прямых Sound.tone/burst из игры
-  LV: { chop: 2.691, pick: 1.779, ok2: 2.213, hit: 2.065, bite: 5, splash: 4.842, creak: 2.188, shot: 4, howl: 0.922, growl: 3.4, treeCrack: 2.291, step: 4.2, frost: 4.2, heart: 1.035, sting: 1.495, fire: 1.6 },
+  LV: { chop: 2.691, pick: 1.779, ok2: 2.213, hit: 2.065, bite: 5, splash: 4.842, creak: 2.188, shot: 4, howl: 0.922, growl: 3.4, treeCrack: 2.291, thud: 2.4, step: 4.2, frost: 4.2, heart: 1.035, sting: 1.495, fire: 1.6 },
   EXT: 2.113, _g: null,
   fx(name, fn) { const was = this._g; this._g = this.LV[name] || 1; try { fn(); } finally { this._g = was; } },
   gk() { return this._mus ? 1 : this._g != null ? this._g : this.EXT; },
@@ -187,6 +187,15 @@ const Sound = {
     this.rotorBlade.frequency.setTargetAtTime(10 + level * 2.5, t, 0.5); this.heliUntil = t + 1e9;
   },
   rotorOff() { if (this.rotorG) { this.rotorG.gain.setTargetAtTime(0, this.ctx.currentTime, 0.8); this.heliUntil = 0; } },
+  // глухой удар плечом о ствол/стену/камень: k 0…1 — сила; hard — звонче (камень, металл)
+  thud(k = 0.6, hard = 0) {
+    this.burst(0.09, 'lowpass', this.vary(hard ? 420 : 260, 0.12), 0.35 + 0.45 * k);
+    this.tone('sine', this.vary(hard ? 110 : 80, 0.1), 42, 0.12, 0.22 + 0.25 * k, this.rnd(-0.1, 0.1), { lp: 400 });
+  },
+  // жесты героя: свист лайке, взмах палкой, шипение углей под снегом
+  whistle() { this.tone('sine', 1500, 2100, 0.18, 0.12, 0, { a: 0.01 }); this.tone('sine', 1800, 2500, 0.22, 0.12, 0, { at: 0.24, a: 0.01 }); },
+  whoosh() { this.burst(0.2, 'bandpass', this.vary(900, 0.1), 0.18, 2, { f1: 400 }); },
+  hiss() { this.burst(0.7, 'highpass', 3000, 0.16, 0.7, { a: 0.02 }); },
   treeCrack() {
     this.burst(0.25, 'bandpass', this.vary(320, 0.15), 0.9, 1); this.burst(0.03, 'bandpass', 1500, 0.1, 1.5, { a: 0.006 });
     this.burst(0.35, 'lowpass', 220, 0.8, 1, { at: 0.18 }); this.tone('sine', 90, 45, 0.4, 0.4, 0, { at: 0.2 });
@@ -354,7 +363,7 @@ const Sound = {
     if (this.rotorG && this.heliUntil < 1e8) this.rotorG.gain.setTargetAtTime(t < this.heliUntil ? (this.heliLvl || 0.8) : 0, t, t < this.heliUntil ? 0.6 : 1.2);
     // шаги — по состоянию игрока (без хуков в game.js)
     const P = typeof G !== 'undefined' && G && G.p;
-    if (P && P.moving && !P.sleeping && !P.action) {
+    if (P && P.moving && !P.blocked && !P.sleeping && !P.action) {
       const surf = P.inside ? 'wood' : (typeof onIce === 'function' && onIce(P.x, P.y)) ? 'ice' : G.gear && G.gear.skis ? 'ski' : 'snow';
       this.stepT -= dt; if (this.stepT <= 0) { this.stepT = (surf === 'ski' ? 0.55 : 0.34) * this.rnd(0.92, 1.08); this.step(surf); }
     } else this.stepT = Math.min(this.stepT, 0.08);
@@ -373,6 +382,10 @@ const Sound = {
   },
 };
 // калибровочный множитель громкости на каждый эффект (см. Sound.LV)
-for (const [k, lv] of [['chop'], ['pick'], ['ok2'], ['hit'], ['bite'], ['splash'], ['creak'], ['shot'], ['howl'], ['growl'], ['treeCrack'], ['step'], ['frostCrack', 'frost']]) {
+for (const [k, lv] of [['chop'], ['pick'], ['ok2'], ['hit'], ['bite'], ['splash'], ['creak'], ['shot'], ['howl'], ['growl'], ['treeCrack'], ['thud'], ['step'], ['frostCrack', 'frost']]) {
   const f = Sound[k]; Sound[k] = function (...a) { return this.fx(lv || k, () => f.apply(this, a)); };
+}
+// вой и рык — событие мира: герой вздрагивает (Interact 'howl', js/hero.js)
+for (const k of ['howl', 'growl']) {
+  const f = Sound[k]; Sound[k] = function (...a) { if (typeof Interact !== 'undefined' && typeof G !== 'undefined' && G && G.p) Interact.emit('howl', { who: k, x: G.p.x, y: G.p.y }); return f.apply(this, a); };
 }

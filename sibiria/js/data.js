@@ -280,10 +280,18 @@ const TUNE = {
   // тонкий лёд у переката: трещит через creakT с, проваливаешься через breakT с
   ice: { creakT: 1.5, breakT: 3, warm: 10, wetT: 30 },
   hero: {
-    speed: 165, skis: 1.2, sled: 0.9, over: 0.6, storm: 0.8, cold: 0.75, coldBelow: 15,
+    speed: 165, skis: 1.2, sled: 0.9, over: 0.6, storm: 0.8, cold: 0.75, coldBelow: 15, drift: 0.8,
     capKg: 20, sledKg: 20, overChop: 6,          // грузоподъёмность; рубить можно с перегрузом до +6 кг
     chop: 1.6, chopSaw: 1.0, chopSkill: 0.08,    // с на полено; −8 % за уровень рубки
     grip: 14, iceGrip: 2.2, stormDrift: 25,      // разгон по снегу/льду; снос пургой, px/с
+  },
+  // «всё со всем» (js/interact.js): упор героя в препятствие, отклики на рубку
+  interact: {
+    bumpV: 70, bumpCd: 0.6, bumpBack: 2.5, // удар: скорость «в стену» от 70 px/с; не чаще раза в 0.6 с; отскок px
+    pushEvery: 0.5, blocked: 0.35,         // упор: событие раз в 0.5 с; «стоит», если прошёл < 35 % от желаемого
+    nudgeP: 0.85, nudge: 2,                // лёгкая тряска камеры только от сильного удара
+    ravenHit: 70, ravenFell: 260,          // вороны взлетают: с дерева под топором / вокруг поваленного
+    farR: 900,                             // работа людей посёлка дальше — без откликов (слабые машины)
   },
   cloth: { kukhl: 0.6, dokha: 0.7, hat: 0.85 },  // множитель потери тепла
   body: {
@@ -317,7 +325,22 @@ const TUNE = {
     wreckT: 4, digT: 4, holeFish: 3, chopFood: 1, fishFood: 0.5,
     sniffCd: 8, sniffR: 650, fullAt: 96, rawFood: 0.45, teaWarm: 30, teaT: 60,
     bearSleepR: 450,                              // шатун ближе к избе — не уснуть
+    // жесты героя: удержание E ≥ holdT или X — второе действие цели (рубка по удержанию повторяется, трясти — X)
+    holdT: 0.35, chopK: { chopHeavy: 1.15, chopCold: 1.1, chopLow: 1.08 }, // рубка устало/на морозе/в пургу — дольше
+    shakeT: 1.2, nutsP: 0.5, nutsFood: 6, shakeWarm: 1.5, // трясти дерево: в кедраче орешки (еда); под кроной — снег за шиворот
+    kickT: 0.6, kickP: 0.3,                       // пнуть сугроб (раз на сугроб): находка дрова/железо/тушёнка
+    warmT: 20, warmHeat: 3,                       // греть руки: до 20 с, +3 тепла/с сверх огня
+    buryT: 2, buryMax: 3,                         // засыпать костёр: остаток топлива → поленья (по fuelAdd за штуку, ≤ 3)
+    readT: 1.6, readR: 36, readXp: 45,            // читать след: присесть; опыт охоты не чаще раза в 45 с
+    restFood: 0.5, restRegen: 0.15,               // сидеть на пне: голод ×0.5, здоровье +0.15/с
+    petT: 1.6, petHp: 10, petCd: 20,              // гладить лайку: +10 здоровья собаке, не чаще раза в 20 с
+    throwR: 230, throwHit: 0.65, throwHare: 0.25, throwCd: 1.2, throwV: 420, dogR: 320, // палка/камень: волк отскакивает, заяц — шанс; лайка приносит
   },
+  // «живой» герой (js/hero.js): возня стоя через fidget с, повтор через again с; поскользнуться на льду при развороте; stoveR — греет руки у печи
+  life: { fidget: [1.5, 3], again: [2.2, 4.5], slipP: 0.35, slipV: 90, slipCd: 4, flinchR: 170, stoveR: 64 },
+  // тело героя (Hero.body): commit — сколько с разовую позу не прерывает ввод; бег — от скорости px/с; скольжение по льду без ввода — поза slip на доле glideA;
+  // tail — прерванная/законченная рубка доигрывает замах с доли tail[0]..tail[1] (только без ввода)
+  pose: { commit: { hurt: 0.25, slip: 0.25, stagger: 0.2, flinch: 0.15 }, runV: 185, staggerP: 0.6, staggerCd: 2.5, glideV: 8, glideA: 0.3, tail: [0.3, 0.66] },
   radio: { sessions: [[7.5, 9], [19.5, 21]], fromChapter: 3 }, // окна сеансов; борт слышит с главы IV
   fauna: { hareMinR: 700, hareScare: 170, hareRun: 150, hareRunSkill: 4, hareRespawn: 0.3 },
   traps: { minT: 30, sable: 0.35, wpeltTo: 0.45, trapHare: 0.3, snareHare: 0.4 }, // улов на рассвете

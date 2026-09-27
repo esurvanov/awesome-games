@@ -89,6 +89,7 @@ const ArtWorld = (() => {
     // сугроб у ствола
     g.fillStyle = lg(g, -16 * s, 0, 16 * s, 0, [[0, '#f6f9fc'], [0.6, '#eaf0f5'], [1, '#b6c9df']]);
     g.beginPath(); g.ellipse(0, -1 * s, 15 * s, 4.5 * s, 0, 0, TAU); g.fill();
+    el(g, 1 * s, -2.2 * s, 5.5 * s, 1.5 * s, SH(0.22)); // AO: ствол уходит в снег
     const N = 5, T = []; let prev = null;
     for (let i = 0; i < N; i++) T.push({ w: (34 - i * 6.4) * s * (0.93 + r() * 0.14), yb: -11 * s - i * 18.5 * s, h: (33 - i * 2.4) * s });
     for (let i = 0; i < N; i++) {
@@ -152,6 +153,15 @@ const ArtWorld = (() => {
       line(g, '#f6f9fc', 1.1 * s, x0 + side * 2 * s, y0 - 1.6 * s, x0 + side * 10 * s, y0 - 5.4 * s);
       el(g, x0 + side * 11.3 * s, y0 - 5.1 * s, 1.1 * s, 1.1 * s, '#cea977');
     }
+    crownLight(g, s, 36, 130);
+  }
+  // объём кроны: свет №1 сверху-слева, теневой бок справа-снизу — поверх уже нарисованного (source-atop), выше сугроба
+  function crownLight(g, s, hw, ht) {
+    g.save(); g.beginPath(); g.rect(-hw * 1.4 * s, -(ht + 20) * s, hw * 2.8 * s, (ht + 12) * s); g.clip();
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = lg(g, -hw * s, -ht * s, hw * s, -ht * 0.25 * s, [[0, 'rgba(255,246,228,0.14)'], [0.42, 'rgba(255,246,228,0)'], [0.6, 'rgba(16,30,52,0)'], [1, 'rgba(16,30,52,0.26)']]);
+    g.fillRect(-hw * 1.4 * s, -(ht + 20) * s, hw * 2.8 * s, (ht + 12) * s);
+    g.restore();
   }
 
   function paintBirch(g, s, v) {
@@ -282,11 +292,14 @@ const ArtWorld = (() => {
     g.fillStyle = lg(g, -15 * s, 0, 15 * s, 0, [[0, '#f6f9fc'], [1, '#c6d5e6']]);
     g.beginPath(); g.ellipse(0, -0.5 * s, 15 * s, 4 * s, 0, 0, TAU); g.fill();
     el(g, -9 * s, -2 * s, 3.4 * s, 1.6 * s, '#4b3220'); el(g, 10 * s, -1.5 * s, 3.6 * s, 1.5 * s, '#3a2618');
+    el(g, 1.5 * s, -2.4 * s, 8 * s, 1.6 * s, SH(0.2));
+    crownLight(g, s, 44, 105);
   }
 
   const TS = [0.8, 0.95, 1.1, 1.25, 1.4];
   // кэш дерева 110×170, опора (55,160) — как в gfx.js
   const treeW = kind => kind === 2 ? 150 : 110; // кедр раскидистый — шире спрайт
+  const treeK = s => TS[clamp(Math.round((s - 0.8) / 0.15), 0, 4)]; // ступень размера, в которой испечён спрайт
   function treeSprite(kind, s, wall, v, sc) {
     const si = clamp(Math.round((s - 0.8) / 0.15), 0, 4), key = `tree${kind}${wall | 0}${si}${v | 0}`, tw = treeW(kind);
     return sprite(key, tw, 170, g => {
@@ -370,6 +383,7 @@ const ArtWorld = (() => {
     ice(g, -132, 20, 1.2, -3); ice(g, -118, 26, 0.8, 2); ice(g, 44, 26, 1, 3); ice(g, 112, 22, 0.9, -2);
     // ящики, бочка, обшивка
     const crate = (x, y, w, h) => {
+      el(g, x + w / 2, y + h, w * 0.62, 2.2, SH(0.3)); // AO у снега
       g.fillStyle = lg(g, x, 0, x + w, 0, [[0, '#8a6a45'], [1, '#62482f']]); g.fillRect(x, y, w, h);
       g.strokeStyle = 'rgba(58,38,24,0.6)'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + w, y + h); g.stroke();
       rr(g, x - 1, y - 3, w + 2, 4, 2, '#f6f9fc');
@@ -1033,6 +1047,21 @@ const ArtWorld = (() => {
     embers(parts, x, y, n = 8) {
       for (let i = 0; i < n; i++) parts.push({ type: 'ember', x: x + rnd(-8, 8), y: y + rnd(-6, 2), vx: 0, vy: 0, ux: rnd(-10, 10), uz: rnd(25, 55), ph: FXR() * TAU, wob: rnd(3, 9), life: rnd(0.8, 1.6), max: 1.6 });
     },
+    // снег осыпается с кроны: хлопья с высоты кроны + облачка; power 0..1 (удар, задел, порыв)
+    branchSnow(parts, t, power = 1) {
+      if (!t) return;
+      const s = t.s || 1, sap = t.stage === 1, kf = sap ? 0.4 : t.kind === 1 ? 0.5 : t.kind === 3 ? 0.3 : t.kind === 2 ? 1.1 : 1;
+      const H = (sap ? 34 : t.kind === 1 ? 95 : t.kind === 2 ? 92 : 112) * s, L = typeof window !== 'undefined' && window.QUALITY === 'low';
+      const n = Math.round((3 + 9 * power) * kf * (L ? 0.5 : 1));
+      for (let i = 0; i < n; i++) {
+        const u = rnd(0.3, 0.92), hw = ((t.kind === 2 ? 34 : 26) * (1 - u) + 4) * s, a = FXR() * TAU, v = rnd(4, 22);
+        parts.push({ type: 'bit', kind: 'snow', c: i % 3 ? '#f6f9fc' : '#dde6ee', x: t.x + rnd(-hw, hw), y: t.y + rnd(1, 5), vx: 0, vy: 0,
+          ux: Math.cos(a) * v, uy: Math.sin(a) * v * 0.4, uz: rnd(0, 18), gz: rnd(130, 220), z0: u * H, sz: rnd(1.1, 2.3), rot: 0, spin: 0, life: rnd(1.9, 2.6), max: 2.6 });
+      }
+      for (let i = 0, m = Math.round((1 + 2 * power) * Math.min(1, kf) * (L ? 0.5 : 1)); i < m; i++) {
+        parts.push({ type: 'puff', x: t.x + rnd(-10, 10) * s, y: t.y + rnd(1, 4), h: rnd(0.35, 0.8) * H, vx: rnd(-8, 8), vy: 0, r0: rnd(4, 6), r1: rnd(11, 17) * (0.7 + 0.3 * power), life: rnd(0.7, 1.1), max: 1.1 });
+      }
+    },
     smoke(parts, x, y, big) {
       for (let i = 0; i < (big ? 3 : 1); i++) parts.push({ type: 'smoke', x: x + rnd(-4, 4), y: y + rnd(-3, 3), vx: rnd(-6, 6) + 12, vy: rnd(-32, -18) * (big ? 1.3 : 1), life: big ? 3.5 : 2.6, max: big ? 3.5 : 2.6, big: big ? 1 : 0, sd: FXR() });
     },
@@ -1045,12 +1074,18 @@ const ArtWorld = (() => {
       case 'dot': g.globalAlpha = a; el(g, q.x, q.y, 2, 2, q.color || '#f6f9fc'); break;
       case 'smoke': {
         const big = q.big ? 1.8 : 1, r = (7 + (1 - a) * 15) * big, sd = q.sd || 0;
+        // сильный снос (пурга) вытягивает клуб по ветру вместо симметричного пятна
+        const wx = q.vx || 0, str = 1 + Math.min(1.5, Math.abs(wx) / 45), dx = Math.sign(wx) * r * (str - 1) * 0.6;
         g.globalAlpha = a * (q.big ? 0.55 : 0.42) * Math.min(1, el0 * 4);
-        g.drawImage(SMK(), q.x - r, q.y - r * 0.85, r * 2, r * 1.7);
-        g.globalAlpha *= 0.5; g.drawImage(PUFF(), q.x - r * 0.7 - 2 + sd * 3, q.y - r * 0.8, r * 1.2, r * 1.1);
+        g.drawImage(SMK(), q.x - r * str + dx, q.y - r * 0.85, r * 2 * str, r * 1.7);
+        g.globalAlpha *= 0.5; g.drawImage(PUFF(), q.x - r * 0.7 - 2 + sd * 3 + dx, q.y - r * 0.8, r * 1.2, r * 1.1);
         break;
       }
-      case 'breath': { g.globalAlpha = a * 0.5; const r = 2 + (1 - a) * 8; g.drawImage(PUFF(), q.x - r, q.y - r, r * 2, r * 2); break; }
+      case 'breath': {
+        g.globalAlpha = a * 0.5; const r = 2 + (1 - a) * 8;
+        const wx = q.vx || 0, str = 1 + Math.min(1.2, Math.abs(wx) / 40), dx = Math.sign(wx) * r * (str - 1) * 0.5;
+        g.drawImage(PUFF(), q.x - r * str + dx, q.y - r, r * 2 * str, r * 2); break;
+      }
       case 'spark': { // слой glow: рисуется после карты света режимом 'lighter' (его ставит рендер)
         g.globalAlpha = a * 0.5; g.drawImage(HALO(), q.x - 4, q.y - 4, 8, 8);
         g.globalAlpha = a; g.fillStyle = a > 0.5 ? '#ffd27a' : '#ff6a1a'; g.fillRect(q.x - 1, q.y - 1, 2, 2);
@@ -1061,13 +1096,14 @@ const ArtWorld = (() => {
         g.fillStyle = '#fff'; Icons.text(g, q.text, q.x, q.y, 16, { stroke: 'rgba(10,20,30,0.75)', lw: 3 }); break;
       }
       case 'puff': {
-        const r = q.r0 + (q.r1 - q.r0) * (1 - a * a);
-        g.globalAlpha = a * 0.35; g.drawImage(SHD(), q.x - r * 0.8 + 2, q.y - r * 0.4 + 2, r * 1.6, r * 1.1);
-        g.globalAlpha = a; g.drawImage(SPUFF(), q.x - r, q.y - r * 0.8, r * 2, r * 1.6); break;
+        const r = q.r0 + (q.r1 - q.r0) * (1 - a * a), hz = q.h ? q.h * a : 0; // h — облачко в кроне, оседает к земле
+        if (!hz) { g.globalAlpha = a * 0.35; g.drawImage(SHD(), q.x - r * 0.8 + 2, q.y - r * 0.4 + 2, r * 1.6, r * 1.1); }
+        g.globalAlpha = a * (q.h ? 0.8 : 1); g.drawImage(SPUFF(), q.x - r, q.y - hz - r * 0.8, r * 2, r * 1.6); break;
       }
       case 'bit': {
-        const T = 2 * q.uz / q.gz, tt = Math.min(el0, T), landed = el0 >= T;
-        const drag = 1 - Math.exp(-tt * 3), px = q.x + q.ux * drag / 3, py = q.y + q.uy * drag / 3, z = Math.max(0, q.uz * tt - 0.5 * q.gz * tt * tt);
+        // z0 — старт с высоты (снег с кроны): время до земли из z0 + uz·t − g·t²/2 = 0
+        const z0 = q.z0 || 0, T = z0 ? (q.uz + Math.sqrt(q.uz * q.uz + 2 * q.gz * z0)) / q.gz : 2 * q.uz / q.gz, tt = Math.min(el0, T), landed = el0 >= T;
+        const drag = 1 - Math.exp(-tt * 3), px = q.x + q.ux * drag / 3, py = q.y + q.uy * drag / 3, z = Math.max(0, z0 + q.uz * tt - 0.5 * q.gz * tt * tt);
         const fade = Math.min(1, a * 3), s = q.sz;
         g.globalAlpha = fade;
         if (q.kind === 'chip') {
@@ -1142,6 +1178,7 @@ const ArtWorld = (() => {
     if (al <= 0.01) return;
     const c = Math.cos(f.a), s = Math.sin(f.a);
     g.save(); g.transform(c, s, -s, c, f.x, f.y);
+    if (f.d && f.d !== 1) g.scale(f.d, f.d); // сугроб: след глубже и шире
     const dep = `rgba(111,142,168,${al})`, rim = `rgba(255,255,255,${al * 1.2})`, sh = `rgba(60,80,130,${al * 0.9})`;
     switch (f.k) {
       case 'p': // валенок: рант светлый со стороны солнца, внутренняя тень сверху
@@ -1879,7 +1916,7 @@ const ArtWorld = (() => {
 
   return {
     paintSpruce, paintBirch, paintCedar, paintMi8, paintTail, paintChum, paintLabaz, paintMi8Fly, mi8Fly, rotor,
-    treeSprite, treeW, spr, reset, rng, setScale, shadow,
+    treeSprite, treeW, treeK, spr, reset, rng, setScale, shadow,
     sprite, el, rr, poly, line, lg, rg, // примитивы — для js/art-zones.js (тот же кэш и масштаб)
     stump, sapling, stashPile, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
     hutFloor, hutNorth, hutFront, hutRoof, hutStove, hutBench, hutChest, hutBed, hutTop: HUT_TOP,

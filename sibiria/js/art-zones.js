@@ -49,6 +49,7 @@ const ArtZones = (() => {
   function paintRock(g, v) {
     const P = ROCK[v % 3];
     shadow(g, 2, 1, 28, 7, 0.4);
+    el(g, 0, 0, 22, 2.6, 'rgba(39,57,74,0.3)'); // AO: плотная кромка у снега
     poly(g, '#4e535d', ...P.flat());
     // светлая грань (свет с юго-запада) и тёмная северо-восточная
     g.save(); g.beginPath(); g.moveTo(P[0][0], P[0][1]); for (const [x, y] of P) g.lineTo(x, y); g.closePath(); g.clip();

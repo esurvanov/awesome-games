@@ -77,6 +77,14 @@ const ArtAnimals = (() => {
     g.moveTo((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
     for (let i = 0; i < n; i++) { p = pts[i]; q = pts[(i + 1) % n]; g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
   }
+  // обводка части контура blob: по тем же серединам/контрольным точкам, что и заливка (лежит на силуэте), db — сдвиг внутрь по нормали
+  function edge(g, F, pts, db, col, lw) {
+    const n = pts.length; if (n < 3) return;
+    const Q = pts.map(p => F(p[0], p[1] + db));
+    g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo((Q[0][0] + Q[1][0]) / 2, (Q[0][1] + Q[1][1]) / 2);
+    for (let i = 1; i < n - 1; i++) g.quadraticCurveTo(Q[i][0], Q[i][1], (Q[i][0] + Q[i + 1][0]) / 2, (Q[i][1] + Q[i + 1][1]) / 2);
+    g.stroke();
+  }
   function fillBlob(g, pts, col) { g.fillStyle = col; g.beginPath(); blob(g, pts); g.fill(); }
   function poly(g, pts, col) { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); g.fill(); }
   function ell(g, x, y, rx, ry, col, r = 0) { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, r, 0, TAU); g.fill(); }
@@ -133,6 +141,14 @@ const ArtAnimals = (() => {
     const [f, tq] = turn(m, o.face, env.now || 0), ad = Math.abs(m.dy), sx = (1 - 0.24 * ad) * tq, fy = -(1.4 + 3 * ad) + (P.farY || 0);
     const x = o.x, y = o.y, H = P.H, S = P.S;
     shadow(g, x + f * k * sx * (H[0] + S[0]) * 0.5, y + 1, (Math.abs(S[0] - H[0]) * 0.5 + SP.shw) * k * sx + 1.5 * ad * k, (3.5 + 1.8 * ad) * k * SP.shh);
+    // контактные тени: плотные пятнышки под стоящими лапами
+    g.fillStyle = 'rgba(24,34,46,0.3)'; g.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const p = P.F[i]; if (p[1] < -1.5) continue;
+      const far = i === 0 || i === 2, w = (i < 2 ? SP.lw[1] : SP.lwF[1]) * k, cx = x + f * k * sx * (p[0] + (far ? 1.5 : 0)), cy = y + k * (far ? fy : 0) + 0.3;
+      g.moveTo(cx + w * 0.9 + 1, cy); g.ellipse(cx, cy, w * 0.9 + 1, w * 0.35 + 0.5, 0, 0, TAU);
+    }
+    g.fill();
     g.save(); g.translate(x, y); g.scale(f * k * sx, k);
     if (P.roll) g.rotate(P.roll);
     g.lineCap = 'round'; g.lineJoin = 'round';
@@ -145,6 +161,11 @@ const ArtAnimals = (() => {
     fillBlob(g, SP.saddle.map(p => F(p[0], p[1])), C.dark);
     fillBlob(g, SP.belly.map(p => F(p[0], p[1])), C.belly);
     if (SP.detail) SP.detail(g, F, P, C, m, env, o);
+    // объём: низ брюха темнеет к снегу, по спине — холодный контровой от неба (ночью почти гаснет)
+    const bk = SP.bk || (SP.bk = SP.torso.filter(p => p[1] > 4)), bl = SP.bl || (SP.bl = SP.torso.filter(p => p[1] < -3.5));
+    edge(g, F, bl, 1.3, 'rgba(24,34,46,0.22)', 2.6);
+    const rim = 0.42 * (1 - 0.85 * sstep(0.3, 0.7, env.night || 0));
+    if (rim > 0.03) edge(g, F, bk, -0.6, `rgba(221,230,238,${rim.toFixed(2)})`, 1.2);
     // ближние ноги
     leg(g, H, P.F[1], SP.hl, Fb[1], lw[0], lw[1], C.leg, toe, SP.paw && C.paw);
     leg(g, S, P.F[3], SP.fl, Fb[3], lf[0], lf[1], C.leg, toe, SP.paw && C.paw);
@@ -379,6 +400,7 @@ const ArtAnimals = (() => {
     if (gait === 'walk' || gait === 'trot') { const a = gait === 'walk' ? 0.6 : 1.1; P.H[1] += a * cos(ph * TAU * 2); P.S[1] += a * cos(ph * TAU * 2 + 1.6); P.hd[1] += a * 0.8 * cos(ph * TAU * 2 + 2.2); P.wag = 6; }
     else if (gait === 'gallop') { const e = cos(ph * TAU), b = sin(ph * TAU); P.H[0] += 2.4 * e; P.S[0] -= 2.2 * e; P.H[1] += -1.4 * b - 1; P.S[1] += 1.6 * b - 1.2; P.hd = [23.5 - 2 * e, -23 + 1.8 * b, 0.1]; P.ear = 0.3; }
     else P.hd[2] += sin(now * 0.8 + m.seed) * 0.12;
+    if ((u.wag || 0) > now) P.wag = 16; // погладили / позвали — виляет
     if (u.bark) { const j = Math.max(0, sin(now * 15)); P.jaw = j * 0.5; P.hd[2] -= 0.15 + j * 0.1; P.S[0] += j * 0.8; P.H[1] += j * 0.4; P.wag = 10; }
     const sk = sstep(0.8, 1.5, m.idle);
     if (sk > 0 && !u.bark) P = mix(P, Object.assign({}, P, SIT, { hd: [16, -33, 0.05 + sin(now * 0.8 + m.seed) * 0.12] }), sk);
@@ -461,6 +483,7 @@ const ArtAnimals = (() => {
     const st = moving ? clamp(air * 1.4, 0, 1) : 0, lift = air * 7, sx = 1 - 0.22 * Math.abs(m.dy);
     const pitch = moving ? (p < 0.5 ? -0.25 : 0.22) * st : 0;
     shadow(g, h.x, h.y + 1, 9 * (1 - air * 0.25) * sx, 3.2 * (1 - air * 0.25), 0.2);
+    if (air < 0.25) shadow(g, h.x - f * 1.5 * sx, h.y + 0.4, 6 * sx, 1.3, 0.3);   // контактная — только на снегу
     g.save(); g.translate(h.x, h.y - lift); g.scale(f * sx * tq, 1);
     const cx = -2 + 2 * st, cy = -7 - st, rx = 7.5 + 3 * st, ry = 6 - 1.8 * st, rot = -0.35 * (1 - st) + pitch;
     const hx = 5 + 5.5 * st, hy = -12.5 + 3 * st + (moving ? 0 : sin(now * 1.3 + m.seed) * 0.3);

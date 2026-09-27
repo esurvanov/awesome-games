@@ -4,14 +4,19 @@
 const insideHut = (x, y) => x > HUT_IN.x0 && x < HUT_IN.x1 && y > HUT_IN.y0 && y < HUT_IN.y1;
 // деревья в квадрате ±r (без проверки расстояния) — gfx, посёлок, бот
 function treesNear(x, y, r, out = []) { return Space.trees.near(x, y, r, out); }
+// сугроб под точкой (внутри эллипса), если есть — герой в глубоком снегу: медленнее, след глубже
+function driftAt(x, y) {
+  for (const d of Space.drifts.near(x, y, 130)) { const dx = (x - d.x) / d.rx, dy = (y - d.y) / d.ry; if (dx * dx + dy * dy < 1) return d; }
+  return null;
+}
 
 const World = (() => {
   // туман войны: клетка FOG.cell px мира, сетка nx × ny (при ×1 — 36 × 36); значение клетки 0..3
   const FOG = { cell: WORLD.fogCell, nx: Math.ceil(W / WORLD.fogCell), ny: Math.ceil(H / WORLD.fogCell) };
   const COLL = [
-    { x: POI.cockpit.x - 30, y: POI.cockpit.y, r: 40 }, { x: POI.cockpit.x + 40, y: POI.cockpit.y - 10, r: 38 },
-    { x: POI.tail.x, y: POI.tail.y, r: 34 }, { x: POI.chum.x, y: POI.chum.y - 10, r: 34 },
-    { x: POI.labaz.x, y: POI.labaz.y, r: 22 },
+    { x: POI.cockpit.x - 30, y: POI.cockpit.y, r: 40, k: 'wreck' }, { x: POI.cockpit.x + 40, y: POI.cockpit.y - 10, r: 38, k: 'wreck' },
+    { x: POI.tail.x, y: POI.tail.y, r: 34, k: 'wreck' }, { x: POI.chum.x, y: POI.chum.y - 10, r: 34, k: 'build' },
+    { x: POI.labaz.x, y: POI.labaz.y, r: 22, k: 'build' },
   ];
   const nearHut = (r = TUNE.r.nearHut) => Math.hypot(G.p.x - HUT.x, G.p.y - (HUT.y - 30)) < r;
   const inCedar = (x, y) => Math.hypot(x - POI.cedar.x, y - POI.cedar.y) < POI.cedar.r;
@@ -163,29 +168,39 @@ const World = (() => {
   }
 
   // ---------- столкновения ----------
-  function pushRect(o, r, R) {
-    const qx = clamp(o.x, R.x0, R.x1), qy = clamp(o.y, R.y0, R.y1), dx = o.x - qx, dy = o.y - qy, d2 = dx * dx + dy * dy;
-    if (d2 >= r * r) return;
-    if (d2 > 1e-4) { const d = Math.sqrt(d2); o.x = qx + dx / d * r; o.y = qy + dy / d * r; return; }
-    const l = o.x - R.x0, rr = R.x1 - o.x, t = o.y - R.y0, b = R.y1 - o.y, m = Math.min(l, rr, t, b);
-    if (m === l) o.x = R.x0 - r; else if (m === rr) o.x = R.x1 + r; else if (m === t) o.y = R.y0 - r; else o.y = R.y1 + r;
+  // CONTACT — последний упор (перезаписывает каждый solid): k — что за препятствие, o — объект, nx/ny — нормаль выталкивания.
+  // Читает герой сразу после своего вызова; остальным не мешает.
+  const CONTACT = { k: null, o: null, nx: 0, ny: 0 }, NB = [];
+  function pushRect(o, r, x0, x1, y0, y1) {
+    const qx = clamp(o.x, x0, x1), qy = clamp(o.y, y0, y1), dx = o.x - qx, dy = o.y - qy, d2 = dx * dx + dy * dy;
+    if (d2 >= r * r) return false;
+    if (d2 > 1e-4) { const d = Math.sqrt(d2); o.x = qx + dx / d * r; o.y = qy + dy / d * r; return true; }
+    const l = o.x - x0, rr = x1 - o.x, t = o.y - y0, b = y1 - o.y, m = Math.min(l, rr, t, b);
+    if (m === l) o.x = x0 - r; else if (m === rr) o.x = x1 + r; else if (m === t) o.y = y0 - r; else o.y = y1 + r;
+    return true;
   }
-  function pushCircle(o, r, c, cr) {
-    const dx = o.x - c.x, dy = o.y - c.y, d2 = dx * dx + dy * dy, m = r + cr;
-    if (d2 < m * m && d2 > 1e-4) { const d = Math.sqrt(d2); o.x = c.x + dx / d * m; o.y = c.y + dy / d * m; }
+  function pushCircle(o, r, cx, cy, cr) {
+    const dx = o.x - cx, dy = o.y - cy, d2 = dx * dx + dy * dy, m = r + cr;
+    if (d2 < m * m && d2 > 1e-4) { const d = Math.sqrt(d2); o.x = cx + dx / d * m; o.y = cy + dy / d * m; return true; }
+    return false;
   }
+  const touch = (k, o) => { CONTACT.k = k; CONTACT.o = o; };
   function solid(o, r, who) {
+    const x0 = o.x, y0 = o.y; CONTACT.k = CONTACT.o = null;
     if (who === 'p') {
-      for (const t of treesNear(o.x, o.y, 40)) if (t.wood > 0) pushCircle(o, r, t, 4 + 8 * t.s);
-      for (const q of Space.rocks.near(o.x, o.y, 50)) pushCircle(o, r, { x: q.x, y: q.y - 4 }, 14 * q.s);
+      NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, 4 + 8 * t.s)) touch('tree', t);
+      NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushCircle(o, r, q.x, q.y - 4, 14 * q.s)) touch('rock', q);
     }
     if (Math.abs(o.x - HUT.x) < 180 && Math.abs(o.y - HUT.y) < 160) {
-      for (const R of HUT_WALLS) pushRect(o, r, R);
-      if (who !== 'p' && G.hut.door) pushRect(o, r, DOOR_RECT);
+      for (const R of HUT_WALLS) if (pushRect(o, r, R.x0, R.x1, R.y0, R.y1)) touch('wall', null);
+      if (who !== 'p' && G.hut.door) pushRect(o, r, DOOR_RECT.x0, DOOR_RECT.x1, DOOR_RECT.y0, DOOR_RECT.y1);
     }
-    for (const c of COLL) pushCircle(o, r, c, c.r);
-    if (G.col) for (const b of Space.builds.near(o.x, o.y, r + 60)) if (b.done && !BUILDS[b.type].flat) { const B = BUILDS[b.type]; if (Math.abs(o.x - b.x) < B.w / 2 + r + 2 && Math.abs(o.y - b.y) < B.h / 2 + r + 2) pushRect(o, r, { x0: b.x - B.w / 2, x1: b.x + B.w / 2, y0: b.y - B.h / 2, y1: b.y + B.h / 2 }); }
-    o.x = clamp(o.x, 40, W - 40); o.y = clamp(o.y, 50, H - 40);
+    for (const c of COLL) if (pushCircle(o, r, c.x, c.y, c.r)) touch(c.k, c);
+    if (G.col) { NB.length = 0; for (const b of Space.builds.near(o.x, o.y, r + 60, NB)) if (b.done && !BUILDS[b.type].flat) { const B = BUILDS[b.type]; if (Math.abs(o.x - b.x) < B.w / 2 + r + 2 && Math.abs(o.y - b.y) < B.h / 2 + r + 2 && pushRect(o, r, b.x - B.w / 2, b.x + B.w / 2, b.y - B.h / 2, b.y + B.h / 2)) touch('build', b); } }
+    const cx = o.x, cy = o.y; o.x = clamp(o.x, 40, W - 40); o.y = clamp(o.y, 50, H - 40);
+    if ((cx !== o.x || cy !== o.y) && !CONTACT.k) touch('edge', null);
+    if (CONTACT.k) { const dx = o.x - x0, dy = o.y - y0, d = Math.hypot(dx, dy); if (d > 1e-4) { CONTACT.nx = dx / d; CONTACT.ny = dy / d; } else CONTACT.k = null; }
+    return CONTACT.k ? CONTACT : null;
   }
 
   // ---------- туман войны и открытие мест ----------
@@ -209,7 +224,7 @@ const World = (() => {
       if (p.iceT > I.creakT && !p.creaked) { p.creaked = 1; Sound.creak(); Fx.shake(3); Fx.toast(':frost: Лёд трещит!'); }
       if (p.iceT > I.breakT) {
         p.iceT = 0; p.creaked = 0; G.s.warm = Math.min(G.s.warm, I.warm); p.wetT = I.wetT; p.action = null;
-        p.x = POI.polynya.x - 140; Sound.splash(); Fx.shake(10); Fx.toast(':frost: Провалился! Сушись у огня');
+        p.x = POI.polynya.x - 140; Hero.snap(); Sound.splash(); Fx.shake(10); Fx.toast(':frost: Провалился! Сушись у огня');
         Fx.burst(POI.polynya.x, POI.polynya.y, 20, '#9fd0ee', 160);
       }
     } else { p.iceT = Math.max(0, p.iceT - dt * 2); if (p.iceT === 0) p.creaked = 0; }

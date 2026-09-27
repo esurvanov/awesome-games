@@ -15,6 +15,7 @@
 //   run               — обработчики вариантов run: (g, npc) → id узла DIALOG, который показать следом, или null
 //   acts              — act узлов диалога → операции (js/story.js, Story.run) или функция
 //   idle              — [условие, реплика] — «живые» фразы по обстановке; tips — советы (дед)
+//   bark              — реплики над головой без диалога (js/barks.js): {hi, cold, hurt} — строки или (g) → строки
 //   trade             — торговля: товары (id, цена p в пушнине, stock), чем платят (pay)
 //   onDawn, onClose   — хуки: рассвет; диалог с ним закрыт
 //   dialog            — узлы диалога {who, t, opts:[{t, next}], act, note}; все вместе — DIALOG (ниже)
@@ -34,6 +35,7 @@ const NPCS = (() => {
       chum: { move: 'face' },                               // живёт у чума
     },
     talkR: 70,
+    bark: { hi: ['Дорова, лучэ.', 'Живой? Хорошо.'], cold: ['Замёрз, лучэ. К огню иди.'], hurt: ['Кровью пахнет. Волк тоже чует.'] },
     talk: [
       { quest: 'pelts' },
       { if: g => g.flags.rescueReady, node: 'urk_bye' },
@@ -188,6 +190,7 @@ const NPCS = (() => {
       dead: { hidden: 1 },
     },
     talkR: 64,
+    bark: { hi: g => g.vera.state === 'tail' ? ['Эй! Сюда! Я здесь!'] : ['Лёша, я тут. Ковыляю.'], cold: ['Лёша, ты синий весь. Грейся.'], hurt: ['Дай перевяжу. Руки-то целы.'] },
     canTalk: g => !(g.p.inside && dist2(SPOT.bed, g.p) < 48 * 48), // у кровати героя E — «спать»
     talk: [
       { if: g => g.vera.state === 'tail', node: 'vera_found' },

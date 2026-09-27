@@ -18,7 +18,7 @@ const Fx = (() => {
   }
   function shake(n) { if (!UI.reduced && Settings.get('shake')) G.shake = Math.max(G.shake || 0, n); }
   function corpse(kind, x, y) { ArtWorld.fx.blood(G.parts, x, y, G.decals = G.decals || []); (G.corpses = G.corpses || []).push({ kind, x: Math.round(x), y: Math.round(y), t0: G.time }); if (G.corpses.length > E.corpses) G.corpses.shift(); }
-  function print(x, y, a, k) { G.prints.push({ x, y, a, k, life: E.printLife }); if (G.prints.length > E.prints) G.prints.shift(); }
+  function print(x, y, a, k, d) { G.prints.push({ x, y, a, k, life: E.printLife, d }); if (G.prints.length > E.prints) G.prints.shift(); }
   // шаг частиц, следов и пятен
   function tick(dt, storm) {
     for (const f of G.prints) f.life -= dt * (storm ? 4 : 1);

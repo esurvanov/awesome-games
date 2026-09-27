@@ -112,7 +112,7 @@ const GFX = (() => {
   const BANDS = [[strip('rgba(61,255,156,0.9)', 'rgba(31,209,165,0.35)'), 0, 0.34], [strip('rgba(31,209,165,0.8)', 'rgba(139,92,246,0.35)'), 1.7, 0.26], [strip('rgba(255,79,139,0.5)', 'rgba(139,92,246,0.4)'), 3.1, 0.18]];
 
   // ---------- деревья: кэш ArtWorld в масштабе rdpr × zb ----------
-  const treeSprite = t => ArtWorld.treeSprite(t.kind, t.s, t.wall, t.v, rdpr * zb);
+  const treeSprite = (t, v = t.v) => ArtWorld.treeSprite(t.kind, t.s, t.wall, v, rdpr * zb);
 
   // ---------- снег кусками (C8): печь полосами, не больше бюджета за кадр; река — отдельным слоем ----------
   const CS = 512, STRIPS = 8, SH = CS / STRIPS, BASE = '#eaeff5';
@@ -232,14 +232,80 @@ const GFX = (() => {
   const light = ENV.light;
 
   // ---------- объекты ----------
-  function drawTree(t, wind) {
-    if (t.wood <= 0) return ArtWorld.stump(cx, t.x, t.y, t.s);
-    if (t.stage === 1) return ArtWorld.sapling(cx, t.x, t.y, t.s, t.v);
-    const sway = wind * 0.05 * (0.6 + 0.4 * Math.sin(now * 1.7 + t.x * 0.013)) + (t.shake > 0 ? Math.sin(now * 60) * t.shake * 0.25 : 0);
-    cx.setTransform(dpr, 0, -sway * dpr, dpr, (t.x - cam.x + shx) * dpr, (t.y - cam.y + shy) * dpr);
-    const tw = ArtWorld.treeW(t.kind); cx.drawImage(treeSprite(t), -tw / 2, -160, tw, 170);
-    WT();
+  // ветер-поле: порыв — волна шума, бегущая по миру вдоль ветра (+x); между порывами штиль (g = 0)
+  const WN = Noise.make(mulberry(0x57D)), GUST_V = 110, GUST_L = 560;
+  const gustAt = (x, y) => smooth(-0.05, 0.55, WN.n2((x + y * 0.35 - now * GUST_V) / GUST_L, y / 900 + now * 0.04));
+  // вариант ели по хэшу позиции (3 вместо 2: меньше одинаковых копий); стена-частокол — как есть
+  const treeV = t => t.kind === 0 && !t.wall ? (t.v + ((((t.x * 73856093) ^ (t.y * 19349663)) >>> 0) % 3)) % 3 : t.v;
+  // изгиб: смещение на высоте h (0..160) = sway·h²/160 — комель на месте, крона гнётся; срезы спрайта стыкуются по ломаной
+  const SLICE = [-10, 28, 70, 112, 160], GUSTY = [];
+  // отклики вещей на жесты героя (Interact) — память рендера, не в G: зарубка на стволе растёт с каждым ударом,
+  // костёр вспыхивает от рук, тайник приподнимает крышку, пнутый сугроб оставляет ямку
+  const CUT = new WeakMap(), FLARE = new WeakMap(), OPEN = new WeakMap(), KICKS = [];
+  if (typeof Interact !== 'undefined') {
+    Interact.on('hit', e => { const t = e.target; if (!t) return; const c = CUT.get(t) || { n: 0, side: Math.sign((e.who === 'p' ? G.p.x : e.who.x) - t.x) || 1 }; c.n++; CUT.set(t, c); });
+    Interact.on('warm', e => { if (e.target) FLARE.set(e.target, now); });
+    Interact.on('open', e => { if (e.target) OPEN.set(e.target, now); });
+    Interact.on('kick', e => { KICKS.push({ x: e.x, y: e.y, t0: now }); if (KICKS.length > 8) KICKS.shift(); });
   }
+  function drawCut(t, c) {
+    const s = t.s, sd = c.side, n = Math.min(c.n, 6), d = (1.5 + n * 0.6) * s, h = (2 + n * 0.5) * s, x = t.x + sd * 5 * s, y = t.y - 15 * s;
+    cx.fillStyle = '#3a2618'; cx.beginPath(); cx.moveTo(x, y - h - 0.8); cx.lineTo(x - sd * (d + 0.8), y); cx.lineTo(x, y + h * 0.6 + 0.8); cx.closePath(); cx.fill(); // тень зарубки
+    cx.fillStyle = '#e0b47a'; cx.beginPath(); cx.moveTo(x, y - h); cx.lineTo(x - sd * d, y); cx.lineTo(x, y + h * 0.6); cx.closePath(); cx.fill();
+    cx.fillStyle = '#c79a62'; cx.beginPath(); cx.moveTo(x, y - h); cx.lineTo(x - sd * d, y); cx.lineTo(x, y); cx.closePath(); cx.fill(); // верхняя грань темнее
+    cx.fillStyle = '#d9bd8a'; for (let i = 0; i < Math.min(n, 5); i++) cx.fillRect(x + sd * (4 + i * 3.3), t.y + 2 + (i % 2) * 2, 2.2, 1.2); // щепа у комля
+  }
+  function drawTree(t, wind) {
+    if (t.wood <= 0) { CUT.delete(t); return ArtWorld.stump(cx, t.x, t.y, t.s); }
+    if (t.stage === 1) return ArtWorld.sapling(cx, t.x, t.y, t.s, t.v);
+    const g = gustAt(t.x, t.y), ph = t.x * 0.013 + t.y * 0.007;
+    const sway = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) + (t.shake > 0 ? Math.sin(now * 60) * t.shake * 0.25 : 0);
+    const fl = wind * (0.3 + g) * 0.9 * Math.sin(now * 7.3 + ph * 5); // дрожь верхушки, px
+    if (g > 0.75 && GUSTY.length < 8 && dist2(t, G.p) < 340 * 340) GUSTY.push(t);
+    const S = treeSprite(t, treeV(t)), tw = ArtWorld.treeW(t.kind), k = t.s / ArtWorld.treeK(t.s), kd = k * dpr;
+    const X = (t.x - cam.x + shx) * dpr, Y = (t.y - cam.y + shy) * dpr;
+    if (window.QUALITY === 'low' || Math.abs(sway * 160) + Math.abs(fl) < 1.5) { // штиль: изгиб < 0.4 px от наклона — один drawImage
+      cx.setTransform(kd, 0, -sway * kd, kd, X, Y); cx.drawImage(S, -tw / 2, -160, tw, 170); WT(); const c = CUT.get(t); if (c) drawCut(t, c); return;
+    }
+    const sc = S.width / tw, off = h => (h > 0 ? sway * h * h / 160 : 0);
+    let rLo = S.height, hLo = SLICE[0], oLo = 0;
+    for (let i = 1; i < SLICE.length; i++) {
+      const top = i === SLICE.length - 1, rHi = top ? 0 : Math.round((160 - SLICE[i]) * sc), hHi = 160 - rHi / sc, oHi = off(hHi) + (top ? fl : 0);
+      const kk = (oHi - oLo) / (hHi - hLo), rB = Math.min(S.height, rLo + (i > 1 ? 1 : 0)); // +1 ряд внахлёст на нижний срез — без щели
+      cx.setTransform(kd, 0, -kk * kd, kd, X + (oLo - kk * hLo) * kd, Y);
+      cx.drawImage(S, 0, rHi, S.width, rB - rHi, -tw / 2, rHi / sc - 160, tw, (rB - rHi) / sc);
+      rLo = rHi; hLo = hHi; oLo = oHi;
+    }
+    WT(); const c = CUT.get(t); if (c) drawCut(t, c);
+  }
+  // падение срубленного дерева (Interact 'fell'): поворот вокруг комля к dir с разгоном, удар, лежит и тает
+  const FALL = [], FALL_T = 0.9, FALL_LIE = 24;
+  if (typeof Interact !== 'undefined') Interact.on('fell', ev => {
+    const t = ev.target; if (!t || t.stage === 1) return;
+    const w = ev.who, d = ev.dir != null ? ev.dir : w ? Math.atan2(t.y - w.y, t.x - w.x) : 0;
+    if (FALL.length >= 6) FALL.shift();
+    FALL.push({ x: t.x, y: t.y, kind: t.kind, s: t.s, wall: t.wall, v: treeV(t), d, t0: now, hit: 0 });
+  });
+  function drawFall(f) {
+    const el = now - f.t0, k = Math.min(1, el / FALL_T), bo = el > FALL_T ? 0.07 * Math.exp(-(el - FALL_T) * 8) * Math.abs(Math.sin((el - FALL_T) * 18)) : 0;
+    const th = k * k * Math.PI / 2 - bo, ct = Math.cos(th), st = Math.sin(th), cd = Math.cos(f.d), sd = Math.sin(f.d);
+    const Ux = cd * st, Uy = -ct + 0.6 * sd * st;                 // «вверх» дерева: от вертикали к лежачему в проекции 3/4
+    let px = -sd, py = 0.6 * cd; if (px < 0) { px = -px; py = -py; } // поперёк ствола на земле, без зеркала
+    const Vx = 1 - st + px * st, Vy = py * st;
+    if (k >= 1 && !f.hit) { f.hit = 1; fallImpact(f, cd, 0.6 * sd); }
+    const a = clamp((FALL_T + FALL_LIE - el) / 4, 0, 1), S = treeSprite(f, f.v), tw = ArtWorld.treeW(f.kind), kd = f.s / ArtWorld.treeK(f.s) * dpr, sc = S.width / tw;
+    const X = (f.x - cam.x + shx) * dpr, Y = (f.y - cam.y + shy) * dpr, rb = Math.round(152 * sc); // без сугроба и тени у комля
+    if (st > 0.5) { cx.globalAlpha = 0.3 * a * (st - 0.5) * 2; cx.setTransform(Vx * kd, Vy * kd, -Ux * kd, -Uy * kd, X, Y + 3 * dpr); cx.drawImage(SHADOW, -tw * 0.3, -150, tw * 0.6, 140); }
+    cx.globalAlpha = a; cx.setTransform(Vx * kd, Vy * kd, -Ux * kd, -Uy * kd, X, Y);
+    cx.drawImage(S, 0, 0, S.width, rb, -tw / 2, -160, tw, rb / sc);
+    cx.globalAlpha = 1; WT();
+  }
+  function fallImpact(f, ux, uy) {
+    const K = f.s / ArtWorld.treeK(f.s), n = window.QUALITY === 'low' ? 2 : 4;
+    for (let i = 0; i < n; i++) { const h = (40 + i * 100 / n) * K; ArtWorld.fx.snowPuff(G.parts, f.x + ux * h, f.y + uy * h, 0.8); }
+    if (typeof Fx !== 'undefined' && Fx.shake) Fx.shake(4);
+  }
+  function tickFalls() { while (FALL.length && now - FALL[0].t0 > FALL_T + FALL_LIE) FALL.shift(); if (FALL.length && now < FALL[FALL.length - 1].t0) FALL.length = 0; }
   const spr = (k, w, h, ox, oy, paint) => SPR[k + zb] || (SPR[k + zb] = sprite(w, h, g => { g.translate(ox, oy); paint(g); }));
   const MI8 = () => spr('mi8', 320, 210, 160, 140, ArtWorld.paintMi8);
   const TAIL = () => spr('tail', 220, 140, 110, 100, ArtWorld.paintTail);
@@ -258,7 +324,7 @@ const GFX = (() => {
     const c = POI.chum; cx.drawImage(CHUM(), c.x - 65, c.y - 120, 130, 140);
     light(c.x, c.y - 10, 90, 'w', 0.6);
     // дым — эмиттер FX: частицы рождаются в update по темпу (3/с), в паузе не копятся
-    if (state === 'play' && !UI.modal()) FX.emit('chum', 3, (parts, r) => parts.push({ type: 'smoke', x: c.x, y: c.y - 110, vx: (r() - 0.5) * 10 + 10, vy: -20 - r() * 10, life: 3, max: 3 }));
+    if (state === 'play') FX.emit('chum', 3, (parts, r) => parts.push({ type: 'smoke', x: c.x, y: c.y - 110, vx: (r() - 0.5) * 10 + 10, vy: -20 - r() * 10, life: 3, max: 3 }));
   }
   function drawDeer(d) {
     ArtAnimals.deer(cx, d, ENV);
@@ -312,8 +378,8 @@ const GFX = (() => {
   // стопа в опоре проходит 2·St (в проекции 3/4) за π фазы; каденс ≤ 3.6 Гц — остаток прячется в снегу
   function stepPhase(m, anim, sp, vyv) {
     if (m.pf === frame) return m.ph; m.pf = frame;
-    if (anim === 'walk' || anim === 'run' || anim === 'limp' || anim === 'carry') {
-      const St = ArtPeople.stride(anim === 'carry' ? 'walk' : anim, anim === 'carry' ? sp * 0.6 : sp), S = Math.abs(vyv);
+    if (anim === 'walk' || anim === 'run' || anim === 'limp' || anim === 'carry' || (ArtPeople.POSE[anim] && ArtPeople.POSE[anim].loco)) {
+      const St = ArtPeople.stride(anim === 'run' || anim === 'limp' ? anim : 'walk', anim === 'carry' ? sp * 0.6 : sp), S = Math.abs(vyv); // варианты ходьбы — шагом walk
       const foot = 2 * St * Math.hypot(1 - 0.82 * S, 0.3 * vyv);
       m.ph += Math.min(m.d * Math.PI / Math.max(1, foot), 2 * Math.PI * 3.6 * rdt);
     }
@@ -328,71 +394,92 @@ const GFX = (() => {
     const k = G.gear.dokha ? 'dokha' : 'anorak';
     return G.gear.hat ? HERO_HAT[k] : LK[k];
   }
-  const HM = { swingT: -9, lastSwing: 0, hurtT: -9, lastHurt: 0, chopA: null, chopT: -9 };
+  // память шага героя: фаза — от пути ногами (Hero.odo), а не от сдвига на экране (рывки/телепорты шагом не считаются)
+  const HMOT = { ph: 0, d: 0, odo: 0, f: -1, pf: -1 };
+  // позы «в профиль» — ракурс по dy к цели не меняют (лёжа, сидя, у лунки, копая лунку перед собой)
+  const SAGITTAL = { sleep: 1, dead: 1, sit: 1, rest: 1, fish: 1, fishBite: 1, dig: 1 };
+  // точка объекта o (+h — высота касания) в координатах рига фигуры f, повёрнутой лицом face с ракурсом vy (вид 3/4: экранный x = 0.87·x, сдвиг вниз 0.12·x):
+  // x — вперёд по взгляду, y — от ступней вверх отрицательный. Боком — как раньше (dx, dy); к спине/лицу вперёд ведёт глубина: x — полное расстояние,
+  // а экранный dy уходит в глубину, в высоту попадает только его «боковая» доля (1 − |vy|)
+  function loc(f, o, h = 0, vy = 0, face = f.face) {
+    if (!o) return null;
+    const dx = (o.x - f.x) / 0.87, dy = o.y - f.y, v = Math.abs(vy), x = v > 0 ? Math.hypot(dx, dy) : dx * (face < 0 ? -1 : 1);
+    return { x, y: (dy - 0.12 * x) * (1 - v) - (o.z || 0) + h };
+  }
+  const PICK = (k, fb) => (ArtPeople.POSE[k] ? k : fb);
+  // герой: позу, время позы, орудие и цель решает автомат тела (Hero.pose, js/hero.js); здесь — только ракурс к цели и рисование
   function drawPlayer(g = cx) {
-    const p = G.p, a = p.action, D = ArtPeople.DUR, m = motion(p, p.face);
-    // окна разовых анимаций = их длительность (A12): замах 0.45 с, урон 0.6 с, а не короткий игровой таймер
-    if (!ghost) {
-      if (p.swing > HM.lastSwing + 1e-3) HM.swingT = now; HM.lastSwing = p.swing;
-      if ((G.hurt || 0) > HM.lastHurt + 1e-3 && G.hurt > 0.7) HM.hurtT = now; HM.lastHurt = G.hurt || 0;
+    const p = G.p, b = Hero.pose(), anim = b.anim;
+    if (HMOT.f !== frame) { HMOT.f = frame; const o = Hero.odo(); HMOT.d = Math.max(0, Math.min(40, o - HMOT.odo)); HMOT.odo = o; }
+    // лицом к цели: сторона — по dx, ракурс (спина/лицо) — по dy; лёжа/сидя/у лунки — только сторона
+    let face = p.face, avy = null, target = b.target;
+    if (b.tg && !b.loco) {
+      const dx = b.tg.x - p.x, dy = b.tg.y - p.y, d = Math.hypot(dx / 0.87, dy);
+      if (Math.abs(dx) > 3) face = Math.sign(dx);
+      if (!SAGITTAL[anim] && d > 1) avy = clamp(dy / d, -1, 1);
+      if (b.ik) target = loc(p, b.tg, b.th, avy || 0, face);
     }
-    let anim = 'idle', animT = 0, tool = G.gear.saw ? 'saw' : 'axe', target = null;
-    if (p.sleeping) anim = 'sleep';
-    else if (a) {
-      if (a.k === 'chop' || a.k === 'wreck') {
-        // удар — событие: цикл подогнан так, что удар (a = 0.52) приходится на конец действия (щепа, звук) — A6
-        const n = Math.max(1, Math.round(a.dur / D.chop)), cl = a.dur / (n - 0.48);
-        anim = 'chop'; animT = (a.t % cl) / cl; if (a.k === 'wreck') tool = 'axe';
-        if (!ghost) { HM.chopA = animT; HM.chopT = now; }
-      }
-      else if (a.k === 'dig') { anim = 'dig'; animT = (a.t % D.dig) / D.dig; }
-      else if (a.k === 'fish') { anim = a.ph === 'bite' ? 'fishBite' : 'fish'; animT = clamp(a.t / a.dur, 0, 1); tool = 'rod'; target = { x: a.o.x, y: a.o.y }; }
-      else { anim = 'build'; animT = (a.t % D.build) / D.build; }
-    } else if (now - HM.swingT < D.swing) { anim = 'swing'; animT = (now - HM.swingT) / D.swing; }
-    else if (HM.chopA !== null && HM.chopA > 0.3 && HM.chopA < 0.66 && now - HM.chopT < 0.2) {
-      anim = 'chop'; animT = Math.min(0.66, HM.chopA + (now - HM.chopT) / D.chop); // прерванная рубка доигрывает удар (A9)
-    }
-    else if (now - HM.hurtT < D.hurt) { anim = 'hurt'; animT = (now - HM.hurtT) / D.hurt; }
-    else if (m.spd > 12) anim = m.spd > 185 ? 'run' : 'walk';
-    if (p.torch > 0 && !a && anim !== 'swing' && anim !== 'sleep') tool = 'torch';
-    if (p.ride && !ghost) { const v = G.veh[p.ride]; if (p.ride === 'buran') ArtZones.buran(g, v, ENV, true); else ArtZones.deerSled(g, v, ENV); anim = 'sit'; }
-    const x = p.sleeping ? p.x - 4 : p.x, sp = clamp(m.spd / 200, 0, 1), vy = anim === 'walk' || anim === 'run' ? dirY(m) : 0;
-    ArtPeople.draw(g, { key: p, x: p.ride ? x - p.face * 8 : x, y: p.ride ? p.y - (p.ride === 'buran' ? 14 : 8) : p.y, face: m.spd > 12 ? m.face : p.face, vy, speed: sp, t: now, phase: stepPhase(m, anim, sp, vy),
-      anim, animT, look: heroLook(), tool, target, frost: clamp((30 - G.s.warm) / 30, 0, 1), wet: p.wetT > 0, blink: p.iT > 0, seed: 1 }, ENV);
-    if (p.torch > 0 && tool === 'torch') light(p.x + p.face * 14, p.y - 38, 240, 'w', 0.9);
+    if (p.ride && !ghost) { const v = G.veh[p.ride]; if (p.ride === 'buran') ArtZones.buran(g, v, ENV, true); else ArtZones.deerSled(g, v, ENV); }
+    const x = p.sleeping ? p.x - 4 : p.x, sp = clamp(b.speed / 200, 0, 1), vy = b.loco ? b.vy : avy || 0;
+    ArtPeople.draw(g, { key: p, x: p.ride ? x - p.face * 8 : x, y: p.ride ? p.y - (p.ride === 'buran' ? 14 : 8) : p.y, face, vy, speed: sp, t: now, phase: stepPhase(HMOT, anim, sp, vy),
+      anim, animT: b.animT, look: heroLook(), tool: b.tool, target, frost: clamp((30 - G.s.warm) / 30, 0, 1), wet: p.wetT > 0, blink: p.iT > 0, seed: 1 }, ENV);
+    if (p.torch > 0 && b.tool === 'torch') light(p.x + face * 14, p.y - 38, 240, 'w', 0.9);
     if (!p.inside) light(p.x, p.y - 16, 150, 'c', 0.55);
   }
+  // стоящий персонаж: в разговоре/торге — лицом к герою, говорит или слушает (черёд — UI.talk); иначе изредка возится (свой таймер по seed)
+  const FIDGETS = ['lookAround', 'rubHands', 'stamp', 'stretch', 'adjustPack', 'blowHands', 'wipeNose'];
+  const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  function fidget(seed, list = FIDGETS) {
+    const per = 5 + (seed % 4), s = now + seed * 1.7, n = Math.floor(s / per), r = hash(n * 31 + seed);
+    if (r > 0.75) return null;
+    const k = list[Math.floor(hash(n * 17 + seed * 3) * list.length)], d = ArtPeople.DUR[k] || 1, t = s - n * per;
+    return ArtPeople.POSE[k] && t < d ? { anim: k, animT: t / d } : null;
+  }
+  function standPose(id, u, seed, list) {
+    const d = UI.talk, p = G.p;
+    if (d ? d.who === id : UI.kind === 'trade' && UI.panel.trade === id) {
+      const dx = p.x - u.x, dy = p.y - u.y, dd = Math.hypot(dx / 0.87, dy) || 1;
+      const talk = d ? !d.hero : now % 6 >= 3.5; // торг: пока герой роется в товаре — молчит, потом говорит
+      return { anim: talk ? 'talk' : PICK('listen', 'idle'), face: Math.abs(dx) > 3 ? Math.sign(dx) : u.face, vy: clamp(dy / dd, -1, 1), talking: 1 };
+    }
+    return fidget(seed, list);
+  }
+  const sd = id => { let h = 0; for (let i = 0; i < id.length; i++) h = h * 31 + id.charCodeAt(i) | 0; return Math.abs(h) % 97 + 11; };
   function drawUrk(g = cx) {
-    const u = G.urk, m = motion(u, u.face), moving = m.spd > 8;
-    const talking = UI.modal() && dist2(u, G.p) < 90 * 90;
-    const anim = moving ? 'walk' : talking ? 'talk' : 'idle', vy = moving ? dirY(m) : 0;
-    ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: m.face, vy, t: now, phase: stepPhase(m, anim, 0.35, vy), speed: 0.35, anim, look: LK.urk, tool: 'none', seed: 3 }, ENV);
+    const u = G.urk, m = motion(u, u.face), moving = m.spd > 8, sp = moving ? null : standPose('urk', u, 3);
+    const talking = !!(sp && sp.talking), anim = moving ? 'walk' : sp ? sp.anim : 'idle', vy = moving ? dirY(m) : sp && sp.vy || 0;
+    ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: sp && sp.face || m.face, vy, t: now, phase: stepPhase(m, anim, 0.35, vy), speed: 0.35, anim, animT: sp && sp.animT || 0, look: LK.urk, tool: 'none', seed: 3 }, ENV);
     if (ghost) return;
-    if (dist2(u, G.p) < 160 * 160 && !talking) mark('talk', u.x, u.y - 60 + Math.sin(now * 3) * 2);
+    if (dist2(u, G.p) < 160 * 160 && !talking && !UI.modal()) mark('talk', u.x, u.y - 60 + Math.sin(now * 3) * 2);
     // пар изо рта — эмиттер FX (спавн в update, не из рендера)
     if (!G.p.inside && state === 'play') FX.emit('urk-breath', 1.2, (parts, r) => { const f = G.urk.face || 1; for (let i = 0; i < 2; i++) parts.push({ type: 'breath', x: G.urk.x + f * 6 + i * f * 2, y: G.urk.y - 34, vx: f * (10 + r() * 12), vy: -3 - r() * 5, life: 1.1, max: 1.1 }); });
   }
   function drawVera(g = cx) {
     const v = G.vera; if (v.state === 'dead') return;
-    const m = motion(v, v.face), moving = m.spd > 8;
-    // хромает, только если идёт сама (A2), а не когда движется герой
-    const anim = v.state === 'follow' ? (moving ? 'limp' : 'idle') : 'sit', vy = moving ? dirY(m) : 0;
-    ArtPeople.draw(g, { key: v, x: v.x, y: v.y, face: m.face, vy, t: now, phase: stepPhase(m, anim, 0.3, vy), speed: 0.3, anim, look: LK.vera, tool: 'none', seed: 5 }, ENV);
+    const m = motion(v, v.face), moving = m.spd > 8, follow = v.state === 'follow';
+    // хромает, только если идёт сама (A2), а не когда движется герой; сидит — только поворачивается к собеседнику; стоит — изредка зябнет
+    const sp = moving ? null : standPose('vera', v, 5, ['rubHands', 'blowHands', 'lookAround', 'wipeNose']), stand = follow && sp;
+    const anim = follow ? (moving ? 'limp' : stand ? sp.anim : 'idle') : 'sit', vy = moving ? dirY(m) : stand && sp.vy || 0;
+    ArtPeople.draw(g, { key: v, x: v.x, y: v.y, face: sp && sp.face || m.face, vy, t: now, phase: stepPhase(m, anim, 0.3, vy), speed: 0.3, anim, animT: stand && sp.animT || 0, look: LK.vera, tool: 'none', seed: 5 }, ENV);
     if (!ghost && (v.state === 'tail' || (v.state === 'hut' && v.food <= 0))) mark(v.food <= 0 && v.state === 'hut' ? 'food' : 'alarm', v.x, v.y - 56 + Math.sin(now * 3) * 2);
   }
   // люди зон (NPCS без своей отрисовки): облик rec.look, шаг/разговор/стоит, метка «поговорить» рядом
   function drawNpc(n, g = cx) {
-    const u = n.st, m = motion(u, u.face), moving = m.spd > 8;
-    const talking = UI.modal() && dist2(u, G.p) < 100 * 100;
-    const anim = moving ? 'walk' : talking ? 'talk' : 'idle', vy = moving ? dirY(m) : 0;
-    ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: m.face, vy, t: now, phase: stepPhase(m, anim, 0.35, vy), speed: 0.35, anim, look: n.rec.look, tool: 'none', seed: 7 }, ENV);
+    const u = n.st, m = motion(u, u.face), moving = m.spd > 8, sp = moving ? null : standPose(n.id, u, sd(n.id));
+    const talking = !!(sp && sp.talking), anim = moving ? 'walk' : sp ? sp.anim : 'idle', vy = moving ? dirY(m) : sp && sp.vy || 0;
+    ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: sp && sp.face || m.face, vy, t: now, phase: stepPhase(m, anim, 0.35, vy), speed: 0.35, anim, animT: sp && sp.animT || 0, look: n.rec.look, tool: 'none', seed: 7 }, ENV);
     if (ghost) return;
-    if (dist2(u, G.p) < 160 * 160 && !talking) mark('talk', u.x, u.y - 60 + Math.sin(now * 3) * 2);
+    if (dist2(u, G.p) < 160 * 160 && !talking && !UI.modal()) mark('talk', u.x, u.y - 60 + Math.sin(now * 3) * 2);
   }
   function drawHare(h) { ArtAnimals.hare(cx, h, ENV); }
   function drawWolf(w) { ArtAnimals.wolf(cx, w, ENV); }
   function drawBear(b) { ArtAnimals.bear(cx, b, ENV); }
-  function drawFire(f) { ArtWorld.fire(cx, f, ENV); if (f.fuel > 0) light(f.x, f.y - 10, (110 + Math.min(f.fuel, 120) * 1.3) * (1 + Math.sin(now * 11 + f.x) * 0.03), 'w', 1); }
+  function drawFire(f) {
+    ArtWorld.fire(cx, f, ENV); if (!(f.fuel > 0)) return;
+    const fl = Math.max(0, 1 - (now - (FLARE.get(f) || -9)) / 0.8); // руки у огня — угли ярче
+    light(f.x, f.y - 10, (110 + Math.min(f.fuel, 120) * 1.3) * (1 + Math.sin(now * 11 + f.x) * 0.03 + 0.12 * fl), 'w', 1);
+    if (fl > 0) ENV.spark(f.x + Math.sin(now * 9) * 4, f.y - 8, 0.5 * fl);
+  }
   function drawStack(s) { ArtWorld.stack(cx, s, ENV); if (s.lit > 0) light(s.x, s.y - 20, 380, 'w', 1); } // счётчик «x/4» — точками в самой модели
   function drawNote(id) {
     const n = NOTES[id];
@@ -401,7 +488,12 @@ const GFX = (() => {
     if (!G.notes[id]) EYES.push({ x: n.x + 6, y: n.y - 10, spark: 0.5 + Math.sin(now * 4 + n.x) * 0.5 });
   }
   function drawTrap(t) { ArtWorld.trap(cx, t); if (t.catch) mark('paw', t.x, t.y - 20, 13); }
-  function drawStash(s) { ArtWorld.stashPile(cx, s.x, s.y, Object.values(s.inv || {}).some(n => n > 0)); }
+  function drawStash(s) {
+    const k = (now - (OPEN.get(s) || -9)) / 0.45, full = Object.values(s.inv || {}).some(n => n > 0);
+    if (k < 0 || k >= 1) return ArtWorld.stashPile(cx, s.x, s.y, full);
+    const u = Math.sin(k * Math.PI); // открыли: ветки/крышка приподнялись и легли
+    cx.save(); cx.translate(s.x, s.y); cx.rotate(-0.08 * u); cx.translate(-s.x, -s.y - 3 * u); ArtWorld.stashPile(cx, s.x, s.y, full); cx.restore();
+  }
   // значок над объектом в мире: круглая жестяная плашка + иконка из спрайта
   function mark(id, x, y, px = 16, col = '#ffd27a') {
     if (ghost) return;
@@ -421,6 +513,7 @@ const GFX = (() => {
     // пятна и следы
     for (const d of G.decals || []) if (near(d.x, d.y, 60)) ArtWorld.decal(cx, d);
     for (const f of G.prints) if (near(f.x, f.y, 40)) ArtWorld.print(cx, f);
+    for (const q of KICKS) { const a = 1 - (now - q.t0) / 20; if (a > 0 && near(q.x, q.y, 30)) { cx.globalAlpha = 0.35 * a; ell(q.x, q.y + 1, 13, 4.5, '#6f8ea8'); ell(q.x + 2, q.y - 1, 11, 3, '#f6f9fc'); cx.globalAlpha = 1; } }
     for (const c of G.corpses || []) if (near(c.x, c.y, 80, 60)) ArtAnimals.corpse(cx, c.kind, c.x, c.y, G.time - c.t0);
     // ловушки, тайники и записки — с отсечением по экрану (C8)
     for (const t of G.traps) if (near(t.x, t.y, 40)) drawTrap(t);
@@ -429,6 +522,8 @@ const GFX = (() => {
     // зоны: промоины наледи, бурелом гари
     for (const o of Zones.OBJS) if (o.type === 'steam' && near(o.x, o.y, 40)) ArtZones.steamGround(cx, o, ENV);
     for (const f of G.fallen || []) if (near(f.x, f.y, 140)) ArtZones.fallenLog(cx, f);
+    // срубленные ели лежат на снегу (после удара — слой земли)
+    for (const f of FALL) if (now - f.t0 >= FALL_T) { if (near(f.x, f.y, 180)) drawFall(f); else f.hit = 1; }
   }
 
   // ---------- тени по солнцу: единственный источник направленной тени ----------
@@ -493,6 +588,9 @@ const GFX = (() => {
     cx.globalAlpha = 0.55; drawBuilding({ type: g.type, x: g.x, y: g.y, done: 1, fuel: 0 }); cx.globalAlpha = 1;
   }
   function drawDog(u) { u.bark = now < (u.barkUntil || 0); ArtAnimals.dog(cx, u, ENV); }
+  // горящие огни — раз за кадр (для поз «греет руки» у людей посёлка)
+  let BURN = [], burnF = -1;
+  function nearBurn(o, r) { if (burnF !== frame) { burnF = frame; BURN = Fire.burning(); } for (const f of BURN) if (dist2(f, o) < r * r) return f; return null; }
   function drawUnit(u, g = cx) {
     const sel = G.col.sel.includes(u.id), T = UNITS[u.type], mh = T.hp + Colony.mod('hp'), m = motion(u, u.face);
     const moved = m.spd > 8; // «идёт» — по скорости, а не по сдвигу за кадр (не зависит от FPS, A14)
@@ -504,15 +602,21 @@ const GFX = (() => {
       return;
     }
     const D = ArtPeople.DUR, w = u.working;
-    let anim = moved ? 'walk' : 'idle', animT = 0, tool = u.type === 'evenk' ? 'bow' : u.type === 'strelok' ? 'rifle' : 'axe', target = null;
+    let anim = moved ? 'walk' : 'idle', animT = 0, tool = u.type === 'evenk' ? 'bow' : u.type === 'strelok' ? 'rifle' : 'axe', target = null, uf = u.face;
     if (w === 'chop' || w === 'wreck') { anim = 'chop'; animT = ((now + u.id * 0.37) % D.chop) / D.chop; }
     else if (w === 'build') { anim = 'build'; animT = ((now + u.id * 0.3) % D.build) / D.build; }
     else if (w === 'fish') { anim = 'fish'; tool = 'rod'; animT = (now * 0.2 + u.id * 0.1) % 1; }
     else if (T.rng && u.cd > 0.2) { anim = 'shoot'; animT = clamp(1 - (u.cd - 0.2) / 1.4, 0, 1); }
     const c = Object.keys(u.carry)[0];
     if (c && moved) anim = 'carry';
+    // стоит без дела: у огня греет руки, иначе изредка возится (таймер по id) — не «статуя»
+    if (anim === 'idle') {
+      const f = nearBurn(u, 80);
+      if (f && ArtPeople.POSE.warmHands) { anim = 'warmHands'; animT = (now % 1.6) / 1.6; uf = Math.sign(f.x - u.x) || uf; }
+      else { const q = fidget(u.id * 7 + 13); if (q) { anim = q.anim; animT = q.animT; } }
+    }
     const sp = clamp(T.sp / 160, 0.2, 1), vy = anim === 'walk' || anim === 'carry' ? dirY(m) : 0;
-    ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: moved ? m.face : u.face, vy, t: now, phase: stepPhase(m, anim, sp, vy), speed: sp, anim, animT, look: LK[u.type], tool, target,
+    ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: moved ? m.face : uf, vy, t: now, phase: stepPhase(m, anim, sp, vy), speed: sp, anim, animT, look: LK[u.type], tool, target,
       carry: c ? ITEMS[c].i : null, sel: sel && !ghost, hp: !ghost && u.hp < mh ? u.hp / mh : null, seed: u.id }, ENV);
   }
   function drawAmulet(a) { const s = ArtWorld.amulet(cx, a.x, a.y); EYES.push({ x: s.x, y: s.y, spark: 0.4 + Math.sin(now * 3 + a.x) * 0.4 }); }
@@ -630,6 +734,7 @@ const GFX = (() => {
     LIGHTS = []; EYES = [];
     ENV.now = now; ENV.night = night; ENV.wind = wind;
     const LOW = window.QUALITY === 'low';
+    GUSTY.length = 0; tickFalls();
 
     cx.setTransform(1, 0, 0, 1, 0, 0);
     cx.fillStyle = '#10271f'; cx.fillRect(0, 0, cv.width, cv.height);
@@ -662,6 +767,7 @@ const GFX = (() => {
     const L = [];
     const vis = (x, y) => x > x0 && x < x1 && y > y0 && y < y1;
     for (const t of treesNear(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 220)) if (vis(t.x, t.y)) L.push([t.y, 0, t]);
+    for (const f of FALL) if (now - f.t0 < FALL_T) L.push([f.y, 36, f]);
     for (const hh of G.hares) if (vis(hh.x, hh.y)) L.push([hh.y, 1, hh]);
     for (const w of G.wolves) if (vis(w.x, w.y)) L.push([w.y, 2, w]);
     for (const f of G.fires) if (vis(f.x, f.y)) L.push([f.y, 3, f]);
@@ -721,11 +827,14 @@ const GFX = (() => {
         case 32: ArtZones.obj(cx, o, ENV); break;
         case 33: ArtZones.rock(cx, o); break;
         case 35: drawNpc(o); break;
+        case 36: drawFall(o); break;
         case 34: if (o === 'buran') ArtZones.buran(cx, G.veh.buran, ENV, false); else ArtZones.deerSled(cx, G.veh.deer, ENV); break;
       }
       if (watch.length) { const r = occRect(k, o); if (r) for (const w of watch) if (w.o !== o && overlap(r, w.r) > 0.25) w.hit = 1; }
     }
     for (const w of watch) if (w.hit) drawGhostFigure(w.o, w.fn);
+    // порыв рядом с героем стряхивает снег с крон (редко; эмиттер — спавн в update)
+    if (GUSTY.length && state === 'play') FX.emit('gust-snow', wind > 1 ? 1.5 : 0.4, parts => { const t = GUSTY[(CR() * GUSTY.length) | 0]; if (t && t.wood > 0) ArtWorld.fx.branchSnow(parts, t, 0.3); });
     // 4. частицы в воздухе (дым, пар, точки) — поверх объектов
     FX.draw(cx, G.parts, 'air', ENV, view);
     if (G.ravens) drawRavens();
@@ -782,13 +891,14 @@ const GFX = (() => {
     // 10. подписи в мире (слой ui)
     WT();
     FX.draw(cx, G.parts, 'ui', ENV);
+    Barks.draw(cx);
     // метка цели взаимодействия
     if (ctxTarget && !UI.modal()) {
       const o = ctxTarget; cx.fillStyle = '#ffd27a'; cx.globalAlpha = 0.9; const bob = Math.sin(now * 5) * 3;
       cx.beginPath(); cx.moveTo(o.x - 6, o.y - o.h - 10 + bob); cx.lineTo(o.x + 6, o.y - o.h - 10 + bob); cx.lineTo(o.x, o.y - o.h - 2 + bob); cx.closePath(); cx.fill(); cx.globalAlpha = 1;
     }
     // кольцо действия
-    if (p.action && p.action.k !== 'fish') {
+    if (p.action && p.action.k !== 'fish' && p.action.dur < 100) {
       const k = p.action.t / p.action.dur, sx = p.x, sy = p.y - 58;
       cx.lineWidth = 4; cx.strokeStyle = 'rgba(39,57,74,0.5)'; cx.beginPath(); cx.arc(sx, sy, 11, 0, Math.PI * 2); cx.stroke();
       cx.lineWidth = 2.5; cx.strokeStyle = '#ffd27a';
@@ -903,7 +1013,7 @@ const GFX = (() => {
   addEventListener('resize', resize); addEventListener('sibir-quality', resize); resize();
   return {
     render, resize, screenToWorld, worldToScreen, toWorld: screenToWorld, setZoom, pan, lookAt, recenter, follow,
-    reset() { chunks.clear(); bakeQ = []; warm = true; roofA = 1; HELI.on = false; if (G && G.seed != null) FX.weather.seed(G.seed); recenter(); },
+    reset() { chunks.clear(); bakeQ = []; warm = true; roofA = 1; FALL.length = 0; HELI.on = false; if (G && G.seed != null) FX.weather.seed(G.seed); recenter(); },
     get vw() { return vw; }, get vh() { return vh; }, get zoom() { return zoom; }, get free() { return camMode === 'free'; }, get mode() { return camMode; },
     // для замеров (tests): сколько кусков в очереди печи
     get bakeQueue() { return bakeQ.length; }, bakeMax(reset) { const v = bakeMax; if (reset) bakeMax = 0; return v; },

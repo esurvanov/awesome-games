@@ -125,7 +125,7 @@ const Colony = (() => {
       if (!tree) { tree = findTree(t.near || u); t.tree = tree; }
       if (!tree) { t.stop = 1; t.ph = carryN(u) ? 'drop' : 'go'; if (!carryN(u)) u.task = { k: 'idle' }; return; }
       src = tree; reach = TREE_R; time = C0.chopT / mod('chop') / (nearWoodshed(tree) ? C0.woodshedK : 1);
-      yieldFn = () => { tree.wood--; World.shakeTree(tree, 0.3); if (tree.wood <= 0) World.felled(tree); u.carry.wood = (u.carry.wood || 0) + 1; t.near = { x: tree.x, y: tree.y }; if (Math.random() < 0.3) Sound.chop(); };
+      yieldFn = () => { tree.wood--; chopHit(u, tree); u.carry.wood = (u.carry.wood || 0) + 1; t.near = { x: tree.x, y: tree.y }; };
     } else if (t.k === 'fish') {
       src = { x: t.x, y: t.y }; reach = 6; time = C0.fishT / mod('fish');
       yieldFn = () => { if (Math.random() < C0.fishP) u.carry.fish = (u.carry.fish || 0) + 1; };
@@ -135,7 +135,7 @@ const Colony = (() => {
       yieldFn = () => {
         const pool = G.wreck[t.w], i = pool.findIndex(k => WRECK_OK.includes(k));
         if (i < 0) { t.stop = 1; t.ph = 'drop'; if (!G.fired['wreckEmpty' + t.w]) { G.fired['wreckEmpty' + t.w] = 1; Fx.toast(':heli: Остальное в обломках — только сам'); } return; }
-        const k = pool.splice(i, 1)[0]; u.carry[k] = (u.carry[k] || 0) + 1; Sound.hit();
+        const k = pool.splice(i, 1)[0]; u.carry[k] = (u.carry[k] || 0) + 1; Interact.emit('work', { who: u, what: 'wreck', x: u.x + u.face * 14, y: u.y });
         if (k !== 'scrap' || carryN(u) >= 2) t.ph = 'drop';
       };
     } else if (t.k === 'hunt') {
@@ -150,6 +150,12 @@ const Colony = (() => {
     if (dist(u, src) > reach) { t.ph = 'go'; u.t = 0; go(u, src.x, src.y, sp, dt, reach - 2); return; }
     t.ph = 'work'; u.working = t.k; u.face = Math.sign(src.x - u.x) || u.face;
     u.t += dt; if (u.t >= time) { u.t = 0; yieldFn(); }
+  }
+  // удар топора человека посёлка: отклик — правила Interact (как у героя; звук — через раз)
+  function chopHit(u, tree) {
+    if (tree.wood <= 0) World.felled(tree);
+    Interact.emit('hit', { who: u, target: tree, x: tree.x, y: tree.y, power: 0.8 });
+    if (tree.wood <= 0) Interact.emit('fell', { who: u, target: tree, x: tree.x, y: tree.y, dir: Math.atan2(tree.y - u.y, tree.x - u.x) });
   }
   // сигнальные кучи: рубит у мари и складывает в кучу по 4
   function stackWork(u, dt, sp) {
@@ -166,7 +172,7 @@ const Colony = (() => {
     if (dist(u, tree) > TREE_R) { u.t = 0; go(u, tree.x, tree.y, sp, dt, TREE_R - 2); return; }
     u.working = 'chop'; u.face = Math.sign(tree.x - u.x) || u.face;
     u.t += dt;
-    if (u.t >= C0.chopT / mod('chop')) { u.t = 0; tree.wood--; World.shakeTree(tree, 0.3); if (tree.wood <= 0) World.felled(tree); u.carry.wood = (u.carry.wood || 0) + 1; if (Math.random() < 0.3) Sound.chop(); if (u.carry.wood >= Math.min(3, 4 - s.wood) || tree.wood <= 0) t.tree = null; }
+    if (u.t >= C0.chopT / mod('chop')) { u.t = 0; tree.wood--; chopHit(u, tree); u.carry.wood = (u.carry.wood || 0) + 1; if (u.carry.wood >= Math.min(3, 4 - s.wood) || tree.wood <= 0) t.tree = null; }
   }
   const nearWoodshed = o => G.col.builds.some(b => b.done && b.type === 'woodshed' && dist2(b, o) < C0.woodshedR * C0.woodshedR);
 
