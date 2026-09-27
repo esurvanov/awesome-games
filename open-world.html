@@ -1441,8 +1441,21 @@ function patchSurface(mat, o) {
         vec3 wN2 = normalize(wn + mix(dRock * 1.2, vec3(nS.x, 0., nS.y) * .45, snowMask));
         normal = normalize((viewMatrix * vec4(wN2, 0.)).xyz);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        float glit = step(.9965, sh21(floor(vWPos.xz * 24.))) * snowMask * (.5 + .5 * sin(uTime * 3. + vWPos.x * 7. + vWPos.z * 3.)) * (1. - smoothstep(12., 40., length(vViewPosition))) * ${f(o.glitter)};
-        totalEmissiveRadiance += vec3(.6, .78, 1.) * glit * 1.6;
+        // snow sparkle (LOOKGATE): used to be a flat square tile that blinked on a raw clock regardless of the camera —
+        // reads as a UI glitch, not snow. A real grain only catches the eye as the view or the light angle sweeps past
+        // it, and it should look like a small round grain, not a filled cell of the sampling grid.
+        { vec2 sgc = floor(vWPos.xz * 24.); float sgh = sh21(sgc);
+          if (sgh > .9965) {
+            vec2 sOff = vec2(sh21(sgc + 4.1), sh21(sgc + 8.3)) * .6 + .2;
+            float sMask = 1. - smoothstep(.12, .4, length(fract(vWPos.xz * 24.) - sOff));
+            vec3 sfn = normalize(vec3((sh21(sgc + 1.7) - .5) * 1.6, 1., (sh21(sgc + 6.3) - .5) * 1.6));
+            vec3 sV = normalize(cameraPosition - vWPos);
+            float sg1 = smoothstep(.965, .997, dot(sfn, normalize(sV + vec3(${f(MOON_DIR.x)}, ${f(MOON_DIR.y)}, ${f(MOON_DIR.z)}))));
+            float sg2 = smoothstep(.98, .999, dot(sfn, normalize(sV + vec3(0., 1., 0.))));
+            float glit = sMask * (sg1 * 3. + sg2 * .7) * snowMask * (1. - smoothstep(12., 40., length(vViewPosition))) * ${f(o.glitter)};
+            totalEmissiveRadiance += vec3(.6, .78, 1.) * glit * 1.2;
+          }
+        }
         float sd = length(vWPos.xz - uScanC);
         float ring = smoothstep(uScanR - 6., uScanR, sd) * (1. - smoothstep(uScanR, uScanR + .8, sd));
         vec2 gg = abs(fract(vWPos.xz / 3.) - .5);
