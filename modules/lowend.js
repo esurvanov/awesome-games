@@ -24,7 +24,7 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
   };
-  const AUTO_KEY = 'eor-quality-auto', MANUAL_KEY = 'eor-quality';   // automatic decision · the player's pause-menu choice
+  const AUTO_KEY = 'eor-quality-auto', MANUAL_KEY = 'eor-quality', PENDING_KEY = 'eor-quality-air-pending';   // automatic decision · the player's pause-menu choice
   const PRESETS = ['air', 'low', 'med', 'high', 'ultra'];
   const LE = window.LowEnd = { forced: null, auto: null, gpuName: '', host: null };
 
@@ -52,8 +52,12 @@
     if (LE.weakGPU(g)) { LE.auto = 'air'; return { name: 'air', why: 'integrated GPU: ' + g, forced: false }; }
     return { name: coarse ? 'low' : 'high', why: coarse ? 'touch device' : 'default', forced: false };
   };
-  LE.forget = () => { store.set(AUTO_KEY, null); store.set(MANUAL_KEY, null); };
-  LE.remember = (name) => { store.set(AUTO_KEY, name); LE.auto = name; };            // automatic decision (quality director)
+  LE.forget = () => { store.set(AUTO_KEY, null); store.set(MANUAL_KEY, null); store.set(PENDING_KEY, null); };
+  LE.remember = (name) => { store.set(AUTO_KEY, name); LE.auto = name; store.set(PENDING_KEY, null); };
+  // an automatic step down to air: persisted only when confirmed (sustained slowness this session, or a second session
+  // that stepped down too); otherwise a "pending" mark — a fresh profile's shader-compile stalls must not pin air forever
+  const pendingAge = () => { const t = +store.get(PENDING_KEY); return t > 0 ? (Date.now() - t) / 864e5 : Infinity; };   // days
+  LE.autoAir = (confirmed) => { if (confirmed || pendingAge() < 7 || store.get(AUTO_KEY) === 'air') LE.remember('air'); else { store.set(PENDING_KEY, String(Date.now())); LE.pendingAir = true; } return LE.auto === 'air'; };
   LE.setManual = (name) => { if (PRESETS.includes(name)) { store.set(MANUAL_KEY, name); LE.forced = name; } };   // the player's choice wins over everything automatic
 
   /* ------------------------------------------------------------------ FSR 1 passes */
@@ -200,6 +204,9 @@
   LE.frame = function (now, info) {
     LE.last = info;
     const H = LE.host; if (!H) return;
+    // new shader programs (fresh browser profile) → their compile stalls are not evidence: warm up again
+    const np = H.renderer && H.renderer.info.programs ? H.renderer.info.programs.length : 0;
+    if (np !== C.progs) { if (C.progs !== undefined) { C.warm = Math.max(C.warm, 4); C.win.length = C.gpu.length = C.cpu.length = 0; C.tWin = 0; C.slowT = 0; } C.progs = np; }
     const Q = H.Q, ms = info.dt * 1000;
     C.drawn++;
     if (!info.playing || !(ms > 0) || ms > 250) { if (!info.playing) C.warm = Math.max(C.warm, 1.5); return; }   // hitch / tab switch / menu: not evidence
@@ -224,8 +231,8 @@
     if (Q.name !== 'air' && !LE.forced && !C.decided && !(window.AI && AI.quality)) {
       const bad = fps < (Q.name === 'low' ? 27 : 22);
       C.slowT = bad ? C.slowT + 2 : 0;
-      if (C.slowT >= 6) {
-        C.decided = true; store.set(AUTO_KEY, 'air'); LE.auto = 'air';
+      if (C.slowT >= 12) {
+        C.decided = true; LE.autoAir(false);
         rec.act = 'auto → air'; C.history.push(rec);
         try { H.setQuality('air'); H.toast && H.toast('i-chip', 'Графика · слабый ноутбук (30 кадров)', 'c-ice'); } catch (e) { console.warn('[lowend] air', e); }
         LE.warm(4); return;
@@ -236,6 +243,8 @@
     //    scene targets, so at most one change per rsEvery seconds; never while CPU-bound (fewer pixels would not help).
     if (!(Q.rsMin > 0)) { C.state = 'fixed'; C.history.push(rec); if (C.history.length > 120) C.history.shift(); return; }
     const [lo, hi] = H.bounds(), rs = H.getScale(), step = Q.rsStep || 0.05, every = Q.rsEvery || 4;
+    // a pending automatic air (see autoAir) is confirmed by 30 s of play in which even air misses its 30 fps slots
+    if (LE.pendingAir) { C.airSlowT = miss > 0.08 ? (C.airSlowT || 0) + 2 : 0; if (C.airSlowT >= 30) { LE.remember('air'); LE.pendingAir = false; rec.act = 'air confirmed'; } }
     const cpuBound = cp > budget * 0.85;
     let want = rs;
     if (miss > 0.08 || (gp != null && gp > budget * 0.92 && miss > 0.02)) {   // a timer alone never lowers the picture

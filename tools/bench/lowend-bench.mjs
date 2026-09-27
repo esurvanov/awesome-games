@@ -17,6 +17,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
@@ -44,11 +45,11 @@ function serve(over = {}) {
   });
   return new Promise((r) => srv.listen(0, '127.0.0.1', () => r(srv)));
 }
-let browser = null, srv = null, release = () => {};
+let browser = null, srv = null, release = () => {}, PROFILE = null;
 async function open(query, { hash = '#dbg', over, wait = true } = {}) {
   if (!srv) srv = await serve(over);
   if (!browser) browser = await puppeteer.launch({ executablePath: CHROME, headless: true, protocolTimeout: 900000, defaultViewport: { width: VW, height: VH, deviceScaleFactor: DPR },
-    userDataDir: path.join(ROOT, 'tools', '.chrome-profile'),
+    userDataDir: PROFILE || path.join(ROOT, 'tools', '.chrome-profile'),
     args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-webgl', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${VW},${VH}`] });
   const page = await browser.newPage();
   const errors = [];
@@ -139,6 +140,32 @@ async function main() {
       res.reload = await S.page.evaluate(() => ({ q: DBG.Q.name, forced: LowEnd.forced }));
       await S.page.evaluate(() => { localStorage.removeItem('eor-quality'); localStorage.removeItem('eor-quality-auto'); });
       res.errors = S.errors; log(JSON.stringify({ pause: res.pause, ladder: res.ladder, reload: res.reload, errors: res.errors }));
+    }
+    if (mode === 'cold') {
+      // fresh browser profile (a new claude.ai visitor): no shader cache, nothing remembered. Two sessions, same profile.
+      //  A: fast machine, default preset, 70 s of play across forest / camp / snow → must NOT end in air
+      //  B: low preset, CPU ×4 (+ --burn N GPU load) after warm-up → director steps to air; persisted only when confirmed
+      PROFILE = fs.mkdtempSync(path.join(os.tmpdir(), 'lowend-cold-'));
+      const st = () => ({ q: DBG.Q.name, ai: AI.quality.preset, auto: localStorage.getItem('eor-quality-auto'), pending: localStorage.getItem('eor-quality-air-pending'), progs: DBG.renderer.info.programs.length });
+      const tour = async (S, secs) => { const out = []; for (let t = 0; t < secs; t += 10) { const v = ['forest', 'camp', 'snow'][(t / 10) % 3]; await S.page.evaluate(`(${place[v].toString()})()`); await S.page.evaluate(() => { DBG.keys.KeyW = true; }); await sleep(10000); out.push(await S.page.evaluate(st)); } await S.page.evaluate(() => { DBG.keys.KeyW = false; }); return out; };
+      let S = await open(''); await newGame(S.page);
+      res.A = { start: await S.page.evaluate(st) }; res.A.tour = await tour(S, +opt('secs', 70)); res.A.end = res.A.tour[res.A.tour.length - 1];
+      log('A fresh/fast:', JSON.stringify(res.A.start), '→', JSON.stringify(res.A.end));
+      // B: slow machine, session 1
+      const slow = async (S) => {
+        await S.page.evaluate(() => AI.quality.set('low', 0)); await S.page.evaluate(`(${place.forest.toString()})()`);
+        await S.throttle(4);
+        if (+opt('burn', 0)) await S.page.evaluate((n) => { const T = DBG.THREE, m = new T.ShaderMaterial({ uniforms: { tDiffuse: { value: null }, uN: { value: n } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }', fragmentShader: 'uniform sampler2D tDiffuse; uniform float uN; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float a = 0.; for (int i = 0; i < 4096; i++) { if (float(i) >= uN) break; a += sin(a * 1.37 + vUv.x * float(i)) * cos(vUv.y + a); } gl_FragColor = c + vec4(a * 1e-12); }' }); DBG.MODCTX.composer.insertPass(new T.ShaderPass(m), 1); }, +opt('burn', 0));
+        const out = []; for (let t = 0; t < 60; t += 5) { await sleep(5000); out.push(await S.page.evaluate(st)); if (out[out.length - 1].q === 'air') { await sleep(35000); out.push(await S.page.evaluate(st)); break; } }
+        await S.throttle(1); return out;
+      };
+      res.B1 = await slow(S); log('B session 1:', JSON.stringify(res.B1.map((x) => x.q + (x.auto ? '*' : '') + (x.pending ? 'p' : ''))), JSON.stringify(res.B1[res.B1.length - 1]));
+      await S.page.close();
+      S = await open(''); await newGame(S.page);
+      res.B2start = await S.page.evaluate(st);
+      res.B2 = await slow(S); log('B session 2: start', JSON.stringify(res.B2start), '→', JSON.stringify(res.B2[res.B2.length - 1]));
+      res.errors = S.errors;
+      try { fs.rmSync(PROFILE, { recursive: true, force: true }); } catch (e) { /* */ }
     }
     if (mode === 'perf') {
       const S = await open('?q=air'); await newGame(S.page);

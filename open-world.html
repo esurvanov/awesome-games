@@ -4356,7 +4356,7 @@ function frame(now) {
   initModules();
   // LOWEND.md: the boot preset once more now that the modules added their knobs; the weak-laptop controller
   if (Q.name !== 'high') setQuality(Q.name);
-  if (window.LowEnd) LowEnd.attach({ Q, QUALITY, setQuality, getScale: () => RS.s, setScale: setRenderScale, bounds: rsBounds, toast, loop: LOOP, pick: QPICK, get G() { return G; } });
+  if (window.LowEnd) LowEnd.attach({ renderer, Q, QUALITY, setQuality, getScale: () => RS.s, setScale: setRenderScale, bounds: rsBounds, toast, loop: LOOP, pick: QPICK, get G() { return G; } });
   console.log('[quality]', Q.name, '·', QPICK.why);
   startLoader(() => (s ? $('bContinue') : $('bNew')).focus({ preventScroll: true }));
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.

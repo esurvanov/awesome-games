@@ -115,8 +115,14 @@
     const t = performance.now(), G = g(), live = G.mode === 'play' && !G.pause && !document.hidden;
     const d = T.lastNow ? (t - T.lastNow) / 1000 : 0; T.lastNow = t;
     if (!live) { if (T.warm > 0) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 2); } return; }
+    // a fresh browser profile compiles shaders during the first minutes of play (new areas, new effects): every new
+    // program restarts a 4 s warm-up, and so does a jump of the player (teleport, respawn, continue) > 25 m in one frame
+    const x = X(), progs = x.renderer && x.renderer.info && x.renderer.info.programs ? x.renderer.info.programs.length : 0, pl = x.player;
+    if (progs !== T.progs) { if (T.progs !== undefined) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 4); } T.progs = progs; }
+    if (pl) { if (T.jumpPos && Math.hypot(pl.x - T.jumpPos.x, pl.z - T.jumpPos.z) > 25) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 4); } T.jumpPos = { x: pl.x, z: pl.z }; }
     T.warm += Math.min(d, 0.1);
-    if (T.warm < T.warmNeed) { T.dts.length = 0; return; }
+    if (T.warm < T.warmNeed) { T.dts.length = 0; T.poorT = 0; return; }
+    T.warmNeed = 2;   // later interruptions (pause, tab) need only 2 s; compiles / jumps raise it again above
     if (d > 0 && d < 1) { T.dts.push(d); if (T.dts.length > 240) T.dts.shift(); }
   }
   function track(dt) {
@@ -322,7 +328,10 @@
       if (!r) return;
       if (r.focus !== Q.focus) { Q.focus = r.focus; x.setFocus && x.setFocus(r.focus); }
       // the model / rules know low…ultra; the step below low is local: a poor frame rate on low → air
-      const want = s.preset === 'low' && r.preset === 'low' && (s.fpsAvg < 30 || s.fpsLow < 20) ? 'air' : r.preset;
+      // … and only once it has lasted ≥ 12 s of warmed-up play (a stall that ends is not a slow machine)
+      const poor = s.preset === 'low' && (s.fpsAvg < 30 || s.fpsLow < 20);
+      T.poorT = poor ? (T.poorT || 0) + AI.cfg.quality.every : 0;
+      const want = poor && r.preset === 'low' ? (T.poorT >= 12 ? 'air' : 'low') : r.preset;
       hysteresis(want, s, r.src);
     });
   }
@@ -343,9 +352,12 @@
     T.dts.length = 0; T.warm = 0; T.warmNeed = 2;   // the new preset is judged on its own frames (after the switch spike)
     note('QUALITY', { preset: next, fps: s.fpsAvg, src });
     try { X().setQuality(next); } catch (e) { console.warn('[AI] setQuality', e); }
-    if (next === 'air' && window.LowEnd && LowEnd.remember) LowEnd.remember('air');   // the next visit starts on air
+    // remembered for the next visit only when confirmed: slow for ≥ 30 s of warmed-up play, or already stepped down to air
+    // in an earlier session (LowEnd.autoAir keeps a "pending" mark in between)
+    if (next === 'air' && window.LowEnd && LowEnd.autoAir) LowEnd.autoAir((T.poorT || 0) >= 30);
+    T.poorT = 0;
   }
-  AI.quality = { get preset() { return Q.preset; }, get focus() { return Q.focus; }, set(name, lockS = 300) { if (!LADDER().includes(name)) return; Q.preset = name; Q.lastChange = T.time; Q.lockUntil = T.time + lockS; X().setQuality && X().setQuality(name); }, _hyst: hysteresis };
+  AI.quality = { get preset() { return Q.preset; }, get focus() { return Q.focus; }, set(name, lockS = 300) { if (!LADDER().includes(name)) return; T.dts.length = 0; T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 2); Q.preset = name; Q.lastChange = T.time; Q.lockUntil = T.time + lockS; X().setQuality && X().setQuality(name); }, _hyst: hysteresis };
 
   /* ================================================================ g. PRELOAD */
   const PL = { done: new Set(), visited: new Set() };
