@@ -354,6 +354,23 @@
       <button class="icon-btn" id="bSound" aria-label="Звук" style="width:48px;height:48px"></button>
       <button class="btn ghost" id="bToMenu"><svg class="i"><use href="#i-home"/></svg>Меню</button>
     </div>
+    <div class="eyebrow" style="color:var(--dim)"><svg class="i"><use href="#i-chip"/></svg>графика</div>
+    <div class="qpick" id="qPick" role="radiogroup" aria-label="Графика">
+      <button class="qb" data-q="air" role="radio"><svg class="i"><use href="#i-bolt"/></svg>Низкое для слабого ноутбука</button>
+      <button class="qb" data-q="low" role="radio">Низкое</button>
+      <button class="qb" data-q="med" role="radio">Среднее</button>
+      <button class="qb" data-q="high" role="radio">Высокое</button>
+      <button class="qb" data-q="ultra" role="radio">Ультра</button>
+    </div>
+    <style>
+      #qPick { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+      #qPick .qb { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; cursor: pointer;
+        background: var(--panel); border: 1px solid var(--line); color: var(--dim); font: 700 13px Tektur, system-ui, sans-serif; }
+      #qPick .qb .i { width: 14px; height: 14px; }
+      #qPick .qb:hover { color: var(--ink); border-color: var(--ice); }
+      #qPick .qb.on { background: var(--ice); color: #04101f; border-color: var(--ice); }
+      #qPick .qb[data-q="air"] { flex-basis: 100%; justify-content: center; max-width: 280px; }
+    </style>
     <div class="row c-dim desk-only" style="font-size:12px"><svg class="i"><use href="#i-hand"/></svg>клик по экрану — управление камерой</div>
   </div>
 </div>
@@ -2768,7 +2785,7 @@ function toMenu() {
 }
 function setPause(on) {
   if (G.mode !== 'play') return;
-  if (on && !G.pause) { G.pause = true; $('pause').hidden = false; Sound.suspend(true); renderSoundBtn(); $('bResume').focus({ preventScroll: true }); }
+  if (on && !G.pause) { G.pause = true; $('pause').hidden = false; Sound.suspend(true); renderSoundBtn(); renderQPick(); $('bResume').focus({ preventScroll: true }); }
   else if (!on && G.pause) { G.pause = false; $('pause').hidden = true; Sound.suspend(false); if (!coarse) requestLock(); }
 }
 function openUI(which) {
@@ -2897,6 +2914,13 @@ hold('tRoll', () => pressed.add('KeyC'));
 $('bNew').onclick = () => startGame(false);
 $('bContinue').onclick = continueGame;
 $('bResume').onclick = () => setPause(false);
+// pause menu · graphics preset (LOWEND.md): the player's choice is remembered and locks the quality director
+function renderQPick() { for (const b of $('qPick').children) { const on = b.dataset.q === Q.name; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); } }
+for (const b of $('qPick').children) b.onclick = () => {
+  const q = b.dataset.q; if (window.LowEnd) LowEnd.setManual(q);
+  if (window.AI && AI.quality) AI.quality.set(q, 1e9); else setQuality(q);
+  renderQPick(); toast('i-chip', 'Графика · ' + b.textContent.trim(), 'c-ice');
+};
 $('bToMenu').onclick = toMenu;
 $('bSound').onclick = () => { Sound.init(); Sound.toggle(); renderSoundBtn(); };
 $('bMap').onclick = () => openUI('map'); $('bJournal').onclick = () => openUI('journal'); $('bPause').onclick = () => setPause(true);
@@ -4234,8 +4258,8 @@ function frame(now) {
     });
   }
 
-  // ?q=… is the player's choice: the quality director does not move it (air has no neighbour in its ladder anyway)
-  if (QPICK.forced && window.AI && AI.quality && Q.name !== 'air') AI.quality.set(Q.name, 1e9);
+  // ?q=… / the pause-menu choice is the player's: the quality director does not move it
+  if (QPICK.forced && window.AI && AI.quality) AI.quality.set(Q.name, 1e9);
 
   requestAnimationFrame(frame);
 })();

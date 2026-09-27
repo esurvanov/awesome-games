@@ -24,7 +24,7 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
   };
-  const AUTO_KEY = 'eor-quality-auto';
+  const AUTO_KEY = 'eor-quality-auto', MANUAL_KEY = 'eor-quality';   // automatic decision · the player's pause-menu choice
   const PRESETS = ['air', 'low', 'med', 'high', 'ultra'];
   const LE = window.LowEnd = { forced: null, auto: null, gpuName: '', host: null };
 
@@ -44,13 +44,17 @@
     const q = (qs.get('q') || qs.get('quality') || '').toLowerCase();
     LE.gpu(renderer);
     if (PRESETS.includes(q)) { LE.forced = q; return { name: q, why: '?q=' + q, forced: true }; }
+    const m = store.get(MANUAL_KEY);
+    if (m && PRESETS.includes(m)) { LE.forced = m; return { name: m, why: 'chosen in the pause menu', forced: true }; }
     const g = LE.gpu(renderer);
     const remembered = store.get(AUTO_KEY);
     if (remembered && PRESETS.includes(remembered)) { LE.auto = remembered; return { name: remembered, why: 'remembered: this machine was too slow before', forced: false }; }
     if (LE.weakGPU(g)) { LE.auto = 'air'; return { name: 'air', why: 'integrated GPU: ' + g, forced: false }; }
     return { name: coarse ? 'low' : 'high', why: coarse ? 'touch device' : 'default', forced: false };
   };
-  LE.forget = () => store.set(AUTO_KEY, null);
+  LE.forget = () => { store.set(AUTO_KEY, null); store.set(MANUAL_KEY, null); };
+  LE.remember = (name) => { store.set(AUTO_KEY, name); LE.auto = name; };            // automatic decision (quality director)
+  LE.setManual = (name) => { if (PRESETS.includes(name)) { store.set(MANUAL_KEY, name); LE.forced = name; } };   // the player's choice wins over everything automatic
 
   /* ------------------------------------------------------------------ FSR 1 passes */
   const VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
@@ -216,7 +220,8 @@
     const t = now / 1000;
     const rec = { t: +t.toFixed(1), q: Q.name, fps: +fps.toFixed(1), miss: +(miss * 100).toFixed(1), gpu90: gp != null ? +gp.toFixed(1) : null, cpu75: +cp.toFixed(1), rs: H.getScale() };
     // 1) any preset: this machine is far too slow → the weak-laptop profile, once, remembered for the next visit
-    if (Q.name !== 'air' && !LE.forced && !C.decided) {
+    //    Only when ai.js is absent: otherwise its quality director owns every automatic switch (low → air rung there).
+    if (Q.name !== 'air' && !LE.forced && !C.decided && !(window.AI && AI.quality)) {
       const bad = fps < (Q.name === 'low' ? 27 : 22);
       C.slowT = bad ? C.slowT + 2 : 0;
       if (C.slowT >= 6) {

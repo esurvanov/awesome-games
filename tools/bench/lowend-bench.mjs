@@ -112,6 +112,34 @@ async function main() {
       log('idle', JSON.stringify(res.idle));
       res.errors = S.errors; log(JSON.stringify(res.state)); log('errors', S.errors.length, S.errors.slice(0, 5));
     }
+    if (mode === 'ui') {
+      // pause-menu switch + director ladder (low → air) + remembered choice across a reload
+      let S = await open(''); await newGame(S.page);
+      res.pause = await S.page.evaluate(async () => {
+        localStorage.removeItem('eor-quality'); localStorage.removeItem('eor-quality-auto');
+        DBG.setPause(true); await new Promise((r) => setTimeout(r, 300));
+        const btns = [...document.querySelectorAll('#qPick .qb')], before = btns.filter((b) => b.classList.contains('on')).map((b) => b.dataset.q);
+        document.querySelector('#qPick .qb[data-q="air"]').click(); await new Promise((r) => setTimeout(r, 500));
+        return { before, q: DBG.Q.name, on: btns.filter((b) => b.classList.contains('on')).map((b) => b.dataset.q), stored: localStorage.getItem('eor-quality'), aiPreset: AI.quality.preset, rs: DBG.RS.s };
+      });
+      await S.page.screenshot({ path: path.join(OUT, 'pause.png') });
+      res.ladder = await S.page.evaluate(async () => {
+        DBG.setPause(false); localStorage.removeItem('eor-quality'); LowEnd.forced = null;
+        AI.quality.set('low', 0); await new Promise((r) => setTimeout(r, 5500));   // a step down needs > 4 s since the last change
+        const s = { fpsAvg: 22, fpsLow: 15 }; const out = [];
+        for (let i = 0; i < 3; i++) { AI.quality._hyst('air', s, 'test'); out.push(AI.quality.preset + '/' + DBG.Q.name); }
+        const auto = localStorage.getItem('eor-quality-auto');
+        // air never climbs by itself
+        AI.quality._hyst('low', { fpsAvg: 60, fpsLow: 60 }, 'test'); AI.quality._hyst('low', { fpsAvg: 60, fpsLow: 60 }, 'test'); AI.quality._hyst('low', { fpsAvg: 60, fpsLow: 60 }, 'test');
+        return { steps: out, auto, afterGoodFps: DBG.Q.name };
+      });
+      await S.page.evaluate(() => { localStorage.setItem('eor-quality', 'med'); });
+      await S.page.close();
+      S = await open('');
+      res.reload = await S.page.evaluate(() => ({ q: DBG.Q.name, forced: LowEnd.forced }));
+      await S.page.evaluate(() => { localStorage.removeItem('eor-quality'); localStorage.removeItem('eor-quality-auto'); });
+      res.errors = S.errors; log(JSON.stringify({ pause: res.pause, ladder: res.ladder, reload: res.reload, errors: res.errors }));
+    }
     if (mode === 'perf') {
       const S = await open('?q=air'); await newGame(S.page);
       const secs = +opt('secs', 6), rows = [];
