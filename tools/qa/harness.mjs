@@ -58,7 +58,9 @@ export async function openGame(o = {}) {
   page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.message)));
   page.on('requestfailed', (r) => failed.push(r.url() + ' ' + (r.failure() && r.failure().errorText)));
   page.on('response', (r) => { if (r.status() >= 400 && !/favicon\.ico$/.test(r.url())) failed.push(r.status() + ' ' + r.url()); });
-  const url = `http://127.0.0.1:${port}/${o.page || 'open-world.html'}${o.query || ''}#dbg`;
+  // STAND_QUERY (env) appends to the query of any tool built on this harness, e.g. STAND_QUERY=?colhull for an A/B run
+  const q0 = o.query || '', qe = process.env.STAND_QUERY || '', query = q0 && qe ? q0 + '&' + qe.replace(/^\?/, '') : q0 || qe;
+  const url = `http://127.0.0.1:${port}/${o.page || 'open-world.html'}${query}#dbg`;
   if (o.beforeLoad) await o.beforeLoad(page, port);
   log('open', url);
   const t0 = Date.now();

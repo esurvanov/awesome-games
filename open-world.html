@@ -1647,7 +1647,39 @@ const Passport = (() => {
     for (const [x, z, r] of circles) { const c = addCircle(x, z, r, e); if (e.role === 'pushable' && e.debris) c.off = true; e.circles.push(c); }
     stats.footprintMs = (stats.footprintMs || 0) + performance.now() - t0;
   }
-  function idle(budgetMs) { const t0 = performance.now(); while (fpQueue.length && performance.now() - t0 < budgetMs) doFootprint(fpQueue.shift()); return fpQueue.length; }
+  function idle(budgetMs) { stream(); const t0 = performance.now(); while (fpQueue.length && performance.now() - t0 < budgetMs) doFootprint(fpQueue.shift()); return fpQueue.length; }
+  // ---- exact shape near the pilot (REALISM-QA.md, PLAN-REALISM §9): a static 'solid' registered as a convex hull
+  // ({shape:'hull'}: scanned rocks, crystals) blocks the pilot in the air in front of every hollow. Within EXACT.near m
+  // of the pilot it gets the exact trimesh of its drawn triangles (Rapier FIX_INTERNAL_EDGES: no seam bumps); beyond
+  // EXACT.far it goes back to the hull. All-trimesh for the ~580 hull entries = 1.5 M triangles, +1.2 s build on M1,
+  // ~+290 MB — too much for the Intel Air; near-only is ~20–40 entries. Opt out per entry: opts.exact = false.
+  // ?colhull in the URL = old behaviour (A/B in tools/qa/realism.mjs).
+  const EXACT = { on: !/[?&]colhull\b/.test(location.search), near: 45, far: 70, hard: 14, n: 0, builds: 0, ms: 0, maxMs: 0, list: [] };
+  const exactable = (e) => e.role === 'solid' && e.shape === 'hull' && e.opts.exact !== false && !!e.geo;
+  function setExact(e, on) {
+    for (const c of e.colliders) try { phys.removeCollider(c); } catch (err) { /* gone */ }
+    e.colliders.length = 0; e.exact = on;
+    const tagv = { kind: e.role, name: e.name, passport: e.id, exact: on };
+    const t0 = performance.now();
+    if (on) e.colliders.push(phys.addStaticTrimesh(e.geo.v, e.geo.i, tagv, { friction: e.opts.friction }));
+    else { const c = phys.addStaticConvex(e.geo.v, tagv); if (c) e.colliders.push(c); }
+    const ms = performance.now() - t0; EXACT.ms += ms; EXACT.maxMs = Math.max(EXACT.maxMs, ms); if (on) EXACT.builds++;
+    EXACT.n += on ? 1 : -1;
+  }
+  // every frame (from idle): nearest first; everything within EXACT.hard m at once (teleport next to a rock), the rest
+  // one build per frame (≈ 2 ms per 5 k-triangle rock on M1)
+  function stream() {
+    if (!phys || !EXACT.on || typeof player === 'undefined') return;
+    const px = player.x, pz = player.z, up = [];
+    for (const e of EXACT.list) {
+      if (!e.alive) continue;
+      const b = e.box, dx = Math.max(b.min[0] - px, 0, px - b.max[0]), dz = Math.max(b.min[2] - pz, 0, pz - b.max[2]), d = Math.hypot(dx, dz);
+      if (!e.exact && d < EXACT.near) up.push([d, e]); else if (e.exact && d > EXACT.far) { try { setExact(e, false); } catch (err) { /* keep */ } }
+    }
+    if (!up.length) return;
+    up.sort((a, b) => a[0] - b[0]);
+    for (let k = 0; k < up.length; k++) { if (k > 0 && up[k][0] > EXACT.hard) break; try { setExact(up[k][1], true); } catch (err) { console.warn('[Passport] exact', up[k][1].name, err && err.message); up[k][1].opts.exact = false; } }
+  }
   function flush() { while (fpQueue.length) doFootprint(fpQueue.shift()); }
   const _v = new V3(), _m = new THREE.Matrix4(), _mi = new THREE.Matrix4();
 
@@ -1813,6 +1845,7 @@ const Passport = (() => {
       if (opts.cell) g = simplify(g, opts.cell);
       e.geo = { v: new Float32Array(g.v), i: new Uint32Array(g.i), vn: g.vn }; e.box = bounds(g); stats.tris += g.i.length / 3;
       fpQueue.push(e);   // 2D footprint circles: computed in idle time (Passport.idle), all done before play if physics is missing
+      if (exactable(e)) EXACT.list.push(e);   // hull far away, exact trimesh near the pilot (stream)
     } else if (role === 'trunk') {
       e.trunk = fitTrunk(g, opts); e.box = { min: [e.trunk.x - e.trunk.r, e.trunk.y0, e.trunk.z - e.trunk.r], max: [e.trunk.x + e.trunk.r, e.trunk.y1, e.trunk.z + e.trunk.r] };
       e.circles.push(addCircle(e.trunk.x, e.trunk.z, e.trunk.r, e));
@@ -1832,7 +1865,7 @@ const Passport = (() => {
     const tagv = { kind: e.role, name: e.name, passport: e.id };
     try {
       if (e.role === 'solid') {
-        if (e.shape === 'hull') { const c = phys.addStaticConvex(e.geo.v, tagv); if (c) e.colliders.push(c); }
+        if (e.shape === 'hull') { const c = phys.addStaticConvex(e.geo.v, tagv); if (c) e.colliders.push(c); e.exact = false; }   // stream() swaps in the trimesh near the pilot
         else e.colliders.push(phys.addStaticTrimesh(e.geo.v, e.geo.i, tagv, { friction: e.opts.friction }));
       } else if (e.role === 'trunk') {
         const t = e.trunk; e.colliders.push(phys.addStaticCylinder(t.x, t.z, t.r, t.y0, t.y1 - t.y0, tagv, phys.groups.TRUNK));
@@ -1895,6 +1928,7 @@ const Passport = (() => {
     if (e.debris && phys) phys.removeDebris(e.debris);
     e.colliders.length = 0; for (const c of e.circles) c.off = true;
     const i = list.indexOf(e); if (i >= 0) list.splice(i, 1); const j = byRole[e.role].indexOf(e); if (j >= 0) byRole[e.role].splice(j, 1);
+    const x = EXACT.list.indexOf(e); if (x >= 0) { EXACT.list.splice(x, 1); if (e.exact) EXACT.n--; }
   }
   function attach(P) { phys = P; const t0 = performance.now(); for (const e of list) toPhys(e); stats.physMs = performance.now() - t0; }
   function passablesNear(x, z, r, out = []) {
@@ -1935,7 +1969,7 @@ const Passport = (() => {
     return dbg;
   }
   function debugUpdate() { if (dbg) dbg.group.children.forEach((o) => { if (o.userData.follow) o.update(); }); }
-  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, list, byRole, stats, providers, ROLE_COL, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
+  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
 })();
 
 /* ---------- echo & shard spots ---------- */

@@ -99,7 +99,13 @@ const PAGE_LIB = () => {
   L.ray = (objs, o, d, far = 60) => {
     for (const m of objs) if (m.isInstancedMesh) { m.boundingSphere = null; m.boundingBox = null; }   // instance sets change (forest LOD): never trust a cached bound
     const rc = new T.Raycaster(new T.Vector3(o.x, o.y, o.z), new T.Vector3(d.x, d.y, d.z).normalize(), 0, far);
-    const h = rc.intersectObjects(objs, false); return h.length ? h[0] : null;
+    // instanced meshes per instance: the game patches InstancedMesh.prototype.raycast with three-mesh-bvh's
+    // acceleratedRaycast, which never visits the instances (every instanced boulder was missed) — REALISM-QA.md
+    const h = []; for (const m of objs) { if (!m.isInstancedMesh) { rc.intersectObject(m, false, h); continue; }
+      const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); L._tm = L._tm || new T.Mesh(); L._tm.geometry = g; L._tm.material = m.material;
+      const M = new T.Matrix4(), S = new T.Sphere(); for (let k = 0; k < m.count; k++) { m.getMatrixAt(k, M); M.premultiply(m.matrixWorld); S.copy(g.boundingSphere).applyMatrix4(M); if (!rc.ray.intersectsSphere(S)) continue;
+        L._tm.matrixWorld.copy(M); const a = h.length; T.Mesh.prototype.raycast.call(L._tm, rc, h); for (let i = a; i < h.length; i++) { h[i].object = m; h[i].instanceId = k; } } }
+    h.sort((a, b) => a.distance - b.distance); const f = h.filter((x) => x.distance >= 0 && x.distance <= far); return f.length ? f[0] : null;
   };
   L.player = () => ({ x: D.player.x, y: D.player.y, z: D.player.z, onGround: D.player.onGround });
   L.teleport = (x, z, yaw, y) => {   // ground level unless y is given (DBG.teleport alone would land on top of whatever is there)
