@@ -340,7 +340,7 @@
   }
 
   /* -------------------------------------------------------------- debris */
-  const MAX_DEBRIS = 160, PROP_FAR = 40; let propTick = 0;
+  const MAX_DEBRIS = 160, PROP_FAR = 40; let propTick = 0, propFixes = 0;
   // box / upright-cylinder fit of a prop's local points (null = keep the convex hull): the points must span the
   // primitive's faces (box: the xz outline fills its rectangle; cylinder: equal x/z extents and every mid-height point
   // on the same radius), so a genuinely irregular prop stays a hull
@@ -670,7 +670,7 @@
     return n;
   }
 
-  function stats() { return { bodies: world.bodies.len(), colliders: world.colliders.len(), debris: debris.length, vehicles: vehicles.length, characters: characters.length, steps: stepCount }; }
+  function stats() { return { propFixes, bodies: world.bodies.len(), colliders: world.colliders.len(), debris: debris.length, vehicles: vehicles.length, characters: characters.length, steps: stepCount }; }
 
   const api = {
     RAPIER: null, get world() { return world; }, get config() { return cfg; }, FIXED,
@@ -708,5 +708,12 @@
         const p = d.body.translation(), lv = d.body.linvel(); let near = false;
         for (const ch of characters) { const c = ch.collider.translation(); if ((c.x - p.x) ** 2 + (c.z - p.z) ** 2 < PROP_FAR * PROP_FAR) { near = true; break; } }
         if (!near && lv.x * lv.x + lv.y * lv.y + lv.z * lv.z < 0.25) d.body.sleep();
+      }
+      // a prop never rests under the ground: one that tunnelled (spawned inside the heightfield, knocked through a seam)
+      // is put back on top of the static surface above it, still, and awake so it settles there
+      for (const d of debris) {
+        if (!d.prop) continue;
+        const p = d.body.translation(), h = world.castRay(new R.Ray(v3(p.x, p.y + 60, p.z), v3(0, -1, 0)), 120, true, undefined, groups(G_ALL, G_STATIC));
+        if (h) { const gy = p.y + 60 - h.timeOfImpact; if (p.y < gy - 0.12) { d.body.setTranslation(v3(p.x, gy + 0.6, p.z), true); d.body.setLinvel(v3(), true); d.body.setAngvel(v3(), true); d.body.wakeUp(); propFixes++; } }
       }
     }
