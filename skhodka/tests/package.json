@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "sim": "node sim.js", "smoke": "node smoke.js", "shots": "node shots.js", "perf": "node perf.js" },
+  "dependencies": { "playwright": "^1.57.0" }
+}

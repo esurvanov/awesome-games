@@ -4,14 +4,15 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Six complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars, an open-world story on a polar island and an endless ice-canyon flyer. All six run right in your browser — or clone and play locally.
+### Seven complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars, an open-world story on a polar island, an endless ice-canyon flyer and a Saturday IT meetup in a Batumi bar. All seven run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 [![Play Lars in your browser](https://img.shields.io/badge/🏔_Play_Lars-in_your_browser-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
+[![Play Skhodka in your browser](https://img.shields.io/badge/🍣_Play_Skhodka-in_your_browser-E0457B?style=for-the-badge)](https://www.urvanov.com/skhodka/)
 [![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 
-![Games](https://img.shields.io/badge/games-6-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+![Games](https://img.shields.io/badge/games-7-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
 </div>
 
@@ -139,6 +140,29 @@ Collect shards, turn them into energy and burst through the ice walls. Weave aro
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+<a href="https://www.urvanov.com/skhodka/"><img src="skhodka/docs/screenshots/game-05-hall-peak-2130.jpg" alt="Skhodka: the SushiGO bar in Batumi at the peak of a Saturday meetup, seen from above"></a>
+
+### 🍣 [Skhodka](skhodka/)
+**A Saturday IT meetup in a real Batumi bar — meet as many people as you can and connect them.**
+
+19:00 to 01:00 at SushiGO. You are a member of the local IT chat. Walk the hall, strike up conversations, find common topics, swap contacts and introduce people who need each other: a tester looking for a job to a lead who is hiring.
+
+- 🍣 the real bar rebuilt in 3D: round glowing bar, gears wall, long sofa table, terrace
+- 👥 ~45 guests: roles, temperaments, moods, 16 oddballs · 💬 1,100+ lines
+- 🔗 six steps from «seen» to «made plans» · 📱 the meetup chat on your phone
+- 🎷 sax, karaoke, rain, birthdays · 📸 group photo at the end
+
+`three.js r158` · `vanilla JS` · any browser, double-click `index.html`
+
+**[▶ Play now](https://www.urvanov.com/skhodka/)**
+
+</td>
+<td width="50%" valign="top">
+</td>
+</tr>
 </table>
 
 ## 📸 A closer look
@@ -165,6 +189,7 @@ Collect shards, turn them into energy and burst through the ice walls. Weave aro
 | ❄️ Berezovka | Open **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
 | 🐺 Sibiria | Open **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
 | 🏔 Lars | Open **[urvanov.com/lars](https://www.urvanov.com/lars/)** — or double-click `lars/index.html` |
+| 🍣 Skhodka | Open **[urvanov.com/skhodka](https://www.urvanov.com/skhodka/)** — or double-click `skhodka/index.html` |
 | 🛩 Northern Rift | Open **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — or double-click `severny-razlom/index.html` |
 | 🌌 Echo of the Rift | Open **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — or `cd ekho-razloma && python3 -m http.server` and open `/open-world.html` |
 | ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |

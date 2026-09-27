@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Сходка · стенд интерфейса</title>
+<link rel="stylesheet" href="../css/ui.css">
+<style>
+  #dev { position: fixed; left: 6px; bottom: 6px; z-index: 50; display: flex; flex-wrap: wrap; gap: 3px; max-width: 60vw; opacity: .35; }
+  #dev:hover { opacity: 1; }
+  #dev button { font: 11px system-ui; padding: 3px 6px; background: #000c; color: #fc6; border: 1px solid #fc64; border-radius: 4px; cursor: pointer; }
+  body.shot #dev { display: none; }
+</style>
+<body>
+<canvas id="view"></canvas>
+<div id="ui"></div>
+<div id="dev"></div>
+<script src="../js/l.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/vendor/three.min.js"></script>
+<script src="../js/render/looks.js"></script>
+<script src="../js/render/people.js"></script>
+<script src="../js/ui/icons.js"></script>
+<script src="../js/ui/dom.js"></script>
+<script src="../js/ui/talk.js"></script>
+<script src="../js/ui/hud.js"></script>
+<script src="../js/ui/phone.js"></script>
+<script src="../js/ui/screens.js"></script>
+<script src="../js/ui/ui.js"></script>
+<script src="ui-fake.js"></script>
+<script>
+// Стенд: ?s=<экран> открывает экран сразу; ?tour=1 — прокрутка всех экранов; ?shot=1 — без панели стенда.
+'use strict';
+const { Ui } = L.use('ui/ui');
+const { makeWorld, FakeScene, C } = window.UIFAKE;
+const Q = new URLSearchParams(location.search);
+if (Q.get('shot')) document.body.classList.add('shot');
+let w = makeWorld(), sc = new FakeScene(document.getElementById('view'), w);
+const ui = new Ui(document.getElementById('ui'), { world: w, scene: sc, content: C });
+ui.bus.on('act', a => console.log('act', JSON.stringify(a)));
+ui.bus.on('pause', on => console.log('pause', on));
+ui.bus.on('again', () => go('title'));
+let last = performance.now();
+(function frame(now) { const dt = Math.min(0.1, (now - last) / 1000); last = now; if (!ui.paused && !ui.screenOn) w.step(dt); sc.render(); ui.update(dt); requestAnimationFrame(frame); })(last);
+
+const CHATS = [
+  { from: 'Орг', text: 'Мы за длинным столом слева 👋', t: 19.5 },
+  { from: 'Вика', text: 'Кто на веранде? Возьмите мне пиво', t: 19.9 },
+  { id: 'q1', from: 'Орг', text: 'Общее фото в 23:30 — будешь?', t: 20.3, options: [{ label: 'Да', icon: 'camera' }, { label: 'Позже', icon: 'clock' }] },
+  { from: 'Тимур', text: 'Гол!!! ⚽', t: 20.6 },
+];
+function reset() { ui.screen(null); ui.setPaused(false, true); ui.talk.end(); ui.phone.toggle(false); ui.showHud(true); }
+const S = {
+  title() { ui.showTitle(() => S.profile()); },
+  profile() { ui.showProfile(p => { console.log('profile', JSON.stringify(p)); S.prechat(); }); },
+  prechat() { ui.showPreChat(v => { console.log('go', v); S.hud(); }); },
+  hud() { reset(); w.bus.emit('toast', { icon: 'spark', text: 'Андрей · Общая тема', tone: 's3' }); w.bus.emit('event', { id: 'football', on: true }); w.bus.emit('pair', { a: 'n3', b: 'n4' }); },
+  talk() { reset(); w.act({ type: 'approach', id: 'n3' }); w.act({ type: 'say', card: 'share-sea' }); },
+  talkcard() { S.talk(); ui.talk.cardOpen = true; ui.talk.K.classList.add('open'); },
+  intro() { S.talk(); ui.talk.pick = true; ui.talk.draw(); },
+  phone() { reset(); for (const m of CHATS) w.bus.emit('chat', { msg: m }); ui.phone.toggle(true, 'chat'); },
+  contacts() { reset(); ui.phone.toggle(true, 'contacts'); ui.phone.sel = 'n1'; ui.phone.draw(); },
+  legends() { reset(); w.people.get('n10').step = 2; ui.phone.toggle(true, 'legends'); },
+  pause() { reset(); ui.setPaused(true); },
+  end() { reset(); ui.showEnd({ met: 12, contacts: 5, pairs: 3, inPhoto: 9, total: 14, best: [{ id: 'n0', name: 'Вика' }, { id: 'n1', name: 'Тимур' }, { id: 'n12', name: 'Женя' }] }, Q.get('photo') ? makePhoto() : null); },
+};
+function makePhoto() { sc.render(); return document.getElementById('view').toDataURL('image/jpeg', 0.8); }
+function go(s) { (S[s] || S.title)(); }
+const dev = document.getElementById('dev');
+for (const k of Object.keys(S)) { const b = document.createElement('button'); b.textContent = k; b.onclick = () => go(k); dev.appendChild(b); }
+const tb = document.createElement('button'); tb.textContent = '▶ tour'; tb.onclick = () => tour(); dev.appendChild(tb);
+function tour() { const ks = Object.keys(S); let i = 0; go(ks[0]); const t = setInterval(() => { i++; if (i >= ks.length) return clearInterval(t); go(ks[i]); }, 2500); }
+window.STAND = { ui, w, sc, go, S };
+if (Q.get('tour')) tour(); else go(Q.get('s') || 'title');
+</script>
+</body>
+</html>

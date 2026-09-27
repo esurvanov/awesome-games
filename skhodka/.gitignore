@@ -1,0 +1,4 @@
+_ref/
+tests/node_modules
+tests/play/
+docs/screenshots/*.png

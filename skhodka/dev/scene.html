@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<base href="../">
+<title>Сходка · зал</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #110d0f; overflow: hidden; font: 13px system-ui, sans-serif; color: #f4e6d4; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #ui { position: fixed; left: 8px; top: 8px; display: flex; gap: 4px; flex-wrap: wrap; max-width: calc(100% - 120px); }
+  #ui button, #ui label, #ui select { padding: 3px 7px; background: #000a; color: #ffd9a0; border: 1px solid #fff2; border-radius: 6px; font: inherit; cursor: pointer; }
+  #ui button.on { background: #a0501a; color: #fff; }
+  #fps { position: fixed; right: 8px; top: 8px; background: #000a; padding: 3px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+  #hint { position: fixed; left: 8px; bottom: 8px; background: #0008; padding: 3px 8px; border-radius: 6px; opacity: 0.8; }
+  body.clean #ui, body.clean #fps, body.clean #hint { display: none; }
+</style>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"></div>
+<div id="fps"></div>
+<div id="hint">1–8 ракурсы · 0 игра · тянуть — сдвиг · правой — поворот · колесо — масштаб · клик — pick</div>
+<script src="js/vendor/three.min.js"></script>
+<script src="js/l.js"></script>
+<script src="js/manifest.js"></script>
+<script>
+'use strict';
+// Отладка зала: ракурсы как на фото из _ref, ползунок часа, эффекты, качество, люди на местах (?people=1).
+// ?view=bar&hour=21&fx=garland,birthday&q=low&people=1&clean=1 — для tests/scene-shots.js
+const Q = new URLSearchParams(location.search);
+if (Q.get('clean')) document.body.classList.add('clean');
+const { Scene } = L.use('render/scene');
+const { LAYOUT } = L.use('content/layout');
+const sc = new Scene(document.getElementById('c'), { quality: Q.get('q') || 'auto' });
+window.SC = sc;
+
+// ракурсы: pos — где камера, look — куда смотрит (как снимали фото), fov — телефонный «шир»
+const VIEWS = {
+  game: null,
+  bar:    { pos: [2.6, 1.3, 1.5], look: [8.0, 1.3, 5.8], fov: 68, t: 'бар от витрины' },           // 01-57-02
+  entry:  { pos: [6.3, 1.45, 0.8], look: [7.4, 1.2, 6.6], fov: 64, t: 'бар от входа' },              // 01-57-29, 01-58-13
+  long:   { pos: [1.5, 1.5, 3.3], look: [2.4, 1.0, 13.5], fov: 70, t: 'вдоль длинного стола' },     // 01-56-25, 01-56-36
+  back:   { pos: [1.5, 1.45, 12.9], look: [5.0, 1.2, 0], fov: 70, t: 'от дальней стены' },           // 01-56-36 (справа внизу)
+  column: { pos: [3.2, 1.5, 12.2], look: [7.6, 1.9, 5.8], fov: 72, t: 'колонна с ТВ и сцена' },      // 01-59-08, 01-58-59
+  booth:  { pos: [5.6, 1.3, 9.2], look: [10, 1.9, 11.4], fov: 78, t: 'розовый уголок' },             // 01-57-17, 01-58-02
+  facade: { pos: [12.6, 1.7, -3.9], look: [4.5, 1.8, -0.6], fov: 66, t: 'фасад с веранды' },         // 01-57-51
+  top:    { pos: [4.6, 17, -5.0], look: [4.8, 0, 6.8], fov: 50, t: 'план сверху' },
+  // ракурсы пометок автора (_ref/notes): стойка сверху, сцена у стены, угол с туалетом, проходы между креслами
+  bartop: { pos: [5.0, 7.2, 1.6], look: [7.5, 0.4, 6.0], fov: 58, t: 'стойка сверху' },               // 15.31.09
+  stage:  { pos: [6.2, 5.2, 5.6], look: [9.3, 0.2, 3.1], fov: 58, t: 'сцена у стены' },               // 15.31.38
+  wc:     { pos: [6.7, 5.0, 10.2], look: [10.6, 0.7, 8.7], fov: 60, t: 'угол с туалетом' },            // 15.31.51
+  aisles: { pos: [4.2, 8.6, 6.6], look: [4.9, 0, 10.4], fov: 56, t: 'проходы между креслами' },       // 15.32.01
+};
+const ui = document.getElementById('ui');
+const btn = (label, f, cls) => { const b = document.createElement('button'); b.textContent = label; b.onclick = f; if (cls) b.className = cls; ui.appendChild(b); return b; };
+const views = Object.keys(VIEWS);
+const setView = name => { sc.view(VIEWS[name] || null); document.querySelectorAll('[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === name)); };
+views.forEach((v, i) => { const b = btn(`${i}·${VIEWS[v] ? VIEWS[v].t : 'игра'}`, () => setView(v)); b.dataset.v = v; });
+addEventListener('keydown', e => { const i = +e.key; if (e.key >= '0' && e.key <= '9' && views[i]) setView(views[i]); });
+
+const hl = document.createElement('label'); hl.innerHTML = '🕖 <input type="range" min="19" max="25" step="0.25" value="19" style="width:110px;vertical-align:middle"> <span>19:00</span>'; ui.appendChild(hl);
+const hin = hl.querySelector('input'), hout = hl.querySelector('span');
+const setH = h => { sc.setHour(h); hin.value = h; hout.textContent = `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round(h % 1 * 60)).padStart(2, '0')}`; };
+hin.oninput = () => setH(+hin.value);
+const FX = ['strobe', 'rain', 'football', 'sax', 'birthday', 'garland', 'smell', 'karaoke'], ICON = { karaoke: '🎤', strobe: '🪩', rain: '🌧', football: '⚽', sax: '🎷', birthday: '🎈', garland: '✨', smell: '👃' };
+const fxOn = {};
+for (const f of FX) { const b = btn(ICON[f] + ' ' + f, () => { fxOn[f] = !fxOn[f]; sc.setEffect(f, fxOn[f]); b.classList.toggle('on', fxOn[f]); }); b.dataset.fx = f; }
+const qs = document.createElement('select'); qs.innerHTML = ['auto', 'low', 'mid', 'high'].map(v => `<option>${v}</option>`).join(''); qs.value = Q.get('q') || 'auto';
+qs.onchange = () => { location.search = new URLSearchParams({ ...Object.fromEntries(Q), q: qs.value }).toString(); }; ui.appendChild(qs);
+
+// люди на местах (для масштаба) — если часть «люди» уже есть
+if (Q.get('people')) {
+  try {
+    const { People } = L.use('render/people'), { makeLook } = L.use('render/looks'), { RNG } = L.use('core');
+    const pp = new People(sc.scene), rng = new RNG(5); window.PP = pp;
+    const seats = LAYOUT.tables.flatMap(t => t.seats).filter(() => rng.chance(0.45));
+    seats.forEach((s, i) => { const id = 'p' + i; pp.add(id, makeLook(rng, { sex: rng.chance(0.5) ? 'm' : 'f' })); pp.set(id, { x: s.x, z: s.z, rot: s.face, pose: s.kind === 'stool' ? 'sit' : s.kind === 'sofa' ? 'sitSofa' : 'sit' }); });
+    LAYOUT.stands.filter(s => s.zone !== 'street').forEach((s, i) => { const id = 's' + i; pp.add(id, makeLook(rng, {})); pp.set(id, { x: s.x, z: s.z, rot: s.face, pose: 'talk' }); });
+    sc.people = pp;
+  } catch (e) { console.warn('люди недоступны:', e.message); }
+}
+
+setH(+(Q.get('hour') || 19));
+for (const f of (Q.get('fx') || '').split(',').filter(Boolean)) { fxOn[f] = true; sc.setEffect(f, true); document.querySelector(`[data-fx="${f}"]`)?.classList.add('on'); }
+setView(Q.get('view') || 'game');
+sc.follow({ x: 4.4, z: 3 });
+
+document.getElementById('c').addEventListener('click', e => { if (sc.dragged) return; const p = sc.pick(e.clientX, e.clientY); console.log('pick', JSON.stringify(p)); window.lastPick = p; });
+
+// кадр + счётчик FPS
+let last = performance.now(), acc = 0, n = 0; window.FPS = 0; window.frames = 0;
+const fpsEl = document.getElementById('fps');
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (sc.people) sc.people.update(dt);
+  sc.render(dt); window.frames++;
+  acc += dt; n++;
+  if (acc > 0.5) { window.FPS = n / acc; fpsEl.textContent = `${window.FPS.toFixed(0)} fps · ${sc.quality.level} · ${sc.renderer.info.render.calls} dc · ${(sc.renderer.info.render.triangles / 1000).toFixed(0)}k △`; acc = 0; n = 0; }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

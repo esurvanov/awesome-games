@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сходка · люди</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1a1418; overflow: hidden; font: 13px system-ui, sans-serif; color: #f4e6d4; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #bar { position: fixed; left: 8px; top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+  #bar a { padding: 4px 8px; background: #0008; color: #ffd9a0; text-decoration: none; border-radius: 6px; }
+  #fps { position: fixed; right: 8px; top: 8px; background: #0008; padding: 4px 8px; border-radius: 6px; }
+  .lbl { position: fixed; transform: translate(-50%, -100%); background: #000a; padding: 1px 6px; border-radius: 4px; font-size: 11px; pointer-events: none; white-space: nowrap; }
+</style>
+<body>
+<canvas id="c"></canvas>
+<div id="bar">
+  <a href="?mode=crowd">🎉 зал</a><a href="?mode=close">💬 разговор</a><a href="?mode=lineup">🧍 внешности</a>
+  <a href="?mode=poses">🕺 позы</a><a href="?mode=sit">🪑 сидя</a><a href="?mode=odd">⭐ чудики</a><a href="?mode=perf&n=40">⏱ 40</a>
+</div>
+<div id="fps"></div>
+<div id="labels"></div>
+<script src="../js/vendor/three.min.js"></script>
+<script src="../js/l.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/render/looks.js"></script>
+<script src="../js/render/people.js"></script>
+<script>
+'use strict';
+const { RNG } = L.use('core');
+const { makeLook } = L.use('render/looks');
+const { People, POSES } = L.use('render/people');
+const Q = new URLSearchParams(location.search), MODE = Q.get('mode') || 'crowd', N = +(Q.get('n') || 40);
+const seed = +(Q.get('seed') || 7);
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#1c1418');
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+// тёплый свет как в баре: янтарь сверху, розовый и синий неон по бокам
+scene.add(new THREE.HemisphereLight('#ffd49a', '#3a2432', 1.25));
+const sun = new THREE.DirectionalLight('#ffc27a', 1.4); sun.position.set(3, 8, 5); scene.add(sun);
+const pink = new THREE.PointLight('#ff4f9a', 18, 14, 1.6); pink.position.set(-5, 2.6, 3); scene.add(pink);
+const blue = new THREE.PointLight('#4f6bff', 16, 14, 1.6); blue.position.set(5, 2.6, -2); scene.add(blue);
+const amber = new THREE.PointLight('#ffae4a', 14, 10, 1.6); amber.position.set(0, 2.8, 1); scene.add(amber);
+
+// пол и мебель (сиденье 0.45, диван 0.42, стол 0.75)
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshLambertMaterial({ color: '#6a5a66' }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const furn = new THREE.MeshLambertMaterial({ color: '#b07a50' }), dark = new THREE.MeshLambertMaterial({ color: '#2a2226' });
+function chair(x, z, face) {
+  const g = new THREE.Group();
+  const seatM = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.08, 0.44), furn); seatM.position.y = 0.41; g.add(seatM);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.45, 0.06), furn); back.position.set(0, 0.67, -0.24); g.add(back);
+  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.37, 0.3), dark); leg.position.y = 0.185; g.add(leg);
+  g.position.set(x, 0, z); g.rotation.y = face; scene.add(g);
+}
+function sofa(x, z, face, w = 1.6) {
+  const g = new THREE.Group(), m = new THREE.MeshLambertMaterial({ color: '#7a3444' });
+  const s = new THREE.Mesh(new THREE.BoxGeometry(w, 0.42, 0.6), m); s.position.y = 0.21; g.add(s);
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.18), m); b.position.set(0, 0.62, -0.32); g.add(b);
+  g.position.set(x, 0, z); g.rotation.y = face; scene.add(g);
+}
+function table(x, z, w = 1.2, d = 0.7) {
+  const t = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, d), new THREE.MeshLambertMaterial({ color: '#e8e2d8' })); t.position.set(x, 0.725, z); scene.add(t);
+  const l = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.1), dark); l.position.set(x, 0.35, z); scene.add(l);
+}
+
+const pp = new People(scene);
+const rng = new RNG(seed);
+const labels = [];
+function label(id, text) { const e = document.createElement('div'); e.className = 'lbl'; e.textContent = text; document.getElementById('labels').appendChild(e); labels.push({ id, e }); }
+function person(id, x, z, rot, pose, extra = {}, hints = {}) {
+  const look = makeLook(new RNG(seed * 1000 + id), hints);
+  pp.add(id, look); pp.set(id, { x, z, rot, pose, mood: extra.mood ?? 0.3, speaking: !!extra.speaking, ...extra });
+  return look;
+}
+const ctl = []; // сценарии движения
+let camTarget = new THREE.Vector3(0, 0.9, 0);
+function cam(x, y, z, tx = 0, ty = 0.9, tz = 0) { camera.position.set(x, y, z); camTarget.set(tx, ty, tz); camera.lookAt(camTarget); }
+
+if (MODE === 'crowd' || MODE === 'perf') {
+  const n = MODE === 'perf' ? N : 30;
+  // столы со стульями, диван, группы стоящих, ходящие
+  const seats = [];
+  for (const [tx, tz] of [[-3, 2], [0, 3.2], [3, 2]]) {
+    table(tx, tz);
+    for (const [dx, dz, f] of [[-0.35, -0.6, 0], [0.35, -0.6, 0], [-0.35, 0.6, Math.PI], [0.35, 0.6, Math.PI]]) { chair(tx + dx, tz + dz, f); seats.push([tx + dx, tz + dz, f, 'sit']); }
+  }
+  sofa(-4.5, -1.5, Math.PI / 2, 1.8); seats.push([-4.5, -2.0, Math.PI / 2, 'sitSofa'], [-4.5, -1.1, Math.PI / 2, 'sitSofa']);
+  let id = 0;
+  for (const s of seats) { if (id >= n) break; const pose = rng.pick([s[3], s[3], 'talk', 'laugh', 'drink', 'phone']);
+    person(id++, s[0], s[1], s[2], pose === 'talk' ? s[3] : (s[3] === 'sitSofa' ? 'sitSofa' : pose === 'laugh' || pose === 'drink' || pose === 'phone' ? (rng.chance(0.5) ? s[3] : s[3]) : s[3]),
+      { speaking: rng.chance(0.3), mood: rng.range(-0.6, 1) }); }
+  // стоящие кружки
+  const circles = [[-1, -1.5], [1.8, -1.2], [0.2, -3.5], [3.5, -3.2], [-2.5, -4]];
+  for (const [cx, cz] of circles) {
+    const k = rng.int(2, 4);
+    for (let i = 0; i < k && id < n; i++) {
+      const a = (i / k) * Math.PI * 2 + rng.next(), x = cx + Math.sin(a) * 0.65, z = cz + Math.cos(a) * 0.65;
+      const pose = rng.pick(['talk', 'talk', 'stand', 'laugh', 'drink', 'phone', 'photo', 'wave']);
+      person(id++, x, z, a + Math.PI, pose, { speaking: i === 0, mood: rng.range(-0.8, 1) });
+    }
+  }
+  // ходят
+  while (id < n) {
+    const x = rng.range(-5, 5), z = rng.range(-6, 5);
+    person(id, x, z, 0, 'walk', { mood: rng.range(-0.3, 1) });
+    ctl.push({ id, x, z, tx: rng.range(-5, 5), tz: rng.range(-6, 5) }); id++;
+  }
+  pp.highlight(3, 'talk'); pp.highlight(12, 'hover'); pp.highlight([5, 20], 'known');
+  cam(0, 9, 11, 0, 0.3, -0.5);
+} else if (MODE === 'close') {
+  sofa(0, -2.5, 0);
+  const L3 = [{ sex: 'm', style: 'it' }, { sex: 'f', style: 'smart' }, { sex: 'm', style: 'it' }];
+  for (let i = 0; i < 3; i++) { const a = -1.0 + i * 1.0, x = Math.sin(a) * 0.62, z = -Math.cos(a) * 0.62; person(i, x, z, Math.atan2(-x, -z), 'talk', { mood: [0.6, 0.2, -0.6][i], prop: i === 0 ? 'beer' : null }, { ...L3[i] }); }
+  pp.highlight(1, 'talk');
+  let sp = 0, next = 0;
+  ctl.push({ tick: t => { if (t > next) { sp = (sp + 1) % 3; next = t + 2.2; for (let i = 0; i < 3; i++) pp.set(i, { speaking: i === sp, pose: i === (sp + 1) % 3 && sp === 2 ? 'laugh' : 'talk' }); } } });
+  cam(0.35, 1.62, 1.55, 0, 1.38, -0.45);
+} else if (MODE === 'lineup') {
+  const n = 24;
+  for (let i = 0; i < n; i++) { const row = Math.floor(i / 8), col = i % 8; person(i, (col - 3.5) * 0.8, -row * 1.3, 0, 'stand', { mood: 0.4, prop: null }); }
+  cam(0, 2.4, 6.2, 0, 0.9, -1.3);
+} else if (MODE === 'poses') {
+  const list = POSES;
+  chair(-2.4 + 2 * 0.8, 0, 0); sofa(-2.4 + 3 * 0.8, -0.1, 0, 0.7);
+  list.forEach((pose, i) => { const row = Math.floor(i / 6), col = i % 6; const x = -2.4 + col * 0.8 + (row ? 0 : 0), z = -row * 1.6;
+    if (row === 1 && (col === 2 || col === 3)) {}; person(i, x, z, 0, pose, { speaking: pose === 'talk', mood: 0.5 }); label(i, pose); });
+  // стулья под сидящими
+  cam(0, 2.2, 5.2, 0, 0.8, -0.8);
+} else if (MODE === 'sit') { // сбоку: сиденье 0.45, диван 0.42, стол 0.75
+  chair(-1.2, 0, Math.PI / 2); chair(1.2, 0, -Math.PI / 2); table(0, 0, 1.2, 0.7); sofa(0, -1.6, Math.PI / 2, 0.7); chair(-1.2, 1.4, Math.PI / 2);
+  person(0, -1.2, 0, Math.PI / 2, 'sit', { speaking: true, mood: 0.5 }); person(1, 1.2, 0, -Math.PI / 2, 'sit', { mood: -0.5, prop: 'beer' });
+  person(2, 0, -1.6, Math.PI / 2, 'sitSofa', { mood: 0.4 }); person(3, -1.2, 1.4, Math.PI / 2, 'sit', { mood: 0.4 }); pp.set(3, { pose: 'phone' }); pp.set(1, { pose: 'drink' }); pp.set(2, { pose: 'laugh' });
+  const ref = new THREE.Mesh(new THREE.BoxGeometry(4, 0.005, 0.005), new THREE.MeshBasicMaterial({ color: '#00ff88' })); ref.position.set(0, 0.45, 2.2); scene.add(ref);
+  cam(0.2, 0.9, 5.5, 0, 0.6, 0);
+} else if (MODE === 'odd') {
+  const odds = ['photographer', 'karaoke', 'patron', 'fivejobs', 'sax', 'cat', 'tea', 'weird-guy'];
+  odds.forEach((o, i) => { person(i, (i - 3.5) * 0.8, 0, 0, i === 0 ? 'stand' : 'talk', { mood: 0.6, speaking: i % 2 === 1 }, { oddball: o }); label(i, o); });
+  cam(0, 2.2, 6.2, 0, 0.9, 0);
+}
+// поза на сиденье — позиция стула в режиме poses
+if (MODE === 'poses') { pp.set(2, { x: -2.4 + 2 * 0.8, z: 0 }); pp.set(3, { x: -2.4 + 3 * 0.8, z: -0.1 }); }
+
+// перетаскивание мышью: поворот вокруг цели, колесо — зум
+let drag = null;
+canvas.addEventListener('pointerdown', e => drag = { x: e.clientX, y: e.clientY });
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', e => { if (!drag) return; const dx = (e.clientX - drag.x) * 0.008; drag = { x: e.clientX, y: e.clientY };
+  const o = camera.position.clone().sub(camTarget); o.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx); camera.position.copy(camTarget).add(o); camera.lookAt(camTarget); });
+canvas.addEventListener('wheel', e => { const o = camera.position.clone().sub(camTarget).multiplyScalar(e.deltaY > 0 ? 1.1 : 0.9); camera.position.copy(camTarget).add(o); camera.lookAt(camTarget); });
+// ховер
+const ray = new THREE.Raycaster(), mv = new THREE.Vector2();
+canvas.addEventListener('mousemove', e => { mv.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(mv, camera);
+  const h = ray.intersectObjects(pp.pickables, false)[0]; pp.highlight(h ? h.object.userData.personId : null, 'hover'); });
+
+// цикл
+let last = performance.now(), fps = 60, t = 0, frames = 0, upMs = 0;
+const STATS = window.STATS = { fps: 0, frames: 0, upMs: 0, calls: 0, tris: 0 };
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; t += dt;
+  for (const c of ctl) {
+    if (c.tick) { c.tick(t); continue; }
+    const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
+    if (d < 0.2) { c.tx = rng.range(-5, 5); c.tz = rng.range(-6, 5); }
+    else { c.x += dx / d * 1.2 * dt; c.z += dz / d * 1.2 * dt; pp.set(c.id, { x: c.x, z: c.z, rot: Math.atan2(dx, dz) }); }
+  }
+  const a = performance.now(); pp.update(dt); const u = performance.now() - a;
+  renderer.render(scene, camera);
+  upMs = upMs * 0.95 + u * 0.05; fps = fps * 0.95 + (dt > 0 ? 1 / dt : 60) * 0.05; frames++;
+  Object.assign(STATS, { fps, frames, upMs, calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+  for (const l of labels) { const q = pp.anchor(l.id); const v = new THREE.Vector3(q.x, q.y, q.z).project(camera);
+    l.e.style.left = (v.x * 0.5 + 0.5) * innerWidth + 'px'; l.e.style.top = (-v.y * 0.5 + 0.5) * innerHeight + 'px'; }
+  if (frames % 15 === 0) document.getElementById('fps').textContent = `${fps.toFixed(0)} fps · люди ${upMs.toFixed(2)} мс · ${STATS.calls} вызовов · ${(STATS.tris / 1000).toFixed(0)}k △ · ${pp.map.size} чел.`;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.DEV = { pp, scene, camera, renderer, cam, makeLook, RNG };
+</script>
+</body>
+</html>
