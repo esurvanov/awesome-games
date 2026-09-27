@@ -51,6 +51,26 @@ Options: `--label x` · `--no-stand` · `--no-eye` · `--no-motion` · `--views 
 | g | 🎥 camera | underground · sight line look→camera blocked (physics) · back-face-first rays (inside a mesh) · near-plane clip · > 20 % of the view closer than 1.2 m | any |
 | h | 🎨 texture sanity | no albedo map / custom sampler (env, shadow, normal maps don't count) and ≥ 0.4 % of the screen; `flat` if luma σ < 4 | WARN |
 
+## 🧱 Realism rules (REALISM-QA.md) — `tools/qa/realism*.mjs`, group «реализм» / «столкновения»
+
+`node tools/qa/realism.mjs rules|collide|air` alone (one browser, lock) · in `qa.mjs` by default (`--no-realism`, `--no-air`).
+
+| # | Rule | Measure | FAIL when | Source |
+|---|---|---|---|---|
+| 1 | 📏 size | Passport box h / min-area l·w / trunk height; pilot skinned height; quadruped withers (first neck bone, rest pose) | outside `tools/qa/sizes.json` range | per-row sources in sizes.json; ±15 % (PLAN §6) |
+| 2 | ⚪ albedo | map average (linear, alpha-weighted) × colour × vertex colour → sRGB luminance | < 30 or > 240 (snow 245); WARN 30–50 | PBR charts (charcoal ≈ 50, fresh snow ≈ 240) |
+| 3 | 🌙 frame | measure.py port on forest / camp / lake_shore / mountains | beyond night_master [min,max] ×/÷ 2 (Y), ×/÷ 1.5 (lit/shadow), ± 0.25 (blue/red), ± 0.15 (dark share), ± 0.1 (contrast); inside margin = WARN | references/targets.json |
+| 4 | 🪨 grounding | lowest vertex per 4×4 footprint cell vs `ctx.snowField` drawn surface (+ physics ray onto a supporting object) | min gap > 3 cm · buried > 30 % (krummholz 70 %) | PLAN §6.4, QA c′ |
+| 4b | 👻 collider exists | drawn rock/prop/structure instance ≥ 0.3 m with no Passport box around it | any | invisible-air's opposite |
+| 5 | 🔍 texel density | albedo px per metre (UV area × texture size ÷ world area) vs neighbours within 20 m | > 50 % of a mesh's instances > 3× off the neighbour median | PLAN §6.5 |
+| 6 | 🔺 faceting | smooth-shaded edges bending > 20° and > 24 px with the object at 40 % of a 1720 px frame | > 12 % of smooth edge length | silhouette corner visibility |
+| 6 | 🔁 repetition | same geometry within 2.2 × radius (≥ 2.5 m), rotation < 6°, scale < 4 %, same tint | any pair | PLAN §6.7 |
+| 6 | 🧊 weathering | compiled uniforms: snow (`uSc*/tSc*/tVSnow/tSnow`) + grime (`tGb/uGbM`) on collider-backed static props (fantasy pieces excluded) | missing | PLAN §6.8 |
+| 7 | 💻 air fps | `?q=air`, 1280×800 @2x, CPU ×4, forest_deep + camp, rAF median 5 s | < 30 | PLAN §1/§10 |
+| B | 🧗 exact collision | walk into each kind, gap capsule ↔ VISIBLE surface (own per-instance raycaster) + seam-snag slide + jump on top + physics cost | \|gap\| > 3 cm | PLAN §9 |
+
+Note: the game sets `InstancedMesh.prototype.raycast = acceleratedRaycast` (three-mesh-bvh), which ignores instances — any stock `Raycaster` against instanced rocks misses. The QA tools raycast instances one by one.
+
 ## 👁 Views, spots, takes
 
 | Set | Items |
