@@ -92,16 +92,17 @@
     if (!d) d = R.ColliderDesc.trimesh(v, ix);
     d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
     dirtyStatic = true;
-    return tag(world.createCollider(d), userTag || { kind: 'static' });
+    return tag(world.createCollider(d), Object.assign({ kind: 'static' }, userTag, { center: vertsCenter(v) }));
   }
   // static convex hull of world-space points (small rocks, crystals)
   function addStaticConvex(points, userTag, o = {}) {
     need();
-    const d = R.ColliderDesc.convexHull(points instanceof Float32Array ? points : new Float32Array(points));
+    const pv = points instanceof Float32Array ? points : new Float32Array(points);
+    const d = R.ColliderDesc.convexHull(pv);
     if (!d) return null;
     d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
     dirtyStatic = true;
-    return tag(world.createCollider(d), userTag || { kind: 'static' });
+    return tag(world.createCollider(d), Object.assign({ kind: 'static' }, userTag, { center: vertsCenter(pv) }));
   }
   function addStaticBox(c, he, q, userTag) {
     need();
@@ -112,6 +113,17 @@
     return tag(world.createCollider(d), userTag || { kind: 'static' });
   }
   function removeCollider(col) { if (col) { tags.delete(col.handle); world.removeCollider(col, true); } }
+  // world-space AABB centre of a flat [x,y,z,...] array: 'solid' colliders bake world-space vertices with the collider's
+  // own translation left at the Rapier default (0,0,0) — .translation() on them always reads back (0,0,0), it is NOT
+  // where the mesh actually sits (unstick() used to push players away from the map origin instead of the obstacle).
+  function vertsCenter(v) {
+    let mnx = Infinity, mny = Infinity, mnz = Infinity, mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+    for (let i = 0; i + 2 < v.length; i += 3) {
+      const x = v[i], y = v[i + 1], z = v[i + 2];
+      if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; if (z < mnz) mnz = z; if (z > mxz) mxz = z;
+    }
+    return { x: (mnx + mxx) / 2, y: (mny + mxy) / 2, z: (mnz + mxz) / 2 };
+  }
 
   /* ------------------------------------------------------------- raycast */
   const _ray = { o: v3(), d: v3() };
@@ -144,6 +156,24 @@
   }
   // ground height (terrain/ice/static tops) under x,z — handy replacement for groundH()
   function groundY(x, z, fromY = 500) { const h = raycast(v3(x, fromY, z), v3(0, -1, 0), fromY + 50, { groups: G_STATIC }); return h ? h.point.y : cfg.seaLevel; }
+  // like groundY/raycast, but a stack of colliders at this x,z (a jutting crystal shard over a rock ledge, a low
+  // overhanging branch over the true floor) can put something un-walkable as the very first hit; a caller that just
+  // takes that first hit (spawn/teleport placement, the character controller's own unstick()) perches the character
+  // on a surface it immediately slides or falls off. This walks down through the stack instead, returning the first
+  // hit at or under maxSlope (default 45°, matching the character's own walkable threshold), or the raw first hit
+  // if nothing in range qualifies (still better than finding nothing at all).
+  function groundYWalkable(x, z, opts = {}) {
+    const cosMax = opts.cosMax ?? Math.SQRT1_2, maxIter = opts.maxIter ?? 6;
+    let y = opts.fromY ?? 500, bottom = opts.bottom ?? y - 100, first = null;
+    for (let i = 0; i < maxIter && y > bottom; i++) {
+      const h = raycast(v3(x, y, z), v3(0, -1, 0), y - bottom, { groups: G_STATIC, excludeCollider: opts.excludeCollider });
+      if (!h) break;
+      if (!first) first = h;
+      if (h.normal.y >= cosMax - 1e-3) return h;
+      y = h.point.y - 0.05;
+    }
+    return first;
+  }
 
   /* ----------------------------------------------------------- character */
   function createCharacter(o = {}) {
@@ -289,13 +319,26 @@
     const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.12));
     const stuckGroups = groups(G_ALL, G_STATIC | G_TRUNK);
     function unstick() {
-      const c = col.translation(); let hit = null;
-      world.intersectionsWithShape(c, qId, coreShape, (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = other; return false; } return true; }, undefined, stuckGroups, col);
+      const c = col.translation(); let hit = null, hitTag = null;
+      world.intersectionsWithShape(c, qId, coreShape, (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = other; hitTag = t; return false; } return true; }, undefined, stuckGroups, col);
       if (!hit) return false;
-      const feetY = c.y - centerOff, top = world.castRayAndGetNormal(new R.Ray(v3(c.x, feetY + 40, c.z), down), 80, true, undefined, groups(G_ALL, G_STATIC), col);
-      if (top && top.timeOfImpact < 40 + P.height * 1.5) { const y = feetY + 40 - top.timeOfImpact; col.setTranslation(v3(c.x, y + centerOff + 0.02, c.z)); }
-      else { // no reachable top (tall wall): push out horizontally away from the collider centre
-        const o = hit.translation(); let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.5, c.y, c.z + dz / l * 0.5)); }
+      const feetY = c.y - centerOff;
+      // a lift only counts if the surface above is actually standable, at the character's own walkable slope (cosMax)
+      // — not just "not a near-vertical wall". A single first-hit ray can land on the tip/edge of an overhang (a
+      // jutting crystal shard a few metres above the real ledge below it): groundYWalkable walks down past any such
+      // un-walkable hits to the first real standable surface in range, so the character doesn't perch on the shard
+      // and immediately slide/fall off it again next frame; fall through to the push-out if nothing qualifies.
+      const top = groundYWalkable(c.x, c.z, { fromY: feetY + 40, bottom: feetY - P.height * 1.5, cosMax, excludeCollider: col });
+      if (top && top.normal.y >= cosMax - 1e-3) { col.setTranslation(v3(c.x, top.point.y + centerOff + 0.02, c.z)); }
+      else { // no reachable/standable top (tall wall, overhang): push out horizontally away from the obstacle's real
+        // world-space centre. NOTE: hit.translation() is the wrong reference here — 'solid' colliders (addStaticTrimesh/
+        // addStaticConvex) bake world-space vertices with the collider's own transform left at the Rapier default
+        // (0,0,0), so .translation() always reads back the map origin, not the mesh. That silently pushed players away
+        // from (0,0,0) instead of away from the rock/spire/altar they were stuck in — barely noticeable near the origin,
+        // but a multi-metre misdirection far from it (e.g. the east spire at ~x292,z-110), which read back as the
+        // character drifting off the standable altar area with onGround=false until it wandered out of interact range.
+        const o = (hitTag && hitTag.center) || hit.translation();
+        let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.5, c.y, c.z + dz / l * 0.5)); }
       s.vel.y = Math.min(s.vel.y, 0); s.prev = v3(col.translation().x, col.translation().y - centerOff, col.translation().z); out.unstuck = (out.unstuck || 0) + 1;
       return true;
     }
@@ -693,7 +736,7 @@
     RAPIER: null, get world() { return world; }, get config() { return cfg; }, FIXED,
     groups: { STATIC: G_STATIC, CHAR: G_CHAR, DEBRIS: G_DEBRIS, PROP: G_PROP, VEHICLE: G_VEHICLE, TRUNK: G_TRUNK },
     init, addStaticCylinder, addStaticBox, addStaticTrimesh, addStaticConvex, removeCollider, createCharacter, spawnDebris, applyExplosion,
-    createHoverVehicle, raycast, sphereCast, groundY, step, stats, debris,
+    createHoverVehicle, raycast, sphereCast, groundY, groundYWalkable, step, stats, debris,
     /** push whatever a raycast hit (debris / props / vehicle); impulse in N·s */
     applyImpulseAt(collider, point, impulse) {
       const b = collider && collider.parent(); if (!b || !b.isDynamic()) return false;

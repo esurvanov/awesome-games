@@ -4413,10 +4413,13 @@ function frame(now) {
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
     STAGES, ZONES, enemies, boss, INTER, spawnShardling, save, continueGame, applySave, store, setPause, ENDINGS, heals,
     newGame: () => startGame(false),
-    // teleport onto whatever is under (x, z): terrain or the top of a solid (rock, wreck, roof)
+    // teleport onto whatever is under (x, z): terrain or the top of a solid (rock, wreck, roof). A plain first-hit
+    // raycast can land on the underside/tip of an overhang above the real surface (a jutting crystal shard over a
+    // spire altar's plinth, a low branch): groundYWalkable walks down past any such un-walkable hit to the first
+    // one the character could actually stand on, so a QA/dev placement lands where a walked-in player would.
     teleport(x, z, yaw, y) {
       let yy = y;
-      if (yy === undefined) { yy = groundH(x, z); if (PH.ok) { const h = PH.P.raycast({ x, y: yy + 60, z }, { x: 0, y: -1, z: 0 }, 80, { groups: PH.P.groups.STATIC }); if (h) yy = h.point.y; } }
+      if (yy === undefined) { yy = groundH(x, z); if (PH.ok) { const h = PH.P.groundYWalkable(x, z, { fromY: yy + 60, bottom: yy - 20 }); if (h) yy = h.point.y; } }
       player.x = x; player.z = z; player.y = yy; player.vx = player.vz = player.vy = 0; CLIMB.t = -1;
       if (PH.ok) { PH.ch.setEnabled(true); PH.ch.setPosition(x, yy + 0.05, z); }
       if (yaw !== undefined) cam.yaw = yaw;
