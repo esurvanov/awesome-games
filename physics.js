@@ -563,6 +563,83 @@
     return vh;
   }
 
+  /* ------------------------------------------------------------- ragdoll (PHYSBODY.md) */
+  // Event ragdoll of the pilot: ~11 dynamic capsules + impulse joints, only alive for the 1–2 s of a fall / heavy hit.
+  // Group BODY: collides with the world (terrain, solids, trunks, props, vehicles), never with the character capsule,
+  // debris or itself (limbs may pass through the torso — no self-collision pairs to solve). Query filters used by the
+  // game (camera, feet, contact probes) do not include BODY, so a lying ragdoll never blocks them.
+  const G_BODY = 64, ragdolls = [];
+  // parts: [{ p: {x,y,z} centre, q: {x,y,z,w} collider rotation (capsule axis = local Y), shape: 'capsule'|'ball'|'box',
+  //           r, hh (capsule half height), he: {x,y,z} (box), mass, v: {x,y,z}, w: {x,y,z} }]  (world space)
+  // joints: [{ a, b (part indices), anchor: {x,y,z} world, hinge?: {x,y,z} world axis, limits?: [min, max] rad }]
+  // Every body starts with the IDENTITY rotation (the collider carries the part's rotation): all body frames agree at
+  // creation, so a hinge axis is the same vector in both bodies' local space (Rapier's revolute takes one local axis).
+  function createRagdoll(parts, joints, o = {}) {
+    need(); flushQueries();
+    const filt = groups(G_BODY, G_STATIC | G_TRUNK | G_PROP | G_VEHICLE), bodies = [], cols = [], js = [];
+    for (const d of parts) {
+      // CCD only where asked (the heavy trunk parts): continuous sweeps for all 11 parts were most of the ragdoll's cost
+      const bd = R.RigidBodyDesc.dynamic().setTranslation(d.p.x, d.p.y, d.p.z).setLinearDamping(o.linDamp ?? 0.25).setAngularDamping(o.angDamp ?? 2.5)
+        .setCcdEnabled(!!d.ccd).setCanSleep(true);
+      if (d.v) bd.setLinvel(d.v.x, d.v.y, d.v.z); if (d.w) bd.setAngvel(d.w);
+      const b = world.createRigidBody(bd);
+      const cd = d.shape === 'ball' ? R.ColliderDesc.ball(d.r) : d.shape === 'box' ? R.ColliderDesc.cuboid(d.he.x, d.he.y, d.he.z) : R.ColliderDesc.capsule(d.hh, d.r);
+      cd.setRotation({ x: d.q.x, y: d.q.y, z: d.q.z, w: d.q.w }).setMass(d.mass || 1).setFriction(o.friction ?? 0.9).setRestitution(o.restitution ?? 0.02).setCollisionGroups(filt);
+      const c = world.createCollider(cd, b); tag(c, { kind: 'ragdoll' });
+      bodies.push(b); cols.push(c);
+    }
+    for (const J of joints) {
+      const A = parts[J.a].p, B = parts[J.b].p, an = J.anchor;
+      const a1 = v3(an.x - A.x, an.y - A.y, an.z - A.z), a2 = v3(an.x - B.x, an.y - B.y, an.z - B.z);
+      const data = J.hinge ? R.JointData.revolute(a1, a2, v3(J.hinge.x, J.hinge.y, J.hinge.z)) : R.JointData.spherical(a1, a2);
+      const j = world.createImpulseJoint(data, bodies[J.a], bodies[J.b], true);
+      if (J.hinge && J.limits && j.setLimits) { try { j.setLimits(J.limits[0], J.limits[1]); } catch (e) { /* older build: free hinge */ } }
+      js.push(j);
+    }
+    const prev = bodies.map((b) => ({ p: Object.assign({}, b.translation()), q: Object.assign({}, b.rotation()) }));
+    const rd = {
+      bodies, colliders: cols, joints: js,
+      _save() { for (let i = 0; i < bodies.length; i++) { const p = bodies[i].translation(), q = bodies[i].rotation(); const s = prev[i]; s.p.x = p.x; s.p.y = p.y; s.p.z = p.z; s.q.x = q.x; s.q.y = q.y; s.q.z = q.z; s.q.w = q.w; } },
+      // pose of part i interpolated to the render time (same alpha as debris / vehicles)
+      pose(i, outP, outQ) {
+        const b = bodies[i], p = b.translation(), q = b.rotation(), s = prev[i];
+        outP.x = s.p.x + (p.x - s.p.x) * alpha; outP.y = s.p.y + (p.y - s.p.y) * alpha; outP.z = s.p.z + (p.z - s.p.z) * alpha;
+        slerpInto(outQ, s.q, q, alpha); return outP;
+      },
+      maxSpeed() { let m = 0; for (const b of bodies) { const v = b.linvel(); m = Math.max(m, Math.hypot(v.x, v.y, v.z)); } return m; },
+      impulse(i, imp, at) { const b = bodies[i]; if (at) b.applyImpulseAtPoint(v3(imp.x, imp.y, imp.z), v3(at.x, at.y, at.z), true); else b.applyImpulse(v3(imp.x, imp.y, imp.z), true); },
+      torque(i, t) { bodies[i].applyTorqueImpulse(v3(t.x, t.y, t.z), true); },
+      // parts whose shape, shrunk by `margin`, still overlaps the static world = penetrating deeper than `margin`
+      penetrating(margin = 0.05) {
+        let n = 0; const flt = groups(G_ALL, G_STATIC | G_TRUNK);
+        for (let i = 0; i < bodies.length; i++) {
+          const sh = cols[i].shape, t = cols[i].translation(), r = cols[i].rotation(); let s2 = null;
+          if (sh.radius !== undefined && sh.halfHeight !== undefined) s2 = new R.Capsule(sh.halfHeight, Math.max(0.005, sh.radius - margin));
+          else if (sh.radius !== undefined) s2 = new R.Ball(Math.max(0.005, sh.radius - margin));
+          else if (sh.halfExtents) s2 = new R.Cuboid(Math.max(0.005, sh.halfExtents.x - margin), Math.max(0.005, sh.halfExtents.y - margin), Math.max(0.005, sh.halfExtents.z - margin));
+          if (!s2) continue; let hit = false;
+          world.intersectionsWithShape(t, r, s2, () => { hit = true; return false; }, undefined, flt, cols[i]);
+          if (hit) n++;
+        }
+        return n;
+      },
+      destroy() { for (const j of js) { try { world.removeImpulseJoint(j, true); } catch (e) { /* removed with body */ } } for (const c of cols) tags.delete(c.handle); for (const b of bodies) world.removeRigidBody(b); const k = ragdolls.indexOf(rd); if (k >= 0) ragdolls.splice(k, 1); },
+    };
+    ragdolls.push(rd);
+    return rd;
+  }
+
+  // nearest world surface to a point (PHYSBODY: the shoulders' contact probes). dist < 0 = the point is inside.
+  function nearestSurface(p, o = {}) {
+    need(); flushQueries();
+    const h = world.projectPoint(v3(p.x, p.y, p.z), false, undefined, groups(G_ALL, o.groups ?? (G_STATIC | G_TRUNK | G_PROP)));
+    if (!h) return null;
+    const q = h.point, dx = p.x - q.x, dy = p.y - q.y, dz = p.z - q.z, d = Math.hypot(dx, dy, dz);
+    if (d < 1e-6) return null;
+    const s = h.isInside ? -1 : 1;
+    return { point: v3(q.x, q.y, q.z), dist: d * s, normal: v3(dx / d * s, dy / d * s, dz / d * s), tag: tags.get(h.collider.handle) || null };
+  }
+
   /* ---------------------------------------------------------------- step */
   function step(dt) {
     need();
@@ -572,6 +649,7 @@
       if (n >= MAX_SUB) { acc = 0; break; } // spiral-of-death guard
       for (const d of debris) { const p = d.body.translation(), q = d.body.rotation(); d.prevP.x = p.x; d.prevP.y = p.y; d.prevP.z = p.z; d.prevQ.x = q.x; d.prevQ.y = q.y; d.prevQ.z = q.z; d.prevQ.w = q.w; }
       for (const vh of vehicles) { vh._save(); if (vh.body.isEnabled()) vh._pre(FIXED); }
+      for (const rd of ragdolls) rd._save();   // PHYSBODY ragdoll: render-time interpolation like debris
       world.step(); dirtyStatic = false; stepCount++;
       acc -= FIXED; n++;
     }
@@ -607,6 +685,8 @@
     clearDebris() { for (let i = debris.length - 1; i >= 0; i--) if (!debris[i].prop) killDebris(debris[i], i); },
     removeDebris(d) { const i = debris.indexOf(d); if (i >= 0) killDebris(d, i); },
   };
+  Object.assign(api, { createRagdoll, ragdolls, nearestSurface });   // PHYSBODY.md (groups.BODY = 64)
+  api.groups.BODY = G_BODY;
   root.Phys = api;
   root.PhysReady = import(RAPIER_URL).then(async (m) => {
     R = m.default || m;

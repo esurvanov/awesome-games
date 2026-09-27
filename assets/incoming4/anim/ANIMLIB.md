@@ -199,6 +199,18 @@ Keep the stag's acceleration ≤ ~7 m/s² so gait changes get their strides (sam
 
 Credit line: "Motion capture data from mocap.cs.cmu.edu, created with funding from NSF EIA-0196217."
 
+### Fall / get-up pack (`assets/pack/anim_pilot_fall.js`, PHYSBODY.md)
+
+| clip in the pack | source clip | source | license | used for |
+|---|---|---|---|---|
+| `pb_knock` (0.83 s) | Hit_Knockback | Quaternius UAL1 Standard (already inside `pilot_aces_textured`) | CC0 1.0 | fall without WebAssembly: knocked onto the back |
+| `pb_getup` (1.53 s) | LayToIdle | same | CC0 1.0 | get up after the ragdoll / after `pb_knock` (starts on the back) |
+| `pb_fall` (2.4 s) | Death01 | same | CC0 1.0 | spare collapse clip (not used by default) |
+
+The library had no fall / get-up clips; the pilot's own UAL1 set did (unmapped). They are cut out by
+`node tools/anim/extract_clips.mjs assets/pack/pilot_aces_textured.js assets/pack/anim_pilot_fall.js anim_pilot_fall assets/incoming4/anim/anim_pilot_fall.meta.json Death01=pb_fall Hit_Knockback=pb_knock LayToIdle=pb_getup`
+(nodes + those three animations only, 0.33 MB instead of re-parsing the 5.6 MB model). No new motion source.
+
 UAL2 was not downloaded (itch download needed a scripted login flow that was not allowed in this session).
 
 ---

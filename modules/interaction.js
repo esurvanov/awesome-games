@@ -322,6 +322,13 @@
     c.g.updateMatrixWorld(true);
     const face = c.g.rotation.y, F = _p[16].set(-Math.sin(face), 0, -Math.cos(face)), R = _p[17].set(Math.cos(face), 0, -Math.sin(face));
     const hs = Math.hypot(P.vx, P.vz);
+    // PHYSBODY (modules/physbody.js): a ragdoll / fall clip / get-up owns the whole body — no feet to place, no look, no arms
+    const PB = C.physbody;
+    if (PB && PB.owns && PB.owns()) {
+      B.wLegs = 0; B.pelvis = 0; for (const L of B.legs) { L.lk = 0; L.offX = L.offZ = 0; L.step = null; L.up = 1; }
+      try { PB.pose(dt, F); } catch (e) { /* physbody guards itself */ }
+      markBones(); return;
+    }
     // ---- ground under each foot (animation pose, no offsets)
     let minD = 1e9, sinkT = 0;
     for (const L of B.legs) {
@@ -431,6 +438,7 @@
     if (fk && fk.w > 0.01 && B.legs[0]) { const L = B.legs[0], cur = wpos(L.foot, _p[18]); cur.lerp(_p[19].set(fk.x, fk.y, fk.z), fk.w); solve2(L.thigh, L.calf, L.foot, cur, R, L.n); }
     lookUpdate(dt, F, R);
     armsUpdate(dt, F, R);
+    if (PB && PB.pose) { try { PB.pose(dt, F); } catch (e) { /* physbody guards itself */ } }   // springs + collision tips on the upper body
     markBones();
     stepsFromPose(dt, grounded, hs);
   }
