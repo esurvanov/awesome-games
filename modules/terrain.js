@@ -27,7 +27,12 @@
     med:   { terrainLevels: 4, terrainGrid: 64,  deformRes: 1024, deformExt: 128, contactRes: 768,  contactExt: 14.4, contactPatch: 6, contactStep: 2, contactStatic: 1 },
     high:  { terrainLevels: 4, terrainGrid: 96,  deformRes: 1024, deformExt: 128, contactRes: 1024, contactExt: 16,   contactPatch: 7, contactStep: 2, contactStatic: 1 },
     ultra: { terrainLevels: 4, terrainGrid: 160, deformRes: 1024, deformExt: 128, contactRes: 1024, contactExt: 16,   contactPatch: 8, contactStep: 1, contactStatic: 1 },
+    // NATURE (LOWEND knobs): contactEvery = frames between the underside renders of moving objects (1 = every frame);
+    // texBias = mip bias of the ground detail maps (< 0 sharper: the scene is upscaled from a lower render scale);
+    // aniso = anisotropic filtering of the ground maps
+    air:   { contactEvery: 2, texBias: -0.8, aniso: 2 },
   };
+  const QK = (k, d) => (ctx.Q[k] !== undefined ? ctx.Q[k] : d);
 
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -233,7 +238,7 @@
     // TEXUNITS: the 5 detail albedos / 4 packed normal-roughness maps live in two texture arrays (layers: 0 fresh snow,
     // 1 wind crust, 2 rock, 3 cliff, 4 gravel albedo) — 9 samplers → 2; the terrain programs were 17–22 units > 16
     uniform sampler2DArray tTrD, tTrN; uniform sampler2D tNz;
-    uniform vec2 uWind; uniform vec3 uSunV; uniform vec2 uScanC; uniform float uScanR, uScanA, uTime;
+    uniform vec2 uWind; uniform vec3 uSunV; uniform vec2 uScanC; uniform float uScanR, uScanA, uTime; uniform float uTexBias;
     #ifdef TR_DETAIL
       uniform float uDbgFlat;
       // NATURE: the coarse press map (12.5 cm, already bound for the vertex stage: same uniform, no extra unit) read in
@@ -268,8 +273,8 @@
     void trMS(float ld, float ln, vec2 uv, float w, float rot, out vec3 c, out vec3 n){
       float cr = cos(rot), sr = sin(rot); mat2 R = mat2(cr, sr, -sr, cr);
       vec2 uv2 = R * uv * .71 + vec2(.37, .61);
-      vec3 ca = texture(tTrD, vec3(uv, ld)).rgb, cb = texture(tTrD, vec3(uv2, ld)).rgb;
-      vec3 na = texture(tTrN, vec3(uv, ln)).rgb, nb = texture(tTrN, vec3(uv2, ln)).rgb;
+      vec3 ca = texture(tTrD, vec3(uv, ld), uTexBias).rgb, cb = texture(tTrD, vec3(uv2, ld), uTexBias).rgb;
+      vec3 na = texture(tTrN, vec3(uv, ln), uTexBias).rgb, nb = texture(tTrN, vec3(uv2, ln), uTexBias).rgb;
       float b = smoothstep(.3, .7, w + (trLum(cb) - trLum(ca)) * .5);
       vec2 nbx = transpose(R) * (nb.xy * 2. - 1.);
       c = mix(ca, cb, b); n = vec3(mix(na.xy * 2. - 1., nbx, b) * .5 + .5, mix(na.z, nb.z, b));
@@ -284,7 +289,7 @@
         vec2 g = vec2(hx - h0, hz - h0) / e;
         gN = normalize(gN + vec3(g.x, 0., g.y) * .3 * st); } }
     float up = gN.y;
-    vec3 dPx = dFdx(P), dPy = dFdy(P);
+    vec3 dPx = dFdx(P) * exp2(uTexBias), dPy = dFdy(P) * exp2(uTexBias);   // NATURE: Q.texBias via the gradients (textureGrad)
     float trDist = length(vViewPosition);
     vec4 nzA = texture(tNz, P.xz * (1. / 260.)), nzB = texture(tNz, P.xz * (1. / 47.) + .37);
     float depth = vDepth;
@@ -341,7 +346,7 @@
       // packed snow in a print: a little denser / smoother, no painted outline (walls shade by their real normal)
       // NATURE (c01–c06): compacted snow in a print is denser, finer-grained and holds less light — darker and bluer than
       // the loose powder around it; this tone step (not only the wall normals) is what reads at 4–8 m from the camera
-      cS = cS * mix(vec3(1.), vec3(.76, .83, .95), press);
+      cS = cS * mix(vec3(1.), vec3(.76, .83, .95), sqrt(press));   // sqrt: a 10 % scuff already shows (≈ 8 % darker)
       rS = mix(rS, .74, press);   // LOOKGATE: was .62 — less gloss, so the wall doesn't catch a hard bright highlight
     }
     if (wR > .003) {
@@ -959,7 +964,8 @@ void main() {
       if (inN) { near.push(a); regions.push([wp.x - a.r, wp.z - a.r, wp.x + a.r, wp.z + a.r]); }
       if (!fullyN && Math.abs(wp.x - DEF.cx) < DEF.ext / 2 + a.r && Math.abs(wp.z - DEF.cz) < DEF.ext / 2 + a.r) far.push(a);
     }
-    if (near.length) { camFor(CM.cam, CM.cx, CM.cz, CM.ext, c.groundH(CM.cx, CM.cz)); drawRoots(near, CM.matDyn, CM.P[CM.cur], CM.cam); CM.stats.actorDraws += near.length; }
+    CM.evK = ((CM.evK || 0) + 1) % Math.max(1, QK('contactEvery', 1));   // NATURE: Q.contactEvery (air: every 2nd frame)
+    if (near.length && CM.evK === 0) { camFor(CM.cam, CM.cx, CM.cz, CM.ext, c.groundH(CM.cx, CM.cz)); drawRoots(near, CM.matDyn, CM.P[CM.cur], CM.cam); CM.stats.actorDraws += near.length; }
     // coarse map: its mip chain is regenerated after every render into it — batch this frame's writes, regenerate once
     const defT = DEF.rt[DEF.cur].texture; let defDirty = false; defT.generateMipmaps = false;
     // far objects (outside the fine window) press the coarse map every 3rd frame, and only when near the snow
@@ -1144,6 +1150,14 @@ void main() {
   // geometry). What stays is the skimmer's spray while it moves (the one moving thing with no foot-plant event).
   const TRK = { sk: null };
   function trackActors(dt) {
+    // NATURE (c02/c06): a walker in powder kicks a shallow continuous lane between the prints (snow dragged by the boots);
+    // the prints alone, 0.7–1.8 m apart at a run, read at 4–8 m from the camera as a few isolated specks. A soft
+    // 0.5 m lane, ≈ 25 % of the loose depth (1.5 cm in 6 cm of powder), pressed into the same map as the boots (MAX blend:
+    // the prints stay exactly the soles, only the snow between them is scuffed).
+    { const P = ctx.player, G = ctx.G, t = TRK.pl || (TRK.pl = { x: P.x, z: P.z });
+      const d = Math.hypot(P.x - t.x, P.z - t.z);
+      if (d > 3 || (G && G.riding)) { t.x = P.x; t.z = P.z; }
+      else if (d > 0.3) { if (onTerrain(P.x, P.y, P.z, 0.25)) { const k = QK('trailLane', 1); if (k > 0) stamp({ x: (P.x + t.x) / 2, z: (P.z + t.z) / 2, dx: P.x - t.x, dz: P.z - t.z, len: d + 0.35, wid: 0.5, type: 4, str: 0.28 * k }); } t.x = P.x; t.z = P.z; } }
     const sk = ctx.sk;
     if (sk && sk.g) {
       const x = sk.x, z = sk.z, t = TRK.sk || (TRK.sk = { x, z });
@@ -1459,6 +1473,7 @@ void main() {
       tSFd: { value: tx('tr_snowF_d.jpg', true) }, tSFn: { value: tx('tr_snowF_n.jpg') }, tSWd: { value: tx('tr_snowW_d.jpg', true) }, tSWn: { value: tx('tr_snowW_n.jpg') },
       tTrD: texArray(['tr_snowF_d.jpg', 'tr_snowW_d.jpg', 'tr_rockS_d.jpg', 'tr_cliff_d.jpg', 'tr_gravel_d.jpg'], true),
       tTrN: texArray(['tr_snowF_n.jpg', 'tr_snowW_n.jpg', 'tr_rockS_n.jpg', 'tr_cliff_n.jpg'], false), tNz: { value: makeNoiseTex() },
+      uTexBias: { value: 0 },
       uWind: { value: new THREE.Vector2(S.wind[0], S.wind[1]) }, uSunV: { value: (c.MOON_DIR ? c.MOON_DIR.clone() : new THREE.Vector3(0.3, 0.8, 0.2)).normalize() },
       uScanC: c.TU.uScanC, uScanR: c.TU.uScanR, uScanA: c.TU.uScanA, uTime: c.TU.uTime,
       uW: { value: c.W }, uHsN: { value: DN }, uDT: { value: c.W / DN },
@@ -1503,6 +1518,9 @@ void main() {
     const storm = c.WX ? c.WX.storm : 0; DEF.fillT = (DEF.fillT || 0) + dt;
     if (storm > 0.4 && DEF.fillT > 2) { DEF.fillT = 0; const k = 1 - 0.03 * storm; recenterDeform(DEF.cx, DEF.cz, k); if (CM.ok && !CM.fresh) refillContact(k); }
     U.uDefOn.value = S.noDef ? 0 : 1; U.uDbgFlat.value = S.dbgFlat ? 1 : 0;
+    U.uTexBias.value = QK('texBias', 0);
+    { const an = Math.min(QK('aniso', 8), renderer.capabilities.getMaxAnisotropy()); if (an !== S.aniso) { S.aniso = an; S.texAnisoN = 0; }
+      if (S.texAnisoN < 3) for (const k of ['tTrD', 'tTrN']) { const t = U[k] && U[k].value; if (t && t.anisotropy !== an && t.image && t.image.width > 1) { t.anisotropy = an; t.needsUpdate = true; S.texAnisoN++; } } }
     if (c.mode === 'play' || c.mode === 'ending') trackActors(dt);
     if (CM.ok) { try { contactFrame(dt); } catch (e) { CM.ok = false; CM.err = String(e && e.stack || e); U.uCMOn.value = 0; U.uPc.value.w = 0; if (CM.patch) CM.patch.visible = false; console.warn('[terrain] SNOW-CONTACT disabled:', e); } }
     // snow gameplay

@@ -3688,7 +3688,7 @@ function attachContactLib(root, A) {
 const fox = { x: POI.crash.x + 11, z: POI.crash.z + 15, y: 0, yaw: 2.4, st: 'wild', speed: 0, joined: false, g: new THREE.Group(), anim: null, target: null, seekT: 14, yipT: 0, happy: 0 };
 fox.g.position.set(fox.x, groundH(fox.x, fox.z), fox.z); scene.add(fox.g);
 loadPacked('fox', ASSET, (g) => {
-  const root = prepModel(g.scene, 0.55, (m) => { m.map = null; m.color.setHex(0xe8edf5); m.roughness = 0.95; m.metalness = 0; });
+  const root = prepModel(g.scene, 0.45, (m) => { m.map = null; m.color.setHex(0xe8edf5); m.roughness = 0.95; m.metalness = 0; });   // NATURE: 0.55 → 0.45 model height = withers 0.53 → ≈ 0.39 m (real fox 0.35–0.45; measured on the spine bone)
   attach(fox.g, root);
   fox.anim = makeAnimator(root, g.animations, { sit: 'Survey', walk: 'Walk', run: 'Run' });
   fox.anim.loop('sit');
@@ -4103,10 +4103,23 @@ loadPacked('animal_stag', ASSET, (g) => {
   // it can't desaturate a hue (every channel gets the same factor, so the ratio between them — the hue — is
   // unchanged; confirmed by look-gate's own render still reading brown after that first attempt). Dropping the map
   // and using a flat pale hide colour does change the hue, same fix pattern already proven on the fox below.
+  // NATURE: the flat tint lost every marking (a plastic toy). The texture is kept and re-mapped by its LUMINANCE onto a
+  // reindeer palette (i01–i05): dark grey-brown back/legs → grey-fawn flanks → cream neck/belly; the fur detail (high
+  // frequency luminance) stays, the red-brown hue goes. Antlers: velvet-less bone/brown, darker tips. Eyes untouched.
   const base = prepModel(g.scene, 0, (m) => {
-    m.map = null; if (m.color) m.color.setHex(0xc9c2b4);
     m.roughness = 0.92; m.metalness = 0;
     if ('envMapIntensity' in m) m.envMapIntensity = 0.4;
+    if (m.map && /body|head/i.test(m.name || '')) {
+      m.color.setRGB(1, 1, 1);
+      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        { float hl = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)); float hb = diffuseColor.b / max(diffuseColor.r, 1e-3);
+          float t = smoothstep(.015, .16, hl);
+          vec3 hide = mix(vec3(.10, .085, .068), vec3(.40, .37, .32), t);          // dark brown-grey → grey-fawn (linear)
+          hide = mix(hide, vec3(.62, .60, .55), smoothstep(.14, .32, hl));          // cream neck / rump / belly
+          diffuseColor.rgb = hide * mix(1., .6, smoothstep(1.4, 2.4, hb)); }`); };
+      m.customProgramCacheKey = () => 'stagHide';
+    } else if (m.map && /antler/i.test(m.name || '')) { m.color.setRGB(0.75, 0.68, 0.6); }
+    else if (!m.map && m.color && !/eye/i.test(m.name || '')) m.color.setHex(0xc9c2b4);
     m.needsUpdate = true;
   });
   const spots = [[-110, 40], [-95, 55], [-120, 58], [135, -45], [150, -30], [60, 150]];

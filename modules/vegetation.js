@@ -29,11 +29,13 @@
   /* ------------------------------------------------------------------ quality knobs (added to QUALITY presets) */
   const KNOBS = {
     // vegCardLod (NATURE): beyond this distance (m) a near tree draws its thinned needle mesh (cardLod)
-    low: { vegTreeMid: 210, vegGrassR: 36, vegShrubR: 45, vegDecalR: 28, vegCardLod: 18 },
-    med: { vegTreeMid: 260, vegGrassR: 50, vegShrubR: 60, vegDecalR: 40, vegCardLod: 24 },
-    high: { vegTreeMid: 300, vegGrassR: 60, vegShrubR: 72, vegDecalR: 48, vegCardLod: 30 },
-    ultra: { vegTreeMid: 380, vegGrassR: 80, vegShrubR: 100, vegDecalR: 64, vegCardLod: 45 },
-    air: { vegTreeMid: 170, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22, vegCardLod: 14, rockLod: 1 },
+    // treeNearDensity: share of trees drawn as real models inside the near radius (the rest switch to the impostor at
+    // 0.45 × the radius) · texBias: mip bias of tree/ground-plant maps · aniso: anisotropic filtering of their maps
+    low: { vegTreeMid: 210, vegGrassR: 36, vegShrubR: 45, vegDecalR: 28, vegCardLod: 18, treeNearDensity: 0.8 , treeNearScale: 0.75 },
+    med: { vegTreeMid: 260, vegGrassR: 50, vegShrubR: 60, vegDecalR: 40, vegCardLod: 20, treeNearScale: 0.7, treeNearDensity: 0.85 },
+    high: { vegTreeMid: 300, vegGrassR: 60, vegShrubR: 72, vegDecalR: 48, vegCardLod: 24, treeNearScale: 0.65 },
+    ultra: { vegTreeMid: 380, vegGrassR: 80, vegShrubR: 100, vegDecalR: 64, vegCardLod: 45 , treeNearScale: 0.9 },
+    air: { vegTreeMid: 170, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22, vegCardLod: 14, rockLod: 1, treeNearDensity: 0.55, texBias: -0.8, aniso: 2 , treeNearScale: 0.7 },
   };
 
   /* ------------------------------------------------------------------ shared uniforms + GLSL */
@@ -104,6 +106,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       uVGrass: { value: new THREE.Vector4(64, 10, 95, 14) },   // tuft R, band, shrub R, band
       uVBB: { value: new THREE.Vector3(1, 1, 1) },
       uVMoonDir: { value: new V3(0.77, 0.36, 0.56).normalize() }, uVMoonCol: { value: new THREE.Color() }, uVHemiS: { value: new THREE.Color() },
+      uVTexBias: { value: 0 },
       uVSnowK: { value: 1 }, uVSnowC: { value: new THREE.Color().setRGB(0.56, 0.6, 0.67) },   // branch snow: linear albedo (≈ ground snow)
     });
     VEG.U = U; VEG.SP = SP; VEG._ = { F, GR, R, A };   // internals (debug / stand)
@@ -237,7 +240,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           float vD = length(vOrg.xz - uVCam.xz); vVFade = 1. - smoothstep(uVFade.x * ${mul.toFixed(2)} - uVFade.y, uVFade.x * ${mul.toFixed(2)}, vD);
           ${depth ? 'vVFade *= 1. - smoothstep(uVSR - 10., uVSR, vD);' : ''}
           vVW = (modelMatrix * vM * vec4(transformed, 1.)).xyz;`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW; uniform float uVTexBias;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
       if (depth) {
         sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if (vegDither() > vVFade) discard;');
       } else {
@@ -245,7 +248,9 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
         // material.alphaTest + alphaToCoverage (set where these materials are built) make three's built-in
         // <alphatest_fragment> chunk resolve both as real MSAA sub-pixel coverage on the scene's multisampled render
         // target — no screen-door dither pattern on the LOD transition or on the needle-card cutout edges.
-        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#ifdef USE_MAP
+            diffuseColor *= texture2D(map, vMapUv, uVTexBias);   // NATURE: Q.texBias (sharper when upscaled from a low render scale)
+          #endif
           { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); float vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2))));
             diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.); }
           diffuseColor.a *= clamp(vVFade, 0., 1.);
@@ -266,7 +271,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
           { vec3 nw = normalize((vec4(normal, 0.) * viewMatrix).xyz);
             vec3 fw = cross(dFdx(vVW), dFdy(vVW)); float fl = abs(fw.y) / max(length(fw), 1e-6);   // 1 = horizontal card
-            float nz = vsN(vVW * 1.3) * .6 + vsN(vVW * 3.7 + 11.) * .4;
+            float nz = vsN(vVW * 1.9);   // one octave: this runs under ×4–8 needle overdraw
             float m = smoothstep(-.25, .55, nw.y + (nz - .5) * 1.1) * mix(.25, 1., smoothstep(.3, .8, fl)) * smoothstep(.34, .6, nz + fl * .2) * uVSnowK;
             vec3 alb0 = diffuseColor.rgb;
             diffuseColor.rgb = mix(alb0, uVSnowC * (.85 + .25 * nz), clamp(m * 1.25, 0., .96));
@@ -288,7 +293,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
    * trees saves 5–7 ms). Beyond Q.vegCardLod m a tree draws a thinned copy of its needle mesh: the cards (connected
    * components) are thinned to `keep`, the inner ones first (hidden behind the outer shell anyway), and every kept card
    * grows ×grow about its centre so the crown keeps its coverage and silhouette with ≈ half the layers. */
-  function cardLod(geo, keep = 0.45, grow = 1.32) {
+  function cardLod(geo, keep = 0.34, grow = 1.42) {
     const I = geo.index ? geo.index.array : null; if (!I) return null;
     const P = geo.attributes.position, nV = P.count, par = new Int32Array(nV); for (let i = 0; i < nV; i++) par[i] = i;
     const f = (x) => { while (par[x] !== x) x = par[x] = par[par[x]]; return x; };
@@ -354,23 +359,31 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       G.b.visible = G.nVis > 0; G.b.castShadow = G.nCast > 0;   // no draw call (main / 2 cascades) for an empty batch
     }
   }
+  // NATURE (Q.treeNearDensity): a thinned-out tree keeps its real model only within 0.45 × the near radius
+  const THIN = 0.45, thinK = (t, dens) => (dens >= 1 || C.hash2(t.i * 3 + 11, 29) < dens ? 1 : THIN);
+  function syncImpostorNear(dens) {
+    for (const m of IMP.meshes) { const a = m.geometry.attributes.aT2, L = m.userData.trees; if (!a || !L) continue;
+      L.forEach((t, i) => { a.array[i * 4 + 1] = (SP[t.v].nearMul || 1) * thinK(t, dens); }); a.needsUpdate = true; }
+  }
   function setTreeLod(t, far) {
     for (const G of F.groups) { const ids = G.inst.get(t); if (!ids) continue; for (const id of ids) { const L = G.lodIds && G.lodIds.get(id); if (L) G.b.setGeometryIdAt(id, L[far ? 1 : 0]); } }
   }
   let lastFX = 1e9, lastFZ = 1e9;
   function updateForest() {
-    const cx = camera.position.x, cz = camera.position.z, R = C.FOREST.R, SR = C.FOREST.shadowR, mid = C.Q.vegTreeMid || 300;
+    const cx = camera.position.x, cz = camera.position.z, R = C.FOREST.R * (C.Q.treeNearScale || 1),   // NATURE: Q.treeNearScale
+      SR = C.FOREST.shadowR, mid = C.Q.vegTreeMid || 300;
     U.uVFade.value.set(R, 14, Math.max(mid, R + 40), 30); U.uVSR.value = SR;
     if (!F.dirty && (cx - lastFX) ** 2 + (cz - lastFZ) ** 2 < 1) return;
     F.dirty = false; lastFX = cx; lastFZ = cz;
     // FIX-PERF: with cached moon shadows the cast set follows the cache centre (changes only when the cache is rebuilt)
     const sa = C.FOREST.shadowAt, sx = sa ? sa.x : cx, sz = sa ? sa.z : cz;
     const S2 = SR * SR;
-    let nNear = 0, nCast = 0, nFar = 0; const LD = C.Q.vegCardLod || 30;
+    let nNear = 0, nCast = 0, nFar = 0; const LD = C.Q.vegCardLod || 30, dens = C.Q.treeNearDensity !== undefined ? C.Q.treeNearDensity : 1;
+    if (dens !== F.dens) { F.dens = dens; syncImpostorNear(dens); }
     for (const t of F.trees) {
       // shadow LOD per tree: tall trees cast up to shadowR, small ones stop earlier (alpha-tested foliage in 2 cascades is the
       // most expensive part of the shadow pass)
-      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) + 1.5;
+      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) * thinK(t, dens) + 1.5;
       const st = d2 < nr * nr ? ((t[0] - sx) ** 2 + (t[2] - sz) ** 2 < Math.min(S2, cr * cr) ? 1 : 2) : 0;
       if (st) nNear++; if (st === 1) nCast++;
       if (st !== t.st) { setTreeState(t, st); t.st = st; }
@@ -598,11 +611,11 @@ vec3 impNW;`)
       const aT = new Float32Array(trees.length * 4), aT2 = new Float32Array(trees.length * 4);
       trees.forEach((t, i) => { aT.set([t[0], t.y, t[2], t.yaw], i * 4); aT2.set([t.s, sp.nearMul || 1, C.hash2(t.i, 33), 0], i * 4); });
       g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4)); g.setAttribute('aT2', new THREE.InstancedBufferAttribute(aT2, 4)); g.instanceCount = trees.length;
-      const mesh = new THREE.Mesh(g, impostorMaterial(s)); mesh.name = 'veg_tree_imp_' + sp.name;
+      const mesh = new THREE.Mesh(g, impostorMaterial(s)); mesh.name = 'veg_tree_imp_' + sp.name; mesh.userData.trees = trees;
       mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
       scene.add(mesh); IMP.meshes.push(mesh);
     }
-    F.mid = IMP.meshes; F.far = null;
+    F.mid = IMP.meshes; F.far = null; F.dens = undefined; F.dirty = true;
     VEG.stats.impostors = F.trees.length; VEG.stats.impostorDraws = IMP.meshes.length;
   }
 
@@ -788,9 +801,11 @@ vec3 impNW;`)
               ${kind === 'decal' ? '' : 'vVWp.y += dy; vVHb = gHb - gSink;   // height above the snow surface: the snow-coloured base starts AT the surface'}
             } }
           #endif`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC;\n' + GLSL_DITHER)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC; uniform float uVTexBias;\n' + GLSL_DITHER)
         .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + (kind === 'twig' ? '\n if (vegDither() > vVFade) discard;' : ''))
-        .replace('#include <map_fragment>', `#include <map_fragment>
+        .replace('#include <map_fragment>', `#ifdef USE_MAP
+            diffuseColor *= texture2D(map, vMapUv, uVTexBias);   // NATURE: Q.texBias (sharper when upscaled from a low render scale)
+          #endif
           ${kind === 'decal' ? 'diffuseColor.a *= vVFade * .55;' : `{ vec2 dx = dFdx(vMapUv * 1024.), dy = dFdy(vMapUv * 1024.); float mp = max(0., .5 * log2(max(dot(dx, dx), dot(dy, dy)))); diffuseColor.a = clamp(diffuseColor.a * (1. + mp * .3), 0., 1.); }
           ${plant ? 'diffuseColor.a *= clamp(vVFade, 0., 1.);' : ''}`}
           ${plant ? `{ // photo texture → relative detail (≈ 1); the albedo itself comes from the instance colour (STYLE.palette straw / heather)
@@ -1383,6 +1398,9 @@ vec3 impNW;`)
   function update(dt, ctx) {
     tAcc += dt;
     U.uVT.value = tAcc; U.uVStorm.value = (C.WX && C.WX.storm) || 0; U.uVCam.value.copy(camera.position);
+    U.uVTexBias.value = C.Q.texBias || 0;
+    { const an = Math.min(C.Q.aniso || 4, renderer.capabilities.getMaxAnisotropy());   // NATURE: Q.aniso on the vegetation maps
+      if (an !== VEG.aniso) { VEG.aniso = an; for (const t of Object.values(TEX).concat([A.tuft, A.leaf, A.decal].filter(Boolean).map((r) => r.texture))) if (t && t.anisotropy !== an) { t.anisotropy = an; if (t.image) t.needsUpdate = !t.isRenderTargetTexture; } } }
     if (C.MOON_DIR) U.uVMoonDir.value.copy(C.MOON_DIR);
     if (C.moon) U.uVMoonCol.value.copy(C.moon.color).multiplyScalar(C.moon.intensity / Math.PI);
     if (C.hemi) U.uVHemiS.value.copy(C.hemi.color).multiplyScalar(C.hemi.intensity / Math.PI);
