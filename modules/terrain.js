@@ -236,6 +236,11 @@
     uniform vec2 uWind; uniform vec3 uSunV; uniform vec2 uScanC; uniform float uScanR, uScanA, uTime;
     #ifdef TR_DETAIL
       uniform float uDbgFlat;
+      // NATURE: the coarse press map (12.5 cm, already bound for the vertex stage: same uniform, no extra unit) read in
+      // the fragment — how deep the snow is pressed here, soft over ≈ 25 cm: the trail / roll trough tone at 4–30 m
+      uniform sampler2D tDef; uniform vec4 uDef; uniform float uDefOn;
+      float trDefF(vec2 p){ vec2 uv = (p - uDef.xy) / uDef.z + .5; if (uDefOn < .5 || any(lessThan(uv, vec2(.002))) || any(greaterThan(uv, vec2(.998)))) return 0.;
+        return textureLod(tDef, uv, 0.).r * ${DSC.toFixed(2)}; }
       // SNOW-CONTACT: the drawn near surface (tNR) gives the exact per-pixel normal of what objects pressed — the same
       // data the contact patch is built from, so ring and patch shade identically where they meet
       ${GLSL_CM}
@@ -302,7 +307,11 @@
         vec2 wn2 = vec2(trVN(P.xz * 41. + 5.2), trVN(P.xz * 41. - 8.7)) - .5;
         dN = (cmN - gN) * fd * .7 + vec3(wn2.x, 0., wn2.y) * .12 * fd;
         press = cmPress(P.xz) * fd * smoothstep(.01, .05, depth);
-      } }
+      }
+      // NATURE: the pressed depth itself (not only the share of loose snow): 1–6 cm deep reads as compacted snow even
+      // where the powder is thin, fading out over 40–60 m
+      press = max(press, smoothstep(.008, .06, trDefF(P.xz)) * .85 * (1. - smoothstep(40., 60., trDist)));
+    }
     #endif
     // ---- layer weights ----
     float wC = max(smoothstep(.72, .56, up + (nzA.r - .5) * .14), vRock * .9);
@@ -330,7 +339,9 @@
       rS = mix(tW.z, tF.z, mF);
       snowFlat = cS;
       // packed snow in a print: a little denser / smoother, no painted outline (walls shade by their real normal)
-      cS = cS * mix(vec3(1.), vec3(.93, .95, .98), press);
+      // NATURE (c01–c06): compacted snow in a print is denser, finer-grained and holds less light — darker and bluer than
+      // the loose powder around it; this tone step (not only the wall normals) is what reads at 4–8 m from the camera
+      cS = cS * mix(vec3(1.), vec3(.76, .83, .95), press);
       rS = mix(rS, .74, press);   // LOOKGATE: was .62 — less gloss, so the wall doesn't catch a hard bright highlight
     }
     if (wR > .003) {
@@ -718,7 +729,7 @@
   //   boot sinks into the loose snow (interaction.js) and this map then holds exactly that boot — so the boot stands in its
   //   own print by construction. Nothing is read back to the CPU at run time (see pressCache).
   const CM = { ok: false, on: true, res: 0, ext: 0, e: 0, cx: 0, cz: 0, cur: 0, P: [], S: null, R: null, rebake: true,
-    roots: [], rootsT: 0, kRim: 0.32, layer: 30,   // LOOKGATE (👣 footprints): was .45 — a taller, crisper rim reads as a cut-paper edge
+    roots: [], rootsT: 0, kRim: 0.32, kTrough: 0.4, layer: 30,   // LOOKGATE (👣 footprints): was .45 — a taller, crisper rim reads as a cut-paper edge
     stats: { frames: 0, recenters: 0, actorDraws: 0, coarseDraws: 0, regionTexels: 0, cpuMs: 0, staticTris: 0 } };
   const CONTACT_V = `#include <common>
 #include <batching_pars_vertex>
@@ -786,7 +797,7 @@ void main() {
     // surface: drawn height = S0 − press + rim. The press is shown with sloped walls (a cone dilation of the object's own
     // press: the bottom stays exactly the sole, the wall leans out ≈ 60°, with a world-anchored crumble), never a one-texel
     // vertical step; the rim is the moving-object press blurred over ≈ 2–7 cm minus the press, × kRim (displaced snow).
-    CM.surfU = { uRim: { value: new THREE.Vector4(1.7, CM.kRim, 2.1, 0) } };   // LOOKGATE: wider ring step (was 1.5) — a gentler rim falloff, less cut-paper edge
+    CM.surfU = { uRim: { value: new THREE.Vector4(1.7, CM.kRim, 2.9, CM.kTrough) } };   // NATURE: ring step 2.1 → 2.9 (5 rings, reach ≈ 25 cm), w = trail furrow strength   // LOOKGATE: wider ring step (was 1.5) — a gentler rim falloff, less cut-paper edge
     CM.surfMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, CM.surfU), depthTest: false, depthWrite: false, toneMapped: false, vertexShader: QUAD_V,
       fragmentShader: `uniform sampler2D tNS, tNP; uniform vec4 uCM; uniform vec4 uRim; varying vec2 vUv;
         float sh1(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -800,16 +811,21 @@ void main() {
           // (bilinear taps at 1.3 texel: a rounded contour — a 3 × 3 texel max outlined every print with a one-texel staircase)
           vec2 cc = c;
           for (int k = 0; k < 8; k++) { float a = float(k) * .7854 + .3927; cc = max(cc, textureLod(tNP, uv + vec2(cos(a), sin(a)) * 1.3 / uCM.w, 0.).rg); }
-          float dil = cc.x, b = cc.y * 3., w = 3.;
-          for (int ring = 1; ring <= 3; ring++) { float r = 1.3 + float(ring) * uRim.z, wt = 3.5 - float(ring);
-            for (int k = 0; k < 8; k++) { float a = (float(k) + .5 * float(ring)) * .7854; vec2 v = textureLod(tNP, uv + vec2(cos(a), sin(a)) * r / uCM.w, 0.).rg;
-              dil = max(dil, v.x - kS * (r - 1.3) * e); b += v.y * wt; w += wt; } }
-          b /= w;
+          // NATURE: 5 rings × 10 taps, rotated per texel (jitter), reach ≈ 25 cm. With 3 rings × 8 fixed directions (reach
+          // 12 cm) a print deeper than ≈ 20 cm ended in a vertical step and its wall was built from 8 spokes → the dark
+          // "angular patch" / "jagged shard" with saw teeth seen from the player camera (a deep print in 30 cm of powder).
+          // Rings 1–2 feed the displaced-snow rim, rings 3–5 a wide shallow trough: the trail reads as one soft furrow.
+          float dil = cc.x, b = cc.y * 3., w = 3., tb = 0., tw = 0., jit = sh1(gl_FragCoord.xy * .37) * 6.2832;
+          for (int ring = 1; ring <= 5; ring++) { float r = 1.3 + float(ring) * uRim.z, wt = max(3.5 - float(ring), 0.);
+            for (int k = 0; k < 10; k++) { float a = float(k) * .62832 + jit + float(ring) * 1.7; vec2 v = textureLod(tNP, uv + vec2(cos(a), sin(a)) * r / uCM.w, 0.).rg;
+              dil = max(dil, v.x - kS * (r - 1.3) * e); b += v.y * wt; w += wt; if (ring >= 3) { tb += v.y; tw += 1.; } } }
+          b /= w; tb /= max(tw, 1.);
           float d = min(c.x, pmax), dd = min(dil, pmax);
           // LOOKGATE (👣 footprints): a perfectly smooth ridge of the same height all the way round reads as a folded
           // card, not loose snow — break its crest up a little so it looks crumbled, not moulded
           float rim = uRim.y * max(b - cc.y, 0.) * smoothstep(0., .03, loose) * (.62 + .6 * svn(wp / .05 + 19.));
-          gl_FragColor = vec4(s.x - dd + rim, clamp(d / max(loose, .01), 0., 1.), 0., 1.); }` });
+          float trough = uRim.w * min(tb, .12) * (1. - smoothstep(.0, .02, dd));   // shallow furrow between / around the prints
+          gl_FragColor = vec4(s.x - dd + rim - trough, clamp(max(d / max(loose, .01), trough * 4.), 0., 1.), 0., 1.); }` });
     // down: fine → coarse (box mean of the drawn depression and rim over each 12.5 cm coarse texel; overwrite: the fine map is exact)
     CM.downU = { tNRf: { value: null }, uDefW: { value: new THREE.Vector4() } };
     CM.downMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, CM.downU), depthTest: false, depthWrite: false, toneMapped: false, vertexShader: QUAD_V,

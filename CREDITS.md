@@ -29,6 +29,7 @@ Code: MIT (see `LICENSE`). Everything below keeps its original licence. Only the
 |---|---|---|
 | Tree and shrub generator, spruce sprig and bark textures | [EZ-Tree](https://github.com/dgreenheck/ez-tree) © Daniel Greenheck | MIT |
 | Rock scans (boulder_01, namaqualand_boulder_02, rock_face_01/02/03, namaqualand_cliff_01, mountainside) | Poly Haven: Rico Cilliers, Greg Zaal, Dario Barresi | CC0 |
+| Rock scans rock_07, rock_09, namaqualand_boulder_06 (decimated, 3 LODs, normal map re-baked: `tools/pack-rocks.mjs` → `assets/pack/rock_ph_*.js`) | [Poly Haven](https://polyhaven.com/a/rock_09): Jenelle van Heerden (models), Greg Zaal (photography, namaqualand_boulder_06) | CC0 |
 | Snow, gravel and ruin textures (snow_02, snow_03, snow_field_aerial, broken_wall), oak bark | Poly Haven: Rob Tuytel | CC0 |
 | Grass tufts, moss and lichen (Foliage001–008, Moss001/003/004), snow, ice and terrain heightmaps (Snow006, Ice001/003, Terrain002/004/005) | ambientCG (Lennart Demes) | CC0 |
 | Pine bark | [texturecan.com](https://www.texturecan.com) | CC0 |
