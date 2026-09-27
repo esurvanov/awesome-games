@@ -411,7 +411,8 @@
 
 <script type="importmap">{ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/" } }</script>
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.15/build/index.module.js" } }</script>
 <script type="module">
 /* Engine bootstrap: three r186 ES modules -> the classic global `THREE` that the game script, physics.js and
  * worldfill.js use. Anything another module needs from the addons goes into this Object.assign. */
@@ -428,6 +429,15 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+// CONTACT-SURFACE: raycast the actual drawn geometry (not the physics collider) for hand/foot contact IK — see
+// CONTACT-SURFACE.md. Global prototype patch is the library's normal usage: acceleratedRaycast falls back to the
+// stock algorithm on any mesh whose geometry never got .computeBoundsTree() called (built lazily, only for the
+// handful of Passport 'solid' entries a hand ever actually reaches — see modules/interaction.js `bvhGeoFor`).
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+THREE_NS.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE_NS.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE_NS.Mesh.prototype.raycast = acceleratedRaycast;
+THREE_NS.InstancedMesh.prototype.raycast = acceleratedRaycast;
 const { Matrix4, Vector3, WebGPUCoordinateSystem } = THREE_NS;
 
 // SunLightShadow (2 cascades, engine-native in r186) with a tunable split: splitLambda blends uniform (0) and

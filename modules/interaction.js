@@ -21,6 +21,7 @@
     gait: true, gaitBands: [[1.5, 3.5], [8.0, 9.5]], stagRate: 2.4, foxRate: 4.5, footStamp: true, foxLegs: false,
     gaitBlend: true,   // stags: ANIMLIB 20-clip walk/trot/canter/gallop blender (replaces the flat Run clip while fleeing)
     contact: true, contactRange: 1.7, contactAsk: 1.2,   // pilot: rock/wall/branch/ledge contact layer (INT-CONTACT)
+    contactBVH: true,   // CONTACT-SURFACE: hand/foot IK aims at the drawn mesh (three-mesh-bvh), not the physics hull
   };
   const STATS = { ms: 0, msMax: 0, frames: 0, steps: 0, cracks: 0, shakes: 0, lands: 0, pounces: 0, trails: 0 };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -493,9 +494,18 @@
     const grp = PH.P.groups.STATIC | PH.P.groups.TRUNK | PH.P.groups.PROP;
     const h = PH.P.raycast({ x: P.x, y: P.y + oy, z: P.z }, { x: ox, y: 0, z: oz }, len, { groups: grp });
     if (!h) return null;
-    const hx = P.x + ox * (h.distance + 0.05), hz = P.z + oz * (h.distance + 0.05);
-    const top = PH.P.raycast({ x: hx, y: P.y + 3.5, z: hz }, { x: 0, y: -1, z: 0 }, 4.2, { groups: grp });
-    const height = top ? clamp(top.point.y - P.y, 0, 3) : 1.2;   // a vertical probe with no top (a real cliff) reads as a tall wall, which is the right default
+    // "height" = real top of the surface above the feet, sampled at 3 points along the ray PAST the hit (0.05 / 0.35 /
+    // 0.65 m further in) rather than only at the exact hit XZ, and taking the tallest: a photogrammetry rock/wall is
+    // craggy, so a single vertical column at the near edge can land on a low crack or foot of the rock and read as
+    // knee-height even when the same surface is a 3 m wall a few dozen cm further in (this under-read is what made
+    // senseKind() classify tall rocks/walls as a step-over "obstacle" — see CONTACT-SURFACE.md).
+    let height = 0;
+    for (const push of [0.05, 0.35, 0.65]) {
+      const hx = P.x + ox * (h.distance + push), hz = P.z + oz * (h.distance + push);
+      const top = PH.P.raycast({ x: hx, y: P.y + 3.5, z: hz }, { x: 0, y: -1, z: 0 }, 4.2, { groups: grp });
+      if (top) height = Math.max(height, clamp(top.point.y - P.y, 0, 3));
+    }
+    if (height === 0) height = 1.2;   // no vertical sample landed on the object at all (rare: a razor-thin edge) — the old constant default
     const nx = h.normal ? h.normal.x : -ox, ny = h.normal ? h.normal.y : 0, nz = h.normal ? h.normal.z : -oz;
     return { dist: h.distance, height, nx, ny, nz, px: h.point.x, py: h.point.y, pz: h.point.z, tag: h.tag };
   }
@@ -513,8 +523,14 @@
   // coarse surface classification for the Jev question + the rule fallback (chooseContact does its own, finer-grained
   // thresholding once an intent is picked)
   function senseKind(sense) {
-    if (sense.obstacle) return { surface: 'obstacle_top', height: sense.obstacle.height, dist: sense.obstacle.dist };
-    const f = sense.front; if (!f) return { surface: 'none', height: 0, dist: 3 };
+    const f = sense.front;
+    // `obstacle` (the knee-height probe) is only a genuine low object when the chest-height probe flew OVER it (per
+    // its own doc: "a chest-height ray flies over anything short"). If the front probe ALSO reads a wall/ledge height
+    // right there, the surface keeps going up past knee height — it is not a crate to vault, it is the base of a
+    // taller rock/wall the knee ray happened to catch (found live: 3–5 m boulders read as 0.4 m "obstacles" and got
+    // vaulted instead of leaned on — see CONTACT-SURFACE.md).
+    if (sense.obstacle && (!f || f.height <= 1.3)) return { surface: 'obstacle_top', height: sense.obstacle.height, dist: sense.obstacle.dist };
+    if (!f) return { surface: 'none', height: 0, dist: 3 };
     if (f.tag && f.tag.name && /branch|krummholz|shrub/i.test(f.tag.name)) return { surface: 'branch', height: f.height, dist: f.dist };
     if (sense.ground.slope > 0.5 && f.dist > 1.1) return { surface: 'slope', height: f.height, dist: f.dist };
     if (f.tag && f.tag.kind === 'prop') return { surface: 'object_face', height: f.height, dist: f.dist };
@@ -545,28 +561,114 @@
     if (m && m.loop === false) A.once(name, m.duration, 0.15); else A.loop(name, 0.2);
     return true;
   }
+
+  /* ---- CONTACT-SURFACE: hand/foot IK aims at the RENDERED surface, not the physics collider ------------------
+   * physics.js/open-world.html give rocks/boulders/outcrops a convex-HULL collider (Passport.register(..., 'solid',
+   * {shape:'hull'}), see structures.js/vegetation.js) — a fine approximation for walking on, but on a cracked or
+   * curved scan the hull and the drawn mesh disagree by several cm, so a hand IK'd onto the hull hovers in front of
+   * what the player actually sees. Passport already keeps the EXACT drawn-mesh vertices in world space for every
+   * 'solid' entry (e.geo, built before any hull simplification — see open-world.html Passport.make()/toPhys()), so
+   * the correction needs no scene traversal and no new geometry extraction: wrap e.geo in a throwaway BufferGeometry,
+   * build a three-mesh-bvh tree on it once (lazily, only for entries a hand ever actually reaches, cached forever by
+   * entry identity), and raycast that instead. Any failure (library not loaded, geometry too big, nothing found)
+   * silently keeps the physics hit — this is a correction layer, never the only path. */
+  // NOTE: T3 (ctx.THREE) is only assigned once init(ctx) runs, well after this IIFE's top-level code — a `const`
+  // computed from T3 here would freeze at null forever. Lazily construct on first real use instead.
+  let _bvhRay = null;
+  function bvhRay() { if (!_bvhRay && T3 && T3.Ray) _bvhRay = new T3.Ray(); return _bvhRay; }
+  const bvhCache = new WeakMap();   // Passport entry -> BufferGeometry (with .boundsTree) | null, built lazily
+  const passportIdCache = new Map();   // physics tag.passport (number) -> Passport entry | null, resolved lazily
+  function bvhGeoFor(e) {
+    if (!e || !e.geo || !e.geo.vn || !e.geo.i || e.geo.i.length / 3 > 20000) return null;   // guard: never build for something terrain-scale that slipped through
+    if (bvhCache.has(e)) return bvhCache.get(e);
+    let geo = null;
+    try {
+      if (T3.BufferGeometry.prototype.computeBoundsTree) {
+        geo = new T3.BufferGeometry();
+        geo.setAttribute('position', new T3.BufferAttribute(e.geo.v, 3));
+        geo.setIndex(new T3.BufferAttribute(e.geo.i, 1));
+        geo.computeBoundsTree();
+      }
+    } catch (err) { geo = null; }
+    bvhCache.set(e, geo);
+    return geo;
+  }
+  // Resolve the EXACT Passport entry the physics ray already hit (its collider carries `{kind,name,passport:e.id}`
+  // as its tag, see open-world.html Passport.toPhys()) — a linear scan over Passport.list, but only the first time a
+  // given id is ever touched (cached after by id; a nearest-neighbourhood search was tried first and dropped: with
+  // several small rocks/props often clustered around one big boulder, "nearest plausible BVH hit" sometimes landed
+  // on a NEIGHBOUR's geometry instead of the boulder actually being touched — exact id lookup can't do that).
+  function entryByPassportId(id) {
+    if (id == null) return null;
+    if (passportIdCache.has(id)) return passportIdCache.get(id);
+    let found = null; for (const e of (C.Passport && C.Passport.list) || []) if (e.id === id) { found = e; break; }
+    passportIdCache.set(id, found);
+    return found;
+  }
+  function faceNormalTowards(hit, dx, dz) {
+    const n = hit.face && hit.face.normal ? hit.face.normal : null; if (!n) return null;
+    if (n.x * dx + n.z * dz > 0) n.negate();   // three-mesh-bvh returns the raw winding normal; face it back at the ray origin like the physics hit's normal
+    return n;
+  }
+  // BVH raycast against the ONE Passport entry the physics probe already hit, same ray, its exact drawn geometry;
+  // used only to correct the point/normal (`dist` sanity-checks against the physics distance as a last-ditch guard).
+  function bvhRaycastTag(ox, oy, oz, dx, dz, dist, tag) {
+    const ray = bvhRay(); if (!ray || !tag) return null;
+    const e = entryByPassportId(tag.passport);
+    const geo = bvhGeoFor(e); if (!geo || !geo.boundsTree) return null;
+    ray.origin.set(ox, oy, oz); ray.direction.set(dx, 0, dz);
+    let hit = null; try { hit = geo.boundsTree.raycastFirst(ray, T3.DoubleSide); } catch (err) { return null; }
+    return hit && Math.abs(hit.distance - dist) < 0.6 ? hit : null;
+  }
   // hand/foot IK target for a clip's contact window: obstacle-top contacts (vault, step_over) pin to the knee-height
   // probe, everything else (wall, ledge_top, slope) pins to the front probe — approach.facing is always [0,0,1] in
   // this clip set (the surface is authored to be in front of the character; bone side just says which hand, not which
   // side to probe)
   function contactHit(c) {
     const s = CT.sense; if (!s) return null;
-    if (c.surface && c.surface.type === 'obstacle_top') return s.obstacle ? { point: new V3(s.obstacle.px, s.obstacle.py, s.obstacle.pz), normal: new V3(s.obstacle.nx, s.obstacle.ny, s.obstacle.nz) } : null;
-    // the periodic front/knee probes are ONE point straight ahead — good enough to classify the surface and steer to
-    // it, but the two hands of a *_both clip sit ~0.2 m apart sideways (see the clip's own surface.point[0], character
-    // space, +X = left) and a boulder is rarely flat across that span. Re-probe per hand, at query time (cheap: 2
-    // rays, only while a hold is looping), offset by the clip's own local point so each hand pins to what is really
-    // under IT, not a shared centre point.
     const P = C.player, PH = C.PH;
-    if (PH.ok && c.surface && c.surface.point) {
+    let physHit = null, ox = P.x, oy = P.y + 1.0, oz = P.z, dx = 0, dz = 0, dist = 3, tag = null;
+    if (c.surface && c.surface.type === 'obstacle_top') {
+      if (!s.obstacle) return null;
+      // fallback: the shared knee-height probe point, same for both hands (the original behaviour) — but the clip's
+      // own metadata carries a per-hand LATERAL offset here too (surface.point[0], ±0.2 m, same convention as the
+      // wall/ledge branch below), and its own note says the vertical key is authored for a 1 m obstacle and meant to
+      // be scaled by (real top ÷ 1 m) — exactly `chooseContact`'s own `heightScale` on the picked clip. Re-probing
+      // per hand at that scaled height, like the wall branch already does, is what turned a 37–47 cm miss (both
+      // hands aimed at one shared point well below the vault clip's actual hand height) into a close match.
+      physHit = { point: new V3(s.obstacle.px, s.obstacle.py, s.obstacle.pz), normal: new V3(s.obstacle.nx, s.obstacle.ny, s.obstacle.nz) };
+      const face = P.c.g.rotation.y, fx = -Math.sin(face), fz = -Math.cos(face), lx = -Math.cos(face), lz = Math.sin(face);
+      const hs = (CT.pick && CT.pick.heightScale) || 1, lo = (c.surface.point && c.surface.point[0]) || 0, ly = ((c.surface.point && c.surface.point[1]) || 0.38) * hs;
+      ox = P.x + lx * lo; oy = P.y + ly; oz = P.z + lz * lo; dx = fx; dz = fz; dist = s.obstacle.dist; tag = s.obstacle.tag;
+      if (PH.ok) {
+        const h = PH.P.raycast({ x: ox, y: oy, z: oz }, { x: dx, y: 0, z: dz }, K.contactRange, { groups: PH.P.groups.STATIC | PH.P.groups.TRUNK | PH.P.groups.PROP });
+        if (h) { const n = h.normal || { x: -dx, y: 0, z: -dz }; physHit = { point: new V3(h.point.x, h.point.y, h.point.z), normal: new V3(n.x, n.y, n.z) }; dist = h.distance; tag = h.tag; }
+      }
+    } else if (PH.ok && c.surface && c.surface.point) {
+      // the periodic front/knee probes are ONE point straight ahead — good enough to classify the surface and steer to
+      // it, but the two hands of a *_both clip sit ~0.2 m apart sideways (see the clip's own surface.point[0], character
+      // space, +X = left) and a boulder is rarely flat across that span. Re-probe per hand, at query time (cheap: 2
+      // rays, only while a hold is looping), offset by the clip's own local point so each hand pins to what is really
+      // under IT, not a shared centre point.
       // world forward = rotate the model's local +Z by (face + π) (the wrap group's 180° flip, see attach()); world
       // left (local +X, ANIMLIB.md's convention) by the same rotation = (-cos(face), sin(face))
       const face = P.c.g.rotation.y, fx = -Math.sin(face), fz = -Math.cos(face), lx = -Math.cos(face), lz = Math.sin(face);
       const lo = c.surface.point[0] || 0, ly = c.surface.point[1] || 0;
-      const h = PH.P.raycast({ x: P.x + lx * lo, y: P.y + ly, z: P.z + lz * lo }, { x: fx, y: 0, z: fz }, K.contactRange, { groups: PH.P.groups.STATIC | PH.P.groups.TRUNK | PH.P.groups.PROP });
-      if (h) { const n = h.normal || { x: -fx, y: 0, z: -fz }; return { point: new V3(h.point.x, h.point.y, h.point.z), normal: new V3(n.x, n.y, n.z) }; }
+      ox = P.x + lx * lo; oy = P.y + ly; oz = P.z + lz * lo; dx = fx; dz = fz;
+      const h = PH.P.raycast({ x: ox, y: oy, z: oz }, { x: dx, y: 0, z: dz }, K.contactRange, { groups: PH.P.groups.STATIC | PH.P.groups.TRUNK | PH.P.groups.PROP });
+      if (h) { const n = h.normal || { x: -dx, y: 0, z: -dz }; physHit = { point: new V3(h.point.x, h.point.y, h.point.z), normal: new V3(n.x, n.y, n.z) }; dist = h.distance; tag = h.tag; }
+    } else if (s.front) {
+      physHit = { point: new V3(s.front.px, s.front.py, s.front.pz), normal: new V3(s.front.nx, s.front.ny, s.front.nz) };
+      const face = P.c.g.rotation.y; dx = -Math.sin(face); dz = -Math.cos(face); dist = s.front.dist; tag = s.front.tag;
     }
-    return s.front ? { point: new V3(s.front.px, s.front.py, s.front.pz), normal: new V3(s.front.nx, s.front.ny, s.front.nz) } : null;
+    if (!physHit) return null;
+    if (K.contactBVH && tag) {
+      try {
+        const bh = bvhRaycastTag(ox, oy, oz, dx, dz, dist, tag);
+        if (bh) { const n = faceNormalTowards(bh, dx, dz); if (n) return { point: bh.point.clone(), normal: n.clone().normalize() }; }
+      } catch (err) { /* correction only: any failure keeps the physics hit below */ }
+    }
+    return physHit;
   }
   function contactExit() { CT.state = 'idle'; CT.pick = null; CT.phase = null; }
   function contactStep(dt) {
@@ -1209,6 +1311,83 @@
     out.pass = out.maxCm !== null ? out.maxCm < 3 : null;
     return out;
   }
+  // independent self-check: hand-to-VISIBLE-mesh distance, a fresh THREE.Raycaster against the drawn scene from a
+  // point safely outside any solid, along the surface normal — NOT the module's own bvhCache/e.geo shortcut, so a
+  // bug that makes contactHit() agree with itself (IK reaches its own wrong target) can't hide behind a 0 cm result.
+  // Found live: a naive skinned-mesh filter alone still let the ray hit the pilot's OWN rigid attachments (gloves,
+  // gear — plain unskinned Meshes parented under the avatar rig sitting right next to the hand) before ever
+  // reaching the rock, so every measurement came back "nothing found"; exclude anything under B.root/B.wrap too.
+  function isAvatarPart(o) { for (let p = o; p; p = p.parent) if (p === B.root || p === B.wrap) return true; return false; }
+  function visibleGap(handWp, normal) {
+    try {
+      const originOut = handWp.clone().add(normal.clone().multiplyScalar(0.5));
+      const rc = new T3.Raycaster(originOut, normal.clone().negate(), 0, 1.2);
+      rc.camera = C.camera;   // THREE.Sprite.raycast requires this (glow/fx billboards in the scene); harmless otherwise
+      const hits = rc.intersectObjects(C.scene.children, true).filter((h) => !h.object.isSkinnedMesh && !isAvatarPart(h.object) && h.object.visible !== false);
+      return hits.length ? +((hits[0].distance - 0.5) * 100).toFixed(2) : null;   // cm: >0 hand hovers off the surface, <0 past/inside it, null = ray found nothing (rare)
+    } catch (err) { return null; }
+  }
+  // like testContact() but walks the pilot into up to `count` DISTINCT nearby solids (different Passport name
+  // patterns where possible: procedural rock, scanned rock face, boulder, flat rock, a structure) and reports both
+  // metrics per hand — tools/stand.mjs <label> --eval "INTERACTION.testContactSurface()"
+  async function testContactSurface(count = 5) {
+    const D = window.DBG; if (!D) return { error: 'needs #dbg' };
+    if (!B.ready || (!CT.ready && !contactReady())) return { error: 'contact layer not ready' };
+    const P = C.player, patterns = [/^rock#/, /^rock_flat/, /^boulder/, /^rock(?!_flat)/i, /kestrel|hab|ruin|st_|wall/i];
+    const used = new Set(), targets = [];
+    for (const pat of patterns) {
+      let best = null;
+      for (const e of (C.Passport && C.Passport.list) || []) {
+        if (used.has(e.id) || !e.name || !pat.test(e.name) || !e.box) continue;
+        const sx = e.box.max[0] - e.box.min[0], sy = e.box.max[1] - e.box.min[1], sz = e.box.max[2] - e.box.min[2], size = Math.max(sx, sy, sz);
+        if (size < 2.2) continue;
+        const cx = (e.box.min[0] + e.box.max[0]) / 2, cz = (e.box.min[2] + e.box.max[2]) / 2, d = Math.hypot(cx - P.x, cz - P.z);
+        if (!best || d < best.d) best = { id: e.id, name: e.name, x: cx, z: cz, size: +size.toFixed(2), d };
+      }
+      if (best) { used.add(best.id); targets.push(best); }
+      if (targets.length >= count) break;
+    }
+    const out = [];
+    for (const t of targets) {
+      const dx = P.x - t.x, dz = P.z - t.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
+      const from = { x: t.x + ux * (t.size * 0.7 + 3.2), z: t.z + uz * (t.size * 0.7 + 3.2) }, fa = Math.atan2(ux, uz);
+      await place(from.x, from.z, fa);
+      D.keys.KeyW = true;
+      const t0 = performance.now();
+      while (performance.now() - t0 < 4000 && CT.state !== 'play') await wait(50);
+      D.keys.KeyW = false;
+      if (CT.state !== 'play') { out.push({ name: t.name, size: t.size, error: 'never engaged (steered ' + CT.state + ')', wantIntent: CT.wantIntent }); continue; }
+      // sample repeatedly through the hold instead of one fixed wait: a loop hold (hand_wall_both_loop) stays pinned
+      // indefinitely, but a one-shot clip (vault_1m, step_over) only has hand IK active inside its own brief
+      // window+blendOut (e.g. 0.36–0.67 s of a 1.6 s clip) — a single measurement taken later just compares the
+      // unconstrained tail of the animation to a stale target and reports a huge, meaningless "error". Track, per
+      // hand, the SMALLEST error seen across samples (= how well the IK actually converged at its best moment).
+      const A = C.AV.player, best = new Map(); let lastClip = A.cur, lastIntent = CT.wantIntent;
+      const t1 = performance.now();
+      while (performance.now() - t1 < 1500 && CT.state === 'play') {
+        const m = CT.meta.clips[A.cur]; lastClip = A.cur; lastIntent = CT.wantIntent;
+        if (m && m.contacts) {
+          const scale = B.root.getWorldScale(new V3()).x;
+          for (const c of m.contacts) {
+            if (!c.bone.startsWith('hand')) continue;
+            const bone = B.root.getObjectByName(c.bone); if (!bone) continue;
+            const wp = wpos(bone, new V3()), hit = contactHit(c); if (!hit) continue;
+            const tgt = hit.point.clone().add(hit.normal.clone().multiplyScalar(0.035 * scale));
+            const cm = +(wp.distanceTo(tgt) * 100).toFixed(2), gap = visibleGap(wp, hit.normal);
+            const prev = best.get(c.bone);
+            if (!prev || cm < prev.targetCm) best.set(c.bone, { bone: c.bone, targetCm: cm, visibleGapCm: gap });
+          }
+        }
+        await wait(70);
+      }
+      const row = { name: t.name, size: t.size, intent: lastIntent, clip: lastClip, hands: [...best.values()] };
+      row.maxTargetCm = row.hands.length ? Math.max(...row.hands.map((h) => h.targetCm)) : null;
+      row.maxVisibleGapCm = row.hands.length ? Math.max(...row.hands.map((h) => Math.abs(h.visibleGapCm ?? 99))) : null;
+      out.push(row);
+      contactExit(); await wait(100);
+    }
+    return out;
+  }
 
   /* ------------------------------------------------------------------ module */
   // switch everything off / on (A/B measurements: tools/stand.mjs --eval "INTERACTION.off()")
@@ -1222,7 +1401,7 @@
     return 'interaction off';
   }
   function on() { for (const k in SUB) SUB[k] = true; return 'interaction on'; }
-  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, testIK, testWalk, testContact, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
+  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, testIK, testWalk, testContact, testContactSurface, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
   (window.GameModules = window.GameModules || []).push({
     name: 'interaction',
     order: 50,
