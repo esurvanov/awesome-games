@@ -230,7 +230,9 @@
   `;
   // shared fragment: layered snow / rock / gravel with anti-tiling and height blending
   const GLSL_FRAG_HEAD = /* glsl */`
-    uniform sampler2D tSFd, tSFn, tSWd, tSWn, tRSd, tRSn, tCLd, tCLn, tGRd, tNz;
+    // TEXUNITS: the 5 detail albedos / 4 packed normal-roughness maps live in two texture arrays (layers: 0 fresh snow,
+    // 1 wind crust, 2 rock, 3 cliff, 4 gravel albedo) — 9 samplers → 2; the terrain programs were 17–22 units > 16
+    uniform sampler2DArray tTrD, tTrN; uniform sampler2D tNz;
     uniform vec2 uWind; uniform vec3 uSunV; uniform vec2 uScanC; uniform float uScanR, uScanA, uTime;
     #ifdef TR_DETAIL
       uniform float uDbgFlat;
@@ -241,23 +243,32 @@
     varying vec3 vW; varying vec3 vN; varying vec3 vTint; varying float vRock; varying float vDepth; varying float vGrav;
     ${GLSL_NOISE}
     // no-tile sampling (index noise picks one of 8 offsets, 2 taps, luminance-aware blend) for albedo + packed normal/rough
-    void trNT(sampler2D td, sampler2D tn, vec2 uv, vec2 dx, vec2 dy, float k, out vec3 c, out vec3 n){
+    void trNT(float ld, float ln, vec2 uv, vec2 dx, vec2 dy, float k, out vec3 c, out vec3 n){
       float l = k * 8.; float ia = floor(l), f = fract(l);
       vec2 oa = sin(vec2(3., 7.) * ia), ob = sin(vec2(3., 7.) * (ia + 1.));
-      vec3 ca = textureGrad(td, uv + oa, dx, dy).rgb, cb = textureGrad(td, uv + ob, dx, dy).rgb;
+      vec3 ca = textureGrad(tTrD, vec3(uv + oa, ld), dx, dy).rgb, cb = textureGrad(tTrD, vec3(uv + ob, ld), dx, dy).rgb;
       float b = smoothstep(.2, .8, f - .1 * dot(ca - cb, vec3(1.)));
-      c = mix(ca, cb, b); n = mix(textureGrad(tn, uv + oa, dx, dy).rgb, textureGrad(tn, uv + ob, dx, dy).rgb, b);
+      c = mix(ca, cb, b); n = mix(textureGrad(tTrN, vec3(uv + oa, ln), dx, dy).rgb, textureGrad(tTrN, vec3(uv + ob, ln), dx, dy).rgb, b);
     }
     vec2 trNrmXY(vec3 n){ return n.xy * 2. - 1.; }
     // triplanar (FIX-LOOK): steep faces sample the side planes instead of a stretched top-down projection
-    void trTri(sampler2D td, sampler2D tn, vec3 P, vec3 gN, vec3 dPx, vec3 dPy, float sc, out vec3 c, out vec3 hn, out float r){
+    void trTri(float ld, float ln, vec3 P, vec3 gN, vec3 dPx, vec3 dPy, float sc, out vec3 c, out vec3 hn, out float r){
       vec3 bw = pow(abs(gN), vec3(4.)); bw /= dot(bw, vec3(1.)); vec3 pc = P * sc, gx = dPx * sc, gy = dPy * sc;
       c = vec3(0.); hn = vec3(0.); r = 0.;
-      if (bw.x > .02) { vec3 t = textureGrad(tn, pc.zy, gx.zy, gy.zy).rgb; c += textureGrad(td, pc.zy, gx.zy, gy.zy).rgb * bw.x; r += t.z * bw.x; vec2 n = t.xy * 2. - 1.; hn += vec3(0., n.y, n.x) * bw.x; }
-      if (bw.y > .02) { vec3 t = textureGrad(tn, pc.xz, gx.xz, gy.xz).rgb; c += textureGrad(td, pc.xz, gx.xz, gy.xz).rgb * bw.y; r += t.z * bw.y; vec2 n = t.xy * 2. - 1.; hn += vec3(n.x, 0., n.y) * bw.y; }
-      if (bw.z > .02) { vec3 t = textureGrad(tn, pc.xy, gx.xy, gy.xy).rgb; c += textureGrad(td, pc.xy, gx.xy, gy.xy).rgb * bw.z; r += t.z * bw.z; vec2 n = t.xy * 2. - 1.; hn += vec3(n.x, n.y, 0.) * bw.z; }
+      if (bw.x > .02) { vec3 t = textureGrad(tTrN, vec3(pc.zy, ln), gx.zy, gy.zy).rgb; c += textureGrad(tTrD, vec3(pc.zy, ld), gx.zy, gy.zy).rgb * bw.x; r += t.z * bw.x; vec2 n = t.xy * 2. - 1.; hn += vec3(0., n.y, n.x) * bw.x; }
+      if (bw.y > .02) { vec3 t = textureGrad(tTrN, vec3(pc.xz, ln), gx.xz, gy.xz).rgb; c += textureGrad(tTrD, vec3(pc.xz, ld), gx.xz, gy.xz).rgb * bw.y; r += t.z * bw.y; vec2 n = t.xy * 2. - 1.; hn += vec3(n.x, 0., n.y) * bw.y; }
+      if (bw.z > .02) { vec3 t = textureGrad(tTrN, vec3(pc.xy, ln), gx.xy, gy.xy).rgb; c += textureGrad(tTrD, vec3(pc.xy, ld), gx.xy, gy.xy).rgb * bw.z; r += t.z * bw.z; vec2 n = t.xy * 2. - 1.; hn += vec3(n.x, n.y, 0.) * bw.z; }
     }
-    ${GLSL_MS}
+    // GLSL_MS on the arrays (same maths)
+    void trMS(float ld, float ln, vec2 uv, float w, float rot, out vec3 c, out vec3 n){
+      float cr = cos(rot), sr = sin(rot); mat2 R = mat2(cr, sr, -sr, cr);
+      vec2 uv2 = R * uv * .71 + vec2(.37, .61);
+      vec3 ca = texture(tTrD, vec3(uv, ld)).rgb, cb = texture(tTrD, vec3(uv2, ld)).rgb;
+      vec3 na = texture(tTrN, vec3(uv, ln)).rgb, nb = texture(tTrN, vec3(uv2, ln)).rgb;
+      float b = smoothstep(.3, .7, w + (trLum(cb) - trLum(ca)) * .5);
+      vec2 nbx = transpose(R) * (nb.xy * 2. - 1.);
+      c = mix(ca, cb, b); n = vec3(mix(na.xy * 2. - 1., nbx, b) * .5 + .5, mix(na.z, nb.z, b));
+    }
   `;
   const GLSL_FRAG_MAT = /* glsl */`
     vec3 P = vW; vec3 gN = normalize(vN);
@@ -310,8 +321,8 @@
       float mF = 1. - smoothstep(.075, .03, depth + (nzA.b - .5) * .04) * max(smoothstep(.985, .93, up), smoothstep(.15, .45, vGrav));
       vec3 cF = vec3(.6), cW = vec3(.6), tF = vec3(.5, .5, .8), tW = vec3(.5, .5, .8);
       // layer branches: implicit derivatives only misbehave where the skipped layer's weight is < 1 %
-      if (mF > .01) trMS(tSFd, tSFn, P.xz * (1. / 3.4), nzB.a, 1.1, cF, tF);
-      if (mF < .99) trMS(tSWd, tSWn, vec2(dot(P.xz, wp), dot(P.xz, wd)) * (1. / 4.2), nzB.b, 0., cW, tW);
+      if (mF > .01) trMS(0., 0., P.xz * (1. / 3.4), nzB.a, 1.1, cF, tF);
+      if (mF < .99) trMS(1., 1., vec2(dot(P.xz, wp), dot(P.xz, wd)) * (1. / 4.2), nzB.b, 0., cW, tW);
       vec2 nF = trNrmXY(tF), nW = trNrmXY(tW);
       vec2 hW = wp * nW.x + wd * nW.y;
       cS = mix(cW * vec3(.98, .99, 1.01), cF, mF) * vec3(.97, .985, 1.) * (.88 + .24 * nzA.g);   // near-neutral albedo: the blue comes from the sky light (FIX-LOOK)
@@ -323,16 +334,16 @@
       rS = mix(rS, .74, press);   // LOOKGATE: was .62 — less gloss, so the wall doesn't catch a hard bright highlight
     }
     if (wR > .003) {
-      if (up > .88) { vec3 t; trNT(tRSd, tRSn, P.xz / 11., dPx.xz / 11., dPy.xz / 11., nzA.a, cR, t); vec2 n = trNrmXY(t); nR3 = vec3(n.x, 0., n.y) * .8; rR = t.z; }
-      else { vec3 hn; trTri(tRSd, tRSn, P, gN, dPx, dPy, 1. / 11., cR, hn, rR); nR3 = hn * .8; }
+      if (up > .88) { vec3 t; trNT(2., 2., P.xz / 11., dPx.xz / 11., dPy.xz / 11., nzA.a, cR, t); vec2 n = trNrmXY(t); nR3 = vec3(n.x, 0., n.y) * .8; rR = t.z; }
+      else { vec3 hn; trTri(2., 2., P, gN, dPx, dPy, 1. / 11., cR, hn, rR); nR3 = hn * .8; }
       cR *= vec3(.86, .9, 1.); }
-    if (wG > .003) { vec3 t; trNT(tGRd, tRSn, P.xz / 2.6, dPx.xz / 2.6, dPy.xz / 2.6, nzB.r, cG, t); vec2 n = trNrmXY(t); nG3 = vec3(n.x, 0., n.y) * .8; rG = .75 + t.z * .25; cG *= vec3(.88, .92, 1.); }
+    if (wG > .003) { vec3 t; trNT(4., 2., P.xz / 2.6, dPx.xz / 2.6, dPy.xz / 2.6, nzB.r, cG, t); vec2 n = trNrmXY(t); nG3 = vec3(n.x, 0., n.y) * .8; rG = .75 + t.z * .25; cG *= vec3(.88, .92, 1.); }
     if (wC > .003) {
       vec3 bw = pow(abs(gN), vec3(4.)); bw /= dot(bw, vec3(1.)); const float sc = 1. / 7.5; vec3 pc = P * sc, gx = dPx * sc, gy = dPy * sc;
       vec3 c = vec3(0.), hn = vec3(0.); float r = 0.;
-      if (bw.x > .02) { vec3 t = textureGrad(tCLn, pc.zy, gx.zy, gy.zy).rgb; c += textureGrad(tCLd, pc.zy, gx.zy, gy.zy).rgb * bw.x; r += t.z * bw.x; vec2 n = trNrmXY(t); hn += vec3(0., n.y, n.x) * bw.x; }
-      if (bw.y > .02) { vec3 t = textureGrad(tCLn, pc.xz, gx.xz, gy.xz).rgb; c += textureGrad(tCLd, pc.xz, gx.xz, gy.xz).rgb * bw.y; r += t.z * bw.y; vec2 n = trNrmXY(t); hn += vec3(n.x, 0., n.y) * bw.y; }
-      if (bw.z > .02) { vec3 t = textureGrad(tCLn, pc.xy, gx.xy, gy.xy).rgb; c += textureGrad(tCLd, pc.xy, gx.xy, gy.xy).rgb * bw.z; r += t.z * bw.z; vec2 n = trNrmXY(t); hn += vec3(n.x, n.y, 0.) * bw.z; }
+      if (bw.x > .02) { vec3 t = textureGrad(tTrN, vec3(pc.zy, 3.), gx.zy, gy.zy).rgb; c += textureGrad(tTrD, vec3(pc.zy, 3.), gx.zy, gy.zy).rgb * bw.x; r += t.z * bw.x; vec2 n = trNrmXY(t); hn += vec3(0., n.y, n.x) * bw.x; }
+      if (bw.y > .02) { vec3 t = textureGrad(tTrN, vec3(pc.xz, 3.), gx.xz, gy.xz).rgb; c += textureGrad(tTrD, vec3(pc.xz, 3.), gx.xz, gy.xz).rgb * bw.y; r += t.z * bw.y; vec2 n = trNrmXY(t); hn += vec3(n.x, 0., n.y) * bw.y; }
+      if (bw.z > .02) { vec3 t = textureGrad(tTrN, vec3(pc.xy, 3.), gx.xy, gy.xy).rgb; c += textureGrad(tTrD, vec3(pc.xy, 3.), gx.xy, gy.xy).rgb * bw.z; r += t.z * bw.z; vec2 n = trNrmXY(t); hn += vec3(n.x, n.y, 0.) * bw.z; }
       cC = c * vec3(.74, .8, .94); rC = r; nC3 = hn * 1.2;
       float ledge = smoothstep(.6, .86, normalize(gN + nC3).y + (nzB.r - .5) * .3) * (1. - vRock) * .9;   // snow held on ledges
       cC = mix(cC, snowFlat, ledge); rC = mix(rC, .8, ledge); nC3 *= 1. - ledge * .7;
@@ -1402,6 +1413,24 @@ void main() {
     if (ctx.fpMesh) { ctx.fpMesh.visible = false; S.oldFp = ctx.fpMesh; return; }
     ctx.scene.traverse((o) => { if (o.isInstancedMesh && o.material && o.material.isShaderMaterial && o.geometry && o.geometry.attributes.aBorn) { o.visible = false; S.oldFp = o; } });
   }
+  // TEXUNITS: same-size jpgs → one DataArrayTexture (flipY like a normal image texture, mipmapped, anisotropic, repeat);
+  // a 1×1 placeholder until every layer has loaded, then the uniform's value is swapped (no recompile)
+  function texArray(names, srgb) {
+    const L = names.length, mk = (data, w, h) => { const t = new THREE.DataArrayTexture(data, w, h, L); t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.magFilter = THREE.LinearFilter;
+      t.minFilter = w > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter; t.generateMipmaps = w > 1; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); t.needsUpdate = true; return t; };
+    const u = { value: mk(new Uint8Array(L * 4).fill(srgb ? 150 : 128).map((v, i) => (!srgb && i % 4 === 2 ? 200 : v)), 1, 1) };
+    const imgs = new Array(L); let left = L;
+    const done = () => {
+      const w = imgs[0].width, h = imgs[0].height, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const g = cv.getContext('2d', { willReadFrequently: true }), data = new Uint8Array(w * h * 4 * L);
+      for (let l = 0; l < L; l++) { g.setTransform(1, 0, 0, -1, 0, h); g.clearRect(0, 0, w, h); g.drawImage(imgs[l], 0, 0, w, h); data.set(g.getImageData(0, 0, w, h).data, l * w * h * 4); }
+      const old = u.value; u.value = mk(data, w, h); old.dispose(); S.texArrays = (S.texArrays || 0) + 1;
+    };
+    const ld = new THREE.ImageLoader(ctx.MANAGER);
+    names.forEach((n, l) => ld.load(ctx.ASSET + n, (im) => { imgs[l] = im; if (--left === 0) done(); }, undefined, (e) => console.warn('[terrain] texture array layer failed', n, e)));
+    return u;
+  }
   function init(c) {
     ctx = c; THREE = c.THREE; renderer = c.renderer; scene = c.scene; S.W = c.W;
     const t0 = performance.now();
@@ -1412,8 +1441,8 @@ void main() {
     const tx = (n, srgb) => c.tex(n, srgb);
     Object.assign(U, {
       tSFd: { value: tx('tr_snowF_d.jpg', true) }, tSFn: { value: tx('tr_snowF_n.jpg') }, tSWd: { value: tx('tr_snowW_d.jpg', true) }, tSWn: { value: tx('tr_snowW_n.jpg') },
-      tRSd: { value: tx('tr_rockS_d.jpg', true) }, tRSn: { value: tx('tr_rockS_n.jpg') }, tCLd: { value: tx('tr_cliff_d.jpg', true) }, tCLn: { value: tx('tr_cliff_n.jpg') },
-      tGRd: { value: tx('tr_gravel_d.jpg', true) }, tNz: { value: makeNoiseTex() },
+      tTrD: texArray(['tr_snowF_d.jpg', 'tr_snowW_d.jpg', 'tr_rockS_d.jpg', 'tr_cliff_d.jpg', 'tr_gravel_d.jpg'], true),
+      tTrN: texArray(['tr_snowF_n.jpg', 'tr_snowW_n.jpg', 'tr_rockS_n.jpg', 'tr_cliff_n.jpg'], false), tNz: { value: makeNoiseTex() },
       uWind: { value: new THREE.Vector2(S.wind[0], S.wind[1]) }, uSunV: { value: (c.MOON_DIR ? c.MOON_DIR.clone() : new THREE.Vector3(0.3, 0.8, 0.2)).normalize() },
       uScanC: c.TU.uScanC, uScanR: c.TU.uScanR, uScanA: c.TU.uScanA, uTime: c.TU.uTime,
       uW: { value: c.W }, uHsN: { value: DN }, uDT: { value: c.W / DN },
