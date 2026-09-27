@@ -173,11 +173,20 @@ export async function runAir(H, log = console.log, o = {}) {
     if (o.cdp) await o.cdp.send('Emulation.setCPUThrottlingRate', { rate: o.throttle || C.throttle });
     let r;
     try {
-      r = await H.page.evaluate((ms) => new Promise((res) => { const ts = []; const f = (t) => { ts.push(t); if (t - ts[0] < ms) requestAnimationFrame(f); else { const d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]); d.sort((a, b) => a - b);
-        res({ fps: +(1000 / d[d.length >> 1]).toFixed(1), low1: +(1000 / d[Math.floor(d.length * 0.99)]).toFixed(1), frames: d.length, scale: window.LowEnd && LowEnd.stats ? (LowEnd.stats() || {}).scale : null, q: DBG.Q.name }); } }; requestAnimationFrame(f); }), (o.secs || 5) * 1000);
+      // frames the game actually DREW (LowEnd.stats().drawn counts one per rendered frame): the 30 fps cap and the idle
+      // loop skip rAF ticks, so rAF timestamps measured the display refresh (59.9 on every run), not the game
+      r = await H.page.evaluate((ms) => new Promise((res) => {
+        const cnt = () => (window.LowEnd && LowEnd.stats ? (LowEnd.stats() || {}).drawn : null);
+        const ts = [], c0 = cnt(), t0 = performance.now(); let last = c0;
+        const f = () => { const c = cnt(), t = performance.now(); if (c !== last) { for (let k = last; k < c; k++) ts.push(t); last = c; }
+          if (t - t0 < ms) { requestAnimationFrame(f); return; }
+          const n = c0 == null ? null : c - c0, d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]); d.sort((a, b) => a - b);
+          const st = window.LowEnd && LowEnd.stats ? LowEnd.stats() || {} : {};
+          res({ fps: n == null ? null : +(n * 1000 / (t - t0)).toFixed(1), drawn: n, low1: d.length ? +(1000 / d[Math.floor(d.length * 0.99)]).toFixed(1) : null, counter: c0 == null ? 'none (no LowEnd)' : 'LowEnd drawn', scale: st.scale ?? null, cap: st.cap ?? null, q: DBG.Q.name }); };
+        requestAnimationFrame(f); }), (o.secs || 5) * 1000);
     } finally { if (o.cdp) await o.cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 }); }
-    data[v] = r; log(`  air ${v}: ${r.fps} fps (1 % low ${r.low1}) · preset ${r.q} · scale ${r.scale}`);
-    rows.push({ group: GROUP, check: `air profile ≥ ${C.fps} fps (CPU ×${o.throttle || C.throttle}, ${H.size.join('×')} @${o.dpr || 2}x)`, subject: v, value: `median ${r.fps} fps · 1 % low ${r.low1} · render scale ${r.scale ?? '—'}`, pass: r.fps >= C.fps });
+    data[v] = r; log(`  air ${v}: ${r.fps} drawn fps (${r.drawn} frames, 1 % low ${r.low1}) · preset ${r.q} · scale ${r.scale}`);
+    rows.push({ group: GROUP, check: `air profile ≥ ${C.fps} drawn fps (CPU ×${o.throttle || C.throttle}, ${H.size.join('×')} @${o.dpr || 2}x)`, subject: v, value: `${r.fps} fps drawn (${r.drawn} frames in ${o.secs || 5} s, ${r.counter}) · 1 % low ${r.low1} · render scale ${r.scale ?? '—'}`, pass: r.fps == null ? null : r.fps >= C.fps * 0.97 });
   }
   return { rows, data };
 }

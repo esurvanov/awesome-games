@@ -33,10 +33,50 @@
     if (waiting[name]) { waiting[name].push(cb); return; }
     waiting[name] = [cb];
     C.loadPacked(name, C.ASSET, (g) => {
+      ST.albedoFloor(g.scene);
       cache[name] = g; const list = waiting[name]; delete waiting[name];
       for (const f of list) { try { f(g); } catch (e) { console.error('[struct] ' + name, e); ST.stats.warn.push(name + ': ' + e.message); } }
     });
   }
+
+  /* ============================ albedo floor (REALISM-QA rule 2) ============================
+   * Nothing real is darker than ~0.04 linear albedo (black rubber / plastic / charcoal ≈ 0.04–0.05 → 56–62 sRGB); the packs
+   * shipped seats, tyres, foam, grips and cables at 16–46 sRGB, which render as holes in the night frame. The base colour
+   * is scaled up (hue and texture detail untouched) until map average × colour × vertex colour reaches ALB.min. */
+  const ALB = { min: 0.042, done: new WeakSet(), log: [] };
+  const alCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+  function mapAvgLin(t) {
+    if (!t) return [1, 1, 1];
+    if (t.userData && t.userData.avgLin) return t.userData.avgLin;
+    const img = t.image; if (!img || !(img.width || img.videoWidth) || !alCanvas) return null;
+    try {
+      alCanvas.width = alCanvas.height = 32; const g = alCanvas.getContext('2d', { willReadFrequently: true });
+      g.clearRect(0, 0, 32, 32); g.drawImage(img, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data;
+      const srgb = t.colorSpace === 'srgb', lin = (x) => { x /= 255; return !srgb ? x : x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+      let r = 0, gg = 0, b = 0, w = 0; for (let i = 0; i < d.length; i += 4) { const a = d[i + 3] / 255; r += lin(d[i]) * a; gg += lin(d[i + 1]) * a; b += lin(d[i + 2]) * a; w += a; }
+      const out = w ? [r / w, gg / w, b / w] : null; if (out) t.userData.avgLin = out; return out;
+    } catch (e) { return null; }
+  }
+  ST.albedoFloor = function (root, min = ALB.min) {
+    if (!root) return;
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      for (const m of [].concat(o.material)) {
+        if (!m || ALB.done.has(m) || !m.color || m.transparent || !(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial)) continue;
+        if (m.emissive && m.emissiveIntensity > 0.5 && Math.max(m.emissive.r, m.emissive.g, m.emissive.b) > 0.2) continue;   // self-lit
+        const t = mapAvgLin(m.map); if (!t) continue;
+        let vc = [1, 1, 1]; const Cc = m.vertexColors && o.geometry && o.geometry.attributes.color;
+        if (Cc) { vc = [0, 0, 0]; const st = Math.max(1, Math.floor(Cc.count / 2000)); let n = 0; for (let i = 0; i < Cc.count; i += st) { vc[0] += Cc.getX(i); vc[1] += Cc.getY(i); vc[2] += Cc.getZ(i); n++; } vc = vc.map((v) => v / n); }
+        const L = 0.2126 * m.color.r * t[0] * vc[0] + 0.7152 * m.color.g * t[1] * vc[1] + 0.0722 * m.color.b * t[2] * vc[2];
+        ALB.done.add(m);
+        if (L >= min) continue;
+        if (!(L > 1e-5)) { if (!m.map && !Cc) { m.color.setRGB(min, min, min); ALB.log.push({ mat: m.name, from: 0, k: 'grey' }); } continue; }
+        const k = Math.min(12, min / L); m.color.multiplyScalar(k);
+        ALB.log.push({ mat: m.name, from: +L.toFixed(4), k: +k.toFixed(2) });
+      }
+    });
+    ST.stats.albedoFloor = ALB.log;
+  };
 
   /* ============================ snow on top faces ============================ */
   const snowed = new WeakSet();
@@ -462,7 +502,11 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
           fitLog(kind, sp, y + F.box.min.y * sc, K.fit);
         }
         if (mats.length) {
-          spawn(F, mats, { name: kind, instanced: mats.length > 1 });
+          const sm = spawn(F, mats, { name: kind, instanced: mats.length > 1 });
+          if (kind === 'pier' && mats.length > 1) {   // REALISM-QA rule 6 (repetition): sections of different age — older ones greyer, darker
+            const tints = [[1, 1, 1], [0.84, 0.82, 0.8], [0.93, 0.93, 0.95]], c = new THREE.Color();
+            for (const m of sm) if (m.isInstancedMesh) { mats.forEach((_, i) => m.setColorAt(i, c.setRGB(...tints[i % 3]))); m.instanceColor.needsUpdate = true; }
+          }
           if (F.stoveTop) ST.stove = F.stoveTop.clone().applyMatrix4(mats[0]);   // smoke source for the FIRE region of open-world.html
           if (F.proc) ST.stats.tents = Object.assign(ST.stats.tents || {}, { [kind]: { n: mats.length, tris: F.tris, calls: F.parts.length, at: mats.map((M) => new V3().setFromMatrixPosition(M).toArray().map((v) => +v.toFixed(2))) } });
           if (K.iceClip) for (const M of mats) register(clipBelow(F, (C.POI.lake.h ?? 0) - 0.05, M), [M], K.role, { name: 'st_' + kind });   // piles below the ice: nothing to collide with
@@ -889,6 +933,8 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   /* ============ incoming3: Kestrel wreck, debris trail, cargo case, ship parts, lake cell, rocks (FIX-WORLD) ============ */
   // visible ground = heightfield + loose snow (what the player and the QA height map see)
   const VIS = (x, z) => H(x, z) + (typeof C.snowDepthAt === 'function' ? Math.max(0, C.snowDepthAt(x, z) || 0) : 0);
+  // the snow surface exactly as drawn (terrain snowField: micro relief, drifts, presses) when the terrain provides it
+  const DRAWN = (x, z) => { const f = C.snowField; if (f && f.sample) { const q = f.sample(x, z); if (q && Number.isFinite(q[0])) return q[0]; } return VIS(x, z); };
   const visUnder = (x, z, yaw, box, s = 1) => { const c = Math.cos(yaw), sn = Math.sin(yaw); let sum = 0, n = 0, mn = 1e9;
     for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++) { const lx = (box.min.x + (box.max.x - box.min.x) * i / 2) * s * 0.8, lz = (box.min.z + (box.max.z - box.min.z) * j / 2) * s * 0.8, h = VIS(x + lx * c + lz * sn, z - lx * sn + lz * c); sum += h; n++; mn = Math.min(mn, h); }
     return { mean: sum / n, min: mn }; };
@@ -915,12 +961,12 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     for (let i = 0; i < n; i++) { const x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2];
       const wx = e[0] * x + e[4] * y + e[8] * z + e[12], wy = e[1] * x + e[5] * y + e[9] * z + e[13], wz = e[2] * x + e[6] * y + e[10] * z + e[14];
       W[i * 3] = wx; W[i * 3 + 1] = wy; W[i * 3 + 2] = wz; if (wx < x0) x0 = wx; if (wx > x1) x1 = wx; if (wz < z0) z0 = wz; if (wz > z1) z1 = wz; }
-    const lo = new Array(9).fill(null), top = new Array(9).fill(-1e9);
+    const N = o.grid || 3, lo = new Array(N * N).fill(null), top = new Array(N * N).fill(-1e9);
     for (let i = 0; i < n; i++) { const x = W[i * 3], y = W[i * 3 + 1], z = W[i * 3 + 2];
-      const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
+      const ci = Math.min(N - 1, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * N)), cj = Math.min(N - 1, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * N)), k = ci * N + cj;
       if (!lo[k] || y < lo[k][1]) lo[k] = [x, y, z]; if (y > top[k]) top[k] = y; }
     const surf = o.surf || VIS, cells = [];
-    for (let k = 0; k < 9; k++) if (lo[k]) cells.push({ y: lo[k][1], h: top[k] - lo[k][1], s: surf(lo[k][0], lo[k][2]) + (o.extra || 0) });
+    for (let k = 0; k < N * N; k++) if (lo[k]) cells.push({ y: lo[k][1], h: top[k] - lo[k][1], s: surf(lo[k][0], lo[k][2]) + (o.extra || 0) });
     const bur = (dy) => { let a = 0, c = 0; for (const q of cells) if (q.h > 0.02) { a += clamp((q.s - q.y - dy) / q.h, 0, 1); c++; } return c ? a / c : 0; };
     const gap = (dy) => { let g = 1e9; for (const q of cells) g = Math.min(g, q.y + dy - q.s); return g; };
     let sLo = 1e9, sHi = -1e9, yLo = 1e9, yHi = -1e9; for (const q of cells) { sLo = Math.min(sLo, q.s); sHi = Math.max(sHi, q.s); yLo = Math.min(yLo, q.y); yHi = Math.max(yHi, q.y + q.h); }
@@ -1095,7 +1141,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   }
   // (re)seat on the visible snow: small pieces rest on it (a few cm in), sections sink through the loose snow
   function seatDebris(it) {
-    const F = it.F, M0 = mat4(it.x, 0, it.z, it.ry, it.s || 1, it.rx, it.rz), fit = seatY(F, M0, it.big ? 0.12 : 0.1, { maxGap: 0.03 });
+    const F = it.F, M0 = mat4(it.x, 0, it.z, it.ry, it.s || 1, it.rx, it.rz), fit = seatY(F, M0, it.big ? 0.12 : 0.1, it.big ? { maxGap: 0.03 } : { maxGap: 0.01, grid: 4, surf: DRAWN });   // small pieces: same 4×4 cells + drawn snow as REALISM-QA rule 4
     const y = fit.dy, M = withY(M0, y); it.fit = { buried: +fit.buried.toFixed(3), gap: +fit.gap.toFixed(3) };
     for (const m of it.meshes) { m.matrix.copy(M); m.matrixWorldNeedsUpdate = true; }
     if (it.entries) for (const e of it.entries) C.Passport.remove(e);
@@ -1132,7 +1178,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     const c = F.box.getCenter(new V3()), inner = new THREE.Group(); inner.rotation.set(0.12, 0.6, 0.42); inner.position.y = 0.12;
     for (const p of F.parts) { const mat = p.mat.clone(); delete mat.userData.trSnow; if (mat.emissive) { mat.emissive.setHex(0x2ab8ff); mat.emissiveIntensity = 0.12; } cover(mat, { amount: 0.5, minUp: 0.7, soft: 0.2, skirt: 0 });
       const m = new THREE.Mesh(p.geo, mat); m.position.copy(c).negate(); m.castShadow = true; m.userData.noCollide = true; inner.add(m); }
-    inner.scale.setScalar(1.1); holder.add(inner); holder.userData.struct = true; count('cell');
+    inner.scale.setScalar(1.1); holder.add(inner); holder.userData.struct = true; holder.userData.qaPassable = 'pickup (taken with E, then hidden)'; count('cell');
   }
 
   /* ---- cargo case (tool): lid opens (clip Open), the pulse cutter lifts out and flies into the pilot's hand ---- */

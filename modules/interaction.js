@@ -528,6 +528,20 @@
     }
   }
   const PUSH = { list: [], t: 0, prop: null, speed: 0 };
+  // INTERACT: each palm on the DRAWN prop (not the physics hull): a horizontal ray at the hand's spot onto the prop's own
+  // mesh; a prop lower than the hands gets the palms on its top, just behind the near edge. Wrist = surface + palm (3.5 cm)
+  function pushHands(e, pp, F) {
+    const I = window.INTERACT; if (!I || !K.passport) return null;
+    const out = {}, Rx = -F.z, Rz = F.x;
+    for (const side of [1, -1]) {
+      const x = pp.x + Rx * 0.22 * side, z = pp.z + Rz * 0.22 * side;
+      let h = I.castOn(e, x - F.x * 0.4, pp.y, z - F.z * 0.4, F.x, 0, F.z, 1.0), n = h && h.normal;
+      if (!h) { h = I.castOn(e, x + F.x * 0.08, pp.y + 0.5, z + F.z * 0.08, 0, -1, 0, 0.9); n = h && h.normal; }   // low prop: onto its top
+      if (!h) return null;
+      out[side] = new V3(h.point.x + n.x * 0.035, h.point.y + n.y * 0.035, h.point.z + n.z * 0.035);
+    }
+    return out;
+  }
   function pushState(F) {
     const P = C.player, PH = C.PH; if (!PH.ok || !C.Passport || C.G.riding || !P.onGround) { PUSH.prop = null; return null; }
     PUSH.t -= 1;
@@ -540,6 +554,7 @@
     let h = null; for (const hy of [0.95, 0.6, 0.35]) { h = PH.P.raycast({ x: P.x, y: P.y + hy, z: P.z }, { x: F.x, y: 0, z: F.z }, 1.05, { groups: PH.P.groups.PROP, debris: true }); if (h) break; }
     if (!h) return null;
     PUSH.prop = best; B.arms.push = { x: h.point.x - F.x * 0.04, y: clamp(h.point.y + 0.08, P.y + 0.45, P.y + 1.2), z: h.point.z - F.z * 0.04, col: h.collider };
+    B.arms.push.hands = pushHands(best, B.arms.push, F);
     return { w: smooth(1.05, 0.5, h.distance) };
   }
 
@@ -574,20 +589,6 @@
     // craggy, so a single vertical column at the near edge can land on a low crack or foot of the rock and read as
     // knee-height even when the same surface is a 3 m wall a few dozen cm further in (this under-read is what made
     // senseKind() classify tall rocks/walls as a step-over "obstacle" — see CONTACT-SURFACE.md).
-  // INTERACT: each palm on the DRAWN prop (not the physics hull): a horizontal ray at the hand's spot onto the prop's own
-  // mesh; a prop lower than the hands gets the palms on its top, just behind the near edge. Wrist = surface + palm (3.5 cm)
-  function pushHands(e, pp, F) {
-    const I = window.INTERACT; if (!I || !K.passport) return null;
-    const out = {}, Rx = -F.z, Rz = F.x;
-    for (const side of [1, -1]) {
-      const x = pp.x + Rx * 0.22 * side, z = pp.z + Rz * 0.22 * side;
-      let h = I.castOn(e, x - F.x * 0.4, pp.y, z - F.z * 0.4, F.x, 0, F.z, 1.0), n = h && h.normal;
-      if (!h) { h = I.castOn(e, x + F.x * 0.08, pp.y + 0.5, z + F.z * 0.08, 0, -1, 0, 0.9); n = h && h.normal; }   // low prop: onto its top
-      if (!h) return null;
-      out[side] = new V3(h.point.x + n.x * 0.035, h.point.y + n.y * 0.035, h.point.z + n.z * 0.035);
-    }
-    return out;
-  }
     let height = 0;
     for (const push of [0.05, 0.35, 0.65]) {
       const hx = P.x + ox * (h.distance + push), hz = P.z + oz * (h.distance + push);
@@ -600,7 +601,6 @@
   }
   function contactSense() {
     const P = C.player, PH = C.PH; if (!PH.ok) return null;
-    B.arms.push.hands = pushHands(best, B.arms.push, F);
     const face = P.c.g.rotation.y, fx = -Math.sin(face), fz = -Math.cos(face), rx = Math.cos(face), rz = -Math.sin(face);
     const front = probeDir(fx, fz, K.contactRange, 1.0), left = probeDir(-rx, -rz, 1.15, 1.0), right = probeDir(rx, rz, 1.15, 1.0), back = probeDir(-fx, -fz, 1.15, 1.0);
     const knee = probeDir(fx, fz, 1.5, 0.38), obstacle = knee && knee.height <= 1.3 && knee.height > 0.12 ? knee : null;
@@ -715,6 +715,7 @@
   // this clip set (the surface is authored to be in front of the character; bone side just says which hand, not which
   // side to probe)
   function contactHit(c) {
+    if (CT.plan) { const t = CT.plan.targets && CT.plan.targets[c.bone]; return t ? { point: t.point, normal: t.normal } : null; }
     const s = CT.sense; if (!s) return null;
     const P = C.player, PH = C.PH;
     let physHit = null, ox = P.x, oy = P.y + 1.0, oz = P.z, dx = 0, dz = 0, dist = 3, tag = null;
@@ -758,7 +759,6 @@
         if (bh) { const n = faceNormalTowards(bh, dx, dz); if (n) return { point: bh.point.clone(), normal: n.clone().normalize() }; }
       } catch (err) { /* correction only: any failure keeps the physics hit below */ }
     }
-    if (CT.plan) { const t = CT.plan.targets && CT.plan.targets[c.bone]; return t ? { point: t.point, normal: t.normal } : null; }
     return physHit;
   }
   function contactExit() { CT.state = 'idle'; CT.pick = null; CT.phase = null; CT.plan = null; CT.keyT = 0; }
@@ -785,6 +785,12 @@
     const A = C.AV.player;
     if (CT.state === 'idle') {
       if (CT.wantIntent !== 'none' && CT.sense) {
+        const mp = contactPlan();
+        if (mp.plan && A.acts[mp.plan.clip] && CT.meta.clips[mp.plan.clip]) {
+          CT.plan = mp.plan; CT.pick = { clip: mp.plan.clip, enter: mp.plan.enter, standOff: mp.plan.standOff, heightScale: mp.plan.heightScale }; CT.state = 'steer'; CT.t = 0; CT.keyT = 0; STATS.planned = (STATS.planned || 0) + 1;
+          return;
+        }
+        if (mp.marked && K.passportOnly) return;   // marked kind, no valid point from here: no contact (never a hand in the air)
         let pick = null; try { pick = window.ANIMLIB.chooseContact(CT.wantIntent, CT.sense, CT.meta); } catch (e) { pick = null; }
         if (pick && A.acts[pick.clip] && CT.meta.clips[pick.clip]) { CT.pick = pick; CT.state = 'steer'; }
       }
@@ -792,6 +798,7 @@
     }
     const pick = CT.pick; if (!pick) { contactExit(); return; }
     const P = C.player;
+    if (CT.plan) { planStep(dt, A, P); return; }
     // no per-frame key/velocity check here on purpose: a player who keeps holding W into a wall they've already
     // reached is capsule-blocked, but a kinematic character controller can keep reporting a non-trivial "grinding"
     // velocity for several frames while it's blocked (or during the steer nudge itself) — gating cancellation on
@@ -824,56 +831,6 @@
       }
     }
     if (A.cur && CT.layer && A.acts[A.cur]) { try { CT.layer.update(A.acts[A.cur], contactHit, 1); } catch (e) { /* clip has no hand/foot contacts */ } }
-  }
-  function contactUpdate(dt) {
-    if (!K.contact || !B.ready || (!CT.ready && !contactReady())) return;
-    const P = C.player, G = C.G;
-        const mp = contactPlan();
-        if (mp.plan && A.acts[mp.plan.clip] && CT.meta.clips[mp.plan.clip]) {
-          CT.plan = mp.plan; CT.pick = { clip: mp.plan.clip, enter: mp.plan.enter, standOff: mp.plan.standOff, heightScale: mp.plan.heightScale }; CT.state = 'steer'; CT.t = 0; CT.keyT = 0; STATS.planned = (STATS.planned || 0) + 1;
-          return;
-        }
-        if (mp.marked && K.passportOnly) return;   // marked kind, no valid point from here: no contact (never a hand in the air)
-    const active = (C.mode === 'play' || C.mode === 'menu') && P.onGround && !G.riding && G.deadT <= 0 && !(C.CLIMB && C.CLIMB.t >= 0) && P.aimT <= 0 && B.arms.mode !== 'push';
-    if (!active) { if (CT.state !== 'idle') contactExit(); return; }
-    CT.senseT -= dt;
-    if (CT.senseT <= 0) { CT.senseT = 0.2; CT.sense = contactSense(); contactDecide(); CT.steerDist = CT.sense && CT.sense.front ? CT.sense.front.dist : null; }
-    contactStep(dt);
-  }
-
-    if (CT.plan) { planStep(dt, A, P); return; }
-  /* ------------------------------------------------------------------ footsteps from the pose */
-  function stepsFromPose(dt, grounded, hs) {
-    if (!SUB.steps) return;
-    const P = C.player;
-    for (const L of B.legs) {
-      const rel = L.c;
-      if (rel > 0.07) L.up = 1;
-      if (L.up && rel < 0.03 && L.c <= (L.cPrev === undefined ? 1 : L.cPrev) + 1e-4 && grounded && hs > 0.8) {
-        L.up = 0; footfall(L, hs);
-      }
-    }
-    if (!grounded) for (const L of B.legs) L.up = 1;
-  }
-  // SNOW-CONTACT: one contact event per plant — footfall(): the step sound + a puff at the boot. The print is not drawn
-  // here (no stamp, no re-stamp while the foot slides): the terrain module's snow map is pressed by the boot mesh itself.
-  function footfall(L, hs) {
-    const P = C.player, x = L.anim.x, z = L.anim.z, y = L.gy !== undefined ? L.gy : L.g.y, surf = surfaceAt(x, L.g.y, z, L.g);
-    B.lastSurf = surf; STATS.steps++;
-    const k = clamp(0.45 + hs / 11, 0.4, 1.3) * K.stepVol;
-    sfx(surf, k);
-    const col = surf === 'snow' ? 0xdce6f6 : surf === 'ice' ? 0xcfeaf6 : surf === 'rock' ? 0x8f96a4 : 0x9aa4b4;
-    if (surf === 'snow' || surf === 'ice') for (let i = 0; i < (hs > 8 ? 4 : 2); i++) C.emit(x, y + 0.05, z, rnd(-0.6, 0.6) + P.vx * 0.05, rnd(0.4, 1.1), rnd(-0.6, 0.6) + P.vz * 0.05, 0.45, col, 0.28, 3, 2.5);
-    if (surf === 'ice' && inLake(x, z)) ICE.crackAt(x, z, 0.25 + hs / 16);
-  }
-
-  /* ------------------------------------------------------------------ world: landing, trees, benders, push, slide */
-  const W = { wasGround: true, minVy: 0, air: 0, treeGrid: null, treeList: null, treeCd: new Map(), slide: 0 };
-  const treeList = () => (window.VEG && VEG.trees && VEG.trees.length ? VEG.trees : C.FOREST && C.FOREST.list || []);
-  function worldSetup() {
-    const list = W.treeList = treeList();
-    W.treeGrid = new Map();
-    list.forEach((t, i) => { const k = Math.floor(t[0] / 8) * 4096 + Math.floor(t[2] / 8); if (!W.treeGrid.has(k)) W.treeGrid.set(k, []); W.treeGrid.get(k).push(i); });
   }
   // planned contact: walk the last bit to the stand spot while turning to the planned facing, then play; the hold ends
   // when the player moves (a movement key held past the enter clip) or the pose is knocked off the stand spot
@@ -917,6 +874,49 @@
           if (Math.abs(d) > 0.01 && Math.abs(pl.slid || 0) < 0.45) { P.x -= q.ex * st; P.z -= q.ez * st; pl.at.x -= q.ex * st; pl.at.z -= q.ez * st; pl.slid = (pl.slid || 0) + st; if (PH.ok) PH.ch.setPosition(P.x, P.y, P.z); } } }
     }
     if (A.cur && CT.layer && A.acts[A.cur]) { try { CT.layer.update(A.acts[A.cur], contactHit, 1); } catch (e) { /* clip has no hand/foot contacts */ } }
+  }
+  function contactUpdate(dt) {
+    if (!K.contact || !B.ready || (!CT.ready && !contactReady())) return;
+    const P = C.player, G = C.G;
+    const active = (C.mode === 'play' || C.mode === 'menu') && P.onGround && !G.riding && G.deadT <= 0 && !(C.CLIMB && C.CLIMB.t >= 0) && P.aimT <= 0 && B.arms.mode !== 'push';
+    if (!active) { if (CT.state !== 'idle') contactExit(); return; }
+    CT.senseT -= dt;
+    if (CT.senseT <= 0) { CT.senseT = 0.2; CT.sense = contactSense(); contactDecide(); CT.steerDist = CT.sense && CT.sense.front ? CT.sense.front.dist : null; }
+    contactStep(dt);
+  }
+
+  /* ------------------------------------------------------------------ footsteps from the pose */
+  function stepsFromPose(dt, grounded, hs) {
+    if (!SUB.steps) return;
+    const P = C.player;
+    for (const L of B.legs) {
+      const rel = L.c;
+      if (rel > 0.07) L.up = 1;
+      if (L.up && rel < 0.03 && L.c <= (L.cPrev === undefined ? 1 : L.cPrev) + 1e-4 && grounded && hs > 0.8) {
+        L.up = 0; footfall(L, hs);
+      }
+    }
+    if (!grounded) for (const L of B.legs) L.up = 1;
+  }
+  // SNOW-CONTACT: one contact event per plant — footfall(): the step sound + a puff at the boot. The print is not drawn
+  // here (no stamp, no re-stamp while the foot slides): the terrain module's snow map is pressed by the boot mesh itself.
+  function footfall(L, hs) {
+    const P = C.player, x = L.anim.x, z = L.anim.z, y = L.gy !== undefined ? L.gy : L.g.y, surf = surfaceAt(x, L.g.y, z, L.g);
+    B.lastSurf = surf; STATS.steps++;
+    const k = clamp(0.45 + hs / 11, 0.4, 1.3) * K.stepVol;
+    sfx(surf, k);
+    const col = surf === 'snow' ? 0xdce6f6 : surf === 'ice' ? 0xcfeaf6 : surf === 'rock' ? 0x8f96a4 : 0x9aa4b4;
+    if (surf === 'snow' || surf === 'ice') for (let i = 0; i < (hs > 8 ? 4 : 2); i++) C.emit(x, y + 0.05, z, rnd(-0.6, 0.6) + P.vx * 0.05, rnd(0.4, 1.1), rnd(-0.6, 0.6) + P.vz * 0.05, 0.45, col, 0.28, 3, 2.5);
+    if (surf === 'ice' && inLake(x, z)) ICE.crackAt(x, z, 0.25 + hs / 16);
+  }
+
+  /* ------------------------------------------------------------------ world: landing, trees, benders, push, slide */
+  const W = { wasGround: true, minVy: 0, air: 0, treeGrid: null, treeList: null, treeCd: new Map(), slide: 0 };
+  const treeList = () => (window.VEG && VEG.trees && VEG.trees.length ? VEG.trees : C.FOREST && C.FOREST.list || []);
+  function worldSetup() {
+    const list = W.treeList = treeList();
+    W.treeGrid = new Map();
+    list.forEach((t, i) => { const k = Math.floor(t[0] / 8) * 4096 + Math.floor(t[2] / 8); if (!W.treeGrid.has(k)) W.treeGrid.set(k, []); W.treeGrid.get(k).push(i); });
   }
   function worldUpdate(dt) {
     const P = C.player, G = C.G; if (C.mode !== 'play') return;
@@ -1066,6 +1066,42 @@
     },
   };
 
+  /* ------------------------------------------------------------------ animals steer around solids (INTERACT.md)
+   * Look-ahead rays against Passport solids / trunks / props (the terrain and sea-ice colliders are excluded: the ground
+   * is not an obstacle); the heading turns to the free direction closest to where the animal wants to go, keeping the
+   * side it already chose (no left/right dithering). Stags: before the game moves them (their flee heading is ours);
+   * fox: its step this frame is re-aimed after the game made it. */
+  K.avoid = true; K.avoidTurn = 5.5;
+  const AVD = { exc: null, n: 0 };
+  const OFFS = [0, 0.3, 0.6, 0.9, 1.2, 1.55, 1.9, 2.3];
+  function groundHandles() {
+    const P = C.PH.P, ex = new Set();
+    for (const [x, z] of [[0, 0], [300, 300], [-300, -300], [450, 450]]) { const h = P.raycast({ x, y: 400, z }, { x: 0, y: -1, z: 0 }, 800, { groups: P.groups.STATIC }); if (h && h.tag && (h.tag.kind === 'terrain' || h.tag.kind === 'ice')) ex.add(h.collider.handle); }
+    return ex;
+  }
+  let _aRay = null;
+  function solidRay(ox, oy, oz, dx, dz, len) {
+    const P = C.PH.P, R = P.RAPIER, W = P.world; if (!R || !W) return null;
+    if (!AVD.exc || !AVD.exc.size) AVD.exc = groundHandles();
+    if (!_aRay) _aRay = new R.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
+    _aRay.origin = { x: ox, y: oy, z: oz }; _aRay.dir = { x: dx, y: 0, z: dz }; AVD.n++;
+    const G = P.groups, h = W.castRay(_aRay, len, true, undefined, (0xffff << 16) | (G.STATIC | G.TRUNK | G.PROP), undefined, undefined, (col) => !AVD.exc.has(col.handle));
+    return h ? h.timeOfImpact : null;
+  }
+  // is the corridor (width 2·half, rays at the given heights above the ground) along angle a free for `len` m?
+  function corridorFree(x, gy, z, a, len, half, hs) {
+    const dx = Math.sin(a), dz = Math.cos(a), rx = dz, rz = -dx;
+    for (const hy of hs) for (const o of [0, half, -half]) if (solidRay(x + rx * o, gy + hy, z + rz * o, dx, dz, len) !== null) return false;
+    return true;
+  }
+  // free heading closest to `want`, preferring the side chosen last time (mem.side); null = keep `want`
+  function steerAround(x, gy, z, want, len, half, hs, mem) {
+    if (corridorFree(x, gy, z, want, len, half, hs)) { mem.side = 0; return { a: want, blocked: false }; }
+    const first = mem.side || 1;
+    for (const o of OFFS) { if (!o) continue; for (const sg of [first, -first]) { const a = want + o * sg; if (corridorFree(x, gy, z, a, len, half, hs)) { mem.side = sg; return { a, blocked: true, off: o * sg }; } } }
+    return { a: want + Math.PI * (mem.side || 1) * 0.5, blocked: true, off: null };   // boxed in: turn away hard
+  }
+
   /* ------------------------------------------------------------------ stags */
   const ST = { ready: false, feet: ['Backleg_L002', 'Backleg_R002', 'Frontleg_L002', 'Frontleg_R002'], sole: [0.119, 0.119, 0.13, 0.13], runV: 0, per: new Map(), bbT: 0, bbI: 0 };
   function stagSetup() {
@@ -1109,42 +1145,6 @@
   function hoofSole(S, i, boneY) {   // lowest world y of hoof i (falls back to the old constant offset)
     const P = S.hoof && S.hoof[i]; if (!P) return boneY - ST.sole[i];
     const e = S.feet[i].matrixWorld.elements; let m = Infinity;
-  /* ------------------------------------------------------------------ animals steer around solids (INTERACT.md)
-   * Look-ahead rays against Passport solids / trunks / props (the terrain and sea-ice colliders are excluded: the ground
-   * is not an obstacle); the heading turns to the free direction closest to where the animal wants to go, keeping the
-   * side it already chose (no left/right dithering). Stags: before the game moves them (their flee heading is ours);
-   * fox: its step this frame is re-aimed after the game made it. */
-  K.avoid = true; K.avoidTurn = 5.5;
-  const AVD = { exc: null, n: 0 };
-  const OFFS = [0, 0.3, 0.6, 0.9, 1.2, 1.55, 1.9, 2.3];
-  function groundHandles() {
-    const P = C.PH.P, ex = new Set();
-    for (const [x, z] of [[0, 0], [300, 300], [-300, -300], [450, 450]]) { const h = P.raycast({ x, y: 400, z }, { x: 0, y: -1, z: 0 }, 800, { groups: P.groups.STATIC }); if (h && h.tag && (h.tag.kind === 'terrain' || h.tag.kind === 'ice')) ex.add(h.collider.handle); }
-    return ex;
-  }
-  let _aRay = null;
-  function solidRay(ox, oy, oz, dx, dz, len) {
-    const P = C.PH.P, R = P.RAPIER, W = P.world; if (!R || !W) return null;
-    if (!AVD.exc || !AVD.exc.size) AVD.exc = groundHandles();
-    if (!_aRay) _aRay = new R.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
-    _aRay.origin = { x: ox, y: oy, z: oz }; _aRay.dir = { x: dx, y: 0, z: dz }; AVD.n++;
-    const G = P.groups, h = W.castRay(_aRay, len, true, undefined, (0xffff << 16) | (G.STATIC | G.TRUNK | G.PROP), undefined, undefined, (col) => !AVD.exc.has(col.handle));
-    return h ? h.timeOfImpact : null;
-  }
-  // is the corridor (width 2·half, rays at the given heights above the ground) along angle a free for `len` m?
-  function corridorFree(x, gy, z, a, len, half, hs) {
-    const dx = Math.sin(a), dz = Math.cos(a), rx = dz, rz = -dx;
-    for (const hy of hs) for (const o of [0, half, -half]) if (solidRay(x + rx * o, gy + hy, z + rz * o, dx, dz, len) !== null) return false;
-    return true;
-  }
-  // free heading closest to `want`, preferring the side chosen last time (mem.side); null = keep `want`
-  function steerAround(x, gy, z, want, len, half, hs, mem) {
-    if (corridorFree(x, gy, z, want, len, half, hs)) { mem.side = 0; return { a: want, blocked: false }; }
-    const first = mem.side || 1;
-    for (const o of OFFS) { if (!o) continue; for (const sg of [first, -first]) { const a = want + o * sg; if (corridorFree(x, gy, z, a, len, half, hs)) { mem.side = sg; return { a, blocked: true, off: o * sg }; } } }
-    return { a: want + Math.PI * (mem.side || 1) * 0.5, blocked: true, off: null };   // boxed in: turn away hard
-  }
-
     for (let k = 0; k < P.length; k += 3) { const y = e[1] * P[k] + e[5] * P[k + 1] + e[9] * P[k + 2] + e[13]; if (y < m) m = y; }
     return m;
   }
@@ -1330,8 +1330,28 @@
     const upd = A.update; A.update = (dt) => { if (!G.on) sync(false); return upd(dt); };
     return W;
   }
+  // the game moved the fox straight at its target this frame; re-aim that step around solids (and never into one)
+  function foxAvoid(dt) {
+    const f = C.fox; if (!K.avoid || !C.PH.ok) { FX.px = f.x; FX.pz = f.z; return; }
+    if (FX.px === undefined || Math.hypot(f.x - FX.px, f.z - FX.pz) > 3) { FX.px = f.x; FX.pz = f.z; return; }   // spawn / teleport
+    const mx = f.x - FX.px, mz = f.z - FX.pz, L = Math.hypot(mx, mz);
+    if (L > 1e-4) {
+      const want = Math.atan2(mx, mz), gy = C.groundH(FX.px, FX.pz), look = L + 0.5 + Math.min(1.2, (f.speed || 0) * 0.12);
+      const r = steerAround(FX.px, gy, FX.pz, want, look, 0.12, [0.28], FX.avMem || (FX.avMem = {}));
+      if (r.blocked) {
+        const a = r.off === null ? want : r.a, nx = FX.px + Math.sin(a) * L, nz = FX.pz + Math.cos(a) * L;
+        if (r.off !== null && solidRay(FX.px, gy + 0.28, FX.pz, Math.sin(a), Math.cos(a), L + 0.2) === null) { f.x = nx; f.z = nz; }
+        else { f.x = FX.px; f.z = FX.pz; }   // boxed in: hold, the next frames pick a side
+        const oy = f.g.position.y - f.y; f.y = C.groundH(f.x, f.z); f.g.position.set(f.x, f.y + oy, f.z);
+        f.yaw += wrapA(Math.atan2(-Math.sin(a), -Math.cos(a)) - f.yaw) * Math.min(1, dt * 10); f.g.rotation.y = f.yaw;
+        STATS.foxDetours = (STATS.foxDetours || 0) + 1;
+      }
+    }
+    FX.px = f.x; FX.pz = f.z;
+  }
   function foxUpdate(dt) {
     if (!FX.ready && !foxSetup()) return;
+    foxAvoid(dt);
     const f = C.fox, yaw = f.g.rotation.y, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
     // pounce: the moment the fox reaches what it was seeking, it leaps and dives nose-first into the snow
     if (FX.prevSt === 'seek' && f.st === 'wait' && FX.pounce < 0) { FX.pounce = 0; STATS.pounces++; }
@@ -1373,28 +1393,8 @@
     const kS = 160, cS = 2 * Math.sqrt(kS) * 0.75;
     CAM.bobV += (-kS * CAM.bob - cS * CAM.bobV) * dt; CAM.bob += CAM.bobV * dt;
     const kD = 70, cD = 2 * Math.sqrt(kD) * 0.8;
-  // the game moved the fox straight at its target this frame; re-aim that step around solids (and never into one)
-  function foxAvoid(dt) {
-    const f = C.fox; if (!K.avoid || !C.PH.ok) { FX.px = f.x; FX.pz = f.z; return; }
-    if (FX.px === undefined || Math.hypot(f.x - FX.px, f.z - FX.pz) > 3) { FX.px = f.x; FX.pz = f.z; return; }   // spawn / teleport
-    const mx = f.x - FX.px, mz = f.z - FX.pz, L = Math.hypot(mx, mz);
-    if (L > 1e-4) {
-      const want = Math.atan2(mx, mz), gy = C.groundH(FX.px, FX.pz), look = L + 0.5 + Math.min(1.2, (f.speed || 0) * 0.12);
-      const r = steerAround(FX.px, gy, FX.pz, want, look, 0.12, [0.28], FX.avMem || (FX.avMem = {}));
-      if (r.blocked) {
-        const a = r.off === null ? want : r.a, nx = FX.px + Math.sin(a) * L, nz = FX.pz + Math.cos(a) * L;
-        if (r.off !== null && solidRay(FX.px, gy + 0.28, FX.pz, Math.sin(a), Math.cos(a), L + 0.2) === null) { f.x = nx; f.z = nz; }
-        else { f.x = FX.px; f.z = FX.pz; }   // boxed in: hold, the next frames pick a side
-        const oy = f.g.position.y - f.y; f.y = C.groundH(f.x, f.z); f.g.position.set(f.x, f.y + oy, f.z);
-        f.yaw += wrapA(Math.atan2(-Math.sin(a), -Math.cos(a)) - f.yaw) * Math.min(1, dt * 10); f.g.rotation.y = f.yaw;
-        STATS.foxDetours = (STATS.foxDetours || 0) + 1;
-      }
-    }
-    FX.px = f.x; FX.pz = f.z;
-  }
     CAM.dipV += (-kD * CAM.dip - cD * CAM.dipV) * dt; CAM.dip += CAM.dipV * dt;
     let dy = clamp(CAM.bob, -0.05, 0.03) + clamp(CAM.dip, -0.4, 0.08);
-    foxAvoid(dt);
     const boom = C.cam.boom || C.cam.dist; dy *= clamp(boom / 3, 0.25, 1);   // close to a wall: smaller moves
     if (Math.abs(dy) < 1e-4) return;
     // stay outside solids (Passport 'solid' + terrain), as the game's own boom does
@@ -1636,6 +1636,7 @@
     order: 50,
     init(ctx) {
       C = ctx; T3 = ctx.THREE; setupMath();
+      if (window.INTERACT_OFF) { K.passport = false; K.avoid = false; }   // A/B: the pre-INTERACT behaviour (tools/interact/run.mjs --init)
       // own audio context: resumes on the first user gesture (like the game's)
       const go = () => auInit(); addEventListener('keydown', go, { passive: true }); addEventListener('pointerdown', go, { passive: true });
       // footsteps are ours while our audio runs: the game's generic step would double them (skimmer impacts pass through)
@@ -1657,4 +1658,3 @@
     },
   });
 })();
-      if (window.INTERACT_OFF) { K.passport = false; K.avoid = false; }   // A/B: the pre-INTERACT behaviour (tools/interact/run.mjs --init)

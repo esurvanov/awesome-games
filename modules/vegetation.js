@@ -1119,14 +1119,17 @@ vec3 impNW;`)
   /* Seating by the QA invariant itself (tools/qa/qa-page.js placedCheck): lowest vertex of each 3×3 footprint cell of the
    * collider vs the visible surface (ground + loose snow); buried share = mean over cells of the column under the surface.
    * seatDy solves that share = target exactly (monotone in dy → bisection) instead of guessing a sink depth per model. */
-  const SURF = (x, z) => (C.groundH ? C.groundH(x, z) : C.getH(x, z)) + depthAt(x, z);
+  // REALISM-QA rule 4: the surface as drawn (terrain snowField) and the rule's own 4×4 cells, so seat and check agree
+  const SURF = (x, z) => { const f = C.snowField; if (f && f.sample) { const q = f.sample(x, z); if (q && Number.isFinite(q[0])) return q[0]; } return (C.groundH ? C.groundH(x, z) : C.getH(x, z)) + depthAt(x, z); };
+  const SEAT_N = 4;
   function seatDy(v, target) {
     const n = v.length / 3; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
     for (let i = 0; i < n; i++) { const x = v[i * 3], z = v[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
     const lo = [], top = [];
-    for (let i = 0; i < n; i++) { const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2]; const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
+    const N = SEAT_N;
+    for (let i = 0; i < n; i++) { const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2]; const ci = Math.min(N - 1, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * N)), cj = Math.min(N - 1, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * N)), k = ci * N + cj;
       if (!lo[k] || y < lo[k][1]) lo[k] = [x, y, z]; if (top[k] === undefined || y > top[k]) top[k] = y; }
-    const cs = []; for (let k = 0; k < 9; k++) if (lo[k] && top[k] - lo[k][1] > 0.02) cs.push([lo[k][1], top[k] - lo[k][1], SURF(lo[k][0], lo[k][2])]);
+    const cs = []; for (let k = 0; k < N * N; k++) if (lo[k] && top[k] - lo[k][1] > 0.02) cs.push([lo[k][1], top[k] - lo[k][1], SURF(lo[k][0], lo[k][2])]);
     if (!cs.length) return 0;
     const f = (dy) => { let a = 0; for (const [y, h, sf] of cs) a += clamp((sf - (y + dy)) / h, 0, 1); return a / cs.length; };
     let a = -40, b = 40; for (let it = 0; it < 40; it++) { const m = (a + b) / 2; if (f(m) > target) a = m; else b = m; }

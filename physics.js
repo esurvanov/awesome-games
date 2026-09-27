@@ -654,6 +654,23 @@
       acc -= FIXED; n++;
     }
     alpha = acc / FIXED;
+    // pushable props far from every character (> PROP_FAR m) and nearly still go to sleep: the solver only ever works on
+    // the few props next to the pilot (a sleeping body costs nothing and wakes on contact / impulse)
+    if (++propTick % 30 === 0 && characters.length) {
+      for (const d of debris) {
+        if (!d.prop || d.body.isSleeping()) continue;
+        const p = d.body.translation(), lv = d.body.linvel(); let near = false;
+        for (const ch of characters) { const c = ch.collider.translation(); if ((c.x - p.x) ** 2 + (c.z - p.z) ** 2 < PROP_FAR * PROP_FAR) { near = true; break; } }
+        if (!near && lv.x * lv.x + lv.y * lv.y + lv.z * lv.z < 0.25) d.body.sleep();
+      }
+      // a prop never rests under the ground: one that tunnelled (spawned inside the heightfield, knocked through a seam)
+      // is put back on top of the static surface above it, still, and awake so it settles there
+      for (const d of debris) {
+        if (!d.prop) continue;
+        const p = d.body.translation(), h = world.castRay(new R.Ray(v3(p.x, p.y + 60, p.z), v3(0, -1, 0)), 120, true, undefined, groups(G_ALL, G_STATIC));
+        if (h) { const gy = p.y + 60 - h.timeOfImpact; if (p.y < gy - 0.12) { d.body.setTranslation(v3(p.x, gy + 0.6, p.z), true); d.body.setLinvel(v3(), true); d.body.setAngvel(v3(), true); d.body.wakeUp(); propFixes++; } }
+      }
+    }
     // debris sync + lifetime
     const qi = { x: 0, y: 0, z: 0, w: 1 };
     for (let i = debris.length - 1; i >= 0; i--) {
@@ -700,20 +717,3 @@
   root.PhysReady.catch(() => {});   // consumers get the rejection through their own .then/.catch; never an unhandled one
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
-    // pushable props far from every character (> PROP_FAR m) and nearly still go to sleep: the solver only ever works on
-    // the few props next to the pilot (a sleeping body costs nothing and wakes on contact / impulse)
-    if (++propTick % 30 === 0 && characters.length) {
-      for (const d of debris) {
-        if (!d.prop || d.body.isSleeping()) continue;
-        const p = d.body.translation(), lv = d.body.linvel(); let near = false;
-        for (const ch of characters) { const c = ch.collider.translation(); if ((c.x - p.x) ** 2 + (c.z - p.z) ** 2 < PROP_FAR * PROP_FAR) { near = true; break; } }
-        if (!near && lv.x * lv.x + lv.y * lv.y + lv.z * lv.z < 0.25) d.body.sleep();
-      }
-      // a prop never rests under the ground: one that tunnelled (spawned inside the heightfield, knocked through a seam)
-      // is put back on top of the static surface above it, still, and awake so it settles there
-      for (const d of debris) {
-        if (!d.prop) continue;
-        const p = d.body.translation(), h = world.castRay(new R.Ray(v3(p.x, p.y + 60, p.z), v3(0, -1, 0)), 120, true, undefined, groups(G_ALL, G_STATIC));
-        if (h) { const gy = p.y + 60 - h.timeOfImpact; if (p.y < gy - 0.12) { d.body.setTranslation(v3(p.x, gy + 0.6, p.z), true); d.body.setLinvel(v3(), true); d.body.setAngvel(v3(), true); d.body.wakeUp(); propFixes++; } }
-      }
-    }

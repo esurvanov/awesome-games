@@ -1,0 +1,223 @@
+# 🤝 INTERACT — interaction passport + mediator
+
+Before: every touch was a special case for one pair of objects (probe rays → guess a clip → aim the hands at whatever
+the ray hit). Now: every interactable **kind** carries a passport of contact points (data), and one **mediator** picks
+the point, the clip, where to stand and how to face for the pilot's intent. New kinds = re-run the authoring tool, no code.
+
+## 🧩 Architecture
+
+```
+probes (front / knee / sides, 5 Hz) ─► intent (Jev CONTACT_INTENT or rules) ─► INTERACT.plan(intent, touched entries, pilot)
+   passport points of the entry's kind × its transform ─► clip families for the intent (+ what the object offers instead)
+   ─► stand spot + yaw per point/clip ─► checks: patch spans the clip's hand height · walkable free stand · free path · reach
+   ─► palms / feet snapped onto the DRAWN mesh (three-mesh-bvh) ─► steer (≤ 1.4 m/s, ≤ 4.5 rad/s) ─► play ─► hold
+unmarked kinds ─► old probe + BVH path (CONTACT-SURFACE)            marked kind, no valid point ─► no contact (never a palm in the air)
+```
+
+| Part | File | Role (Unity XR analogy) |
+|---|---|---|
+| 🗂 Passport data | `modules/interact-data.js` (generated, ~90 KB) | Interactable: points per kind |
+| 🧠 Mediator | `modules/interact.js` → `window.INTERACT` / `ctx.interact` | Interaction Manager |
+| 🧍 Pilot contact layer | `modules/interaction.js` CT (`contactPlan`, `planStep`) | Interactor |
+| ✋ Limb IK | `assets/pack/animlib-runtime.js` `ContactLayer` / `LimbIK` | hand / foot pose |
+| 🛠 Authoring | `tools/interact/author.mjs` + `author-page.js` | point proposal + contact sheets |
+| 📏 Checks | `tools/interact/run.mjs` + `page.js` (`IX.*`) | engage / gap / animals / pushables / cost |
+
+## 🗂 Passport format
+
+`kinds['<name>|<vertex count>']` — the vertex count is part of the key: a changed model is never mapped with stale points
+(it falls back to the probe path until the tool is re-run).
+
+| Field | Meaning |
+|---|---|
+| `frame` | `anchors` (instanced kinds: the transform of every instance is solved from 4 of its own drawn vertices, checked on 2 more, residual ≤ 2 cm or the instance is skipped) · `obj` (single objects / pushables: the Object3D matrix, live) · `trunk` (Passport cylinder) |
+| `pts[]` | `[x,y,z, nx,ny,nz, ex,ez, type, y0,y1, w]` — type 1 wall patch (vertical extent y0..y1, flat width w), type 2 top rim (e = outward edge) |
+| `rAt` (trunks) | drawn bark radius ÷ Passport cylinder radius at 0.9 / 1.3 / 1.6 m |
+| `alias` | same model under another name (echo stones = ruin pieces) |
+
+Authoring (`node tools/interact/author.mjs [--kinds re] [--merge]`, ~4 min, one browser): mid-size reference instance;
+stations every 0.45 m around its oriented footprint; horizontal rays 0.5–2.2 m → **wall patches** (outward, |n.y| < 0.5,
+vertically continuous ≥ 3 samples, two-palm width test ±0.2 m); downward rays walked in from the rim → **tops** (up-facing,
+two palms ±0.22 m within 25 cm, a hand's depth in). Contact sheets: `stand/interact-author/<kind>-v0/v1.jpg`.
+
+## ✋ Mediator rules
+
+| Intent | Clips tried (object decides) | If the object can't |
+|---|---|---|
+| rest_on_rock | hand_wall_both (face ≥ 0.3 m flat) · lean_hands_ledge (top 0.41–0.86 m) · lean_shoulder_r/l · hand_wall_r/l | — |
+| touch_surface | hand_wall_r/l/both | → rest_on_rock |
+| cross_obstacle | vault_1m (top 0.88–1.22 m, palms within 12 cm of the clip's own height) · step_over (≤ 0.5 m) | → rest_on_rock |
+
+One rule for every clip: the clip's authored contact (character space, surface normal nL) lands on the point with nL turned
+onto the point's outward direction: `yaw = atan2(ex, ez) − atan2(−nL.x, −nL.z)`, `stand = q − left·px − fwd·pz`.
+Walls are re-cast at the clip's own contact height; two-palm holds are squared to the chord between the two snapped palms.
+Shoulder leans (no limb IK) slide the pilot along the normal until the shoulder meets the face.
+
+## 🔧 Fixes found on the way
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Palms "on" a rock, fingers 8–9 cm inside it | `LimbIK` pressed local **±X** onto the surface — on this rig X runs along the fingers | palm axis = local **+Y**, measured: ±X −9.5 / +6.2 cm · ±Z ±8 cm · +Y +1.0 / −0.1 cm (`ANIMLIB.PALM`) |
+| 4 m boulders vaulted | knee probe reads the base as a low obstacle | the passport has no vaultable top there → rest a hand instead |
+| Hands hovering on curved faces | one normal for both palms | square to the snapped palm chord |
+| Thin trunks: two palms in the air | probe path picks hand_wall_both on a 10–20 cm trunk | trunk kinds: one palm or a shoulder, never two |
+
+## 📏 Results (M1 Pro, shared machine, same harness before / after in one tree)
+
+Method (`tools/interact/run.mjs <label> --test '<kinds>'`, before = `--init 'window.INTERACT_OFF=true'`): one mid-size
+instance per kind, the pilot **walks at it from 4 sides** (W held until blocked or the contact layer takes over, then
+released). Engaged = the contact clip is playing. Gap = the **closest glove / boot / sleeve skin vertex to the DRAWN
+mesh**, measured along the drawn surface's own normal with a fresh `THREE.Raycaster` on the rendered geometry (never the
+module's own target); median over the hold, worst of the effectors; `air` = no drawn surface within 60 cm under the palm.
+Target ≤ 3 cm. Engaged / median / worst:
+
+| Kind | Points | Before | After |
+|---|---|---|---|
+| boulder | 47 | 3/4 · 7.8 cm / 34.1 cm | 3/4 · 9.9 cm / 18.1 cm |
+| crate_stack | 18 | 3/4 · 25.2 cm / air | 0/4 · — / — |
+| echo0 | 15 | 1/4 · 11.4 cm / 11.4 cm | 1/4 · 4 cm / 4 cm |
+| kestrel_tail | 49 | 3/4 · 10.6 cm / 68.1 cm | 4/4 · 6.7 cm / 21 cm |
+| kestrel_wing | 36 | 0/4 · — / — | 3/4 · 3.5 cm / 3.5 cm |
+| kestrel | 142 | 3/4 · 5.2 cm / 23.1 cm | 3/4 · 2.4 cm / 2.5 cm |
+| rock_flat | 3 | 0/4 · — / — | 1/4 · 3.9 cm / 3.9 cm |
+| rock_outcrop | 14 | 1/4 · air / air | 0/4 · — / — |
+| rock (2515 v) | 5 | 0/4 · — / — | 1/4 · — / — |
+| rock (4648 v) | 8 | 1/4 · air / air | 2/4 · air / air |
+| rock (4716 v) | 47 | 1/4 · 5.2 cm / 5.2 cm | 2/4 · 1.9 cm / 1.9 cm |
+| spireN | 153 | 1/4 · 21.9 cm / 21.9 cm | 0/4 · — / — |
+| st_cairn | 7 | 1/4 · 52.2 cm / 52.2 cm | 1/4 · — / — |
+| st_drum_depot | 16 | 0/4 · — / — | 1/4 · — / — |
+| st_ruin_arch | 15 | 1/4 · air / air | 1/4 · air / air |
+| st_ruin_column | 27 | 2/4 · 15.8 cm / 15.8 cm | 3/4 · 8.3 cm / 24.8 cm |
+| st_ruin_wall | 35 | 2/4 · air / air | 2/4 · 8.3 cm / 8.3 cm |
+| st_sledge | 4 | 0/4 · — / — | 0/4 · — / — |
+| st_tent_polar_stove | 29 | 2/4 · 18.4 cm / 18.4 cm | 1/4 · — / — |
+| st_tent_polar | 28 | 2/4 · air / air | 1/4 · 3.3 cm / 3.3 cm |
+| station_dome | 121 | 3/4 · 7.9 cm / 7.9 cm | 3/4 · 4.5 cm / 9.4 cm |
+| station_module | 21 | 2/4 · air / air | 0/4 · — / — |
+| station_sledge | 5 | 2/4 · air / air | 2/4 · air / air |
+| struct_hab_module | 71 | 3/4 · 7.9 cm / 7.9 cm | 4/4 · 10.9 cm / 19.1 cm |
+| tool_crate | 18 | 0/4 · — / — | 1/4 · 20.3 cm / 20.3 cm |
+| vehicle_rover_sev | 43 | 2/4 · 20.4 cm / 20.4 cm | 2/4 · 6.3 cm / 6.3 cm |
+| barrel_steel | 4 (push: live snap) | 1/4 · — / — | 0/4 · — / — |
+| crate_wood_02 | push: live snap | 2/4 · — / — | 0/4 · — / — |
+| crate_wood | push: live snap | 3/4 · — / — | 2/4 · — / — |
+| drum_blue | push: live snap | 0/4 · — / — | 3/4 · — / — |
+| lamp_post | ring | 3/4 · air / air | 3/4 · air / air |
+| prop_barrel_01 | 4 (push: live snap) | 1/4 · — / — | 2/4 · — / — |
+| prop_crate_military | push: live snap | 2/4 · — / — | 4/4 · — / — |
+| prop_crate_wood | 2 (push: live snap) | 2/4 · — / — | 4/4 · — / — |
+| st_pole | ring | 4/4 · air / air | 3/4 · air / air |
+| tree_dead_birch | ring | 4/4 · air / air | 4/4 · air / air |
+| tree_fir_windbent | ring | 4/4 · air / air | 3/4 · 4.3 cm / 5.2 cm |
+| tree_snag_dead | ring | 2/4 · air / air | 2/4 · 24.4 cm / 24.4 cm |
+| tree_spruce_dense_tall | ring | 4/4 · 35.1 cm / air | 4/4 · 11.2 cm / 29.5 cm |
+| tree_spruce_tall_snow | ring | 3/4 · 13.5 cm / air | 3/4 · 5.5 cm / 5.8 cm |
+
+Passport self-check (`IX.verifyAll()`): anchor residual ≤ 1.5 mm on every instanced kind; 96–100 % of mapped points lie
+on each instance's drawn surface (spires 85 %: plinth rim).
+
+### ✅ / 🔴 Honest reading
+
+| | |
+|---|---|
+| ✅ at target | Kestrel hull 2.4 / 2.5 cm (was 5.2 / 23), wing 3.5 (never engaged before), scanned rock 1.9 (5.2), polar tent 3.3 (air), flat rock 3.9 (never engaged), echo stone 4.0 (11.4) |
+| 🟡 better, not at target | rover 6.3 (20.4), ruin wall 8.3 (air), dome 4.5 / 9.4 (7.9), boulder worst 18 (34), Kestrel tail worst 21 (68) |
+| 🟡 trunks | fir windbent 4.3 / 5.2 (air before), spruce tall 5.5 (13.5), dense spruce 11 / 30 (35 / air) · lamp post, pole, birch still `air`: the palm lands on the fitted cylinder, the drawn trunk is thinner there (radius-per-height data unreliable) |
+| 🟡 pushables | engage 2–4 of 4 on most props (drum 0 → 3 of 4), palms snap onto the drawn prop, but the push gap itself was not captured by the harness (too few high-weight frames) |
+| 🔴 not solved | hab module 10.9 / 19 (was 7.9), ruin column worst 25, tool crate 20 (ledge palms into the lid), several kinds engage 0–1 of 4 (no valid stand spot from that side: `INTERACT.STATS.why` — mostly `fit:span` = the face does not reach palm height at that spot) |
+
+## 🦌 Animals vs solids — 30 s scripted run (`IX.animals(30)`)
+
+Each stag is sent at the nearest sizeable solid 10–45 m away every 5 s; the fox is sent to a point behind a rock.
+| | Before | After |
+|---|---|---|
+| Stag capsule inside a solid | 4 of 5196 stag-frames (0.08 %) | **2 of 9174 (0.02 %)** |
+| Fleeing stag pressed / scraping (moved < 40 % of its step) | 83 of 4466 flee-frames (1.9 %) | **57 of 8687 (0.66 %)** |
+| Fox capsule inside a solid | 0 | 0 |
+| Fox seeking but not moving (stuck at a rock) | 6 frames | 🔴 71 frames |
+
+Before, the game's own 2D circle push-out already kept bodies mostly outside (hence few overlaps); the steering removes
+most of the remaining scraping. Fox: overlaps stay 0, but the re-aimed step sometimes holds still for a few frames when
+both sides of a rock are blocked ("boxed in") — worse than before, left for later. Frame counts differ because the
+machine was loaded differently (same 30 s).
+
+## 📦 Pushables — shoved down a 24° slope (`IX.pushTest`)
+
+| Prop | Collider | Rest at | Slid / rolled | Jitter after rest |
+|---|---|---|---|---|
+| crate_wood_02 | hull (before) | 4.4 s | 23.3 m, tumbling | 0.23 mm |
+| crate_wood_02 | **box** | **2.7 s**, asleep, toppled 167° | **5.6 m** | **0.07 mm**, 0 wakes |
+| drum_blue | hull | still rolling at 7 s | 31 m | — |
+| drum_blue | **cylinder** | still rolling (round) | 12.6 m | — |
+| prop_crate_military | hull / box | 1.2 / 1.7 s | 3.0 / 2.9 m | 0.06 / 1.2 mm |
+
+Box / upright cylinder is chosen only when the prop's points fill it (outline corners, ring radius); flat or irregular
+props keep the hull. Far (> 40 m) nearly still props are put to sleep; a prop found under the ground is put back on the
+surface above it (a fitted camp crate spawned overlapping its neighbour was ejected 23.6 m under the one-sided
+heightfield; with the guard, a fresh load has 0 of 17 props under the ground, lowest gap −12 cm = sunk into the snow skin).
+
+## ⚡ Cost — CDP CPU throttle 4× (`IX.costSuite()`), before → after
+
+Per-frame JS of the interaction module (EMA) and the physics step, M1 Pro under 4× throttle (≈ Intel Air class CPU):
+
+| Scenario | interaction ms before → after | physics step ms before → after | frame median ms before → after |
+|---|---|---|---|
+| idle, open snow | 1.97 → 1.82 | 0.69 → 0.55 | 28.4 → 28.3 |
+| holding a contact | 2.27 → 2.02 | 0.30 → 0.20 | 42.3 → 32.0 |
+| 6 stags fleeing (steering rays) | 2.00 → 2.09 | 0.24 → 0.21 | 19.0 → 18.1 |
+| pushing a crate / drum | 3.04 → 3.36 | 1.23 → 0.78 (max 12.6 → 7.3) | 44.3 → 41.0 |
+| props at rest nearby | 1.90 → 1.78 | 0.72 → 0.27 | 27.6 → 26.9 |
+
+Per-frame cost unchanged within noise; the fitted colliders make the physics step cheaper. 🔴 One-time spike when a
+contact starts: **≈ 21 ms at 4×** on the first touch of an object (building that object's BVH + the plan); later plans
+0.3–5 ms. Worth moving the BVH build to load time for the kinds near the pilot.
+
+## 👁 Look-gate
+
+`node tools/look-gate.mjs run interact1 --subjects boulder,pilot_wall,pilot_wreck,pilot_tree,pilot_push` at 1512×860 @2x
+→ `stand/lookgate-interact1/`, `review.json` written honestly (`check`/`accept` deliberately not run, per instructions).
+New subjects for this wave: `pilot_wall` (ruin wall), `pilot_wreck` (Kestrel), `pilot_tree` (trunk), `pilot_push` (crate) —
+`tools/look/subjects-interact.mjs` / `lg-interact.js`, the pilot really walks up (W held) and the contact layer takes over.
+
+| Subject | Verdict |
+|---|---|
+| 🪨 boulder | visible, plausible contact; vs accepted **same** (worst-case gap much better, median gap slightly worse — a wash, not a clean win) |
+| 🧱 pilot_wall | visible, plausible seated lean; new subject, no baseline to compare |
+| ✈ pilot_wreck | 🔴 **camera-framing bug**: the shot is almost entirely the pilot's own helmet in close-up; the wreck and the contact point are off-frame even though `run.json` says the shoulder-lean clip did engage |
+| 🌲 pilot_tree | 🔴 same class of bug: camera sits under the overhanging branches, trunk and the pilot's hand aren't in frame |
+| 📦 pilot_push | 🔴 **this specific attempt never engaged**: `run.json` records `hands -` (push state never entered); the strip shows the pilot running past / hopping over the crate instead of pushing it — consistent with `crate_wood` engaging only 2 of 4 approach angles, and this scripted single-angle test landed on a non-engaging side |
+
+Honest overall read: only boulder and pilot_wall are both visible and judgeable, and neither is a clean win over what
+came before. pilot_wreck / pilot_tree are look-gate camera bugs (`lg-interact.js`'s `shot()` distance/yaw needs
+per-species tuning), not evidence against the interaction engine. pilot_push is a real engagement miss, the same gap
+already measured honestly in the engage-rate table above. `review.json` verdict: **reject** — real, partial progress,
+not yet a clean pass; left for the main agent alongside the rest of this list.
+
+## 🔌 Knobs
+
+| Knob | Default | |
+|---|---|---|
+| `INTERACTION.K.passport` / `passportOnly` | true / true | mediator on; marked kinds never fall back to probe hands |
+| `INTERACTION.K.steerSpeed` / `steerTurn` / `steerMax` | 1.4 m/s / 4.5 rad/s / 2.2 s | walk-in to the stand spot |
+| `INTERACTION.K.avoid` / `avoidTurn` | true / 5.5 rad/s | stag / fox steering |
+| `INTERACT.K.reach` / `maxStandMove` / `maxTurn` / `nearPts` | 2.2 m / 1.6 m / 2.4 rad / 14 | mediator search |
+| `window.INTERACT_OFF = true` (before load) | — | the whole pre-INTERACT behaviour for A/B (passport, steering, palm axis, prop fit) |
+| `window.PHYS_PROP_FIT = false` | — | hull colliders for props |
+
+## 🧾 Left for later
+
+- Engage rate: from some sides no stand spot passes (face below palm height, stand spot on another solid). Needs points on
+  lower faces for the one-palm / ledge clips and a "turn to the side that works" step.
+- Hab module / ruin column / tool crate still 10–25 cm; the vault clip is only planned for 0.88–1.22 m tops (its palms
+  can't reach lower); step_over has no root motion applied (the body snaps back at the end — pre-existing).
+- Trunk radius per height for 5 spruce kinds hit the 0.3 clamp (bark hidden in branches): leans on them are unmeasured.
+- Pushables: the drawn-mesh palm snap works while pushing, but the harness measured too few frames to give a gap number.
+- Kinds are keyed by vertex count: when another agent changes a model, re-run `node tools/interact/author.mjs` (~4 min).
+- Look-gate camera bugs (not engine bugs): `lg-interact.js`'s `shot()` framing for `pilot_wreck` and `pilot_tree` puts
+  the camera almost inside the pilot's own helmet / under the tree canopy — the contact itself engages (`run.json`
+  confirms the clip), but the screenshot doesn't show it. Needs per-subject `dist`/`yawOff` tuning before it's a usable
+  visual check.
+- `pilot_push` look-gate take: the single scripted approach angle (`a = 0.6`) missed every engaging side of that
+  `crate_wood` instance this run (`hands -` in `run.json`); re-run with `engage()`-style multi-angle retry (already
+  used by `pilot_wall`/`pilot_wreck`/`pilot_tree`'s `shot()`) instead of one fixed angle.

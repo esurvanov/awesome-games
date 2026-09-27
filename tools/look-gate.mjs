@@ -17,6 +17,8 @@ import { execFileSync } from 'node:child_process';
 import { SUBJECTS, CRITERIA, ANTI, criteriaOf } from './look/subjects.mjs';
 import './look/subjects-snow.mjs';   // SNOW-CONTACT: + snow_contact (player-camera boots / prints)
 import './look/subjects-body.mjs';   // PHYSBODY: body_stop / body_bump / body_push / body_fall / body_slope (gameplay camera)
+import './look/subjects-interact.mjs';   // INTERACT: + pilot_wall / pilot_wreck / pilot_tree / pilot_push (player camera)
+import './look/subjects-camp.mjs';   // CAMP: + camp_fire / tents (player-camera framings, lg-camp.js)
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const OUT = path.join(ROOT, 'stand');
@@ -46,10 +48,10 @@ async function run() {
   let H = null;
   const boot = async () => {
     if (H) await H.close().catch(() => {});
-    H = await openGame({ label: 'look-gate ' + label, lock: false, quality: opt('quality', 'high'), size, headful: !!opt('headful'), log });
+    H = await openGame({ label: 'look-gate ' + label, lock: false, quality: opt('quality', 'high'), size, dpr: Number(opt('dpr', 1)), headful: !!opt('headful'), log });
     meta.gpu = H.gpu;
     await H.newGame();
-    for (const f of ['tools/qa/qa-views.js', 'tools/look/lg-page.js', 'tools/look/lg-snow.js']) await H.page.evaluate(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+    for (const f of ['tools/qa/qa-views.js', 'tools/look/lg-page.js', 'tools/look/lg-snow.js', 'tools/look/lg-interact.js', 'tools/look/lg-camp.js']) await H.page.evaluate(fs.readFileSync(path.join(ROOT, f), 'utf8'));
     await H.page.evaluate(fs.readFileSync(path.join(ROOT, 'tools/look/lg-body.js'), 'utf8'));   // PHYSBODY framings
     await H.page.evaluate(() => LG.hud(false));
     await sleep(2500);

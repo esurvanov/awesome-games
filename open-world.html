@@ -1656,31 +1656,74 @@ const Passport = (() => {
   // EXACT.far it goes back to the hull. All-trimesh for the ~580 hull entries = 1.5 M triangles, +1.2 s build on M1,
   // ~+290 MB — too much for the Intel Air; near-only is ~20–40 entries. Opt out per entry: opts.exact = false.
   // ?colhull in the URL = old behaviour (A/B in tools/qa/realism.mjs).
-  const EXACT = { on: !/[?&]colhull\b/.test(location.search), near: 45, far: 70, hard: 14, n: 0, builds: 0, ms: 0, maxMs: 0, list: [] };
+  // REALISM-QA 2: one exact build of a 4.5 k-triangle scan cost up to 16.7 ms at CPU ×4 (a dropped frame on the Air). The
+  // trimesh is now built in chunks of ≤ EXACT.chunk triangles (split along the entry's long axis), a few per frame within
+  // EXACT.budget ms; the hull stays until the last chunk is in, then the chunks replace it in one step (never a frame
+  // without a collider). Only entries within EXACT.hard m of the pilot (teleport next to a rock) are built at once.
+  const EXACT = { on: !/[?&]colhull\b/.test(location.search), near: 45, far: 70, hard: 3, chunk: 1200, budget: 1.5, n: 0, builds: 0, chunks: 0, ms: 0, maxMs: 0, frameMax: 0, list: [] };
   const exactable = (e) => e.role === 'solid' && e.shape === 'hull' && e.opts.exact !== false && !!e.geo;
-  function setExact(e, on) {
-    for (const c of e.colliders) try { phys.removeCollider(c); } catch (err) { /* gone */ }
-    e.colliders.length = 0; e.exact = on;
-    const tagv = { kind: e.role, name: e.name, passport: e.id, exact: on };
-    const t0 = performance.now();
-    if (on) e.colliders.push(phys.addStaticTrimesh(e.geo.v, e.geo.i, tagv, { friction: e.opts.friction }));
-    else { const c = phys.addStaticConvex(e.geo.v, tagv); if (c) e.colliders.push(c); }
-    const ms = performance.now() - t0; EXACT.ms += ms; EXACT.maxMs = Math.max(EXACT.maxMs, ms); if (on) EXACT.builds++;
-    EXACT.n += on ? 1 : -1;
+  const exTag = (e, on) => ({ kind: e.role, name: e.name, passport: e.id, exact: on });
+  // triangles sorted by centroid along the longest box axis → consecutive runs of ≤ chunk triangles, each its own index
+  // space (a chunk is a small patch of the surface: Rapier's internal-edge fix works inside it; the seams are rare)
+  function exactChunks(e) {
+    if (e._exP) return e._exP;
+    const g = e.geo, nt = g.i.length / 3, K = Math.ceil(nt / EXACT.chunk);
+    if (K <= 1) return (e._exP = [{ v: g.v, i: g.i }]);
+    const b = e.box, ax = [0, 1, 2].sort((p, q) => (b.max[q] - b.min[q]) - (b.max[p] - b.min[p]))[0], key = new Float32Array(nt), ord = new Uint32Array(nt);
+    for (let t = 0; t < nt; t++) { ord[t] = t; key[t] = g.v[g.i[t * 3] * 3 + ax] + g.v[g.i[t * 3 + 1] * 3 + ax] + g.v[g.i[t * 3 + 2] * 3 + ax]; }
+    ord.sort((p, q) => key[p] - key[q]);
+    const out = [], per = Math.ceil(nt / K);
+    for (let k = 0; k < K; k++) {
+      const map = new Map(), v = [], ix = new Uint32Array(Math.min(per, nt - k * per) * 3); let o = 0;
+      for (let q = k * per; q < Math.min(nt, (k + 1) * per); q++) for (let c = 0; c < 3; c++) {
+        const s = g.i[ord[q] * 3 + c]; let d = map.get(s); if (d === undefined) { d = v.length / 3; map.set(s, d); v.push(g.v[s * 3], g.v[s * 3 + 1], g.v[s * 3 + 2]); } ix[o++] = d; }
+      out.push({ v: new Float32Array(v), i: ix });
+    }
+    return (e._exP = out);
   }
-  // every frame (from idle): nearest first; everything within EXACT.hard m at once (teleport next to a rock), the rest
-  // one build per frame (≈ 2 ms per 5 k-triangle rock on M1)
+  // build the next chunk of e's exact shape; true once e is exact (the hull removed, the chunks are its colliders)
+  function stepExact(e) {
+    const P = exactChunks(e), done = e._exDone || (e._exDone = []), c = P[done.length];
+    done.push(phys.addStaticTrimesh(c.v, c.i, exTag(e, true), { friction: e.opts.friction })); EXACT.chunks++;
+    if (done.length < P.length) return false;
+    for (const q of e.colliders) try { phys.removeCollider(q); } catch (err) { /* gone */ }
+    e.colliders.length = 0; e.colliders.push(...done); e._exDone = null; e.exact = true; EXACT.n++; EXACT.builds++;
+    return true;
+  }
+  function dropPartial(e) { if (e._exDone) for (const q of e._exDone) try { phys.removeCollider(q); } catch (err) { /* gone */ } e._exDone = null; }
+  function setExact(e, on) {
+    const t0 = performance.now();
+    if (on) { if (!e.exact) while (!stepExact(e)) { /* all chunks now */ } }
+    else {
+      dropPartial(e); for (const c of e.colliders) try { phys.removeCollider(c); } catch (err) { /* gone */ }
+      e.colliders.length = 0; if (e.exact) EXACT.n--; e.exact = false; e._exP = null;
+      const c = phys.addStaticConvex(e.geo.v, exTag(e, false)); if (c) e.colliders.push(c);
+    }
+    const ms = performance.now() - t0; EXACT.ms += ms; EXACT.maxMs = Math.max(EXACT.maxMs, ms);
+  }
+  // every frame (from idle): entries within EXACT.hard m at once; else chunks of the nearest pending entries while the
+  // frame's EXACT.budget lasts (at least one chunk per frame); beyond EXACT.far back to the hull
   function stream() {
     if (!phys || !EXACT.on || typeof player === 'undefined') return;
     const px = player.x, pz = player.z, up = [];
     for (const e of EXACT.list) {
       if (!e.alive) continue;
       const b = e.box, dx = Math.max(b.min[0] - px, 0, px - b.max[0]), dz = Math.max(b.min[2] - pz, 0, pz - b.max[2]), d = Math.hypot(dx, dz);
-      if (!e.exact && d < EXACT.near) up.push([d, e]); else if (e.exact && d > EXACT.far) { try { setExact(e, false); } catch (err) { /* keep */ } }
+      if (!e.exact && d < EXACT.near) up.push([d, e]);
+      else if ((e.exact || e._exDone) && d > EXACT.far) { try { setExact(e, false); } catch (err) { /* keep */ } }
     }
     if (!up.length) return;
     up.sort((a, b) => a[0] - b[0]);
-    for (let k = 0; k < up.length; k++) { if (k > 0 && up[k][0] > EXACT.hard) break; try { setExact(up[k][1], true); } catch (err) { console.warn('[Passport] exact', up[k][1].name, err && err.message); up[k][1].opts.exact = false; } }
+    const t0 = performance.now(), fail = (e, err) => { console.warn('[Passport] exact', e.name, err && err.message); dropPartial(e); e.opts.exact = false; };
+    for (let k = 0; k < up.length; k++) {
+      const [d, e] = up[k];
+      try {
+        if (d <= EXACT.hard) { setExact(e, true); continue; }
+        while (!e.exact && (performance.now() - t0 < EXACT.budget || k === 0 && !e._exDone)) if (stepExact(e)) break;
+      } catch (err) { fail(e, err); }
+      if (performance.now() - t0 >= EXACT.budget) break;
+    }
+    const ms = performance.now() - t0; EXACT.ms += ms; EXACT.frameMax = Math.max(EXACT.frameMax, ms); EXACT.maxMs = Math.max(EXACT.maxMs, ms);
   }
   function flush() { while (fpQueue.length) doFootprint(fpQueue.shift()); }
   const _v = new V3(), _m = new THREE.Matrix4(), _mi = new THREE.Matrix4();
@@ -1930,6 +1973,7 @@ const Passport = (() => {
     if (e.debris && phys) phys.removeDebris(e.debris);
     e.colliders.length = 0; for (const c of e.circles) c.off = true;
     const i = list.indexOf(e); if (i >= 0) list.splice(i, 1); const j = byRole[e.role].indexOf(e); if (j >= 0) byRole[e.role].splice(j, 1);
+    if (e._exDone) dropPartial(e);
     const x = EXACT.list.indexOf(e); if (x >= 0) { EXACT.list.splice(x, 1); if (e.exact) EXACT.n--; }
   }
   function attach(P) { phys = P; const t0 = performance.now(); for (const e of list) toPhys(e); stats.physMs = performance.now() - t0; }
@@ -3701,6 +3745,7 @@ if (GL) {
     // inner shell (reversed triangles, flipped normals) + single-sided materials draws the inside correctly lit
     root.traverse((o) => { if (!o.isSkinnedMesh || !window.STRUCT || !STRUCT.shellInside) return; const ms = [].concat(o.material);
       if (ms.some((m) => m.side === THREE.DoubleSide && !m.transparent)) { o.geometry = STRUCT.shellInside(o.geometry); ms.forEach((m) => { if (!m.transparent) m.side = THREE.FrontSide; }); } });
+    if (window.STRUCT && STRUCT.albedoFloor) STRUCT.albedoFloor(root);   // REALISM-QA rule 2: suit plastic_black 28 → floor
     attach(player.c.g, root); player.c.body.visible = false;
     AV.player = makeAnimator(root, g.animations, { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', run: 'Sprint_Loop', jump: 'Jump_Loop', land: 'Jump_Land',
       aim: 'Pistol_Idle_Loop', shoot: 'Pistol_Shoot', roll: 'Roll', interact: 'Interact', wave: 'Idle_Talking_Loop', hit: 'Hit_Chest', death: 'Death01', drive: 'Driving_Loop', slide: 'Slide_Loop', climb: 'ClimbUp_1m' });
@@ -4168,6 +4213,8 @@ loadPacked('animal_stag', ASSET, (g) => {
     else if (!m.map && m.color && !/eye/i.test(m.name || '')) m.color.setHex(0xc9c2b4);
     m.needsUpdate = true;
   });
+  // REALISM-QA rule 2: the eyes (39 sRGB) up to the albedo floor (wet dark eye ≈ 0.04 linear), hue kept
+  if (window.STRUCT && STRUCT.albedoFloor) base.traverse((o) => { if (o.isMesh && /eye/i.test(([].concat(o.material)[0] || {}).name || '')) STRUCT.albedoFloor(o); });
   const spots = [[-110, 40], [-95, 55], [-120, 58], [135, -45], [150, -30], [60, 150]];
   for (const [x, z] of spots) {
     if (getH(x, z) < 1 || inRift(x, z)) continue;

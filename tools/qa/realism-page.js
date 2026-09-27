@@ -107,13 +107,15 @@
     for (const e of ents) for (let i = Math.floor(e.box.min[0] / CS); i <= Math.floor(e.box.max[0] / CS); i++) for (let j = Math.floor(e.box.min[2] / CS); j <= Math.floor(e.box.max[2] / CS); j++) { const k = i + ',' + j; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(e); }
     const out = new Map(), M = new T.Matrix4(), c = new T.Vector3();
     for (const p of QR.props()) {
-      if (p.tree || !/rock|boulder|crystal|ruin|ice|berg|ridge|crate|drum|barrel|cairn|inuksuk|pole|tent|hab|station|kestrel|wreck|sledge|snowcat|rover/i.test(p.nc)) continue;
+      if (p.tree || (() => { for (let q = p.m; q; q = q.parent) if (q.userData && q.userData.qaPassable) return true; return false; })() || !/rock|boulder|crystal|ruin|ice|berg|ridge|crate|drum|barrel|cairn|inuksuk|pole|tent|hab|station|kestrel|wreck|sledge|snowcat|rover/i.test(p.nc)) continue;
       const g = p.m.geometry; if (!g.boundingSphere) g.computeBoundingSphere();
       const n = p.m.isInstancedMesh ? p.m.count : 1;
       for (let i = 0; i < n; i++) {
         if (p.m.isInstancedMesh) { p.m.getMatrixAt(i, M); M.premultiply(p.m.matrixWorld); } else M.copy(p.m.matrixWorld);
         c.copy(g.boundingSphere.center).applyMatrix4(M); const r = g.boundingSphere.radius * M.getMaxScaleOnAxis(); if (r < 0.3) continue;
-        const hit = (grid.get(key(c.x, c.z)) || []).some((e) => c.x > e.box.min[0] - 0.3 && c.x < e.box.max[0] + 0.3 && c.z > e.box.min[2] - 0.3 && c.z < e.box.max[2] + 0.3 && c.y > e.box.min[1] - 1 && c.y < e.box.max[1] + 1);
+        // the drawn instance's core (half its bounding sphere) must touch a collider box: the centre alone missed tall
+        // models whose collider is only the part above the ice / ground (pier: piles clipped below the lake ice)
+        const rc = r * 0.5, hit = (grid.get(key(c.x, c.z)) || []).some((e) => { const dx = Math.max(e.box.min[0] - 0.3 - c.x, 0, c.x - e.box.max[0] - 0.3), dy = Math.max(e.box.min[1] - 1 - c.y, 0, c.y - e.box.max[1] - 1), dz = Math.max(e.box.min[2] - 0.3 - c.z, 0, c.z - e.box.max[2] - 0.3); return dx * dx + dy * dy + dz * dz <= rc * rc; });
         if (!hit) { const k = p.name; const o = out.get(k) || { name: k, n: 0, r: 0, at: null }; o.n++; if (r > o.r) { o.r = r3(r); o.at = [r3(c.x), r3(c.y), r3(c.z)]; } out.set(k, o); }
       }
     }
@@ -237,15 +239,25 @@
   const FX = /glow|beam|rune|scan|marker|bolt|fx_|spark|smoke|flame|ember|aurora|sky|moon|star|glass|window|screen|lamp_glow|crystal|shard|heart|spire|portal|echo_fx|hologram|objective/i;
   const nameChain = (o, m) => { let t = (m && m.name) || ''; for (let q = o, k = 0; q && k < 4; q = q.parent, k++) t += '|' + (q.name || '') + '|' + ((q.userData && q.userData.source) || ''); return t; };
   // drawn static meshes the player can walk up to: not terrain / actors / passables (grass, decals) / fx
+  // a single continuous surface (the frozen sea, the lake ice sheet) has no in-scene .name (only the JS variable is
+  // named) and its own geometry footprint is a whole terrain feature, never a "prop" — GROUNDS misses it by name, so
+  // its huge bounding sphere (a real prop tops out around the Kestrel's ~20 m) wrongly "covers" every Passport box in
+  // reach and gets attributed to whichever one QR.weathering finds first (REALISM-QA rule 6, wf_fire_ring / st_rowboat
+  // false positives — the lake ice sheet, 49 m radius, still reaches the rowboat that sits on the shore next to it).
+  // groundblend.js already knows these by direct reference (its flatRoots()); do the same instead of guessing a name,
+  // with the size cap only as a backstop for anything else built the same way.
+  const flatTerrain = () => new Set([C.sea, C.lakeIce, C.fpMesh, C.WORLD_TERRAIN && C.WORLD_TERRAIN.mesh].filter(Boolean));
+  const PROP_R_MAX = 250;
   QR.props = (o = {}) => {
-    const acts = new Set(actorRoots()), out = [];
+    const acts = new Set(actorRoots()), flat = flatTerrain(), out = [];
     D.scene.traverse((m) => {
-      if (!(m.isMesh || m.isInstancedMesh) || m.isSkinnedMesh || m.isSprite || m === D.terrainMesh || GROUNDS.test(m.name || '')) return;
+      if (!(m.isMesh || m.isInstancedMesh) || m.isSkinnedMesh || m.isSprite || m === D.terrainMesh || flat.has(m) || GROUNDS.test(m.name || '')) return;
       const mat = matsOf(m)[0]; if (!litMat(mat) || (mat.transparent && mat.depthWrite === false)) return;
       const nc = nameChain(m, mat);
       if (PASSABLE.test(nc) || (!o.fx && FX.test(nc))) return;
       for (let q = m; q; q = q.parent) if (acts.has(q)) return;
       if (!visible(m) || (m.isInstancedMesh && m.count < 1)) return;
+      const g = m.geometry; if (g) { if (!g.boundingSphere) g.computeBoundingSphere(); if (g.boundingSphere && g.boundingSphere.radius > PROP_R_MAX) return; }
       out.push({ m, name: m.name || (m.parent && m.parent.name) || m.type, tree: TREE.test(nc), nc });
     });
     return out;
@@ -279,13 +291,16 @@
     const w = neck.length ? neck.sort((a, b) => a.y - b.y)[0] : spine.sort((a, b) => b.y - a.y)[0];
     // shoulder in the REST (bind) pose — the live pose may be sitting / grazing: bone bind position = inverse(boneInverse),
     // vertices at bind = bindMatrix × position; scaled by (current world scale ÷ bind-time scale)
-    let rest = null;
+    let rest = null, restBone = null;
     if (w) root.traverse((o) => { if (rest || !o.isSkinnedMesh) return; const sk = o.skeleton, bi = sk.bones.findIndex((b) => b.name === w.n); if (bi < 0) return;
-      const bp = new T.Vector3().setFromMatrixPosition(sk.boneInverses[bi].clone().invert()), P = o.geometry.attributes.position, v = new T.Vector3(); let mn = 1e9;
-      for (let i = 0; i < P.count; i += 3) { v.fromBufferAttribute(P, i).applyMatrix4(o.bindMatrix); mn = Math.min(mn, v.y); }
-      const s0 = new T.Vector3().setFromMatrixScale(o.bindMatrix).y, s1 = new T.Vector3().setFromMatrixScale(o.matrixWorld).y;
-      rest = (bp.y - mn) * s1 / (s0 || 1); });
-    return { id, stature: r3(y1 - y0), shoulderPose: w ? r3(w.y - y0) : null, shoulder: rest != null ? r3(rest) : w ? r3(w.y - y0) : null, shoulderBone: w ? w.n : null, bones: bones.length };
+      const bp = new T.Vector3().setFromMatrixPosition(sk.boneInverses[bi].clone().invert()), P = o.geometry.attributes.position, v = new T.Vector3(); let mn = 1e9, top = -1e9;
+      const s0 = new T.Vector3().setFromMatrixScale(o.bindMatrix).y, s1 = new T.Vector3().setFromMatrixScale(o.matrixWorld).y, k = s1 / (s0 || 1), rad = 0.05 / k;
+      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(o.bindMatrix); mn = Math.min(mn, v.y);
+        if (v.y > bp.y - 0.02 / k && Math.hypot(v.x - bp.x, v.z - bp.z) < rad) top = Math.max(top, v.y); }
+      // shoulder height as measured on a living animal: ground → top of the coat straight above the withers joint
+      // (the base-of-neck bone, rest pose); the bone itself sits 3–6 cm inside the body
+      rest = ((top > -1e8 ? top : bp.y) - mn) * k; restBone = (bp.y - mn) * k; });
+    return { id, stature: r3(y1 - y0), shoulderPose: w ? r3(w.y - y0) : null, shoulder: rest != null ? r3(rest) : w ? r3(w.y - y0) : null, shoulderAtBone: r3(restBone), shoulderBone: w ? w.n : null, bones: bones.length };
   }
   QR.sizes = () => {
     const rows = [];
@@ -398,21 +413,21 @@
 
   /* ---- 5. texel density (px of the albedo map per metre) ---- */
   const geoCache = new Map();
-  function uvStats(geo) {
-    if (geoCache.has(geo.uuid)) return geoCache.get(geo.uuid);
-    const P = geo.attributes.position, U = geo.attributes.uv; let res = null;
+  function uvStats(geo, ch = 0) {
+    const ck = geo.uuid + '|' + ch; if (geoCache.has(ck)) return geoCache.get(ck);
+    const P = geo.attributes.position, U = geo.attributes[ch ? 'uv' + ch : 'uv'] || geo.attributes.uv; let res = null;
     if (P && U) { const I = geo.index, n = I ? I.count : P.count, st = Math.max(1, Math.floor(n / 3 / 4000)) * 3; let wa = 0, ua = 0; const a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3();
       for (let t = 0; t + 2 < n; t += st) { const i0 = I ? I.getX(t) : t, i1 = I ? I.getX(t + 1) : t + 1, i2 = I ? I.getX(t + 2) : t + 2;
         a.fromBufferAttribute(P, i0); b.fromBufferAttribute(P, i1); c.fromBufferAttribute(P, i2); wa += b.sub(a).cross(c.sub(a)).length() / 2;
         const u0 = U.getX(i0), v0 = U.getY(i0), u1 = U.getX(i1) - u0, v1 = U.getY(i1) - v0, u2 = U.getX(i2) - u0, v2 = U.getY(i2) - v0; ua += Math.abs(u1 * v2 - u2 * v1) / 2; }
       res = { wa, ua }; }
-    geoCache.set(geo.uuid, res); return res;
+    geoCache.set(ck, res); return res;
   }
   QR.texel = () => {
     const out = [];
     for (const p of QR.props()) {
       const m = matsOf(p.m)[0], t = m.map; if (!t || !t.image || !(t.image.width)) continue;
-      const u = uvStats(p.m.geometry); if (!u || u.wa < 1e-6 || u.ua < 1e-9) continue;
+      const u = uvStats(p.m.geometry, t.channel || 0); if (!u || u.wa < 1e-6 || u.ua < 1e-9) continue;
       const rep = (t.repeat ? t.repeat.x * t.repeat.y : 1), dens0 = Math.sqrt(t.image.width * t.image.height * u.ua * rep / u.wa);   // px per local metre
       const inst = instancesOf(p.m); if (!inst.length) continue;
       for (const q of inst.length > 400 ? inst.filter((_, i) => i % Math.ceil(inst.length / 400) === 0) : inst) { const sc = Math.cbrt(Math.abs(q.s[0] * q.s[1] * q.s[2])) || 1; out.push({ name: p.name, mat: m.name, tree: p.tree, p: q.p.map(r3), d: +(dens0 / sc).toFixed(1), tex: [t.image.width, t.image.height] }); }
@@ -421,24 +436,41 @@
   };
 
   /* ---- 6a. faceting: smooth-shaded edges whose faces bend > θ and are long on screen ---- */
+  // Recalibrated (REALISM-QA 2): (1) the frame is filled by the whole MODEL, not by each of its parts — a tent stake or a
+  // stove pipe was blown up to 40 % of the frame on its own; parts of one placed model (same name / same top ancestor)
+  // share the model's size. (2) A rough scanned surface bends > 20° everywhere, convex and concave alike (the grain);
+  // polygonal corners there are not visible as such. A model whose bent edges are ≥ 30 % concave counts only the edges
+  // longer than 2.5 × its median bent edge (flat facets standing out of the grain). (3) Crystals / shards are cut facets
+  // by design.
+  const FACETED_BY_DESIGN = /crystal|shard|spire|heart|rune|ice_?berg|pressure_ridge|wf_ice/i;
   QR.facet = (o = {}) => {
     const theta = (o.theta || 20) * Math.PI / 180, pxMin = o.px || 10, screen = o.screen || 1720, span = o.span || 0.4, res = new Map();
-    for (const p of QR.props({ fx: true })) {
+    const props = QR.props({ fx: true }), modelKey = (m) => { let q = m; while (q.parent && q.parent !== D.scene && (!q.name || q.name === 'Mesh' || /^(Object3D|Group|Mesh)$/.test(q.name))) q = q.parent; return q.name ? q.name : q.uuid; };
+    const wsize = (m) => { const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); let sc = m.matrixWorld.getMaxScaleOnAxis(); if (m.isInstancedMesh && m.count) { m.getMatrixAt(0, _M); sc *= _S.setFromMatrixScale(_M).x; } return { d: g.boundingSphere.radius * 2 * sc, sc }; };
+    const modelSize = new Map(); for (const p of props) { const k = modelKey(p.m), w = wsize(p.m).d; modelSize.set(k, Math.max(modelSize.get(k) || 0, w)); }
+    for (const p of props) {
       const g = p.m.geometry; if (res.has(g.uuid)) { res.get(g.uuid).names.add(p.name); continue; }
+      if (FACETED_BY_DESIGN.test(p.nc)) continue;
       const P = g.attributes.position, N = g.attributes.normal; if (!P || !N) continue;
-      if (!g.boundingSphere) g.computeBoundingSphere(); const size = g.boundingSphere.radius * 2; if (size < 0.05) continue;
+      const W = wsize(p.m); if (W.d < 0.05) continue; const mk = modelKey(p.m), size = Math.max(W.d, modelSize.get(mk) || 0) / W.sc;   // model size in this geometry's units
       // weld by position + normal: a shared (pos, normal) vertex = smooth shading across the edge
       const key = new Array(P.count), map = new Map();
       for (let i = 0; i < P.count; i++) { const k = Math.round(P.getX(i) * 1e4) + ',' + Math.round(P.getY(i) * 1e4) + ',' + Math.round(P.getZ(i) * 1e4) + ',' + Math.round(N.getX(i) * 50) + ',' + Math.round(N.getY(i) * 50) + ',' + Math.round(N.getZ(i) * 50);
         let id = map.get(k); if (id === undefined) map.set(k, id = map.size); key[i] = id; }
-      const I = g.index, n = I ? I.count : P.count, fn = [], edges = new Map(); const a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3();
+      const I = g.index, n = I ? I.count : P.count, fn = [], fc = [], edges = new Map(); const a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3();
       for (let t = 0; t + 2 < n; t += 3) { const i0 = I ? I.getX(t) : t, i1 = I ? I.getX(t + 1) : t + 1, i2 = I ? I.getX(t + 2) : t + 2;
-        a.fromBufferAttribute(P, i0); b.fromBufferAttribute(P, i1); c.fromBufferAttribute(P, i2); const nn = new T.Vector3().subVectors(b, a).cross(c.clone().sub(a)); if (nn.lengthSq() < 1e-14) continue; nn.normalize(); const f = fn.push(nn) - 1;
+        a.fromBufferAttribute(P, i0); b.fromBufferAttribute(P, i1); c.fromBufferAttribute(P, i2); const nn = new T.Vector3().subVectors(b, a).cross(c.clone().sub(a)); if (nn.lengthSq() < 1e-14) continue; nn.normalize(); const f = fn.push(nn) - 1; fc.push(a.clone().add(b).add(c).multiplyScalar(1 / 3));
         for (const [u, v] of [[i0, i1], [i1, i2], [i2, i0]]) { const ku = key[u], kv = key[v], ek = ku < kv ? ku + '_' + kv : kv + '_' + ku; let E = edges.get(ek); if (!E) edges.set(ek, E = { f: [], L: a.fromBufferAttribute(P, u).distanceTo(b.fromBufferAttribute(P, v)) }); E.f.push(f); } }
-      let Ls = 0, Lf = 0, nf = 0;
-      for (const E of edges.values()) { if (E.f.length !== 2) continue; const ang = Math.acos(Math.max(-1, Math.min(1, fn[E.f[0]].dot(fn[E.f[1]])))); Ls += E.L;
-        const px = E.L / size * span * screen; if (ang > theta && px > pxMin) { Lf += E.L; nf++; } }
-      res.set(g.uuid, { names: new Set([p.name]), tris: Math.round(n / 3), size: r3(size), smoothLen: r3(Ls), facetedShare: Ls ? r3(Lf / Ls) : 0, facetedEdges: nf, tree: p.tree });
+      let Ls = 0; const bent = [];
+      for (const E of edges.values()) { if (E.f.length !== 2) continue; const [f0, f1] = E.f, ang = Math.acos(Math.max(-1, Math.min(1, fn[f0].dot(fn[f1])))); Ls += E.L;
+        if (ang > theta) bent.push({ L: E.L, concave: fn[f0].dot(b.subVectors(fc[f1], fc[f0])) > 0 }); }
+      const bentL = bent.reduce((q, e) => q + e.L, 0), concShare = bentL ? bent.filter((e) => e.concave).reduce((q, e) => q + e.L, 0) / bentL : 0, rough = concShare >= 0.3;
+      // a decimated LOD of a scan halves the grain triangle count but keeps the same coarse bends, so its bent edges are
+      // relatively longer as a share of the (smaller) mesh — the median itself shrinks less than a real facet would;
+      // scale the multiplier down with edge count so a coarse LOD isn't flagged for the same grain a fine LOD passes
+      const med = bent.length ? bent.map((e) => e.L).sort((x, y) => x - y)[bent.length >> 1] : 0, minL = Math.max(pxMin / (span * screen) * size, rough ? (2.5 + 300 / Math.max(30, bent.length)) * med : 0);
+      let Lf = 0, nf = 0; for (const e of bent) if (e.L > minL) { Lf += e.L; nf++; }
+      res.set(g.uuid, { names: new Set([p.name]), model: mk, tris: Math.round(n / 3), size: r3(size * W.sc), smoothLen: r3(Ls), facetedShare: Ls ? r3(Lf / Ls) : 0, facetedEdges: nf, concaveShare: r3(concShare), rough, tree: p.tree });
     }
     return [...res.values()].map((r) => Object.assign(r, { names: [...r.names].slice(0, 4) }));
   };
@@ -471,6 +503,9 @@
   };
 
   /* ---- 6c. weathering: static props carry top snow + base contact grime (compiled uniforms) ---- */
+  // thin parts (guy cords, cables, ropes, stakes, wires, straps): no top face to hold snow, no base on the ground —
+  // groundblend skips them by design (RX_SKIP), so the rule does too
+  const THIN = /cord|cable|rope|guy_|stake|wire|strap/i;
   QR.weathering = () => {
     const R = D.renderer, prev = R.getRenderTarget();
     try { if (D.post && D.post.sceneRT) R.setRenderTarget(D.post.sceneRT); R.compile(D.scene, D.camera); } finally { R.setRenderTarget(prev); }
@@ -482,7 +517,7 @@
       const inst = instancesOf(p.m).slice(0, 50); let hit = null;
       for (const q of inst) { sp.center.set(...q.p); sp.radius = g.boundingSphere.radius * Math.max(...q.s.map(Math.abs)); hit = boxes.find((e) => { bb.min.set(...e.box.min); bb.max.set(...e.box.max); return bb.intersectsSphere(sp); }); if (hit) break; }
       if (!hit) continue;   // not a collider-backed prop (fx, interior, far scenery)
-      for (const m of matsOf(p.m)) { if (!litMat(m)) continue; const k = m.uuid; if (out.has(k)) { out.get(k).meshes.add(p.name); continue; }
+      for (const m of matsOf(p.m)) { if (!litMat(m) || THIN.test(m.name || '')) continue; const k = m.uuid; if (out.has(k)) { out.get(k).meshes.add(p.name); continue; }
         const u = (R.properties.get(m) || {}).uniforms || {}; const names = Object.keys(u);
         const snowK = names.filter((n) => /^(uSc|tSc|tVSnow|tSnow|uVSnow|uSnow|uCap)/.test(n)), amt = u.uScAmt ? u.uScAmt.value : null;
         out.set(k, { mat: m.name || '(unnamed)', kind: kindOf(hit), meshes: new Set([p.name]), compiled: names.length > 0, snow: snowK.length > 0 && amt !== 0, snowAmt: amt, grime: names.some((n) => /^(tGb|uGbM)/.test(n)), uniforms: names.filter((n) => /^(u|t)[A-Z]/.test(n)).slice(0, 14) });
