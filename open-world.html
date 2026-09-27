@@ -791,7 +791,10 @@ const QUALITY = {
            atmSnow: 450, atmSnowFar: 900, atmShafts: 0, atmShaftScale: 0.25, atmIceMax: 0.5,
            vegTreeMid: 210, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22,
            terrainLevels: 3, terrainGrid: 64, deformRes: 512, deformExt: 96, contactRes: 512, contactExt: 12.8, contactPatch: 5, contactStep: 2, contactStatic: 0,
-           gb: true, gbAniso: 2 },
+           gb: true, gbAniso: 2,
+           // Passport cost (REALISM-QA §B / air fps): footprint idle budget, exact-near-the-pilot radius + build budget,
+           // character unstick-check interval — same behaviour, cheaper on a weak CPU (med/high/ultra keep the defaults).
+           fpBudget: 1.5, exactBudget: 0.6, exactNear: 25, exactFar: 40, exactHard: 2.5, unstickEvery: 4 },
 };
 // boot preset: ?q=air|low|med|high|ultra (forced) > remembered auto decision > integrated Intel GPU → air > default
 const QPICK = window.LowEnd ? LowEnd.pick({ renderer, coarse }) : { name: coarse ? 'low' : 'high', why: 'default', forced: false };
@@ -1295,7 +1298,7 @@ const FT = (() => {
 function setQuality(name) {
   const q = QUALITY[name]; if (!q) return Q.name;
   const prev = Q.msaa, prevName = Q.name; Object.assign(Q, q, { name });
-  for (const k of ['fsr', 'rsMin', 'rsMax', 'rsStart', 'rsStep', 'rsEvery', 'fpsCap', 'envEvery']) if (!(k in q)) delete Q[k];   // air-only knobs
+  for (const k of ['fsr', 'rsMin', 'rsMax', 'rsStart', 'rsStep', 'rsEvery', 'fpsCap', 'envEvery', 'fpBudget', 'exactBudget', 'exactNear', 'exactFar', 'exactHard', 'unstickEvery']) if (!(k in q)) delete Q[k];   // air-only knobs
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.pixelRatio));
   if (prevName !== name) RS.s = q.fsr ? q.rsStart : 1;
   if (RS.fsr) { RS.fsr.setEnabled(!!q.fsr); gradePass.uniforms.uGrain.value = q.fsr ? 0 : 1; }   // FSR: grain after the upscale (RCAS pass), not sharpened blocks
@@ -1308,6 +1311,8 @@ function setQuality(name) {
   if (prev !== q.msaa || t.type !== f.type) { post.sceneRT.samples = q.msaa; t.format = f.format; t.type = f.type; post.sceneRT.dispose(); }
   FOREST.R = q.treeNear; FOREST.shadowR = q.treeShadow; FOREST.dirty = true;
   if (window.WorldFill && WorldFill.knobs) WorldFill.knobs.density = q.grass;   // grass density knob (applies to newly generated clutter cells)
+  Passport.tuneExact({ budget: q.exactBudget ?? 1.5, near: q.exactNear ?? 45, far: q.exactFar ?? 70, hard: q.exactHard ?? 3 });
+  if (PH.ok && PH.ch) PH.ch.setUnstickEvery(q.unstickEvery ?? 1);
   resize();
   return name;
 }
@@ -1661,6 +1666,15 @@ const Passport = (() => {
   // EXACT.budget ms; the hull stays until the last chunk is in, then the chunks replace it in one step (never a frame
   // without a collider). Only entries within EXACT.hard m of the pilot (teleport next to a rock) are built at once.
   const EXACT = { on: !/[?&]colhull\b/.test(location.search), near: 45, far: 70, hard: 3, chunk: 1200, budget: 1.5, n: 0, builds: 0, chunks: 0, ms: 0, maxMs: 0, frameMax: 0, list: [] };
+  // quality knob (QUALITY presets' exactBudget/exactNear/exactFar/exactHard, air/low): a weaker profile keeps the same
+  // exact-near-the-pilot behaviour but with a smaller radius and a lower per-frame ms budget — undefined fields keep
+  // the defaults above (never touched on med/high/ultra).
+  function tuneExact(o = {}) {
+    if (o.budget != null) EXACT.budget = o.budget;
+    if (o.near != null) EXACT.near = o.near;
+    if (o.far != null) EXACT.far = o.far;
+    if (o.hard != null) EXACT.hard = o.hard;
+  }
   const exactable = (e) => e.role === 'solid' && e.shape === 'hull' && e.opts.exact !== false && !!e.geo;
   const exTag = (e, on) => ({ kind: e.role, name: e.name, passport: e.id, exact: on });
   // triangles sorted by centroid along the longest box axis → consecutive runs of ≤ chunk triangles, each its own index
@@ -2015,8 +2029,9 @@ const Passport = (() => {
     return dbg;
   }
   function debugUpdate() { if (dbg) dbg.group.children.forEach((o) => { if (o.userData.follow) o.update(); }); }
-  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
+  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, tuneExact, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
 })();
+Passport.tuneExact({ budget: Q.exactBudget ?? 1.5, near: Q.exactNear ?? 45, far: Q.exactFar ?? 70, hard: Q.exactHard ?? 3 });   // air/low: smaller radius, lower per-frame ms
 
 /* ---------- echo & shard spots ---------- */
 const ECHO_POS = [[-120, 170], [95, 225], [250, 25], [-200, -190], [140, -215], [-75, -150], [-280, 150], [60, 85]];
@@ -3638,6 +3653,10 @@ MANAGER.onError = (url) => markMod(url, 'bad');
 function finishLoading() {
   if (LOAD.done) return; LOAD.done = true; $('lFill').style.width = '100%';
   try { const p = renderer.compileAsync(scene, camera); if (p && p.catch) p.catch(() => {}); } catch (e) { /* compile on first use */ }
+  // drain the 2D footprint-circle backlog now (behind the loader, a one-time hitch that costs nothing towards fps)
+  // instead of trickling it into the first seconds of play (Passport.idle's per-frame budget) — every AI actor
+  // (fox/stags/enemies/snowmobile) reads these circles regardless of PH.ok, so they must exist before "Играть" anyway.
+  try { Passport.flush(); } catch (e) { /* world not fully built yet: idle() picks up the rest during play */ }
   setTimeout(() => { $('loader').hidden = true; $('menu').hidden = false; if (LOAD.cb) LOAD.cb(); }, 400);
 }
 MANAGER.onLoad = finishLoading;
@@ -3647,7 +3666,7 @@ if (window.PhysReady) {
     Phys.init({ H, VN, CELL, W, seaLevel: 0, gravity: 22 });
     PH.P = Phys; PH.ok = true;
     Passport.attach(Phys);   // exact colliders for everything registered so far; later registrations attach immediately
-    PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97 });
+    PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97, unstickEvery: Q.unstickEvery ?? 1 });
     PH.vh = Phys.createHoverVehicle({ x: sk.x, z: sk.z, yaw: sk.yaw, hoverHeight: 1.06 }); PH.vh.setEnabled(G.riding);
     if (G.riding) PH.ch.setEnabled(false);
     MANAGER.itemEnd('physics');
@@ -4374,7 +4393,7 @@ function frame(now) {
     const a = T * 0.04 + 0.6;
     camera.position.set(Math.sin(a) * 330, 150, Math.cos(a) * 330); camera.lookAt(0, 20, -20); }
   } else if (G.mode === 'ending') updateEnding(dt);
-  Passport.idle(PH.ok ? 4 : 12);   // footprint circles for the 2D grid (AI / fallback movement)
+  Passport.idle(PH.ok ? (Q.fpBudget ?? 4) : 12);   // footprint circles for the 2D grid (AI / fallback movement); no-physics fallback always gets the full budget
   if (colView.on) { if (Math.hypot(player.x - colView.at.x, player.z - colView.at.z) > 60) toggleColliderView(true); else Passport.debugUpdate(); }
   updateWorld(dt); updateModules(dt); updateGameModules(dt); if (WF_OK) { try { WorldFill.update(dt); } catch (e) { WF_OK = false; console.warn(e); } } updateParticles(dt);
   pressed.clear();

@@ -22,7 +22,7 @@
 
   let R = null, world = null, cfg = null;
   const debris = [], vehicles = [], characters = [], tags = new Map(); // collider handle -> tag
-  let acc = 0, alpha = 0, dirtyStatic = false, stepCount = 0;
+  let acc = 0, alpha = 0, dirtyStatic = false, dirtyEpoch = 0, stepCount = 0;
   const FIXED = 1 / 60, MAX_SUB = 5;
 
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -78,7 +78,7 @@
     need();
     const d = R.ColliderDesc.cylinder(height / 2, r).setTranslation(x, yBottom + height / 2, z)
       .setFriction(0.5).setCollisionGroups(groups(group ?? G_STATIC, G_ALL));
-    dirtyStatic = true;
+    dirtyStatic = true; dirtyEpoch++;
     return tag(world.createCollider(d), userTag || { kind: 'static' });
   }
   // exact static mesh (object passport 'solid'): world-space vertices + triangle indices
@@ -91,7 +91,7 @@
     try { d = flags !== undefined ? R.ColliderDesc.trimesh(v, ix, flags) : R.ColliderDesc.trimesh(v, ix); } catch (e) { d = null; }
     if (!d) d = R.ColliderDesc.trimesh(v, ix);
     d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
-    dirtyStatic = true;
+    dirtyStatic = true; dirtyEpoch++;
     return tag(world.createCollider(d), Object.assign({ kind: 'static' }, userTag, { center: vertsCenter(v) }));
   }
   // static convex hull of world-space points (small rocks, crystals)
@@ -101,7 +101,7 @@
     const d = R.ColliderDesc.convexHull(pv);
     if (!d) return null;
     d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
-    dirtyStatic = true;
+    dirtyStatic = true; dirtyEpoch++;
     return tag(world.createCollider(d), Object.assign({ kind: 'static' }, userTag, { center: vertsCenter(pv) }));
   }
   function addStaticBox(c, he, q, userTag) {
@@ -109,10 +109,10 @@
     const d = R.ColliderDesc.cuboid(he.x, he.y, he.z).setTranslation(c.x, c.y, c.z)
       .setFriction(0.6).setCollisionGroups(groups(G_STATIC, G_ALL));
     if (q) d.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
-    dirtyStatic = true;
+    dirtyStatic = true; dirtyEpoch++;
     return tag(world.createCollider(d), userTag || { kind: 'static' });
   }
-  function removeCollider(col) { if (col) { tags.delete(col.handle); world.removeCollider(col, true); } }
+  function removeCollider(col) { if (col) { tags.delete(col.handle); world.removeCollider(col, true); dirtyEpoch++; } }
   // world-space AABB centre of a flat [x,y,z,...] array: 'solid' colliders bake world-space vertices with the collider's
   // own translation left at the Rapier default (0,0,0) — .translation() on them always reads back (0,0,0), it is NOT
   // where the mesh actually sits (unstick() used to push players away from the map origin instead of the obstacle).
@@ -192,6 +192,7 @@
       snap: o.snapDistance ?? 0.5,
       coyote: o.coyoteTime ?? 0.12, buffer: o.jumpBuffer ?? 0.12,
       mass: o.mass ?? 80, skin: 0.02,
+      unstickEvery: Math.max(1, o.unstickEvery | 0 || 1),   // weak profiles: check less often (still forced right after a teleport/placement)
     };
     const halfCyl = Math.max(0.01, P.height / 2 - P.radius);
     const centerOff = P.height / 2 + P.skin;               // feet -> capsule center
@@ -215,6 +216,7 @@
       vel: v3(), pos: v3(o.x ?? 0, o.y ?? 0, o.z ?? 0), prev: v3(o.x ?? 0, o.y ?? 0, o.z ?? 0),
       acc: 0, grounded: false, walkable: false, coyoteT: 0, bufT: 0, jumping: false, enabled: true,
       normal: v3(0, 1, 0), slideDir: null, airT: 0, actual: v3(),
+      unstickN: 0, forceUnstick: true, staticSeen: dirtyEpoch,   // first move() always checks (spawn may start inside something)
     };
     const out = { position: v3(), velocity: v3(), grounded: false, landed: false, landingSpeed: 0, slideDir: null, groundNormal: v3(0, 1, 0), sliding: false, jumped: false };
     const tmpT = v3();
@@ -348,7 +350,15 @@
         out.landed = false; out.landingSpeed = 0; out.jumped = false;
         if (!s.enabled) return out;
         flushQueries();
-        for (let k = 0; k < 4 && unstick(); k++) { /* lift out of whatever we were placed inside */ }
+        // unstick is an exact-shape overlap query against every nearby static/trunk collider — real cost on a weak
+        // profile in a dense forest. Only worth paying every single frame right after something could actually have
+        // changed (a teleport/placement, or a static collider added/removed nearby — Passport's exact-mesh streaming);
+        // otherwise a periodic check (P.unstickEvery, 1 = every frame, unchanged default) still catches it within a
+        // few frames, which is what the original bug (spire-E, commit 9616747) needed anyway.
+        if (s.forceUnstick || s.staticSeen !== dirtyEpoch || (s.unstickN = (s.unstickN + 1) % P.unstickEvery) === 0) {
+          for (let k = 0; k < 4 && unstick(); k++) { /* lift out of whatever we were placed inside */ }
+          s.forceUnstick = false; s.staticSeen = dirtyEpoch;
+        }
         s.acc += Math.min(Math.max(dt, 0) || 0, 0.1);
         let first = true, n = 0;
         while (s.acc >= FIXED && n < 8) {
@@ -371,11 +381,12 @@
       },
       setPosition(x, y, z) {
         col.setTranslation(v3(x, y + centerOff, z)); s.prev = v3(x, y, z); s.pos = v3(x, y, z);
-        s.vel = v3(); s.acc = 0; out.position = v3(x, y, z);
+        s.vel = v3(); s.acc = 0; out.position = v3(x, y, z); s.forceUnstick = true;
       },
       setVelocity(x, y, z) { s.vel.x = x; s.vel.y = y; s.vel.z = z; if (y > 0.5) { s.walkable = false; s.jumping = true; } },
       addVelocity(x, y, z) { ch.setVelocity(s.vel.x + x, s.vel.y + y, s.vel.z + z); },
       setEnabled(on) { s.enabled = on; col.setEnabled(on); if (on) s.acc = 0; },
+      setUnstickEvery(n) { P.unstickEvery = Math.max(1, n | 0 || 1); s.forceUnstick = true; },   // quality switch: recheck once, then follow the new interval
       destroy() { world.removeCharacterController(kcc); removeCollider(col); characters.splice(characters.indexOf(ch), 1); },
     };
     characters.push(ch);
