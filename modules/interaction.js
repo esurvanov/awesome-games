@@ -347,7 +347,12 @@
       // the clip (turning on the spot, teleport) re-plants at the clip's foot: one clean new print, no crawl.
       // Only x/z are pinned: height, sole tilt and snow sink read the live pose and the ground under the pinned point.
       { const ballH = L.ball ? L.ballAnim.y - P.y - B.hRestBall : 1, heelH = L.h - B.hRest;
-        const dn = L.lk ? Math.min(heelH, ballH) < 0.05 : Math.min(heelH, ballH) < 0.02;   // hysteresis: plant < 2 cm, lift > 5 cm
+        // STOP-SLIDE: this used to engage at <2cm while the snow sink below (line ~399) started ramping in from <8cm —
+        // for those middle few cm the boot was already pressing the loose snow at its still-swinging (unlocked) x/z, so
+        // the print smeared from wherever the foot was mid-descent to wherever it actually planted (13-18 cm on a stop).
+        // Engaging the x/z pin at the SAME height the sink ramp starts means the boot is already pinned before it presses
+        // anything: no swinging position ever gets pressed.
+        const dn = L.lk ? Math.min(heelH, ballH) < 0.08 : Math.min(heelH, ballH) < 0.045;   // hysteresis: plant < 4.5 cm, lift > 8 cm
         const bdx = L.ball ? L.ballAnim.x - L.anim.x : 0, bdz = L.ball ? L.ballAnim.z - L.anim.z : 0;
         const other = B.legs[0] === L ? B.legs[1] : B.legs[0];
         // the other foot carries the weight: planted, or its own settle step already past the middle (a shuffle, never a hop)
@@ -396,7 +401,11 @@
             // swing: on the undisturbed snow (exact CPU replay of what the GPU draws); planted: sunk footPress × loose depth,
             // never below the compacted layer the terrain draws. An older print here has the same depth (same rule, same spot)
             const su = L.step ? clamp(L.step.t / L.step.dur, 0, 1) : 0;
-            const plant = (1 - smooth(0.02, 0.08, L.c)) * (L.step ? 1 - smooth(0, 0.2, su) + smooth(0.8, 1, su) : 1), sink = (C.footPress ? C.footPress(sx, sz) : 0.5) * q.dep;
+            // STOP-SLIDE: this ramp's top end (was 0.08) now matches the x/z pin's engage height above (0.045) — sink
+            // only starts once the boot is already pinned in x/z, so it always presses the spot it ends up resting on,
+            // never a swinging one. Still a ramp by HEIGHT, not by time locked, so a fast running plant still reaches
+            // full depth the instant the boot is flat (no shallow prints from a short stance).
+            const plant = (1 - smooth(0.02, 0.045, L.c)) * (L.step ? 1 - smooth(0, 0.2, su) + smooth(0.8, 1, su) : 1), sink = (C.footPress ? C.footPress(sx, sz) : 0.5) * q.dep;
             gy = q.s0 + (Math.max(q.s0 - sink, q.floor) - q.s0) * plant;
           } } catch (e) { /* terrain busy */ } }
       else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(px, pz), 0.6) * K.snowFloat;

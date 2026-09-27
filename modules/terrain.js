@@ -213,7 +213,14 @@
     float ce = uCM.z / uCM.w, cst = float(ps) * ce;
     vec2 trP = uCM.xy - uCM.z * .5 + (vec2(tc) + .5) * ce;
     float trH = cmH(tc);
-    vec3 trNrm = normalize(vec3(-(cmH(tc + ivec2(ps, 0)) - cmH(tc - ivec2(ps, 0))) / (2. * cst), 1., -(cmH(tc + ivec2(0, ps)) - cmH(tc - ivec2(0, ps))) / (2. * cst)));
+    // SNOW-PRINTS2: the vertex normal (it picks the ground layers: snow / rock / cliff by steepness) is the UNDISTURBED
+    // snow's. It was the pressed surface's: a print wall steeper than ≈ 45° turned into the cliff / rock layer inside the
+    // patch only — a pale, jagged, rock-textured sheet in the boot's print (the "shard"). The pressed shape still shades
+    // by its exact normal (fragment: cmHG → dN, as on the rings).
+    int tm = int(uCM.w) - 1;
+    #define trS0(o) texelFetch(tNS, clamp(tc + (o), ivec2(0), ivec2(tm)), 0).x
+    vec3 trNrm = normalize(vec3(-(trS0(ivec2(ps, 0)) - trS0(ivec2(-ps, 0))) / (2. * cst), 1., -(trS0(ivec2(0, ps)) - trS0(ivec2(0, -ps))) / (2. * cst)));
+    #undef trS0
     vec4 trSN = texelFetch(tNS, tc, 0);
     float trDep = trSN.y, trGrv = trSN.w;
     { vec2 dc = abs(trP - uPc.xy); float bw = smoothstep(uPc.z - uPc.w, uPc.z - ce, max(dc.x, dc.y));
@@ -734,13 +741,16 @@
   //   boot sinks into the loose snow (interaction.js) and this map then holds exactly that boot — so the boot stands in its
   //   own print by construction. Nothing is read back to the CPU at run time (see pressCache).
   const CM = { ok: false, on: true, res: 0, ext: 0, e: 0, cx: 0, cz: 0, cur: 0, P: [], S: null, R: null, rebake: true,
-    roots: [], rootsT: 0, kRim: 0.32, kTrough: 0.4, layer: 30,   // LOOKGATE (👣 footprints): was .45 — a taller, crisper rim reads as a cut-paper edge
+    uLift: { value: null }, roots: [], rootsT: 0, kRim: 0.32, kTrough: 0.4, layer: 30,   // LOOKGATE (👣 footprints): was .45 — a taller, crisper rim reads as a cut-paper edge
     stats: { frames: 0, recenters: 0, actorDraws: 0, coarseDraws: 0, regionTexels: 0, cpuMs: 0, staticTris: 0 } };
   const CONTACT_V = `#include <common>
 #include <batching_pars_vertex>
 #include <morphtarget_pars_vertex>
 #include <skinning_pars_vertex>
 varying float vCy; varying vec2 vCxz;
+#ifdef CM_FOOT
+uniform vec4 uFootB; uniform vec2 uLift;
+#endif
 void main() {
 #include <batching_vertex>
 #include <skinbase_vertex>
@@ -756,6 +766,14 @@ void main() {
     cw = instanceMatrix * cw;
   #endif
   cw = modelMatrix * cw; vCy = cw.y; vCxz = cw.xz;
+  #if defined(CM_FOOT) && defined(USE_SKINNING)
+    // SNOW-PRINTS2: a swinging boot does not press — lifted out of the snow by its bone weight (uFootB: foot / ball bone
+    // indices, left xy, right zw; uLift: left / right swing share 0..1)
+    float wl = 0., wr = 0.;
+    for (int k = 0; k < 4; k++) { float bi = skinIndex[k], w = skinWeight[k];
+      wl += w * float(abs(bi - uFootB.x) < .5 || abs(bi - uFootB.y) < .5); wr += w * float(abs(bi - uFootB.z) < .5 || abs(bi - uFootB.w) < .5); }
+    vCy += 4. * (smoothstep(.3, .6, wl) * uLift.x + smoothstep(.3, .6, wr) * uLift.y);
+  #endif
 }`;
   function contactMat(coarse, dyn) {
     const uniforms = coarse ? Object.assign({}, U, { uDyn: { value: dyn } }) : { tNS: U.tNS, uDyn: { value: dyn } };
@@ -918,10 +936,37 @@ void main() {
   }
   function drawRoots(list, mat, rt, cam) {
     const saved = [];
-    for (const a of list) for (const m of a.meshes) { saved.push(m, m.material); m.material = mat; }
+    for (const a of list) for (const m of a.meshes) { saved.push(m, m.material); m.material = a.kind === 'pilot' && mat === CM.matDyn && m.isSkinnedMesh ? footMat(m) : mat; }
     try { withTarget(rt, (r) => { for (const a of list) { if (!a.root.parent && a.root.type !== 'Scene') continue; r.render(a.root, cam); } }); }
     finally { for (let i = 0; i < saved.length; i += 2) saved[i].material = saved[i + 1]; }
   }
+  // SNOW-PRINTS2: the pilot's skinned meshes press through a variant that lifts a swinging boot out of the snow (see
+  // CONTACT_V). A boot only prints while it stands (≈ still); before, the swing foot skimming 1–4 cm under the powder
+  // (heel strike, toe-off, settle steps) carved a continuous groove per foot → the trail read as a double ski track, and
+  // a settle step dragged a sunk boot sideways → the swept, flat-floored pit next to the boot (the pale "shard").
+  const FOOT_RX = [/^(foot|ball)(_leaf)?_l$/, /^(foot|ball)(_leaf)?_r$/];
+  function footMat(m) {
+    const ud = m.userData; if (ud.cmFootMat && ud.cmFootSk === m.skeleton) return ud.cmFootMat;
+    const ix = [-9, -9, -9, -9], bn = m.skeleton ? m.skeleton.bones : [];
+    bn.forEach((b, i) => { for (let sd = 0; sd < 2; sd++) if (FOOT_RX[sd].test(b.name)) { const k = sd * 2 + (/^ball/.test(b.name) ? 1 : 0); if (ix[k] < 0) ix[k] = i; } });
+    const mt = contactMat(false, 1); mt.defines = { CM_FOOT: '' }; mt.uniforms.uFootB = { value: new THREE.Vector4(...ix) }; mt.uniforms.uLift = CM.uLift;
+    ud.cmFootMat = mt; ud.cmFootSk = m.skeleton; return mt;
+  }
+  // per frame: swing share of each boot from its bone's horizontal speed (a planted boot is pinned: ≈ 0 m/s; swing 1.5–4)
+  // deep snow (≥ 20–35 cm, postholing): the boot ploughs through anyway — no lift, the prints merge into a trench
+  function footLift(dt) {
+    if (!CM.uLift.value) { CM.uLift.value = new THREE.Vector2(); _fv = new THREE.Vector3(); }
+    const P = ctx.player, L = CM.uLift.value, g = P && P.c && P.c.g; if (!g) { L.set(0, 0); return; }
+    if (!CM.footB || CM.footBRoot !== g) { CM.footBRoot = g; CM.footB = [null, null]; g.traverse((o) => { if (o.isBone) for (let sd = 0; sd < 2; sd++) if (!CM.footB[sd] && /^foot(_leaf)?_[lr]$/.test(o.name) && FOOT_RX[sd].test(o.name)) CM.footB[sd] = o; }); CM.footP = [null, null]; CM.footV = [0, 0]; }
+    const free = !(P.sliding || P.rollT > 0 || (ctx.G && ctx.G.riding));
+    for (let sd = 0; sd < 2; sd++) { const b = CM.footB[sd]; if (!b) { L.setComponent(sd, 0); continue; }
+      const w = b.getWorldPosition(_fv), pp = CM.footP[sd];
+      if (pp && dt > 1e-4) { const v = Math.hypot(w.x - pp.x, w.z - pp.z) / dt; CM.footV[sd] += (Math.min(v, 8) - CM.footV[sd]) * Math.min(1, dt * 30); }
+      CM.footP[sd] = { x: w.x, z: w.z };
+      const deep = smooth(0.2, 0.35, sampleD(w.x, w.z));
+      L.setComponent(sd, free ? smooth(0.45, 0.9, CM.footV[sd]) * (1 - deep) : 0); }
+  }
+  let _fv = null;
   // static props: Passport solids in the window, small enough to rest on / in the snow (collider proxies, world space)
   function drawStatic() {
     const P = ctx.Passport; if (!P) return;
@@ -964,6 +1009,7 @@ void main() {
       if (inN) { near.push(a); regions.push([wp.x - a.r, wp.z - a.r, wp.x + a.r, wp.z + a.r]); }
       if (!fullyN && Math.abs(wp.x - DEF.cx) < DEF.ext / 2 + a.r && Math.abs(wp.z - DEF.cz) < DEF.ext / 2 + a.r) far.push(a);
     }
+    footLift(dt);
     CM.evK = ((CM.evK || 0) + 1) % Math.max(1, QK('contactEvery', 1));   // NATURE: Q.contactEvery (air: every 2nd frame)
     if (near.length && CM.evK === 0) { camFor(CM.cam, CM.cx, CM.cz, CM.ext, c.groundH(CM.cx, CM.cz)); drawRoots(near, CM.matDyn, CM.P[CM.cur], CM.cam); CM.stats.actorDraws += near.length; }
     // coarse map: its mip chain is regenerated after every render into it — batch this frame's writes, regenerate once
@@ -1157,7 +1203,7 @@ void main() {
     { const P = ctx.player, G = ctx.G, t = TRK.pl || (TRK.pl = { x: P.x, z: P.z });
       const d = Math.hypot(P.x - t.x, P.z - t.z);
       if (d > 3 || (G && G.riding)) { t.x = P.x; t.z = P.z; }
-      else if (d > 0.3) { if (onTerrain(P.x, P.y, P.z, 0.25)) { const k = QK('trailLane', 1); if (k > 0) stamp({ x: (P.x + t.x) / 2, z: (P.z + t.z) / 2, dx: P.x - t.x, dz: P.z - t.z, len: d + 0.35, wid: 0.5, type: 4, str: 0.28 * k }); } t.x = P.x; t.z = P.z; } }
+      else if (d > 0.3) { if (onTerrain(P.x, P.y, P.z, 0.25)) { const k = QK('trailLane', 1) * smooth(0.2, 0.35, sampleD(P.x, P.z)); if (k > 0) stamp({ x: (P.x + t.x) / 2, z: (P.z + t.z) / 2, dx: P.x - t.x, dz: P.z - t.z, len: d + 0.35, wid: 0.5, type: 4, str: 0.28 * k }); } t.x = P.x; t.z = P.z; } }
     const sk = ctx.sk;
     if (sk && sk.g) {
       const x = sk.x, z = sk.z, t = TRK.sk || (TRK.sk = { x, z });

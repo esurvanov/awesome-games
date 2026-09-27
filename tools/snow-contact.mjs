@@ -3,7 +3,7 @@
  * animal prints, measured on the running game (both the old stamp build and the object-pressed contact build).
  *
  *   node tools/snow-contact.mjs <label> [--tests walk,land,landwalk,roll,stag,fox] [--quality high] [--size 1400x800]
- *        [--dsf 2] [--repeat 1] [--eval "<js>"]
+ *        [--dsf 2] [--repeat 1] [--eval "<js>"] [--terrain <file served as modules/terrain.js>]
  *   → stand/<label>/snowcontact.json  (+ console summary)
  * Takes the benchmark lock (tools/qa/hygiene.mjs). --dsf sets the device scale factor (Retina = 2).
  */
@@ -21,7 +21,10 @@ const dsf = Number(opt('dsf', 1)), repeat = Number(opt('repeat', 1));
 const log = (...a) => console.log('[snow-contact]', ...a);
 const dir = path.join(OUT, label); fs.mkdirSync(dir, { recursive: true });
 
-const H = await openGame({ label: 'snow-contact ' + label, quality: opt('quality', 'high'), size, log, page: opt('page') });
+// --terrain <file>: serve this file as modules/terrain.js (A/B against another version in the same world, e.g. `git show HEAD:modules/terrain.js > /tmp/t.js`)
+const terrSrc = opt('terrain') ? fs.readFileSync(opt('terrain'), 'utf8') : null;
+const beforeLoad = terrSrc ? async (page) => { await page.setRequestInterception(true); page.on('request', (r) => { if (/\/modules\/terrain\.js(\?|$)/.test(r.url())) r.respond({ status: 200, contentType: 'text/javascript', body: terrSrc }); else r.continue(); }); } : undefined;
+const H = await openGame({ label: 'snow-contact ' + label, quality: opt('quality', 'high'), size, log, page: opt('page'), beforeLoad });
 const out = { label, date: new Date().toISOString(), quality: opt('quality', 'high'), size, dsf, gpu: H.gpu, runs: [] };
 try {
   if (dsf !== 1) { await H.page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: dsf }); await sleep(800); }
