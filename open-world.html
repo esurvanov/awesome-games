@@ -556,6 +556,8 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/perf.js"></script>
 <script src="modules/baked.js"></script>
 <script src="modules/groundblend.js"></script>
+<script src="modules/lowend.js"></script>
+<script src="modules/bench.js"></script>
 <script type="module">
 (function () {
 'use strict';
@@ -758,9 +760,39 @@ const QUALITY = {
   ultra: { pixelRatio: 2,    msaa: 4, shadowDist: 320, shadowMap: 4096, cascades: 2, split: 0.85, ao: true,  aoScale: 1,   bloomScale: 1,    grass: 1.3,  treeNear: 230, treeShadow: 140,
            shC0: 110, shMapFar: 2048, shTiles: 2, shTileGrid: 4, shMove: 18,
            perfDraw: 1.3, perfLod: 1.4, perfCast: 1.2 },
+  // LOWEND.md — weak laptop (MacBook Air 2020 Intel, 2560x1600): canvas at native pixels (pixelRatio ≤ 2), the 3D scene
+  // at rs × canvas (dynamic, rsMin…rsMax, one step ≤ every rsEvery s) upscaled by FSR 1 (EASU + RCAS), no MSAA, 30 fps
+  // cap. Every knob other modules read is set here explicitly (a module fills only undefined fields, and falls back to
+  // its *high* values for a preset it does not know).
+  air:   { pixelRatio: 2,    msaa: 0, shadowDist: 90,  shadowMap: 1024, cascades: 2, split: 0.75, ao: false, aoScale: 0.5, bloomScale: 0.5,  grass: 0.35, treeNear: 110, treeShadow: 30,
+           shC0: 48,  shMapFar: 512,  shTiles: 1, shTileGrid: 3, shMove: 12,
+           perfDraw: 0.5, perfLod: 0.5, perfCast: 0.5,
+           fsr: true, rsMin: 0.45, rsMax: 0.75, rsStart: 0.55, rsStep: 0.05, rsEvery: 4, fpsCap: 30, envEvery: 6,
+           atmSnow: 450, atmSnowFar: 900, atmShafts: 0, atmShaftScale: 0.25, atmIceMax: 0.5,
+           vegTreeMid: 210, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22,
+           terrainLevels: 3, terrainGrid: 64, deformRes: 512, deformExt: 96, contactRes: 512, contactExt: 12.8, contactPatch: 5, contactStep: 2, contactStatic: 0,
+           gb: true, gbAniso: 2 },
 };
-const Q = Object.assign({ name: coarse ? 'low' : 'high' }, QUALITY[coarse ? 'low' : 'high']);
+// boot preset: ?q=air|low|med|high|ultra (forced) > remembered auto decision > integrated Intel GPU → air > default
+const QPICK = window.LowEnd ? LowEnd.pick({ renderer, coarse }) : { name: coarse ? 'low' : 'high', why: 'default', forced: false };
+const Q = Object.assign({ name: QPICK.name }, QUALITY[QPICK.name]);
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
+// render scale: the 3D scene is drawn at RS.s × the canvas resolution (1 unless the preset upscales with FSR)
+const RS = { s: Q.fsr ? Q.rsStart : 1, fsr: null };
+// main-loop pacing state (see frame()): idleOK = the loop may stop in menu / pause / hidden tab
+const LOOP = { running: true, redraw: true, idleDrawn: false, uiDrawn: false, menuT: 0, capT: 0, drawT: performance.now(), drawn: 0, skipped: 0, wakes: 0,
+  sync() { const gl = renderer.getContext(); renderer.setRenderTarget(null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, LOOP.px || (LOOP.px = new Uint8Array(4))); },
+  idleOK: /[?&]idle=1\b/.test(location.search) || (location.hash !== '#dbg' && !/[?&]idle=0\b/.test(location.search)) };
+function rsBounds() {
+  if (!Q.fsr) return [1, 1];
+  const pr = renderer.getPixelRatio(), lo = Math.min(1, Math.max(Q.rsMin, 0.7 / pr)), hi = Math.min(1, Math.max(Q.rsMax, lo, 1 / pr));
+  return [lo, hi];
+}
+function setRenderScale(s) {
+  const [lo, hi] = rsBounds(); s = Math.min(hi, Math.max(lo, s));
+  if (Math.abs(s - RS.s) < 1e-3) return RS.s;
+  RS.s = s; resize(); return s;
+}
 
 /* ---------- post chain ---------- */
 const post = { composer: null, render: null, gtao: null, bloom: null, output: null, invalidate: true };
@@ -807,9 +839,9 @@ let composer = null, gradePass = null, bloomPass = null;
   composer.addPass(bloomPass);
   post.output = new THREE.OutputPass(); composer.addPass(post.output);
   gradePass = new THREE.ShaderPass({   // display-referred (after tone mapping + sRGB encode)
-    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uScan: { value: 0 } },
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uScan: { value: 0 }, uGrain: { value: 1 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uHurt, uScan; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uHurt, uScan, uGrain; varying vec2 vUv;
       float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       void main(){
         vec2 c = vUv - .5; float ca = .0012 + uHurt * .012;
@@ -819,11 +851,14 @@ let composer = null, gradePass = null, bloomPass = null;
         col *= mix(.72, 1., v);
         col += vec3(1., .1, .3) * uHurt * (1. - v) * .55;
         col += vec3(.3, .9, 1.) * uScan * .07;
-        col += (rnd(vUv * 900. + fract(uTime)) - .5) * .018 * smoothstep(.0, .06, dot(col, vec3(.3, .55, .15)));   // grain fades out in the blacks (no clipped-to-zero speckle)
+        col += uGrain * (rnd(vUv * 900. + fract(uTime)) - .5) * .018 * smoothstep(.0, .06, dot(col, vec3(.3, .55, .15)));   // grain fades out in the blacks (no clipped-to-zero speckle)
         gl_FragColor = vec4(max(col, vec3(1.2 / 255.)), 1.);   // black level 1/255: shadowed dark props never quantise to exact 0 (exact 0 = the NaN signature the guard above already removes)
       }`,
   });
   composer.addPass(gradePass);
+  // FSR 1 upscale (LOWEND.md): everything above runs at RS.s × the canvas; EASU → canvas-size target, RCAS → screen.
+  // Disabled (not in the chain's work) unless the preset has fsr: high/ultra frames are unchanged.
+  if (window.LowEnd) { RS.fsr = LowEnd.makeFSR(THREE, gradePass.uniforms.uTime); composer.addPass(RS.fsr.easu); composer.addPass(RS.fsr.rcas); RS.fsr.setEnabled(!!Q.fsr); gradePass.uniforms.uGrain.value = Q.fsr ? 0 : 1; }
 }
 // GPU profiler (EXT_disjoint_timer_query_webgl2), off unless DBG.gpuProf.start(): per-frame GPU ms per stage
 // (shadow / scene / ao / bloom / output / grade). Queries can't nest: the shadow pass, which the renderer runs inside
@@ -1209,15 +1244,43 @@ function render() {
   if (OFF.has('post')) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
   if (GPUT.on) {
     GPUT.poll(); GPUT.frames++;
-    for (const ps of composer.passes) if (!ps.__gput) { const f = ps.render.bind(ps), n = ps === post.render ? 'scene' : ps === post.gtao ? 'ao' : ps === post.bloom ? 'bloom' : ps === post.output ? 'output' : 'grade';
+    for (const ps of composer.passes) if (!ps.__gput) { const f = ps.render.bind(ps), n = ps === post.render ? 'scene' : ps === post.gtao ? 'ao' : ps === post.bloom ? 'bloom' : ps === post.output ? 'output' : RS.fsr && (ps === RS.fsr.easu || ps === RS.fsr.rcas) ? 'fsr' : /Shaft/.test(ps.constructor && ps.constructor.name) ? 'shafts' : 'grade';
       ps.__gput = true; ps.render = (...a) => { if (!GPUT.on) return f(...a); GPUT.begin(n); f(...a); GPUT.end(); }; }
   }
+  // particles are sized in scene pixels: follow the render scale (updateCamera sets it from the canvas pixel ratio)
+  if (RS.s !== 1) partMat.uniforms.uScale.value = innerHeight * renderer.getPixelRatio() * RS.s * 0.5 / Math.tan(camera.fov * Math.PI / 360);
+  // one GPU timer around the whole frame for the render-scale controller (not while the stage profiler runs its own)
+  const tq = FT.gpuOn && !GPUT.on ? FT.begin() : null;
   composer.render();
+  if (tq) FT.end(tq);
 }
+// frame GPU time (EXT_disjoint_timer_query_webgl2), opt-in with ?gputimer=1: on Chrome/ANGLE-Metal the span includes
+// waiting (22–32 ms reported for a frame that is 15 ms of work, not shrinking with the render scale), so by default the
+// render-scale controller decides from late frames only
+const FT = (() => {
+  const gl = renderer.getContext(), ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  const F = { ok: !!ext, want: /[?&]gputimer=1\b/.test(location.search), gpuOn: false, live: [], last: null }; F.gpuOn = F.want && !!Q.fsr;
+  F.begin = () => { if (!ext || F.live.length > 4) return null; const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); return q; };
+  F.end = (q) => { gl.endQuery(ext.TIME_ELAPSED_EXT); F.live.push(q); };
+  F.poll = () => {
+    while (F.live.length) {
+      const q = F.live[0]; if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) break;
+      F.last = gl.getParameter(ext.GPU_DISJOINT_EXT) ? null : gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+      gl.deleteQuery(q); F.live.shift();
+    }
+    return F.last;
+  };
+  return F;
+})();
 function setQuality(name) {
   const q = QUALITY[name]; if (!q) return Q.name;
-  const prev = Q.msaa; Object.assign(Q, q, { name });
+  const prev = Q.msaa, prevName = Q.name; Object.assign(Q, q, { name });
+  for (const k of ['fsr', 'rsMin', 'rsMax', 'rsStart', 'rsStep', 'rsEvery', 'fpsCap', 'envEvery']) if (!(k in q)) delete Q[k];   // air-only knobs
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.pixelRatio));
+  if (prevName !== name) RS.s = q.fsr ? q.rsStart : 1;
+  if (RS.fsr) { RS.fsr.setEnabled(!!q.fsr); gradePass.uniforms.uGrain.value = q.fsr ? 0 : 1; }   // FSR: grain after the upscale (RCAS pass), not sharpened blocks
+  FT.gpuOn = FT.want && !!q.fsr;
+  if (window.LowEnd) LowEnd.warm(3);
   moon.shadow.camera.far = q.shadowDist; moon.shadow.splitLambda = q.split;
   if (SHADOW.on) SHADOW.configure();   // cached cascades: new sizes / ranges, rebuilt next frame
   else if (moon.shadow.mapSize.x !== q.shadowMap) { moon.shadow.mapSize.set(q.shadowMap, q.shadowMap); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }   // per cascade; atlas is 2x1
@@ -1280,6 +1343,7 @@ scene.environmentIntensity = 1;
 function updateEnv(now) {
   const key = skyU.uInt.value * 10 + skyU.uStorm.value * 3;
   if (!ENV.dirty && (Math.abs(key - ENV.key) < 0.6 || now - ENV.t < 1.5)) return;
+  if (Q.envEvery && ENV.rt && now - ENV.t < Q.envEvery) return;   // air: the sky environment re-bakes at most every envEvery s
   if (!TX.sky.image) return;
   ENV.dirty = false; ENV.t = now; ENV.key = key;
   skyU.uStars.value = 0;                      // stars are sub-pixel: keep them out of the blurred environment
@@ -2841,8 +2905,12 @@ $('bEndMenu').onclick = () => location.reload();
 
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
-  if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
-  partMat.uniforms.uScale.value = h * renderer.getPixelRatio() * 0.5 / Math.tan(camera.fov * Math.PI / 360);
+  const pr = renderer.getPixelRatio(), [lo, hi] = rsBounds(); RS.s = Math.min(hi, Math.max(lo, RS.s));
+  // FSR: the composer (scene, bloom, grade) works at RS.s × the canvas; the upscale passes write the full canvas
+  if (composer) { composer.setPixelRatio(pr * RS.s); composer.setSize(w, h); }
+  if (RS.fsr) RS.fsr.setOutput(Math.floor(w * pr), Math.floor(h * pr));
+  partMat.uniforms.uScale.value = h * pr * RS.s * 0.5 / Math.tan(camera.fov * Math.PI / 360);
+  LOOP.redraw = true;   // an idle (paused / menu) screen is cleared by a canvas resize: draw it once more
 }
 addEventListener('resize', resize);
 
@@ -3974,7 +4042,7 @@ function updateModules(dt) {
 // Wave-2 feature modules (modules/*.js) push { name, order, init(ctx), update(dt, ctx) } into window.GameModules.
 // ctx exposes the game's internals by reference; mutable scalars are getters. A failing module is disabled, never the game.
 const MODS = [];
-const MODCTX = { SHADOW,
+const MODCTX = { SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
   H, VN, CELL, W, RES, getH, groundH, normalY, riftD, nearPOI, inRift, POI, RIFT_FLOOR, WORLD, WORLD_TERRAIN, DECOR, FOREST, STAGS, fox, orm, AV, sk, player, enemies, boss,
@@ -4000,13 +4068,46 @@ function updateGameModules(dt) {
 
 /* ============================ LOOP ============================ */
 let lastT = performance.now(), saveT = 0;
+// Frame pacing (LOWEND.md). Idle: in the menu (after 3 s of it), on pause and in a hidden tab the last frame stays on
+// screen and the loop stops completely (no rAF, no GPU work) until input / resize / visibility wakes it. Under #dbg
+// (test tools drive paused frames) idle is off unless ?idle=1. Cap: Q.fpsCap skips rAF ticks; dt is the real time
+// between the frames that run, so the simulation speed does not change.
+function wantsIdle() {
+  if (!LOOP.idleOK) return false;
+  if (document.hidden) return true;
+  if (G.mode === 'play') return !!G.pause;
+  return G.mode === 'menu' && LOAD.done && LOOP.menuT > 3;
+}
+function wakeLoop() {
+  LOOP.redraw = true;
+  if (!LOOP.running) { LOOP.running = true; LOOP.wakes++; lastT = LOOP.capT = LOOP.drawT = performance.now(); requestAnimationFrame(frame); }
+}
+for (const ev of ['keydown', 'pointerdown', 'click', 'wheel', 'focus', 'resize']) addEventListener(ev, wakeLoop, { capture: true, passive: true });
+document.addEventListener('visibilitychange', wakeLoop);
 function frame(now) {
+  if (wantsIdle() && LOOP.idleDrawn && !LOOP.redraw) { LOOP.running = false; return; }   // idle: stop until woken
   requestAnimationFrame(frame);
-  const cpu0 = GPUT.cpuOn ? performance.now() : 0;
+  if (Q.fpsCap > 0 && !LOOP.redraw) {
+    const iv = 1000 / Q.fpsCap;
+    if (now - LOOP.capT < iv - 4) { LOOP.skipped++; return; }
+    LOOP.capT = now - LOOP.capT > iv * 2 ? now : LOOP.capT + iv;   // stay on the 30 Hz grid (no drift) unless we fell behind
+  }
+  const realDt = (now - LOOP.drawT) / 1000; LOOP.drawT = now;
+  const idleFrame = wantsIdle(), redraw = LOOP.redraw; LOOP.idleDrawn = idleFrame; LOOP.redraw = false; LOOP.drawn++;
+  // LOOP.probe (tools/bench): a 1-pixel read of the screen before and after the frame (gl.finish does not wait on
+  // ANGLE-Metal; a readback must) → serialised CPU + GPU busy time of one frame
+  if (LOOP.probe) LOOP.sync();
+  const cpu0 = performance.now();
   let dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+  if (G.mode === 'menu' && LOAD.done) LOOP.menuT += dt; else LOOP.menuT = 0;
   if (window.AI) AI.tick(dt);
   if (G.mode === 'play') {
-    if (G.pause || G.ui) { if (G.ui === 'map') drawBigMap(); render(); pressed.clear(); return; }
+    if (G.pause || G.ui) {
+      if (G.ui === 'map') drawBigMap();
+      if (G.pause || !LOOP.uiDrawn || redraw) render();   // map / journal: the 3D frame behind the panel is drawn once
+      LOOP.uiDrawn = true; pressed.clear(); return;
+    }
+    LOOP.uiDrawn = false;
     G.time += dt;
     if (Dialog.active) { Dialog.update(dt); animChar(player.c, dt, 0, false, false, G.riding); driveAvatar(dt, G.riding ? 'ride' : 'still'); if (G.riding) Sound.setEngine(true, 0); }
     else if (G.deadT > 0) { G.deadT -= dt; if (AV.player) AV.player.update(dt); if (G.deadT <= 0) respawn(); }
@@ -4033,9 +4134,12 @@ function frame(now) {
   if (colView.on) { if (Math.hypot(player.x - colView.at.x, player.z - colView.at.z) > 60) toggleColliderView(true); else Passport.debugUpdate(); }
   updateWorld(dt); updateModules(dt); updateGameModules(dt); if (WF_OK) { try { WorldFill.update(dt); } catch (e) { WF_OK = false; console.warn(e); } } updateParticles(dt);
   pressed.clear();
-  const cpu1 = GPUT.cpuOn ? performance.now() : 0;
+  const cpu1 = performance.now();
   render();
-  if (GPUT.cpuOn) { const t = performance.now(); GPUT.cpu.push(t - cpu0); GPUT.cpuR.push(t - cpu1); }
+  const cpuEnd = performance.now();
+  if (LOOP.probe) { LOOP.sync(); LOOP.probe.push({ busy: performance.now() - cpu0, cpu: cpuEnd - cpu0 }); if (LOOP.probe.length > 600) LOOP.probe.shift(); }
+  if (GPUT.cpuOn) { GPUT.cpu.push(cpuEnd - cpu0); GPUT.cpuR.push(cpuEnd - cpu1); }
+  if (window.LowEnd) LowEnd.frame(now, { dt: realDt, cpuMs: cpuEnd - cpu0, gpuMs: FT.gpuOn ? FT.poll() : null, playing: G.mode === 'play' && !G.pause && !G.ui && !document.hidden && !idleFrame });
 }
 
 /* ============================ BOOT ============================ */
@@ -4053,11 +4157,15 @@ function frame(now) {
   player.c.g.position.set(player.x, player.y, player.z);
   if (composer) $('vign').hidden = true;
   initModules();
+  // LOWEND.md: the boot preset once more now that the modules added their knobs; the weak-laptop controller
+  if (Q.name !== 'high') setQuality(Q.name);
+  if (window.LowEnd) LowEnd.attach({ Q, QUALITY, setQuality, getScale: () => RS.s, setScale: setRenderScale, bounds: rsBounds, toast, loop: LOOP, pick: QPICK, get G() { return G; } });
+  console.log('[quality]', Q.name, '·', QPICK.why);
   startLoader(() => (s ? $('bContinue') : $('bNew')).focus({ preventScroll: true }));
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.
   if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
-    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW,
+    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW, RS, LOOP, setRenderScale, frameTimer: FT,
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
     STAGES, ZONES, enemies, boss, INTER, spawnShardling, save, continueGame, applySave, store, setPause, ENDINGS, heals,
     newGame: () => startGame(false),
@@ -4125,6 +4233,9 @@ function frame(now) {
       },
     });
   }
+
+  // ?q=… is the player's choice: the quality director does not move it (air has no neighbour in its ladder anyway)
+  if (QPICK.forced && window.AI && AI.quality && Q.name !== 'air') AI.quality.set(Q.name, 1e9);
 
   requestAnimationFrame(frame);
 })();
