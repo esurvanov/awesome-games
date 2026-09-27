@@ -2895,7 +2895,9 @@ function updatePlayer(dt) {
   const hs = Math.hypot(player.vx, player.vz);
   const prevS = Math.sin(c.phase);
   animChar(c, dt, hs, !player.onGround, player.aimT > 0, false);
-  if (player.onGround && hs > 2 && Math.sign(Math.sin(c.phase)) !== Math.sign(prevS)) { Sound.step(); addFootprint(player.x, player.z, player.face); if (Math.random() < 0.5) emit(player.x, player.y + 0.1, player.z, rand(-1, 1), 1, rand(-1, 1), 0.5, 0x8fa4c8, 0.35, 3, 2); }
+  // footfall sound/puff: the interaction module emits one per real foot plant (SNOW-CONTACT); this phase-based body-centre
+  // version only runs when that module's steps are off, otherwise every step had two sounds and a puff at the body centre
+  if (!(window.INTERACTION && INTERACTION.SUB.steps) && player.onGround && hs > 2 && Math.sign(Math.sin(c.phase)) !== Math.sign(prevS)) { Sound.step(); addFootprint(player.x, player.z, player.face); if (Math.random() < 0.5) emit(player.x, player.y + 0.1, player.z, rand(-1, 1), 1, rand(-1, 1), 0.5, 0x8fa4c8, 0.35, 3, 2); }
   driveAvatar(dt, 'foot');
   c.g.visible = player.inv > 0 ? Math.floor(T * 16) % 2 === 0 : true;
 }
