@@ -1,0 +1,10781 @@
+[
+ {
+  "key": "fireplace",
+  "group": "kind",
+  "kinds": [
+   "fireplace"
+  ],
+  "size": [
+   1.45,
+   2.5,
+   0.66
+  ],
+  "tris": 132,
+  "bytes": 8164,
+  "mats": [
+   "brick",
+   "soot",
+   "wood",
+   "fire"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:fireplace",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "fireplace_stone",
+  "group": "kind",
+  "kinds": [
+   "fireplace"
+  ],
+  "size": [
+   1.4,
+   2.45,
+   0.631
+  ],
+  "tris": 76,
+  "bytes": 6152,
+  "mats": [
+   "stone",
+   "soot",
+   "fire"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:fireplace_stone",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "piano",
+  "group": "kind",
+  "kinds": [
+   "piano"
+  ],
+  "size": [
+   1.5,
+   1.25,
+   0.92
+  ],
+  "tris": 372,
+  "bytes": 22608,
+  "mats": [
+   "lacquer",
+   "keysWhite",
+   "keysBlack"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:piano",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "piano_grand",
+  "group": "kind",
+  "kinds": [
+   "piano"
+  ],
+  "size": [
+   1.4,
+   0.97,
+   1.95
+  ],
+  "tris": 436,
+  "bytes": 24720,
+  "mats": [
+   "lacquer",
+   "keysWhite",
+   "keysBlack"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:piano_grand",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "guitar",
+  "group": "kind",
+  "kinds": [
+   "guitar"
+  ],
+  "size": [
+   0.38,
+   1.38,
+   0.25
+  ],
+  "tris": 544,
+  "bytes": 15832,
+  "mats": [
+   "guitarBody",
+   "fretboard",
+   "stand"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:guitar",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "telescope",
+  "group": "kind",
+  "kinds": [
+   "telescope"
+  ],
+  "size": [
+   0.518,
+   1.251,
+   1.16
+  ],
+  "tris": 340,
+  "bytes": 18588,
+  "mats": [
+   "tripod",
+   "tube",
+   "brass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:telescope",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "aquarium",
+  "group": "kind",
+  "kinds": [
+   "aquarium"
+  ],
+  "size": [
+   1.22,
+   1.36,
+   0.47
+  ],
+  "tris": 360,
+  "bytes": 14400,
+  "mats": [
+   "cabinet",
+   "glass",
+   "water",
+   "sand",
+   "fish",
+   "weed"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:aquarium",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "pool_table",
+  "group": "kind",
+  "kinds": [
+   "pool_table"
+  ],
+  "size": [
+   2.2,
+   0.848,
+   1.2
+  ],
+  "tris": 792,
+  "bytes": 24324,
+  "mats": [
+   "felt",
+   "wood",
+   "balls",
+   "ballsRed"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:pool_table",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "dartboard",
+  "group": "kind",
+  "kinds": [
+   "dartboard"
+  ],
+  "size": [
+   0.48,
+   0.48,
+   0.06
+  ],
+  "tris": 504,
+  "bytes": 19416,
+  "mats": [
+   "board",
+   "ringRed",
+   "ringGreen",
+   "cork"
+  ],
+  "wall": "back",
+  "yOffset": 1.35,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:dartboard",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "arcade_machine",
+  "group": "kind",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   0.966,
+   1.75,
+   1.297
+  ],
+  "tris": 392,
+  "bytes": 35872,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:arcade-machine",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "game_console",
+  "group": "kind",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   1,
+   1.05,
+   0.42
+  ],
+  "tris": 72,
+  "bytes": 5716,
+  "mats": [
+   "cabinet",
+   "screen",
+   "bezel",
+   "console"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:game_console",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "dance_machine",
+  "group": "furn",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   1.446,
+   1.9,
+   2.05
+  ],
+  "tris": 654,
+  "bytes": 51948,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:dance-machine",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "claw_machine",
+  "group": "furn",
+  "kinds": [
+   "video_game",
+   "pinball"
+  ],
+  "size": [
+   1.237,
+   1.8,
+   1.313
+  ],
+  "tris": 730,
+  "bytes": 59012,
+  "mats": [
+   "colormap",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:claw-machine",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "pinball",
+  "group": "kind",
+  "kinds": [
+   "pinball"
+  ],
+  "size": [
+   1.18,
+   1.75,
+   1.77
+  ],
+  "tris": 592,
+  "bytes": 49316,
+  "mats": [
+   "colormap",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:pinball",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "air_hockey",
+  "group": "furn",
+  "kinds": [
+   "pool_table"
+  ],
+  "size": [
+   1.7,
+   0.85,
+   1.19
+  ],
+  "tris": 438,
+  "bytes": 33572,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:air-hockey",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "treadmill",
+  "group": "kind",
+  "kinds": [
+   "treadmill"
+  ],
+  "size": [
+   0.8,
+   1.45,
+   1.8
+  ],
+  "tris": 72,
+  "bytes": 5944,
+  "mats": [
+   "frame",
+   "belt",
+   "display"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:treadmill",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hot_tub",
+  "group": "kind",
+  "kinds": [
+   "hot_tub"
+  ],
+  "size": [
+   2.155,
+   0.9,
+   2.04
+  ],
+  "tris": 272,
+  "bytes": 15612,
+  "mats": [
+   "wood",
+   "water",
+   "rim"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:hot_tub",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "grill",
+  "group": "kind",
+  "kinds": [
+   "grill"
+  ],
+  "size": [
+   0.585,
+   1.02,
+   0.665
+  ],
+  "tris": 300,
+  "bytes": 11080,
+  "mats": [
+   "grillBody",
+   "steel",
+   "coal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:grill",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "coffee_maker",
+  "group": "kind",
+  "kinds": [
+   "coffee_maker"
+  ],
+  "size": [
+   0.389,
+   0.364,
+   0.492
+  ],
+  "tris": 166,
+  "bytes": 10532,
+  "mats": [
+   "metalMedium",
+   "metal",
+   "carpetWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:kitchenCoffeeMachine",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "microwave",
+  "group": "kind",
+  "kinds": [
+   "microwave"
+  ],
+  "size": [
+   0.594,
+   0.369,
+   0.471
+  ],
+  "tris": 152,
+  "bytes": 8788,
+  "mats": [
+   "metalMedium",
+   "carpetWhite",
+   "metalDark",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:kitchenMicrowave",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "dishwasher",
+  "group": "kind",
+  "kinds": [
+   "dishwasher"
+  ],
+  "size": [
+   0.92,
+   0.92,
+   0.955
+  ],
+  "tris": 48,
+  "bytes": 4632,
+  "mats": [
+   "steel",
+   "counterTop",
+   "panel"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:dishwasher",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "washing_machine",
+  "group": "kind",
+  "kinds": [
+   "washing_machine"
+  ],
+  "size": [
+   0.8,
+   0.963,
+   0.799
+  ],
+  "tris": 720,
+  "bytes": 38124,
+  "mats": [
+   "metalLight",
+   "metalMedium",
+   "metalDark",
+   "metal",
+   "glass",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:washer",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "dryer",
+  "group": "furn",
+  "kinds": [
+   "washing_machine"
+  ],
+  "size": [
+   0.8,
+   0.963,
+   0.779
+  ],
+  "tris": 262,
+  "bytes": 14068,
+  "mats": [
+   "metalLight",
+   "metalMedium",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:dryer",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "washer_dryer",
+  "group": "furn",
+  "kinds": [
+   "washing_machine"
+  ],
+  "size": [
+   0.8,
+   1.927,
+   0.799
+  ],
+  "tris": 992,
+  "bytes": 50820,
+  "mats": [
+   "metalMedium",
+   "metalLight",
+   "metalDark",
+   "metal",
+   "glass",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:washerDryerStacked",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "toy_box",
+  "group": "kind",
+  "kinds": [
+   "toy_box"
+  ],
+  "size": [
+   0.8,
+   0.8,
+   0.505
+  ],
+  "tris": 212,
+  "bytes": 9628,
+  "mats": [
+   "toyWood",
+   "toyRed",
+   "toyBlue",
+   "toyYellow"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:toy_box",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "teddy_bear",
+  "group": "furn",
+  "kinds": [
+   "toy_box"
+  ],
+  "size": [
+   0.39,
+   0.45,
+   0.248
+  ],
+  "tris": 134,
+  "bytes": 9336,
+  "mats": [
+   "fur",
+   "wood",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bear",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "dollhouse",
+  "group": "kind",
+  "kinds": [
+   "dollhouse"
+  ],
+  "size": [
+   0.9,
+   0.962,
+   0.7
+  ],
+  "tris": 1808,
+  "bytes": 117416,
+  "mats": [
+   "wood",
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:dollhouse_table + su:building-type-b",
+  "source": "процедурная (build-lib.mjs) + Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "kids_bed",
+  "group": "kind",
+  "kinds": [
+   "kids_bed"
+  ],
+  "size": [
+   0.828,
+   0.544,
+   1.631
+  ],
+  "tris": 214,
+  "bytes": 14552,
+  "mats": [
+   "carpetWhite",
+   "wood",
+   "metal",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bedSingle",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "bunk_bed",
+  "group": "kind",
+  "kinds": [
+   "bunk_bed"
+  ],
+  "size": [
+   1.171,
+   1.742,
+   2.245
+  ],
+  "tris": 580,
+  "bytes": 24780,
+  "mats": [
+   "wood",
+   "carpetWhite",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bedBunk",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "wardrobe",
+  "group": "kind",
+  "kinds": [
+   "wardrobe"
+  ],
+  "size": [
+   0.941,
+   2,
+   0.588
+  ],
+  "tris": 296,
+  "bytes": 17768,
+  "mats": [
+   "wood",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bookcaseClosedDoors",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "desk_lamp",
+  "group": "kind",
+  "kinds": [
+   "desk_lamp"
+  ],
+  "size": [
+   0.246,
+   0.594,
+   0.246
+  ],
+  "tris": 60,
+  "bytes": 4488,
+  "mats": [
+   "lamp",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:lampSquareTable",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "desk_lamp_round",
+  "group": "furn",
+  "kinds": [
+   "desk_lamp"
+  ],
+  "size": [
+   0.312,
+   0.644,
+   0.36
+  ],
+  "tris": 76,
+  "bytes": 5308,
+  "mats": [
+   "metal",
+   "lamp"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:lampRoundTable",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "ceiling_lamp",
+  "group": "kind",
+  "kinds": [
+   "ceiling_lamp"
+  ],
+  "size": [
+   0.246,
+   0.472,
+   0.246
+  ],
+  "tris": 60,
+  "bytes": 4496,
+  "mats": [
+   "lamp",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": true,
+  "src": "k:lampSquareCeiling",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "ceiling_fan",
+  "group": "furn",
+  "kinds": [
+   "ceiling_lamp"
+  ],
+  "size": [
+   0.932,
+   0.274,
+   1.076
+  ],
+  "tris": 214,
+  "bytes": 12184,
+  "mats": [
+   "metalLight",
+   "lamp",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": true,
+  "src": "k:ceilingFan",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "sculpture",
+  "group": "kind",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   0.5,
+   1.49,
+   0.5
+  ],
+  "tris": 232,
+  "bytes": 14160,
+  "mats": [
+   "marble",
+   "stone",
+   "stoneDark",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:pedestal + n:statue_head",
+  "source": "процедурная (build-lib.mjs) + Kenney Nature Kit"
+ },
+ {
+  "key": "sculpture_obelisk",
+  "group": "furn",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   0.631,
+   1.8,
+   0.631
+  ],
+  "tris": 38,
+  "bytes": 3472,
+  "mats": [
+   "stoneDark",
+   "stone"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:statue_obelisk",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "sculpture_ring",
+  "group": "furn",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   1.055,
+   1.4,
+   0.703
+  ],
+  "tris": 76,
+  "bytes": 5212,
+  "mats": [
+   "stone",
+   "stoneDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:statue_ring",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "sculpture_abstract",
+  "group": "furn",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   0.5,
+   1.49,
+   0.5
+  ],
+  "tris": 464,
+  "bytes": 12416,
+  "mats": [
+   "marble",
+   "bronze"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:sculpture_abstract",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "clock",
+  "group": "kind",
+  "kinds": [
+   "clock"
+  ],
+  "size": [
+   0.55,
+   2.08,
+   0.38
+  ],
+  "tris": 216,
+  "bytes": 12296,
+  "mats": [
+   "wood",
+   "dial",
+   "brass",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:grandfather_clock",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "clock_wall",
+  "group": "furn",
+  "kinds": [
+   "clock"
+  ],
+  "size": [
+   0.36,
+   0.36,
+   0.047
+  ],
+  "tris": 360,
+  "bytes": 15652,
+  "mats": [
+   "rim",
+   "dial",
+   "hands"
+  ],
+  "wall": "back",
+  "yOffset": 1.7,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:wall_clock",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "flower_vase",
+  "group": "kind",
+  "kinds": [
+   "flower_vase"
+  ],
+  "size": [
+   0.18,
+   0.51,
+   0.175
+  ],
+  "tris": 784,
+  "bytes": 21992,
+  "mats": [
+   "vase",
+   "stem",
+   "petalRed",
+   "petalYellow",
+   "petalWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "proc:flower_vase",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "plant_small_a",
+  "group": "furn",
+  "kinds": [
+   "flower_vase",
+   "plant"
+  ],
+  "size": [
+   0.208,
+   0.308,
+   0.208
+  ],
+  "tris": 102,
+  "bytes": 6576,
+  "mats": [
+   "wood",
+   "plant"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:plantSmall1",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "plant_small_b",
+  "group": "furn",
+  "kinds": [
+   "flower_vase",
+   "plant"
+  ],
+  "size": [
+   0.208,
+   0.308,
+   0.208
+  ],
+  "tris": 158,
+  "bytes": 10320,
+  "mats": [
+   "wood",
+   "plant"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:plantSmall2",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "plant_small_c",
+  "group": "furn",
+  "kinds": [
+   "flower_vase",
+   "plant"
+  ],
+  "size": [
+   0.216,
+   0.319,
+   0.187
+  ],
+  "tris": 98,
+  "bytes": 6720,
+  "mats": [
+   "wood",
+   "plant"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:plantSmall3",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "pool",
+  "group": "kind",
+  "kinds": [
+   "pool"
+  ],
+  "size": [
+   3,
+   0.96,
+   5
+  ],
+  "tris": 96,
+  "bytes": 7072,
+  "mats": [
+   "poolRim",
+   "water",
+   "poolTile"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:pool",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "park_bench",
+  "group": "kind",
+  "kinds": [
+   "park_bench"
+  ],
+  "size": [
+   1.304,
+   0.85,
+   0.735
+  ],
+  "tris": 160,
+  "bytes": 24148,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ho:bench",
+  "source": "Kenney Holiday Kit"
+ },
+ {
+  "key": "park_bench_iron",
+  "group": "hood",
+  "kinds": [
+   "park_bench"
+  ],
+  "size": [
+   1.304,
+   0.85,
+   0.735
+  ],
+  "tris": 160,
+  "bytes": 22320,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:bench",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "fountain",
+  "group": "kind",
+  "kinds": [
+   "fountain"
+  ],
+  "size": [
+   2.8,
+   0.392,
+   2.8
+  ],
+  "tris": 1002,
+  "bytes": 69052,
+  "mats": [
+   "colormap",
+   "Water"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:fountain-round",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "fountain_square",
+  "group": "hood",
+  "kinds": [
+   "fountain"
+  ],
+  "size": [
+   2.8,
+   0.637,
+   2.8
+  ],
+  "tris": 270,
+  "bytes": 29904,
+  "mats": [
+   "colormap",
+   "Water"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:fountain-square",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "food_stall",
+  "group": "kind",
+  "kinds": [
+   "food_stall"
+  ],
+  "size": [
+   1.94,
+   2.4,
+   1.94
+  ],
+  "tris": 270,
+  "bytes": 28288,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:stall-red",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "food_stall_green",
+  "group": "hood",
+  "kinds": [
+   "food_stall"
+  ],
+  "size": [
+   1.94,
+   2.4,
+   1.94
+  ],
+  "tris": 322,
+  "bytes": 30280,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:stall-green",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "food_cart",
+  "group": "hood",
+  "kinds": [
+   "food_stall"
+  ],
+  "size": [
+   2.335,
+   1.4,
+   3.503
+  ],
+  "tris": 608,
+  "bytes": 36752,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:cart",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "cash_register",
+  "group": "kind",
+  "kinds": [
+   "cash_register"
+  ],
+  "size": [
+   0.96,
+   1.26,
+   0.62
+  ],
+  "tris": 72,
+  "bytes": 6132,
+  "mats": [
+   "counter",
+   "top",
+   "register",
+   "display"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:register_small",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "shelf_shop",
+  "group": "kind",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   1.694,
+   1.8,
+   1.482
+  ],
+  "tris": 436,
+  "bytes": 28236,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:shelf-boxes",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "shelf_shop_bags",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   1.668,
+   1.8,
+   1.459
+  ],
+  "tris": 892,
+  "bytes": 38064,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:shelf-bags",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "shop_freezer",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   2.286,
+   1,
+   1.714
+  ],
+  "tris": 180,
+  "bytes": 20712,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:freezer",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "shop_freezer_tall",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   2.222,
+   2,
+   1.111
+  ],
+  "tris": 156,
+  "bytes": 19680,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:freezers-standing",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "shop_fruit",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   1.163,
+   1,
+   1.163
+  ],
+  "tris": 650,
+  "bytes": 52348,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:display-fruit",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "shop_bread",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   1.68,
+   1.2,
+   1.44
+  ],
+  "tris": 362,
+  "bytes": 33108,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:display-bread",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "vending_machine",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop",
+   "video_game"
+  ],
+  "size": [
+   1.267,
+   1.9,
+   1.203
+  ],
+  "tris": 176,
+  "bytes": 20312,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:vending-machine",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "cafe_table",
+  "group": "kind",
+  "kinds": [
+   "cafe_table"
+  ],
+  "size": [
+   1.61,
+   0.88,
+   0.689
+  ],
+  "tris": 360,
+  "bytes": 16056,
+  "mats": [
+   "tableTop",
+   "metal",
+   "chairSeat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:cafe_table",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "cafe_table_parasol",
+  "group": "furn",
+  "kinds": [
+   "cafe_table"
+  ],
+  "size": [
+   1.767,
+   2.295,
+   2.04
+  ],
+  "tris": 456,
+  "bytes": 34056,
+  "mats": [
+   "tableTop",
+   "metal",
+   "chairSeat",
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:cafe_table + cc:detail-parasol-a",
+  "source": "процедурная (build-lib.mjs) + Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "gym_machine",
+  "group": "kind",
+  "kinds": [
+   "gym_machine"
+  ],
+  "size": [
+   1,
+   2.03,
+   1.3
+  ],
+  "tris": 96,
+  "bytes": 7668,
+  "mats": [
+   "frame",
+   "pad",
+   "weights"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:gym_machine",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "library_shelf",
+  "group": "kind",
+  "kinds": [
+   "library_shelf"
+  ],
+  "size": [
+   1.64,
+   1.619,
+   0.512
+  ],
+  "tris": 1116,
+  "bytes": 24608,
+  "mats": [
+   "wood",
+   "carpetDarker",
+   "carpetWhite",
+   "plant",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bookcaseClosedWide + k:books + k:books + k:books + k:books + k:books + k:books + k:books + k:books + k:books + k:books + k:books + k:books",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "museum_exhibit",
+  "group": "kind",
+  "kinds": [
+   "museum_exhibit"
+  ],
+  "size": [
+   0.7,
+   1.52,
+   0.7
+  ],
+  "tris": 288,
+  "bytes": 10764,
+  "mats": [
+   "plinth",
+   "glass",
+   "gold",
+   "cloth"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:museum_exhibit",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "swing_set",
+  "group": "kind",
+  "kinds": [
+   "swing_set"
+  ],
+  "size": [
+   2.5,
+   2.129,
+   1.185
+  ],
+  "tris": 468,
+  "bytes": 27840,
+  "mats": [
+   "frame",
+   "seat",
+   "chain"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:swing_set",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "sandbox",
+  "group": "kind",
+  "kinds": [
+   "sandbox"
+  ],
+  "size": [
+   1.92,
+   0.3,
+   1.92
+  ],
+  "tris": 212,
+  "bytes": 9856,
+  "mats": [
+   "wood",
+   "sand",
+   "toy"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:sandbox",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "trash_bin_street",
+  "group": "kind",
+  "kinds": [
+   "trash_bin_street"
+  ],
+  "size": [
+   0.6,
+   0.98,
+   0.585
+  ],
+  "tris": 124,
+  "bytes": 6148,
+  "mats": [
+   "binGreen",
+   "lid"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:street_bin",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "dumpster",
+  "group": "hood",
+  "kinds": [
+   "trash_bin_street"
+  ],
+  "size": [
+   1.486,
+   1.132,
+   2
+  ],
+  "tris": 234,
+  "bytes": 28312,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:dumpster",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "streetlight",
+  "group": "kind",
+  "kinds": [
+   "streetlight"
+  ],
+  "size": [
+   0.593,
+   3.6,
+   1.321
+  ],
+  "tris": 352,
+  "bytes": 35116,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:lightpost-single",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "streetlight_double",
+  "group": "hood",
+  "kinds": [
+   "streetlight"
+  ],
+  "size": [
+   0.593,
+   3.6,
+   2.065
+  ],
+  "tris": 572,
+  "bytes": 48656,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:lightpost-double",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "streetlight_modern",
+  "group": "hood",
+  "kinds": [
+   "streetlight"
+  ],
+  "size": [
+   0.417,
+   5,
+   1.979
+  ],
+  "tris": 60,
+  "bytes": 16620,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:light-square",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "streetlight_curved",
+  "group": "hood",
+  "kinds": [
+   "streetlight"
+  ],
+  "size": [
+   0.37,
+   5,
+   1.667
+  ],
+  "tris": 92,
+  "bytes": 18316,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:light-curved",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "lantern_post",
+  "group": "hood",
+  "kinds": [
+   "streetlight"
+  ],
+  "size": [
+   0.334,
+   2.4,
+   0.346
+  ],
+  "tris": 158,
+  "bytes": 21848,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:lantern",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "hedge",
+  "group": "kind",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.665,
+   0.9,
+   0.983
+  ],
+  "tris": 2392,
+  "bytes": 55992,
+  "mats": [
+   "leaves",
+   "leavesDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:hedge_box:0.9:1",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hedge_large",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.665,
+   1.5,
+   0.983
+  ],
+  "tris": 2392,
+  "bytes": 55988,
+  "mats": [
+   "leaves",
+   "leavesDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:hedge_box:1.5:1",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hedge_curved",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1,
+   0.25,
+   1
+  ],
+  "tris": 280,
+  "bytes": 29552,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:hedge-curved",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "tree",
+  "group": "kind",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.431,
+   5.5,
+   2.106
+  ],
+  "tris": 114,
+  "bytes": 7440,
+  "mats": [
+   "woodBark",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_default",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "flowerbed",
+  "group": "kind",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   1.006,
+   0.468,
+   1
+  ],
+  "tris": 794,
+  "bytes": 46480,
+  "mats": [
+   "soil",
+   "border",
+   "grass",
+   "colorRed",
+   "colorYellow",
+   "colorPurple",
+   "colorWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:bed_soil + n:flower_redA + n:flower_yellowA + n:flower_purpleA + n:flower_yellowB + n:flower_purpleB + n:flower_redB + n:flower_redC + n:flower_yellowC",
+  "source": "процедурная (build-lib.mjs) + Kenney Nature Kit"
+ },
+ {
+  "key": "fence",
+  "group": "kind",
+  "kinds": [
+   "fence"
+  ],
+  "size": [
+   1,
+   0.345,
+   0.07
+  ],
+  "tris": 64,
+  "bytes": 4412,
+  "mats": [
+   "wood",
+   "woodDark"
+  ],
+  "wall": "edge",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:fence_simple",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "fence_planks",
+  "group": "hood",
+  "kinds": [
+   "fence"
+  ],
+  "size": [
+   1,
+   0.345,
+   0.096
+  ],
+  "tris": 96,
+  "bytes": 6104,
+  "mats": [
+   "wood"
+  ],
+  "wall": "edge",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:fence_planks",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "fence_high",
+  "group": "hood",
+  "kinds": [
+   "fence"
+  ],
+  "size": [
+   1,
+   0.331,
+   0.107
+  ],
+  "tris": 44,
+  "bytes": 3500,
+  "mats": [
+   "wood"
+  ],
+  "wall": "edge",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:fence_simpleHigh",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "fence_iron",
+  "group": "hood",
+  "kinds": [
+   "fence"
+  ],
+  "size": [
+   1,
+   0.879,
+   0.11
+  ],
+  "tris": 376,
+  "bytes": 37776,
+  "mats": [
+   "colormap"
+  ],
+  "wall": "edge",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:iron-fence",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "fence_picket",
+  "group": "hood",
+  "kinds": [
+   "fence"
+  ],
+  "size": [
+   1,
+   0.568,
+   0.158
+  ],
+  "tris": 88,
+  "bytes": 18744,
+  "mats": [
+   "colormap"
+  ],
+  "wall": "edge",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:fence",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "fence_gate",
+  "group": "hood",
+  "kinds": [
+   "fence"
+  ],
+  "size": [
+   1,
+   0.345,
+   0.07
+  ],
+  "tris": 524,
+  "bytes": 22124,
+  "mats": [
+   "wood",
+   "woodDark",
+   "stone"
+  ],
+  "wall": "edge",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:fence_gate",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "k_loungeSofa",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.009,
+   0.943,
+   0.841
+  ],
+  "tris": 128,
+  "bytes": 7708,
+  "mats": [
+   "carpet",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeSofa",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeSofaLong",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.009,
+   0.943,
+   1.681
+  ],
+  "tris": 186,
+  "bytes": 10484,
+  "mats": [
+   "carpet",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeSofaLong",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeDesignSofa",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.296,
+   0.82,
+   0.841
+  ],
+  "tris": 116,
+  "bytes": 7284,
+  "mats": [
+   "carpetBlue",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeDesignSofa",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeSofaCorner",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.009,
+   0.943,
+   2.009
+  ],
+  "tris": 190,
+  "bytes": 10732,
+  "mats": [
+   "carpet",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeSofaCorner",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeDesignSofaCorner",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.767,
+   0.82,
+   2.767
+  ],
+  "tris": 176,
+  "bytes": 10884,
+  "mats": [
+   "carpetBlue",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeDesignSofaCorner",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_benchCushion",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   0.82,
+   0.943,
+   0.41
+  ],
+  "tris": 196,
+  "bytes": 10072,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:benchCushion",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeChair",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   1.004,
+   0.943,
+   0.841
+  ],
+  "tris": 128,
+  "bytes": 7712,
+  "mats": [
+   "carpet",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeChair",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeChairRelax",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   1.004,
+   1.291,
+   1.383
+  ],
+  "tris": 188,
+  "bytes": 11052,
+  "mats": [
+   "metal",
+   "carpet",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeChairRelax",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeDesignChair",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   1.496,
+   0.82,
+   0.841
+  ],
+  "tris": 116,
+  "bytes": 7288,
+  "mats": [
+   "carpetBlue",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeDesignChair",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_loungeSofaOttoman",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   0.902,
+   0.472,
+   0.923
+  ],
+  "tris": 84,
+  "bytes": 5612,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeSofaOttoman",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_chair",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.41,
+   0.963,
+   0.41
+  ],
+  "tris": 170,
+  "bytes": 8712,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:chair",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_chairCushion",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.41,
+   0.943,
+   0.41
+  ],
+  "tris": 198,
+  "bytes": 10144,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:chairCushion",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_chairModernCushion",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.41,
+   0.943,
+   0.41
+  ],
+  "tris": 92,
+  "bytes": 5944,
+  "mats": [
+   "metal",
+   "carpetBlue"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:chairModernCushion",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_chairModernFrameCushion",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.41,
+   0.943,
+   0.41
+  ],
+  "tris": 284,
+  "bytes": 14944,
+  "mats": [
+   "metal",
+   "carpetBlue"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:chairModernFrameCushion",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_chairRounded",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.41,
+   0.933,
+   0.41
+  ],
+  "tris": 280,
+  "bytes": 13856,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:chairRounded",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_chairDesk",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.687,
+   1.246,
+   0.644
+  ],
+  "tris": 588,
+  "bytes": 31044,
+  "mats": [
+   "metalMedium",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:chairDesk",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_stoolBar",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.544,
+   0.892,
+   0.471
+  ],
+  "tris": 176,
+  "bytes": 9476,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:stoolBar",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_stoolBarSquare",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.315,
+   0.83,
+   0.303
+  ],
+  "tris": 142,
+  "bytes": 7884,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:stoolBarSquare",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bench",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.82,
+   0.963,
+   0.41
+  ],
+  "tris": 170,
+  "bytes": 8712,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bench",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_benchCushionLow",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.861,
+   0.41,
+   0.451
+  ],
+  "tris": 138,
+  "bytes": 8184,
+  "mats": [
+   "wood",
+   "carpet",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:benchCushionLow",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_table",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.725,
+   0.67,
+   0.917
+  ],
+  "tris": 120,
+  "bytes": 6624,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:table",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCloth",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.725,
+   0.67,
+   0.917
+  ],
+  "tris": 144,
+  "bytes": 7968,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCloth",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCross",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.747,
+   0.712,
+   0.917
+  ],
+  "tris": 178,
+  "bytes": 9788,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCross",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCrossCloth",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.747,
+   0.712,
+   0.917
+  ],
+  "tris": 202,
+  "bytes": 11112,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCrossCloth",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableGlass",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.725,
+   0.67,
+   0.917
+  ],
+  "tris": 144,
+  "bytes": 7924,
+  "mats": [
+   "metal",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableGlass",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableRound",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.42,
+   0.752,
+   1.64
+  ],
+  "tris": 80,
+  "bytes": 5236,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableRound",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCoffee",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   1.355,
+   0.472,
+   0.82
+  ],
+  "tris": 124,
+  "bytes": 6772,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCoffee",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCoffeeGlass",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   1.355,
+   0.472,
+   0.82
+  ],
+  "tris": 140,
+  "bytes": 7692,
+  "mats": [
+   "metal",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCoffeeGlass",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCoffeeGlassSquare",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   0.82,
+   0.472,
+   0.82
+  ],
+  "tris": 140,
+  "bytes": 7716,
+  "mats": [
+   "metal",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCoffeeGlassSquare",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_tableCoffeeSquare",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   0.82,
+   0.472,
+   0.82
+  ],
+  "tris": 124,
+  "bytes": 6800,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCoffeeSquare",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_sideTable",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   1.096,
+   0.788,
+   0.451
+  ],
+  "tris": 118,
+  "bytes": 7048,
+  "mats": [
+   "wood",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:sideTable",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_sideTableDrawers",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   1.096,
+   0.788,
+   0.456
+  ],
+  "tris": 238,
+  "bytes": 11896,
+  "mats": [
+   "wood",
+   "_defaultMat",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:sideTableDrawers",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bookcaseOpen",
+  "group": "furn",
+  "kinds": [
+   "bookshelf"
+  ],
+  "size": [
+   0.82,
+   1.804,
+   0.512
+  ],
+  "tris": 320,
+  "bytes": 14596,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bookcaseOpen",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bookcaseOpenLow",
+  "group": "furn",
+  "kinds": [
+   "bookshelf"
+  ],
+  "size": [
+   0.82,
+   0.82,
+   0.512
+  ],
+  "tris": 184,
+  "bytes": 9324,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bookcaseOpenLow",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bookcaseClosed",
+  "group": "furn",
+  "kinds": [
+   "bookshelf"
+  ],
+  "size": [
+   0.82,
+   1.742,
+   0.512
+  ],
+  "tris": 372,
+  "bytes": 18588,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bookcaseClosed",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bookcaseClosedWide",
+  "group": "furn",
+  "kinds": [
+   "bookshelf"
+  ],
+  "size": [
+   1.64,
+   1.619,
+   0.512
+  ],
+  "tris": 372,
+  "bytes": 18604,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bookcaseClosedWide",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_cabinetBed",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   0.545,
+   0.478,
+   0.441
+  ],
+  "tris": 72,
+  "bytes": 5880,
+  "mats": [
+   "wood",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cabinetBed",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_cabinetBedDrawer",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   0.545,
+   0.54,
+   0.445
+  ],
+  "tris": 182,
+  "bytes": 12456,
+  "mats": [
+   "wood",
+   "_defaultMat",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cabinetBedDrawer",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_cabinetBedDrawerTable",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   0.545,
+   0.54,
+   0.445
+  ],
+  "tris": 140,
+  "bytes": 9552,
+  "mats": [
+   "wood",
+   "_defaultMat",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cabinetBedDrawerTable",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bathroomCabinetDrawer",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   0.882,
+   0.967,
+   0.656
+  ],
+  "tris": 508,
+  "bytes": 20552,
+  "mats": [
+   "wood",
+   "carpetWhite",
+   "metalDark",
+   "metalLight"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bathroomCabinetDrawer",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_toilet",
+  "group": "furn",
+  "kinds": [
+   "toilet"
+  ],
+  "size": [
+   0.641,
+   0.924,
+   0.978
+  ],
+  "tris": 230,
+  "bytes": 14252,
+  "mats": [
+   "carpetWhite",
+   "metalLight",
+   "metalDark",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:toilet",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_toiletSquare",
+  "group": "furn",
+  "kinds": [
+   "toilet"
+  ],
+  "size": [
+   0.622,
+   0.924,
+   0.794
+  ],
+  "tris": 228,
+  "bytes": 13864,
+  "mats": [
+   "carpetWhite",
+   "metalLight"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:toiletSquare",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_shower",
+  "group": "furn",
+  "kinds": [
+   "shower"
+  ],
+  "size": [
+   1.152,
+   2.243,
+   1.193
+  ],
+  "tris": 810,
+  "bytes": 41336,
+  "mats": [
+   "carpetWhite",
+   "metalDark",
+   "glass",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:shower",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_showerRound",
+  "group": "furn",
+  "kinds": [
+   "shower"
+  ],
+  "size": [
+   1.152,
+   2.243,
+   1.152
+  ],
+  "tris": 960,
+  "bytes": 56280,
+  "mats": [
+   "_defaultMat",
+   "metalDark",
+   "glass",
+   "carpetWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:showerRound",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bathtub",
+  "group": "furn",
+  "kinds": [
+   "bathtub"
+  ],
+  "size": [
+   2.44,
+   0.861,
+   1.148
+  ],
+  "tris": 602,
+  "bytes": 28508,
+  "mats": [
+   "carpetWhite",
+   "metalLight",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bathtub",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bathroomSink",
+  "group": "furn",
+  "kinds": [
+   "bath_sink"
+  ],
+  "size": [
+   0.697,
+   1.148,
+   0.594
+  ],
+  "tris": 316,
+  "bytes": 17908,
+  "mats": [
+   "_defaultMat",
+   "metalLight",
+   "carpetWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bathroomSink",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bathroomSinkSquare",
+  "group": "furn",
+  "kinds": [
+   "bath_sink"
+  ],
+  "size": [
+   0.882,
+   1.189,
+   0.615
+  ],
+  "tris": 234,
+  "bytes": 12148,
+  "mats": [
+   "carpetWhite",
+   "metalDark",
+   "metalLight"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bathroomSinkSquare",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenFridge",
+  "group": "furn",
+  "kinds": [
+   "fridge"
+  ],
+  "size": [
+   0.882,
+   1.886,
+   0.598
+  ],
+  "tris": 250,
+  "bytes": 15664,
+  "mats": [
+   "metalLight",
+   "metalDark",
+   "metal",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenFridge",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenFridgeLarge",
+  "group": "furn",
+  "kinds": [
+   "fridge"
+  ],
+  "size": [
+   1.066,
+   1.886,
+   0.831
+  ],
+  "tris": 436,
+  "bytes": 24212,
+  "mats": [
+   "metalLight",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenFridgeLarge",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenFridgeSmall",
+  "group": "furn",
+  "kinds": [
+   "fridge"
+  ],
+  "size": [
+   0.882,
+   1.231,
+   0.598
+  ],
+  "tris": 152,
+  "bytes": 10168,
+  "mats": [
+   "metalLight",
+   "metalDark",
+   "glass",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenFridgeSmall",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenFridgeBuiltIn",
+  "group": "furn",
+  "kinds": [
+   "fridge"
+  ],
+  "size": [
+   0.882,
+   1.781,
+   0.922
+  ],
+  "tris": 268,
+  "bytes": 17544,
+  "mats": [
+   "wood",
+   "metalLight",
+   "woodDark",
+   "metal",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenFridgeBuiltIn",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenStove",
+  "group": "furn",
+  "kinds": [
+   "stove"
+  ],
+  "size": [
+   0.882,
+   0.922,
+   0.922
+  ],
+  "tris": 830,
+  "bytes": 43116,
+  "mats": [
+   "metal",
+   "wood",
+   "metalDark",
+   "carpetWhite",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenStove",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenStoveElectric",
+  "group": "furn",
+  "kinds": [
+   "stove"
+  ],
+  "size": [
+   0.882,
+   0.922,
+   0.922
+  ],
+  "tris": 338,
+  "bytes": 14936,
+  "mats": [
+   "metal",
+   "wood",
+   "metalDark",
+   "carpetWhite",
+   "glass",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenStoveElectric",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinet",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   0.882,
+   0.922,
+   0.922
+  ],
+  "tris": 114,
+  "bytes": 8116,
+  "mats": [
+   "metal",
+   "wood",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinet",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetDrawer",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   0.882,
+   0.922,
+   0.922
+  ],
+  "tris": 174,
+  "bytes": 11856,
+  "mats": [
+   "metal",
+   "wood",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetDrawer",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenBar",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   0.882,
+   0.861,
+   0.43
+  ],
+  "tris": 76,
+  "bytes": 4792,
+  "mats": [
+   "wood",
+   "metal",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenBar",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenBarEnd",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   0.208,
+   0.861,
+   0.43
+  ],
+  "tris": 152,
+  "bytes": 8860,
+  "mats": [
+   "wood",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenBarEnd",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetCornerRound",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   0.922,
+   0.922,
+   0.922
+  ],
+  "tris": 194,
+  "bytes": 10964,
+  "mats": [
+   "metal",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetCornerRound",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetCornerInner",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   0.943,
+   0.922,
+   0.943
+  ],
+  "tris": 54,
+  "bytes": 4192,
+  "mats": [
+   "wood",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetCornerInner",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenSink",
+  "group": "furn",
+  "kinds": [
+   "kitchen_sink"
+  ],
+  "size": [
+   0.882,
+   1.004,
+   0.922
+  ],
+  "tris": 318,
+  "bytes": 18324,
+  "mats": [
+   "wood",
+   "metal",
+   "metalDark",
+   "metalLight",
+   "_defaultMat",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenSink",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_lampRoundFloor",
+  "group": "furn",
+  "kinds": [
+   "floor_lamp"
+  ],
+  "size": [
+   0.312,
+   1.763,
+   0.36
+  ],
+  "tris": 76,
+  "bytes": 5308,
+  "mats": [
+   "metal",
+   "lamp"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:lampRoundFloor",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_lampSquareFloor",
+  "group": "furn",
+  "kinds": [
+   "floor_lamp"
+  ],
+  "size": [
+   0.246,
+   1.763,
+   0.246
+  ],
+  "tris": 60,
+  "bytes": 4500,
+  "mats": [
+   "lamp",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:lampSquareFloor",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_pottedPlant",
+  "group": "furn",
+  "kinds": [
+   "plant"
+  ],
+  "size": [
+   0.435,
+   1.341,
+   0.495
+  ],
+  "tris": 60,
+  "bytes": 5836,
+  "mats": [
+   "wood",
+   "woodDark",
+   "plant"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:pottedPlant",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_trashcan",
+  "group": "furn",
+  "kinds": [
+   "trash_can"
+  ],
+  "size": [
+   0.426,
+   0.877,
+   0.48
+  ],
+  "tris": 68,
+  "bytes": 5212,
+  "mats": [
+   "metal",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:trashcan",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bathroomMirror",
+  "group": "furn",
+  "kinds": [
+   "mirror"
+  ],
+  "size": [
+   0.618,
+   0.891,
+   0.296
+  ],
+  "tris": 72,
+  "bytes": 5436,
+  "mats": [
+   "wood",
+   "metal",
+   "glass"
+  ],
+  "wall": "back",
+  "yOffset": 1,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bathroomMirror",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_rugRectangle",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   3.218,
+   0.01,
+   1.886
+  ],
+  "tris": 28,
+  "bytes": 2576,
+  "mats": [
+   "carpet",
+   "carpetDarker"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:rugRectangle",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_rugRound",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   1.886,
+   0.01,
+   1.886
+  ],
+  "tris": 188,
+  "bytes": 8280,
+  "mats": [
+   "carpet",
+   "carpetDarker"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:rugRound",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_rugRounded",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   3.218,
+   0.01,
+   1.886
+  ],
+  "tris": 204,
+  "bytes": 8864,
+  "mats": [
+   "carpetDarker",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:rugRounded",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_rugSquare",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   1.854,
+   0.01,
+   1.886
+  ],
+  "tris": 28,
+  "bytes": 2564,
+  "mats": [
+   "carpet",
+   "carpetDarker"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:rugSquare",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_rugDoormat",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   0.88,
+   0.01,
+   0.486
+  ],
+  "tris": 204,
+  "bytes": 11108,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:rugDoormat",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bedSingle",
+  "group": "furn",
+  "kinds": [
+   "bed_single"
+  ],
+  "size": [
+   1.171,
+   0.769,
+   2.306
+  ],
+  "tris": 214,
+  "bytes": 14548,
+  "mats": [
+   "carpetWhite",
+   "wood",
+   "metal",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bedSingle",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bedDouble",
+  "group": "furn",
+  "kinds": [
+   "bed_double"
+  ],
+  "size": [
+   1.96,
+   0.769,
+   2.306
+  ],
+  "tris": 264,
+  "bytes": 14724,
+  "mats": [
+   "carpetWhite",
+   "wood",
+   "metal",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bedDouble",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_coatRack",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.918,
+   0.574,
+   0.276
+  ],
+  "tris": 132,
+  "bytes": 7948,
+  "mats": [
+   "metalMedium",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:coatRack",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_coatRackStanding",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.559,
+   1.578,
+   0.559
+  ],
+  "tris": 190,
+  "bytes": 10672,
+  "mats": [
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:coatRackStanding",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_cardboardBoxClosed",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.436,
+   0.576,
+   0.436
+  ],
+  "tris": 60,
+  "bytes": 4352,
+  "mats": [
+   "wood",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cardboardBoxClosed",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_cardboardBoxOpen",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.762,
+   0.576,
+   0.436
+  ],
+  "tris": 60,
+  "bytes": 4364,
+  "mats": [
+   "wood",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cardboardBoxOpen",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_hoodLarge",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.882,
+   0.758,
+   0.584
+  ],
+  "tris": 36,
+  "bytes": 3672,
+  "mats": [
+   "metalDark",
+   "_defaultMat"
+  ],
+  "wall": "back",
+  "yOffset": 1.5,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:hoodLarge",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_hoodModern",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.882,
+   0.819,
+   0.584
+  ],
+  "tris": 28,
+  "bytes": 3168,
+  "mats": [
+   "metalMedium",
+   "_defaultMat"
+  ],
+  "wall": "back",
+  "yOffset": 1.5,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:hoodModern",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetUpper",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.882,
+   0.8,
+   0.451
+  ],
+  "tris": 80,
+  "bytes": 6356,
+  "mats": [
+   "wood",
+   "woodDark",
+   "metal"
+  ],
+  "wall": "back",
+  "yOffset": 1.4,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetUpper",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetUpperDouble",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.882,
+   0.8,
+   0.451
+  ],
+  "tris": 234,
+  "bytes": 14176,
+  "mats": [
+   "wood",
+   "woodDark",
+   "metal"
+  ],
+  "wall": "back",
+  "yOffset": 1.4,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetUpperDouble",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetUpperLow",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.882,
+   0.4,
+   0.451
+  ],
+  "tris": 64,
+  "bytes": 5600,
+  "mats": [
+   "wood",
+   "woodDark",
+   "metal"
+  ],
+  "wall": "back",
+  "yOffset": 1.6,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetUpperLow",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenCabinetUpperCorner",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.441,
+   0.8,
+   0.43
+  ],
+  "tris": 204,
+  "bytes": 11072,
+  "mats": [
+   "wood"
+  ],
+  "wall": "back",
+  "yOffset": 1.4,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenCabinetUpperCorner",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_bathroomCabinet",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.472,
+   0.8,
+   0.266
+  ],
+  "tris": 64,
+  "bytes": 5616,
+  "mats": [
+   "wood",
+   "woodDark",
+   "metal"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:bathroomCabinet",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_lampWall",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.465,
+   0.19,
+   0.308
+  ],
+  "tris": 42,
+  "bytes": 3808,
+  "mats": [
+   "metal",
+   "lamp"
+  ],
+  "wall": "back",
+  "yOffset": 1.7,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:lampWall",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_pillow",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.472,
+   0.455,
+   0.181
+  ],
+  "tris": 50,
+  "bytes": 4064,
+  "mats": [
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:pillow",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_pillowBlue",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.472,
+   0.263,
+   0.13
+  ],
+  "tris": 50,
+  "bytes": 4060,
+  "mats": [
+   "carpetBlue"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:pillowBlue",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_pillowLong",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.792,
+   0.455,
+   0.181
+  ],
+  "tris": 50,
+  "bytes": 4120,
+  "mats": [
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:pillowLong",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_pillowBlueLong",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.059,
+   0.455,
+   0.181
+  ],
+  "tris": 50,
+  "bytes": 4136,
+  "mats": [
+   "carpetBlue"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:pillowBlueLong",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_books",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.308,
+   0.213,
+   0.194
+  ],
+  "tris": 62,
+  "bytes": 5324,
+  "mats": [
+   "carpetDarker",
+   "carpetWhite",
+   "plant",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:books",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_kitchenBlender",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.278,
+   0.466,
+   0.224
+  ],
+  "tris": 246,
+  "bytes": 14740,
+  "mats": [
+   "metalMedium",
+   "metal",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:kitchenBlender",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_toaster",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.385,
+   0.266,
+   0.205
+  ],
+  "tris": 220,
+  "bytes": 11916,
+  "mats": [
+   "metalMedium",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:toaster",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_laptop",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.541,
+   0.332,
+   0.492
+  ],
+  "tris": 68,
+  "bytes": 4424,
+  "mats": [
+   "metalDark",
+   "metal",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:laptop",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_computerScreen",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.805,
+   0.603,
+   0.213
+  ],
+  "tris": 72,
+  "bytes": 5176,
+  "mats": [
+   "metalDark",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:computerScreen",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_speaker",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.303,
+   1.305,
+   0.303
+  ],
+  "tris": 228,
+  "bytes": 12640,
+  "mats": [
+   "wood",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:speaker",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_speakerSmall",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.303,
+   0.611,
+   0.273
+  ],
+  "tris": 220,
+  "bytes": 12192,
+  "mats": [
+   "wood",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:speakerSmall",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_radio",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.646,
+   0.468,
+   0.2
+  ],
+  "tris": 432,
+  "bytes": 20092,
+  "mats": [
+   "metalMedium",
+   "wood",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:radio",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_televisionModern",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.404,
+   0.932,
+   0.263
+  ],
+  "tris": 72,
+  "bytes": 5076,
+  "mats": [
+   "metalDark",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:televisionModern",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_televisionVintage",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.841,
+   0.553,
+   0.553
+  ],
+  "tris": 280,
+  "bytes": 15400,
+  "mats": [
+   "metal",
+   "wood",
+   "metalMedium",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "k:televisionVintage",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "tv_modern",
+  "group": "furn",
+  "kinds": [
+   "tv"
+  ],
+  "size": [
+   1.64,
+   1.568,
+   0.512
+  ],
+  "tris": 226,
+  "bytes": 13184,
+  "mats": [
+   "wood",
+   "metalDark",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cabinetTelevision + k:televisionModern",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "tv_modern_doors",
+  "group": "furn",
+  "kinds": [
+   "tv"
+  ],
+  "size": [
+   1.64,
+   1.568,
+   0.533
+  ],
+  "tris": 282,
+  "bytes": 17736,
+  "mats": [
+   "wood",
+   "metal",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cabinetTelevisionDoors + k:televisionModern",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "tv_vintage",
+  "group": "furn",
+  "kinds": [
+   "tv"
+  ],
+  "size": [
+   1.096,
+   1.543,
+   0.553
+  ],
+  "tris": 442,
+  "bytes": 24996,
+  "mats": [
+   "wood",
+   "_defaultMat",
+   "metal",
+   "metalMedium",
+   "metalDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:sideTable + k:televisionVintage + k:televisionAntenna",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "stereo_tower",
+  "group": "furn",
+  "kinds": [
+   "stereo"
+  ],
+  "size": [
+   1.226,
+   1.305,
+   0.445
+  ],
+  "tris": 1070,
+  "bytes": 43900,
+  "mats": [
+   "wood",
+   "metalMedium",
+   "_defaultMat",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:speaker + k:speaker + k:cabinetBedDrawer + k:radio",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "stereo_radio",
+  "group": "furn",
+  "kinds": [
+   "stereo"
+  ],
+  "size": [
+   1.096,
+   1.247,
+   0.456
+  ],
+  "tris": 670,
+  "bytes": 31312,
+  "mats": [
+   "wood",
+   "_defaultMat",
+   "metal",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:sideTableDrawers + k:radio",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "computer_laptop",
+  "group": "furn",
+  "kinds": [
+   "computer_desk"
+  ],
+  "size": [
+   1.506,
+   1.111,
+   1.132
+  ],
+  "tris": 266,
+  "bytes": 15804,
+  "mats": [
+   "wood",
+   "metal",
+   "metalDark",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:desk + k:laptop",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "computer_corner",
+  "group": "furn",
+  "kinds": [
+   "computer_desk"
+  ],
+  "size": [
+   1.998,
+   1.382,
+   1.998
+  ],
+  "tris": 354,
+  "bytes": 21124,
+  "mats": [
+   "wood",
+   "metal",
+   "metalDark",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:deskCorner + k:computerScreen + k:computerKeyboard",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "computer_pc",
+  "group": "furn",
+  "kinds": [
+   "computer_desk"
+  ],
+  "size": [
+   1.506,
+   1.382,
+   0.915
+  ],
+  "tris": 373,
+  "bytes": 23016,
+  "mats": [
+   "wood",
+   "metal",
+   "metalDark",
+   "metalMedium"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:desk + k:computerScreen + k:computerKeyboard + k:computerMouse",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "kitchen_island",
+  "group": "furn",
+  "kinds": [
+   "counter"
+  ],
+  "size": [
+   1.763,
+   0.861,
+   0.43
+  ],
+  "tris": 152,
+  "bytes": 4888,
+  "mats": [
+   "wood",
+   "metal",
+   "woodDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenBar + k:kitchenBar",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "stove_hood",
+  "group": "furn",
+  "kinds": [
+   "stove"
+  ],
+  "size": [
+   0.882,
+   2.5,
+   0.922
+  ],
+  "tris": 858,
+  "bytes": 45852,
+  "mats": [
+   "metal",
+   "wood",
+   "metalDark",
+   "carpetWhite",
+   "glass",
+   "metalMedium",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:kitchenStove + k:hoodModern",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "painting_birch",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.9,
+   0.7,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 14164,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting:birch",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "painting_sea",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.9,
+   0.7,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 8956,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting:sea",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "painting_abstract",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.9,
+   0.7,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 9924,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting:abstract",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "painting_still",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.9,
+   0.7,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 7892,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting:still",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "painting_portrait",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.9,
+   0.7,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 8236,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting:portrait",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "painting_sunset",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.9,
+   0.7,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 9488,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting:sunset",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "painting_wide",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   1.4,
+   0.6,
+   0.04
+  ],
+  "tris": 62,
+  "bytes": 9476,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:painting_wide:sunset",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "pot_large_bush",
+  "group": "furn",
+  "kinds": [
+   "plant"
+  ],
+  "size": [
+   1.07,
+   1.1,
+   1.03
+  ],
+  "tris": 172,
+  "bytes": 12516,
+  "mats": [
+   "wood",
+   "woodBarkDark",
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:pot_large + n:plant_bushDetailed",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "pot_small_flower",
+  "group": "furn",
+  "kinds": [
+   "plant",
+   "flower_vase"
+  ],
+  "size": [
+   0.458,
+   0.6,
+   0.396
+  ],
+  "tris": 148,
+  "bytes": 10592,
+  "mats": [
+   "wood",
+   "woodBarkDark",
+   "_defaultMat",
+   "grass",
+   "colorRed"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:pot_small + n:flower_redA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "cactus",
+  "group": "furn",
+  "kinds": [
+   "plant"
+  ],
+  "size": [
+   0.597,
+   1.2,
+   0.517
+  ],
+  "tris": 194,
+  "bytes": 12680,
+  "mats": [
+   "wood",
+   "woodBarkDark",
+   "_defaultMat",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:pot_small + n:cactus_tall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "xmas_tree",
+  "group": "furn",
+  "kinds": [
+   "plant",
+   "decor"
+  ],
+  "size": [
+   1.091,
+   2.1,
+   1.091
+  ],
+  "tris": 670,
+  "bytes": 62040,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ho:tree-decorated",
+  "source": "Kenney Holiday Kit"
+ },
+ {
+  "key": "snowman",
+  "group": "hood",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   1.555,
+   1.5,
+   0.97
+  ],
+  "tris": 446,
+  "bytes": 45056,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ho:snowman",
+  "source": "Kenney Holiday Kit"
+ },
+ {
+  "key": "gift_box",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.276,
+   0.35,
+   0.276
+  ],
+  "tris": 238,
+  "bytes": 25964,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ho:present-a-cube",
+  "source": "Kenney Holiday Kit"
+ },
+ {
+  "key": "lantern_table",
+  "group": "furn",
+  "kinds": [
+   "desk_lamp"
+  ],
+  "size": [
+   0.121,
+   0.4,
+   0.105
+  ],
+  "tris": 172,
+  "bytes": 25192,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "ho:lantern",
+  "source": "Kenney Holiday Kit"
+ },
+ {
+  "key": "menorah",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.293,
+   0.45,
+   0.098
+  ],
+  "tris": 1150,
+  "bytes": 73708,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "ho:hanukkah-menorah-candles",
+  "source": "Kenney Holiday Kit"
+ },
+ {
+  "key": "barrel",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.619,
+   0.9,
+   0.619
+  ],
+  "tris": 412,
+  "bytes": 31452,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "sv:barrel",
+  "source": "Kenney Survival Kit"
+ },
+ {
+  "key": "chest",
+  "group": "furn",
+  "kinds": [
+   "toy_box"
+  ],
+  "size": [
+   0.607,
+   0.6,
+   0.635
+  ],
+  "tris": 322,
+  "bytes": 32636,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "sv:chest",
+  "source": "Kenney Survival Kit"
+ },
+ {
+  "key": "workbench",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.079,
+   0.95,
+   0.98
+  ],
+  "tris": 236,
+  "bytes": 25436,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "sv:workbench",
+  "source": "Kenney Survival Kit"
+ },
+ {
+  "key": "tent",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.826,
+   1.6,
+   1.827
+  ],
+  "tris": 124,
+  "bytes": 17388,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "sv:tent",
+  "source": "Kenney Survival Kit"
+ },
+ {
+  "key": "campfire",
+  "group": "hood",
+  "kinds": [
+   "grill"
+  ],
+  "size": [
+   1.273,
+   0.5,
+   1.234
+  ],
+  "tris": 305,
+  "bytes": 25860,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "sv:campfire-pit",
+  "source": "Kenney Survival Kit"
+ },
+ {
+  "key": "urn",
+  "group": "furn",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   0.62,
+   0.9,
+   0.62
+  ],
+  "tris": 230,
+  "bytes": 27444,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:urn-round",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "column",
+  "group": "furn",
+  "kinds": [
+   "sculpture"
+  ],
+  "size": [
+   0.66,
+   2.2,
+   0.66
+  ],
+  "tris": 122,
+  "bytes": 8112,
+  "mats": [
+   "stoneDark",
+   "stone",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:statue_column",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "gravestone_cross",
+  "group": "hood",
+  "kinds": [
+   "tombstone"
+  ],
+  "size": [
+   0.492,
+   1,
+   0.361
+  ],
+  "tris": 222,
+  "bytes": 25544,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:gravestone-cross",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "gravestone_round",
+  "group": "hood",
+  "kinds": [
+   "tombstone"
+  ],
+  "size": [
+   0.704,
+   0.9,
+   0.391
+  ],
+  "tris": 178,
+  "bytes": 22948,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:gravestone-round",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "gravestone_wide",
+  "group": "hood",
+  "kinds": [
+   "tombstone"
+  ],
+  "size": [
+   1.341,
+   0.9,
+   0.473
+  ],
+  "tris": 266,
+  "bytes": 27276,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "gy:gravestone-wide",
+  "source": "Kenney Graveyard Kit"
+ },
+ {
+  "key": "shopping_cart",
+  "group": "furn",
+  "kinds": [
+   "shelf_shop"
+  ],
+  "size": [
+   0.768,
+   1,
+   1.226
+  ],
+  "tris": 384,
+  "bytes": 33068,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:shopping-cart",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "ticket_machine",
+  "group": "furn",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   0.692,
+   1.6,
+   0.685
+  ],
+  "tris": 277,
+  "bytes": 28928,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:ticket-machine",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "prize_wheel",
+  "group": "furn",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   1.412,
+   2,
+   0.709
+  ],
+  "tris": 224,
+  "bytes": 24584,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:prize-wheel",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "basketball_game",
+  "group": "furn",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   1.788,
+   2.2,
+   2.784
+  ],
+  "tris": 526,
+  "bytes": 43032,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:basketball-game",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "gambling_machine",
+  "group": "furn",
+  "kinds": [
+   "video_game"
+  ],
+  "size": [
+   1.149,
+   1.7,
+   1.068
+  ],
+  "tris": 626,
+  "bytes": 47108,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ar:gambling-machine",
+  "source": "Kenney Mini Arcade"
+ },
+ {
+  "key": "mailbox_post",
+  "group": "hood",
+  "kinds": [
+   "mailbox"
+  ],
+  "size": [
+   0.275,
+   1.36,
+   0.45
+  ],
+  "tris": 128,
+  "bytes": 6928,
+  "mats": [
+   "post",
+   "box",
+   "flag"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:mailbox_modern",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "fire_hydrant",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.4,
+   0.68,
+   0.28
+  ],
+  "tris": 280,
+  "bytes": 9804,
+  "mats": [
+   "hydrant",
+   "cap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:hydrant",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "n_tree_default",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.431,
+   5.5,
+   2.106
+  ],
+  "tris": 114,
+  "bytes": 7460,
+  "mats": [
+   "woodBark",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_default",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_default_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.431,
+   5.5,
+   2.106
+  ],
+  "tris": 228,
+  "bytes": 13440,
+  "mats": [
+   "woodBirch",
+   "leafsFall"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_default_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_default_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.431,
+   5.5,
+   2.106
+  ],
+  "tris": 114,
+  "bytes": 7476,
+  "mats": [
+   "woodBarkDark",
+   "leafsDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_default_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_oak",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.873,
+   5.5,
+   3.318
+  ],
+  "tris": 196,
+  "bytes": 11636,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_oak",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_oak_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.873,
+   5.5,
+   3.318
+  ],
+  "tris": 196,
+  "bytes": 11640,
+  "mats": [
+   "leafsFall",
+   "woodBirch"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_oak_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_oak_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.873,
+   5.5,
+   3.318
+  ],
+  "tris": 196,
+  "bytes": 11652,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_oak_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_detailed",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.497,
+   5.5,
+   3.144
+  ],
+  "tris": 402,
+  "bytes": 24748,
+  "mats": [
+   "leafsGreen",
+   "woodBark",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_detailed",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_detailed_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.497,
+   5.5,
+   3.144
+  ],
+  "tris": 402,
+  "bytes": 24756,
+  "mats": [
+   "leafsFall",
+   "woodBirch",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_detailed_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_detailed_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.497,
+   5.5,
+   3.144
+  ],
+  "tris": 402,
+  "bytes": 24764,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_detailed_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_fat",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.61,
+   5.5,
+   3.126
+  ],
+  "tris": 50,
+  "bytes": 4368,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_fat",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_fat_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.61,
+   5.5,
+   3.126
+  ],
+  "tris": 50,
+  "bytes": 4372,
+  "mats": [
+   "leafsFall",
+   "woodBirch"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_fat_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_fat_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.61,
+   5.5,
+   3.126
+  ],
+  "tris": 50,
+  "bytes": 4384,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_fat_darkh",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_simple",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.284,
+   5.5,
+   1.482
+  ],
+  "tris": 62,
+  "bytes": 5100,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_simple",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_simple_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.284,
+   5.5,
+   1.482
+  ],
+  "tris": 62,
+  "bytes": 5104,
+  "mats": [
+   "leafsFall",
+   "woodBirch"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_simple_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_simple_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.284,
+   5.5,
+   1.482
+  ],
+  "tris": 62,
+  "bytes": 5116,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_simple_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_tall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.657,
+   7,
+   1.914
+  ],
+  "tris": 72,
+  "bytes": 5504,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_tall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_tall_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.657,
+   7,
+   1.914
+  ],
+  "tris": 144,
+  "bytes": 9540,
+  "mats": [
+   "leafsFall",
+   "woodBirch"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_tall_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_tall_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.657,
+   7,
+   1.914
+  ],
+  "tris": 72,
+  "bytes": 5520,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_tall_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_thin",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.196,
+   7,
+   2.896
+  ],
+  "tris": 228,
+  "bytes": 13648,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_thin",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_thin_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.196,
+   7,
+   2.896
+  ],
+  "tris": 228,
+  "bytes": 13652,
+  "mats": [
+   "leafsFall",
+   "woodBirch"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_thin_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_thin_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.196,
+   7,
+   2.896
+  ],
+  "tris": 456,
+  "bytes": 25812,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_thin_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_blocks",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.785,
+   5.5,
+   2.785
+  ],
+  "tris": 132,
+  "bytes": 8052,
+  "mats": [
+   "woodBark",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_blocks",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_blocks_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.785,
+   5.5,
+   2.785
+  ],
+  "tris": 264,
+  "bytes": 14636,
+  "mats": [
+   "woodBirch",
+   "leafsFall"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_blocks_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_blocks_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.785,
+   5.5,
+   2.785
+  ],
+  "tris": 132,
+  "bytes": 8068,
+  "mats": [
+   "woodBarkDark",
+   "leafsDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_blocks_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_cone",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.037,
+   5.5,
+   2.037
+  ],
+  "tris": 132,
+  "bytes": 8616,
+  "mats": [
+   "woodBark",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_cone",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_cone_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.037,
+   5.5,
+   2.037
+  ],
+  "tris": 132,
+  "bytes": 8624,
+  "mats": [
+   "woodBirch",
+   "leafsFall"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_cone_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_cone_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.037,
+   5.5,
+   2.037
+  ],
+  "tris": 264,
+  "bytes": 15788,
+  "mats": [
+   "woodBarkDark",
+   "leafsDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_cone_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_plateau",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.693,
+   5.5,
+   2.883
+  ],
+  "tris": 215,
+  "bytes": 12956,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_plateau",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_plateau_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.693,
+   5.5,
+   2.883
+  ],
+  "tris": 215,
+  "bytes": 12960,
+  "mats": [
+   "leafsFall",
+   "woodBirch"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_plateau_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_plateau_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.693,
+   5.5,
+   2.883
+  ],
+  "tris": 215,
+  "bytes": 12972,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_plateau_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_small",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   0.831,
+   2.6,
+   0.959
+  ],
+  "tris": 62,
+  "bytes": 5092,
+  "mats": [
+   "woodBark",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_small",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_small_fall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   0.831,
+   2.6,
+   0.959
+  ],
+  "tris": 62,
+  "bytes": 5100,
+  "mats": [
+   "woodBirch",
+   "leafsFall"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_small_fall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_small_dark",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   0.831,
+   2.6,
+   0.959
+  ],
+  "tris": 124,
+  "bytes": 8736,
+  "mats": [
+   "woodBarkDark",
+   "leafsDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_small_dark",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_pineDefaultA",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.065,
+   6,
+   2.065
+  ],
+  "tris": 230,
+  "bytes": 13664,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_pineDefaultA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_pineRoundA",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.709,
+   6,
+   3.128
+  ],
+  "tris": 204,
+  "bytes": 11540,
+  "mats": [
+   "woodBarkDark",
+   "leafsDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_pineRoundA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_pineRoundC",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.301,
+   6,
+   2.656
+  ],
+  "tris": 206,
+  "bytes": 12164,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_pineRoundC",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_pineTallA",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.02,
+   8,
+   2.05
+  ],
+  "tris": 78,
+  "bytes": 5720,
+  "mats": [
+   "woodBarkDark",
+   "leafsDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_pineTallA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_pineSmallA",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.292,
+   2.5,
+   1.292
+  ],
+  "tris": 164,
+  "bytes": 10120,
+  "mats": [
+   "leafsDark",
+   "woodBarkDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_pineSmallA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_palmTall",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   6.104,
+   8,
+   6.104
+  ],
+  "tris": 190,
+  "bytes": 12344,
+  "mats": [
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_palmTall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_tree_palm",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   3.706,
+   6,
+   4.012
+  ],
+  "tris": 186,
+  "bytes": 10800,
+  "mats": [
+   "woodBark",
+   "leafsGreen"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:tree_palm",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "su_tree_large",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.646,
+   6,
+   1.901
+  ],
+  "tris": 42,
+  "bytes": 16056,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:tree-large",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "su_tree_small",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   1.299,
+   3.5,
+   1.5
+  ],
+  "tris": 42,
+  "bytes": 16048,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:tree-small",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "ft_tree",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.12,
+   5,
+   2.12
+  ],
+  "tris": 168,
+  "bytes": 23936,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:tree",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "ft_tree_high",
+  "group": "hood",
+  "kinds": [
+   "tree"
+  ],
+  "size": [
+   2.592,
+   7,
+   2.592
+  ],
+  "tris": 126,
+  "bytes": 20400,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:tree-high-round",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "n_plant_bush",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   1.296,
+   0.8,
+   1.296
+  ],
+  "tris": 32,
+  "bytes": 3512,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:plant_bush",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_plant_bushDetailed",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   1.337,
+   0.8,
+   1.337
+  ],
+  "tris": 104,
+  "bytes": 8064,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:plant_bushDetailed",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_plant_bushLarge",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   1.849,
+   1.2,
+   1.658
+  ],
+  "tris": 60,
+  "bytes": 5144,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:plant_bushLarge",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_plant_bushSmall",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.924,
+   0.5,
+   0.811
+  ],
+  "tris": 16,
+  "bytes": 2572,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:plant_bushSmall",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_plant_bushTriangle",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.986,
+   0.8,
+   1.12
+  ],
+  "tris": 30,
+  "bytes": 3204,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:plant_bushTriangle",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_plant_bushLargeTriangle",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   2.889,
+   1.2,
+   3.336
+  ],
+  "tris": 39,
+  "bytes": 3688,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:plant_bushLargeTriangle",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_flower_redA",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.245,
+   0.45,
+   0.279
+  ],
+  "tris": 76,
+  "bytes": 5624,
+  "mats": [
+   "grass",
+   "colorRed"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:flower_redA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_flower_yellowA",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.372,
+   0.45,
+   0.423
+  ],
+  "tris": 76,
+  "bytes": 5640,
+  "mats": [
+   "grass",
+   "colorYellow"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:flower_yellowA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_flower_purpleA",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.295,
+   0.45,
+   0.336
+  ],
+  "tris": 76,
+  "bytes": 5632,
+  "mats": [
+   "grass",
+   "colorPurple"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:flower_purpleA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_flower_redC",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.35,
+   0.45,
+   0.35
+  ],
+  "tris": 78,
+  "bytes": 5900,
+  "mats": [
+   "grass",
+   "colorRed",
+   "colorWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:flower_redC",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_flower_yellowC",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.613,
+   0.45,
+   0.615
+  ],
+  "tris": 78,
+  "bytes": 5920,
+  "mats": [
+   "grass",
+   "colorYellow",
+   "colorWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:flower_yellowC",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_flower_purpleC",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.445,
+   0.45,
+   0.446
+  ],
+  "tris": 78,
+  "bytes": 5908,
+  "mats": [
+   "grass",
+   "colorPurple",
+   "colorWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:flower_purpleC",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_grass_large",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.644,
+   0.4,
+   0.642
+  ],
+  "tris": 224,
+  "bytes": 14696,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:grass_large",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_grass_leafsLarge",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   1.336,
+   0.4,
+   1.368
+  ],
+  "tris": 144,
+  "bytes": 11092,
+  "mats": [
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:grass_leafsLarge",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_mushroom_redGroup",
+  "group": "hood",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   0.484,
+   0.45,
+   0.457
+  ],
+  "tris": 144,
+  "bytes": 11716,
+  "mats": [
+   "_defaultMat",
+   "colorRed"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:mushroom_redGroup",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_rock_largeA",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   3.626,
+   1.2,
+   4.691
+  ],
+  "tris": 80,
+  "bytes": 5952,
+  "mats": [
+   "dirt",
+   "grass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:rock_largeA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_rock_smallA",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.943,
+   0.5,
+   0.943
+  ],
+  "tris": 16,
+  "bytes": 2396,
+  "mats": [
+   "grass",
+   "dirt"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:rock_smallA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_rock_tallA",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.579,
+   1.6,
+   1.098
+  ],
+  "tris": 136,
+  "bytes": 9404,
+  "mats": [
+   "dirt",
+   "grass",
+   "_defaultMat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:rock_tallA",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_stump_round",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.778,
+   0.5,
+   0.898
+  ],
+  "tris": 56,
+  "bytes": 4448,
+  "mats": [
+   "woodBark",
+   "woodInner"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:stump_round",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "n_log_stack",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.613,
+   0.5,
+   1.025
+  ],
+  "tris": 184,
+  "bytes": 8804,
+  "mats": [
+   "woodBark",
+   "woodInner"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:log_stack",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "car_sedan",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.588,
+   2.243,
+   4.4
+  ],
+  "tris": 2032,
+  "bytes": 87648,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:sedan",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_suv",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.444,
+   2.119,
+   4.4
+  ],
+  "tris": 2474,
+  "bytes": 105452,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:suv",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_hatchback_sports",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.007,
+   1.698,
+   4.4
+  ],
+  "tris": 2088,
+  "bytes": 104832,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:hatchback-sports",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_van",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.836,
+   2.553,
+   5.2
+  ],
+  "tris": 2082,
+  "bytes": 90040,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:van",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_taxi",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.4,
+   2.4,
+   4.4
+  ],
+  "tris": 2072,
+  "bytes": 87900,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:taxi",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_police",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.129,
+   1.845,
+   4.4
+  ],
+  "tris": 2304,
+  "bytes": 101356,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:police",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_ambulance",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.4,
+   2.88,
+   5.2
+  ],
+  "tris": 2804,
+  "bytes": 114904,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:ambulance",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_firetruck",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   3.088,
+   3.5,
+   7
+  ],
+  "tris": 2767,
+  "bytes": 115036,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:firetruck",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_garbage_truck",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   3.246,
+   3.246,
+   7
+  ],
+  "tris": 3124,
+  "bytes": 139732,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:garbage-truck",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_delivery",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   3.231,
+   3.554,
+   7
+  ],
+  "tris": 2476,
+  "bytes": 119776,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:delivery",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_truck",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   3.559,
+   3.085,
+   7
+  ],
+  "tris": 2082,
+  "bytes": 90480,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:truck",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_sedan_sports",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.243,
+   1.898,
+   4.4
+  ],
+  "tris": 2088,
+  "bytes": 91292,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:sedan-sports",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_suv_luxury",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.316,
+   2.007,
+   4.4
+  ],
+  "tris": 2086,
+  "bytes": 90204,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:suv-luxury",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "car_tractor",
+  "group": "hood",
+  "kinds": [
+   "car"
+  ],
+  "size": [
+   2.134,
+   2.547,
+   3.5
+  ],
+  "tris": 2044,
+  "bytes": 133548,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "car:tractor",
+  "source": "Kenney Car Kit"
+ },
+ {
+  "key": "rd_road_sign_stop",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.408,
+   2.6,
+   0.727
+  ],
+  "tris": 104,
+  "bytes": 19132,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:road-sign-stop",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "rd_road_sign_street",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.074,
+   2.6,
+   1.074
+  ],
+  "tris": 154,
+  "bytes": 22840,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:road-sign-street",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "rd_road_sign_warning",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.403,
+   2.6,
+   0.768
+  ],
+  "tris": 104,
+  "bytes": 19656,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:road-sign-warning",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "rd_traffic_light",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.028,
+   4.5,
+   0.786
+  ],
+  "tris": 212,
+  "bytes": 25896,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:traffic-light",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "rd_construction_cone",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.4,
+   0.5,
+   0.4
+  ],
+  "tris": 66,
+  "bytes": 16544,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:construction-cone",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "rd_construction_barrier",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.042,
+   1,
+   1.731
+  ],
+  "tris": 60,
+  "bytes": 16544,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:construction-barrier",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "rd_electricity_pole",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   8.824,
+   8,
+   3.264
+  ],
+  "tris": 416,
+  "bytes": 41848,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "rd:electricity-pole",
+  "source": "Kenney City Kit (Roads)"
+ },
+ {
+  "key": "house_a",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   10.137,
+   6.5,
+   8.017
+  ],
+  "tris": 1174,
+  "bytes": 80260,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-a",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_b",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   10.446,
+   6.5,
+   6.514
+  ],
+  "tris": 1748,
+  "bytes": 113400,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-b",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_c",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.09,
+   6.5,
+   6.466
+  ],
+  "tris": 1196,
+  "bytes": 80900,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-c",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_d",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   9.225,
+   6.5,
+   5.4
+  ],
+  "tris": 1757,
+  "bytes": 113872,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-d",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_e",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   7.429,
+   6.5,
+   5.874
+  ],
+  "tris": 1731,
+  "bytes": 112648,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-e",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_f",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.16,
+   6.5,
+   8.034
+  ],
+  "tris": 1616,
+  "bytes": 107676,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-f",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_g",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   12.269,
+   6.5,
+   9.967
+  ],
+  "tris": 1067,
+  "bytes": 76704,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-g",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_h",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   11.458,
+   6.5,
+   8.073
+  ],
+  "tris": 770,
+  "bytes": 57288,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-h",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_i",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   11.338,
+   6.5,
+   9.06
+  ],
+  "tris": 800,
+  "bytes": 60280,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-i",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_j",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.583,
+   6.5,
+   5.739
+  ],
+  "tris": 1210,
+  "bytes": 80860,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-j",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_k",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   5.207,
+   6.5,
+   5.767
+  ],
+  "tris": 1024,
+  "bytes": 73596,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-k",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_l",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   6.403,
+   6.5,
+   6.319
+  ],
+  "tris": 1310,
+  "bytes": 87536,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-l",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_m",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   12.586,
+   6.5,
+   12.586
+  ],
+  "tris": 1112,
+  "bytes": 78984,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-m",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_n",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   10.196,
+   6.5,
+   7.874
+  ],
+  "tris": 1612,
+  "bytes": 108292,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-n",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_o",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   7.257,
+   6.5,
+   5.874
+  ],
+  "tris": 1326,
+  "bytes": 91028,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-o",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_p",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.78,
+   6.5,
+   7.01
+  ],
+  "tris": 1282,
+  "bytes": 87500,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-p",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_q",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.78,
+   6.5,
+   6.271
+  ],
+  "tris": 1140,
+  "bytes": 80196,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-q",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_r",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   5.856,
+   6.5,
+   5.81
+  ],
+  "tris": 1030,
+  "bytes": 73188,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-r",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_s",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.034,
+   6.5,
+   6.208
+  ],
+  "tris": 1212,
+  "bytes": 83300,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-s",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_t",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   7.384,
+   6.5,
+   7.906
+  ],
+  "tris": 2062,
+  "bytes": 127936,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-t",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "house_u",
+  "group": "hood",
+  "kinds": [
+   "house"
+  ],
+  "size": [
+   8.16,
+   6.5,
+   6.211
+  ],
+  "tris": 1332,
+  "bytes": 93364,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:building-type-u",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "shop_a",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   6.15,
+   9,
+   6.543
+  ],
+  "tris": 1252,
+  "bytes": 86444,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-a",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_b",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   6.752,
+   9,
+   6.543
+  ],
+  "tris": 1276,
+  "bytes": 84796,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-b",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_c",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   8.905,
+   9,
+   10.985
+  ],
+  "tris": 1195,
+  "bytes": 82232,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-c",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_d",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   5.847,
+   9,
+   6.265
+  ],
+  "tris": 1100,
+  "bytes": 76956,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-d",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_e",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   16.529,
+   9,
+   10.158
+  ],
+  "tris": 1509,
+  "bytes": 99800,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-e",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_f",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   4.465,
+   9,
+   5.475
+  ],
+  "tris": 1794,
+  "bytes": 114276,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-f",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_g",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   5.157,
+   9,
+   4.901
+  ],
+  "tris": 2006,
+  "bytes": 126236,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-g",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_h",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   6.15,
+   9,
+   7.015
+  ],
+  "tris": 1512,
+  "bytes": 99332,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-h",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_i",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   6.643,
+   9,
+   6.975
+  ],
+  "tris": 2544,
+  "bytes": 156220,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-i",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_j",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   11.076,
+   9,
+   7.123
+  ],
+  "tris": 5246,
+  "bytes": 315564,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-j",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_k",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   12.757,
+   9,
+   5.767
+  ],
+  "tris": 2960,
+  "bytes": 181876,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-k",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_l",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   5.432,
+   9,
+   5.559
+  ],
+  "tris": 3512,
+  "bytes": 212016,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-l",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_m",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   3.543,
+   9,
+   3.549
+  ],
+  "tris": 3740,
+  "bytes": 219460,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-m",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "shop_n",
+  "group": "hood",
+  "kinds": [
+   "building"
+  ],
+  "size": [
+   8.419,
+   9,
+   6.605
+  ],
+  "tris": 4350,
+  "bytes": 247500,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:building-n",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "cc_detail_awning",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1,
+   1,
+   0.37
+  ],
+  "tris": 40,
+  "bytes": 15224,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:detail-awning",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "cc_detail_awning_wide",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   2,
+   1,
+   0.37
+  ],
+  "tris": 40,
+  "bytes": 15240,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:detail-awning-wide",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "cc_detail_parasol_a",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.848,
+   2.4,
+   2.133
+  ],
+  "tris": 96,
+  "bytes": 18392,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:detail-parasol-a",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "cc_detail_parasol_b",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.848,
+   2.4,
+   2.133
+  ],
+  "tris": 120,
+  "bytes": 19616,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "cc:detail-parasol-b",
+  "source": "Kenney City Kit (Commercial)"
+ },
+ {
+  "key": "su_driveway_long",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.8,
+   0.05,
+   2
+  ],
+  "tris": 12,
+  "bytes": 14184,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:driveway-long",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "su_path_long",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1,
+   0.05,
+   2
+  ],
+  "tris": 12,
+  "bytes": 14168,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:path-long",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "su_path_stones_long",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.7,
+   0.05,
+   2
+  ],
+  "tris": 48,
+  "bytes": 16608,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:path-stones-long",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "su_planter",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1,
+   0.443,
+   0.75
+  ],
+  "tris": 204,
+  "bytes": 26152,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "su:planter",
+  "source": "Kenney City Kit (Suburban)"
+ },
+ {
+  "key": "well_cart",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.868,
+   1.8,
+   2.908
+  ],
+  "tris": 1028,
+  "bytes": 61324,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:cart-high",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "kk_armchair",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   1.323,
+   0.9,
+   1.176
+  ],
+  "tris": 528,
+  "bytes": 34456,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:armchair",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_armchair_pillows",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   1.323,
+   0.9,
+   1.176
+  ],
+  "tris": 614,
+  "bytes": 37592,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:armchair_pillows",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_couch",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.206,
+   0.9,
+   1.176
+  ],
+  "tris": 636,
+  "bytes": 38552,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:couch",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_couch_pillows",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   2.206,
+   0.9,
+   1.176
+  ],
+  "tris": 808,
+  "bytes": 44792,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:couch_pillows",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_bed_double_A",
+  "group": "furn",
+  "kinds": [
+   "bed_double"
+  ],
+  "size": [
+   2.1,
+   0.677,
+   2.032
+  ],
+  "tris": 540,
+  "bytes": 41748,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:bed_double_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_bed_double_B",
+  "group": "furn",
+  "kinds": [
+   "bed_double"
+  ],
+  "size": [
+   2.1,
+   0.677,
+   2.032
+  ],
+  "tris": 600,
+  "bytes": 44956,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:bed_double_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_bed_single_A",
+  "group": "furn",
+  "kinds": [
+   "bed_single",
+   "kids_bed"
+  ],
+  "size": [
+   1.067,
+   0.667,
+   2
+  ],
+  "tris": 474,
+  "bytes": 39144,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:bed_single_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_bed_single_B",
+  "group": "furn",
+  "kinds": [
+   "bed_single",
+   "kids_bed"
+  ],
+  "size": [
+   1.067,
+   0.667,
+   2
+  ],
+  "tris": 534,
+  "bytes": 42448,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:bed_single_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cabinet_medium",
+  "group": "furn",
+  "kinds": [
+   "dresser",
+   "wardrobe"
+  ],
+  "size": [
+   2.2,
+   1.1,
+   1.102
+  ],
+  "tris": 428,
+  "bytes": 40456,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:cabinet_medium",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cabinet_medium_decorated",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   1.564,
+   1.4,
+   0.767
+  ],
+  "tris": 1018,
+  "bytes": 66260,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:cabinet_medium_decorated",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cabinet_small",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   0.7,
+   0.7,
+   0.701
+  ],
+  "tris": 322,
+  "bytes": 36624,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:cabinet_small",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cabinet_small_decorated",
+  "group": "furn",
+  "kinds": [
+   "dresser"
+  ],
+  "size": [
+   0.615,
+   0.95,
+   0.648
+  ],
+  "tris": 464,
+  "bytes": 44796,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:cabinet_small_decorated",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_A",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.566,
+   0.95,
+   0.638
+  ],
+  "tris": 308,
+  "bytes": 33668,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_A_wood",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.566,
+   0.95,
+   0.638
+  ],
+  "tris": 308,
+  "bytes": 33684,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_A_wood",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_B",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.566,
+   0.95,
+   0.638
+  ],
+  "tris": 384,
+  "bytes": 35452,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_B_wood",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.566,
+   0.95,
+   0.638
+  ],
+  "tris": 384,
+  "bytes": 35468,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_B_wood",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_C",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.592,
+   0.95,
+   0.739
+  ],
+  "tris": 288,
+  "bytes": 29808,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_C",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_stool",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.93,
+   0.62,
+   0.93
+  ],
+  "tris": 216,
+  "bytes": 28044,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_stool",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_chair_stool_wood",
+  "group": "furn",
+  "kinds": [
+   "dining_chair"
+  ],
+  "size": [
+   0.93,
+   0.62,
+   0.93
+  ],
+  "tris": 216,
+  "bytes": 28060,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:chair_stool_wood",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_lamp_standing",
+  "group": "furn",
+  "kinds": [
+   "floor_lamp"
+  ],
+  "size": [
+   0.675,
+   1.7,
+   0.675
+  ],
+  "tris": 320,
+  "bytes": 28772,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:lamp_standing",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_lamp_table",
+  "group": "furn",
+  "kinds": [
+   "desk_lamp"
+  ],
+  "size": [
+   0.489,
+   0.5,
+   0.489
+  ],
+  "tris": 392,
+  "bytes": 29992,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "kk:lamp_table",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_rug_oval_A",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   2,
+   0.1,
+   1.333
+  ],
+  "tris": 176,
+  "bytes": 23600,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:rug_oval_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_rug_oval_B",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   2,
+   0.1,
+   1.333
+  ],
+  "tris": 176,
+  "bytes": 23600,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:rug_oval_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_rug_rectangle_A",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   2,
+   0.1,
+   1.333
+  ],
+  "tris": 44,
+  "bytes": 18852,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:rug_rectangle_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_rug_rectangle_B",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   2,
+   0.1,
+   1.333
+  ],
+  "tris": 44,
+  "bytes": 18852,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:rug_rectangle_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_rug_rectangle_stripes_A",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   2,
+   0.1,
+   1.333
+  ],
+  "tris": 68,
+  "bytes": 19788,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:rug_rectangle_stripes_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_rug_rectangle_stripes_B",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   2,
+   0.1,
+   1.333
+  ],
+  "tris": 68,
+  "bytes": 19788,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:rug_rectangle_stripes_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_shelf_B_large",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.2,
+   0.24,
+   0.3
+  ],
+  "tris": 212,
+  "bytes": 27320,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:shelf_B_large",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_shelf_B_large_decorated",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1.2,
+   0.491,
+   0.3
+  ],
+  "tris": 482,
+  "bytes": 43024,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:shelf_B_large_decorated",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_shelf_B_small",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.7,
+   0.28,
+   0.35
+  ],
+  "tris": 212,
+  "bytes": 27320,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:shelf_B_small",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_shelf_B_small_decorated",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.7,
+   0.708,
+   0.4
+  ],
+  "tris": 532,
+  "bytes": 40664,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:shelf_B_small_decorated",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_shelf_A_big",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   1,
+   0.2,
+   0.25
+  ],
+  "tris": 212,
+  "bytes": 27232,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.4,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:shelf_A_big",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_shelf_A_small",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.6,
+   0.24,
+   0.3
+  ],
+  "tris": 212,
+  "bytes": 27240,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.4,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:shelf_A_small",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_table_low",
+  "group": "furn",
+  "kinds": [
+   "coffee_table"
+  ],
+  "size": [
+   2.16,
+   0.45,
+   1.35
+  ],
+  "tris": 276,
+  "bytes": 29440,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:table_low",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_table_medium",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   1.52,
+   0.76,
+   1.52
+  ],
+  "tris": 168,
+  "bytes": 26388,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:table_medium",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_table_medium_long",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   2.28,
+   0.76,
+   1.52
+  ],
+  "tris": 168,
+  "bytes": 26408,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:table_medium_long",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_table_small",
+  "group": "furn",
+  "kinds": [
+   "dining_table",
+   "coffee_table"
+  ],
+  "size": [
+   0.72,
+   0.72,
+   0.72
+  ],
+  "tris": 168,
+  "bytes": 26392,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:table_small",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cactus_medium_A",
+  "group": "furn",
+  "kinds": [
+   "plant"
+  ],
+  "size": [
+   0.957,
+   0.9,
+   0.91
+  ],
+  "tris": 448,
+  "bytes": 34704,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:cactus_medium_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cactus_medium_B",
+  "group": "furn",
+  "kinds": [
+   "plant"
+  ],
+  "size": [
+   0.957,
+   0.9,
+   0.91
+  ],
+  "tris": 448,
+  "bytes": 34704,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:cactus_medium_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cactus_small_A",
+  "group": "furn",
+  "kinds": [
+   "plant",
+   "flower_vase"
+  ],
+  "size": [
+   0.363,
+   0.4,
+   0.363
+  ],
+  "tris": 252,
+  "bytes": 26480,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "kk:cactus_small_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_cactus_small_B",
+  "group": "furn",
+  "kinds": [
+   "plant",
+   "flower_vase"
+  ],
+  "size": [
+   0.363,
+   0.4,
+   0.363
+  ],
+  "tris": 252,
+  "bytes": 26480,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "kk:cactus_small_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_pictureframe_large_A",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.673,
+   0.8,
+   0.133
+  ],
+  "tris": 60,
+  "bytes": 20408,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:pictureframe_large_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_pictureframe_large_B",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   1.333,
+   0.8,
+   0.133
+  ],
+  "tris": 60,
+  "bytes": 20392,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:pictureframe_large_B",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_pictureframe_medium",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.467,
+   0.6,
+   0.133
+  ],
+  "tris": 60,
+  "bytes": 20384,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.4,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:pictureframe_medium",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_pictureframe_small_A",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.333,
+   0.4,
+   0.133
+  ],
+  "tris": 60,
+  "bytes": 20388,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": "back",
+  "yOffset": 1.5,
+  "surface": false,
+  "ceiling": false,
+  "src": "kk:pictureframe_small_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_pictureframe_standing_A",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.243,
+   0.3,
+   0.184
+  ],
+  "tris": 74,
+  "bytes": 21308,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "kk:pictureframe_standing_A",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "kk_book_set",
+  "group": "furn",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.39,
+   0.25,
+   0.183
+  ],
+  "tris": 196,
+  "bytes": 28788,
+  "mats": [
+   "furniture_texture"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "kk:book_set",
+  "source": "KayKit Furniture Bits (Kay Lousberg)"
+ },
+ {
+  "key": "exercise_bike",
+  "group": "furn",
+  "kinds": [
+   "treadmill",
+   "exercise_bench",
+   "gym_machine"
+  ],
+  "size": [
+   0.5,
+   1.26,
+   1.1
+  ],
+  "tris": 136,
+  "bytes": 8544,
+  "mats": [
+   "frame",
+   "seat",
+   "display"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:exercise_bike",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "bathtub_clawfoot",
+  "group": "furn",
+  "kinds": [
+   "bathtub"
+  ],
+  "size": [
+   0.94,
+   0.88,
+   0.611
+  ],
+  "tris": 464,
+  "bytes": 14976,
+  "mats": [
+   "enamel",
+   "gold",
+   "water"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:bathtub_clawfoot",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "piano_upright_small",
+  "group": "furn",
+  "kinds": [
+   "piano"
+  ],
+  "size": [
+   1.5,
+   1.25,
+   0.92
+  ],
+  "tris": 372,
+  "bytes": 22636,
+  "mats": [
+   "lacquer",
+   "keysWhite",
+   "keysBlack"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:piano",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hedge_ft",
+  "group": "hood",
+  "kinds": [
+   "decor"
+  ],
+  "size": [
+   0.25,
+   0.25,
+   1
+  ],
+  "tris": 54,
+  "bytes": 15880,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "ft:hedge",
+  "source": "Kenney Fantasy Town Kit"
+ },
+ {
+  "key": "beanbag",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   0.9,
+   0.77,
+   0.9
+  ],
+  "tris": 512,
+  "bytes": 11500,
+  "mats": [
+   "fabric"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:beanbag",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "armchair_egg",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   1,
+   1.47,
+   0.798
+  ],
+  "tris": 652,
+  "bytes": 16956,
+  "mats": [
+   "shell",
+   "cushion",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:egg_chair",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "armchair_rocking",
+  "group": "furn",
+  "kinds": [
+   "armchair"
+  ],
+  "size": [
+   0.54,
+   1.018,
+   0.77
+  ],
+  "tris": 348,
+  "bytes": 20668,
+  "mats": [
+   "wood",
+   "cushion"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:rocking_chair",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "deck_chair",
+  "group": "furn",
+  "kinds": [
+   "armchair",
+   "dining_chair"
+  ],
+  "size": [
+   0.595,
+   0.84,
+   0.635
+  ],
+  "tris": 408,
+  "bytes": 23936,
+  "mats": [
+   "wood",
+   "fabric"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:deck_chair",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "chair_exec",
+  "group": "furn",
+  "kinds": [
+   "dining_chair",
+   "armchair"
+  ],
+  "size": [
+   0.69,
+   1.43,
+   0.6
+  ],
+  "tris": 360,
+  "bytes": 17488,
+  "mats": [
+   "leather",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:exec_chair",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "bed_cot",
+  "group": "furn",
+  "kinds": [
+   "bed_single"
+  ],
+  "size": [
+   0.874,
+   0.474,
+   1.95
+  ],
+  "tris": 100,
+  "bytes": 14704,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "sv:bedroll-frame",
+  "source": "Kenney Survival Kit"
+ },
+ {
+  "key": "bed_water",
+  "group": "furn",
+  "kinds": [
+   "bed_double"
+  ],
+  "size": [
+   1.9,
+   0.9,
+   2.055
+  ],
+  "tris": 1244,
+  "bytes": 30028,
+  "mats": [
+   "frame",
+   "mattress",
+   "pillow"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:water_bed",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "bed_round",
+  "group": "furn",
+  "kinds": [
+   "bed_double"
+  ],
+  "size": [
+   1.96,
+   0.95,
+   1.96
+  ],
+  "tris": 436,
+  "bytes": 14548,
+  "mats": [
+   "frame",
+   "blanket",
+   "pillow"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:round_bed",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "table_banquet",
+  "group": "furn",
+  "kinds": [
+   "dining_table"
+  ],
+  "size": [
+   3.447,
+   0.67,
+   0.917
+  ],
+  "tris": 288,
+  "bytes": 8068,
+  "mats": [
+   "wood",
+   "carpet"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:tableCloth + k:tableCloth",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "k_desk",
+  "group": "furn",
+  "kinds": [
+   "computer_desk",
+   "dining_table"
+  ],
+  "size": [
+   1.506,
+   0.788,
+   0.804
+  ],
+  "tris": 198,
+  "bytes": 11896,
+  "mats": [
+   "wood",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:desk",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "fridge_retro",
+  "group": "furn",
+  "kinds": [
+   "fridge"
+  ],
+  "size": [
+   0.72,
+   1.6,
+   0.695
+  ],
+  "tris": 200,
+  "bytes": 8804,
+  "mats": [
+   "enamel",
+   "chrome",
+   "logo"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:fridge_retro",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "tv_plasma",
+  "group": "furn",
+  "kinds": [
+   "tv"
+  ],
+  "size": [
+   1.755,
+   1.801,
+   0.512
+  ],
+  "tris": 226,
+  "bytes": 13192,
+  "mats": [
+   "wood",
+   "metalDark",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:cabinetTelevision + k:televisionModern",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "tv_projector",
+  "group": "furn",
+  "kinds": [
+   "tv"
+  ],
+  "size": [
+   1.7,
+   1.96,
+   0.805
+  ],
+  "tris": 124,
+  "bytes": 8000,
+  "mats": [
+   "screen",
+   "frame",
+   "projector"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:projector",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "radio_retro",
+  "group": "furn",
+  "kinds": [
+   "stereo"
+  ],
+  "size": [
+   0.8,
+   1.02,
+   0.43
+  ],
+  "tris": 256,
+  "bytes": 9744,
+  "mats": [
+   "wood",
+   "fabric",
+   "dial"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:radio_retro",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "boombox",
+  "group": "furn",
+  "kinds": [
+   "stereo"
+  ],
+  "size": [
+   0.6,
+   0.36,
+   0.17
+  ],
+  "tris": 316,
+  "bytes": 14040,
+  "mats": [
+   "plastic",
+   "speaker",
+   "chrome"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "proc:boombox",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "jukebox",
+  "group": "furn",
+  "kinds": [
+   "stereo"
+  ],
+  "size": [
+   0.9,
+   1.55,
+   0.62
+  ],
+  "tris": 520,
+  "bytes": 19048,
+  "mats": [
+   "wood",
+   "chrome",
+   "glow",
+   "glass"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:jukebox",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "lamp_lava",
+  "group": "furn",
+  "kinds": [
+   "desk_lamp",
+   "floor_lamp"
+  ],
+  "size": [
+   0.16,
+   0.46,
+   0.156
+  ],
+  "tris": 580,
+  "bytes": 16748,
+  "mats": [
+   "metal",
+   "glass",
+   "blobs"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "proc:lava_lamp",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "lamp_floor_arc",
+  "group": "furn",
+  "kinds": [
+   "floor_lamp"
+  ],
+  "size": [
+   0.4,
+   1.996,
+   1.465
+  ],
+  "tris": 376,
+  "bytes": 16440,
+  "mats": [
+   "metal",
+   "shade",
+   "marble"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:arc_lamp",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "poster_cat",
+  "group": "furn",
+  "kinds": [
+   "painting"
+  ],
+  "size": [
+   0.6,
+   0.8,
+   0.005
+  ],
+  "tris": 14,
+  "bytes": 6892,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:poster:cat",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "carpet_wall",
+  "group": "furn",
+  "kinds": [
+   "painting",
+   "rug"
+  ],
+  "size": [
+   1.6,
+   1.2,
+   0.012
+  ],
+  "tris": 14,
+  "bytes": 15644,
+  "mats": [
+   "frame",
+   "canvas"
+  ],
+  "wall": "back",
+  "yOffset": 0.7,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:wallcarpet:carpet",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "mirror_full",
+  "group": "furn",
+  "kinds": [
+   "mirror"
+  ],
+  "size": [
+   0.62,
+   1.75,
+   0.534
+  ],
+  "tris": 60,
+  "bytes": 5064,
+  "mats": [
+   "frame",
+   "mirror"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:mirror_full",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "rug_bear",
+  "group": "furn",
+  "kinds": [
+   "rug"
+  ],
+  "size": [
+   1.45,
+   0.2,
+   1.62
+  ],
+  "tris": 192,
+  "bytes": 8348,
+  "mats": [
+   "fur",
+   "furDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:rug_bear",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "plant_palm",
+  "group": "furn",
+  "kinds": [
+   "plant"
+  ],
+  "size": [
+   1.554,
+   1.8,
+   1.346
+  ],
+  "tris": 258,
+  "bytes": 16764,
+  "mats": [
+   "wood",
+   "woodBarkDark",
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "n:pot_large + n:tree_palmShort",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "plant_bonsai",
+  "group": "furn",
+  "kinds": [
+   "plant",
+   "flower_vase"
+  ],
+  "size": [
+   0.372,
+   0.45,
+   0.322
+  ],
+  "tris": 268,
+  "bytes": 16604,
+  "mats": [
+   "wood",
+   "woodBarkDark",
+   "_defaultMat",
+   "leafsGreen",
+   "woodBark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": true,
+  "ceiling": false,
+  "src": "n:pot_small + n:tree_oak",
+  "source": "Kenney Nature Kit"
+ },
+ {
+  "key": "yoga_mat",
+  "group": "furn",
+  "kinds": [
+   "exercise_bench"
+  ],
+  "size": [
+   0.975,
+   0.12,
+   1.86
+  ],
+  "tris": 60,
+  "bytes": 3416,
+  "mats": [
+   "mat"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:yoga_mat",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "punching_bag",
+  "group": "furn",
+  "kinds": [
+   "exercise_bench",
+   "gym_machine"
+  ],
+  "size": [
+   0.6,
+   2.11,
+   0.875
+  ],
+  "tris": 104,
+  "bytes": 6284,
+  "mats": [
+   "leather",
+   "frame"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:punching_bag",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "phone_wall",
+  "group": "furn",
+  "kinds": [
+   "phone"
+  ],
+  "size": [
+   0.195,
+   0.47,
+   0.075
+  ],
+  "tris": 168,
+  "bytes": 9932,
+  "mats": [
+   "plastic",
+   "cord"
+  ],
+  "wall": "back",
+  "yOffset": 1.3,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:phone_wall",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "door_glass",
+  "group": "furn",
+  "kinds": [
+   "door"
+  ],
+  "size": [
+   0.98,
+   2.2,
+   0.238
+  ],
+  "tris": 156,
+  "bytes": 10212,
+  "mats": [
+   "carpetWhite",
+   "metal",
+   "metalDark",
+   "glass"
+  ],
+  "wall": "center",
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:doorwayFront",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "window_porthole",
+  "group": "furn",
+  "kinds": [
+   "window"
+  ],
+  "size": [
+   0.88,
+   0.875,
+   0.22
+  ],
+  "tris": 576,
+  "bytes": 27436,
+  "mats": [
+   "brass",
+   "glass"
+  ],
+  "wall": "center",
+  "yOffset": 1.2,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:porthole",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "sofa_long3",
+  "group": "furn",
+  "kinds": [
+   "sofa"
+  ],
+  "size": [
+   3.013,
+   0.943,
+   0.841
+  ],
+  "tris": 256,
+  "bytes": 14724,
+  "mats": [
+   "carpet",
+   "wood"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "k:loungeSofa + k:loungeChair",
+  "source": "Kenney Furniture Kit"
+ },
+ {
+  "key": "pool_round",
+  "group": "furn",
+  "kinds": [
+   "pool"
+  ],
+  "size": [
+   3.02,
+   0.75,
+   2.905
+  ],
+  "tris": 1040,
+  "bytes": 36024,
+  "mats": [
+   "poolRim",
+   "water",
+   "eyes"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:pool_round",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "fountain_small",
+  "group": "furn",
+  "kinds": [
+   "fountain"
+  ],
+  "size": [
+   0.92,
+   1.11,
+   0.906
+  ],
+  "tris": 468,
+  "bytes": 15608,
+  "mats": [
+   "stone",
+   "water"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:fountain_small",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "sandbox_small",
+  "group": "furn",
+  "kinds": [
+   "sandbox"
+  ],
+  "size": [
+   0.94,
+   0.24,
+   0.94
+  ],
+  "tris": 100,
+  "bytes": 7096,
+  "mats": [
+   "wood",
+   "sand",
+   "toy"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:sandbox_small",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "cafe_table_solo",
+  "group": "furn",
+  "kinds": [
+   "cafe_table"
+  ],
+  "size": [
+   0.8,
+   0.75,
+   0.8
+  ],
+  "tris": 160,
+  "bytes": 7072,
+  "mats": [
+   "tableTop",
+   "metal"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:cafe_table_solo",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "synth",
+  "group": "furn",
+  "kinds": [
+   "piano"
+  ],
+  "size": [
+   0.98,
+   0.895,
+   0.5
+  ],
+  "tris": 420,
+  "bytes": 26128,
+  "mats": [
+   "body",
+   "keysWhite",
+   "keysBlack",
+   "stand",
+   "leds"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:synth",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "cash_register_counter",
+  "group": "furn",
+  "kinds": [
+   "cash_register"
+  ],
+  "size": [
+   1.715,
+   1.2,
+   1.715
+  ],
+  "tris": 203,
+  "bytes": 23152,
+  "mats": [
+   "colormap"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "mm:cash-register",
+  "source": "Kenney Mini Market"
+ },
+ {
+  "key": "food_stall_cart",
+  "group": "furn",
+  "kinds": [
+   "food_stall"
+  ],
+  "size": [
+   1.8,
+   2.192,
+   1.01
+  ],
+  "tris": 376,
+  "bytes": 18184,
+  "mats": [
+   "wood",
+   "awning",
+   "awningWhite",
+   "wheel"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:stall_cart",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "flowerbed_roses",
+  "group": "furn",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   1,
+   0.497,
+   1.003
+  ],
+  "tris": 738,
+  "bytes": 22044,
+  "mats": [
+   "soil",
+   "border",
+   "grass",
+   "colorRed",
+   "colorWhite"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:bed_soil + n:flower_redA + n:flower_redB + n:flower_redC + n:flower_redA + n:flower_redB + n:flower_redC + n:flower_redA + n:flower_redB",
+  "source": "процедурная (build-lib.mjs) + Kenney Nature Kit"
+ },
+ {
+  "key": "flowerbed_veg",
+  "group": "furn",
+  "kinds": [
+   "flowerbed"
+  ],
+  "size": [
+   1,
+   0.752,
+   1
+  ],
+  "tris": 732,
+  "bytes": 43448,
+  "mats": [
+   "soil",
+   "border",
+   "grass",
+   "leafsFall",
+   "woodBirch",
+   "leafsDark",
+   "dirt"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:bed_soil + n:crop_carrot + n:crop_turnip + n:crop_pumpkin + n:crop_melon",
+  "source": "процедурная (build-lib.mjs) + Kenney Nature Kit"
+ },
+ {
+  "key": "dumbbells",
+  "group": "furn",
+  "kinds": [
+   "exercise_bench",
+   "gym_machine"
+  ],
+  "size": [
+   0.85,
+   0.8,
+   0.4
+  ],
+  "tris": 880,
+  "bytes": 33552,
+  "mats": [
+   "frame",
+   "weights",
+   "chrome"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:dumbbells",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hedge_2",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.665,
+   0.909,
+   1.971
+  ],
+  "tris": 4772,
+  "bytes": 109444,
+  "mats": [
+   "leaves",
+   "leavesDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:hedge_box:0.9:2",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hedge_4",
+  "group": "hood",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.665,
+   0.909,
+   3.977
+  ],
+  "tris": 9532,
+  "bytes": 216340,
+  "mats": [
+   "leaves",
+   "leavesDark"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:hedge_box:0.9:4",
+  "source": "процедурная (build-lib.mjs)"
+ },
+ {
+  "key": "hedge_topiary",
+  "group": "furn",
+  "kinds": [
+   "hedge"
+  ],
+  "size": [
+   0.6,
+   1.45,
+   0.585
+  ],
+  "tris": 544,
+  "bytes": 14592,
+  "mats": [
+   "leaves",
+   "pot",
+   "trunk"
+  ],
+  "wall": null,
+  "yOffset": 0,
+  "surface": false,
+  "ceiling": false,
+  "src": "proc:topiary",
+  "source": "процедурная (build-lib.mjs)"
+ }
+]

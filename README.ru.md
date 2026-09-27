@@ -4,15 +4,16 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Хроники Королевств и Берёзовка" width="100%">
 
-### Семь законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, история очереди на Верхнем Ларсе в 2022 году от первого лица, сюжетный открытый мир на полярном острове бесконечный полёт по ледяному каньону и субботняя IT-сходка в баре Батуми. Все семь запускаются прямо в браузере — или скачайте и играйте локально.
+### Восемь законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, история очереди на Верхнем Ларсе в 2022 году от первого лица, сюжетный открытый мир на полярном острове, бесконечный полёт по ледяному каньону, субботняя IT-сходка в баре Батуми и симулятор жизни в духе The Sims. Все восемь запускаются прямо в браузере — или скачайте и играйте локально.
 
 [![Играть в Берёзовку в браузере](https://img.shields.io/badge/▶_Играть_в_Берёзовку-прямо_в_браузере-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Играть в Хроники Королевств в браузере](https://img.shields.io/badge/⚔_Играть_в_Хроники_Королевств-прямо_в_браузере-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 [![Играть в Ларс в браузере](https://img.shields.io/badge/🏔_Играть_в_Ларс-прямо_в_браузере-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
 [![Играть в Сходку в браузере](https://img.shields.io/badge/🍣_Играть_в_Сходку-прямо_в_браузере-E0457B?style=for-the-badge)](https://www.urvanov.com/skhodka/)
 [![Играть в Эхо Разлома в браузере](https://img.shields.io/badge/🌌_Играть_в_Эхо_Разлома-прямо_в_браузере-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
+[![Играть в Житьё в браузере](https://img.shields.io/badge/🏡_Играть_в_Житьё-прямо_в_браузере-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
 
-![Игр](https://img.shields.io/badge/игр-7-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
+![Игр](https://img.shields.io/badge/игр-8-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
 
 </div>
 
@@ -161,6 +162,22 @@
 
 </td>
 <td width="50%" valign="top">
+
+<a href="zhitie/README.ru.md"><img src="zhitie/docs/screenshots/home.jpg" alt="Житьё: два сима в обставленном доме, панель потребностей и меню действий на экране"></a>
+
+### 🏡 [Житьё](zhitie/README.ru.md)
+**Симулятор жизни в духе The Sims 1 — изометрическое 3D в low-poly, целый район, в котором можно жить.**
+
+Переезжайте в Берёзовую Рощу — район из десяти семей, парка, кафе, магазина, спортзала и библиотеки. Возьмите семью, следите, чтобы все были сыты и веселы, держитесь за работу, заводите отношения и обставляйте дом — всё с фиксированной изометрической камерой.
+
+- 🏘 10 семей · 🛋 38 предметов мебели · 💞 86 социальных взаимодействий
+- 💼 10 карьер · 🧠 8 потребностей, определяющих поведение · 🎨 low-poly CC0 3D
+- 🎥 4 поворота камеры × 3 уровня приближения · 🌗 смена дня и ночи
+
+`three.js` · `WebGL 2` · любой браузер на компьютере, ничего не устанавливать
+
+**[▶ Играть](https://esurvanov.github.io/awesome-games/zhitie/)**
+
 </td>
 </tr>
 </table>
@@ -193,7 +210,8 @@
 | 🛩 Северный Разлом | Откройте **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — или двойной щелчок по `severny-razlom/index.html` |
 | 🌌 Эхо Разлома | Откройте **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — или `cd ekho-razloma && python3 -m http.server` и откройте `/open-world.html` |
 | ⚔️ Хроники Королевств | Откройте **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — или `python3 -m http.server` в корне репозитория и откройте `/age-of-empires/web/`; версия на Python: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (на macOS — двойной клик по `Play.command`) |
+| 🏡 Житьё | Откройте **[esurvanov.github.io/awesome-games/zhitie](https://esurvanov.github.io/awesome-games/zhitie/)** — или `cd zhitie && ./serve.sh` |
 
 ## 📜 Лицензии
 
-Код — MIT, см. `LICENSE` каждой игры. Графика и звук — под исходными лицензиями, список в [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md) и [berezovka/CREDITS.md](berezovka/CREDITS.md) и [ekho-razloma/CREDITS.md](ekho-razloma/CREDITS.md).
+Код — MIT, см. `LICENSE` каждой игры. Графика и звук — под исходными лицензиями, список в [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md), [berezovka/CREDITS.md](berezovka/CREDITS.md), [ekho-razloma/CREDITS.md](ekho-razloma/CREDITS.md) и [zhitie/CREDITS.md](zhitie/CREDITS.md).

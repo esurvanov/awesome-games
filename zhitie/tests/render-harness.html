@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Житьё — стенд рендера</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #222; overflow: hidden; font: 12px system-ui, sans-serif; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #hud { position: fixed; left: 8px; top: 8px; color: #fff; background: rgba(0,0,0,.45); padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+  #bub { position: fixed; transform: translate(-50%, -100%); background: #fff; border-radius: 10px; padding: 2px 6px; font-size: 14px; pointer-events: none; }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<div id="bub">🍳</div>
+<script type="module">
+// Стенд: стартовый дом Мира + 4 жителя руками. Параметры: ?rot=0..3&zoom=0..2&wall=up|cutaway|down&hour=14&level=0&ghost=1&still=1
+import { createBus } from '../js/core/events.js';
+import { createState } from '../js/core/state.js';
+import * as world from '../js/world/index.js';
+import { initRender } from '../js/render/index.js';
+
+const q = new URLSearchParams(location.search);
+const bus = createBus(), state = createState();
+world.loadStartLot(state, bus);
+
+const find = (def) => state.objects.find(o => o.def === def);
+const spot = (def, slot) => world.useSpots(state, find(def).id).find(s => !slot || s.slot === slot);
+const motives = (v) => Object.fromEntries(['hunger','comfort','hygiene','bladder','energy','fun','social','room'].map(k => [k, v]));
+const addSim = (name, look, sp, anim, mood) => {
+  const id = state.nextId++;
+  state.sims.push({ id, name, look, x: sp.x + 0.5, y: sp.y + 0.5, level: 0, facing: sp.facing ?? 0, motives: motives(mood), anim, queue: [], rel: {} });
+  bus.emit('sim:added', { id }); return id;
+};
+const A = addSim('Олег', { gender: 'm', top: '#4f7cac', bottom: '#34425c', hair: '#5a3a22' }, spot('sofa', 'sit'), 'watchTV', 70);
+const B = addSim('Мария', { gender: 'f', top: '#c0504d', bottom: '#6a6f78', hair: '#a8743c' }, spot('stove', 'front'), 'cook', 20);
+const C = addSim('Дед', { gender: 'm', top: '#e8e4da', bottom: '#4a3b2e', hair: '#d8d8d8', skin: '#e0ac85' }, spot('bed_double', 'lie'), 'sleep', -60);
+const D = addSim('Аня', { gender: 'f', top: '#5e9e62', bottom: '#2c2c30' }, { x: 12, y: 24, facing: Math.PI }, 'walk', 0);
+state.objects.find(o => o.def === 'tv').st.inUse = A;
+state.objects.find(o => o.def === 'kitchen_sink').st.dirty = 80;
+state.objects.find(o => o.def === 'toilet').st.broken = true;
+state.time.minutes = (+q.get('hour') || 14) * 60;
+
+// — Волна 2: сцены для проверки (?scene=storey|fire|npc|all) —
+const scene = q.get('scene') || '';
+const put = (def, x, y, rot = 0, level = 0, st = {}) => { const id = state.nextId++; state.objects.push({ id, def, x, y, rot, level, st: { dirty: 0, broken: false, inUse: null, ...st } }); return id; };
+if (/storey|all/.test(scene)) {
+  // второй этаж прямо в массивы (демо рендера, правила опоры — у Мира): пол над спальней + балкон над лестницей
+  const W = state.lot.w, L1 = state.lot.levels[1];
+  for (let y = 11; y <= 16; y++) for (let x = 7; x <= 14; x++) L1.floor[y * W + x] = 3;
+  const wall = (dir, x, y, t = 1) => { if (dir === 'h') L1.wallH[y * W + x] = t; else L1.wallV[y * (W + 1) + x] = t; };
+  for (let x = 9; x < 15; x++) { wall('h', x, 12, 3); wall('h', x, 17, 3); }
+  for (let y = 12; y < 17; y++) { wall('v', 9, y, 3); wall('v', 15, y, 3); }
+  put('stairs', 7, 13, 0, 0);                       // вход снизу с клетки (7,17), выход на (7,12) этажа 1
+  put('window', 11, 16, 2, 1); put('window', 12, 12, 0, 1); put('door', 9, 14, 1, 1);
+  put('bed_single', 13, 13, 0, 1); put('plant', 10, 12, 0, 1); put('floor_lamp', 14, 16, 0, 1); put('rug', 11, 14, 0, 1);
+  state.lot.roof = { style: q.get('roof') || 'gable', color: '#8a4b3a', pitch: 0.5 };
+  world.recomputeRooms?.(state); world.invalidate?.();
+  addSim('Лиза', { gender: 'f', top: '#e0a93a' }, { x: 7, y: 15, facing: Math.PI }, 'walk', 30); // на лестнице
+}
+if (/fire|all/.test(scene)) {
+  state.lot.fires = [{ x: 17, y: 18, level: 0, power: 1 }, { x: 18, y: 18, level: 0, power: 0.6 }];
+  state.objects.find(o => o.def === 'stove').st.burnt = true;
+  put('smoke_alarm', 17, 18, 0, 0);
+  state.objects.find(o => o.def === 'dining_table').st.dishes = 3;
+  state.objects.find(o => o.def === 'trash_can').st.full = true;
+  state.lot.trash = [{ x: 20, y: 18, level: 0 }]; state.lot.puddles = [{ x: 10, y: 18, level: 0 }];
+}
+if (/npc|all/.test(scene)) {
+  const npc = (kind, x, y, f = Math.PI) => { const id = addSim(kind, {}, { x, y, facing: f }, 'idle', 0); state.sims.find(s => s.id === id).npc = kind; };
+  npc('fire', 15, 24); npc('police', 16.5, 24); npc('burglar', 18, 24); npc('maid', 19.5, 24); npc('pizza', 21, 24); npc('reaper', 22.5, 24); npc('repair', 13.5, 24); npc('social', 12, 25.5);
+  const kid = addSim('Петя', { gender: 'm', top: '#e04a4a' }, { x: 11, y: 23, facing: 0 }, 'wave', 50); state.sims.find(s => s.id === kid).age = 'child';
+  put('crib', 14, 13, 0, 0, { baby: { name: 'Малыш', hoursLeft: 30 } });
+  put('tombstone', 5, 25, 2, 0); put('exercise_bench', 22, 20, 0, 0); put('easel', 23, 22, 0, 0);
+  const g = addSim('Дух', { gender: 'm' }, { x: 6, y: 24, facing: 0 }, 'idle', 0); state.sims.find(s => s.id === g).ghost = true;
+}
+
+// — Волна 3: район, общественные участки, богатый дом, сетка вариантов (?scene=hood|park|cafe|rich|variants) —
+import('../data/catalog.js'); // (уже загружен world'ом)
+const { CATALOG, byId, kindOf } = await import('../data/catalog.js');
+// демо-записи для видов §9, которых ещё нет в каталоге (Каталог добавит свои)
+const KFP = { fireplace: [2, 1], piano: [2, 1], guitar: [1, 1], telescope: [1, 1], aquarium: [2, 1], pool_table: [2, 3], dartboard: [1, 1, 'wall'], video_game: [1, 1], pinball: [1, 2], treadmill: [1, 2], hot_tub: [2, 2], grill: [1, 1], coffee_maker: [1, 1, 'surface'], microwave: [1, 1, 'surface'], dishwasher: [1, 1], washing_machine: [1, 1], toy_box: [1, 1], dollhouse: [1, 1], kids_bed: [1, 2], bunk_bed: [1, 2], wardrobe: [2, 1], desk_lamp: [1, 1, 'surface'], ceiling_lamp: [1, 1], sculpture: [1, 1], clock: [1, 1], flower_vase: [1, 1, 'surface'], pool: [4, 6], park_bench: [2, 1], fountain: [3, 3], food_stall: [2, 2], cash_register: [1, 1], shelf_shop: [2, 1], cafe_table: [1, 1], gym_machine: [1, 2], library_shelf: [2, 1], museum_exhibit: [1, 1], swing_set: [3, 2], sandbox: [2, 2], trash_bin_street: [1, 1], streetlight: [1, 1], hedge: [1, 4], tree: [2, 2], flowerbed: [2, 1], fence: [3, 1] };
+for (const [k, [w, d, place = 'floor']] of Object.entries(KFP)) if (!byId[k]) { const def = { id: k, kind: k, name: k, fp: [w, d], place, cat: 'misc', price: 100, ratings: {} }; byId[k] = def; CATALOG.push(def); }
+const emptyLot = () => { state.lot = world.createLot(30, 30); state.objects = []; state.sims = []; world.invalidate?.(); };
+const townies = (n, x0, y0) => { for (let i = 0; i < n; i++) addSim('Горожанин ' + i, {}, { x: x0 + (i % 5) * 1.6, y: y0 + ((i / 5) | 0) * 2, facing: i }, ['idle', 'talk', 'walk', 'wave', 'laugh'][i % 5], 30 - i * 5); };
+if (scene === 'park') {
+  emptyLot(); const W = state.lot.w, L0 = state.lot.levels[0];
+  for (let y = 12; y <= 17; y++) for (let x = 3; x < 27; x++) L0.floor[y * W + x] = 2;      // мощёная площадь
+  put('fountain', 13, 13, 0); for (const x of [4, 8, 20, 24]) put('park_bench', x, 11, 2), put('park_bench', x, 18, 0);
+  for (let x = 2; x < 28; x += 5) put('streetlight', x, 10, 0), put('streetlight', x, 19, 2);
+  for (let i = 0; i < 12; i++) put('tree', 1 + (i % 6) * 5, i < 6 ? 2 : 23, 0);
+  for (let x = 0; x < 28; x += 4) put('hedge', x, 28, 1);
+  for (let x = 3; x < 27; x += 4) put('flowerbed', x, 8, 0), put('flowerbed', x, 21, 0);
+  put('swing_set', 22, 3, 0); put('sandbox', 17, 3, 0); put('trash_bin_street', 11, 11, 0); put('trash_bin_street', 18, 18, 0);
+  put('fence', 16, 6, 0); put('fence', 19, 6, 0); put('food_stall', 5, 4, 0);
+  townies(10, 6, 14);
+}
+if (scene === 'cafe') {
+  emptyLot(); world.buildRoom(state, null, 6, 6, 24, 18, 0, 3, { free: true }); world.paintFloor(state, null, 6, 6, 23, 17, 2, 0, { free: true });
+  const W = state.lot.w, L0 = state.lot.levels[0];
+  for (let x = 6; x < 24; x++) { L0.wallH[18 * W + x] = 3; }
+  put('door', 14, 17, 2); for (const x of [8, 11, 17, 20]) put('window', x, 17, 2), put('window', x, 6, 0);
+  put('food_stall', 7, 6, 0); put('cash_register', 10, 6, 0); put('counter', 11, 6, 0); put('coffee_maker', 11, 6, 0); put('shelf_shop', 12, 6, 0); put('shelf_shop', 20, 6, 0);
+  for (const [x, y] of [[8, 10], [12, 10], [16, 10], [20, 10], [8, 14], [12, 14], [16, 14], [20, 14]]) { put('cafe_table', x, y, 0); put('dining_chair', x - 1, y, 1); put('dining_chair', x + 1, y, 3); }
+  for (const x of [7, 22]) put('plant', x, 16, 0); put('ceiling_lamp', 10, 12, 0); put('ceiling_lamp', 18, 12, 0); put('painting', 15, 6, 0); put('clock', 23, 8, 3);
+  for (const x of [7, 11, 17, 21]) put('cafe_table', x, 20, 0); for (let x = 4; x < 27; x += 5) put('streetlight', x, 23, 0); for (let x = 3; x < 27; x += 3) put('flowerbed', x, 25, 0);
+  put('hedge', 2, 19, 0); put('tree', 25, 20, 0);
+  townies(10, 9, 11.5);
+}
+if (scene === 'rich') {
+  // стартовый дом + двор: бассейн, джакузи, гриль, скульптура; внутри камин, пианино, аквариум
+  put('pool', 23, 13, 0); put('hot_tub', 23, 20, 0); put('grill', 26, 20, 0); put('sculpture', 6, 23, 0); put('fountain', 3, 13, 0);
+  for (let x = 1; x < 29; x += 4) put('hedge', x, 26, 1); for (const y of [2, 6, 10]) put('tree', 3, y, 0), put('tree', 24, y, 0);
+  put('flowerbed', 9, 23, 0); put('flowerbed', 17, 23, 0); put('streetlight', 8, 25, 0); put('streetlight', 22, 25, 0); put('park_bench', 20, 23, 0);
+  const rm = (def) => { const i = state.objects.findIndex(o => o.def === def); if (i >= 0) state.objects.splice(i, 1); };
+  rm('armchair'); put('fireplace', 9, 18, 1); rm('stereo'); put('piano', 9, 17, 1); rm('chess'); put('aquarium', 18, 15, 0); put('clock', 14, 16, 3);
+  put('ceiling_lamp', 12, 19, 0); put('ceiling_lamp', 18, 19, 0); put('flower_vase', 18, 20, 0); put('wardrobe', 9, 12, 0); rm('dresser');
+  townies(4, 20, 24.5);
+}
+if (scene === 'variants') {
+  // сетка всех предметов каталога (+ 4 цвета дивана как пример def.tint), подписи — не нужны: видно по форме
+  emptyLot(); state.lot = world.createLot(60, 60); state.objects = [];
+  const defs = CATALOG.filter(d => d.place !== 'wall' && kindOf(d.id) !== 'stairs' && d.buyable !== false || d.id === 'tombstone');
+  for (const [i, c] of ['#c8302a', '#3a8ad8', '#e8c22a', '#4ab84a'].entries()) { const id = 'sofa_demo_' + i; if (!byId[id]) { const def = { ...byId.sofa, id, kind: 'sofa', tint: c }; byId[id] = def; defs.push(def); } }
+  let x = 2, y = 2, rowH = 0;
+  for (const d of defs) { const [w, h] = d.fp; if (x + w > 58) { x = 2; y += rowH + 1; rowH = 0; } put(d.id, x, y, 0, 0); x += w + 1; rowH = Math.max(rowH, h); }
+}
+if (scene === 'cas') {
+  // превью CAS: 4 холста с разными look (наряд/причёска/аксессуары/телосложение)
+  window.__cas = [
+    { body: 'female', outfit: 'dress', hairStyle: 'long', acc: ['glasses_f'], shape: 'slim', skin: '#e0b48f', hair: '#6b3a1e', shirt: '#c0504d' },
+    { body: 'male', outfit: 'formal', hairStyle: 'side_part_m', acc: ['beard', 'top_hat_m'], shape: 'heavy', skin: '#c99672', hair: '#2b2118', shirt: '#3a4a6a', pants: '#2a2d33' },
+    { body: 'female', outfit: 'sport', hairStyle: 'ponytail_f', acc: ['cap_f'], shape: 'fit', skin: '#8d5a3b', hair: '#1a1a1a', shirt: '#4ab84a', pants: '#2a2d33' },
+    { body: 'male', outfit: 'casual', hairStyle: 'afro_m', acc: ['sunglasses_m'], skin: '#f1c7a4', hair: '#a8743c', shirt: '#e8c22a', pants: '#34425c' },
+  ];
+}
+if (/hood/.test(scene)) {
+  // демо-район (пока Мир не отдал state.hood): 10 жилых + 5 общественных, активный — стартовый дом со снимком
+  if (!state.hood && world.createHood) { try { world.createHood(state, { adopt: true }); } catch (e) { console.warn('createHood', e); } }
+  if (!state.hood) {
+    const lots = [], types = ['park', 'cafe', 'shop', 'gym', 'library'];
+    for (let i = 0; i < 15; i++) { const c = i % 5, r = (i / 5) | 0; const com = r === 1 && c % 2 === 0 || i === 13 || i === 11;
+      lots.push({ id: i + 1, name: com ? ['Парк «Берёзки»', 'Кафе «Самовар»', 'Магазин «Лавка»', 'Спортзал', 'Библиотека'][lots.filter(l => l.kind === 'community').length % 5] : `Улица Садовая, ${i + 1}`, kind: com ? 'community' : 'res', type: com ? types[lots.filter(l => l.kind === 'community').length % 5] : undefined, x: c * 38, y: r * 44, w: 30, h: 30, price: 20000, familyId: !com && i % 3 === 0 ? i : null, snapshot: null }); }
+    lots[0].snapshot = { lot: JSON.parse(JSON.stringify(state.lot)), objects: state.objects };
+    state.hood = { name: 'Берёзовка', lots, families: lots.filter(l => l.familyId != null).map(l => ({ id: l.familyId, name: 'Семья ' + ['Ивановых', 'Петровых', 'Сидоровых', 'Кузнецовых', 'Смирновых'][l.familyId % 5], lotId: l.id })), townies: [], activeLotId: 1, day: 1 };
+  }
+}
+const canvas = document.getElementById('c');
+const R = await initRender(canvas, state, bus, { preserve: true, post: q.get('post') !== '0', assets: q.get('assets') !== '0', maxDpr: +q.get('dpr') || 2 });
+bus.emit('sim:selected', { simId: +q.get('sel') || A });
+R.focus(15.5, 17.5, true);
+
+window.setView = ({ rot = 0, zoom = 1, wall = 'cutaway', hour, level = 0 } = {}) => {
+  while (R.rotation !== rot) R.rotate(1);
+  while (R.zoomLevel < zoom) R.zoom(1); while (R.zoomLevel > zoom) R.zoom(-1);
+  R.setWallMode(wall); R.setLevel(level);
+  if (hour != null) state.time.minutes = hour * 60;
+  R.snap();
+};
+window.setView({ rot: +q.get('rot') || 0, zoom: q.has('zoom') ? +q.get('zoom') : 1, wall: q.get('wall') || 'cutaway' });
+if (q.get('ghost')) {
+  R.setGhost({ defId: 'armchair', x: 11, y: 19, rot: 1, level: 0, ok: true });
+  R.setWallGhost({ x0: 22, y0: 14, x1: 26, y1: 18, level: 0, ok: false, room: true });
+  R.setFloorGhost({ x0: 22, y0: 19, x1: 25, y1: 21, level: 0, ok: true, floorId: 2 });
+}
+Object.assign(window, { R, state, bus, world });
+if (/hood/.test(scene)) R.showHood(state);
+if (window.__cas) {
+  document.getElementById('c').style.display = 'none';
+  const wrap = document.createElement('div'); wrap.style.cssText = 'position:fixed;inset:0;display:grid;grid-template-columns:repeat(4,1fr);background:#e8eef4';
+  document.body.append(wrap);
+  window.__cas.forEach(look => { const c = document.createElement('canvas'); c.style.cssText = 'width:100%;height:100%'; wrap.append(c); R.previewSim(c, look); });
+}
+
+// цикл: Аня ходит по кругу у дома
+let last = performance.now(), t = 0, frames = 0, acc = 0;
+const hud = document.getElementById('hud'), bub = document.getElementById('bub');
+const perf = { frames: 0, ms: 0 };
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; t += dt;
+  if (!q.get('still')) {
+    const d = state.sims.find(s => s.id === D), a = t * 0.35;
+    const nx = 15 + Math.cos(a) * 7.5, ny = 24.5 + Math.sin(a) * 1.5;
+    d.facing = Math.atan2(nx - d.x, ny - d.y); d.x = nx; d.y = ny;
+  }
+  const t0 = performance.now();
+  R.frame(dt);
+  perf.ms += performance.now() - t0; perf.frames++;
+  const p = R.simScreenPos(B); if (p) { bub.style.left = p.x + 'px'; bub.style.top = p.y + 'px'; }
+  acc += dt; frames++;
+  if (acc > 0.5) { hud.textContent = `${Math.round(frames / acc)} fps · rot ${R.rotation} · zoom ${R.zoomLevel} · ${R.wallMode} · calls ${R.renderer.info.render.calls} · tris ${R.renderer.info.render.triangles}`; acc = 0; frames = 0; }
+  window.__perf = perf;
+  if (perf.frames > 3) window.__ready = true;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

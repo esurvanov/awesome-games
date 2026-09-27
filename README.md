@@ -4,15 +4,16 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Seven complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars, an open-world story on a polar island, an endless ice-canyon flyer and a Saturday IT meetup in a Batumi bar. All seven run right in your browser — or clone and play locally.
+### Eight complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar and a Sims-style life sim. All eight run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 [![Play Lars in your browser](https://img.shields.io/badge/🏔_Play_Lars-in_your_browser-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
 [![Play Skhodka in your browser](https://img.shields.io/badge/🍣_Play_Skhodka-in_your_browser-E0457B?style=for-the-badge)](https://www.urvanov.com/skhodka/)
 [![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
+[![Play Zhitiyo in your browser](https://img.shields.io/badge/🏡_Play_Zhitiyo-in_your_browser-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
 
-![Games](https://img.shields.io/badge/games-7-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+![Games](https://img.shields.io/badge/games-8-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
 </div>
 
@@ -161,6 +162,22 @@ Collect shards, turn them into energy and burst through the ice walls. Weave aro
 
 </td>
 <td width="50%" valign="top">
+
+<a href="https://esurvanov.github.io/awesome-games/zhitie/"><img src="zhitie/docs/screenshots/home.jpg" alt="Zhitiyo: two sims inside their furnished house, needs panel and interaction menu on screen"></a>
+
+### 🏡 [Zhitiyo](zhitie/)
+**A life sim in the spirit of The Sims 1 — isometric 3D low-poly, a whole neighbourhood to live in.**
+
+Move into Berёzovaya Roshcha, a neighbourhood of ten households, a park, a café, a shop, a gym and a library. Take a family, keep everyone fed and happy, hold down a job, build relationships and furnish the house — all with a fixed isometric camera.
+
+- 🏘 10 households · 🛋 38 furniture pieces · 💞 86 social interactions
+- 💼 10 careers · 🧠 8 needs driving behaviour · 🎨 low-poly CC0 3D
+- 🎥 4 camera rotations × 3 zoom levels · 🌗 day/night cycle
+
+`three.js` · `WebGL 2` · any desktop browser, nothing to install
+
+**[▶ Play now](https://esurvanov.github.io/awesome-games/zhitie/)**
+
 </td>
 </tr>
 </table>
@@ -193,7 +210,8 @@ Collect shards, turn them into energy and burst through the ice walls. Weave aro
 | 🛩 Northern Rift | Open **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — or double-click `severny-razlom/index.html` |
 | 🌌 Echo of the Rift | Open **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — or `cd ekho-razloma && python3 -m http.server` and open `/open-world.html` |
 | ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
+| 🏡 Zhitiyo | Open **[esurvanov.github.io/awesome-games/zhitie](https://esurvanov.github.io/awesome-games/zhitie/)** — or `cd zhitie && ./serve.sh` |
 
 ## 📜 Licence
 
-Code — MIT, see each game's `LICENSE`. Art and sound keep their original licences, listed in [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md) and [berezovka/CREDITS.md](berezovka/CREDITS.md) and [ekho-razloma/CREDITS.md](ekho-razloma/CREDITS.md).
+Code — MIT, see each game's `LICENSE`. Art and sound keep their original licences, listed in [age-of-empires/CREDITS.md](age-of-empires/CREDITS.md), [berezovka/CREDITS.md](berezovka/CREDITS.md), [ekho-razloma/CREDITS.md](ekho-razloma/CREDITS.md) and [zhitie/CREDITS.md](zhitie/CREDITS.md).

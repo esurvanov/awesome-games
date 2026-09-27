@@ -1,0 +1,210 @@
+{
+ "hair": {
+  "parted": {
+   "file": "hair/parted.glb",
+   "src": "Quaternius UBC Hair_SimpleParted",
+   "gender": "u"
+  },
+  "long": {
+   "file": "hair/long.glb",
+   "src": "Quaternius UBC Hair_Long",
+   "gender": "f"
+  },
+  "buns": {
+   "file": "hair/buns.glb",
+   "src": "Quaternius UBC Hair_Buns",
+   "gender": "f"
+  },
+  "buzzed": {
+   "file": "hair/buzzed.glb",
+   "src": "Quaternius UBC Hair_Buzzed",
+   "gender": "u"
+  },
+  "buzzed_f": {
+   "file": "hair/buzzed_f.glb",
+   "src": "Quaternius UBC Hair_BuzzedFemale",
+   "gender": "f"
+  },
+  "short_messy_m": {
+   "file": "hair/short_messy_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "quiff_m": {
+   "file": "hair/quiff_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "side_swept_m": {
+   "file": "hair/side_swept_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "spiky_m": {
+   "file": "hair/spiky_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "slick_back_m": {
+   "file": "hair/slick_back_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "man_bun_m": {
+   "file": "hair/man_bun_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "mohawk_m": {
+   "file": "hair/mohawk_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "afro_m": {
+   "file": "hair/afro_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "curly_m": {
+   "file": "hair/curly_m.glb",
+   "src": "процедурная (пряди)",
+   "gender": "m"
+  },
+  "bun_f": {
+   "file": "hair/bun_f.glb",
+   "src": "процедурная (пряди)",
+   "gender": "f"
+  },
+  "braid_f": {
+   "file": "hair/braid_f.glb",
+   "src": "процедурная (пряди)",
+   "gender": "f"
+  },
+  "curly_f": {
+   "file": "hair/curly_f.glb",
+   "src": "процедурная (пряди)",
+   "gender": "f"
+  },
+  "afro_f": {
+   "file": "hair/afro_f.glb",
+   "src": "процедурная (пряди)",
+   "gender": "f"
+  }
+ },
+ "acc": {
+  "beard": {
+   "file": "hair/beard.glb",
+   "src": "Quaternius UBC Hair_Beard",
+   "gender": "m",
+   "slot": "face"
+  },
+  "glasses_m": {
+   "file": "acc/glasses_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "eyes"
+  },
+  "glasses_f": {
+   "file": "acc/glasses_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "eyes"
+  },
+  "sunglasses_m": {
+   "file": "acc/sunglasses_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "eyes"
+  },
+  "sunglasses_f": {
+   "file": "acc/sunglasses_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "eyes"
+  },
+  "cap_m": {
+   "file": "acc/cap_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "head"
+  },
+  "cap_f": {
+   "file": "acc/cap_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "head"
+  },
+  "beanie_m": {
+   "file": "acc/beanie_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "head"
+  },
+  "beanie_f": {
+   "file": "acc/beanie_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "head"
+  },
+  "straw_hat_m": {
+   "file": "acc/straw_hat_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "head"
+  },
+  "straw_hat_f": {
+   "file": "acc/straw_hat_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "head"
+  },
+  "top_hat_m": {
+   "file": "acc/top_hat_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "head"
+  },
+  "top_hat_f": {
+   "file": "acc/top_hat_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "head"
+  },
+  "headband_m": {
+   "file": "acc/headband_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "head"
+  },
+  "headband_f": {
+   "file": "acc/headband_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "head"
+  },
+  "moustache_m": {
+   "file": "acc/moustache_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "face"
+  },
+  "moustache_f": {
+   "file": "acc/moustache_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "face"
+  },
+  "earrings_m": {
+   "file": "acc/earrings_m.glb",
+   "src": "процедурная",
+   "gender": "m",
+   "slot": "ears"
+  },
+  "earrings_f": {
+   "file": "acc/earrings_f.glb",
+   "src": "процедурная",
+   "gender": "f",
+   "slot": "ears"
+  }
+ }
+}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Житьё — стенд интерфейса</title>
+<link rel="stylesheet" href="../css/ui.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1a2b; }
+  #view { position: fixed; inset: 0; display: block; }
+  #ui { position: fixed; inset: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="ui"></div>
+<script type="module">
+// Стенд: настоящий Мир + мок Рендера и Мозга (tests/ui-mock.mjs). ?paused — время стоит, ?brain=real — настоящий Мозг.
+import { createBus } from '../js/core/events.js';
+import { createState } from '../js/core/state.js';
+import * as world from '../js/world/index.js';
+import { initUI, frame as uiFrame } from '../js/ui/index.js';
+import { createMockRender, createMockSim, mockCatalogExtra, mockHood } from './ui-mock.mjs';
+import { CATALOG, byId } from '../data/catalog.js';
+
+const bus = createBus();
+const state = createState();
+const qs = new URLSearchParams(location.search);
+const sim = qs.get('brain') === 'real' ? await import('../js/sim/index.js') : createMockSim();
+sim.seed?.(state, 1);
+world.loadStartLot(state, bus);
+const a = sim.addSim(state, bus, { name: 'Вера', look: { body: 'female', skin: '#e0b48f', shirt: '#4a7fc1', hair: '#6b4226' }, x: 12.5, y: 20.5,
+  personality: { neat: 6, outgoing: 7, active: 4, playful: 5, nice: 3 }, career: { track: 'business', level: 3, perf: 35, missed: 0 } });
+const b = sim.addSim(state, bus, { name: 'Олег', look: { body: 'male', skin: '#c99672', shirt: '#6aa35a' }, x: 14.5, y: 19.5,
+  personality: { neat: 3, outgoing: 4, active: 7, playful: 7, nice: 4 }, career: null, skills: { cooking: 0, mechanical: 5.5, charisma: 1, body: 7.2, logic: 2, creativity: 0.3 } });
+const [va, ob] = state.sims;
+va.rel[b] = 62; ob.rel[a] = 55; va.rel[99] = -30;
+const realBrain = qs.get('brain') === 'real';
+// поддельные НПС — только с мок-Мозгом (настоящий ведёт своих сам)
+if (!realBrain) state.sims.push({ ...structuredClone(ob), id: 99, name: 'Соседка Нина', npc: true, look: { body: 'female', skin: '#f1c9a5', shirt: '#c1564a' }, x: 20.5, y: 27.5, queue: [], act: null });
+// волна 2: ребёнок, НПС-горничная, младенец в кроватке, крыша
+sim.addSim(state, bus, { name: 'Петя', look: { body: 'male', skin: '#e8c09a', shirt: '#e0a33a', hair: '#d8b36a' }, x: 13.5, y: 21.5, personality: { neat: 2, outgoing: 8, active: 9, playful: 10, nice: 6 } });
+state.sims.at(-1).age = 'child'; state.sims.at(-1).school = { grade: 82 };
+if (!realBrain) state.sims.push({ ...structuredClone(ob), id: 98, name: 'Зоя', npc: 'maid', household: false, look: { body: 'female', skin: '#d9a57f', shirt: '#7a8fa6' }, x: 10.5, y: 25.5, queue: [], act: null });
+const crib = world.placeObject(state, bus, 'crib', 3, 27, 0, 0);
+if (crib != null) state.objects.find(o => o.id === crib).st.baby = { name: 'Малыш Ваня', hoursLeft: 40 };
+state.household.money = 20000;
+state.lot.roof ??= { style: 'gable', color: '#8a4b3a', pitch: 0.5 };
+// волна 3: 300+ предметов, желания/страхи, район (?hood)
+mockCatalogExtra(CATALOG, byId);
+// мок-формат желаний — только с мок-Мозгом (у настоящего свой sim.wants)
+if (qs.get('brain') !== 'real') Object.assign(va, { aspiration: 'fortune', aspMeter: 42,
+  wants: [{ id: 'w1', icon: '💰', text: 'Заработать §1000', points: 1000 }, { id: 'w2', icon: '📺', text: 'Купить телевизор', points: 500 }, { id: 'w3', icon: '🎓', text: 'Навык логики 7', points: 1500 }, { id: 'w4', icon: '🤝', text: 'Подружиться с соседом', points: 500 }],
+  fears: [{ id: 'f1', icon: '🔥', text: 'Пожар', points: -1000 }, { id: 'f2', icon: '💸', text: 'Остаться без денег', points: -500 }] });
+// ?hood — мок района; ?hood=real — настоящий район Мира (createHood + фабрика жителей Мозга/мока)
+let hoodWorld = {};
+if (qs.get('hood') === 'real') { world.setSimFactory?.((st, b, spec) => sim.addSim(st, b, spec)); world.createHood(state); }
+else if (qs.has('hood')) hoodWorld = mockHood(state, sim, bus);
+// Мир ещё без setRoof — мок поверх настоящего Мира
+const worldApi = { ...world, ...hoodWorld, setRoof: world.setRoof ?? ((st, b, r) => { st.lot.roof = { ...r }; b.emit('lot:changed', { level: 0, kind: 'roof' }); }) };
+const canvas = document.getElementById('view');
+const render = createMockRender(canvas, state);
+bus.on('sim:selected', ({ simId }) => render.select(simId));
+const ui = initUI(document.getElementById('ui'), state, bus, { world: worldApi, sim, render });
+const paused = qs.has('paused');
+Object.assign(window, { T: { state, bus, world: worldApi, sim, render, ui } });
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (state.mode === 'live' && !paused) sim.tick(state, bus, world, dt);
+  uiFrame(dt);
+  render.frame(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.ready = true;
+</script>
+</body>
+</html>

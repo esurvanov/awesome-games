@@ -1,0 +1,52 @@
+{
+ "umw_casual": {
+  "file": "hair/umw_casual.glb",
+  "src": "Quaternius Ultimate Modular Women (Casual)",
+  "gender": "f"
+ },
+ "umw_scifi": {
+  "file": "hair/umw_scifi.glb",
+  "src": "Quaternius Ultimate Modular Women (SciFi)",
+  "gender": "f"
+ },
+ "umw_soldier": {
+  "file": "hair/umw_soldier.glb",
+  "src": "Quaternius Ultimate Modular Women (Soldier)",
+  "gender": "f"
+ },
+ "umw_witch": {
+  "file": "hair/umw_witch.glb",
+  "src": "Quaternius Ultimate Modular Women (Witch)",
+  "gender": "f"
+ },
+ "umm_adventurer": {
+  "file": "hair/umm_adventurer.glb",
+  "src": "Quaternius Ultimate Modular Men (Adventurer)",
+  "gender": "m"
+ },
+ "umm_beach": {
+  "file": "hair/umm_beach.glb",
+  "src": "Quaternius Ultimate Modular Men (Beach)",
+  "gender": "m"
+ },
+ "umm_casual_2": {
+  "file": "hair/umm_casual_2.glb",
+  "src": "Quaternius Ultimate Modular Men (Casual_2)",
+  "gender": "m"
+ },
+ "umm_casual_hoodie": {
+  "file": "hair/umm_casual_hoodie.glb",
+  "src": "Quaternius Ultimate Modular Men (Casual_Hoodie)",
+  "gender": "m"
+ },
+ "umm_king": {
+  "file": "hair/umm_king.glb",
+  "src": "Quaternius Ultimate Modular Men (King)",
+  "gender": "m"
+ },
+ "umm_suit": {
+  "file": "hair/umm_suit.glb",
+  "src": "Quaternius Ultimate Modular Men (Suit)",
+  "gender": "m"
+ }
+}

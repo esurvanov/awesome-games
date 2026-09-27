@@ -1,0 +1,12 @@
+{
+  "name": "zhitie",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "./serve.sh",
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

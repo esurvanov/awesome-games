@@ -1,0 +1,5 @@
+{"name":"Woman","out":"rig/woman_raw.glb","sources":[
+ {"file":"rig/Female_Peasant_s.glb"},
+ {"file":"rig/SH_Female_s.glb","headOnly":0.5},
+ {"file":"rig/Hair_Long.glb"}],
+ "ual1":[]}

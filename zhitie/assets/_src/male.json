@@ -1,0 +1,5 @@
+{"name":"Man","out":"rig/man_raw.glb","sources":[
+ {"file":"rig/Male_Peasant_s.glb"},
+ {"file":"rig/SH_Male.glb","headOnly":0.5},
+ {"file":"rig/Hair_SimpleParted.glb"}],
+ "ual1":[]}
