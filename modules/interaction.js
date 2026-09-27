@@ -272,7 +272,8 @@
     B.A = A; B.root = root; B.wrap = wrap;
     for (const n of TOUCH.concat(['pelvis', 'ball_l', 'ball_r'])) { const b = root.getObjectByName(n); if (!b) { if (/thigh|calf|foot/.test(n)) return false; } else B.bones[n] = b; }
     B.legs = ['l', 'r'].map((s) => ({ s, thigh: B.bones['thigh_' + s], calf: B.bones['calf_' + s], foot: B.bones['foot_' + s], ball: B.bones['ball_' + s], n: new V3(), anim: new V3(), ballAnim: new V3(),
-      wq: new Q(), g: { y: 0, nx: 0, ny: 1, nz: 0, tag: null }, gb: 0, h: 0, hPrev: 0, planted: true, up: 0, tgt: new V3() }));
+      wq: new Q(), g: { y: 0, nx: 0, ny: 1, nz: 0, tag: null }, gb: 0, h: 0, hPrev: 0, planted: true, up: 0, tgt: new V3(),
+      locked: false, lockX: 0, lockZ: 0, plantF: 0 }));
     for (const n of TOUCH) if (B.bones[n]) B.saved.set(B.bones[n], { anim: new Q(), ik: new Q(), has: false });
     // stride speeds of the locomotion clips (m/s at timeScale 1) → playback rate follows the real ground speed
     try {
@@ -319,7 +320,26 @@
       wpos(L.foot, L.anim); if (L.ball) wpos(L.ball, L.ballAnim); wquat(L.foot, L.wq);
       L.hPrev = L.h; L.h = L.anim.y - P.y;
       L.cPrev = L.c; L.c = Math.min(L.h - B.hRest, L.ball ? L.ballAnim.y - P.y - B.hRestBall : 1);   // contact: heel or toe down
-      const h = riding ? null : hitDown(L.anim.x, P.y + 0.75, L.anim.z, K.ikRay);
+      // foot-lock: `B.gait.wi` is the gait blender's own idle-weight (makeGait — walk ↔ idle cross-blend), so it is
+      // already exactly 1 while genuinely standing still and exactly 0 while walking; it only sits strictly between
+      // the two while the two clips' stance poses are actively being cross-faded, which is the ~0.3 s a planted foot
+      // can creep sideways (each clip's stance foot is aligned to the other only at the moment the blend started).
+      // Freeze the foot's horizontal target for exactly that window: a foot that is down and the blend under way
+      // holds its world x/z dead still (a snap, never a slow slide — a damped/lagging follower was tried first and
+      // made it worse, since any residual lag is itself a slow crawl the terrain presses into the snow as a smear).
+      // Standing still (wi settled at 1) or walking normally (wi settled at 0) is untouched either way, so slopes,
+      // landings and ordinary strides keep exactly their old IK behaviour. A jump bigger than a footstep while
+      // locked (teleport / respawn mid-blend) drops the lock instead of stretching toward a stale point. Height /
+      // tilt / snow-sink below still read the live pose — only x/z ever hold still, so the print the boot presses
+      // into the snow (terrain module, SNOW-CONTACT) stops travelling with it.
+      L.plantF = 1 - smooth(0.04, 0.2, L.c);
+      const wi = B.gait ? B.gait.wi : undefined, blending = wi !== undefined && wi > 0.002 && wi < 0.998;
+      if (blending && L.plantF > 0.5 && !L.locked) { L.locked = true; L.lockX = L.anim.x; L.lockZ = L.anim.z; }
+      else if (!blending || L.plantF < 0.3) L.locked = false;
+      if (!grounded || riding) L.locked = false;
+      if (L.locked && Math.hypot(L.anim.x - L.lockX, L.anim.z - L.lockZ) > 0.6) L.locked = false;   // stale: teleport / respawn mid-lock
+      const px = L.locked ? L.lockX : L.anim.x, pz = L.locked ? L.lockZ : L.anim.z;
+      const h = riding ? null : hitDown(px, P.y + 0.75, pz, K.ikRay);
       if (h) { L.g = h; } else { L.g = { y: P.y - 0.02, nx: 0, ny: 1, nz: 0, tag: null }; }
       const ny = clamp(L.g.ny, 0.6, 1);
       // loose snow (terrain module) lies above the physics ground: a boot compresses it and rests K.snowFloat of the way up
@@ -329,7 +349,7 @@
       // boot itself into its snow map, so the print under the planted boot IS the boot sole: foot and print coincide.
       L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowContact === 'function';
       let gy = L.g.y;
-      if (L.onSnow) { const sx = L.ball ? (L.anim.x + L.ballAnim.x) / 2 : L.anim.x, sz = L.ball ? (L.anim.z + L.ballAnim.z) / 2 : L.anim.z;
+      if (L.onSnow) { const sx = L.ball ? (px + L.ballAnim.x) / 2 : px, sz = L.ball ? (pz + L.ballAnim.z) / 2 : pz;
         try { const q = C.snowContact(sx, sz);
           if (isFinite(q.s0) && Math.abs(q.s0 - L.g.y) < 1) {
             // swing: on the undisturbed snow (exact CPU replay of what the GPU draws); planted: sunk footPress × loose depth,
@@ -337,9 +357,9 @@
             const plant = 1 - smooth(0.02, 0.08, L.c), sink = (C.footPress ? C.footPress(sx, sz) : 0.5) * q.dep;
             gy = q.s0 + (Math.max(q.s0 - sink, q.floor) - q.s0) * plant;
           } } catch (e) { /* terrain busy */ } }
-      else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(L.anim.x, L.anim.z), 0.6) * K.snowFloat;
+      else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(px, pz), 0.6) * K.snowFloat;
       L.gy = gy;
-      L.tgt.set(L.anim.x, gy + L.snow + Math.max(L.h, 0) / ny, L.anim.z);
+      L.tgt.set(px, gy + L.snow + Math.max(L.h, 0) / ny, pz);
       minD = Math.min(minD, L.tgt.y - L.anim.y);
     }
     // a deck with gaps (pier planks, grating): one foot's ray found the solid, the other fell through to the terrain below
@@ -364,7 +384,7 @@
       tgt.lerp(_p[19].set(L.tgt.x, L.tgt.y - B.sink, L.tgt.z), B.wLegs);
       solve2(L.thigh, L.calf, L.foot, tgt, R, L.n);
       // foot sole to the ground normal while planted (swing keeps the clip's foot)
-      const plant = (1 - smooth(0.04, 0.2, L.c)) * B.wLegs;
+      const plant = L.plantF * B.wLegs;
       if (plant > 0.01) {
         const n = _p[20].set(L.g.nx, L.g.ny, L.g.nz); if (n.y < Math.cos(K.tiltMax)) { n.y = 0; n.setLength(Math.sin(K.tiltMax)); n.y = Math.cos(K.tiltMax); } n.normalize();
         const tilt = _q[2].setFromUnitVectors(up(), n); _q[3].identity().slerp(tilt, plant);
