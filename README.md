@@ -42,7 +42,7 @@ Your plane, the «Kestrel», goes down on a nameless polar island under the nort
 | In the browser | open **[esurvanov.github.io/awesome-games/ekho-razloma/open-world.html](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** |
 | Locally | `cd ekho-razloma && python3 -m http.server` → open `http://localhost:8000/open-world.html` |
 | With the AI hermit | `node server/server.mjs --page open-world.html --open` with `TYPESAFE_API_KEY=…` in `.env` (never commit it) |
-| Bonus | `index.html` is «Northern Rift», a small canyon flyer made first in the same world |
+| Bonus | [Northern Rift](../severny-razlom/) — the canyon flyer made first in the same world (also `index.html` here) |
 
 Any desktop browser with WebGL 2. Quality adapts to the machine; on Retina screens the picture is rendered at 1× and scaled.
 
