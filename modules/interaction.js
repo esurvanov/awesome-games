@@ -22,6 +22,8 @@
     gaitBlend: true,   // stags: ANIMLIB 20-clip walk/trot/canter/gallop blender (replaces the flat Run clip while fleeing)
     contact: true, contactRange: 1.7, contactAsk: 1.2,   // pilot: rock/wall/branch/ledge contact layer (INT-CONTACT)
     contactBVH: true,   // CONTACT-SURFACE: hand/foot IK aims at the drawn mesh (three-mesh-bvh), not the physics hull
+    footLock: true, lockMax: 0.22, lockRelease: 16, lockStep: 0.06, stepDur: 0.22, stepLift: 0.06,   // PHYSBODY: planted foot pinned for the whole stance (heel -> ball pivot)
+    snowSurface: true,  // feet stand on the drawn snow (SNOW-CONTACT); testIK turns it off to measure against the hard ground
   };
   const STATS = { ms: 0, msMax: 0, frames: 0, steps: 0, cracks: 0, shakes: 0, lands: 0, pounces: 0, trails: 0 };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -247,7 +249,9 @@
       // weights follow max(speed, wanted speed) while speeding up (a run starts in the jog, not through the walk) and
       // hold while braking (the stop happens in the gait it was in); a slow walk (wanted speed low) uses the walk clip
       const want = o.want ? o.want() : av, b0 = o.bands.length ? o.bands[0][1] : 0;
-      let wv = want + 0.3 < av ? Math.max(av, G.hold || 0) : Math.max(av, Math.min(want, b0)); if (av < 0.05) wv = Math.min(want, b0); G.hold = wv;
+      // at the stop the gait weights ease into the walk pose over ~0.1 s (they snapped: a foot high in a jog's flight phase
+      // jumped up to 0.6 m to the walk pose's foot in one frame — PHYSBODY.md)
+      let wv = want + 0.3 < av ? Math.max(av, G.hold || 0) : Math.max(av, Math.min(want, b0)); if (av < 0.05) wv = G.hold === undefined ? Math.min(want, b0) : damp(G.hold, Math.min(want, b0), 20, dt); G.hold = wv;
       for (const k of G.keys) G.w[k] = 0;
       G.w[G.keys[0]] = 1;
       for (let j = 0; j < G.keys.length - 1; j++) {
@@ -273,7 +277,7 @@
     for (const n of TOUCH.concat(['pelvis', 'ball_l', 'ball_r'])) { const b = root.getObjectByName(n); if (!b) { if (/thigh|calf|foot/.test(n)) return false; } else B.bones[n] = b; }
     B.legs = ['l', 'r'].map((s) => ({ s, thigh: B.bones['thigh_' + s], calf: B.bones['calf_' + s], foot: B.bones['foot_' + s], ball: B.bones['ball_' + s], n: new V3(), anim: new V3(), ballAnim: new V3(),
       wq: new Q(), g: { y: 0, nx: 0, ny: 1, nz: 0, tag: null }, gb: 0, h: 0, hPrev: 0, planted: true, up: 0, tgt: new V3(),
-      locked: false, lockX: 0, lockZ: 0, plantF: 0 }));
+      locked: false, lockX: 0, lockZ: 0, plantF: 0, lk: 0, offX: 0, offZ: 0, step: null, lift: 0 }));
     for (const n of TOUCH) if (B.bones[n]) B.saved.set(B.bones[n], { anim: new Q(), ik: new Q(), has: false });
     // stride speeds of the locomotion clips (m/s at timeScale 1) → playback rate follows the real ground speed
     try {
@@ -308,7 +312,11 @@
     restoreBones();
     const play = C.mode === 'play' || C.mode === 'menu';
     const climbing = C.CLIMB && C.CLIMB.t >= 0, riding = G.riding, dead = G.deadT > 0;
-    const grounded = play && !riding && !dead && !climbing && (P.onGround || C.mode === 'menu');
+    // the controller's onGround flickers for single frames at a stop / on a crest (snap-to-ground): a flicker must not
+    // drop the leg IK or the planted-foot pins (the boot would jump to the clip's foot for a frame = a scuff in the print).
+    // Airborne for real = off the ground > 0.1 s, or rising (a jump takes off at 10 m/s)
+    B.airT = P.onGround || C.mode === 'menu' ? 0 : (B.airT || 0) + dt;
+    const grounded = play && !riding && !dead && !climbing && (P.onGround || C.mode === 'menu' || (B.airT < 0.1 && (P.vy || 0) < 1));
     B.wLegs = damp(B.wLegs, grounded && K.ik ? 1 : 0, grounded ? 10 : 18, dt);
     B.wrap.position.y = 0; B.wrap.position.x = 0; B.wrap.position.z = 0;
     c.g.updateMatrixWorld(true);
@@ -320,25 +328,51 @@
       wpos(L.foot, L.anim); if (L.ball) wpos(L.ball, L.ballAnim); wquat(L.foot, L.wq);
       L.hPrev = L.h; L.h = L.anim.y - P.y;
       L.cPrev = L.c; L.c = Math.min(L.h - B.hRest, L.ball ? L.ballAnim.y - P.y - B.hRestBall : 1);   // contact: heel or toe down
-      // foot-lock: `B.gait.wi` is the gait blender's own idle-weight (makeGait — walk ↔ idle cross-blend), so it is
-      // already exactly 1 while genuinely standing still and exactly 0 while walking; it only sits strictly between
-      // the two while the two clips' stance poses are actively being cross-faded, which is the ~0.3 s a planted foot
-      // can creep sideways (each clip's stance foot is aligned to the other only at the moment the blend started).
-      // Freeze the foot's horizontal target for exactly that window: a foot that is down and the blend under way
-      // holds its world x/z dead still (a snap, never a slow slide — a damped/lagging follower was tried first and
-      // made it worse, since any residual lag is itself a slow crawl the terrain presses into the snow as a smear).
-      // Standing still (wi settled at 1) or walking normally (wi settled at 0) is untouched either way, so slopes,
-      // landings and ordinary strides keep exactly their old IK behaviour. A jump bigger than a footstep while
-      // locked (teleport / respawn mid-blend) drops the lock instead of stretching toward a stale point. Height /
-      // tilt / snow-sink below still read the live pose — only x/z ever hold still, so the print the boot presses
-      // into the snow (terrain module, SNOW-CONTACT) stops travelling with it.
-      L.plantF = 1 - smooth(0.04, 0.2, L.c);
-      const wi = B.gait ? B.gait.wi : undefined, blending = wi !== undefined && wi > 0.002 && wi < 0.998;
-      if (blending && L.plantF > 0.5 && !L.locked) { L.locked = true; L.lockX = L.anim.x; L.lockZ = L.anim.z; }
-      else if (!blending || L.plantF < 0.3) L.locked = false;
-      if (!grounded || riding) L.locked = false;
-      if (L.locked && Math.hypot(L.anim.x - L.lockX, L.anim.z - L.lockZ) > 0.6) L.locked = false;   // stale: teleport / respawn mid-lock
-      const px = L.locked ? L.lockX : L.anim.x, pz = L.locked ? L.lockZ : L.anim.z;
+      // foot-lock (PHYSBODY, replaces POLISH-1's walk<->idle-blend-only lock): a planted foot holds its world x/z for its
+      // WHOLE stance, not only during the walk<->idle cross-blend. The clip's stance foot drifts a few cm against the
+      // ground whenever the phase-synced stride and the real ground speed disagree (acceleration, braking, the idle
+      // blend, turning) and the terrain presses whatever the boot covers every frame, so any drift is a smeared print.
+      // The pinned point is the part of the sole that carries the weight: the heel (ankle x/z) from heel strike until the
+      // ball comes down, then the ball — the switch is continuous (the ball is pinned where it is at that instant), so
+      // heel strike -> flat -> toe-off rolls over the right pivot instead of sliding. Lift-off releases the lock with the
+      // foot already in the air: the offset (pinned - clip) decays over ~0.15 s of swing, never while the boot touches
+      // the snow (a damped follower on the ground crawls = smear; see POLISH-1.md). A pin further than K.lockMax from
+      // the clip (turning on the spot, teleport) re-plants at the clip's foot: one clean new print, no crawl.
+      // Only x/z are pinned: height, sole tilt and snow sink read the live pose and the ground under the pinned point.
+      { const ballH = L.ball ? L.ballAnim.y - P.y - B.hRestBall : 1, heelH = L.h - B.hRest;
+        const dn = L.lk ? Math.min(heelH, ballH) < 0.05 : Math.min(heelH, ballH) < 0.02;   // hysteresis: plant < 2 cm, lift > 5 cm
+        const bdx = L.ball ? L.ballAnim.x - L.anim.x : 0, bdz = L.ball ? L.ballAnim.z - L.anim.z : 0;
+        const other = B.legs[0] === L ? B.legs[1] : B.legs[0];
+        // the other foot carries the weight: planted, or its own settle step already past the middle (a shuffle, never a hop)
+        const otherDown = other && ((other.lk > 0 && !other.step) || (other.step && other.step.t > other.step.dur * 0.55));
+        const stepTo = (ox, oz) => { L.step = { t: 0, dur: K.stepDur, sx: L.anim.x + ox, sz: L.anim.z + oz }; L.lk = 0; };
+        L.lift = 0;
+        if (!K.footLock || !grounded || riding) { L.lk = 0; L.offX = L.offZ = 0; L.step = null; }
+        else if (L.step) {   // settle step: lift the boot off its print, set it down where the clip has it (clean new print)
+          // the boot first rises out of its print in place, travels only while clear of the snow, then sinks into the new one
+          const S = L.step; S.t += dt; const u = clamp(S.t / S.dur, 0, 1), e = smooth(0.15, 0.85, u);
+          // from the world spot it left to wherever the clip's foot is NOW (the clip is still settling into its stance)
+          L.offX = (S.sx - L.anim.x) * (1 - e); L.offZ = (S.sz - L.anim.z) * (1 - e); L.lift = K.stepLift * Math.sin(Math.PI * u);
+          if (u >= 1) { L.step = null; L.lift = 0; L.offX = L.offZ = 0; STATS.settleSteps = (STATS.settleSteps || 0) + 1; if (SUB.steps) footfall(L, 1); }
+        } else if (dn) {
+          const cx = L.anim.x + (L.offX || 0), cz = L.anim.z + (L.offZ || 0);   // where the foot is drawn right now
+          if (!L.lk) { if (L.ball && ballH < 0.02 && heelH >= 0.02) { L.lk = 2; L.lockX = cx + bdx; L.lockZ = cz + bdz; } else { L.lk = 1; L.lockX = cx; L.lockZ = cz; } }
+          else if (L.lk === 1 && L.ball && ballH < 0.02) { L.lk = 2; L.lockX += bdx; L.lockZ += bdz; }   // flat: pivot moves heel -> ball, same point
+          const ax = L.lk === 2 ? L.lockX - bdx : L.lockX, az = L.lk === 2 ? L.lockZ - bdz : L.lockZ, ox = ax - L.anim.x, oz = az - L.anim.z, dev = Math.hypot(ox, oz);
+          L.offX = ox; L.offZ = oz;
+          // standing (stopped / turning on the spot) and the clip's foot has moved away from the pinned one (walk -> idle
+          // settles into a different stance, a turn rotates the stance): take a settle step, one foot at a time
+          if (otherDown && (dev > K.lockMax || (dev > K.lockStep && hs < 0.5))) stepTo(ox, oz);
+          if (dev > 0.6) { L.step = null; L.lk = 0; L.offX = L.offZ = 0; }   // teleport / respawn: re-plant at the clip's foot
+        } else if (L.lk || L.offX || L.offZ) {   // swing: release in the air
+          // only once the boot is clear of the snow (the planted sink fades out between 2 and 8 cm of lift): a boot still
+          // in its print that moved sideways would drag the print along
+          L.lk = 0; const k = Math.exp(-K.lockRelease * dt * smooth(0.06, 0.11, L.c)); L.offX = (L.offX || 0) * k; L.offZ = (L.offZ || 0) * k;
+          if (Math.abs(L.offX) + Math.abs(L.offZ) < 1e-4) L.offX = L.offZ = 0;
+        }
+        L.locked = L.lk > 0; }
+      L.plantF = (1 - smooth(0.04, 0.2, L.c)) * (L.step ? 1 - Math.sin(Math.PI * clamp(L.step.t / L.step.dur, 0, 1)) : 1);
+      const px = L.anim.x + (L.offX || 0), pz = L.anim.z + (L.offZ || 0);
       const h = riding ? null : hitDown(px, P.y + 0.75, pz, K.ikRay);
       if (h) { L.g = h; } else { L.g = { y: P.y - 0.02, nx: 0, ny: 1, nz: 0, tag: null }; }
       const ny = clamp(L.g.ny, 0.6, 1);
@@ -347,19 +381,20 @@
       // from the GPU). Swinging, the foot follows that surface; planting, it sinks into the loose snow — footPress = the
       // share of the loose snow a boot compresses — unless an older, deeper print is already there. The terrain draws the
       // boot itself into its snow map, so the print under the planted boot IS the boot sole: foot and print coincide.
-      L.snow = 0; L.onSnow = !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowContact === 'function';
+      L.snow = 0; L.onSnow = K.snowSurface && !riding && L.g.tag && L.g.tag.kind === 'terrain' && typeof C.snowContact === 'function';
       let gy = L.g.y;
-      if (L.onSnow) { const sx = L.ball ? (px + L.ballAnim.x) / 2 : px, sz = L.ball ? (pz + L.ballAnim.z) / 2 : pz;
+      if (L.onSnow) { const sx = L.ball ? px + (L.ballAnim.x - L.anim.x) / 2 : px, sz = L.ball ? pz + (L.ballAnim.z - L.anim.z) / 2 : pz;
         try { const q = C.snowContact(sx, sz);
           if (isFinite(q.s0) && Math.abs(q.s0 - L.g.y) < 1) {
             // swing: on the undisturbed snow (exact CPU replay of what the GPU draws); planted: sunk footPress × loose depth,
             // never below the compacted layer the terrain draws. An older print here has the same depth (same rule, same spot)
-            const plant = 1 - smooth(0.02, 0.08, L.c), sink = (C.footPress ? C.footPress(sx, sz) : 0.5) * q.dep;
+            const su = L.step ? clamp(L.step.t / L.step.dur, 0, 1) : 0;
+            const plant = (1 - smooth(0.02, 0.08, L.c)) * (L.step ? 1 - smooth(0, 0.2, su) + smooth(0.8, 1, su) : 1), sink = (C.footPress ? C.footPress(sx, sz) : 0.5) * q.dep;
             gy = q.s0 + (Math.max(q.s0 - sink, q.floor) - q.s0) * plant;
           } } catch (e) { /* terrain busy */ } }
       else if (!riding && L.g.tag && L.g.tag.kind === 'terrain') L.snow = Math.min(snowDepth(px, pz), 0.6) * K.snowFloat;
       L.gy = gy;
-      L.tgt.set(px, gy + L.snow + Math.max(L.h, 0) / ny, pz);
+      L.tgt.set(px, gy + L.snow + Math.max(L.h, 0) / ny + (L.lift || 0), pz);
       minD = Math.min(minD, L.tgt.y - L.anim.y);
     }
     // a deck with gaps (pier planks, grating): one foot's ray found the solid, the other fell through to the terrain below
@@ -1425,10 +1460,13 @@
       }
       return r;
     };
-    const sfWas = K.snowFloat; K.snowFloat = 0;   // measure against the hard ground
-    out.ikOff = await run(false);
-    out.ikOn = await run(true);
-    K.snowFloat = sfWas; K.ik = true;
+    // measure against the hard ground: loose snow off — both the old float (K.snowFloat) and the SNOW-CONTACT drawn-snow
+    // surface (K.snowSurface). The latter was added after this test and bypassed its snowFloat switch, so the test read
+    // "snow thickness under the boot on the slope minus on the flat spot" (4–9 cm, random with the spots) as IK error.
+    // Feet on the DRAWN snow are checked by tools/eye.mjs (feet on the visible surface) and tools/snow-contact.mjs.
+    const sfWas = K.snowFloat, ssWas = K.snowSurface; K.snowFloat = 0; K.snowSurface = false;
+    try { out.ikOff = await run(false); out.ikOn = await run(true); }
+    finally { K.snowFloat = sfWas; K.snowSurface = ssWas; K.ik = true; }
     const worst = (r) => Math.max(...['across', 'uphill', 'downhill'].flatMap((k) => [r[k].ankle.max, r[k].ball.max]));
     out.maxErrOff = +worst(out.ikOff).toFixed(3); out.maxErrOn = +worst(out.ikOn).toFixed(3); out.pass = out.maxErrOn < 0.05;
     return out;
