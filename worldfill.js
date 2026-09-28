@@ -1363,7 +1363,15 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
     // finalize merged meshes
     if (MG.ice.tris()) { const g = MG.ice.geometry(); addMesh('seaIce', g, iceMat('seaice', { vc: true, attr: true }), { recv: true }); S.stats.tris.seaIce = triCount(g); }
     if (MG.stone.tris()) { const g = MG.stone.geometry(); addMesh('stone', g, stoneMat('stonesites', { vc: true, rockS: .3 }), { recv: true, cast: true }); S.stats.tris.stone = triCount(g); }
-    if (MG.built.tris()) { const g = MG.built.geometry(); const m = builtMat('built', { vc: true, aux: true, side: THREE.DoubleSide }); m.roughness = .78; addMesh('built', g, m, { recv: true, cast: true }); S.stats.tris.built = triCount(g); }
+    // BLOB-FIX: this merged mesh is flag poles + guy wires + fire-ring rods — all a few cm thick. At the shadow map's
+    // texel size a sub-texel-wide caster does not resolve to a crisp thin line: bias/PCF turn it into a soft, wide,
+    // hard-edged smear that reads as a big detached dark patch with no visible caster nearby (seen at a flag pole
+    // near a boulder, stand/blob-repro/shots/repro.png). Verified: disabling this mesh's shadow removes the smear and
+    // leaves only the boulder's own legitimate shadow (stand/blob-repro3/shots/wfbuilt_off.png). None of these props
+    // are large enough for a real-time shadow to read as intentional, so they stop casting instead of being patched
+    // per-prop (no reasonable bias/PCF setting fixes a sub-texel caster without breaking normal-size casters that
+    // share the pass) — cheaper too (one less shadow-casting draw for the whole map's built props).
+    if (MG.built.tris()) { const g = MG.built.geometry(); const m = builtMat('built', { vc: true, aux: true, side: THREE.DoubleSide }); m.roughness = .78; addMesh('built', g, m, { recv: true, cast: false }); S.stats.tris.built = triCount(g); }
     MG.ice = MG.built = MG.stone = null;
     if (K.clutter) step('clutter', buildClutter);
     if (K.mist) step('mist', buildMist);
