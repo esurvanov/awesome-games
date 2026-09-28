@@ -713,18 +713,27 @@ vec3 impNW;`)
   // an immediate correction when the dome is built, and a cheap re-check on the same drift-key trigger. Only ever
   // raises a tree that is over-buried against SURF, up to the design target — never lifts one that wasn't, so the
   // common case (already inside the intended range) is untouched.
-  const KZ = { trees: null, R: 0, H: 0, g: null, seatKey: null, TARGET: 0.5 };
-  function seatKrummholzOnce(trees, H) {
-    let raised = 0, worstBefore = 0, worstAfter = 0, changed = [];
+  const KZ = { trees: null, R: 0, H: 0, g: null, gPos: null, seatKey: null, TARGET: 0.5 };
+  const _kzv = [];   // scratch: this instance's dome vertices in world space (reused every tree, every call)
+  // world-space vertices of the (shared, tapered) dome geometry under one instance's matrix — a cone frustum has a
+  // different column height near its rim than at its centre, so the naive "uniform column" burial estimate this used
+  // before under-counted burial for any cell away from the middle (confirmed live: computed 0.50, the actual QA row
+  // for the same instance read 0.90). seatDy (already used to reseat rocks, same per-cell-of-the-footprint bisection
+  // the realism/placed-object QA check itself uses) is the one correct way to solve this for an arbitrary shape.
+  function kzWorldVerts(gpos, M) {
+    _kzv.length = 0; const n = gpos.count;
+    for (let i = 0; i < n; i++) { const v = new THREE.Vector3(gpos.getX(i), gpos.getY(i), gpos.getZ(i)).applyMatrix4(M); _kzv.push(v.x, v.y, v.z); }
+    return _kzv;
+  }
+  function seatKrummholzOnce(trees, gPos) {
+    let raised = 0, maxLift = 0, changed = [];
     for (const t of trees) {
-      const s = t.s, x = t.mReal.elements[12], y0 = t.mReal.elements[13], z = t.mReal.elements[14], domeH = s * H;
-      if (domeH <= 0.01) continue;
-      const bottom = y0 + s * -0.1, buried = clamp((SURF(x, z) - bottom) / domeH, 0, 1);
-      worstBefore = Math.max(worstBefore, buried);
-      if (buried > KZ.TARGET) { const dy = (buried - KZ.TARGET) * domeH; t.mReal.elements[13] += dy; t.y += dy; raised++; changed.push(t); worstAfter = Math.max(worstAfter, KZ.TARGET); }
-      else worstAfter = Math.max(worstAfter, buried);
+      const v = kzWorldVerts(gPos, t.mReal), dy = seatDy(v, KZ.TARGET);
+      // seatDy (bidirectional: solves dy so buried == target exactly) only ever applied when it would RAISE the tree
+      // (dy > 0, i.e. it is currently buried more than target) — a tree already at or under target is left alone
+      if (dy > 0.005) { t.mReal.elements[13] += dy; t.y += dy; raised++; changed.push(t); maxLift = Math.max(maxLift, dy); }
     }
-    return { raised, worstBefore, worstAfter, changed };
+    return { raised, maxLift, changed };
   }
   function krummholzSolids(P, trees) {
     let ps = null; for (const p of P.parts) if (p.name === 'needles') ps = p.geo.attributes.position;
@@ -732,22 +741,22 @@ vec3 impNW;`)
     const rs = []; let top = 0;
     for (let i = 0; i < ps.count; i++) { const y = ps.getY(i); if (y < 1.3) rs.push(Math.hypot(ps.getX(i), ps.getZ(i))); top = Math.max(top, y); }
     rs.sort((a, b) => a - b); const R = rs[Math.floor(rs.length * 0.85)] || 0.9, H = Math.min(1.25, top * 0.5);
-    const { raised, worstBefore, worstAfter } = seatKrummholzOnce(trees, H);
     const g = new THREE.CylinderGeometry(R * 0.35, R, H, 10, 2); g.translate(0, H / 2 - 0.1, 0);
+    KZ.trees = trees; KZ.R = R; KZ.H = H; KZ.g = g; KZ.gPos = g.attributes.position;
+    const { raised, maxLift } = seatKrummholzOnce(trees, KZ.gPos);
     const Pp = Passport(); VEG.krummholzSolids = Pp.registerInstances(g, trees.map((t) => t.mReal), 'solid', { shape: 'hull', name: 'krummholz', exact: false });
-    KZ.trees = trees; KZ.R = R; KZ.H = H; KZ.g = g;
-    VEG.stats.krummholz = { R: +R.toFixed(2), H: +H.toFixed(2), n: trees.length, raised, worstBefore: +worstBefore.toFixed(2), worstAfter: +worstAfter.toFixed(2) };
+    VEG.stats.krummholz = { R: +R.toFixed(2), H: +H.toFixed(2), n: trees.length, raised, maxLift: +maxLift.toFixed(2) };
   }
   // periodic re-check (same trigger as reseatRocks): the terrain re-stamped its drifts, so re-test against the new snow
   function reseatKrummholz(why) {
     if (!KZ.trees || !KZ.trees.length) return;
-    const t0 = performance.now(), { raised, worstBefore, worstAfter, changed } = seatKrummholzOnce(KZ.trees, KZ.H);
+    const t0 = performance.now(), { raised, maxLift, changed } = seatKrummholzOnce(KZ.trees, KZ.gPos);
     if (raised) {
       for (const t of changed) for (const G of F.groups) { const ids = G.inst.get(t); if (ids) for (const id of ids) G.b.setMatrixAt(id, t.mReal); }
       const Pp = Passport(); if (VEG.krummholzSolids) for (const e of VEG.krummholzSolids) Pp.remove(e);
       VEG.krummholzSolids = Pp.registerInstances(KZ.g, KZ.trees.map((t) => t.mReal), 'solid', { shape: 'hull', name: 'krummholz', exact: false });
     }
-    VEG.stats.krummholz = { R: +KZ.R.toFixed(2), H: +KZ.H.toFixed(2), n: KZ.trees.length, raised, worstBefore: +worstBefore.toFixed(2), worstAfter: +worstAfter.toFixed(2), ms: +(performance.now() - t0).toFixed(2), why };
+    VEG.stats.krummholz = { R: +KZ.R.toFixed(2), H: +KZ.H.toFixed(2), n: KZ.trees.length, raised, maxLift: +maxLift.toFixed(2), ms: +(performance.now() - t0).toFixed(2), why };
   }
   /* NATURE — the wind-bent fir read as a black stick with white smears (a 4 k-tri model: bare pole + a few flagged
    * cards). Rebuilt from the young spruce: same bark and needle cards, ×k taller, a slight downwind lean, and the
