@@ -666,7 +666,9 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
     const put = (kind, lx, lz, yaw, o) => { const [x, z] = f.w(lx, lz); return slot(kind, x, z, f.yaw + yaw, Object.assign({ site: 'camp' }, o)); };
     // polar pyramid tents (procedural, modules/structures.js — CAMP.md): the stove tent (lit, smoking) + a second one
     put('tent_polar_stove', 0, 0, .1); put('tent_polar', 6.6, 1.2, .5);   // (the 1.3 m hiking dome is gone: sizes.json wants camp tents ≥ 1.9 m)
-    put('crate_wood', 2.2, -4, .3, { push: 18 }); put('crate_wood', 3.4, -3.9, -.1, { push: 18 }); put('crate_wood', 2.7, -4, .5, { push: 18, up: .46 });
+    // REALISM-QA rule 6 (repetition): the stacked crate sits 0.5 m from the first (same model) — a scale nudge (not
+    // rotation: it's a dynamic pushable, gravity/contact settling can shrink an authored yaw gap by the time it's measured)
+    put('crate_wood', 2.2, -4, .3, { push: 18 }); put('crate_wood', 3.4, -3.9, -.1, { push: 18 }); put('crate_wood', 2.7, -4, 1.4, { push: 18, up: .46, scale: 0.88 });
     put('crate_wood', 4.4, -2.2, 1.2, { push: 18 });
     put('drum_blue', -2.8, -4.2, 0, { push: 16 }); put('drum_blue', -2.2, -4.8, 1, { push: 16 }); put('barrel_steel', -3.5, -3.4, .6, { push: 22, lying: true });
     put('sledge', 8.6, -4.2, .9 - Math.PI / 2, { s: .9 });   // 4.6 m pack → 4.1 m (Nansen sledge 2.4–4.5 m)

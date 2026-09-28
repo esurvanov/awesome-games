@@ -306,9 +306,10 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     const p = F.parts[0]; if (!p) return null;
     snowify(p.mat, 0.8);
     const m = new THREE.Mesh(p.geo, p.mat); m.castShadow = m.receiveShadow = true; m.name = name;
+    const sc = o.scale || 1; if (sc !== 1) m.scale.setScalar(sc);   // REALISM-QA rule 6 (repetition): break "same model, same everywhere" for two copies close together (e.g. a crate stacked on a same-kind crate) — deterministic, unlike rotation on a dynamic rigid body (settles a bit under gravity/contact, an authored yaw gap can shrink by the time it's measured)
     const snowH = Math.max(0, DRAWN(x, z) - H(x, z));   // groundUnder samples bare H (slope needs solid ground); the loose snow it ignores is what QA's burial check measures against — add it back so a crate doesn't read as sunk into drift it was never seated on
-    if (o.lying) { const r = (F.box.max.x - F.box.min.x) / 2; m.rotation.set(0, ry, Math.PI / 2); m.position.set(x, H(x, z) + snowH + r + 0.02, z); }
-    else { const g = groundUnder(x, z, ry, F.box); m.rotation.set(0, ry, 0); m.position.set(x, (o.onTop ?? g.max + snowH) - F.box.min.y + 0.01 + (o.up || 0), z); }
+    if (o.lying) { const r = (F.box.max.x - F.box.min.x) / 2 * sc; m.rotation.set(0, ry, Math.PI / 2); m.position.set(x, H(x, z) + snowH + r + 0.02, z); }
+    else { const g = groundUnder(x, z, ry, F.box); m.rotation.set(0, ry, 0); m.position.set(x, (o.onTop ?? g.max + snowH) - F.box.min.y * sc + 0.01 + (o.up || 0), z); }
     const px = ST.hullProxy(m); px.userData.struct = true; C.scene.add(px); px.updateMatrixWorld(true);
     C.Passport.register(px, 'pushable', { name, mass }); count(name); return px;
   }
@@ -562,8 +563,8 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   function placePushSlot(F, s, kind) {
     const K = { crate_wood: 18, drum_blue: 16, barrel_steel: 22 }[kind] || 15;
     if (s.up) { // stacked on the crate below: rest on its top
-      const g = groundUnder(s.x, s.z, s.yaw, F.box); pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { onTop: g.max + (F.box.max.y - F.box.min.y) + 0.01 });
-    } else pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { lying: s.lying });
+      const g = groundUnder(s.x, s.z, s.yaw, F.box); pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { onTop: g.max + (F.box.max.y - F.box.min.y) * (s.scale || 1) + 0.01, scale: s.scale });
+    } else pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { lying: s.lying, scale: s.scale });
   }
 
   /* ============================ echo ruins ============================ */
@@ -833,29 +834,41 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   // a giant moves (QA pose continuity ≤ 10 m/s). After the clips are sampled, any hip motion (in the boss group's space)
   // above HIP_VMAX is taken out by shifting the whole model the other way; that offset then drains back to zero within
   // the speed budget that is left, so the pose ends where the clip wants it, only never faster than a giant can move.
-  const HIP_VMAX = 8; let _hw = null, _q = null;
+  const HIP_VMAX = 8;
+  // ATTACK-STATES foot lock: updateBoss() only moves boss.x/z in the 'idle' state — rise/drop/charge/recover never
+  // translate the group at all, yet those clips swing the pose hard (windup, lunge, twist), and a straight leg turns
+  // even a modest hip *rotation* into a much bigger sweep at the ankle than at the hip — a hip-only speed clamp never
+  // sees that (QA measured a "planted" foot sliding up to 2 m in one step mid-attack, median 0.67 m/step, while the
+  // body itself never moved). During these frozen states hipLimit tracks whichever foot is currently lower (the
+  // stance one) instead of the hip, and holds it near-still instead of merely capping it to a giant's walking speed.
+  const FOOT_LOCK_STATES = { rise: 1, drop: 1, charge: 1, recover: 1 };
+  const FOOT_VMAX = 1.1, FOOT_OFF_MAX = 1.6;
+  let _hw = null, _q = null, _pl = null, _pr = null;
   function hipLimit(dt) {
-    const fix = GOLEM.fix, g = C.boss.g; if (!fix || !(dt > 0)) return; _hw = _hw || new V3(); _q = _q || new THREE.Quaternion();
-    if (!GOLEM.hip) GOLEM.root.traverse((o) => { if (!GOLEM.hip && o.isSkinnedMesh) GOLEM.hip = o.skeleton.bones.find((b) => b.name === 'hip'); });   // the skeleton's bone (QA samples that one)
+    const fix = GOLEM.fix, g = C.boss.g; if (!fix || !(dt > 0)) return; _hw = _hw || new V3(); _q = _q || new THREE.Quaternion(); _pl = _pl || new V3(); _pr = _pr || new V3();
+    if (!GOLEM.hip) GOLEM.root.traverse((o) => { if (o.isSkinnedMesh) { if (!GOLEM.hip) GOLEM.hip = o.skeleton.bones.find((b) => b.name === 'hip'); if (!GOLEM.footL) GOLEM.footL = o.skeleton.bones.find((b) => b.name === 'footL'); if (!GOLEM.footR) GOLEM.footR = o.skeleton.bones.find((b) => b.name === 'footR'); } });   // the skeleton's bones (QA samples the hip one)
     if (!GOLEM.hip) return;
     const off = fix.position, now = performance.now();
-    if (!g.visible) { GOLEM.hipPrev = null; off.set(0, 0, 0); return; }   // hidden: start clean (a pause / dialog keeps the reference: the first frame after it is limited too)
+    if (!g.visible) { GOLEM.hipPrev = null; GOLEM.hipBone = null; off.set(0, 0, 0); return; }   // hidden: start clean (a pause / dialog keeps the reference: the first frame after it is limited too)
     GOLEM.hipT = now;
     g.updateMatrixWorld(true);
-    // hip relative to the group's position, in world axes (turning counts: that is what the eye sees move)
-    const cur = _hw.setFromMatrixPosition(GOLEM.hip.matrixWorld).sub(g.position).clone(), toLocal = (v) => v.applyQuaternion(_q.copy(g.quaternion).invert()).divideScalar(g.scale.x || 1);
-    if (GOLEM.hipPrev) {
-      const d = cur.clone().sub(GOLEM.hipPrev), L = d.length(), max = HIP_VMAX * dt;
+    const locking = FOOT_LOCK_STATES[C.boss.st] && GOLEM.footL && GOLEM.footR;
+    let bone = GOLEM.hip, vmax = HIP_VMAX, offMax = 6;
+    if (locking) { const pl = _pl.setFromMatrixPosition(GOLEM.footL.matrixWorld), pr = _pr.setFromMatrixPosition(GOLEM.footR.matrixWorld); bone = pl.y <= pr.y ? GOLEM.footL : GOLEM.footR; vmax = FOOT_VMAX; offMax = FOOT_OFF_MAX; }
+    // tracked bone relative to the group's position, in world axes (turning counts: that is what the eye sees move)
+    const cur = _hw.setFromMatrixPosition(bone.matrixWorld).sub(g.position).clone(), toLocal = (v) => v.applyQuaternion(_q.copy(g.quaternion).invert()).divideScalar(g.scale.x || 1);
+    if (GOLEM.hipPrev && GOLEM.hipBone === bone) {
+      const d = cur.clone().sub(GOLEM.hipPrev), L = d.length(), max = vmax * dt;
       if (L > max) { const ex = d.multiplyScalar(1 - max / L); cur.sub(ex); off.sub(toLocal(ex)); }
       else {   // drain the offset with the budget that is left
         const left = (max - L) * 0.9, ol = off.length();
         if (ol > 1e-4) { const k = Math.min(ol, left / (g.scale.x || 1)) / ol, step = off.clone().multiplyScalar(k); off.sub(step); cur.sub(step.applyQuaternion(g.quaternion).multiplyScalar(g.scale.x || 1)); }
       }
-      if (off.length() > 6) off.setLength(6);
+      if (off.length() > offMax) off.setLength(offMax);
       fix.updateMatrixWorld(true);
     }
-    if (GOLEM.hipPrev) { const v = cur.distanceTo(GOLEM.hipPrev) / dt; GOLEM.hipMax = Math.max(GOLEM.hipMax || 0, v); }
-    GOLEM.hipPrev = cur;
+    if (GOLEM.hipPrev && GOLEM.hipBone === bone) { const v = cur.distanceTo(GOLEM.hipPrev) / dt; GOLEM.hipMax = Math.max(GOLEM.hipMax || 0, v); }
+    GOLEM.hipBone = bone; GOLEM.hipPrev = cur;
   }
   function bossDeath() {
     const A = GOLEM.A; if (!A) return false;
