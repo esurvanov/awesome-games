@@ -35,7 +35,11 @@
     med: { vegTreeMid: 260, vegGrassR: 50, vegShrubR: 60, vegDecalR: 40, vegCardLod: 20, treeNearScale: 0.7, treeNearDensity: 0.85 },
     high: { vegTreeMid: 300, vegGrassR: 60, vegShrubR: 72, vegDecalR: 48, vegCardLod: 24, treeNearScale: 0.65 },
     ultra: { vegTreeMid: 380, vegGrassR: 80, vegShrubR: 100, vegDecalR: 64, vegCardLod: 45 , treeNearScale: 0.9 },
-    air: { vegTreeMid: 170, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22, vegCardLod: 14, rockLod: 1, treeNearDensity: 0.55, texBias: -0.8, aniso: 2 , treeNearScale: 0.7 },
+    // needleAABias (NEEDLE-AA): extra mip levels the needle cutout TEST samples beyond uVTexBias (colour stays sharp).
+    // air only: no MSAA there (alphaToCoverage is a no-op), and FSR's RCAS re-sharpens whatever aliasing survives —
+    // a coarser, stable alpha for the pass/discard decision reads as a calmer edge under upscale instead of a
+    // per-pixel flicker. 0 (unset) elsewhere: identical shader text and output to before this change.
+    air: { vegTreeMid: 170, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22, vegCardLod: 14, rockLod: 1, treeNearDensity: 0.55, texBias: -0.8, aniso: 2 , treeNearScale: 0.7, needleAABias: 1.6 },
   };
 
   /* ------------------------------------------------------------------ shared uniforms + GLSL */
@@ -106,7 +110,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       uVGrass: { value: new THREE.Vector4(64, 10, 95, 14) },   // tuft R, band, shrub R, band
       uVBB: { value: new THREE.Vector3(1, 1, 1) },
       uVMoonDir: { value: new V3(0.77, 0.36, 0.56).normalize() }, uVMoonCol: { value: new THREE.Color() }, uVHemiS: { value: new THREE.Color() },
-      uVTexBias: { value: 0 },
+      uVTexBias: { value: 0 }, uVAlphaAA: { value: 0 },
       uVSnowK: { value: 1 }, uVSnowC: { value: new THREE.Color().setRGB(0.56, 0.6, 0.67) },   // branch snow: linear albedo (≈ ground snow)
     });
     VEG.U = U; VEG.SP = SP; VEG._ = { F, GR, R, A };   // internals (debug / stand)
@@ -240,7 +244,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           float vD = length(vOrg.xz - uVCam.xz); vVFade = 1. - smoothstep(uVFade.x * ${mul.toFixed(2)} - uVFade.y, uVFade.x * ${mul.toFixed(2)}, vD);
           ${depth ? 'vVFade *= 1. - smoothstep(uVSR - 10., uVSR, vD);' : ''}
           vVW = (modelMatrix * vM * vec4(transformed, 1.)).xyz;`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW; uniform float uVTexBias;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW; uniform float uVTexBias, uVAlphaAA;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
       if (depth) {
         sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if (vegDither() > vVFade) discard;');
       } else {
@@ -251,8 +255,16 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#ifdef USE_MAP
             diffuseColor *= texture2D(map, vMapUv, uVTexBias);   // NATURE: Q.texBias (sharper when upscaled from a low render scale)
           #endif
-          { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); float vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2))));
-            diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.); }
+          float vmp = 0.;
+          { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2)))); }
+          diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.);
+          ${needles ? `#ifdef USE_MAP
+          // NEEDLE-AA (air, TEXUNITS-free: reuses the same 'map' sampler): the pass/discard decision reads a coarser
+          // mip than the colour (uVTexBias + uVAlphaAA) — a temporally stable edge under FSR's low-res render + RCAS
+          // sharpen, instead of one that flickers a pixel at a time. Not a dither: no per-pixel noise for RCAS to
+          // amplify, just a calmer signal for the built-in alphatest_fragment discard below. 0 elsewhere (unchanged).
+          if (uVAlphaAA > 0.001) { float aC = clamp(texture2D(map, vMapUv, uVTexBias + uVAlphaAA).a * (1. + vmp * .3), 0., 1.); diffuseColor.a = mix(diffuseColor.a, aC, .85); }
+          #endif` : ''}
           diffuseColor.a *= clamp(vVFade, 0., 1.);
           diffuseColor.a *= smoothstep(.5, 1.7, length(vVW - cameraPosition));   // NATURE: cards brushing the lens dissolve (no full-screen needle overdraw when the camera grazes a crown)`);
         if (needles) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>${GLSL_CROWN_AO}`);
@@ -1402,6 +1414,7 @@ vec3 impNW;`)
     tAcc += dt;
     U.uVT.value = tAcc; U.uVStorm.value = (C.WX && C.WX.storm) || 0; U.uVCam.value.copy(camera.position);
     U.uVTexBias.value = C.Q.texBias || 0;
+    U.uVAlphaAA.value = C.Q.needleAABias || 0;   // NEEDLE-AA: >0 only in air (KNOBS)
     { const an = Math.min(C.Q.aniso || 4, renderer.capabilities.getMaxAnisotropy());   // NATURE: Q.aniso on the vegetation maps
       if (an !== VEG.aniso) { VEG.aniso = an; for (const t of Object.values(TEX).concat([A.tuft, A.leaf, A.decal].filter(Boolean).map((r) => r.texture))) if (t && t.anisotropy !== an) { t.anisotropy = an; if (t.image) t.needsUpdate = !t.isRenderTargetTexture; } } }
     if (C.MOON_DIR) U.uVMoonDir.value.copy(C.MOON_DIR);
