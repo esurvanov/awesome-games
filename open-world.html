@@ -748,7 +748,9 @@ const MOON_DIR = new V3(0.77, 0.36, 0.56).normalize();        // matches the moo
 const hemi = new THREE.HemisphereLight(0x7d9de0, 0x2c3c70, 1.2); scene.add(hemi);
 const moon = new THREE.SunLight(0xb4c6ff, 2.8);
 moon.shadow = new THREE.CascadedSunShadow(); moon.position.copy(MOON_DIR); moon.castShadow = true;
-Object.assign(moon.shadow, { bias: -0.0004, normalBias: 0.035, radius: 2.2 });
+// intensity < 1: moonlit snow is lit by the whole sky dome, so a shadow on it reads dark blue, never ink-black
+// (at 1.0 a boulder's shadow on open snow read as a detached black hole: lit 99 / shadow 36 in sRGB luma).
+Object.assign(moon.shadow, { bias: -0.0004, normalBias: 0.035, radius: 2.2, intensity: 0.85 });
 scene.add(moon);
 const aurLight = new THREE.DirectionalLight(0x5cf5c0, 0.7); aurLight.position.set(0, 60, -100); scene.add(aurLight);
 const candela = (lm) => lm;   // point lights: intensity in candela (decay 2, physically based falloff)
