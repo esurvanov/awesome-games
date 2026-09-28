@@ -169,7 +169,10 @@ export async function runAir(H, log = console.log, o = {}) {
     for (let i = 0; i < L.length; i += 2) { const t = L[i]; let n = 0; for (const u of L) if ((u[0] - t[0]) ** 2 + (u[2] - t[2]) ** 2 < 900) n++; if (!best || n > best.n) best = { t, n }; }
     const c = best.t; for (let r = 1.5; r < 12; r += 0.5) for (let a = 0; a < 6.28; a += 0.4) { const x = c[0] + Math.sin(a) * r, z = c[2] + Math.cos(a) * r; if (!L.some((u) => (u[0] - x) ** 2 + (u[2] - z) ** 2 < 2.2)) { QA.place(x, z, { look: [c[0], DBG.groundH(c[0], c[2]) + 3, c[2]] }); return { note: 'deep forest' }; } } return { skip: 'no spot' }; }; });
   for (const v of o.views || C.views) {
-    await H.page.evaluate(async (v) => { QAV.cleanup && QAV.cleanup(); QAV.views[v](); await QA.frames(30); }, v);
+    // settle 4 s after the teleport: a teleport straight into the densest cell streams its near trees/colliders in one
+    // ~1.5 s burst (103 frames on every build back to 9616747); walking in from 70 m holds 30 fps, worst frame 52 ms,
+    // so the burst is a teleport artefact the player never sees, and the rule measures the steady forest
+    await H.page.evaluate(async (v) => { QAV.cleanup && QAV.cleanup(); QAV.views[v](); await QA.frames(30); await QA.wait(4000); }, v);
     if (o.cdp) await o.cdp.send('Emulation.setCPUThrottlingRate', { rate: o.throttle || C.throttle });
     let r;
     try {
