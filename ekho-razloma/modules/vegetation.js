@@ -28,10 +28,18 @@
 
   /* ------------------------------------------------------------------ quality knobs (added to QUALITY presets) */
   const KNOBS = {
-    low: { vegTreeMid: 210, vegGrassR: 36, vegShrubR: 45, vegDecalR: 28 },
-    med: { vegTreeMid: 260, vegGrassR: 50, vegShrubR: 60, vegDecalR: 40 },
-    high: { vegTreeMid: 300, vegGrassR: 60, vegShrubR: 72, vegDecalR: 48 },
-    ultra: { vegTreeMid: 380, vegGrassR: 80, vegShrubR: 100, vegDecalR: 64 },
+    // vegCardLod (NATURE): beyond this distance (m) a near tree draws its thinned needle mesh (cardLod)
+    // treeNearDensity: share of trees drawn as real models inside the near radius (the rest switch to the impostor at
+    // 0.45 × the radius) · texBias: mip bias of tree/ground-plant maps · aniso: anisotropic filtering of their maps
+    low: { vegTreeMid: 210, vegGrassR: 36, vegShrubR: 45, vegDecalR: 28, vegCardLod: 18, treeNearDensity: 0.8 , treeNearScale: 0.75 },
+    med: { vegTreeMid: 260, vegGrassR: 50, vegShrubR: 60, vegDecalR: 40, vegCardLod: 20, treeNearScale: 0.7, treeNearDensity: 0.85 },
+    high: { vegTreeMid: 300, vegGrassR: 60, vegShrubR: 72, vegDecalR: 48, vegCardLod: 24, treeNearScale: 0.65 },
+    ultra: { vegTreeMid: 380, vegGrassR: 80, vegShrubR: 100, vegDecalR: 64, vegCardLod: 45 , treeNearScale: 0.9 },
+    // needleAABias (NEEDLE-AA): extra mip levels the needle cutout TEST samples beyond uVTexBias (colour stays sharp).
+    // air only: no MSAA there (alphaToCoverage is a no-op), and FSR's RCAS re-sharpens whatever aliasing survives —
+    // a coarser, stable alpha for the pass/discard decision reads as a calmer edge under upscale instead of a
+    // per-pixel flicker. 0 (unset) elsewhere: identical shader text and output to before this change.
+    air: { vegTreeMid: 170, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22, vegCardLod: 14, rockLod: 1, treeNearDensity: 0.55, texBias: -0.8, aniso: 2 , treeNearScale: 0.7, needleAABias: 1.6 },
   };
 
   /* ------------------------------------------------------------------ shared uniforms + GLSL */
@@ -102,6 +110,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       uVGrass: { value: new THREE.Vector4(64, 10, 95, 14) },   // tuft R, band, shrub R, band
       uVBB: { value: new THREE.Vector3(1, 1, 1) },
       uVMoonDir: { value: new V3(0.77, 0.36, 0.56).normalize() }, uVMoonCol: { value: new THREE.Color() }, uVHemiS: { value: new THREE.Color() },
+      uVTexBias: { value: 0 }, uVAlphaAA: { value: 0 },
       uVSnowK: { value: 1 }, uVSnowC: { value: new THREE.Color().setRGB(0.56, 0.6, 0.67) },   // branch snow: linear albedo (≈ ground snow)
     });
     VEG.U = U; VEG.SP = SP; VEG._ = { F, GR, R, A };   // internals (debug / stand)
@@ -197,6 +206,21 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
   // (BatchedMesh + custom onBeforeCompile) that couldn't be root-caused quickly under this session's shared-lock time
   // pressure — reverted rather than risk shipping a broken shader or spending more of the team's benchmark queue time
   // on speculative fixes. See INT-VEG.md "Open" for the state this was left in.
+  //
+  // ASSET-QUALITY-1: no new attribute, no new sampler this time. The needle geometry already ships a per-vertex
+  // 'color' attribute (itemSize 4, alpha channel always 1 → unused) that is already near-greyscale (R≈G≈B for
+  // every sampled vertex) and already correlates with distance from the local trunk axis (r ≈ 0.44 measured via
+  // tools/qa/probe.mjs on the live 'veg_tree_needles' BatchedMesh) — i.e. it is baked per-vertex crown shading /
+  // AO from the source authoring, just applied as a weak *linear* tint (mean 0.73, sd 0.19, 98.5% of vertices in
+  // 0.4–1.0) that all but disappears under the scene's hemisphere/moon fill light. `vegCrownAO` below re-reads
+  // that same raw value and reshapes it with an S-curve + floor so the existing signal actually reads as depth
+  // instead of a flat card, with zero new texture units.
+  const GLSL_CROWN_AO = `
+#if defined(USE_COLOR_ALPHA) || defined(USE_COLOR)
+  { float vAo = clamp(vColor.r, 0.0, 1.0);
+    float vAoK = mix(0.4, 1.0, smoothstep(0.42, 0.95, vAo));
+    diffuseColor.rgb *= vAoK; }
+#endif`;
   function patchTreeNear(mat, needles, depth, mul = 1) {
     const prev = mat.onBeforeCompile;
     mat.onBeforeCompile = (sh, r) => {
@@ -220,7 +244,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           float vD = length(vOrg.xz - uVCam.xz); vVFade = 1. - smoothstep(uVFade.x * ${mul.toFixed(2)} - uVFade.y, uVFade.x * ${mul.toFixed(2)}, vD);
           ${depth ? 'vVFade *= 1. - smoothstep(uVSR - 10., uVSR, vD);' : ''}
           vVW = (modelMatrix * vM * vec4(transformed, 1.)).xyz;`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVW; uniform float uVTexBias, uVAlphaAA;\n' + GLSL_DITHER + (depth ? '' : GLSL_VSNOW));
       if (depth) {
         sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if (vegDither() > vVFade) discard;');
       } else {
@@ -228,13 +252,46 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
         // material.alphaTest + alphaToCoverage (set where these materials are built) make three's built-in
         // <alphatest_fragment> chunk resolve both as real MSAA sub-pixel coverage on the scene's multisampled render
         // target — no screen-door dither pattern on the LOD transition or on the needle-card cutout edges.
-        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-          { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); float vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2))));
-            diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.); }
-          diffuseColor.a *= clamp(vVFade, 0., 1.);`);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#ifdef USE_MAP
+            diffuseColor *= texture2D(map, vMapUv, uVTexBias);   // NATURE: Q.texBias (sharper when upscaled from a low render scale)
+          #endif
+          float vmp = 0.;
+          { vec2 vd1 = dFdx(vMapUv * 1024.), vd2 = dFdy(vMapUv * 1024.); vmp = max(0., .5 * log2(max(dot(vd1, vd1), dot(vd2, vd2)))); }
+          diffuseColor.a = clamp(diffuseColor.a * (1. + vmp * .3), 0., 1.);
+          ${needles ? `#ifdef USE_MAP
+          // NEEDLE-AA (air, TEXUNITS-free: reuses the same 'map' sampler): the pass/discard decision reads a coarser
+          // mip than the colour (uVTexBias + uVAlphaAA) — a temporally stable edge under FSR's low-res render + RCAS
+          // sharpen, instead of one that flickers a pixel at a time. Not a dither: no per-pixel noise for RCAS to
+          // amplify, just a calmer signal for the built-in alphatest_fragment discard below. 0 elsewhere (unchanged).
+          if (uVAlphaAA > 0.001) { float aC = clamp(texture2D(map, vMapUv, uVTexBias + uVAlphaAA).a * (1. + vmp * .3), 0., 1.); diffuseColor.a = mix(diffuseColor.a, aC, .85); }
+          #endif` : ''}
+          diffuseColor.a *= clamp(vVFade, 0., 1.);
+          diffuseColor.a *= smoothstep(.5, 1.7, length(vVW - cameraPosition));   // NATURE: cards brushing the lens dissolve (no full-screen needle overdraw when the camera grazes a crown)`);
+        if (needles) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>${GLSL_CROWN_AO}`);
       }
-      if (!depth) sh.fragmentShader = SAFE_END(sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-          diffuseColor.rgb = vegSnow(diffuseColor.rgb, normalize((vec4(normal, 0.) * viewMatrix).xyz), vVW, ${needles ? '1.' : '.7'});`));
+      if (!depth && needles) {
+        // NATURE: crown-volume normals must not be flipped on the back face of a double-sided card (the flip turns half
+        // the crown's cards inward → black flecks); snow lies on the upper side of near-horizontal boughs (the card's own
+        // face orientation from screen derivatives) in clumps, not on the whole upper hemisphere of the crown — the
+        // spherical normals alone made every crown a white dome with dark gaps ("white smears"); light through the
+        // needles when the moon is behind the crown (translucency).
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS;')
+          .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+          #ifdef DOUBLE_SIDED
+            normal *= faceDirection;
+          #endif`)
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          { vec3 nw = normalize((vec4(normal, 0.) * viewMatrix).xyz);
+            vec3 fw = cross(dFdx(vVW), dFdy(vVW)); float fl = abs(fw.y) / max(length(fw), 1e-6);   // 1 = horizontal card
+            float nz = vsN(vVW * 1.9);   // one octave: this runs under ×4–8 needle overdraw
+            float m = smoothstep(-.25, .55, nw.y + (nz - .5) * 1.1) * mix(.25, 1., smoothstep(.3, .8, fl)) * smoothstep(.34, .6, nz + fl * .2) * uVSnowK;
+            vec3 alb0 = diffuseColor.rgb;
+            diffuseColor.rgb = mix(alb0, uVSnowC * (.85 + .25 * nz), clamp(m * 1.25, 0., .96));
+            vec3 Vv = normalize(cameraPosition - vVW); float bk = pow(max(dot(-Vv, uVMoonDir), 0.), 3.);
+            totalEmissiveRadiance += alb0 * (1. - clamp(m, 0., 1.)) * (uVMoonCol * bk * .45 + uVHemiS * .06); }`);
+      }
+      if (!depth) sh.fragmentShader = SAFE_END(needles ? sh.fragmentShader : sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          diffuseColor.rgb = vegSnow(diffuseColor.rgb, normalize((vec4(normal, 0.) * viewMatrix).xyz), vVW, .7);`));
     };
     mat.customProgramCacheKey = () => 'vegTree' + (needles ? 'N' : 'B') + (depth ? 'D' : '') + mul;
     return mat;
@@ -244,12 +301,40 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     return patchTreeNear(d, needles, true, mul);
   }
 
+  /* NATURE — card LOD for the near trees (the forest's main cost is needle-card overdraw, TEXUNITS.md: hiding the near
+   * trees saves 5–7 ms). Beyond Q.vegCardLod m a tree draws a thinned copy of its needle mesh: the cards (connected
+   * components) are thinned to `keep`, the inner ones first (hidden behind the outer shell anyway), and every kept card
+   * grows ×grow about its centre so the crown keeps its coverage and silhouette with ≈ half the layers. */
+  function cardLod(geo, keep = 0.34, grow = 1.42) {
+    const I = geo.index ? geo.index.array : null; if (!I) return null;
+    const P = geo.attributes.position, nV = P.count, par = new Int32Array(nV); for (let i = 0; i < nV; i++) par[i] = i;
+    const f = (x) => { while (par[x] !== x) x = par[x] = par[par[x]]; return x; };
+    for (let t = 0; t < I.length; t += 3) { const a = f(I[t]); par[f(I[t + 1])] = a; par[f(I[t + 2])] = a; }
+    const comps = new Map();
+    for (let t = 0; t < I.length; t += 3) { const r = f(I[t]); let c = comps.get(r); if (!c) comps.set(r, (c = { tris: [], vs: new Set() })); c.tris.push(t); c.vs.add(I[t]).add(I[t + 1]).add(I[t + 2]); }
+    let rMax = 1e-3; const list = [...comps.values()];
+    for (const c of list) { let x = 0, y = 0, z = 0; for (const v of c.vs) { x += P.getX(v); y += P.getY(v); z += P.getZ(v); } const n = c.vs.size; c.c = [x / n, y / n, z / n]; c.r = Math.hypot(c.c[0], c.c[2]); rMax = Math.max(rMax, c.r); }
+    list.forEach((c, k) => { c.s = C.hash2(k * 13 + 1, 77) * 0.55 + (c.r / rMax) * 0.45; });
+    const cut = list.map((c) => c.s).sort((a, b) => b - a)[Math.max(0, Math.floor(list.length * keep) - 1)];
+    const map = new Int32Array(nV).fill(-1), keepV = [], idx = [];
+    for (const c of list) { if (c.s < cut) continue; for (const v of c.vs) { map[v] = keepV.length; keepV.push([v, c.c]); } for (const t of c.tris) idx.push(map[I[t]], map[I[t + 1]], map[I[t + 2]]); }
+    const o = new THREE.BufferGeometry();
+    for (const k in geo.attributes) {
+      const a = geo.attributes[k], sz = a.itemSize, arr = new Float32Array(keepV.length * sz);
+      keepV.forEach(([v, cc], i) => { for (let q = 0; q < sz; q++) arr[i * sz + q] = a.getComponent(v, q); if (k === 'position') for (let q = 0; q < 3; q++) arr[i * 3 + q] = cc[q] + (arr[i * 3 + q] - cc[q]) * grow; });
+      o.setAttribute(k, new THREE.BufferAttribute(arr, sz, a.normalized));
+    }
+    o.setIndex(idx); o.userData.cardLod = { cards: list.length, kept: list.filter((c) => c.s >= cut).length };
+    return o;
+  }
   // group = one BatchedMesh pair (cast / no-cast) per material shared by several species
   function makeGroup(key, mat, parts, needles, mul = 1) {
     // parts: [{ sp, geo }]
     const geos = [];
     let nv = 0, ni = 0;
     for (const p of parts) { if (!geos.includes(p.geo)) { geos.push(p.geo); nv += p.geo.attributes.position.count; ni += p.geo.index ? p.geo.index.count : 0; } }
+    const lod = new Map();   // needle geometry → its thinned far copy
+    if (needles) for (const g of geos) { const l = cardLod(g); if (l) { lod.set(g, l); nv += l.attributes.position.count; ni += l.index.count; } }
     const spSet = new Set(parts.map((p) => p.sp)), trees = F.trees.filter((t) => spSet.has(t.v));
     if (!trees.length) return null;
     let nInst = 0; for (const t of trees) nInst += parts.filter((p) => p.sp === t.v).length;
@@ -264,11 +349,12 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       try { THREE.BatchedMesh.prototype.onBeforeShadow.call(this, r, o, cam, shCam, geo, dm); } finally { for (const id of G.noCast) if (info[id]) info[id].visible = true; }
     };
     scene.add(b);
-    const gid = new Map();
-    for (const g of geos) gid.set(g, b.addGeometry(g));
+    const gid = new Map(), gidL = new Map();
+    for (const g of geos) { gid.set(g, b.addGeometry(g)); if (lod.has(g)) gidL.set(gid.get(g), b.addGeometry(lod.get(g))); }
+    G.lodOf = gidL; G.lodIds = new Map();   // instance id → [near geometry id, far geometry id]
     for (const t of trees) {
       const ids = [];
-      for (const p of parts) if (p.sp === t.v) { const id = b.addInstance(gid.get(p.geo)); b.setMatrixAt(id, t.mReal); b.setVisibleAt(id, false); ids.push(id); }
+      for (const p of parts) if (p.sp === t.v) { const g0 = gid.get(p.geo), id = b.addInstance(g0); b.setMatrixAt(id, t.mReal); b.setVisibleAt(id, false); ids.push(id); if (gidL.has(g0)) G.lodIds.set(id, [g0, gidL.get(g0)]); }
       G.inst.set(t, ids);
     }
     for (const t of trees) if (t.st > 0) { for (const id of G.inst.get(t)) { b.setVisibleAt(id, true); if (t.st === 2) G.noCast.add(id); } G.nVis++; if (t.st === 1) G.nCast++; }
@@ -285,25 +371,37 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       G.b.visible = G.nVis > 0; G.b.castShadow = G.nCast > 0;   // no draw call (main / 2 cascades) for an empty batch
     }
   }
+  // NATURE (Q.treeNearDensity): a thinned-out tree keeps its real model only within 0.45 × the near radius
+  const THIN = 0.45, thinK = (t, dens) => (dens >= 1 || C.hash2(t.i * 3 + 11, 29) < dens ? 1 : THIN);
+  function syncImpostorNear(dens) {
+    for (const m of IMP.meshes) { const a = m.geometry.attributes.aT2, L = m.userData.trees; if (!a || !L) continue;
+      L.forEach((t, i) => { a.array[i * 4 + 1] = (SP[t.v].nearMul || 1) * thinK(t, dens); }); a.needsUpdate = true; }
+  }
+  function setTreeLod(t, far) {
+    for (const G of F.groups) { const ids = G.inst.get(t); if (!ids) continue; for (const id of ids) { const L = G.lodIds && G.lodIds.get(id); if (L) G.b.setGeometryIdAt(id, L[far ? 1 : 0]); } }
+  }
   let lastFX = 1e9, lastFZ = 1e9;
   function updateForest() {
-    const cx = camera.position.x, cz = camera.position.z, R = C.FOREST.R, SR = C.FOREST.shadowR, mid = C.Q.vegTreeMid || 300;
+    const cx = camera.position.x, cz = camera.position.z, R = C.FOREST.R * (C.Q.treeNearScale || 1),   // NATURE: Q.treeNearScale
+      SR = C.FOREST.shadowR, mid = C.Q.vegTreeMid || 300;
     U.uVFade.value.set(R, 14, Math.max(mid, R + 40), 30); U.uVSR.value = SR;
     if (!F.dirty && (cx - lastFX) ** 2 + (cz - lastFZ) ** 2 < 1) return;
     F.dirty = false; lastFX = cx; lastFZ = cz;
     // FIX-PERF: with cached moon shadows the cast set follows the cache centre (changes only when the cache is rebuilt)
     const sa = C.FOREST.shadowAt, sx = sa ? sa.x : cx, sz = sa ? sa.z : cz;
     const S2 = SR * SR;
-    let nNear = 0, nCast = 0;
+    let nNear = 0, nCast = 0, nFar = 0; const LD = C.Q.vegCardLod || 30, dens = C.Q.treeNearDensity !== undefined ? C.Q.treeNearDensity : 1;
+    if (dens !== F.dens) { F.dens = dens; syncImpostorNear(dens); }
     for (const t of F.trees) {
       // shadow LOD per tree: tall trees cast up to shadowR, small ones stop earlier (alpha-tested foliage in 2 cascades is the
       // most expensive part of the shadow pass)
-      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) + 1.5;
+      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) * thinK(t, dens) + 1.5;
       const st = d2 < nr * nr ? ((t[0] - sx) ** 2 + (t[2] - sz) ** 2 < Math.min(S2, cr * cr) ? 1 : 2) : 0;
       if (st) nNear++; if (st === 1) nCast++;
       if (st !== t.st) { setTreeState(t, st); t.st = st; }
+      if (st) { const fl = t.far ? d2 > (LD - 2) * (LD - 2) : d2 > LD * LD; if (fl !== !!t.far) { t.far = fl; setTreeLod(t, fl); } if (fl) nFar++; }
     }
-    VEG.stats.nearTrees = nNear; VEG.stats.castTrees = nCast;
+    VEG.stats.nearTrees = nNear; VEG.stats.castTrees = nCast; VEG.stats.cardLodTrees = nFar;
   }
   // trees within r of (x, z) (spatial grid)
   function treesNear(x, z, r, out = []) {
@@ -315,13 +413,43 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
   }
   VEG.treesNear = treesNear;
 
+  /* NATURE — "flat paws": needle cards lit like paper. Spherical (crown-volume) normals: every needle vertex gets the
+   * normal of the crown's surface of revolution at its height (radial out + the cone's up-tilt from the measured crown
+   * profile), blended with the card's own normal (turned to face outward), so the crown shades as one volume — lit side,
+   * shadow side, darker core — instead of each card as a sheet of paper. Done once on the CPU at load: zero runtime cost. */
+  function sphereNormals(geo, blend = 0.8, lift = 0.18) {
+    const P = geo.attributes.position, N = geo.attributes.normal; if (!P || !N) return geo;
+    const n = P.count, NB = 20; let y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < n; i++) { const y = P.getY(i); if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const dy = Math.max(1e-3, (y1 - y0) / NB), R = new Float32Array(NB);
+    for (let i = 0; i < n; i++) { const b = clamp(Math.floor((P.getY(i) - y0) / dy), 0, NB - 1); R[b] = Math.max(R[b], Math.hypot(P.getX(i), P.getZ(i))); }
+    const Rs = R.map((_, b) => (R[Math.max(0, b - 1)] + 2 * R[b] + R[Math.min(NB - 1, b + 1)]) / 4);
+    for (let i = 0; i < n; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), r = Math.hypot(x, z), f = (y - y0) / dy - 0.5, b = clamp(Math.floor(f), 0, NB - 2);
+      const dR = (Rs[b + 1] - Rs[b]) / dy, ux = r > 1e-3 ? x / r : 0, uz = r > 1e-3 ? z / r : 0;
+      let sx = ux, sy = clamp(-dR, -0.3, 2.5) + lift, sz = uz; const tip = sstep(0.82, 1, (y - y0) / (y1 - y0)); sy += tip * 1.5;   // the leader points up
+      let l = Math.hypot(sx, sy, sz); sx /= l; sy /= l; sz /= l;
+      let cx = N.getX(i), cy = N.getY(i), cz = N.getZ(i); if (cx * sx + cy * sy + cz * sz < 0) { cx = -cx; cy = -cy; cz = -cz; }
+      const nx = sx * blend + cx * (1 - blend), ny = sy * blend + cy * (1 - blend), nz = sz * blend + cz * (1 - blend); l = Math.hypot(nx, ny, nz) || 1;
+      N.setXYZ(i, nx / l, ny / l, nz / l);
+    }
+    N.needsUpdate = true; VEG.stats.sphereNormals = (VEG.stats.sphereNormals || 0) + n;
+    return geo;
+  }
+
   // --- adopt the game's 3 pass-1 species once its loader callbacks built them ---
   function adoptGameTrees() {
     const FO = C.FOREST;
     for (let vi = 0; vi < 3; vi++) {
       if (F.adopted[vi] || !FO.parts[vi] || !FO.parts[vi].length || !FO.parts[vi][0].isInstancedMesh) continue;
-      const src = FO.parts[vi].map((im) => ({ geo: sanitize(im.geometry), mat: im.material }));
+      // NATURE: the spruces carry a second, coincident copy of every needle card ('leaves_snow', a white sprig drawn over
+      // the green one) — twice the needle overdraw for a crown painted solid white. Dropped: branch snow is the shared
+      // clumped vegSnow of every other species. The green cards get crown-volume normals.
+      for (const im of FO.parts[vi]) if (/leaves_snow/i.test(im.material.name || '')) { if (im.parent) im.parent.remove(im); }
+      const src = FO.parts[vi].filter((im) => !/leaves_snow/i.test(im.material.name || '')).map((im) => ({ geo: sanitize(im.geometry), mat: im.material }));
+      if (vi < 2) for (const s of src) if (/leaves/i.test(s.mat.name || '')) sphereNormals(s.geo, 0.8);
       for (const im of FO.parts[vi].concat(FO.mid[vi] || [])) { if (im.parent) im.parent.remove(im); }
+      VEG.stats.droppedSnowLayer = (VEG.stats.droppedSnowLayer || 0) + FO.parts[vi].length - src.length;
       F.adopted[vi] = src;
       // bounds for the impostor bake
       const bb = new THREE.Box3(); for (const s of src) { s.geo.computeBoundingBox(); bb.union(s.geo.boundingBox); }
@@ -495,11 +623,11 @@ vec3 impNW;`)
       const aT = new Float32Array(trees.length * 4), aT2 = new Float32Array(trees.length * 4);
       trees.forEach((t, i) => { aT.set([t[0], t.y, t[2], t.yaw], i * 4); aT2.set([t.s, sp.nearMul || 1, C.hash2(t.i, 33), 0], i * 4); });
       g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4)); g.setAttribute('aT2', new THREE.InstancedBufferAttribute(aT2, 4)); g.instanceCount = trees.length;
-      const mesh = new THREE.Mesh(g, impostorMaterial(s)); mesh.name = 'veg_tree_imp_' + sp.name;
+      const mesh = new THREE.Mesh(g, impostorMaterial(s)); mesh.name = 'veg_tree_imp_' + sp.name; mesh.userData.trees = trees;
       mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
       scene.add(mesh); IMP.meshes.push(mesh);
     }
-    F.mid = IMP.meshes; F.far = null;
+    F.mid = IMP.meshes; F.far = null; F.dens = undefined; F.dirty = true;
     VEG.stats.impostors = F.trees.length; VEG.stats.impostorDraws = IMP.meshes.length;
   }
 
@@ -526,6 +654,8 @@ vec3 impNW;`)
     TEX.lichen = loadTex('veg_decal_lichen_orange.png', true, true);
     C.loadPacked('veg_set', C.ASSET, onVegSet);
     C.loadPacked('rock_namaqualand_boulder_02', C.ASSET, (g) => { R.flat = g; });
+    // NATURE: Poly Haven CC0 scans (tools/pack-rocks.mjs: 3 LODs, normal map re-baked for LOD0, AO in the albedo)
+    for (const n of ['namaqualand_boulder_06', 'rock_07', 'rock_09']) C.loadPacked('rock_ph_' + n, C.ASSET, (g) => { (R.ph = R.ph || {})[n] = g; }, () => { (R.ph = R.ph || {})[n] = null; });
     // outcrops: the closed-back scan (assets/incoming3, packed as rock_rock_face_02_closed) when present, else the open one
     const face = (n) => C.loadPacked(n, C.ASSET, (g) => { R.face = g; R.faceName = n; });
     try { fetch(C.ASSET + 'pack/rock_rock_face_02_closed.js', { method: 'HEAD' }).then((r) => face(r.ok ? 'rock_rock_face_02_closed' : 'rock_rock_face_02'), () => face('rock_rock_face_02')); } catch (e) { face('rock_rock_face_02'); }
@@ -567,11 +697,102 @@ vec3 impNW;`)
     VEG.stats.seated = (VEG.stats.seated || 0) + moved;
     return es;
   }
+  /* NATURE (look-gate pilot_branch): the krummholz is a dense 2.6 m needle mat around a thin leader, but its only collider
+   * was the trunk cylinder — the pilot walked into the mat and stood half hidden in it, the camera too. A low convex
+   * dome per instance, fitted to the dense part of the skirt (70th percentile of the needle radius under 1.3 m), is
+   * registered as a 'solid' hull: the pilot and the camera boom stop at the needles. Rounded top: nothing to stand on. */
+  // BURIAL-FIX: setupForest() seats every tree's base at bare terrain height (C.getH) with a fixed -0.3 m offset —
+  // tuned for a design ~55-65 % embed (the model's own local origin sits mid-crown, not at its base: IMP_META's
+  // centre y ≈ half the full height already puts half the model below ground before this offset even applies).
+  // That placement never looked at the drawn snow surface (loose snow depth / drifts, SURF above — the same surface
+  // rocks are reseated against and the realism/placed-object QA measures against): wherever local snow is deep, the
+  // dome collider (below) came out 90-100 % buried instead of the intended ~55 %. And that snow depth is not static —
+  // it is the terrain module's live redistribution field (wind/pressure/footprints), the same one that makes rocks
+  // need periodic re-seating (`reseatRocks`, driven by `Terrain.S.obstKey`) — a tree seated once at load can drift
+  // back into over-buried as the snow around it keeps moving. So krummholz gets the same two-part treatment as rocks:
+  // an immediate correction when the dome is built, and a cheap re-check on the same drift-key trigger. Only ever
+  // raises a tree that is over-buried against SURF, up to the design target — never lifts one that wasn't, so the
+  // common case (already inside the intended range) is untouched.
+  const KZ = { trees: null, R: 0, H: 0, g: null, gPos: null, seatKey: null, TARGET: 0.5 };
+  const _kzv = [];   // scratch: this instance's dome vertices in world space (reused every tree, every call)
+  // world-space vertices of the (shared, tapered) dome geometry under one instance's matrix — a cone frustum has a
+  // different column height near its rim than at its centre, so the naive "uniform column" burial estimate this used
+  // before under-counted burial for any cell away from the middle (confirmed live: computed 0.50, the actual QA row
+  // for the same instance read 0.90). seatDy (already used to reseat rocks, same per-cell-of-the-footprint bisection
+  // the realism/placed-object QA check itself uses) is the one correct way to solve this for an arbitrary shape.
+  function kzWorldVerts(gpos, M) {
+    _kzv.length = 0; const n = gpos.count;
+    for (let i = 0; i < n; i++) { const v = new THREE.Vector3(gpos.getX(i), gpos.getY(i), gpos.getZ(i)).applyMatrix4(M); _kzv.push(v.x, v.y, v.z); }
+    return _kzv;
+  }
+  function seatKrummholzOnce(trees, gPos) {
+    let raised = 0, maxLift = 0, changed = [];
+    for (const t of trees) {
+      const v = kzWorldVerts(gPos, t.mReal), dy = seatDy(v, KZ.TARGET);
+      // seatDy (bidirectional: solves dy so buried == target exactly) only ever applied when it would RAISE the tree
+      // (dy > 0, i.e. it is currently buried more than target) — a tree already at or under target is left alone
+      if (dy > 0.005) { t.mReal.elements[13] += dy; t.y += dy; raised++; changed.push(t); maxLift = Math.max(maxLift, dy); }
+    }
+    return { raised, maxLift, changed };
+  }
+  function krummholzSolids(P, trees) {
+    let ps = null; for (const p of P.parts) if (p.name === 'needles') ps = p.geo.attributes.position;
+    if (!ps) return;
+    const rs = []; let top = 0;
+    for (let i = 0; i < ps.count; i++) { const y = ps.getY(i); if (y < 1.3) rs.push(Math.hypot(ps.getX(i), ps.getZ(i))); top = Math.max(top, y); }
+    rs.sort((a, b) => a - b); const R = rs[Math.floor(rs.length * 0.85)] || 0.9, H = Math.min(1.25, top * 0.5);
+    const g = new THREE.CylinderGeometry(R * 0.35, R, H, 10, 2); g.translate(0, H / 2 - 0.1, 0);
+    KZ.trees = trees; KZ.R = R; KZ.H = H; KZ.g = g; KZ.gPos = g.attributes.position;
+    const { raised, maxLift } = seatKrummholzOnce(trees, KZ.gPos);
+    const Pp = Passport(); VEG.krummholzSolids = Pp.registerInstances(g, trees.map((t) => t.mReal), 'solid', { shape: 'hull', name: 'krummholz', exact: false });
+    VEG.stats.krummholz = { R: +R.toFixed(2), H: +H.toFixed(2), n: trees.length, raised, maxLift: +maxLift.toFixed(2) };
+  }
+  // periodic re-check (same trigger as reseatRocks): the terrain re-stamped its drifts, so re-test against the new snow
+  function reseatKrummholz(why) {
+    if (!KZ.trees || !KZ.trees.length) return;
+    const t0 = performance.now(), { raised, maxLift, changed } = seatKrummholzOnce(KZ.trees, KZ.gPos);
+    if (raised) {
+      for (const t of changed) for (const G of F.groups) { const ids = G.inst.get(t); if (ids) for (const id of ids) G.b.setMatrixAt(id, t.mReal); }
+      const Pp = Passport(); if (VEG.krummholzSolids) for (const e of VEG.krummholzSolids) Pp.remove(e);
+      VEG.krummholzSolids = Pp.registerInstances(KZ.g, KZ.trees.map((t) => t.mReal), 'solid', { shape: 'hull', name: 'krummholz', exact: false });
+    }
+    VEG.stats.krummholz = { R: +KZ.R.toFixed(2), H: +KZ.H.toFixed(2), n: KZ.trees.length, raised, maxLift: +maxLift.toFixed(2), ms: +(performance.now() - t0).toFixed(2), why };
+  }
+  /* NATURE — the wind-bent fir read as a black stick with white smears (a 4 k-tri model: bare pole + a few flagged
+   * cards). Rebuilt from the young spruce: same bark and needle cards, ×k taller, a slight downwind lean, and the
+   * windward cards stripped from the middle of the crown (a "flag tree": branches on the lee side, a full skirt at the
+   * foot where the snow sheltered it, a tuft at the top). Wind = +X in model space, as the old asset. */
+  function flagTree(src, k) {
+    const lean = (x, y) => x + y * y * 0.006;
+    const parts = src.parts.map((p) => {
+      const g = p.geo.clone(); g.scale(k, k, k);
+      const P = g.attributes.position; let yMax = 0; for (let i = 0; i < P.count; i++) yMax = Math.max(yMax, P.getY(i));
+      if (p.name === 'needles' && g.index) {
+        const I = g.index.array, nV = P.count, par = new Int32Array(nV); for (let i = 0; i < nV; i++) par[i] = i;
+        const f = (x) => { while (par[x] !== x) x = par[x] = par[par[x]]; return x; };
+        for (let t = 0; t < I.length; t += 3) { const a = f(I[t]); par[f(I[t + 1])] = a; par[f(I[t + 2])] = a; }
+        const cen = new Map(); for (let i = 0; i < nV; i++) { const r = f(i); let c = cen.get(r); if (!c) cen.set(r, (c = [0, 0, 0, 0])); c[0] += P.getX(i); c[1] += P.getY(i); c[2] += P.getZ(i); c[3]++; }
+        const keep = new Map(); let k2 = 0;
+        for (const [r, c] of cen) { const x = c[0] / c[3], y = c[1] / c[3] / yMax, z = c[2] / c[3], rr = Math.hypot(x, z) || 1;
+          const lee = x / rr;   // +1 downwind side
+          keep.set(r, y < 0.2 || y > 0.86 || lee > -0.1 + 0.5 * C.hash2(k2++, 5)); }
+        const idx = []; for (let t = 0; t < I.length; t += 3) if (keep.get(f(I[t]))) idx.push(I[t], I[t + 1], I[t + 2]);
+        g.setIndex(idx);
+        for (let i = 0; i < nV; i++) { const x = P.getX(i), y = P.getY(i) / yMax; if (x > 0 && y > 0.2) P.setX(i, x * (1 + 0.35 * y)); }   // lee branches stream out
+      }
+      for (let i = 0; i < P.count; i++) P.setX(i, lean(P.getX(i), P.getY(i)));
+      P.needsUpdate = true; g.computeBoundingBox(); g.computeBoundingSphere();
+      return Object.assign({}, p, { geo: g });
+    });
+    VEG.stats.windbent = 'flagged young spruce ×' + k;
+    return { node: src.node, parts };
+  }
   function buildNewSpecies() {
     const needles = new THREE.MeshStandardMaterial({ name: 'needles', map: TEX.needles, alphaTest: 0.42, alphaToCoverage: true, vertexColors: true, roughness: 0.88, metalness: 0 });
     const pbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.pbark, normalMap: TEX.pbarkN, alphaTest: 0.5, alphaToCoverage: true, roughness: 0.95, metalness: 0 }); pbark.color.setRGB(0.8, 0.78, 0.76);
     const dbark = new THREE.MeshStandardMaterial({ name: 'bark', map: TEX.dbark, normalMap: TEX.dbarkN, alphaTest: 0.5, alphaToCoverage: true, roughness: 0.95, metalness: 0 }); dbark.color.setRGB(0.85, 0.85, 0.85);
     const gN = [], gP = [], gD = [];
+    if (PACK.tree_spruce_young_dusted && PACK.tree_fir_windbent) PACK.tree_fir_windbent = flagTree(PACK.tree_spruce_young_dusted, 1.35);
     for (let s = 3; s < NSP; s++) {
       const P = PACK[SP[s].name]; if (!P) { console.warn('[veg] missing', SP[s].name); continue; }
       for (const p of P.parts) {
@@ -582,6 +803,7 @@ vec3 impNW;`)
       const holder = new THREE.Group(); for (const p of P.parts) if (p.name === 'bark') { const m = new THREE.Mesh(p.geo, pbark); m.name = 'bark'; holder.add(m); }
       const trees = F.trees.filter((t) => t.v === s);
       if (trees.length) try { seatTrees(trees, holder, SP[s].name); } catch (e) { console.warn('[veg] trunk colliders', SP[s].name, e); }
+      if (s === 7 && trees.length) try { krummholzSolids(P, trees); } catch (e) { console.warn('[veg] krummholz solids', e); }
       const bb = new THREE.Box3(); for (const p of P.parts) { p.geo.computeBoundingBox(); bb.union(p.geo.boundingBox); } SP[s].H = bb.max.y;
     }
     // COLOR_0 layouts must match inside one batch
@@ -631,16 +853,18 @@ vec3 impNW;`)
             if (gs0.x > -1e3) {
               vec3 gWv = (modelMatrix * vM * vec4(position, 1.)).xyz; vec2 gsv = gbSurfV(gWv.xz);
               float gHb = max(position.y, 0.) * sqrt(vS2);
-              float gSink = ${kind === 'tuft' ? '.035 + min(gs0.y, .05)' : kind === 'decal' ? '-.015' : '.045 + min(gs0.y, .1)'};
+              float gSink = ${kind === 'tuft' ? '.02 + min(gs0.y, .03)' : kind === 'decal' ? '-.015' : '.03 + min(gs0.y, .06)'};   // NATURE: was .035+≤.05 / .045+≤.1 — short tufts and the low heather mats vanished into the snow
               float dy = gs0.x - vOrg.y - gSink
                 + (gsv.x - gs0.x) * (1. - smoothstep(.02, .3, gHb));   // the base follows the surface under it, the tips follow the origin
               transformed += inverse(mat3(vM)) * vec3(0., dy, 0.);   // exact for tilted, non-uniformly scaled instances
               ${kind === 'decal' ? '' : 'vVWp.y += dy; vVHb = gHb - gSink;   // height above the snow surface: the snow-coloured base starts AT the surface'}
             } }
           #endif`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC;\n' + GLSL_DITHER)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVFade; varying vec3 vVWp; varying float vVHb;\nuniform vec3 uVMoonDir, uVMoonCol, uVHemiS, uVSnowC; uniform float uVTexBias;\n' + GLSL_DITHER)
         .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + (kind === 'twig' ? '\n if (vegDither() > vVFade) discard;' : ''))
-        .replace('#include <map_fragment>', `#include <map_fragment>
+        .replace('#include <map_fragment>', `#ifdef USE_MAP
+            diffuseColor *= texture2D(map, vMapUv, uVTexBias);   // NATURE: Q.texBias (sharper when upscaled from a low render scale)
+          #endif
           ${kind === 'decal' ? 'diffuseColor.a *= vVFade * .55;' : `{ vec2 dx = dFdx(vMapUv * 1024.), dy = dFdy(vMapUv * 1024.); float mp = max(0., .5 * log2(max(dot(dx, dx), dot(dy, dy)))); diffuseColor.a = clamp(diffuseColor.a * (1. + mp * .3), 0., 1.); }
           ${plant ? 'diffuseColor.a *= clamp(vVFade, 0., 1.);' : ''}`}
           ${plant ? `{ // photo texture → relative detail (≈ 1); the albedo itself comes from the instance colour (STYLE.palette straw / heather)
@@ -649,8 +873,9 @@ vec3 impNW;`)
             float rl = ci < .5 ? ref.x : ci < 1.5 ? ref.y : ci < 2.5 ? ref.z : ref.w;
             float tl = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
             diffuseColor.rgb = clamp(mix(vec3(tl), diffuseColor.rgb * (tl / max(dot(diffuseColor.rgb, vec3(.3333)), 1e-4)), ${kind === 'tuft' ? '.3' : '.1'}) / rl, .3, 1.7); }` : ''}`)
+        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>' + (kind === 'leaf' ? '\n#ifdef DOUBLE_SIDED\n normal *= faceDirection;\n#endif' : ''))
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + (plant || kind === 'twig' ? `
-          normal = normalize(mix(normal, normalize((viewMatrix * vec4(0., 1., 0., 0.)).xyz), ${kind === 'tuft' ? '.75' : kind === 'leaf' ? '.4' : '.35'}));   // thin blades: lit like the snow they stand in` : ''))
+          normal = normalize(mix(normal, normalize((viewMatrix * vec4(0., 1., 0., 0.)).xyz), ${kind === 'tuft' ? '.75' : kind === 'leaf' ? '.12' : '.35'}));   // NATURE: heather keeps its mound normals (was .4 → flat, evenly lit disc from above)   // thin blades: lit like the snow they stand in` : ''))
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>' + (plant ? `
           { float gbPn = fract(sin(dot(floor(vVWp.xz * 11.), vec2(12.9898, 78.233))) * 43758.5453);   // patchy, not a ring on every plant
             float snowBase = (1. - smoothstep(-.01, ${kind === 'tuft' ? '.05' : '.05'} * (.4 + 1.2 * gbPn), vVHb)) * (.45 + .55 * step(.35, gbPn)), snowRim = snowBase * (1. - snowBase) * 4.;
@@ -693,6 +918,7 @@ vec3 impNW;`)
         else { const g = stripTo(p.geo, ['position', 'normal', 'uv']); const sc = (p.mat.userData && p.mat.userData.uvScale) || [1, 1]; const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * sc[0], uv.getY(i) * sc[1]); GR.twigGeo[k] = g; GR.twigCol[k] = p.mat.color.clone(); }
       }
     });
+    for (const g of GR.leafGeo) if (g) sphereNormals(g, 0.7, 0.35);   // NATURE: heather/shrub crowns shade as mounds, not flat card fans
     GR.leafLod = GR.leafGeo.map((g) => lodQuads(g, 3, 1.6));
     GR.shrubH = SHR.map((n) => { const b = new THREE.Box3(); for (const p of PACK[n].parts) { p.geo.computeBoundingBox(); b.union(p.geo.boundingBox); } return b.max.y; });
     // true instancing (one real draw per pool): ANGLE/Metal emulates BatchedMesh multi-draw as one draw per instance
@@ -748,7 +974,7 @@ vec3 impNW;`)
     const lk = LAKE(), sites = siteList();
     const bad = (x, z, h) => h < 0.35 || C.riftD(x, z) < 58 || C.nearPOI(x, z, -8) || sites.some((q) => (q.x - x) ** 2 + (q.z - z) ** 2 < 196);
     // tufts
-    const nT = Math.round(58 * dens);
+    const nT = Math.round(70 * dens);   // NATURE: was 58
     for (let k = 0; k < nT; k++) {
       const x = (ci + r()) * CS, z = (cj + r()) * CS, h = C.getH(x, z); if (bad(x, z, h)) continue;
       const ny = C.normalY(x, z); if (ny < 0.6) continue;
@@ -763,7 +989,7 @@ vec3 impNW;`)
       else v = w < 0.52 ? 0 : w < 0.75 ? 1 : w < 0.9 ? 2 : 3;
       // size by exposure: tall on bare wind-scoured ground, short stubs poking out of deeper snow — wide per-instance
       // variance (not the same tuft copy-pasted everywhere); the lean angle is added at bake time (bakeChunk)
-      const s = (0.5 + r() * 1.05) * (0.7 + 0.5 * bare), sy = s * (0.7 + r() * 0.7), frost = v === 3 || bare < 0.35 ? 0.1 : 0;
+      const s = (0.55 + r() * 1.05) * (0.75 + 0.5 * bare), sy = s * (0.8 + r() * 0.75), frost = v === 3 || bare < 0.35 ? 0.1 : 0;
       const c0 = PAL().tuft[v], alt = PAL().tuftAlt[(r() * PAL().tuftAlt.length) | 0], mixA = r() * 0.45, br = 0.82 + r() * 0.36;
       const col = [0, 1, 2].map((k) => ((c0[k] * (1 - mixA) + alt[k] * mixA) * br) * (1 - frost) + frost * 0.5);
       out.tuft.push([v, x, h + Math.max(0, depthAt(x, z) - 0.06) - 0.07, z, r() * TAU, s, sy, col]);
@@ -815,7 +1041,8 @@ vec3 impNW;`)
     for (const [v, x, y, z, ry, sc, c] of ch.data.shrub) {
       e.set((C.hash2(x, z) - 0.5) * 0.15, ry, (C.hash2(z, x) - 0.5) * 0.15); q.setFromEuler(e);
       // crowberry/willow (heather, e05/e06): flatten into a low tangled mat instead of a ball on a stem; birch stays upright
-      const sy2 = v === 2 ? sc * 0.58 : v === 1 ? sc * 0.76 : sc, sxz = v === 2 ? sc * 1.24 : v === 1 ? sc * 1.1 : sc;
+      const hv = 0.8 + C.hash2(x * 3.1, z * 1.7) * 0.5;   // NATURE: uneven mound heights (e05/e06), less flattened (was 0.58 / 0.76)
+      const sy2 = (v === 2 ? sc * 0.72 : v === 1 ? sc * 0.85 : sc) * hv, sxz = v === 2 ? sc * 1.18 : v === 1 ? sc * 1.08 : sc;
       m.compose(p.set(x, y, z), q, s.set(sxz, sy2, sxz)); B.shrub[v].push(m.elements.slice(), c);
     }
     for (const [v, x, y, z, ry, sc] of ch.data.decal) {
@@ -951,14 +1178,17 @@ vec3 impNW;`)
   /* Seating by the QA invariant itself (tools/qa/qa-page.js placedCheck): lowest vertex of each 3×3 footprint cell of the
    * collider vs the visible surface (ground + loose snow); buried share = mean over cells of the column under the surface.
    * seatDy solves that share = target exactly (monotone in dy → bisection) instead of guessing a sink depth per model. */
-  const SURF = (x, z) => (C.groundH ? C.groundH(x, z) : C.getH(x, z)) + depthAt(x, z);
+  // REALISM-QA rule 4: the surface as drawn (terrain snowField) and the rule's own 4×4 cells, so seat and check agree
+  const SURF = (x, z) => { const f = C.snowField; if (f && f.sample) { const q = f.sample(x, z); if (q && Number.isFinite(q[0])) return q[0]; } return (C.groundH ? C.groundH(x, z) : C.getH(x, z)) + depthAt(x, z); };
+  const SEAT_N = 4;
   function seatDy(v, target) {
     const n = v.length / 3; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
     for (let i = 0; i < n; i++) { const x = v[i * 3], z = v[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
     const lo = [], top = [];
-    for (let i = 0; i < n; i++) { const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2]; const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
+    const N = SEAT_N;
+    for (let i = 0; i < n; i++) { const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2]; const ci = Math.min(N - 1, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * N)), cj = Math.min(N - 1, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * N)), k = ci * N + cj;
       if (!lo[k] || y < lo[k][1]) lo[k] = [x, y, z]; if (top[k] === undefined || y > top[k]) top[k] = y; }
-    const cs = []; for (let k = 0; k < 9; k++) if (lo[k] && top[k] - lo[k][1] > 0.02) cs.push([lo[k][1], top[k] - lo[k][1], SURF(lo[k][0], lo[k][2])]);
+    const cs = []; for (let k = 0; k < N * N; k++) if (lo[k] && top[k] - lo[k][1] > 0.02) cs.push([lo[k][1], top[k] - lo[k][1], SURF(lo[k][0], lo[k][2])]);
     if (!cs.length) return 0;
     const f = (dy) => { let a = 0; for (const [y, h, sf] of cs) a += clamp((sf - (y + dy)) / h, 0, 1); return a / cs.length; };
     let a = -40, b = 40; for (let it = 0; it < 40; it++) { const m = (a + b) / 2; if (f(m) > target) a = m; else b = m; }
@@ -982,13 +1212,42 @@ vec3 impNW;`)
   const SNOWC = () => typeof C.snowCover === 'function';   // terrain module: snow shading + drifts around every Passport solid
   const GROUND = (x, z) => C.getH(x, z) + Math.min(depthAt(x, z), 0.35) * 0.8;   // rendered snow surface (approx.)
   const LOWEST = (x, z, rad) => { let m = C.getH(x, z); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; m = Math.min(m, C.getH(x + Math.cos(a) * rad, z + Math.sin(a) * rad)); } return m; };
+  /* NATURE — Poly Haven scans. phModel: one LOD of a rock_ph pack as a model root, rotated so its long axis is X and
+   * scaled to `span` m along it (the scans are at real size: rock_09 is a 15 cm stone, used here as a slab). The LOD is
+   * picked by the preset (Q.rockLod: 0 = 4.5–4.8 k tris, 1 = 1.4 k on air); the normal map was baked for LOD0. */
+  function phModel(g, span, lod) {
+    const L = lod !== undefined ? lod : (C.Q.rockLod || 0), src = g.scene.getObjectByName('LOD' + L) || g.scene.getObjectByName('LOD0');
+    const m = src.clone(); m.position.set(0, 0, 0); m.rotation.set(0, Math.PI / 2, 0); m.scale.set(1, 1, 1);
+    const root = new THREE.Group(); root.add(m); root.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(root), k = span / Math.max(1e-3, b.max.x - b.min.x); m.scale.setScalar(k);
+    m.material.roughness = 0.9; m.material.metalness = 0; m.material.side = THREE.FrontSide;
+    return { scene: root };
+  }
+  // the 70 game boulders (rock_boulder_01, 3 k tris, 1.3 × 1.0 × 1.8 m) → namaqualand_boulder_06: same InstancedMeshes
+  // (other modules hold them), new geometry baked into the old model's frame, the scan's textures copied into the
+  // existing (already patched) material
+  function swapBoulders(D) {
+    const im0 = D.boulderMeshes[0], old = im0.geometry; old.computeBoundingBox(); const ob = old.boundingBox;
+    const r = phModel(R.ph.namaqualand_boulder_06, Math.max(ob.max.x - ob.min.x, ob.max.z - ob.min.z)), mesh = r.scene.children[0];
+    r.scene.updateMatrixWorld(true); const g = mesh.geometry.clone(); g.applyMatrix4(mesh.matrixWorld);
+    // long axis along the old model's long axis (Z for boulder_01)
+    if (ob.max.z - ob.min.z > ob.max.x - ob.min.x) g.rotateY(Math.PI / 2);
+    g.computeBoundingBox(); g.translate(0, ob.min.y - g.boundingBox.min.y, 0); g.computeBoundingSphere();
+    g.userData.source = 'rock_ph_namaqualand_boulder_06';
+    const sm = mesh.material, m = im0.material;
+    m.map = sm.map; m.normalMap = sm.normalMap; m.roughnessMap = null; m.metalnessMap = null; m.aoMap = null; m.roughness = 0.9; m.metalness = 0; m.needsUpdate = true;
+    for (const im of D.boulderMeshes) { im.geometry = im === im0 ? g : im.geometry; if (im !== im0) im.visible = false; }
+    VEG.stats.boulderScan = { tris: g.index ? g.index.count / 3 : 0, from: old.index ? old.index.count / 3 : 0 };
+  }
   function rocksStep() {
     const D = C.DECOR;
     if (R.done || !D.boulderMeshes || !D.boulders || !R.flat || !R.face || !GR.ready) return;
+    if ((!R.ph || Object.keys(R.ph).length < 3) && tAcc < 45) return;   // NATURE: wait for the scan packs (≤ 45 s, then the old models)
     R.done = true;
     const P = Passport(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new V3(), s = new V3();
     const skirts = [];
     // --- boulders (rock_boulder_01, 1.8 x 1.0 x ~1.2 m model): re-seat against the lowest ground under the footprint ---
+    if (R.ph && R.ph.namaqualand_boulder_06) swapBoulders(D);
     const bgeo = sanitize(D.boulderMeshes[0].geometry); bgeo.computeBoundingBox(); const bb = bgeo.boundingBox;
     const r0 = mulberry(777);
     D.boulders.forEach((M, i) => {
@@ -1001,7 +1260,7 @@ vec3 impNW;`)
       M.compose(p.set(x, y, z), q, s.set(sx, sy, sz));
       skirts.push([x, z, foot * 1.05, hgt]); addRockToGrid(x, z, foot);
     });
-    for (const im of D.boulderMeshes) { D.boulders.forEach((M, i) => im.setMatrixAt(i, M)); im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); rockMaterialPatch(im.material, { desat: 0.55, grade: [0.62, 0.68, 0.8], lichen: 0.55, snow: SNOWC() ? 0 : 1, cap: 0.24 }); }
+    for (const im of D.boulderMeshes) { D.boulders.forEach((M, i) => im.setMatrixAt(i, M)); im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); rockMaterialPatch(im.material, { desat: 0.8, grade: [0.5, 0.52, 0.57], lichen: 0.45, snow: SNOWC() ? 0 : 1, cap: 0.24 }); }   // NATURE: neutral dark basalt (d01–d05), was a blue-green cast
     for (const en of D.boulderEntries || []) P.remove(en);
     const holder = new THREE.Group(); holder.add(new THREE.Mesh(bgeo, D.boulderMeshes[0].material));
     D.boulderEntries = P.registerInstances(holder, D.boulders, 'solid', { name: 'boulder' });
@@ -1031,8 +1290,9 @@ vec3 impNW;`)
       return { meshes, entries };
     };
     const rr = mulberry(4242 + 17);
-    { // flat boulders: scattered + next to big boulders
-      const g = R.flat, root = g.scene; root.updateMatrixWorld(true); const b3 = new THREE.Box3().setFromObject(root), list = [];
+    { // flat boulders: scattered + next to big boulders (NATURE: Poly Haven rock_09 / rock_07 slabs when loaded)
+      const phF = R.ph && R.ph.rock_09 && R.ph.rock_07 ? [phModel(R.ph.rock_09, 1.25), phModel(R.ph.rock_07, 1.4)] : null;
+      const g = phF ? phF[0] : R.flat, root = g.scene; root.updateMatrixWorld(true); const b3 = new THREE.Box3().setFromObject(root), list = [];
       const tryAt = (x, z) => {
         const h = C.getH(x, z); if (h < 0.8 || C.nearPOI(x, z, 4) || C.inRift(x, z, -30) || C.normalY(x, z) < 0.6 || rockNear(x, z) < 0.5 || treesNear(x, z, 3).length) return;
         const sc = 0.7 + rr() * 1.3, sy = sc * (0.7 + rr() * 0.5), foot = Math.max(b3.max.x - b3.min.x, b3.max.z - b3.min.z) * 0.5 * sc * 0.8;
@@ -1043,8 +1303,13 @@ vec3 impNW;`)
       };
       for (const M of D.boulders.slice(0, 40)) { M.decompose(p, q, s); const a = rr() * TAU, d = 2.2 * s.x + 1 + rr() * 2; tryAt(p.x + Math.cos(a) * d, p.z + Math.sin(a) * d); }
       for (let k = 0; k < 2000 && list.length < 70; k++) tryAt((rr() - 0.5) * 760, (rr() - 0.5) * 760);
-      R.flatMesh = addModel(g, 'rock_flat', list, { desat: 0.75, grade: [0.55, 0.6, 0.72], lichen: 0.8, snow: 1, cap: 0.2 });
-      D.rocksFlat = list;
+      const fp = { desat: 0.8, grade: [0.5, 0.52, 0.57], lichen: 0.6, snow: 1, cap: 0.2 };
+      if (phF) {   // every 3rd slot → rock_07 (thicker block), scaled to the same footprint as the rock_09 slab it replaces
+        const bA = new THREE.Box3().setFromObject(phF[0].scene), bB = new THREE.Box3().setFromObject(phF[1].scene);
+        const la = [], lb = []; list.forEach((M, k) => { if (k % 3 === 2) { M.elements[13] += (bA.min.y - bB.min.y) * Math.hypot(M.elements[4], M.elements[5], M.elements[6]); lb.push(M); } else la.push(M); });
+        R.flatMesh = addModel(phF[0], 'rock_flat', la, fp); if (lb.length) R.flatMesh2 = addModel(phF[1], 'rock_flat_b', lb, fp);
+        D.rocksFlat = la.concat(lb); VEG.stats.rockScans = 'polyhaven';
+      } else { R.flatMesh = addModel(g, 'rock_flat', list, fp); D.rocksFlat = list; }
     }
     { // outcrops: rock face (open back −Z) pushed into slopes, face looking downhill
       const g = R.face, root = g.scene; root.updateMatrixWorld(true); const b3 = new THREE.Box3().setFromObject(root), list = [];
@@ -1171,7 +1436,11 @@ vec3 impNW;`)
             const r = s.r * Math.max(ms.x, ms.y, ms.z), d = v.distanceTo(cam), tiny = r < 2.5 && r / Math.max(d, 1) < (emi ? 0.002 : 0.0036);
             // layers 20–22 belong to the cached moon shadows (open-world SHADOW): never part of the owner's baseline
             const SHB = 7 << 20, cur = o.layers.mask & ~SHB, keep = o.layers.mask & SHB;
-            if (s.maskSet !== undefined && cur !== s.maskSet) { s.mask0 = cur; }   // owner changed layers
+            // owner changed layers: take over ONLY the bits the owner flipped. Before, the whole current mask became the
+            // baseline — if the object was tiny-hidden at that moment (layer 0 off, e.g. seen from far at load) and
+            // another module then enabled a layer of its own (groundblend 12, terrain contact), layer 0 was lost for
+            // good: the object stayed out of the main pass forever while still casting its cached shadow (TEXUNITS.md)
+            if (s.maskSet !== undefined && cur !== s.maskSet) { const diff = cur ^ s.maskSet; s.mask0 = s.mask0 === undefined ? cur : (s.mask0 & ~diff) | (cur & diff); }
             if (s.mask0 === undefined) s.mask0 = cur;
             const want = tiny ? (s.mask0 & ~1) : s.mask0;
             if (cur !== want) o.layers.mask = want | keep; s.maskSet = want; if (tiny) hid++;
@@ -1191,6 +1460,10 @@ vec3 impNW;`)
   function update(dt, ctx) {
     tAcc += dt;
     U.uVT.value = tAcc; U.uVStorm.value = (C.WX && C.WX.storm) || 0; U.uVCam.value.copy(camera.position);
+    U.uVTexBias.value = C.Q.texBias || 0;
+    U.uVAlphaAA.value = C.Q.needleAABias || 0;   // NEEDLE-AA: >0 only in air (KNOBS)
+    { const an = Math.min(C.Q.aniso || 4, renderer.capabilities.getMaxAnisotropy());   // NATURE: Q.aniso on the vegetation maps
+      if (an !== VEG.aniso) { VEG.aniso = an; for (const t of Object.values(TEX).concat([A.tuft, A.leaf, A.decal].filter(Boolean).map((r) => r.texture))) if (t && t.anisotropy !== an) { t.anisotropy = an; if (t.image) t.needsUpdate = !t.isRenderTargetTexture; } } }
     if (C.MOON_DIR) U.uVMoonDir.value.copy(C.MOON_DIR);
     if (C.moon) U.uVMoonCol.value.copy(C.moon.color).multiplyScalar(C.moon.intensity / Math.PI);
     if (C.hemi) U.uVHemiS.value.copy(C.hemi.color).multiplyScalar(C.hemi.intensity / Math.PI);
@@ -1201,6 +1474,12 @@ vec3 impNW;`)
     rocksStep();
     // the terrain re-stamps its drifts when the set of solids changes (our rocks included): re-seat against the new snow
     { const TS = window.Terrain && window.Terrain.S; if (R.done && R.sets && TS && TS.obstKey && TS.obstKey !== R.seatKey && !TS.obstPending) { R.seatKey = TS.obstKey; reseatRocks('drifts ' + TS.obstKey); } }
+    // krummholz: don't wait on the terrain's own obstacle-key handshake (a wall-clock debounce that a loaded shared
+    // machine can stretch past any fixed QA settle wait — confirmed live: the same 1.5 s post-newGame wait converged
+    // cleanly on a quiet machine and left up to 94 % of instances over target on a busy one, same code, same seed).
+    // A plain frame-counted re-check instead: every ~15 real frames regardless of how long each one took, so
+    // convergence is bounded by render-loop iterations, not by elapsed wall time.
+    if (KZ.trees && (KZ.tick = (KZ.tick || 0) + 1) % 15 === 0) reseatKrummholz('tick');
     updateGround();
     autoBump(dt);
     director(dt);

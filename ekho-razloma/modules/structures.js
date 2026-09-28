@@ -33,10 +33,50 @@
     if (waiting[name]) { waiting[name].push(cb); return; }
     waiting[name] = [cb];
     C.loadPacked(name, C.ASSET, (g) => {
+      ST.albedoFloor(g.scene);
       cache[name] = g; const list = waiting[name]; delete waiting[name];
       for (const f of list) { try { f(g); } catch (e) { console.error('[struct] ' + name, e); ST.stats.warn.push(name + ': ' + e.message); } }
     });
   }
+
+  /* ============================ albedo floor (REALISM-QA rule 2) ============================
+   * Nothing real is darker than ~0.04 linear albedo (black rubber / plastic / charcoal ≈ 0.04–0.05 → 56–62 sRGB); the packs
+   * shipped seats, tyres, foam, grips and cables at 16–46 sRGB, which render as holes in the night frame. The base colour
+   * is scaled up (hue and texture detail untouched) until map average × colour × vertex colour reaches ALB.min. */
+  const ALB = { min: 0.042, done: new WeakSet(), log: [] };
+  const alCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+  function mapAvgLin(t) {
+    if (!t) return [1, 1, 1];
+    if (t.userData && t.userData.avgLin) return t.userData.avgLin;
+    const img = t.image; if (!img || !(img.width || img.videoWidth) || !alCanvas) return null;
+    try {
+      alCanvas.width = alCanvas.height = 32; const g = alCanvas.getContext('2d', { willReadFrequently: true });
+      g.clearRect(0, 0, 32, 32); g.drawImage(img, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data;
+      const srgb = t.colorSpace === 'srgb', lin = (x) => { x /= 255; return !srgb ? x : x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+      let r = 0, gg = 0, b = 0, w = 0; for (let i = 0; i < d.length; i += 4) { const a = d[i + 3] / 255; r += lin(d[i]) * a; gg += lin(d[i + 1]) * a; b += lin(d[i + 2]) * a; w += a; }
+      const out = w ? [r / w, gg / w, b / w] : null; if (out) t.userData.avgLin = out; return out;
+    } catch (e) { return null; }
+  }
+  ST.albedoFloor = function (root, min = ALB.min) {
+    if (!root) return;
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      for (const m of [].concat(o.material)) {
+        if (!m || ALB.done.has(m) || !m.color || m.transparent || !(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial)) continue;
+        if (m.emissive && m.emissiveIntensity > 0.5 && Math.max(m.emissive.r, m.emissive.g, m.emissive.b) > 0.2) continue;   // self-lit
+        const t = mapAvgLin(m.map); if (!t) continue;
+        let vc = [1, 1, 1]; const Cc = m.vertexColors && o.geometry && o.geometry.attributes.color;
+        if (Cc) { vc = [0, 0, 0]; const st = Math.max(1, Math.floor(Cc.count / 2000)); let n = 0; for (let i = 0; i < Cc.count; i += st) { vc[0] += Cc.getX(i); vc[1] += Cc.getY(i); vc[2] += Cc.getZ(i); n++; } vc = vc.map((v) => v / n); }
+        const L = 0.2126 * m.color.r * t[0] * vc[0] + 0.7152 * m.color.g * t[1] * vc[1] + 0.0722 * m.color.b * t[2] * vc[2];
+        ALB.done.add(m);
+        if (L >= min) continue;
+        if (!(L > 1e-5)) { if (!m.map && !Cc) { m.color.setRGB(min, min, min); ALB.log.push({ mat: m.name, from: 0, k: 'grey' }); } continue; }
+        const k = Math.min(12, min / L); m.color.multiplyScalar(k);
+        ALB.log.push({ mat: m.name, from: +L.toFixed(4), k: +k.toFixed(2) });
+      }
+    });
+    ST.stats.albedoFloor = ALB.log;
+  };
 
   /* ============================ snow on top faces ============================ */
   const snowed = new WeakSet();
@@ -117,7 +157,25 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     }
     return { parts, box };
   }
-  function flat(name, g, filter) { return flatCache[name] || (flatCache[name] = flatten(g.scene, filter)); }
+  // real-world size fixes (CAMP.md, sizes against tools/qa/sizes.json): the blue HDPE drum pack is 0.49 m across — a 55-gal
+  // drum is 0.58 m across at the same 0.88–0.93 m height
+  const REAL = { prop_drum_plastic_blue: [1.18, 1, 1.18] };
+  // REALISM-QA rule 5 (texel density): tiled Poly Haven wood/hessian textures (UV baked well past [0,1] — genuine
+  // repeat, not one unwrap) at a repeat frequency meant for a much bigger surface than this 4 m sledge → 5271 px/m,
+  // ×9–11 its neighbours. Same fix direction as any tiled material: fewer repeats over the same UV span = a coarser,
+  // correctly-scaled weave/grain. Applied once, in `flat()`, to every map on the cached parts (shared by both the
+  // camp and the station sledge — same pack, same fix).
+  const TEX_REPEAT = { prop_sledge_loaded: 0.23, prop_rowboat: 0.1, struct_pier_wood: 3.5 };
+  function flat(name, g, filter) {
+    if (flatCache[name]) return flatCache[name];
+    const F = flatCache[name] = flatten(g.scene, filter), k = REAL[name];
+    if (k) { for (const p of F.parts) { p.geo.scale(k[0], k[1], k[2]); p.geo.computeBoundingBox(); p.geo.computeBoundingSphere(); } F.box.min.multiply(new V3(...k)); F.box.max.multiply(new V3(...k)); }
+    const tr = TEX_REPEAT[name];
+    if (tr) for (const p of F.parts) for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+      const t = p.mat && p.mat[slot]; if (t) { t.repeat.multiplyScalar(tr); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; }
+    }
+    return F;
+  }
   const partsGroup = (parts, filter) => { const r = new THREE.Group(); for (const p of parts) if (!filter || filter(p)) r.add(new THREE.Mesh(p.geo, p.mat)); r.updateMatrixWorld(true); return r; };
 
   // put parts into the scene at one or many matrices; returns the meshes
@@ -227,14 +285,31 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       for (const [lx, lz] of [[-10.6, 8.2], [-10.1, 9.1]]) { const v = C.WORLD.stationW(lx, lz); pushable(F, v.x, v.z, rr(0, TAU), 16, 'drum_blue'); }
     });
     need('prop_crate_wood_02', (gl) => { const F = flat('prop_crate_wood_02', gl), v = C.WORLD.stationW(-11.4, 7.1); pushable(F, v.x, v.z, yaw + 0.5, 18, 'crate_wood_02'); });
+    // CAMP.md station dressing (f01/f04: a lived-in base): a fuel-drum depot on the lee side (one instanced draw, static),
+    // a loaded sledge parked by the dome — cheap: 1 + 5 draws, no physics bodies
+    need('prop_barrel_01', (gl) => {
+      const F = flat('prop_barrel_01', gl), g = new THREE.Group(), lx = -7.5, lz = -10.5, ry = 0.35, mats = [];
+      for (const p of F.parts) snowify(p.mat, 0.8);
+      [[0, 0], [0.6, 0.05], [1.2, -0.02], [0.3, 0.55], [0.9, 0.58]].forEach(([x, z], i) => mats.push(mat4(x, 0, z, rr(0, TAU), 1, 0, 0)));
+      mats.push(mat4(1.9, F.box.max.x, 0.3, 0.3, 1, 0, Math.PI / 2));   // one lying on its side
+      g.position.set(lx, lgMin(lx + 0.6, lz + 0.3, { min: new V3(-1, 0, -0.6), max: new V3(1, 0, 0.6) }, ry) - 0.03, lz); g.rotation.y = ry; st.add(g);
+      spawn(F, mats, { parent: g, name: 'drum_depot', instanced: true }); st.updateMatrixWorld(true);
+      register(F, mats.map((M) => g.matrixWorld.clone().multiply(M)), 'solid', { name: 'st_drum_depot' }); count('drum_depot', mats.length);
+    });
+    need('prop_sledge_loaded', (gl) => {
+      const F = flat('prop_sledge_loaded', gl); for (const p of F.parts) snowify(p.mat, 1);
+      const lx = -3.5, lz = -12, ry = 1.2; addLocal(F, lx, lgMin(lx, lz, F.box, ry, 0.9) - 0.05, lz, ry, 'station_sledge', { colFilter: noCords, s: 0.9 });   // 4.1 m (sizes.json st_sledge ≤ 4.5)
+    });
   }
   // kickable prop: one Mesh, direct child of the scene (Passport 'pushable' → physics body)
   function pushable(F, x, z, ry, mass, name, o = {}) {
     const p = F.parts[0]; if (!p) return null;
     snowify(p.mat, 0.8);
     const m = new THREE.Mesh(p.geo, p.mat); m.castShadow = m.receiveShadow = true; m.name = name;
-    if (o.lying) { const r = (F.box.max.x - F.box.min.x) / 2; m.rotation.set(0, ry, Math.PI / 2); m.position.set(x, H(x, z) + r + 0.02, z); }
-    else { const g = groundUnder(x, z, ry, F.box); m.rotation.set(0, ry, 0); m.position.set(x, (o.onTop ?? g.max) - F.box.min.y + 0.01 + (o.up || 0), z); }
+    const sc = o.scale || 1; if (sc !== 1) m.scale.setScalar(sc);   // REALISM-QA rule 6 (repetition): break "same model, same everywhere" for two copies close together (e.g. a crate stacked on a same-kind crate) — deterministic, unlike rotation on a dynamic rigid body (settles a bit under gravity/contact, an authored yaw gap can shrink by the time it's measured)
+    const snowH = Math.max(0, DRAWN(x, z) - H(x, z));   // groundUnder samples bare H (slope needs solid ground); the loose snow it ignores is what QA's burial check measures against — add it back so a crate doesn't read as sunk into drift it was never seated on
+    if (o.lying) { const r = (F.box.max.x - F.box.min.x) / 2 * sc; m.rotation.set(0, ry, Math.PI / 2); m.position.set(x, H(x, z) + snowH + r + 0.02, z); }
+    else { const g = groundUnder(x, z, ry, F.box); m.rotation.set(0, ry, 0); m.position.set(x, (o.onTop ?? g.max + snowH) - F.box.min.y * sc + 0.01 + (o.up || 0), z); }
     const px = ST.hullProxy(m); px.userData.struct = true; C.scene.add(px); px.updateMatrixWorld(true);
     C.Passport.register(px, 'pushable', { name, mass }); count(name); return px;
   }
@@ -254,8 +329,145 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     return px;
   };
 
+  /* ============================ polar pyramid tent (procedural — CAMP.md) ============================
+   * Scott / Arctic-Oven style camp tent: 2.5 m square base, 2.3 m apex. Four poles run from the base corners to the apex
+   * under the canvas (their tips cross above it); the canvas sags between them; a snow valance lies flat on the snow,
+   * weighed down with cut snow blocks; guy lines to wooden stakes; a sleeve door on the +Z face. Variant 'stove': a stove
+   * pipe through a jack on the −X face (smoke: open-world.html FIRE region reads ST.stove) + warm light through the canvas.
+   * Canvas: per-panel atlas assets/camp/tent_canvas.jpg (generated offline: seams, ridge tapes, dirt, tide marks, patch —
+   * uv1) × the Poly Haven rough_linen weave (CC0) as normal + roughness tiles (uv). 6 materials, ≈ 3.3k triangles. */
+  const TENT = { B: 1.25, H: 2.3, tex: null, F: {} };
+  function tentTextures() {
+    if (TENT.tex) return TENT.tex;
+    const L = new THREE.TextureLoader(), ld = (n, srgb, rep) => { const t = L.load(C.ASSET + 'camp/' + n); if (srgb) t.colorSpace = THREE.SRGBColorSpace; if (rep) t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
+    const map = ld('tent_canvas.jpg', true, false); map.channel = 1;
+    return (TENT.tex = { map, nor: ld('tent_weave_n.jpg', false, true), rough: ld('tent_weave_r.jpg', false, true) });
+  }
+  const tb = () => ({ p: [], uv: [], uv1: [], c: [], ix: [] });
+  // parametric patch: fn(u, v) → [x, y, z, u0, v0, u1, v1, shade]; wound so that its front faces `out(p)`
+  function tgrid(b, nu, nv, fn, out) {
+    const o = b.p.length / 3;
+    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const r = fn(i / nu, j / nv); b.p.push(r[0], r[1], r[2]); b.uv.push(r[3], r[4]); b.uv1.push(r[5], r[6]); const s = r[7] ?? 1; b.c.push(s, s, s); }
+    const P = (u, v) => new V3().fromArray(fn(u, v)), p0 = P(0.5, 0.5), n = P(0.52, 0.5).sub(p0).cross(P(0.5, 0.52).sub(p0)), flip = out ? n.dot(out(p0)) < 0 : false;
+    for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = o + j * (nu + 1) + i, a1 = a + 1, c = a + nu + 1, d = c + 1;
+      if (flip) b.ix.push(a, c, a1, a1, c, d); else b.ix.push(a, a1, c, a1, d, c); }
+  }
+  // tube along a → b (radius r, n sides), capped by nothing (thin: stakes, cords, poles, pipe)
+  function ttube(b, a, e, r, n, v1, r1) {
+    const d = e.clone().sub(a), L = d.length(); d.normalize();
+    const s = Math.abs(d.y) < 0.9 ? new V3(0, 1, 0).cross(d).normalize() : new V3(1, 0, 0).cross(d).normalize(), t = d.clone().cross(s);
+    tgrid(b, n, 1, (u, v) => { const ang = u * TAU, rr0 = (r1 ?? r) * v + r * (1 - v), q = a.clone().addScaledVector(d, v * L).addScaledVector(s, Math.cos(ang) * rr0).addScaledVector(t, Math.sin(ang) * rr0);
+      return [q.x, q.y, q.z, u, v * L, 0.5, v1 ?? 0.1]; }, (p) => { const w = p.clone().sub(a); return w.sub(d.clone().multiplyScalar(w.dot(d))); });
+  }
+  function tgeo(b) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(b.p, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+    g.setAttribute('uv1', new THREE.Float32BufferAttribute(b.uv1, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(b.c, 3));
+    g.setIndex(b.ix); g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); return g;
+  }
+  function polarTentF(variant) {
+    if (TENT.F[variant]) return TENT.F[variant];
+    const { B, H } = TENT, stove = variant === 'stove', tx = tentTextures();
+    const hsh = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
+    const corner = [[-B, -B], [B, -B], [B, B], [-B, B]], SL = Math.hypot(H, B), TILE = 0.27;
+    const canvas = tb(), valance = tb(), snow = tb(), wood = tb(), cord = tb(), metal = tb(), stake = tb();
+    const outH = (p) => new V3(p.x, 0, p.z);   // panels face away from the axis
+    const panelPt = (k, u, v) => {
+      const a = corner[k], c = corner[(k + 1) % 4], mx = (a[0] + c[0]) / 2 / B, mz = (a[1] + c[1]) / 2 / B;
+      const bx = a[0] + (c[0] - a[0]) * u, bz = a[1] + (c[1] - a[1]) * u;
+      let x = bx * (1 - v), y = H * v, z = bz * (1 - v);
+      const sag = 0.19 * Math.sin(Math.PI * u) * Math.pow(1 - v, 0.9) * smooth01(0, 0.22, v)       // canvas cupped in between the corner poles
+        + 0.012 * Math.sin(u * 19 + k * 2.1) * Math.sin(v * 13 + k) * Math.sin(Math.PI * u)          // loose wrinkles
+        - Math.max(0, 0.07 - v) * 0.9;                                                                  // foot flares out into the valance
+      x -= mx * sag; z -= mz * sag;
+      return { x, y, z, mx, mz };
+    };
+    const jack = { k: 3, u: 0.5, v: 0.62 }, door = { k: 2, u: 0.5, v: 0.24 };
+    for (let k = 0; k < 4; k++) {
+      const tint = [1, 0.95, 1.03, 0.97][k];
+      tgrid(canvas, 16, 14, (u, v) => {
+        const q = panelPt(k, u, v); let sh = tint * (0.97 + 0.06 * hsh(Math.round(u * 16), Math.round(v * 14) + k * 31));
+        if (stove && k === jack.k) { const du = (u - jack.u) * 2.5, dv = v - jack.v; sh *= 1 - 0.55 * Math.exp(-(du * du) / 0.03 - Math.max(0, dv) * Math.max(0, dv) / 0.05 - Math.min(0, dv) * Math.min(0, dv) / 0.004); }   // soot above the stove jack
+        return [q.x, q.y, q.z, (u - 0.5) * 2 * B * (1 - v) / TILE, v * SL / TILE, u, 0.03 + v * 0.97, sh];
+      }, outH);
+      // valance: a 0.42 m flap lying on the snow, trapezoids that meet on the corner diagonals
+      const a = corner[k], c = corner[(k + 1) % 4], ex = (c[0] - a[0]) / (2 * B), ez = (c[1] - a[1]) / (2 * B), mx = ez, mz = -ex, w = 0.42;
+      tgrid(valance, 12, 2, (u, v) => { const o = v * w, x = a[0] + (c[0] - a[0]) * u + mx * o + ex * (u - 0.5) * 2 * o, z = a[1] + (c[1] - a[1]) * u + mz * o + ez * (u - 0.5) * 2 * o;
+        const y = 0.05 + 0.03 * Math.sin(Math.PI * v) - 0.025 * v + 0.012 * Math.sin(u * 23 + k);
+        return [x, y, z, x / TILE, z / TILE, u, v * 0.028, 0.9 + 0.1 * hsh(u * 12, k)]; }, () => new V3(0, 1, 0));
+      // cut snow blocks weighing the valance down
+      for (let i = 0; i < 3; i++) {
+        const u = 0.18 + i * 0.32 + (hsh(k, i) - 0.5) * 0.1, o = 0.2 + hsh(i, k) * 0.06, sx = 0.38 + hsh(k + 3, i) * 0.12, sy = 0.2 + hsh(k, i + 5) * 0.08, sz = 0.26 + hsh(i + 2, k) * 0.08;
+        const cx = a[0] + (c[0] - a[0]) * u + mx * o, cz = a[1] + (c[1] - a[1]) * u + mz * o, yaw = Math.atan2(ex, ez) + (hsh(k, i + 9) - 0.5) * 0.5;
+        const box = new THREE.BoxGeometry(sx, sy, sz, 2, 1, 2).toNonIndexed(), P = box.attributes.position;
+        for (let q = 0; q < P.count; q++) { const x0 = P.getX(q), y0 = P.getY(q), z0 = P.getZ(q), j = hsh(x0 * 7 + cx, z0 * 7 + y0 * 3 + cz) - 0.5;   // chipped, uneven blocks
+          const cs = Math.cos(yaw), sn = Math.sin(yaw), x1 = x0 * (1 + j * 0.12), z1 = z0 * (1 - j * 0.1), y1 = y0 + (y0 > 0 ? j * 0.05 : 0);
+          const base = snow.p.length / 3; snow.p.push(cx + x1 * cs + z1 * sn, 0.05 + sy / 2 - 0.04 + y1, cz - x1 * sn + z1 * cs); snow.uv.push(0, 0); snow.uv1.push(0, 0); snow.c.push(1, 1, 1); snow.ix.push(base); }
+      }
+      // corner pole tips crossing above the apex
+      const dir = new V3(-a[0], H, -a[1]).normalize();
+      ttube(wood, new V3(-a[0] * 0.02, H - 0.08, -a[1] * 0.02), new V3(0, H, 0).addScaledVector(dir, 0.34), 0.022, 16);   // was 5 sides: REALISM-QA facet rule (dihedral > 20°) — a round pole tip
+      // guy lines: corner ridge → stake on the diagonal, mid-face → stake straight out
+      const gy = (p0, p1) => { let prev = p0; for (let s = 1; s <= 4; s++) { const t = s / 4, q = p0.clone().lerp(p1, t); q.y -= 0.05 * 4 * t * (1 - t); ttube(cord, prev, q, 0.006, 3); prev = q; } };
+      const ridge = new V3(a[0] * 0.45, H * 0.55, a[1] * 0.45), sd = new V3(a[0], 0, a[1]).normalize(), st1 = new V3(a[0], 0, a[1]).addScaledVector(sd, 1.25);
+      gy(ridge, st1.clone().setY(0.14));
+      const mid = panelPt(k, 0.5, 0.42), st2 = new V3(mid.mx * (B + 1.55), 0, mid.mz * (B + 1.55));
+      gy(new V3(mid.x, mid.y, mid.z), st2.clone().setY(0.12));
+      for (const s0 of [st1, st2]) { const lean = s0.clone().setY(0).normalize().multiplyScalar(0.06); ttube(stake, s0.clone().setY(-0.22), s0.clone().add(lean).setY(0.17), 0.022, 4, 0.1, 0.018); }
+    }
+    // sleeve door on the +Z face: a canvas tube gathered and tied off, drooping
+    { const P0 = panelPt(door.k, door.u, door.v), m = new V3(P0.mx, 0, P0.mz), side = new V3(m.z, 0, -m.x), R0 = 0.3;
+      const cen = (t) => new V3(P0.x, P0.y, P0.z).addScaledVector(m, -0.1 + 0.7 * t).add(new V3(0, -0.34 * t * t, 0));
+      tgrid(canvas, 14, 8, (u, t) => { const r = R0 * (1 - 0.78 * Math.pow(t, 1.3)) * (1 + 0.05 * Math.sin(u * 31 + t * 7)), a = u * TAU, q = cen(t).addScaledVector(side, Math.cos(a) * r).add(new V3(0, Math.sin(a) * r * (0.75 - 0.35 * t), 0));   // flattens as it droops
+        return [q.x, q.y, q.z, u * TAU * R0 / TILE, t * 0.7 / TILE, u, 0.08 + t * 0.22, 0.9]; }, (p) => { const t = clamp((p.clone().sub(new V3(P0.x, P0.y, P0.z)).dot(m) + 0.1) / 0.7, 0, 1); return p.clone().sub(cen(t)); });
+      ttube(cord, cen(0.98).addScaledVector(side, -0.1), cen(0.98).addScaledVector(side, 0.1), 0.02, 5);   // the tie
+    }
+    // stove pipe through a jack on the −X face, elbow, up past the apex, rain cap
+    let stoveTop = null;
+    if (stove) {
+      const J = panelPt(jack.k, jack.u, jack.v), m = new V3(J.mx, 0, J.mz), j0 = new V3(J.x, J.y, J.z), e = j0.clone().addScaledVector(m, 0.3), top = e.clone().setY(H + 0.5);
+      ttube(metal, j0.clone().addScaledVector(m, -0.08), e, 0.055, 18); ttube(metal, e.clone().addScaledVector(m, 0.055).setY(e.y - 0.05), top, 0.055, 18);   // was 8 sides: same rule — a round stove pipe
+      ttube(metal, j0.clone().addScaledVector(m, -0.01), j0.clone().addScaledVector(m, 0.02), 0.14, 18);   // flashing ring on the jack (was 10 sides)
+      ttube(metal, top.clone().setY(top.y + 0.06), top.clone().setY(top.y + 0.14), 0.12, 18, 0.1, 0.03);  // rain cap (was 8 sides)
+      stoveTop = top.clone().setY(top.y + 0.16);
+    }
+    // wind-packed drift against the windward (−X) side
+    { const dr = new THREE.SphereGeometry(1, 10, 6, 0, TAU, 0, Math.PI / 2).toNonIndexed(), P = dr.attributes.position;
+      for (let q = 0; q < P.count; q++) { const x = P.getX(q) * 0.55 - B - 0.42, y = P.getY(q) * 0.3 - 0.06, z = P.getZ(q) * 1.7; const base = snow.p.length / 3; snow.p.push(x, y, z); snow.uv.push(0, 0); snow.uv1.push(0, 0); snow.c.push(1, 1, 1); snow.ix.push(base); } }
+    // materials
+    const canvasM = new THREE.MeshStandardMaterial({ name: 'canvas', map: tx.map, normalMap: tx.nor, normalScale: new THREE.Vector2(0.55, 0.55), roughnessMap: tx.rough, roughness: 1, metalness: 0, vertexColors: true });
+    if (stove) { canvasM.emissive = new THREE.Color(0xff8a3a); canvasM.emissiveMap = tx.map; canvasM.emissiveIntensity = 0.17; canvasM.name = 'canvas_lit'; glowOnCanvas(canvasM); }
+    const valM = new THREE.MeshStandardMaterial({ name: 'valance', map: tx.map, normalMap: tx.nor, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 1, metalness: 0, vertexColors: true });
+    const snowM = new THREE.MeshStandardMaterial({ name: 'snow_block', color: 0xe4eaf4, roughness: 0.92, metalness: 0 });
+    const woodM = new THREE.MeshStandardMaterial({ name: 'pole_wood', color: 0x46352a, roughness: 0.75, metalness: 0 });
+    const cordM = new THREE.MeshStandardMaterial({ name: 'guy_cord', color: 0x8c8474, roughness: 0.9, metalness: 0 });
+    const stakeM = new THREE.MeshStandardMaterial({ name: 'guy_stake', color: 0x4a3a2c, roughness: 0.85, metalness: 0 });
+    const metalM = new THREE.MeshStandardMaterial({ name: 'stove_pipe', color: 0x34322f, roughness: 0.5, metalness: 0.65 });
+    cover(canvasM, { amount: 0.45, minUp: 0.4, soft: 0.3, skirt: 0.18 }); cover(valM, { amount: 0.62, minUp: 0.5, soft: 0.6, skirt: 0.12 });
+    cover(snowM, { amount: 1, minUp: -1.2, soft: 0.3, skirt: 0 }); cover(woodM, { amount: 0.6, minUp: 0.7, soft: 0.2, skirt: 0.1 }); cover(stakeM, { amount: 0.5, minUp: 0.7, soft: 0.2, skirt: 0.25 }); cover(metalM, { amount: 0.7, minUp: 0.7, soft: 0.2, skirt: 0 });
+    const parts = [];
+    const add = (b, mat, name, shell) => { if (!b.p.length) return; let g = tgeo(b); if (shell) g = shellInside(g); parts.push({ geo: g, mat, name }); };
+    add(canvas, canvasM, 'canvas', true); add(valance, valM, 'valance'); add(snow, snowM, 'snow_block'); add(wood, woodM, 'pole_wood'); add(cord, cordM, 'guy_cord'); add(stake, stakeM, 'guy_stake'); add(metal, metalM, 'stove_pipe');
+    const box = new THREE.Box3(new V3(-B - 0.45, 0, -B - 0.45), new V3(B + 0.45, H + 0.3, B + 0.45));   // footprint = canvas + valance (stakes may sink)
+    let tris = 0; for (const p of parts) tris += p.geo.index.count / 3;
+    return (TENT.F[variant] = { parts, box, stoveTop, tris, proc: true });
+  }
+  // light through the canvas only where it is canvas: snow laid over it by the shared snow rule (unsaturated) doesn't glow
+  function glowOnCanvas(mat) {
+    const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', `{ float tgMx = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), tgSat = (tgMx - min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b))) / max(tgMx, 1e-3);
+        totalEmissiveRadiance *= smoothstep(.25, .55, tgSat) * (.55 + .45 * smoothstep(.2, 1.2, vTgH)); }
+      #include <lights_fragment_begin>`).replace('#include <common>', '#include <common>\nvarying float vTgH;');
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vTgH;').replace('#include <begin_vertex>', '#include <begin_vertex>\n vTgH = position.y;'); };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|tentglow'; };
+  }
+  const tentCol = (p) => !/cord|guy|valance/i.test(p.name);   // guy lines, stakes and the flat valance are passable
+
   /* ============================ WorldFill slots: camp, poles, pier, ruins, cairns ============================ */
   const KIND = {
+    tent_polar_stove: { proc: 'stove', role: 'solid', fit: 'tilt', colFilter: tentCol },
+    tent_polar: { proc: 'plain', role: 'solid', fit: 'tilt', colFilter: tentCol },
     tent_dome: { pack: 'prop_tent_dome', role: 'solid', fit: 'tilt', snow: 1, colFilter: noCords, shell: true },
     tent_tunnel: { pack: 'prop_tent_tunnel', role: 'solid', fit: 'tilt', snow: 1, colFilter: noCords, shell: true },
     sledge: { pack: 'prop_sledge_loaded', role: 'solid', fit: 'tilt', snow: 1, colFilter: noCords },
@@ -279,8 +491,9 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     for (const s of slots) (byKind[s.kind] = byKind[s.kind] || []).push(s);
     for (const kind in byKind) {
       const K = KIND[kind]; if (!K) { warn('unknown slot kind', kind); continue; }
-      need(K.pack, (gl) => {
-        const F = flat(K.pack, gl);
+      const load = K.proc ? (cb) => cb(null) : (cb) => need(K.pack, cb);
+      load((gl) => {
+        const F = K.proc ? polarTentF(K.proc) : flat(K.pack, gl);
         if (K.shell) solidShells(F);   // open fabric shells: explicit inner side instead of double-sided
         if (K.snow) for (const p of F.parts) snowify(p.mat, K.snow);
         const list = byKind[kind], mats = [], fallen = [];
@@ -294,14 +507,20 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
           if (sp.r > 0.5) ST.stats.moved.push({ kind, from: [s.x, s.z], to: [sp.x, sp.z], r: +sp.r.toFixed(1) });
           const rad = Math.hypot(F.box.max.x - F.box.min.x, F.box.max.z - F.box.min.z) * 0.5 * sc; taken.push([sp.x, sp.z, rad * 0.8]);
           let rx = 0, rz = 0, y;
-          if (K.fit === 'tilt') { [rx, rz] = groundTilt(sp.x, sp.z, s.yaw, F.box, sc); y = sp.g.mean - (s.sink || 0.04) - F.box.min.y * sc; if (s.tilt) { rx += s.tilt[0]; rz += s.tilt[1]; } }
-          else y = seatY(F, mat4(sp.x, 0, sp.z, s.yaw, sc), 0.05, { maxGap: 0.02 }).dy;   // upright masonry: ~5 % under the visible snow (+ the drift piled later), never floats
+          if (K.fit === 'tilt') { [rx, rz] = groundTilt(sp.x, sp.z, s.yaw, F.box, sc, K.proc ? 0.06 : 0.2); y = (K.proc ? visUnder(sp.x, sp.z, s.yaw, F.box, sc).mean : sp.g.mean) - (s.sink || 0.04) - F.box.min.y * sc; if (s.tilt) { rx += s.tilt[0]; rz += s.tilt[1]; } }   // polar tents: pitched on the visible snow, nearly upright
+          else y = seatY(F, mat4(sp.x, 0, sp.z, s.yaw, sc), 0.05, { maxGap: 0.02, grid: 4, surf: DRAWN }).dy;   // upright masonry: ~5 % under the visible snow (+ the drift piled later), never floats — DRAWN + 4×4 grid: same surface/cells REALISM-QA's own burial check samples (was VIS + 3×3: missed drift piled against cairns/inuksuit on uneven ground, read up to 46 % buried)
           mats.push(mat4(sp.x, y, sp.z, s.yaw, sc, rx, rz));
           s.placed = { x: sp.x, y, z: sp.z };
           fitLog(kind, sp, y + F.box.min.y * sc, K.fit);
         }
         if (mats.length) {
-          spawn(F, mats, { name: kind, instanced: mats.length > 1 });
+          const sm = spawn(F, mats, { name: kind, instanced: mats.length > 1 });
+          if (kind === 'pier' && mats.length > 1) {   // REALISM-QA rule 6 (repetition): sections of different age — older ones greyer, darker
+            const tints = [[1, 1, 1], [0.84, 0.82, 0.8], [0.93, 0.93, 0.95]], c = new THREE.Color();
+            for (const m of sm) if (m.isInstancedMesh) { mats.forEach((_, i) => m.setColorAt(i, c.setRGB(...tints[i % 3]))); m.instanceColor.needsUpdate = true; }
+          }
+          if (F.stoveTop) ST.stove = F.stoveTop.clone().applyMatrix4(mats[0]);   // smoke source for the FIRE region of open-world.html
+          if (F.proc) ST.stats.tents = Object.assign(ST.stats.tents || {}, { [kind]: { n: mats.length, tris: F.tris, calls: F.parts.length, at: mats.map((M) => new V3().setFromMatrixPosition(M).toArray().map((v) => +v.toFixed(2))) } });
           if (K.iceClip) for (const M of mats) register(clipBelow(F, (C.POI.lake.h ?? 0) - 0.05, M), [M], K.role, { name: 'st_' + kind });   // piles below the ice: nothing to collide with
           else register(F, mats, K.role, { name: 'st_' + kind, colFilter: K.colFilter, topFrac: K.role === 'trunk' ? 1 : undefined });
           count(kind, mats.length);
@@ -344,8 +563,8 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   function placePushSlot(F, s, kind) {
     const K = { crate_wood: 18, drum_blue: 16, barrel_steel: 22 }[kind] || 15;
     if (s.up) { // stacked on the crate below: rest on its top
-      const g = groundUnder(s.x, s.z, s.yaw, F.box); pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { onTop: g.max + (F.box.max.y - F.box.min.y) + 0.01 });
-    } else pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { lying: s.lying });
+      const g = groundUnder(s.x, s.z, s.yaw, F.box); pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { onTop: g.max + (F.box.max.y - F.box.min.y) * (s.scale || 1) + 0.01, scale: s.scale });
+    } else pushable(F, s.x, s.z, s.yaw, s.push || K, kind, { lying: s.lying, scale: s.scale });
   }
 
   /* ============================ echo ruins ============================ */
@@ -615,29 +834,41 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   // a giant moves (QA pose continuity ≤ 10 m/s). After the clips are sampled, any hip motion (in the boss group's space)
   // above HIP_VMAX is taken out by shifting the whole model the other way; that offset then drains back to zero within
   // the speed budget that is left, so the pose ends where the clip wants it, only never faster than a giant can move.
-  const HIP_VMAX = 8; let _hw = null, _q = null;
+  const HIP_VMAX = 8;
+  // ATTACK-STATES foot lock: updateBoss() only moves boss.x/z in the 'idle' state — rise/drop/charge/recover never
+  // translate the group at all, yet those clips swing the pose hard (windup, lunge, twist), and a straight leg turns
+  // even a modest hip *rotation* into a much bigger sweep at the ankle than at the hip — a hip-only speed clamp never
+  // sees that (QA measured a "planted" foot sliding up to 2 m in one step mid-attack, median 0.67 m/step, while the
+  // body itself never moved). During these frozen states hipLimit tracks whichever foot is currently lower (the
+  // stance one) instead of the hip, and holds it near-still instead of merely capping it to a giant's walking speed.
+  const FOOT_LOCK_STATES = { rise: 1, drop: 1, charge: 1, recover: 1 };
+  const FOOT_VMAX = 1.1, FOOT_OFF_MAX = 1.6;
+  let _hw = null, _q = null, _pl = null, _pr = null;
   function hipLimit(dt) {
-    const fix = GOLEM.fix, g = C.boss.g; if (!fix || !(dt > 0)) return; _hw = _hw || new V3(); _q = _q || new THREE.Quaternion();
-    if (!GOLEM.hip) GOLEM.root.traverse((o) => { if (!GOLEM.hip && o.isSkinnedMesh) GOLEM.hip = o.skeleton.bones.find((b) => b.name === 'hip'); });   // the skeleton's bone (QA samples that one)
+    const fix = GOLEM.fix, g = C.boss.g; if (!fix || !(dt > 0)) return; _hw = _hw || new V3(); _q = _q || new THREE.Quaternion(); _pl = _pl || new V3(); _pr = _pr || new V3();
+    if (!GOLEM.hip) GOLEM.root.traverse((o) => { if (o.isSkinnedMesh) { if (!GOLEM.hip) GOLEM.hip = o.skeleton.bones.find((b) => b.name === 'hip'); if (!GOLEM.footL) GOLEM.footL = o.skeleton.bones.find((b) => b.name === 'footL'); if (!GOLEM.footR) GOLEM.footR = o.skeleton.bones.find((b) => b.name === 'footR'); } });   // the skeleton's bones (QA samples the hip one)
     if (!GOLEM.hip) return;
     const off = fix.position, now = performance.now();
-    if (!g.visible) { GOLEM.hipPrev = null; off.set(0, 0, 0); return; }   // hidden: start clean (a pause / dialog keeps the reference: the first frame after it is limited too)
+    if (!g.visible) { GOLEM.hipPrev = null; GOLEM.hipBone = null; off.set(0, 0, 0); return; }   // hidden: start clean (a pause / dialog keeps the reference: the first frame after it is limited too)
     GOLEM.hipT = now;
     g.updateMatrixWorld(true);
-    // hip relative to the group's position, in world axes (turning counts: that is what the eye sees move)
-    const cur = _hw.setFromMatrixPosition(GOLEM.hip.matrixWorld).sub(g.position).clone(), toLocal = (v) => v.applyQuaternion(_q.copy(g.quaternion).invert()).divideScalar(g.scale.x || 1);
-    if (GOLEM.hipPrev) {
-      const d = cur.clone().sub(GOLEM.hipPrev), L = d.length(), max = HIP_VMAX * dt;
+    const locking = FOOT_LOCK_STATES[C.boss.st] && GOLEM.footL && GOLEM.footR;
+    let bone = GOLEM.hip, vmax = HIP_VMAX, offMax = 6;
+    if (locking) { const pl = _pl.setFromMatrixPosition(GOLEM.footL.matrixWorld), pr = _pr.setFromMatrixPosition(GOLEM.footR.matrixWorld); bone = pl.y <= pr.y ? GOLEM.footL : GOLEM.footR; vmax = FOOT_VMAX; offMax = FOOT_OFF_MAX; }
+    // tracked bone relative to the group's position, in world axes (turning counts: that is what the eye sees move)
+    const cur = _hw.setFromMatrixPosition(bone.matrixWorld).sub(g.position).clone(), toLocal = (v) => v.applyQuaternion(_q.copy(g.quaternion).invert()).divideScalar(g.scale.x || 1);
+    if (GOLEM.hipPrev && GOLEM.hipBone === bone) {
+      const d = cur.clone().sub(GOLEM.hipPrev), L = d.length(), max = vmax * dt;
       if (L > max) { const ex = d.multiplyScalar(1 - max / L); cur.sub(ex); off.sub(toLocal(ex)); }
       else {   // drain the offset with the budget that is left
         const left = (max - L) * 0.9, ol = off.length();
         if (ol > 1e-4) { const k = Math.min(ol, left / (g.scale.x || 1)) / ol, step = off.clone().multiplyScalar(k); off.sub(step); cur.sub(step.applyQuaternion(g.quaternion).multiplyScalar(g.scale.x || 1)); }
       }
-      if (off.length() > 6) off.setLength(6);
+      if (off.length() > offMax) off.setLength(offMax);
       fix.updateMatrixWorld(true);
     }
-    if (GOLEM.hipPrev) { const v = cur.distanceTo(GOLEM.hipPrev) / dt; GOLEM.hipMax = Math.max(GOLEM.hipMax || 0, v); }
-    GOLEM.hipPrev = cur;
+    if (GOLEM.hipPrev && GOLEM.hipBone === bone) { const v = cur.distanceTo(GOLEM.hipPrev) / dt; GOLEM.hipMax = Math.max(GOLEM.hipMax || 0, v); }
+    GOLEM.hipBone = bone; GOLEM.hipPrev = cur;
   }
   function bossDeath() {
     const A = GOLEM.A; if (!A) return false;
@@ -726,6 +957,8 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   /* ============ incoming3: Kestrel wreck, debris trail, cargo case, ship parts, lake cell, rocks (FIX-WORLD) ============ */
   // visible ground = heightfield + loose snow (what the player and the QA height map see)
   const VIS = (x, z) => H(x, z) + (typeof C.snowDepthAt === 'function' ? Math.max(0, C.snowDepthAt(x, z) || 0) : 0);
+  // the snow surface exactly as drawn (terrain snowField: micro relief, drifts, presses) when the terrain provides it
+  const DRAWN = (x, z) => { const f = C.snowField; if (f && f.sample) { const q = f.sample(x, z); if (q && Number.isFinite(q[0])) return q[0]; } return VIS(x, z); };
   const visUnder = (x, z, yaw, box, s = 1) => { const c = Math.cos(yaw), sn = Math.sin(yaw); let sum = 0, n = 0, mn = 1e9;
     for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++) { const lx = (box.min.x + (box.max.x - box.min.x) * i / 2) * s * 0.8, lz = (box.min.z + (box.max.z - box.min.z) * j / 2) * s * 0.8, h = VIS(x + lx * c + lz * sn, z - lx * sn + lz * c); sum += h; n++; mn = Math.min(mn, h); }
     return { mean: sum / n, min: mn }; };
@@ -752,12 +985,12 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     for (let i = 0; i < n; i++) { const x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2];
       const wx = e[0] * x + e[4] * y + e[8] * z + e[12], wy = e[1] * x + e[5] * y + e[9] * z + e[13], wz = e[2] * x + e[6] * y + e[10] * z + e[14];
       W[i * 3] = wx; W[i * 3 + 1] = wy; W[i * 3 + 2] = wz; if (wx < x0) x0 = wx; if (wx > x1) x1 = wx; if (wz < z0) z0 = wz; if (wz > z1) z1 = wz; }
-    const lo = new Array(9).fill(null), top = new Array(9).fill(-1e9);
+    const N = o.grid || 3, lo = new Array(N * N).fill(null), top = new Array(N * N).fill(-1e9);
     for (let i = 0; i < n; i++) { const x = W[i * 3], y = W[i * 3 + 1], z = W[i * 3 + 2];
-      const ci = Math.min(2, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * 3)), cj = Math.min(2, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * 3)), k = ci * 3 + cj;
+      const ci = Math.min(N - 1, Math.floor((x - x0) / Math.max(1e-3, x1 - x0) * N)), cj = Math.min(N - 1, Math.floor((z - z0) / Math.max(1e-3, z1 - z0) * N)), k = ci * N + cj;
       if (!lo[k] || y < lo[k][1]) lo[k] = [x, y, z]; if (y > top[k]) top[k] = y; }
     const surf = o.surf || VIS, cells = [];
-    for (let k = 0; k < 9; k++) if (lo[k]) cells.push({ y: lo[k][1], h: top[k] - lo[k][1], s: surf(lo[k][0], lo[k][2]) + (o.extra || 0) });
+    for (let k = 0; k < N * N; k++) if (lo[k]) cells.push({ y: lo[k][1], h: top[k] - lo[k][1], s: surf(lo[k][0], lo[k][2]) + (o.extra || 0) });
     const bur = (dy) => { let a = 0, c = 0; for (const q of cells) if (q.h > 0.02) { a += clamp((q.s - q.y - dy) / q.h, 0, 1); c++; } return c ? a / c : 0; };
     const gap = (dy) => { let g = 1e9; for (const q of cells) g = Math.min(g, q.y + dy - q.s); return g; };
     let sLo = 1e9, sHi = -1e9, yLo = 1e9, yHi = -1e9; for (const q of cells) { sLo = Math.min(sLo, q.s); sHi = Math.max(sHi, q.s); yLo = Math.min(yLo, q.y); yHi = Math.max(yHi, q.y + q.h); }
@@ -827,16 +1060,39 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   }
   ST.shellInside = shellInside;
 
-  /* ---- Kestrel: DC-3-like wreck, nose dug in, tail break open, right wing stub up (left one torn off) ---- */
-  const KES = { yaw: 0.7, buryTail: 0.3, buryNose: 1.0, roll: -0.08, ok: false };
+  /* ---- Kestrel: DC-3-like wreck, nose dug in, tail break open, right wing stub up (left one torn off) ----
+   * CAMP.md: the pack's hull is 12.75 m long but already 2.46 m wide (a real DC-3: 19.7 m long, fuselage ≈ 2.6–2.8 m) →
+   * stretched to real size along the fuselage (×1.55 → 19.7 m) and ×1.15 across (2.83 m wide, 2.7 m tall); the wing stub is
+   * counter-scaled along the chord so it grows ×1.15 uniformly (a ×1.55 chord would read as a wing twice too deep). The debris
+   * trail is laid out ×1.55 longer; the tail / wing sections follow the hull (×1.15); small pieces were already real-size. */
+  const KES = { yaw: 0.7, buryTail: 0.3, buryNose: 1.15, roll: -0.08, ok: false, S: { x: 1.15, y: 1.15, z: 1.55, toArray() { return [this.x, this.y, this.z]; } }, trail: 1.55, big: 1.15 };
+  function fixKestrelUV(mat, ru, rv) {
+    if (mat.userData.kesUV) return; mat.userData.kesUV = true;
+    for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+      const t = mat[slot]; if (t) { t.repeat.set(ru, rv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; }
+    }
+  }
   function buildKestrel() {
     const K = C.WORLD.kestrel; if (!K) return;
     const k = K.g; k.rotation.order = 'YXZ'; k.rotation.set(0, KES.yaw, 0);
     need('ship_kestrel', (gl) => {
       const root = gl.scene, wrap = new THREE.Group(); wrap.name = 'kestrel_wreck'; wrap.rotation.y = Math.PI; wrap.add(root); wrap.userData.struct = true; k.add(wrap);
+      wrap.scale.set(KES.S.x, KES.S.y, KES.S.z);
+      const wings = root.getObjectByName('Wings');   // the stub: ×S.x along its chord too (uniform), about its own centre
+      if (wings) { root.updateMatrixWorld(true); wings.updateMatrix(); const wb = new THREE.Box3().setFromObject(wings), inv = wings.parent.matrixWorld.clone().invert(), cz = wb.getCenter(new V3()).applyMatrix4(inv), f = KES.S.x / KES.S.z;
+        wings.matrix.premultiply(new THREE.Matrix4().makeTranslation(cz.x, cz.y, cz.z).multiply(new THREE.Matrix4().makeScale(1, 1, f)).multiply(new THREE.Matrix4().makeTranslation(-cz.x, -cz.y, -cz.z)));
+        wings.matrixAutoUpdate = false; wings.matrixWorldNeedsUpdate = true; }
+      KES.len = +(new THREE.Box3().setFromObject(root.getObjectByName('Fus_Inner') || root).getSize(new V3()).toArray().sort((a, b) => b - a)[0]).toFixed(2);
       // the baked atlases carry the weathered aluminium (metal .45 + real roughness): colours/metal untouched; snow on top
       root.traverse((o) => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true;
-        for (const m of [].concat(o.material)) { if (/Glass/i.test(m.name)) continue; cover(m, /Primer/i.test(m.name) ? { amount: 0.4, minUp: 0.72, soft: 0.2, skirt: 0.1 } : { amount: 0.95, minUp: 0.58, soft: 0.24, skirt: 0.4 }); } });
+        for (const m of [].concat(o.material)) { if (/Glass/i.test(m.name)) continue;
+          // REALISM-QA rule 5: the panel-line texture tiles (UV goes well past [0,1] — a genuine repeat, baked for the
+          // pack's original 12.75 m hull); the ×1.55/×1.15 real-size stretch (CAMP.md) carried the tile frequency with
+          // it, so each panel/rivet row is now ×1.55 too long (Fus_*) — repeat.x runs along the fuselage length, .y
+          // around its girth. The wing stub ends up uniformly ×S.x after its own chord counter-scale below.
+          if (/kestrel_fus_(front|rear)/i.test(m.name)) fixKestrelUV(m, KES.S.z, KES.S.x);
+          else if (/kestrel_wings/i.test(m.name)) fixKestrelUV(m, KES.S.x, KES.S.x);
+          cover(m, /Primer/i.test(m.name) ? { amount: 0.4, minUp: 0.72, soft: 0.2, skirt: 0.1 } : { amount: 0.95, minUp: 0.58, soft: 0.24, skirt: 0.4 }); } });
       fitKestrel(k, wrap);
       K.base && K.base.pos && K.base.pos.copy(k.position);
       if (C.WORLD.kestrelBase) { C.WORLD.kestrelBase.pos.copy(k.position); C.WORLD.kestrelBase.rot.copy(k.rotation); }
@@ -858,14 +1114,14 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   function fitKestrel(k, wrap) {
     const yaw = KES.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);   // k +Z (tail side), k +X (model left)
     const at = (lx, lz) => H(k.position.x + rx * lx + fx * lz, k.position.z + rz * lx + fz * lz);
-    const sAcross = (at(2.5, 0) - at(-2.5, 0)) / 5;
+    const sAcross = (at(2.5 * KES.S.x, 0) - at(-2.5 * KES.S.x, 0)) / (5 * KES.S.x);
     k.rotation.set(0, yaw, Math.atan(sAcross) + KES.roll, 'YXZ'); k.updateMatrixWorld(true);
     // belly line in wrap space: lowest hull point under the centre line (ray from below)
     const meshes = []; wrap.traverse((o) => { if (o.isMesh && !/Glass/i.test([].concat(o.material)[0].name)) meshes.push(o); });
     const rc = new THREE.Raycaster(), zs = [], belly = [];
     for (let z = -5.4; z <= 6.6; z += 0.6) {
       const o = wrap.localToWorld(new V3(0, -4, z)), d = wrap.localToWorld(new V3(0, 1, z)).sub(wrap.localToWorld(new V3(0, 0, z))).normalize();
-      rc.set(o, d); rc.far = 12; const h = rc.intersectObjects(meshes, false)[0];
+      rc.set(o, d); rc.far = 16; const h = rc.intersectObjects(meshes, false)[0];
       if (h) { const y = wrap.worldToLocal(h.point.clone()).y; if (y < 0.9) { zs.push(z); belly.push(y); } }   // skip the open tail / nose curve
     }
     if (zs.length < 4) { for (let z = -5.4; z <= 6.6; z += 0.6) { zs.push(z); belly.push(0.3); } }
@@ -884,7 +1140,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     // counts as buried even when the hull itself is only 0.3–1 m in
     k.updateMatrixWorld(true); const WF = flatten(wrap), q = seatY(WF, wrap.matrixWorld.clone(), 0.2, { maxGap: 0.05 });   // 0.2 + the drift the terrain piles on later
     if (q.dy > 0) { k.position.y += q.dy; KES.raised = +q.dy.toFixed(2); }
-    KES.fit = { pitch: +k.rotation.x.toFixed(3), roll: +k.rotation.z.toFixed(3), y: +k.position.y.toFixed(2), residual: +err().mean.toFixed(3), belly: belly.map((v) => +v.toFixed(2)) };
+    KES.fit = { len: KES.len, scale: KES.S.toArray(), pitch: +k.rotation.x.toFixed(3), roll: +k.rotation.z.toFixed(3), y: +k.position.y.toFixed(2), residual: +err().mean.toFixed(3), belly: belly.map((v) => +v.toFixed(2)) };
     ST.stats.kestrel = KES.fit;
   }
 
@@ -898,22 +1154,23 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   function placeDebris(gl) {
     const k = C.WORLD.kestrel.g, yaw = KES.yaw, bx = Math.sin(yaw), bz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);   // behind (k +Z) · left of the wreck (k +X)
     const cp = C.POI.crash, kx = k.position.x, kz = k.position.z;
-    taken.push([kx, kz, 7.5], [C.WORLD.crate.position.x, C.WORLD.crate.position.z, 2.2], [cp.x - 3, cp.z + 10, 2.2]);   // wreck, cargo case, start spot
+    taken.push([kx, kz, 11], [C.WORLD.crate.position.x, C.WORLD.crate.position.z, 2.2], [cp.x - 3, cp.z + 10, 2.2]);   // wreck, cargo case, start spot
     // [node, metres behind, metres to the left, big?]
     const plan = [['TailSection', 27, 2.5, 1], ['WingSection', 5, 17, 1],
-      ['debris_cargo_door', 1.5, 6.2], ['debris_wheel', -1.5, -8], ['debris_skin_panel_a', 9.5, -2.5], ['debris_prop_blade', 8, 4.8], ['debris_cowling', 12.5, 3.2],
+      ['debris_cargo_door', 1.5, 8.5], ['debris_wheel', -1.5, -8], ['debris_skin_panel_a', 9.5, -2.5], ['debris_prop_blade', 8, 4.8], ['debris_cowling', 12.5, 3.2],
       ['debris_window_frame', 11.5, -5.5], ['debris_skin_strip', 15, -3.5], ['debris_cable_bundle', 17.5, 0.8], ['debris_seat', 20, -2.2], ['debris_skin_panel_b', 21.5, 5]];
-    for (const [name, along, lat, big] of plan) {
+    for (let [name, along, lat, big] of plan) {
       const F = nodeF(gl, name); if (!F) continue;
       solidOpen(F);
       for (const p of F.parts) if (!/Glass/i.test(p.mat.name)) cover(p.mat, { amount: 0.8, minUp: 0.6, soft: 0.24, skirt: big ? 0.35 : 0.1 });
+      const sc = big ? KES.big : 1; along *= KES.trail; if (big) lat *= KES.big;   // trail laid out for the real-size hull
       const x0 = kx + bx * along + lx * lat + rr(-1, 1), z0 = kz + bz * along + lz * lat + rr(-1, 1);
       const ry = big ? yaw + rr(-0.5, 0.5) + (name === 'WingSection' ? Math.PI / 2 : 0) : rr(0, TAU);
-      const sp = findSpot(x0, z0, ry, F.box, 1, big ? { maxDeg: 16, maxRise: 1.1, R: 9, step: 1 } : { maxDeg: 24, maxRise: 0.35, R: 4, step: 0.6 });
+      const sp = findSpot(x0, z0, ry, F.box, sc, big ? { maxDeg: 16, maxRise: 1.1, R: 9, step: 1 } : { maxDeg: 24, maxRise: 0.35, R: 4, step: 0.6 });
       if (!sp) { warn('debris: no ground for', name); continue; }
-      const rad = Math.hypot(F.box.max.x - F.box.min.x, F.box.max.z - F.box.min.z) * 0.5; taken.push([sp.x, sp.z, rad * 0.8]);
-      const hgt = F.box.max.y - F.box.min.y, item = { name, F, x: sp.x, z: sp.z, ry, big: !!big, hgt };
-      [item.rx, item.rz] = groundTilt(sp.x, sp.z, ry, F.box, 1, big ? 0.22 : 0.3);
+      const rad = Math.hypot(F.box.max.x - F.box.min.x, F.box.max.z - F.box.min.z) * 0.5 * sc; taken.push([sp.x, sp.z, rad * 0.8]);
+      const hgt = (F.box.max.y - F.box.min.y) * sc, item = { name, F, x: sp.x, z: sp.z, ry, big: !!big, hgt, s: sc };
+      [item.rx, item.rz] = groundTilt(sp.x, sp.z, ry, F.box, sc, big ? 0.22 : 0.3);
       if (!big) { item.rx += rr(-0.06, 0.06); item.rz += rr(-0.06, 0.06); }
       item.meshes = spawn(F, [new THREE.Matrix4()], { name: 'kestrel_' + name });
       seatDebris(item); DEB.list.push(item); count('debris');
@@ -921,7 +1178,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
   }
   // (re)seat on the visible snow: small pieces rest on it (a few cm in), sections sink through the loose snow
   function seatDebris(it) {
-    const F = it.F, M0 = mat4(it.x, 0, it.z, it.ry, 1, it.rx, it.rz), fit = seatY(F, M0, it.big ? 0.12 : 0.1, { maxGap: 0.03 });
+    const F = it.F, M0 = mat4(it.x, 0, it.z, it.ry, it.s || 1, it.rx, it.rz), fit = seatY(F, M0, it.big ? 0.12 : 0.1, it.big ? { maxGap: 0.03 } : { maxGap: 0.01, grid: 4, surf: DRAWN });   // small pieces: same 4×4 cells + drawn snow as REALISM-QA rule 4
     const y = fit.dy, M = withY(M0, y); it.fit = { buried: +fit.buried.toFixed(3), gap: +fit.gap.toFixed(3) };
     for (const m of it.meshes) { m.matrix.copy(M); m.matrixWorldNeedsUpdate = true; }
     if (it.entries) for (const e of it.entries) C.Passport.remove(e);
@@ -958,7 +1215,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
     const c = F.box.getCenter(new V3()), inner = new THREE.Group(); inner.rotation.set(0.12, 0.6, 0.42); inner.position.y = 0.12;
     for (const p of F.parts) { const mat = p.mat.clone(); delete mat.userData.trSnow; if (mat.emissive) { mat.emissive.setHex(0x2ab8ff); mat.emissiveIntensity = 0.12; } cover(mat, { amount: 0.5, minUp: 0.7, soft: 0.2, skirt: 0 });
       const m = new THREE.Mesh(p.geo, mat); m.position.copy(c).negate(); m.castShadow = true; m.userData.noCollide = true; inner.add(m); }
-    inner.scale.setScalar(1.1); holder.add(inner); holder.userData.struct = true; count('cell');
+    inner.scale.setScalar(1.1); holder.add(inner); holder.userData.struct = true; holder.userData.qaPassable = 'pickup (taken with E, then hidden)'; count('cell');
   }
 
   /* ---- cargo case (tool): lid opens (clip Open), the pulse cutter lifts out and flies into the pilot's hand ---- */
@@ -1062,7 +1319,7 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
       // 12–20 % of it under the visible snow, counting the drift the terrain will pile against it
       const drift = Math.min(0.26, hgt * 0.16) * smooth01(0.3, 1.2, hgt) * 0.5, want = 0.12 + r() * 0.08;
       const M0 = new THREE.Matrix4().compose(new V3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, yaw, rz, 'YXZ')), new V3(k, ky, k));
-      const fit = seatY(F, M0, want, { extra: drift }), M = withY(M0, fit.dy);
+      const fit = seatY(F, M0, want, { extra: drift, grid: 4, surf: DRAWN }), M = withY(M0, fit.dy);   // DRAWN + 4×4 grid: matches REALISM-QA's own burial cells (was VIS + 3×3 — a handful of rocks on drifted/uneven ground read 33–40 % buried against the real surface despite fitting to a 12–20 % target against the approximate one)
       const cx = Math.floor(x / ROCK.cell), cz = Math.floor(z / ROCK.cell), key = Md.key + ':' + cx + ':' + cz;
       if (!groups.has(key)) groups.set(key, { Md, mats: [] }); groups.get(key).mats.push(M); st.n++; st.bury.push(fit.buried); (ST.stats.rockFits = ST.stats.rockFits || []).push([+x.toFixed(1), +z.toFixed(1), mi, +hgt.toFixed(2), +want.toFixed(2), +fit.buried.toFixed(2), +fit.gap.toFixed(2), +drift.toFixed(2)]);
     }
@@ -1082,7 +1339,15 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
    * the baked sky light never reached its albedo — it rendered as a dark grey blob lit only by blurry env reflections.
    * Painted composite panels: metalness 0.05, roughness ≈ 0.6 with world-space micro variation (the 1024² atlas spreads
    * ~12 m of hull, ≈ 1–2 cm/texel with painted-in shading: it needs detail on top, not a sharper copy of itself), plus
-   * faint roof-edge streaks. Snow on top / snow skirt / grime at the base / contact AO come from modules/groundblend.js. */
+   * faint roof-edge streaks. Snow on top / snow skirt / grime at the base / contact AO come from modules/groundblend.js.
+   *
+   * ASSET-QUALITY-1: the blotch/streak/roughness noise above only ever modulates the existing 1024² colour map — it
+   * breaks up the flat *tone*, but a soft source photo stays soft: no new edge/rivet/seam frequency was ever added, so
+   * up close the panels still read as a blurry photo instead of built hardware. No source texture is authored here
+   * (out of scope, see ASSET-QUALITY-1.md); the `normal_fragment_maps` hook below adds a small procedural
+   * detail-normal perturbation instead (see its own comment for what was tried first and rejected) — a modest,
+   * real sharpening of what the eye reads as "surface detail", independent of the (unchanged) colour-map
+   * resolution. */
   const HAB = { t: 0, n: 0 };
   function fixHabMat(mat) {
     if (!mat || !mat.isMeshStandardMaterial || mat.userData.habFix) return false;
@@ -1102,8 +1367,20 @@ float stNoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2
           float st = habN(vec3(vHabW.x * 4.3, vHabW.y * .25, vHabW.z * 4.3));   // vertical run-off streaks
           diffuseColor.rgb *= (.9 + .12 * n1 + .06 * n2) * (1. - .1 * smoothstep(.55, .9, st)); }`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = clamp(roughnessFactor + (habN(vHabW * 5.7) - .5) * .3, .35, .95);`); };
-    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|hab1'; };
+        roughnessFactor = clamp(roughnessFactor + (habN(vHabW * 5.7) - .5) * .3, .35, .95);`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        { // procedural detail-normal overlay (no source texture): a first attempt used the full Mikkelsen
+          // tangent-free derivative bump (dividing the screen-space height gradient through the surface-derivative
+          // determinant) and it was **rejected on look-gate** — near-tangent screen directions on this cylindrical
+          // hull send that determinant toward 0, blowing the perturbation up into a harsh camo/dazzle pattern that
+          // hid the decals entirely (see ASSET-QUALITY-1.md, "what was tried and rejected"). Safe replacement:
+          // perturb normal.xy by a small CLAMPED screen-space gradient of the same coarse noise field (no
+          // division anywhere, so no blow-up) — a gentle micro-facet cue instead of a chaotic flip.
+          float habBH = habN(vHabW * 2.2) * .6 + habN(vHabW * 8.0) * .4;
+          vec2 habG = clamp(vec2(dFdx(habBH), dFdy(habBH)) * 0.7, vec2(-0.15), vec2(0.15));   // CAMP.md: the pack now carries a real 2k normal map (seams, rivets) — this is only broad panel waviness
+          normal = normalize(normal + vec3(habG, 0.0));
+        }`); };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|hab2'; };
     mat.needsUpdate = true; return true;
   }
   function updateHab(dt) {

@@ -646,7 +646,7 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
 
   function fireRing(f, lx, lz) { scope('solid', 'fire_ring', () => fireRingIn(f, lx, lz)); }
   function fireRingIn(f, lx, lz) {   // stones rest on the loose camp snow (≈ 10 cm), not sunk into it
-    const g = f.gy(lx, lz);
+    const g = f.gy(lx, lz); S.campFire = f.p(lx, g + .1, lz);   // smoulders: heat decal + thin smoke from open-world.html's FIRE region
     for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; addS(G.chip0, f.L(M(lx + Math.cos(a) * .75, g + .15, lz + Math.sin(a) * .75, rr(0, TAU), 0, 0, rr(.16, .24), rr(.12, .18), rr(.16, .24))), jit(COL.stone, .1)); }
     for (let i = 0; i < 3; i++) addB(G.cyl6, f.L(M(lx, g + .2, lz, i * 1.1, Math.PI / 2, 0, .07, 1, .07)), [.05, .045, .04], [1, 0, 0]);
   }
@@ -664,11 +664,15 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
     if (!best) return null;
     const f = frame(best.x, best.z, rr(0, TAU));
     const put = (kind, lx, lz, yaw, o) => { const [x, z] = f.w(lx, lz); return slot(kind, x, z, f.yaw + yaw, Object.assign({ site: 'camp' }, o)); };
-    put('tent_dome', 0, 0, .1); put('tent_tunnel', 5.2, 1.5, .4); put('tent_dome', -4.6, 2.6, -.3 + Math.PI, { s: .92 });
-    put('crate_wood', 2.2, -4, .3, { push: 18 }); put('crate_wood', 3.4, -3.9, -.1, { push: 18 }); put('crate_wood', 2.7, -4, .5, { push: 18, up: .46 });
+    // polar pyramid tents (procedural, modules/structures.js — CAMP.md): the stove tent (lit, smoking) + a second one
+    put('tent_polar_stove', 0, 0, .1); put('tent_polar', 6.6, 1.2, .5);   // (the 1.3 m hiking dome is gone: sizes.json wants camp tents ≥ 1.9 m)
+    // REALISM-QA rule 6 (repetition): the stacked crate sits 0.5 m from the first (same model) — a scale nudge (not
+    // rotation: it's a dynamic pushable, gravity/contact settling can shrink an authored yaw gap by the time it's measured)
+    put('crate_wood', 2.2, -4, .3, { push: 18 }); put('crate_wood', 3.4, -3.9, -.1, { push: 18 }); put('crate_wood', 2.7, -4, 1.4, { push: 18, up: .46, scale: 0.88 });
     put('crate_wood', 4.4, -2.2, 1.2, { push: 18 });
     put('drum_blue', -2.8, -4.2, 0, { push: 16 }); put('drum_blue', -2.2, -4.8, 1, { push: 16 }); put('barrel_steel', -3.5, -3.4, .6, { push: 22, lying: true });
-    put('sledge', 7.5, -3, .9 - Math.PI / 2); put('snowcat', -9.5, -6.5, .35 - Math.PI / 2, { tilt: [.06, -.05], sink: .16 });
+    put('sledge', 8.6, -4.2, .9 - Math.PI / 2, { s: .9 });   // 4.6 m pack → 4.1 m (Nansen sledge 2.4–4.5 m)
+    put('snowcat', -9.5, -6.5, .35 - Math.PI / 2, { tilt: [.06, -.05], sink: .16 });
     fireRing(f, 1, 5.2);
     // the pole line ends at a transformer pole in the camp
     const [mx, mz] = f.w(7, 6.5), my = C.getH(mx, mz) - .3, myaw = Math.atan2(st.x - mx, st.z - mz);
@@ -1422,5 +1426,5 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
     S.stats.tris.clutter_stone = triCount(g, K.pool.stone); S.stats.stoneScan = { tris: out.length / 3, verts: cnt.length };
     return true;
   }
-  window.WorldFill = { build, update, passablesNear, setStoneGeometry, knobs: K, get stats() { return S.stats; }, get slots() { return S.slots; } };
+  window.WorldFill = { build, update, passablesNear, setStoneGeometry, knobs: K, get stats() { return S.stats; }, get slots() { return S.slots; }, get campFire() { return S.campFire || null; } };
 })();

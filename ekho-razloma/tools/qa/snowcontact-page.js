@@ -167,7 +167,7 @@
       for (const p of plants) {
         const near = bl.filter((b) => Math.hypot(b.x - p.x, b.z - p.z) < 0.2), own = near.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
         const ov = own ? SC.overlap(own.cellsXZ, p.cps, mapS.ext / mapS.res) : { printUnderBoot: null, bootWithPrint: null };
-        out.per.push({ side: p.side, t: p.t, drift: p.drift, printsWithin20cm: near.length, centreErrCm: own ? r3(Math.hypot(own.x - p.x, own.z - p.z) * 100) : null, stanceAvgErrCm: own ? r3(Math.hypot(own.x - p.vx, own.z - p.vz) * 100) : null, printUnderBoot: ov.printUnderBoot, bootWithPrint: ov.bootWithPrint, printLenWid: own ? [r3(own.len), r3(own.wid)] : null, depthCm: own ? r3(own.peak * 100) : null });
+        out.per.push({ side: p.side, t: p.t, drift: p.drift, printsWithin20cm: near.length, centreErrCm: own ? r3(Math.hypot(own.x - p.x, own.z - p.z) * 100) : null, bootCentreErrCm: own ? r3(Math.hypot(own.x - p.ax, own.z - p.az) * 100) : null, stanceAvgErrCm: own ? r3(Math.hypot(own.x - p.vx, own.z - p.vz) * 100) : null, printUnderBoot: ov.printUnderBoot, bootWithPrint: ov.bootWithPrint, printLenWid: own ? [r3(own.len), r3(own.wid)] : null, depthCm: own ? r3(own.peak * 100) : null });
       }
       // standing still: any texel that deepened by > 4 mm while standing, as blobs
       const dm = SC.diffMap(mapS, mapE); const nb = SC.blobs(Object.assign({}, dm, { dd: dm.delta }), 0.004, box);
@@ -188,6 +188,11 @@
     out.printUnderBoot = med('printUnderBoot'); out.bootWithPrint = med('bootWithPrint');
     const errA = out.per.map((q) => q.stanceAvgErrCm).filter(Number.isFinite).sort((a, b) => a - b); out.stanceAvgErrCm = { median: errA.length ? errA[errA.length >> 1] : null, max: errA.length ? errA[errA.length - 1] : null };
     out.centreErrCm = { median: errs.length ? errs[errs.length >> 1] : null, max: errs.length ? errs[errs.length - 1] : null, n: errs.length };
+    // PHYSBODY: the same print centre against the centre of the WHOLE boot bottom (all its vertices, plan view) at that frame.
+    // centreErrCm compares with the centroid of the vertices within 2 cm of the lowest one — the heel at heel strike, the toe
+    // cap at toe-off, the whole sole only if the sole is dead flat — so it reads the boot's tilt at the chosen frame as "slide"
+    const errB = out.per.map((q) => q.bootCentreErrCm).filter(Number.isFinite).sort((a, b) => a - b);
+    out.bootCentreErrCm = { median: errB.length ? errB[errB.length >> 1] : null, max: errB.length ? errB[errB.length - 1] : null, n: errB.length };
     const cnt = out.per.map((q) => q.printsWithin20cm); out.printsPerPlant = { min: Math.min(...cnt), max: Math.max(...cnt), exactlyOne: cnt.filter((c) => c === 1).length, of: cnt.length };
     if (mode === 'stamps') { const cs = out.per.map((q) => q.printsDuringStance); out.stampsPerStance = { min: Math.min(...cs), max: Math.max(...cs), mean: r3(cs.reduce((a, b) => a + b, 0) / Math.max(1, cs.length)) }; }
     return out;

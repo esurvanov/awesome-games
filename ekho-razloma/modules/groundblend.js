@@ -511,3 +511,43 @@
   }
   (window.GameModules = window.GameModules || []).push({ name: 'groundblend', order: 60, init, update });
 })();
+
+/* texbudget — runtime guard for the texture-unit budget (TEXUNITS.md). three.js only says "Trying to use N texture
+ * units while this GPU supports only 16" (no material name) and then draws that material wrong. Every second, each
+ * newly compiled program's active samplers are counted once; an overflow prints ONE line per material naming it:
+ *   [TEXBUDGET] material "…" on "…": 22 texture units > 16 (…samplers)
+ * TexBudget.report() → { limit, checked, over: [...] } (tools/qa/texunits.mjs reads it; QA fails on either line). */
+(() => {
+  const TB = window.TexBudget = { seen: new Set(), warned: new Set(), over: [], checked: 0, limit: 0 };
+  let C = null, gl = null, ST = null, t = 0;
+  const samplers = (prog) => { const out = []; const n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS) || 0;
+    for (let i = 0; i < n; i++) { const u = gl.getActiveUniform(prog, i); if (u && ST.has(u.type)) out.push([u.name.replace(/\[0\]$/, ''), u.size]); } return out; };
+  TB.check = () => {
+    const R = C.renderer, bad = new Map();
+    for (const p of R.info.programs || []) {
+      if (!p || !p.program || TB.seen.has(p.id)) continue; TB.seen.add(p.id); TB.checked++;
+      const s = samplers(p.program), n = s.reduce((a, x) => a + x[1], 0);
+      if (n > TB.limit) bad.set(p.program, { p, n, names: s.map((x) => x[0]).join(', ') });
+    }
+    if (!bad.size) return 0;
+    const hit = new Set();
+    C.scene.traverse((o) => { for (const m of [].concat(o.material || [], o.customDepthMaterial || [], o.customDistanceMaterial || [])) {
+      const pr = R.properties.get(m); if (!pr || !pr.programs) continue;
+      for (const q of pr.programs.values()) { const f = q && bad.get(q.program); if (!f) continue; hit.add(f);
+        if (TB.warned.has(m.uuid)) continue; TB.warned.add(m.uuid);
+        const rec = { material: m.name || m.type, mesh: o.name || o.type, units: f.n, limit: TB.limit, samplers: f.names };
+        TB.over.push(rec); console.warn(`[TEXBUDGET] material "${rec.material}" on "${rec.mesh}": ${f.n} texture units > ${TB.limit} (${f.names}) — draws wrong; see TEXUNITS.md`); } } });
+    for (const f of bad.values()) if (!hit.has(f)) { const rec = { material: '(program ' + f.p.name + ')', mesh: '?', units: f.n, limit: TB.limit, samplers: f.names }; TB.over.push(rec);
+      console.warn(`[TEXBUDGET] program "${f.p.name}": ${f.n} texture units > ${TB.limit} (${f.names}) — draws wrong; see TEXUNITS.md`); }
+    return bad.size;
+  };
+  TB.report = () => ({ limit: TB.limit, checked: TB.checked, over: TB.over.slice() });
+  function init(ctx) {
+    C = ctx; gl = ctx.renderer.getContext(); TB.limit = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);   // three allocates vertex + fragment samplers from this one pool
+    ST = new Set(['SAMPLER_2D', 'SAMPLER_3D', 'SAMPLER_CUBE', 'SAMPLER_2D_SHADOW', 'SAMPLER_2D_ARRAY', 'SAMPLER_2D_ARRAY_SHADOW', 'SAMPLER_CUBE_SHADOW', 'INT_SAMPLER_2D', 'INT_SAMPLER_3D',
+      'INT_SAMPLER_CUBE', 'INT_SAMPLER_2D_ARRAY', 'UNSIGNED_INT_SAMPLER_2D', 'UNSIGNED_INT_SAMPLER_3D', 'UNSIGNED_INT_SAMPLER_CUBE', 'UNSIGNED_INT_SAMPLER_2D_ARRAY'].map((k) => gl[k]).filter((v) => v !== undefined));
+    ctx.texBudget = TB;
+  }
+  function update(dt, ctx) { C = ctx; if ((t -= dt) > 0) return; t = 1; try { TB.check(); } catch (e) { /* diagnostics only */ } }
+  (window.GameModules = window.GameModules || []).push({ name: 'texbudget', order: 99, init, update });
+})();

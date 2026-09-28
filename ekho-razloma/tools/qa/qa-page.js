@@ -545,6 +545,47 @@ void main() {
     return { checked: rows.length, floating: floating.length, buried: buried.length, floatingByKind: byKind(floating), buriedByKind: byKind(buried), pass: floating.length === 0 && buried.length === 0 };
   };
 
+  /* ------------------------------------------------------------------ texture-unit budget (TEXUNITS.md) */
+  // every compiled program: active sampler uniforms (total = what three allocates units for; vertex = samplers the
+  // vertex shader alone keeps active, measured by linking it with a trivial fragment shader; fragment = the rest +
+  // shared names) → which materials/meshes use it. FAIL when total > MAX_TEXTURE_IMAGE_UNITS (three warns "Trying to
+  // use N texture units" and the draw goes wrong) or a stage exceeds its own limit.
+  const _vsCache = new Map();
+  QA.texUnits = () => {
+    const gl = R.getContext();
+    const lim = { frag: gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS), vert: gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS), comb: gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) };
+    const ST = new Set(['SAMPLER_2D', 'SAMPLER_3D', 'SAMPLER_CUBE', 'SAMPLER_2D_SHADOW', 'SAMPLER_2D_ARRAY', 'SAMPLER_2D_ARRAY_SHADOW', 'SAMPLER_CUBE_SHADOW',
+      'INT_SAMPLER_2D', 'INT_SAMPLER_3D', 'INT_SAMPLER_CUBE', 'INT_SAMPLER_2D_ARRAY', 'UNSIGNED_INT_SAMPLER_2D', 'UNSIGNED_INT_SAMPLER_3D', 'UNSIGNED_INT_SAMPLER_CUBE', 'UNSIGNED_INT_SAMPLER_2D_ARRAY'].map((k) => gl[k]));
+    const samplers = (prog) => { const out = []; const n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
+      for (let i = 0; i < n; i++) { const u = gl.getActiveUniform(prog, i); if (u && ST.has(u.type)) out.push({ name: u.name.replace(/\[0\]$/, ''), size: u.size }); } return out; };
+    const vertSet = (prog) => {
+      const sh = gl.getAttachedShaders(prog) || []; const vs = sh.find((s) => gl.getShaderParameter(s, gl.SHADER_TYPE) === gl.VERTEX_SHADER); if (!vs) return new Set();
+      if (_vsCache.has(vs)) return _vsCache.get(vs);
+      const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, '#version 300 es\nprecision highp float;\nout vec4 qaO;\nvoid main(){ qaO = vec4(1.0); }'); gl.compileShader(fs);
+      const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
+      const s = new Set(gl.getProgramParameter(p, gl.LINK_STATUS) ? samplers(p).map((x) => x.name) : []);
+      gl.deleteProgram(p); gl.deleteShader(fs); _vsCache.set(vs, s); return s;
+    };
+    // program → users (material name · mesh name); a material can own several programs (depth, shadow, variants)
+    const users = new Map();
+    const note = (m, o, kind) => { if (!m) return; const pr = R.properties.get(m); const list = pr && pr.programs ? [...pr.programs.values()] : pr && pr.currentProgram ? [pr.currentProgram] : [];
+      for (const p of list) { if (!p || !p.program) continue; let u = users.get(p.program); if (!u) users.set(p.program, (u = new Map()));
+        const k = (m.name || m.type) + (kind ? ' (' + kind + ')' : ''); if (!u.has(k)) u.set(k, new Set()); if (u.get(k).size < 4) u.get(k).add(o.name || o.type); } };
+    D.scene.traverse((o) => { for (const m of [].concat(o.material || [])) note(m, o); note(o.customDepthMaterial, o, 'depth'); note(o.customDistanceMaterial, o, 'distance'); });
+    const progs = [];
+    for (const p of R.info.programs || []) {
+      if (!p || !p.program) continue;
+      const s = samplers(p.program), total = s.reduce((a, x) => a + x.size, 0);
+      const V = vertSet(p.program), fsrc = (() => { const sh = (gl.getAttachedShaders(p.program) || []).find((x) => gl.getShaderParameter(x, gl.SHADER_TYPE) === gl.FRAGMENT_SHADER); return sh ? gl.getShaderSource(sh) || '' : ''; })();
+      let vert = 0, frag = 0; for (const x of s) { const inV = V.has(x.name), inF = !inV || new RegExp('\\b' + x.name.replace(/[.[\]]/g, '\\$&') + '\\b').test(fsrc); if (inV) vert += x.size; if (inF) frag += x.size; }
+      const u = users.get(p.program), mats = u ? [...u.entries()].map(([k, v]) => k + ' ← ' + [...v].join(', ')) : [];
+      progs.push({ id: p.id, name: p.name, total, vert, frag, over: total > lim.frag || frag > lim.frag || vert > lim.vert, samplers: s.map((x) => x.name + (x.size > 1 ? '[' + x.size + ']' : '') + (V.has(x.name) ? ' (v)' : '')), materials: mats });
+    }
+    progs.sort((a, b) => b.total - a.total);
+    return { limits: lim, programs: progs.length, over: progs.filter((p) => p.over), top: progs.slice(0, 12), all: progs,
+      runtime: (C.texBudget && C.texBudget.report) ? C.texBudget.report() : null };
+  };
+
   /* ------------------------------------------------------------------ inventory */
   QA.inventory = () => {
     const pp = QA.passportIndex(), rows = [];

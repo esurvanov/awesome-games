@@ -115,8 +115,14 @@
     const t = performance.now(), G = g(), live = G.mode === 'play' && !G.pause && !document.hidden;
     const d = T.lastNow ? (t - T.lastNow) / 1000 : 0; T.lastNow = t;
     if (!live) { if (T.warm > 0) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 2); } return; }
+    // a fresh browser profile compiles shaders during the first minutes of play (new areas, new effects): every new
+    // program restarts a 4 s warm-up, and so does a jump of the player (teleport, respawn, continue) > 25 m in one frame
+    const x = X(), progs = x.renderer && x.renderer.info && x.renderer.info.programs ? x.renderer.info.programs.length : 0, pl = x.player;
+    if (progs !== T.progs) { if (T.progs !== undefined) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 4); } T.progs = progs; }
+    if (pl) { if (T.jumpPos && Math.hypot(pl.x - T.jumpPos.x, pl.z - T.jumpPos.z) > 25) { T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 4); } T.jumpPos = { x: pl.x, z: pl.z }; }
     T.warm += Math.min(d, 0.1);
-    if (T.warm < T.warmNeed) { T.dts.length = 0; return; }
+    if (T.warm < T.warmNeed) { T.dts.length = 0; T.poorT = 0; return; }
+    T.warmNeed = 2;   // later interruptions (pause, tab) need only 2 s; compiles / jumps raise it again above
     if (d > 0 && d < 1) { T.dts.push(d); if (T.dts.length > 240) T.dts.shift(); }
   }
   function track(dt) {
@@ -292,6 +298,11 @@
 
   /* ================================================================ f. QUALITY_DIRECTOR (+ local hysteresis) */
   const Q = { preset: 'high', lastChange: -999, streak: { dir: 0, n: 0 }, lockUntil: -1, focus: 'landscape' };
+  // the ladder the director walks: 'air' (weak laptop, LOWEND.md: 30 fps cap + FSR upscale) below the model's presets.
+  // The director is the ONE owner of automatic preset changes (modules/lowend.js only falls back to its own switch when
+  // ai.js is absent). low → air only on a poor frame rate (avg < 30 or 1 % < 20, 2 readings in a row, like every step
+  // down); air → low never automatically (the 30 fps cap hides any headroom): only by the player (pause menu, ?q=).
+  const LADDER = () => ['air'].concat(C.PRESETS);
   function deviceClass() {
     const x = X(); if (x.deviceClass) return x.deviceClass();
     const mob = !!x.coarse || matchMedia('(pointer: coarse)').matches, cores = navigator.hardwareConcurrency || 4, mem = navigator.deviceMemory || 8;
@@ -308,6 +319,7 @@
     if (!AI.available && !AI.cfg.quality.offlineRules) return;
     if (T.time < Q.lockUntil || document.hidden) return;
     const f = fpsStats(); if (!f) return;
+    if (Q.preset === 'air') return;   // capped at 30 fps: no headroom reading, leaving air is the player's choice
     const G = g(), info = x.renderer && x.renderer.info ? x.renderer.info.render : { calls: 0, triangles: 0 };
     const pitch = x.cam ? x.cam.pitch : 0.3, dlg = x.dialogActive && x.dialogActive();
     const s = { fpsAvg: +f.avg.toFixed(1), fpsLow: +f.low.toFixed(1), device: deviceClass(), mobile: !!x.coarse, activity: G.mode !== 'play' ? 'menu' : dlg ? 'dialogue' : G.riding ? 'driving' : x.inCombat && x.inCombat() ? 'combat' : 'exploring',
@@ -315,11 +327,16 @@
     AI.ask('QUALITY_DIRECTOR', s).then((r) => {
       if (!r) return;
       if (r.focus !== Q.focus) { Q.focus = r.focus; x.setFocus && x.setFocus(r.focus); }
-      hysteresis(r.preset, s, r.src);
+      // the model / rules know low…ultra; the step below low is local: a poor frame rate on low → air
+      // … and only once it has lasted ≥ 12 s of warmed-up play (a stall that ends is not a slow machine)
+      const poor = s.preset === 'low' && (s.fpsAvg < 30 || s.fpsLow < 20);
+      T.poorT = poor ? (T.poorT || 0) + AI.cfg.quality.every : 0;
+      const want = poor && r.preset === 'low' ? (T.poorT >= 12 ? 'air' : 'low') : r.preset;
+      hysteresis(want, s, r.src);
     });
   }
   function hysteresis(want, s, src) {
-    const P = C.PRESETS, cur = P.indexOf(Q.preset), w = P.indexOf(want); if (w < 0) return;
+    const P = LADDER(), cur = P.indexOf(Q.preset), w = P.indexOf(want); if (w < 0 || cur < 0) return;
     const dir = Math.sign(w - cur);
     if (dir === 0) { Q.streak = { dir: 0, n: 0 }; return; }
     Q.streak = Q.streak.dir === dir ? { dir, n: Q.streak.n + 1 } : { dir, n: 1 };
@@ -335,8 +352,12 @@
     T.dts.length = 0; T.warm = 0; T.warmNeed = 2;   // the new preset is judged on its own frames (after the switch spike)
     note('QUALITY', { preset: next, fps: s.fpsAvg, src });
     try { X().setQuality(next); } catch (e) { console.warn('[AI] setQuality', e); }
+    // remembered for the next visit only when confirmed: slow for ≥ 30 s of warmed-up play, or already stepped down to air
+    // in an earlier session (LowEnd.autoAir keeps a "pending" mark in between)
+    if (next === 'air' && window.LowEnd && LowEnd.autoAir) LowEnd.autoAir((T.poorT || 0) >= 30);
+    T.poorT = 0;
   }
-  AI.quality = { get preset() { return Q.preset; }, get focus() { return Q.focus; }, set(name, lockS = 300) { if (!C.PRESETS.includes(name)) return; Q.preset = name; Q.lastChange = T.time; Q.lockUntil = T.time + lockS; X().setQuality && X().setQuality(name); }, _hyst: hysteresis };
+  AI.quality = { get preset() { return Q.preset; }, get focus() { return Q.focus; }, set(name, lockS = 300) { if (!LADDER().includes(name)) return; T.dts.length = 0; T.warm = 0; T.warmNeed = Math.max(T.warmNeed, 2); Q.preset = name; Q.lastChange = T.time; Q.lockUntil = T.time + lockS; X().setQuality && X().setQuality(name); }, _hyst: hysteresis };
 
   /* ================================================================ g. PRELOAD */
   const PL = { done: new Set(), visited: new Set() };
@@ -480,7 +501,7 @@
       case 'hint': return hints(true);
       case 'talk_orm': return ormNear() ? setTimeout(() => open('orm'), 30) : where('Орм', x.orm && (x.orm.pos || x.orm), 'i-person');
       case 'quality_low': case 'quality_high': {
-        const P = C.PRESETS, i = P.indexOf(Q.preset), n = P[Math.max(0, Math.min(P.length - 1, i + (id === 'quality_low' ? -1 : 1)))];
+        const P = LADDER(), i = P.indexOf(Q.preset), n = P[Math.max(0, Math.min(P.length - 1, i + (id === 'quality_low' ? -1 : 1)))];
         AI.quality.set(n); return toast('i-chip', 'Графика · ' + n, 'c-ice');
       }
       case 'fox_seek': if (!(x.fox && x.fox.joined)) return toast('i-paw', 'Лисы рядом нет', 'c-dim'); if (x.events && x.events.fox_find && nearestShard()) { x.events.fox_find({ target: nearestShard() }); return toast('i-paw', 'Искра, ищи!', 'c-amber'); } return toast('i-paw', 'Искра ничего не чует', 'c-dim');

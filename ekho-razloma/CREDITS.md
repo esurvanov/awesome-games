@@ -19,6 +19,8 @@ Code: MIT (see `LICENSE`). Everything below keeps its original licence. Only the
 | Asset | Author / source | Licence |
 |---|---|---|
 | Habitat module, radome, pressurized rover, Global Hawk | [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources) | Public domain (NASA insignia used only as set dressing, no endorsement implied) |
+| Habitat module 2k colour + normal map (seams, rivet rows) | derived from NASA 3D Resources "Habitat Demonstration Unit (part 1)" — only a 1024² map is published; detail pass made for this project | Public domain |
+| Polar camp tents (procedural), campfire flame flipbook (noise-baked) | Built for this project; tent canvas weave: "Rough Linen" — [Poly Haven](https://polyhaven.com/a/rough_linen), photography colormass, processing Rico Cilliers | CC0 |
 | "Sci-Fi Radio Dish Antenna" | [david-w-cg](https://opengameart.org/content/sci-fi-radio-dish-antenna) (OpenGameArt) | CC-BY 4.0 |
 | Barrels, drums, crates, propane tank, generator, lamp post, pier, fire pit | [Poly Haven](https://polyhaven.com): Jorge Camacho, James Ray Cock, Jurita Burger, Slinc, Josh Dean, Rico Cilliers | CC0 |
 | Kestrel wreck and debris, station dome and module, tents, snowcat, snowmobile, sledge, rowboat, ruins, cairn, inuksuk, icebergs, pressure ridge, mountain ring, crystals | Built for this project (Blender), textured with CC0 scans from Poly Haven and ambientCG | CC0 |
@@ -29,6 +31,7 @@ Code: MIT (see `LICENSE`). Everything below keeps its original licence. Only the
 |---|---|---|
 | Tree and shrub generator, spruce sprig and bark textures | [EZ-Tree](https://github.com/dgreenheck/ez-tree) © Daniel Greenheck | MIT |
 | Rock scans (boulder_01, namaqualand_boulder_02, rock_face_01/02/03, namaqualand_cliff_01, mountainside) | Poly Haven: Rico Cilliers, Greg Zaal, Dario Barresi | CC0 |
+| Rock scans rock_07, rock_09, namaqualand_boulder_06 (decimated, 3 LODs, normal map re-baked: `tools/pack-rocks.mjs` → `assets/pack/rock_ph_*.js`) | [Poly Haven](https://polyhaven.com/a/rock_09): Jenelle van Heerden (models), Greg Zaal (photography, namaqualand_boulder_06) | CC0 |
 | Snow, gravel and ruin textures (snow_02, snow_03, snow_field_aerial, broken_wall), oak bark | Poly Haven: Rob Tuytel | CC0 |
 | Grass tufts, moss and lichen (Foliage001–008, Moss001/003/004), snow, ice and terrain heightmaps (Snow006, Ice001/003, Terrain002/004/005) | ambientCG (Lennart Demes) | CC0 |
 | Pine bark | [texturecan.com](https://www.texturecan.com) | CC0 |

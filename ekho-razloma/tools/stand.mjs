@@ -99,7 +99,13 @@ const PAGE_LIB = () => {
   L.ray = (objs, o, d, far = 60) => {
     for (const m of objs) if (m.isInstancedMesh) { m.boundingSphere = null; m.boundingBox = null; }   // instance sets change (forest LOD): never trust a cached bound
     const rc = new T.Raycaster(new T.Vector3(o.x, o.y, o.z), new T.Vector3(d.x, d.y, d.z).normalize(), 0, far);
-    const h = rc.intersectObjects(objs, false); return h.length ? h[0] : null;
+    // instanced meshes per instance: the game patches InstancedMesh.prototype.raycast with three-mesh-bvh's
+    // acceleratedRaycast, which never visits the instances (every instanced boulder was missed) — REALISM-QA.md
+    const h = []; for (const m of objs) { if (!m.isInstancedMesh) { rc.intersectObject(m, false, h); continue; }
+      const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); L._tm = L._tm || new T.Mesh(); L._tm.geometry = g; L._tm.material = m.material;
+      const M = new T.Matrix4(), S = new T.Sphere(); for (let k = 0; k < m.count; k++) { m.getMatrixAt(k, M); M.premultiply(m.matrixWorld); S.copy(g.boundingSphere).applyMatrix4(M); if (!rc.ray.intersectsSphere(S)) continue;
+        L._tm.matrixWorld.copy(M); const a = h.length; T.Mesh.prototype.raycast.call(L._tm, rc, h); for (let i = a; i < h.length; i++) { h[i].object = m; h[i].instanceId = k; } } }
+    h.sort((a, b) => a.distance - b.distance); const f = h.filter((x) => x.distance >= 0 && x.distance <= far); return f.length ? f[0] : null;
   };
   L.player = () => ({ x: D.player.x, y: D.player.y, z: D.player.z, onGround: D.player.onGround });
   L.teleport = (x, z, yaw, y) => {   // ground level unless y is given (DBG.teleport alone would land on top of whatever is there)
@@ -308,7 +314,10 @@ async function run() {
   const page = await browser.newPage();
   const errors = [], failed = [], warnings = [];
   // 'Failed to load resource' console lines are duplicates of the `failed` list (which has the URL); favicon is browser noise
-  page.on('console', (m) => { const t = m.type(), s = m.text(); if (t === 'error') { if (!/^Failed to load resource/.test(s)) errors.push(s); } else if (t === 'warning' || t === 'warn') warnings.push(s); });
+  // TEXUNITS.md hard invariant: a program over the texture-unit budget draws wrong without a link error → counted as an error
+  const texSeen = new Set(), texWarn = [];
+  page.on('console', (m) => { const t = m.type(), s = m.text(); if (t === 'error') { if (!/^Failed to load resource/.test(s)) errors.push(s); } else if (t === 'warning' || t === 'warn') warnings.push(s);
+    if (/Trying to use \d+ texture units|\[TEXBUDGET\]/.test(s) && !texSeen.has(s)) { texSeen.add(s); texWarn.push(s); errors.push('texture budget: ' + s); } });
   page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.message)));
   page.on('requestfailed', (r) => failed.push(r.url() + ' ' + (r.failure() && r.failure().errorText)));
   page.on('response', (r) => { if (r.status() >= 400 && !/favicon\.ico$/.test(r.url())) failed.push(r.status() + ' ' + r.url()); });
@@ -384,7 +393,7 @@ async function run() {
   result.summary = { fpsMedian: fpsList.length ? [...fpsList].sort((a, b) => a - b)[fpsList.length >> 1] : null, fpsMin: fpsList.length ? Math.min(...fpsList) : null,
     errors: errors.length, failed: failed.length, modulesOk: loader.filter((m) => m.ok).length, modules: loader.length, blackFrames: Object.values(result.views).filter((x) => x.black).length,
     collisionsOk: result.collisions ? result.collisions.filter((c) => c.ok).length : null, collisions: result.collisions ? result.collisions.length : null,
-    noisyViews: Object.values(result.views).filter((x) => x.noisy).length };
+    noisyViews: Object.values(result.views).filter((x) => x.noisy).length, texBudget: texWarn.length ? 'FAIL: ' + texWarn.slice(0, 6).join(' | ') : 'PASS' };
   const loadEnd = quietCheck();
   result.machine = { start: load, end: loadEnd };
   // fps verdict: only on a quiet machine and with stable samples
@@ -395,6 +404,7 @@ async function run() {
   log('summary', JSON.stringify(result.summary));
   if (errors.length) log('errors:', errors.slice(0, 10));
   if (failed.length) log('failed:', failed.slice(0, 10));
+  if (texWarn.length) { log('TEXTURE BUDGET FAIL (TEXUNITS.md):', texWarn.slice(0, 10)); process.exitCode = 3; }
   await closeAll();
 }
 

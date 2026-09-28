@@ -22,7 +22,7 @@
 
   let R = null, world = null, cfg = null;
   const debris = [], vehicles = [], characters = [], tags = new Map(); // collider handle -> tag
-  let acc = 0, alpha = 0, dirtyStatic = false, stepCount = 0;
+  let acc = 0, alpha = 0, dirtyStatic = false, dirtyEpoch = 0, stepCount = 0;
   const FIXED = 1 / 60, MAX_SUB = 5;
 
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -78,7 +78,7 @@
     need();
     const d = R.ColliderDesc.cylinder(height / 2, r).setTranslation(x, yBottom + height / 2, z)
       .setFriction(0.5).setCollisionGroups(groups(group ?? G_STATIC, G_ALL));
-    dirtyStatic = true;
+    dirtyStatic = true; dirtyEpoch++;
     return tag(world.createCollider(d), userTag || { kind: 'static' });
   }
   // exact static mesh (object passport 'solid'): world-space vertices + triangle indices
@@ -91,27 +91,39 @@
     try { d = flags !== undefined ? R.ColliderDesc.trimesh(v, ix, flags) : R.ColliderDesc.trimesh(v, ix); } catch (e) { d = null; }
     if (!d) d = R.ColliderDesc.trimesh(v, ix);
     d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
-    dirtyStatic = true;
-    return tag(world.createCollider(d), userTag || { kind: 'static' });
+    dirtyStatic = true; dirtyEpoch++;
+    return tag(world.createCollider(d), Object.assign({ kind: 'static' }, userTag, { center: vertsCenter(v) }));
   }
   // static convex hull of world-space points (small rocks, crystals)
   function addStaticConvex(points, userTag, o = {}) {
     need();
-    const d = R.ColliderDesc.convexHull(points instanceof Float32Array ? points : new Float32Array(points));
+    const pv = points instanceof Float32Array ? points : new Float32Array(points);
+    const d = R.ColliderDesc.convexHull(pv);
     if (!d) return null;
     d.setFriction(o.friction ?? 0.6).setCollisionGroups(groups(o.group ?? G_STATIC, G_ALL));
-    dirtyStatic = true;
-    return tag(world.createCollider(d), userTag || { kind: 'static' });
+    dirtyStatic = true; dirtyEpoch++;
+    return tag(world.createCollider(d), Object.assign({ kind: 'static' }, userTag, { center: vertsCenter(pv) }));
   }
   function addStaticBox(c, he, q, userTag) {
     need();
     const d = R.ColliderDesc.cuboid(he.x, he.y, he.z).setTranslation(c.x, c.y, c.z)
       .setFriction(0.6).setCollisionGroups(groups(G_STATIC, G_ALL));
     if (q) d.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
-    dirtyStatic = true;
+    dirtyStatic = true; dirtyEpoch++;
     return tag(world.createCollider(d), userTag || { kind: 'static' });
   }
-  function removeCollider(col) { if (col) { tags.delete(col.handle); world.removeCollider(col, true); } }
+  function removeCollider(col) { if (col) { tags.delete(col.handle); world.removeCollider(col, true); dirtyEpoch++; } }
+  // world-space AABB centre of a flat [x,y,z,...] array: 'solid' colliders bake world-space vertices with the collider's
+  // own translation left at the Rapier default (0,0,0) — .translation() on them always reads back (0,0,0), it is NOT
+  // where the mesh actually sits (unstick() used to push players away from the map origin instead of the obstacle).
+  function vertsCenter(v) {
+    let mnx = Infinity, mny = Infinity, mnz = Infinity, mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+    for (let i = 0; i + 2 < v.length; i += 3) {
+      const x = v[i], y = v[i + 1], z = v[i + 2];
+      if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; if (z < mnz) mnz = z; if (z > mxz) mxz = z;
+    }
+    return { x: (mnx + mxx) / 2, y: (mny + mxy) / 2, z: (mnz + mxz) / 2 };
+  }
 
   /* ------------------------------------------------------------- raycast */
   const _ray = { o: v3(), d: v3() };
@@ -144,6 +156,24 @@
   }
   // ground height (terrain/ice/static tops) under x,z — handy replacement for groundH()
   function groundY(x, z, fromY = 500) { const h = raycast(v3(x, fromY, z), v3(0, -1, 0), fromY + 50, { groups: G_STATIC }); return h ? h.point.y : cfg.seaLevel; }
+  // like groundY/raycast, but a stack of colliders at this x,z (a jutting crystal shard over a rock ledge, a low
+  // overhanging branch over the true floor) can put something un-walkable as the very first hit; a caller that just
+  // takes that first hit (spawn/teleport placement, the character controller's own unstick()) perches the character
+  // on a surface it immediately slides or falls off. This walks down through the stack instead, returning the first
+  // hit at or under maxSlope (default 45°, matching the character's own walkable threshold), or the raw first hit
+  // if nothing in range qualifies (still better than finding nothing at all).
+  function groundYWalkable(x, z, opts = {}) {
+    const cosMax = opts.cosMax ?? Math.SQRT1_2, maxIter = opts.maxIter ?? 6;
+    let y = opts.fromY ?? 500, bottom = opts.bottom ?? y - 100, first = null;
+    for (let i = 0; i < maxIter && y > bottom; i++) {
+      const h = raycast(v3(x, y, z), v3(0, -1, 0), y - bottom, { groups: G_STATIC, excludeCollider: opts.excludeCollider });
+      if (!h) break;
+      if (!first) first = h;
+      if (h.normal.y >= cosMax - 1e-3) return h;
+      y = h.point.y - 0.05;
+    }
+    return first;
+  }
 
   /* ----------------------------------------------------------- character */
   function createCharacter(o = {}) {
@@ -162,6 +192,7 @@
       snap: o.snapDistance ?? 0.5,
       coyote: o.coyoteTime ?? 0.12, buffer: o.jumpBuffer ?? 0.12,
       mass: o.mass ?? 80, skin: 0.02,
+      unstickEvery: Math.max(1, o.unstickEvery | 0 || 1),   // weak profiles: check less often (still forced right after a teleport/placement)
     };
     const halfCyl = Math.max(0.01, P.height / 2 - P.radius);
     const centerOff = P.height / 2 + P.skin;               // feet -> capsule center
@@ -185,6 +216,7 @@
       vel: v3(), pos: v3(o.x ?? 0, o.y ?? 0, o.z ?? 0), prev: v3(o.x ?? 0, o.y ?? 0, o.z ?? 0),
       acc: 0, grounded: false, walkable: false, coyoteT: 0, bufT: 0, jumping: false, enabled: true,
       normal: v3(0, 1, 0), slideDir: null, airT: 0, actual: v3(),
+      unstickN: 0, forceUnstick: true, staticSeen: dirtyEpoch,   // first move() always checks (spawn may start inside something)
     };
     const out = { position: v3(), velocity: v3(), grounded: false, landed: false, landingSpeed: 0, slideDir: null, groundNormal: v3(0, 1, 0), sliding: false, jumped: false };
     const tmpT = v3();
@@ -286,16 +318,42 @@
     // Un-stick: a capsule that starts *inside* a trimesh (teleport, respawn, a collider appearing around the player)
     // makes the controller grind through every overlapping triangle each substep (tens of ms per frame). Detect real
     // penetration with a slightly shrunk capsule and lift the character onto the surface above (or push it out).
-    const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.12));
+    // Margin was 0.12 (only caught a spawn dropped deep inside something); walking (not spawning) into a concave
+    // notch of a scanned rock/crystal/prop can wedge the capsule 5-27 cm deep and rest there forever (REALISM-QA
+    // negative gaps) without ever tripping a 0.12 m core. 0.06 still leaves a 3x margin over the 2 cm skin, so
+    // ordinary resting/pushing contact (which the KCC itself keeps within skin) never triggers it.
+    const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.06));
     const stuckGroups = groups(G_ALL, G_STATIC | G_TRUNK);
     function unstick() {
-      const c = col.translation(); let hit = null;
-      world.intersectionsWithShape(c, qId, coreShape, (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = other; return false; } return true; }, undefined, stuckGroups, col);
+      const c = col.translation(); let hit = null, hitTag = null;
+      world.intersectionsWithShape(c, qId, coreShape, (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = other; hitTag = t; return false; } return true; }, undefined, stuckGroups, col);
       if (!hit) return false;
-      const feetY = c.y - centerOff, top = world.castRayAndGetNormal(new R.Ray(v3(c.x, feetY + 40, c.z), down), 80, true, undefined, groups(G_ALL, G_STATIC), col);
-      if (top && top.timeOfImpact < 40 + P.height * 1.5) { const y = feetY + 40 - top.timeOfImpact; col.setTranslation(v3(c.x, y + centerOff + 0.02, c.z)); }
-      else { // no reachable top (tall wall): push out horizontally away from the collider centre
-        const o = hit.translation(); let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.5, c.y, c.z + dz / l * 0.5)); }
+      const feetY = c.y - centerOff;
+      // a lift only counts if the surface above is actually standable, at the character's own walkable slope (cosMax)
+      // — not just "not a near-vertical wall". A single first-hit ray can land on the tip/edge of an overhang (a
+      // jutting crystal shard a few metres above the real ledge below it): groundYWalkable walks down past any such
+      // un-walkable hits to the first real standable surface in range, so the character doesn't perch on the shard
+      // and immediately slide/fall off it again next frame; fall through to the push-out if nothing qualifies.
+      // The lift only helps when it actually moves the character (a real "embedded from above/inside" case, e.g.
+      // spire-E's overhang): a capsule wedged sideways into a rock's notch at normal standing height finds the same
+      // ground it is already resting on directly below it, so a lift there would be a silent no-op and the sideways
+      // overlap this margin now also catches would never resolve — fall through to the horizontal push instead.
+      const top = groundYWalkable(c.x, c.z, { fromY: feetY + 40, bottom: feetY - P.height * 1.5, cosMax, excludeCollider: col });
+      if (top && top.normal.y >= cosMax - 1e-3 && Math.abs(top.point.y + centerOff + 0.02 - c.y) > 0.08) { col.setTranslation(v3(c.x, top.point.y + centerOff + 0.02, c.z)); }
+      else { // no reachable/standable top (tall wall, overhang), or already at the right height (a sideways notch):
+        // push out horizontally away from the obstacle's real world-space centre. NOTE: hit.translation() is the
+        // wrong reference here — 'solid' colliders (addStaticTrimesh/addStaticConvex) bake world-space vertices with
+        // the collider's own transform left at the Rapier default (0,0,0), so .translation() always reads back the
+        // map origin, not the mesh. That silently pushed players away from (0,0,0) instead of away from the
+        // rock/spire/altar they were stuck in — barely noticeable near the origin, but a multi-metre misdirection
+        // far from it (e.g. the east spire at ~x292,z-110), which read back as the character drifting off the
+        // standable altar area with onGround=false until it wandered out of interact range.
+        // step size: 0.5 m clears even a deep spawn-inside case in a few iterations (k < 4 above); with the lower
+        // 0.06 m margin this same push now also fires for shallow walked-into notches, where 0.5 m overshoots into a
+        // visible standoff on the other side. 0.15 m still clears a typical 6-27 cm notch in one or two iterations
+        // (retried next frame if not) without the overshoot; a genuinely deep embed just takes a couple more frames.
+        const o = (hitTag && hitTag.center) || hit.translation();
+        let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.15, c.y, c.z + dz / l * 0.15)); }
       s.vel.y = Math.min(s.vel.y, 0); s.prev = v3(col.translation().x, col.translation().y - centerOff, col.translation().z); out.unstuck = (out.unstuck || 0) + 1;
       return true;
     }
@@ -305,7 +363,15 @@
         out.landed = false; out.landingSpeed = 0; out.jumped = false;
         if (!s.enabled) return out;
         flushQueries();
-        for (let k = 0; k < 4 && unstick(); k++) { /* lift out of whatever we were placed inside */ }
+        // unstick is an exact-shape overlap query against every nearby static/trunk collider — real cost on a weak
+        // profile in a dense forest. Only worth paying every single frame right after something could actually have
+        // changed (a teleport/placement, or a static collider added/removed nearby — Passport's exact-mesh streaming);
+        // otherwise a periodic check (P.unstickEvery, 1 = every frame, unchanged default) still catches it within a
+        // few frames, which is what the original bug (spire-E, commit 9616747) needed anyway.
+        if (s.forceUnstick || s.staticSeen !== dirtyEpoch || (s.unstickN = (s.unstickN + 1) % P.unstickEvery) === 0) {
+          for (let k = 0; k < 4 && unstick(); k++) { /* lift out of whatever we were placed inside */ }
+          s.forceUnstick = false; s.staticSeen = dirtyEpoch;
+        }
         s.acc += Math.min(Math.max(dt, 0) || 0, 0.1);
         let first = true, n = 0;
         while (s.acc >= FIXED && n < 8) {
@@ -328,11 +394,12 @@
       },
       setPosition(x, y, z) {
         col.setTranslation(v3(x, y + centerOff, z)); s.prev = v3(x, y, z); s.pos = v3(x, y, z);
-        s.vel = v3(); s.acc = 0; out.position = v3(x, y, z);
+        s.vel = v3(); s.acc = 0; out.position = v3(x, y, z); s.forceUnstick = true;
       },
       setVelocity(x, y, z) { s.vel.x = x; s.vel.y = y; s.vel.z = z; if (y > 0.5) { s.walkable = false; s.jumping = true; } },
       addVelocity(x, y, z) { ch.setVelocity(s.vel.x + x, s.vel.y + y, s.vel.z + z); },
       setEnabled(on) { s.enabled = on; col.setEnabled(on); if (on) s.acc = 0; },
+      setUnstickEvery(n) { P.unstickEvery = Math.max(1, n | 0 || 1); s.forceUnstick = true; },   // quality switch: recheck once, then follow the new interval
       destroy() { world.removeCharacterController(kcc); removeCollider(col); characters.splice(characters.indexOf(ch), 1); },
     };
     characters.push(ch);
@@ -340,10 +407,43 @@
   }
 
   /* -------------------------------------------------------------- debris */
-  const MAX_DEBRIS = 160;
+  const MAX_DEBRIS = 160, PROP_FAR = 40; let propTick = 0, propFixes = 0;
+  // box / upright-cylinder fit of a prop's local points (null = keep the convex hull): the points must span the
+  // primitive's faces (box: the xz outline fills its rectangle; cylinder: equal x/z extents and every mid-height point
+  // on the same radius), so a genuinely irregular prop stays a hull
+  function fitPrimitive(pts) {
+    const n = pts.length / 3; if (n < 8) return null;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < n; i++) { const x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+    if (Math.min(dx, dy, dz) < 0.08) return null;   // a sheet (broken / flat prop): leave it alone
+    // outline occupancy on a 12 × 12 grid of the xz rectangle, and radial spread of the mid-height ring
+    const G = 12, occ = new Uint8Array(G * G), rs = [];
+    for (let i = 0; i < n; i++) {
+      const x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2];
+      occ[Math.min(G - 1, Math.floor((x - x0) / dx * G)) * G + Math.min(G - 1, Math.floor((z - z0) / dz * G))] = 1;
+      if (y > y0 + dy * 0.2 && y < y1 - dy * 0.2) rs.push(Math.hypot(x - cx, z - cz));
+    }
+    // corners of the outline: a box fills them, a cylinder leaves them empty
+    let corner = 0; for (const [i, j] of [[0, 0], [0, G - 1], [G - 1, 0], [G - 1, G - 1]]) corner += occ[i * G + j];
+    const round = Math.abs(dx - dz) / Math.max(dx, dz) < 0.12 && corner <= 1;
+    if (round && rs.length >= 8) {
+      rs.sort((a, b) => a - b); const r = rs[Math.floor(rs.length * 0.9)], rMid = rs[rs.length >> 1];
+      if (rMid / r > 0.8 && r > 0.05) {   // hollow shell or solid: the outer ring dominates → round
+        const b = Math.min(0.02, r * 0.1, dy * 0.1);
+        return { cd: R.ColliderDesc.roundCylinder(dy / 2 - b, r - b, b).setTranslation(cx, cy, cz), info: { kind: 'cylinder', r: +r.toFixed(3), h: +dy.toFixed(3) } };
+      }
+    }
+    if (corner >= 3) {
+      const b = Math.min(0.015, Math.min(dx, dy, dz) * 0.08);
+      return { cd: R.ColliderDesc.roundCuboid(dx / 2 - b, dy / 2 - b, dz / 2 - b, b).setTranslation(cx, cy, cz), info: { kind: 'box', size: [+dx.toFixed(3), +dy.toFixed(3), +dz.toFixed(3)] } };
+    }
+    return null;
+  }
   function spawnDebris(mesh, o = {}) {
     need();
     const shape = o.shape || 'box', mass = o.mass ?? 1;
+    let fitInfo = null;
     const p = o.position || mesh.position, q = o.quaternion || mesh.quaternion;
     const bd = R.RigidBodyDesc.dynamic().setTranslation(p.x, p.y, p.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
       .setLinearDamping(o.linearDamping ?? 0.05).setAngularDamping(o.angularDamping ?? (shape === 'sphere' ? 0.8 : 0.3))
@@ -360,7 +460,12 @@
         const arr = mesh.geometry.attributes.position.array; pts = new Float32Array(arr.length);
         for (let i = 0; i < arr.length; i += 3) { pts[i] = arr[i] * sc.x; pts[i + 1] = arr[i + 1] * sc.y; pts[i + 2] = arr[i + 2] * sc.z; }
       }
-      cd = R.ColliderDesc.convexHull(pts instanceof Float32Array ? pts : new Float32Array(pts));
+      // pushable props (INTERACT.md): a crate / drum / barrel whose points fill a box or an upright cylinder gets that exact
+      // primitive — it topples over a clean edge, rolls round and rests on a flat face; a scanned prop's hull of hundreds of
+      // near-coplanar faces rocks between them at rest (jitter) and rolls like a polygon
+      const fitted = o.prop && o.fit !== false && root.PHYS_PROP_FIT !== false && !root.INTERACT_OFF ? fitPrimitive(pts) : null;
+      if (fitted) { cd = fitted.cd; fitInfo = fitted.info; }
+      else cd = R.ColliderDesc.convexHull(pts instanceof Float32Array ? pts : new Float32Array(pts));
       if (!cd) cd = R.ColliderDesc.ball(0.2);
     } else {
       const s = typeof o.size === 'number' ? { x: o.size, y: o.size, z: o.size } : (o.size || { x: 0.5, y: 0.5, z: 0.5 });
@@ -373,7 +478,7 @@
     const d = {
       mesh, body, collider: col, prop, t: 0, life: o.lifetime ?? (prop ? Infinity : 8), fade: o.fade ?? 0.5,
       baseScale: { x: sc.x, y: sc.y, z: sc.z }, onDespawn: o.onDespawn, keepMesh: !!o.keepMesh,
-      prevP: v3(p.x, p.y, p.z), prevQ: { x: q.x, y: q.y, z: q.z, w: q.w }, sleepT: 0,
+      prevP: v3(p.x, p.y, p.z), prevQ: { x: q.x, y: q.y, z: q.z, w: q.w }, sleepT: 0, fit: fitInfo,
     };
     tag(col, { kind: prop ? 'prop' : 'debris', ref: d, userData: o.userData });
     debris.push(d);
@@ -525,6 +630,83 @@
     return vh;
   }
 
+  /* ------------------------------------------------------------- ragdoll (PHYSBODY.md) */
+  // Event ragdoll of the pilot: ~11 dynamic capsules + impulse joints, only alive for the 1–2 s of a fall / heavy hit.
+  // Group BODY: collides with the world (terrain, solids, trunks, props, vehicles), never with the character capsule,
+  // debris or itself (limbs may pass through the torso — no self-collision pairs to solve). Query filters used by the
+  // game (camera, feet, contact probes) do not include BODY, so a lying ragdoll never blocks them.
+  const G_BODY = 64, ragdolls = [];
+  // parts: [{ p: {x,y,z} centre, q: {x,y,z,w} collider rotation (capsule axis = local Y), shape: 'capsule'|'ball'|'box',
+  //           r, hh (capsule half height), he: {x,y,z} (box), mass, v: {x,y,z}, w: {x,y,z} }]  (world space)
+  // joints: [{ a, b (part indices), anchor: {x,y,z} world, hinge?: {x,y,z} world axis, limits?: [min, max] rad }]
+  // Every body starts with the IDENTITY rotation (the collider carries the part's rotation): all body frames agree at
+  // creation, so a hinge axis is the same vector in both bodies' local space (Rapier's revolute takes one local axis).
+  function createRagdoll(parts, joints, o = {}) {
+    need(); flushQueries();
+    const filt = groups(G_BODY, G_STATIC | G_TRUNK | G_PROP | G_VEHICLE), bodies = [], cols = [], js = [];
+    for (const d of parts) {
+      // CCD only where asked (the heavy trunk parts): continuous sweeps for all 11 parts were most of the ragdoll's cost
+      const bd = R.RigidBodyDesc.dynamic().setTranslation(d.p.x, d.p.y, d.p.z).setLinearDamping(o.linDamp ?? 0.25).setAngularDamping(o.angDamp ?? 2.5)
+        .setCcdEnabled(!!d.ccd).setCanSleep(true);
+      if (d.v) bd.setLinvel(d.v.x, d.v.y, d.v.z); if (d.w) bd.setAngvel(d.w);
+      const b = world.createRigidBody(bd);
+      const cd = d.shape === 'ball' ? R.ColliderDesc.ball(d.r) : d.shape === 'box' ? R.ColliderDesc.cuboid(d.he.x, d.he.y, d.he.z) : R.ColliderDesc.capsule(d.hh, d.r);
+      cd.setRotation({ x: d.q.x, y: d.q.y, z: d.q.z, w: d.q.w }).setMass(d.mass || 1).setFriction(o.friction ?? 0.9).setRestitution(o.restitution ?? 0.02).setCollisionGroups(filt);
+      const c = world.createCollider(cd, b); tag(c, { kind: 'ragdoll' });
+      bodies.push(b); cols.push(c);
+    }
+    for (const J of joints) {
+      const A = parts[J.a].p, B = parts[J.b].p, an = J.anchor;
+      const a1 = v3(an.x - A.x, an.y - A.y, an.z - A.z), a2 = v3(an.x - B.x, an.y - B.y, an.z - B.z);
+      const data = J.hinge ? R.JointData.revolute(a1, a2, v3(J.hinge.x, J.hinge.y, J.hinge.z)) : R.JointData.spherical(a1, a2);
+      const j = world.createImpulseJoint(data, bodies[J.a], bodies[J.b], true);
+      if (J.hinge && J.limits && j.setLimits) { try { j.setLimits(J.limits[0], J.limits[1]); } catch (e) { /* older build: free hinge */ } }
+      js.push(j);
+    }
+    const prev = bodies.map((b) => ({ p: Object.assign({}, b.translation()), q: Object.assign({}, b.rotation()) }));
+    const rd = {
+      bodies, colliders: cols, joints: js,
+      _save() { for (let i = 0; i < bodies.length; i++) { const p = bodies[i].translation(), q = bodies[i].rotation(); const s = prev[i]; s.p.x = p.x; s.p.y = p.y; s.p.z = p.z; s.q.x = q.x; s.q.y = q.y; s.q.z = q.z; s.q.w = q.w; } },
+      // pose of part i interpolated to the render time (same alpha as debris / vehicles)
+      pose(i, outP, outQ) {
+        const b = bodies[i], p = b.translation(), q = b.rotation(), s = prev[i];
+        outP.x = s.p.x + (p.x - s.p.x) * alpha; outP.y = s.p.y + (p.y - s.p.y) * alpha; outP.z = s.p.z + (p.z - s.p.z) * alpha;
+        slerpInto(outQ, s.q, q, alpha); return outP;
+      },
+      maxSpeed() { let m = 0; for (const b of bodies) { const v = b.linvel(); m = Math.max(m, Math.hypot(v.x, v.y, v.z)); } return m; },
+      impulse(i, imp, at) { const b = bodies[i]; if (at) b.applyImpulseAtPoint(v3(imp.x, imp.y, imp.z), v3(at.x, at.y, at.z), true); else b.applyImpulse(v3(imp.x, imp.y, imp.z), true); },
+      torque(i, t) { bodies[i].applyTorqueImpulse(v3(t.x, t.y, t.z), true); },
+      // parts whose shape, shrunk by `margin`, still overlaps the static world = penetrating deeper than `margin`
+      penetrating(margin = 0.05) {
+        let n = 0; const flt = groups(G_ALL, G_STATIC | G_TRUNK);
+        for (let i = 0; i < bodies.length; i++) {
+          const sh = cols[i].shape, t = cols[i].translation(), r = cols[i].rotation(); let s2 = null;
+          if (sh.radius !== undefined && sh.halfHeight !== undefined) s2 = new R.Capsule(sh.halfHeight, Math.max(0.005, sh.radius - margin));
+          else if (sh.radius !== undefined) s2 = new R.Ball(Math.max(0.005, sh.radius - margin));
+          else if (sh.halfExtents) s2 = new R.Cuboid(Math.max(0.005, sh.halfExtents.x - margin), Math.max(0.005, sh.halfExtents.y - margin), Math.max(0.005, sh.halfExtents.z - margin));
+          if (!s2) continue; let hit = false;
+          world.intersectionsWithShape(t, r, s2, () => { hit = true; return false; }, undefined, flt, cols[i]);
+          if (hit) n++;
+        }
+        return n;
+      },
+      destroy() { for (const j of js) { try { world.removeImpulseJoint(j, true); } catch (e) { /* removed with body */ } } for (const c of cols) tags.delete(c.handle); for (const b of bodies) world.removeRigidBody(b); const k = ragdolls.indexOf(rd); if (k >= 0) ragdolls.splice(k, 1); },
+    };
+    ragdolls.push(rd);
+    return rd;
+  }
+
+  // nearest world surface to a point (PHYSBODY: the shoulders' contact probes). dist < 0 = the point is inside.
+  function nearestSurface(p, o = {}) {
+    need(); flushQueries();
+    const h = world.projectPoint(v3(p.x, p.y, p.z), false, undefined, groups(G_ALL, o.groups ?? (G_STATIC | G_TRUNK | G_PROP)));
+    if (!h) return null;
+    const q = h.point, dx = p.x - q.x, dy = p.y - q.y, dz = p.z - q.z, d = Math.hypot(dx, dy, dz);
+    if (d < 1e-6) return null;
+    const s = h.isInside ? -1 : 1;
+    return { point: v3(q.x, q.y, q.z), dist: d * s, normal: v3(dx / d * s, dy / d * s, dz / d * s), tag: tags.get(h.collider.handle) || null };
+  }
+
   /* ---------------------------------------------------------------- step */
   function step(dt) {
     need();
@@ -534,10 +716,28 @@
       if (n >= MAX_SUB) { acc = 0; break; } // spiral-of-death guard
       for (const d of debris) { const p = d.body.translation(), q = d.body.rotation(); d.prevP.x = p.x; d.prevP.y = p.y; d.prevP.z = p.z; d.prevQ.x = q.x; d.prevQ.y = q.y; d.prevQ.z = q.z; d.prevQ.w = q.w; }
       for (const vh of vehicles) { vh._save(); if (vh.body.isEnabled()) vh._pre(FIXED); }
+      for (const rd of ragdolls) rd._save();   // PHYSBODY ragdoll: render-time interpolation like debris
       world.step(); dirtyStatic = false; stepCount++;
       acc -= FIXED; n++;
     }
     alpha = acc / FIXED;
+    // pushable props far from every character (> PROP_FAR m) and nearly still go to sleep: the solver only ever works on
+    // the few props next to the pilot (a sleeping body costs nothing and wakes on contact / impulse)
+    if (++propTick % 30 === 0 && characters.length) {
+      for (const d of debris) {
+        if (!d.prop || d.body.isSleeping()) continue;
+        const p = d.body.translation(), lv = d.body.linvel(); let near = false;
+        for (const ch of characters) { const c = ch.collider.translation(); if ((c.x - p.x) ** 2 + (c.z - p.z) ** 2 < PROP_FAR * PROP_FAR) { near = true; break; } }
+        if (!near && lv.x * lv.x + lv.y * lv.y + lv.z * lv.z < 0.25) d.body.sleep();
+      }
+      // a prop never rests under the ground: one that tunnelled (spawned inside the heightfield, knocked through a seam)
+      // is put back on top of the static surface above it, still, and awake so it settles there
+      for (const d of debris) {
+        if (!d.prop) continue;
+        const p = d.body.translation(), h = world.castRay(new R.Ray(v3(p.x, p.y + 60, p.z), v3(0, -1, 0)), 120, true, undefined, groups(G_ALL, G_STATIC));
+        if (h) { const gy = p.y + 60 - h.timeOfImpact; if (p.y < gy - 0.12) { d.body.setTranslation(v3(p.x, gy + 0.6, p.z), true); d.body.setLinvel(v3(), true); d.body.setAngvel(v3(), true); d.body.wakeUp(); propFixes++; } }
+      }
+    }
     // debris sync + lifetime
     const qi = { x: 0, y: 0, z: 0, w: 1 };
     for (let i = debris.length - 1; i >= 0; i--) {
@@ -554,13 +754,13 @@
     return n;
   }
 
-  function stats() { return { bodies: world.bodies.len(), colliders: world.colliders.len(), debris: debris.length, vehicles: vehicles.length, characters: characters.length, steps: stepCount }; }
+  function stats() { return { propFixes, bodies: world.bodies.len(), colliders: world.colliders.len(), debris: debris.length, vehicles: vehicles.length, characters: characters.length, steps: stepCount }; }
 
   const api = {
     RAPIER: null, get world() { return world; }, get config() { return cfg; }, FIXED,
     groups: { STATIC: G_STATIC, CHAR: G_CHAR, DEBRIS: G_DEBRIS, PROP: G_PROP, VEHICLE: G_VEHICLE, TRUNK: G_TRUNK },
     init, addStaticCylinder, addStaticBox, addStaticTrimesh, addStaticConvex, removeCollider, createCharacter, spawnDebris, applyExplosion,
-    createHoverVehicle, raycast, sphereCast, groundY, step, stats, debris,
+    createHoverVehicle, raycast, sphereCast, groundY, groundYWalkable, step, stats, debris,
     /** push whatever a raycast hit (debris / props / vehicle); impulse in N·s */
     applyImpulseAt(collider, point, impulse) {
       const b = collider && collider.parent(); if (!b || !b.isDynamic()) return false;
@@ -569,6 +769,8 @@
     clearDebris() { for (let i = debris.length - 1; i >= 0; i--) if (!debris[i].prop) killDebris(debris[i], i); },
     removeDebris(d) { const i = debris.indexOf(d); if (i >= 0) killDebris(d, i); },
   };
+  Object.assign(api, { createRagdoll, ragdolls, nearestSurface });   // PHYSBODY.md (groups.BODY = 64)
+  api.groups.BODY = G_BODY;
   root.Phys = api;
   root.PhysReady = import(RAPIER_URL).then(async (m) => {
     R = m.default || m;

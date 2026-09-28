@@ -11,6 +11,8 @@
  *   5. placed     every Passport object: floating > 10 cm / buried > 30 %
  *   6. motion     12 takes (walk, run, climbs, ride, fox, stags, shardlings, boss): facing, foot sliding, continuity,
  *                 black frames, camera; contact sheets + animated WebP
+ *   6b. realism   rules 1–8 (sizes, albedo, frame vs night photos, grounding, texel, faceting, repetition, weathering),
+ *                 exact collisions of the former hull kinds, air-profile fps (own browser) — REALISM-QA.md; --no-realism / --no-air
  *   7. autoplay   (--autoplay) tools/autoplay.mjs: both endings through the real story code + save compatibility
  * → stand/<label>/index.html (PASS/FAIL table, thumbnails, sheets) + qa.json. Typical runtime 8–12 min.
  */
@@ -22,6 +24,9 @@ import { openGame, sleep, OUT, ROOT } from './qa/harness.mjs';
 import { injectViews, runViews, runFeet, runMotions, runPlaced } from './eye.mjs';
 import { collectInventory, writeInventory, summarize } from './inventory.mjs';
 import { page as htmlPage, esc, ICON, tile, status, bar } from './qa/report-kit.mjs';
+import { runTexUnits } from './qa/texunits.mjs';
+import { runCollide, HULL_KINDS } from './qa/realism.mjs';
+import { runRules } from './qa/realism-rules.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true) : d; };
@@ -67,8 +72,25 @@ try {
   }
   if (!opt('no-motion')) { log('motion takes'); res.motions = await runMotions(H, path.join(dir, 'eye', 'motion'), pick('motions'), log); }
   if (!opt('no-eye') && !opt('views')) { const late = await H.page.evaluate(() => QAV.lateViews); Object.assign(res.views, await runViews(H, path.join(dir, 'eye'), late, log)); }
+  // hard invariant (TEXUNITS.md): every compiled program ≤ the GPU's texture units; the eye views already compiled most
+  // materials, the texture-budget view set covers the rest
+  log('texture-unit budget'); try { res.texUnits = await runTexUnits(H, opt('no-eye') ? undefined : ['forest_deep', 'camp', 'boulder', 'station_door', 'pilot_hands'], log, ['low', 'med', 'high', 'ultra']); } catch (e) { res.texUnits = { error: String(e.message) }; }
+  if (res.texUnits.verdict) log('  ' + (res.texUnits.verdict.pass ? 'PASS' : 'FAIL') + ' — ' + res.texUnits.verdict.note);
+  // realism rules (REALISM-QA.md): sizes, albedo, frame vs the night photos, grounding on the drawn snow, texel density,
+  // faceting, repetition, weathering; exact collisions of the former convex-hull kinds (gap to the VISIBLE surface)
+  if (!opt('no-realism')) {
+    log('realism rules'); try { res.realism = await runRules(H, log); } catch (e) { res.realism = { error: String(e.message), rows: [] }; log('  realism failed: ' + e.message); }
+    log('exact collisions'); try { const cdp = await H.page.target().createCDPSession(); res.collide = await runCollide(H, log, { kinds: HULL_KINDS, n: 1, dirs: 4, cdp, throttle: 4 }); } catch (e) { res.collide = { error: String(e.message), rows: [] }; log('  collide failed: ' + e.message); }
+  }
 } catch (e) { log('FAILED', e.stack || e.message); res.crash = String(e.stack || e.message); }
 finally { if (H) { res.errors = H.errors.slice(0, 50); res.failed = H.failed.slice(0, 50); await H.close(); } }
+
+// 6b. air profile fps (own browser: ?q=air, 1280×800 @2x, CPU ×4; lock inherited)
+if (!opt('no-realism') && !opt('no-air')) {
+  log('air profile fps');
+  await child('qa/realism.mjs', ['air', '--out', path.join(dir, 'realism-air.json')]);
+  try { res.air = JSON.parse(fs.readFileSync(path.join(dir, 'realism-air.json'), 'utf8')); } catch (e) { res.air = { error: 'no realism-air.json', rows: [] }; }
+}
 
 // 7. autoplay (optional)
 if (opt('autoplay')) {
@@ -80,7 +102,7 @@ res.machineEnd = quietCheck(); res.minutes = +((Date.now() - t0) / 60e3).toFixed
 
 /* ------------------------------------------------------------------ verdicts */
 const V = []; const add = (group, check, subject, value, pass, extra = {}) => V.push(Object.assign({ group, check, subject, value, pass }, extra));
-const G = { motion: 'движение', feet: 'опора', back: 'изнанка', prim: 'примитивы v1', black: 'чёрные кадры', tex: 'текстуры', cam: 'камера', perf: 'производительность', story: 'сюжет' };
+const G = { motion: 'движение', feet: 'опора', back: 'изнанка', prim: 'примитивы v1', black: 'чёрные кадры', tex: 'текстуры', cam: 'камера', perf: 'производительность', real: 'реализм', col: 'столкновения', story: 'сюжет' };
 for (const [m, r] of Object.entries(res.motions || {})) {
   if (r.skip) { add(G.motion, 'take', m, r.skip, null); continue; }
   for (const f of r.facing) add(G.motion, 'facing ↔ motion', `${m} · ${f.id}`, `bad ${Math.round((f.badFrac || 0) * 100)} % · min dot ${f.minDot} · run ${f.worstRunS} s · max ${f.maxSpeed} m/s`, f.pass, { img: `eye/motion/${m}.sheet.png` });
@@ -121,8 +143,13 @@ if (res.stand && res.stand.summary) {
   add(G.perf, 'collision tests', 'stand', `${S.collisionsOk}/${S.collisions}`, S.collisionsOk === S.collisions, { detail: (res.stand.collisions || []).filter((c) => !c.ok).map((c) => c.name).join(', ') });
   add(G.perf, 'black frames (distant views)', 'stand', String(S.blackFrames), !S.blackFrames);
 }
+if (res.texUnits) { const tv = res.texUnits.verdict;
+  add(G.perf, 'texture-unit budget (every compiled program ≤ GPU units, no three.js "Trying to use N texture units")', 'qa browser', tv ? tv.note + (tv.over.length ? ' · ' + tv.over.slice(0, 4).map((o) => `${o.total} units: ${o.materials[0] || '?'}`).join(' | ') : '') + (tv.warnings.length ? ' · ' + tv.warnings.slice(0, 3).join(' | ') : '') : res.texUnits.error, tv ? tv.pass : false); }
+if (res.stand && res.stand.summary && res.stand.summary.texBudget) add(G.perf, 'texture-unit budget (console)', 'stand', res.stand.summary.texBudget, res.stand.summary.texBudget === 'PASS');
 add(G.perf, 'JS errors', 'qa browser', String((res.errors || []).length) + ((res.errors || []).length ? ' · ' + res.errors.slice(0, 2).join(' | ').slice(0, 200) : ''), !(res.errors || []).length);
 if (res.loader) add(G.perf, 'loader modules', 'qa browser', `${res.loader.filter((m) => m.ok).length}/${res.loader.length}`, res.loader.every((m) => m.ok));
+for (const r of [...((res.realism && res.realism.rows) || []), ...((res.collide && res.collide.rows) || []), ...((res.air && res.air.rows) || [])]) add(r.group === 'столкновения' ? G.col : G.real, r.check, r.subject, r.value, r.pass, r.offenders && r.offenders.length ? { detail: r.offenders.slice(0, 12).join(', ') } : {});
+for (const [k, x] of [['realism', res.realism], ['collide', res.collide], ['air', res.air]]) if (x && x.error) add(G.real, k + ' crashed', 'qa', x.error, false);
 if (res.autoplay) {
   for (const run of res.autoplay.runs || []) add(G.story, 'story run', run.name, `${run.reached} · ${run.steps.length} steps · ${run.anomalies.length} anomalies` + (run.anomalies.length ? ' · ' + run.anomalies.slice(0, 3).map((a) => a.kind + ': ' + a.what).join('; ') : ''), run.ok);
   for (const c of res.autoplay.saves || []) add(G.story, 'save compatibility', c.name, c.detail, c.ok);
@@ -134,7 +161,7 @@ res.groups = groups;
 fs.writeFileSync(path.join(dir, 'qa.json'), JSON.stringify(res, null, 1));
 
 /* ------------------------------------------------------------------ HTML */
-const GI = { [G.motion]: ICON.run, [G.feet]: ICON.feet, [G.back]: ICON.back, [G.prim]: ICON.prim, [G.black]: ICON.frame, [G.tex]: ICON.tex, [G.cam]: ICON.cam, [G.perf]: ICON.perf, [G.story]: ICON.story };
+const GI = { [G.motion]: ICON.run, [G.feet]: ICON.feet, [G.back]: ICON.back, [G.prim]: ICON.prim, [G.black]: ICON.frame, [G.tex]: ICON.tex, [G.cam]: ICON.cam, [G.perf]: ICON.perf, [G.real]: ICON.eye, [G.col]: ICON.cube, [G.story]: ICON.story };
 const row = (v) => `<tr><td>${status(v.pass)}</td><td>${esc(v.check)}</td><td>${esc(v.subject)}</td><td class="mono">${esc(v.value)}${v.detail ? '<br><span class="muted">' + esc(v.detail) + '</span>' : ''}</td><td>${v.img ? `<img src="${esc(v.img)}" loading="lazy" style="width:120px;border-radius:4px">` : ''}</td></tr>`;
 const viewCards = Object.entries(res.views || {}).filter(([, r]) => !r.skip).map(([v, r]) => { const bad = V.filter((x) => x.subject === v || x.subject.startsWith(v + ' ·')).filter((x) => x.pass === false);
   return `<div class="card" id="v-${esc(v)}"><div class="im"><img src="eye/${esc(v)}.png" loading="lazy" alt="${esc(v)}"><img class="mask" src="eye/${esc(v)}.backfaces.png" alt=""></div>
@@ -158,4 +185,6 @@ fs.writeFileSync(path.join(dir, 'index.html'), htmlPage('QA · ' + label, body))
 release();
 log(`done in ${res.minutes} min · FAIL ${failN} · WARN ${warnN} · ${path.join(dir, 'index.html')}`);
 for (const g of groups) log(`  ${g.g.padEnd(20)} FAIL ${g.fail} / ${g.n}${g.warn ? ' · WARN ' + g.warn : ''}`);
-process.exit(0);
+const texFail = (res.texUnits && !(res.texUnits.verdict && res.texUnits.verdict.pass)) || (res.stand && res.stand.summary && res.stand.summary.texBudget && res.stand.summary.texBudget !== 'PASS');
+if (texFail) log('HARD FAIL: texture-unit budget exceeded (TEXUNITS.md) — a material draws wrong');
+process.exit(texFail ? 1 : 0);

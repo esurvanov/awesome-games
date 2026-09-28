@@ -354,6 +354,23 @@
       <button class="icon-btn" id="bSound" aria-label="Звук" style="width:48px;height:48px"></button>
       <button class="btn ghost" id="bToMenu"><svg class="i"><use href="#i-home"/></svg>Меню</button>
     </div>
+    <div class="eyebrow" style="color:var(--dim)"><svg class="i"><use href="#i-chip"/></svg>графика</div>
+    <div class="qpick" id="qPick" role="radiogroup" aria-label="Графика">
+      <button class="qb" data-q="air" role="radio"><svg class="i"><use href="#i-bolt"/></svg>Низкое для слабого ноутбука</button>
+      <button class="qb" data-q="low" role="radio">Низкое</button>
+      <button class="qb" data-q="med" role="radio">Среднее</button>
+      <button class="qb" data-q="high" role="radio">Высокое</button>
+      <button class="qb" data-q="ultra" role="radio">Ультра</button>
+    </div>
+    <style>
+      #qPick { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+      #qPick .qb { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; cursor: pointer;
+        background: var(--panel); border: 1px solid var(--line); color: var(--dim); font: 700 13px Tektur, system-ui, sans-serif; }
+      #qPick .qb .i { width: 14px; height: 14px; }
+      #qPick .qb:hover { color: var(--ink); border-color: var(--ice); }
+      #qPick .qb.on { background: var(--ice); color: #04101f; border-color: var(--ice); }
+      #qPick .qb[data-q="air"] { flex-basis: 100%; justify-content: center; max-width: 280px; }
+    </style>
     <div class="row c-dim desk-only" style="font-size:12px"><svg class="i"><use href="#i-hand"/></svg>клик по экрану — управление камерой</div>
   </div>
 </div>
@@ -411,7 +428,8 @@
 
 <script type="importmap">{ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/" } }</script>
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.15/build/index.module.js" } }</script>
 <script type="module">
 /* Engine bootstrap: three r186 ES modules -> the classic global `THREE` that the game script, physics.js and
  * worldfill.js use. Anything another module needs from the addons goes into this Object.assign. */
@@ -428,6 +446,16 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+// CONTACT-SURFACE: raycast the actual drawn geometry (not the physics collider) for hand/foot contact IK — see
+// CONTACT-SURFACE.md. Global prototype patch is the library's normal usage: acceleratedRaycast falls back to the
+// stock algorithm on any mesh whose geometry never got .computeBoundsTree() called (built lazily, only for the
+// handful of Passport 'solid' entries a hand ever actually reaches — see modules/interaction.js `bvhGeoFor`).
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+THREE_NS.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE_NS.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE_NS.Mesh.prototype.raycast = acceleratedRaycast;
+// InstancedMesh keeps its own raycast (it loops the instances through Mesh.raycast = the accelerated one): replacing it
+// with acceleratedRaycast made every THREE.Raycaster query against instanced rocks / boulders / crates miss (INTERACT.md)
 const { Matrix4, Vector3, WebGPUCoordinateSystem } = THREE_NS;
 
 // SunLightShadow (2 cascades, engine-native in r186) with a tunable split: splitLambda blends uniform (0) and
@@ -542,10 +570,14 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/vegetation.js"></script>
 <script src="modules/atmosphere.js"></script>
 <script src="modules/interaction.js"></script>
+<script src="modules/physbody.js"></script>
+<script src="modules/interact.js"></script>
 <script src="modules/structures.js"></script>
 <script src="modules/perf.js"></script>
 <script src="modules/baked.js"></script>
 <script src="modules/groundblend.js"></script>
+<script src="modules/lowend.js"></script>
+<script src="modules/bench.js"></script>
 <script type="module">
 (function () {
 'use strict';
@@ -716,7 +748,9 @@ const MOON_DIR = new V3(0.77, 0.36, 0.56).normalize();        // matches the moo
 const hemi = new THREE.HemisphereLight(0x7d9de0, 0x2c3c70, 1.2); scene.add(hemi);
 const moon = new THREE.SunLight(0xb4c6ff, 2.8);
 moon.shadow = new THREE.CascadedSunShadow(); moon.position.copy(MOON_DIR); moon.castShadow = true;
-Object.assign(moon.shadow, { bias: -0.0004, normalBias: 0.035, radius: 2.2 });
+// intensity < 1: moonlit snow is lit by the whole sky dome, so a shadow on it reads dark blue, never ink-black
+// (at 1.0 a boulder's shadow on open snow read as a detached black hole: lit 99 / shadow 36 in sRGB luma).
+Object.assign(moon.shadow, { bias: -0.0004, normalBias: 0.035, radius: 2.2, intensity: 0.85 });
 scene.add(moon);
 const aurLight = new THREE.DirectionalLight(0x5cf5c0, 0.7); aurLight.position.set(0, 60, -100); scene.add(aurLight);
 const candela = (lm) => lm;   // point lights: intensity in candela (decay 2, physically based falloff)
@@ -748,9 +782,42 @@ const QUALITY = {
   ultra: { pixelRatio: 2,    msaa: 4, shadowDist: 320, shadowMap: 4096, cascades: 2, split: 0.85, ao: true,  aoScale: 1,   bloomScale: 1,    grass: 1.3,  treeNear: 230, treeShadow: 140,
            shC0: 110, shMapFar: 2048, shTiles: 2, shTileGrid: 4, shMove: 18,
            perfDraw: 1.3, perfLod: 1.4, perfCast: 1.2 },
+  // LOWEND.md — weak laptop (MacBook Air 2020 Intel, 2560x1600): canvas at native pixels (pixelRatio ≤ 2), the 3D scene
+  // at rs × canvas (dynamic, rsMin…rsMax, one step ≤ every rsEvery s) upscaled by FSR 1 (EASU + RCAS), no MSAA, 30 fps
+  // cap. Every knob other modules read is set here explicitly (a module fills only undefined fields, and falls back to
+  // its *high* values for a preset it does not know).
+  air:   { pixelRatio: 2,    msaa: 0, shadowDist: 90,  shadowMap: 1024, cascades: 2, split: 0.75, ao: false, aoScale: 0.5, bloomScale: 0.5,  grass: 0.35, treeNear: 110, treeShadow: 30,
+           shC0: 48,  shMapFar: 512,  shTiles: 1, shTileGrid: 3, shMove: 12,
+           perfDraw: 0.5, perfLod: 0.5, perfCast: 0.5,
+           fsr: true, rsMin: 0.45, rsMax: 0.75, rsStart: 0.55, rsStep: 0.05, rsEvery: 4, fpsCap: 30, envEvery: 6,
+           atmSnow: 450, atmSnowFar: 900, atmShafts: 0, atmShaftScale: 0.25, atmIceMax: 0.5,
+           vegTreeMid: 210, vegGrassR: 28, vegShrubR: 36, vegDecalR: 22,
+           terrainLevels: 3, terrainGrid: 64, deformRes: 512, deformExt: 96, contactRes: 512, contactExt: 12.8, contactPatch: 5, contactStep: 2, contactStatic: 0,
+           gb: true, gbAniso: 2,
+           // Passport cost (REALISM-QA §B / air fps): footprint idle budget, exact-near-the-pilot radius + build budget,
+           // character unstick-check interval — same behaviour, cheaper on a weak CPU (med/high/ultra keep the defaults).
+           fpBudget: 1.5, exactBudget: 0.6, exactNear: 25, exactFar: 40, exactHard: 2.5, unstickEvery: 4 },
 };
-const Q = Object.assign({ name: coarse ? 'low' : 'high' }, QUALITY[coarse ? 'low' : 'high']);
+// boot preset: ?q=air|low|med|high|ultra (forced) > remembered auto decision > integrated Intel GPU → air > default
+const QPICK = window.LowEnd ? LowEnd.pick({ renderer, coarse }) : { name: coarse ? 'low' : 'high', why: 'default', forced: false };
+const Q = Object.assign({ name: QPICK.name }, QUALITY[QPICK.name]);
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
+// render scale: the 3D scene is drawn at RS.s × the canvas resolution (1 unless the preset upscales with FSR)
+const RS = { s: Q.fsr ? Q.rsStart : 1, fsr: null };
+// main-loop pacing state (see frame()): idleOK = the loop may stop in menu / pause / hidden tab
+const LOOP = { running: true, redraw: true, idleDrawn: false, uiDrawn: false, menuT: 0, capT: 0, drawT: performance.now(), drawn: 0, skipped: 0, wakes: 0,
+  sync() { const gl = renderer.getContext(); renderer.setRenderTarget(null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, LOOP.px || (LOOP.px = new Uint8Array(4))); },
+  idleOK: /[?&]idle=1\b/.test(location.search) || (location.hash !== '#dbg' && !/[?&]idle=0\b/.test(location.search)) };
+function rsBounds() {
+  if (!Q.fsr) return [1, 1];
+  const pr = renderer.getPixelRatio(), lo = Math.min(1, Math.max(Q.rsMin, 0.7 / pr)), hi = Math.min(1, Math.max(Q.rsMax, lo, 1 / pr));
+  return [lo, hi];
+}
+function setRenderScale(s) {
+  const [lo, hi] = rsBounds(); s = Math.min(hi, Math.max(lo, s));
+  if (Math.abs(s - RS.s) < 1e-3) return RS.s;
+  RS.s = s; resize(); return s;
+}
 
 /* ---------- post chain ---------- */
 const post = { composer: null, render: null, gtao: null, bloom: null, output: null, invalidate: true };
@@ -797,9 +864,9 @@ let composer = null, gradePass = null, bloomPass = null;
   composer.addPass(bloomPass);
   post.output = new THREE.OutputPass(); composer.addPass(post.output);
   gradePass = new THREE.ShaderPass({   // display-referred (after tone mapping + sRGB encode)
-    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uScan: { value: 0 } },
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uScan: { value: 0 }, uGrain: { value: 1 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uHurt, uScan; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uHurt, uScan, uGrain; varying vec2 vUv;
       float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       void main(){
         vec2 c = vUv - .5; float ca = .0012 + uHurt * .012;
@@ -809,11 +876,14 @@ let composer = null, gradePass = null, bloomPass = null;
         col *= mix(.72, 1., v);
         col += vec3(1., .1, .3) * uHurt * (1. - v) * .55;
         col += vec3(.3, .9, 1.) * uScan * .07;
-        col += (rnd(vUv * 900. + fract(uTime)) - .5) * .018 * smoothstep(.0, .06, dot(col, vec3(.3, .55, .15)));   // grain fades out in the blacks (no clipped-to-zero speckle)
+        col += uGrain * (rnd(vUv * 900. + fract(uTime)) - .5) * .018 * smoothstep(.0, .06, dot(col, vec3(.3, .55, .15)));   // grain fades out in the blacks (no clipped-to-zero speckle)
         gl_FragColor = vec4(max(col, vec3(1.2 / 255.)), 1.);   // black level 1/255: shadowed dark props never quantise to exact 0 (exact 0 = the NaN signature the guard above already removes)
       }`,
   });
   composer.addPass(gradePass);
+  // FSR 1 upscale (LOWEND.md): everything above runs at RS.s × the canvas; EASU → canvas-size target, RCAS → screen.
+  // Disabled (not in the chain's work) unless the preset has fsr: high/ultra frames are unchanged.
+  if (window.LowEnd) { RS.fsr = LowEnd.makeFSR(THREE, gradePass.uniforms.uTime); composer.addPass(RS.fsr.easu); composer.addPass(RS.fsr.rcas); RS.fsr.setEnabled(!!Q.fsr); gradePass.uniforms.uGrain.value = Q.fsr ? 0 : 1; }
 }
 // GPU profiler (EXT_disjoint_timer_query_webgl2), off unless DBG.gpuProf.start(): per-frame GPU ms per stage
 // (shadow / scene / ao / bloom / output / grade). Queries can't nest: the shadow pass, which the renderer runs inside
@@ -1199,15 +1269,43 @@ function render() {
   if (OFF.has('post')) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
   if (GPUT.on) {
     GPUT.poll(); GPUT.frames++;
-    for (const ps of composer.passes) if (!ps.__gput) { const f = ps.render.bind(ps), n = ps === post.render ? 'scene' : ps === post.gtao ? 'ao' : ps === post.bloom ? 'bloom' : ps === post.output ? 'output' : 'grade';
+    for (const ps of composer.passes) if (!ps.__gput) { const f = ps.render.bind(ps), n = ps === post.render ? 'scene' : ps === post.gtao ? 'ao' : ps === post.bloom ? 'bloom' : ps === post.output ? 'output' : RS.fsr && (ps === RS.fsr.easu || ps === RS.fsr.rcas) ? 'fsr' : /Shaft/.test(ps.constructor && ps.constructor.name) ? 'shafts' : 'grade';
       ps.__gput = true; ps.render = (...a) => { if (!GPUT.on) return f(...a); GPUT.begin(n); f(...a); GPUT.end(); }; }
   }
+  // particles are sized in scene pixels: follow the render scale (updateCamera sets it from the canvas pixel ratio)
+  if (RS.s !== 1) partMat.uniforms.uScale.value = innerHeight * renderer.getPixelRatio() * RS.s * 0.5 / Math.tan(camera.fov * Math.PI / 360);
+  // one GPU timer around the whole frame for the render-scale controller (not while the stage profiler runs its own)
+  const tq = FT.gpuOn && !GPUT.on ? FT.begin() : null;
   composer.render();
+  if (tq) FT.end(tq);
 }
+// frame GPU time (EXT_disjoint_timer_query_webgl2), opt-in with ?gputimer=1: on Chrome/ANGLE-Metal the span includes
+// waiting (22–32 ms reported for a frame that is 15 ms of work, not shrinking with the render scale), so by default the
+// render-scale controller decides from late frames only
+const FT = (() => {
+  const gl = renderer.getContext(), ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  const F = { ok: !!ext, want: /[?&]gputimer=1\b/.test(location.search), gpuOn: false, live: [], last: null }; F.gpuOn = F.want && !!Q.fsr;
+  F.begin = () => { if (!ext || F.live.length > 4) return null; const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); return q; };
+  F.end = (q) => { gl.endQuery(ext.TIME_ELAPSED_EXT); F.live.push(q); };
+  F.poll = () => {
+    while (F.live.length) {
+      const q = F.live[0]; if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) break;
+      F.last = gl.getParameter(ext.GPU_DISJOINT_EXT) ? null : gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+      gl.deleteQuery(q); F.live.shift();
+    }
+    return F.last;
+  };
+  return F;
+})();
 function setQuality(name) {
   const q = QUALITY[name]; if (!q) return Q.name;
-  const prev = Q.msaa; Object.assign(Q, q, { name });
+  const prev = Q.msaa, prevName = Q.name; Object.assign(Q, q, { name });
+  for (const k of ['fsr', 'rsMin', 'rsMax', 'rsStart', 'rsStep', 'rsEvery', 'fpsCap', 'envEvery', 'fpBudget', 'exactBudget', 'exactNear', 'exactFar', 'exactHard', 'unstickEvery']) if (!(k in q)) delete Q[k];   // air-only knobs
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.pixelRatio));
+  if (prevName !== name) RS.s = q.fsr ? q.rsStart : 1;
+  if (RS.fsr) { RS.fsr.setEnabled(!!q.fsr); gradePass.uniforms.uGrain.value = q.fsr ? 0 : 1; }   // FSR: grain after the upscale (RCAS pass), not sharpened blocks
+  FT.gpuOn = FT.want && !!q.fsr;
+  if (window.LowEnd) LowEnd.warm(3);
   moon.shadow.camera.far = q.shadowDist; moon.shadow.splitLambda = q.split;
   if (SHADOW.on) SHADOW.configure();   // cached cascades: new sizes / ranges, rebuilt next frame
   else if (moon.shadow.mapSize.x !== q.shadowMap) { moon.shadow.mapSize.set(q.shadowMap, q.shadowMap); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }   // per cascade; atlas is 2x1
@@ -1215,6 +1313,8 @@ function setQuality(name) {
   if (prev !== q.msaa || t.type !== f.type) { post.sceneRT.samples = q.msaa; t.format = f.format; t.type = f.type; post.sceneRT.dispose(); }
   FOREST.R = q.treeNear; FOREST.shadowR = q.treeShadow; FOREST.dirty = true;
   if (window.WorldFill && WorldFill.knobs) WorldFill.knobs.density = q.grass;   // grass density knob (applies to newly generated clutter cells)
+  Passport.tuneExact({ budget: q.exactBudget ?? 1.5, near: q.exactNear ?? 45, far: q.exactFar ?? 70, hard: q.exactHard ?? 3 });
+  if (PH.ok && PH.ch) PH.ch.setUnstickEvery(q.unstickEvery ?? 1);
   resize();
   return name;
 }
@@ -1270,6 +1370,7 @@ scene.environmentIntensity = 1;
 function updateEnv(now) {
   const key = skyU.uInt.value * 10 + skyU.uStorm.value * 3;
   if (!ENV.dirty && (Math.abs(key - ENV.key) < 0.6 || now - ENV.t < 1.5)) return;
+  if (Q.envEvery && ENV.rt && now - ENV.t < Q.envEvery) return;   // air: the sky environment re-bakes at most every envEvery s
   if (!TX.sky.image) return;
   ENV.dirty = false; ENV.t = now; ENV.key = key;
   skyU.uStars.value = 0;                      // stars are sub-pixel: keep them out of the blurred environment
@@ -1431,8 +1532,21 @@ function patchSurface(mat, o) {
         vec3 wN2 = normalize(wn + mix(dRock * 1.2, vec3(nS.x, 0., nS.y) * .45, snowMask));
         normal = normalize((viewMatrix * vec4(wN2, 0.)).xyz);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        float glit = step(.9965, sh21(floor(vWPos.xz * 24.))) * snowMask * (.5 + .5 * sin(uTime * 3. + vWPos.x * 7. + vWPos.z * 3.)) * (1. - smoothstep(12., 40., length(vViewPosition))) * ${f(o.glitter)};
-        totalEmissiveRadiance += vec3(.6, .78, 1.) * glit * 1.6;
+        // snow sparkle (LOOKGATE): used to be a flat square tile that blinked on a raw clock regardless of the camera —
+        // reads as a UI glitch, not snow. A real grain only catches the eye as the view or the light angle sweeps past
+        // it, and it should look like a small round grain, not a filled cell of the sampling grid.
+        { vec2 sgc = floor(vWPos.xz * 24.); float sgh = sh21(sgc);
+          if (sgh > .9965) {
+            vec2 sOff = vec2(sh21(sgc + 4.1), sh21(sgc + 8.3)) * .6 + .2;
+            float sMask = 1. - smoothstep(.12, .4, length(fract(vWPos.xz * 24.) - sOff));
+            vec3 sfn = normalize(vec3((sh21(sgc + 1.7) - .5) * 1.6, 1., (sh21(sgc + 6.3) - .5) * 1.6));
+            vec3 sV = normalize(cameraPosition - vWPos);
+            float sg1 = smoothstep(.965, .997, dot(sfn, normalize(sV + vec3(${f(MOON_DIR.x)}, ${f(MOON_DIR.y)}, ${f(MOON_DIR.z)}))));
+            float sg2 = smoothstep(.98, .999, dot(sfn, normalize(sV + vec3(0., 1., 0.))));
+            float glit = sMask * (sg1 * 3. + sg2 * .7) * snowMask * (1. - smoothstep(12., 40., length(vViewPosition))) * ${f(o.glitter)};
+            totalEmissiveRadiance += vec3(.6, .78, 1.) * glit * 1.2;
+          }
+        }
         float sd = length(vWPos.xz - uScanC);
         float ring = smoothstep(uScanR - 6., uScanR, sd) * (1. - smoothstep(uScanR, uScanR + .8, sd));
         vec2 gg = abs(fract(vWPos.xz / 3.) - .5);
@@ -1542,7 +1656,91 @@ const Passport = (() => {
     for (const [x, z, r] of circles) { const c = addCircle(x, z, r, e); if (e.role === 'pushable' && e.debris) c.off = true; e.circles.push(c); }
     stats.footprintMs = (stats.footprintMs || 0) + performance.now() - t0;
   }
-  function idle(budgetMs) { const t0 = performance.now(); while (fpQueue.length && performance.now() - t0 < budgetMs) doFootprint(fpQueue.shift()); return fpQueue.length; }
+  function idle(budgetMs) { stream(); const t0 = performance.now(); while (fpQueue.length && performance.now() - t0 < budgetMs) doFootprint(fpQueue.shift()); return fpQueue.length; }
+  // ---- exact shape near the pilot (REALISM-QA.md, PLAN-REALISM §9): a static 'solid' registered as a convex hull
+  // ({shape:'hull'}: scanned rocks, crystals) blocks the pilot in the air in front of every hollow. Within EXACT.near m
+  // of the pilot it gets the exact trimesh of its drawn triangles (Rapier FIX_INTERNAL_EDGES: no seam bumps); beyond
+  // EXACT.far it goes back to the hull. All-trimesh for the ~580 hull entries = 1.5 M triangles, +1.2 s build on M1,
+  // ~+290 MB — too much for the Intel Air; near-only is ~20–40 entries. Opt out per entry: opts.exact = false.
+  // ?colhull in the URL = old behaviour (A/B in tools/qa/realism.mjs).
+  // REALISM-QA 2: one exact build of a 4.5 k-triangle scan cost up to 16.7 ms at CPU ×4 (a dropped frame on the Air). The
+  // trimesh is now built in chunks of ≤ EXACT.chunk triangles (split along the entry's long axis), a few per frame within
+  // EXACT.budget ms; the hull stays until the last chunk is in, then the chunks replace it in one step (never a frame
+  // without a collider). Only entries within EXACT.hard m of the pilot (teleport next to a rock) are built at once.
+  const EXACT = { on: !/[?&]colhull\b/.test(location.search), near: 45, far: 70, hard: 3, chunk: 1200, budget: 1.5, n: 0, builds: 0, chunks: 0, ms: 0, maxMs: 0, frameMax: 0, list: [] };
+  // quality knob (QUALITY presets' exactBudget/exactNear/exactFar/exactHard, air/low): a weaker profile keeps the same
+  // exact-near-the-pilot behaviour but with a smaller radius and a lower per-frame ms budget — undefined fields keep
+  // the defaults above (never touched on med/high/ultra).
+  function tuneExact(o = {}) {
+    if (o.budget != null) EXACT.budget = o.budget;
+    if (o.near != null) EXACT.near = o.near;
+    if (o.far != null) EXACT.far = o.far;
+    if (o.hard != null) EXACT.hard = o.hard;
+  }
+  const exactable = (e) => e.role === 'solid' && e.shape === 'hull' && e.opts.exact !== false && !!e.geo;
+  const exTag = (e, on) => ({ kind: e.role, name: e.name, passport: e.id, exact: on });
+  // triangles sorted by centroid along the longest box axis → consecutive runs of ≤ chunk triangles, each its own index
+  // space (a chunk is a small patch of the surface: Rapier's internal-edge fix works inside it; the seams are rare)
+  function exactChunks(e) {
+    if (e._exP) return e._exP;
+    const g = e.geo, nt = g.i.length / 3, K = Math.ceil(nt / EXACT.chunk);
+    if (K <= 1) return (e._exP = [{ v: g.v, i: g.i }]);
+    const b = e.box, ax = [0, 1, 2].sort((p, q) => (b.max[q] - b.min[q]) - (b.max[p] - b.min[p]))[0], key = new Float32Array(nt), ord = new Uint32Array(nt);
+    for (let t = 0; t < nt; t++) { ord[t] = t; key[t] = g.v[g.i[t * 3] * 3 + ax] + g.v[g.i[t * 3 + 1] * 3 + ax] + g.v[g.i[t * 3 + 2] * 3 + ax]; }
+    ord.sort((p, q) => key[p] - key[q]);
+    const out = [], per = Math.ceil(nt / K);
+    for (let k = 0; k < K; k++) {
+      const map = new Map(), v = [], ix = new Uint32Array(Math.min(per, nt - k * per) * 3); let o = 0;
+      for (let q = k * per; q < Math.min(nt, (k + 1) * per); q++) for (let c = 0; c < 3; c++) {
+        const s = g.i[ord[q] * 3 + c]; let d = map.get(s); if (d === undefined) { d = v.length / 3; map.set(s, d); v.push(g.v[s * 3], g.v[s * 3 + 1], g.v[s * 3 + 2]); } ix[o++] = d; }
+      out.push({ v: new Float32Array(v), i: ix });
+    }
+    return (e._exP = out);
+  }
+  // build the next chunk of e's exact shape; true once e is exact (the hull removed, the chunks are its colliders)
+  function stepExact(e) {
+    const P = exactChunks(e), done = e._exDone || (e._exDone = []), c = P[done.length];
+    done.push(phys.addStaticTrimesh(c.v, c.i, exTag(e, true), { friction: e.opts.friction })); EXACT.chunks++;
+    if (done.length < P.length) return false;
+    for (const q of e.colliders) try { phys.removeCollider(q); } catch (err) { /* gone */ }
+    e.colliders.length = 0; e.colliders.push(...done); e._exDone = null; e.exact = true; EXACT.n++; EXACT.builds++;
+    return true;
+  }
+  function dropPartial(e) { if (e._exDone) for (const q of e._exDone) try { phys.removeCollider(q); } catch (err) { /* gone */ } e._exDone = null; }
+  function setExact(e, on) {
+    const t0 = performance.now();
+    if (on) { if (!e.exact) while (!stepExact(e)) { /* all chunks now */ } }
+    else {
+      dropPartial(e); for (const c of e.colliders) try { phys.removeCollider(c); } catch (err) { /* gone */ }
+      e.colliders.length = 0; if (e.exact) EXACT.n--; e.exact = false; e._exP = null;
+      const c = phys.addStaticConvex(e.geo.v, exTag(e, false)); if (c) e.colliders.push(c);
+    }
+    const ms = performance.now() - t0; EXACT.ms += ms; EXACT.maxMs = Math.max(EXACT.maxMs, ms);
+  }
+  // every frame (from idle): entries within EXACT.hard m at once; else chunks of the nearest pending entries while the
+  // frame's EXACT.budget lasts (at least one chunk per frame); beyond EXACT.far back to the hull
+  function stream() {
+    if (!phys || !EXACT.on || typeof player === 'undefined') return;
+    const px = player.x, pz = player.z, up = [];
+    for (const e of EXACT.list) {
+      if (!e.alive) continue;
+      const b = e.box, dx = Math.max(b.min[0] - px, 0, px - b.max[0]), dz = Math.max(b.min[2] - pz, 0, pz - b.max[2]), d = Math.hypot(dx, dz);
+      if (!e.exact && d < EXACT.near) up.push([d, e]);
+      else if ((e.exact || e._exDone) && d > EXACT.far) { try { setExact(e, false); } catch (err) { /* keep */ } }
+    }
+    if (!up.length) return;
+    up.sort((a, b) => a[0] - b[0]);
+    const t0 = performance.now(), fail = (e, err) => { console.warn('[Passport] exact', e.name, err && err.message); dropPartial(e); e.opts.exact = false; };
+    for (let k = 0; k < up.length; k++) {
+      const [d, e] = up[k];
+      try {
+        if (d <= EXACT.hard) { setExact(e, true); continue; }
+        while (!e.exact && (performance.now() - t0 < EXACT.budget || k === 0 && !e._exDone)) if (stepExact(e)) break;
+      } catch (err) { fail(e, err); }
+      if (performance.now() - t0 >= EXACT.budget) break;
+    }
+    const ms = performance.now() - t0; EXACT.ms += ms; EXACT.frameMax = Math.max(EXACT.frameMax, ms); EXACT.maxMs = Math.max(EXACT.maxMs, ms);
+  }
   function flush() { while (fpQueue.length) doFootprint(fpQueue.shift()); }
   const _v = new V3(), _m = new THREE.Matrix4(), _mi = new THREE.Matrix4();
 
@@ -1708,6 +1906,7 @@ const Passport = (() => {
       if (opts.cell) g = simplify(g, opts.cell);
       e.geo = { v: new Float32Array(g.v), i: new Uint32Array(g.i), vn: g.vn }; e.box = bounds(g); stats.tris += g.i.length / 3;
       fpQueue.push(e);   // 2D footprint circles: computed in idle time (Passport.idle), all done before play if physics is missing
+      if (exactable(e)) EXACT.list.push(e);   // hull far away, exact trimesh near the pilot (stream)
     } else if (role === 'trunk') {
       e.trunk = fitTrunk(g, opts); e.box = { min: [e.trunk.x - e.trunk.r, e.trunk.y0, e.trunk.z - e.trunk.r], max: [e.trunk.x + e.trunk.r, e.trunk.y1, e.trunk.z + e.trunk.r] };
       e.circles.push(addCircle(e.trunk.x, e.trunk.z, e.trunk.r, e));
@@ -1727,7 +1926,7 @@ const Passport = (() => {
     const tagv = { kind: e.role, name: e.name, passport: e.id };
     try {
       if (e.role === 'solid') {
-        if (e.shape === 'hull') { const c = phys.addStaticConvex(e.geo.v, tagv); if (c) e.colliders.push(c); }
+        if (e.shape === 'hull') { const c = phys.addStaticConvex(e.geo.v, tagv); if (c) e.colliders.push(c); e.exact = false; }   // stream() swaps in the trimesh near the pilot
         else e.colliders.push(phys.addStaticTrimesh(e.geo.v, e.geo.i, tagv, { friction: e.opts.friction }));
       } else if (e.role === 'trunk') {
         const t = e.trunk; e.colliders.push(phys.addStaticCylinder(t.x, t.z, t.r, t.y0, t.y1 - t.y0, tagv, phys.groups.TRUNK));
@@ -1790,6 +1989,8 @@ const Passport = (() => {
     if (e.debris && phys) phys.removeDebris(e.debris);
     e.colliders.length = 0; for (const c of e.circles) c.off = true;
     const i = list.indexOf(e); if (i >= 0) list.splice(i, 1); const j = byRole[e.role].indexOf(e); if (j >= 0) byRole[e.role].splice(j, 1);
+    if (e._exDone) dropPartial(e);
+    const x = EXACT.list.indexOf(e); if (x >= 0) { EXACT.list.splice(x, 1); if (e.exact) EXACT.n--; }
   }
   function attach(P) { phys = P; const t0 = performance.now(); for (const e of list) toPhys(e); stats.physMs = performance.now() - t0; }
   function passablesNear(x, z, r, out = []) {
@@ -1830,8 +2031,9 @@ const Passport = (() => {
     return dbg;
   }
   function debugUpdate() { if (dbg) dbg.group.children.forEach((o) => { if (o.userData.follow) o.update(); }); }
-  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, list, byRole, stats, providers, ROLE_COL, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
+  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, tuneExact, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
 })();
+Passport.tuneExact({ budget: Q.exactBudget ?? 1.5, near: Q.exactNear ?? 45, far: Q.exactFar ?? 70, hard: Q.exactHard ?? 3 });   // air/low: smaller radius, lower per-frame ms
 
 /* ---------- echo & shard spots ---------- */
 const ECHO_POS = [[-120, 170], [95, 225], [250, 25], [-200, -190], [140, -215], [-75, -150], [-280, 150], [60, 85]];
@@ -2569,7 +2771,16 @@ const INTER = [
   ...WORLD.spires.map((s, i) => ({ pos: () => s.altar, r: 3.4, pri: 3, label: 'Извлечь деталь', icon: 'i-part', when: () => G.stage === 4 && !s.taken, act: () => takePart(s, i) })),
   ...WORLD.echoes.map((eo) => ({ pos: () => eo.pos, r: 3.2, pri: 1, label: 'Слушать эхо', icon: 'i-echo', when: () => !G.echoes.includes(eo.i), act: () => readEcho(eo) })),
   { pos: () => WORLD.heart.g.position, r: 6, pri: 3, label: 'Коснуться Сердца', icon: 'i-aurora', when: () => G.stage === 7 && boss.dead && !G.ending, act: heartChoice },
-  { pos: () => WORLD.kestrel.g.position, r: 9, get pri() { return G.stage === 8 ? 3 : 1; }, label: '«Кестрел»', icon: 'i-ship', when: () => G.stage >= 1 && !G.riding, act: shipInteract },
+  // INTERACT.md: the 19.7 m hull is reachable along its whole length — the prompt point is the nearest point of the hull's
+  // long axis (principal axis of its drawn footprint, from the Passport entry), within 4.5 m of the player
+  { pos: (() => { let seg = null, id = -1; const P = new V3(); return () => { const e = WORLD.kestrelCol, g = WORLD.kestrel.g.position;
+      if (!e || !e.alive || !e.geo) return g;
+      if (id !== e.id) { id = e.id; const V = e.geo.v, n = e.geo.vn; let mx = 0, mz = 0; for (let i = 0; i < n; i++) { mx += V[i * 3]; mz += V[i * 3 + 2]; } mx /= n; mz /= n;
+        let a = 0, b = 0, c = 0; for (let i = 0; i < n; i++) { const dx = V[i * 3] - mx, dz = V[i * 3 + 2] - mz; a += dx * dx; b += dx * dz; c += dz * dz; }
+        const ang = 0.5 * Math.atan2(2 * b, a - c), ux = Math.cos(ang), uz = Math.sin(ang), us = []; for (let i = 0; i < n; i++) us.push((V[i * 3] - mx) * ux + (V[i * 3 + 2] - mz) * uz); us.sort((p, q) => p - q);
+        seg = { mx, mz, ux, uz, u0: us[Math.floor(n * 0.02)], u1: us[Math.floor(n * 0.98)] }; }
+      const t = Math.max(seg.u0, Math.min(seg.u1, (player.x - seg.mx) * seg.ux + (player.z - seg.mz) * seg.uz));
+      return P.set(seg.mx + seg.ux * t, g.y, seg.mz + seg.uz * t); }; })(), r: 4.5, get pri() { return G.stage === 8 ? 3 : 1; }, label: '«Кестрел»', icon: 'i-ship', when: () => G.stage >= 1 && !G.riding, act: shipInteract },
   { pos: () => sk, r: 3.6, pri: 1, label: 'Сесть в скиммер', icon: 'i-skimmer', when: () => sk.unlocked && !G.riding, act: mount },
   { pos: () => sk, r: 3.6, pri: 0, label: 'Скиммер · нет заряда', icon: 'i-skimmer', off: true, when: () => !sk.unlocked, act: () => toast('i-skimmer', 'Нет заряда', 'c-pink') },
 ];
@@ -2681,7 +2892,7 @@ function toMenu() {
 }
 function setPause(on) {
   if (G.mode !== 'play') return;
-  if (on && !G.pause) { G.pause = true; $('pause').hidden = false; Sound.suspend(true); renderSoundBtn(); $('bResume').focus({ preventScroll: true }); }
+  if (on && !G.pause) { G.pause = true; $('pause').hidden = false; Sound.suspend(true); renderSoundBtn(); renderQPick(); $('bResume').focus({ preventScroll: true }); }
   else if (!on && G.pause) { G.pause = false; $('pause').hidden = true; Sound.suspend(false); if (!coarse) requestLock(); }
 }
 function openUI(which) {
@@ -2810,6 +3021,13 @@ hold('tRoll', () => pressed.add('KeyC'));
 $('bNew').onclick = () => startGame(false);
 $('bContinue').onclick = continueGame;
 $('bResume').onclick = () => setPause(false);
+// pause menu · graphics preset (LOWEND.md): the player's choice is remembered and locks the quality director
+function renderQPick() { for (const b of $('qPick').children) { const on = b.dataset.q === Q.name; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); } }
+for (const b of $('qPick').children) b.onclick = () => {
+  const q = b.dataset.q; if (window.LowEnd) LowEnd.setManual(q);
+  if (window.AI && AI.quality) AI.quality.set(q, 1e9); else setQuality(q);
+  renderQPick(); toast('i-chip', 'Графика · ' + b.textContent.trim(), 'c-ice');
+};
 $('bToMenu').onclick = toMenu;
 $('bSound').onclick = () => { Sound.init(); Sound.toggle(); renderSoundBtn(); };
 $('bMap').onclick = () => openUI('map'); $('bJournal').onclick = () => openUI('journal'); $('bPause').onclick = () => setPause(true);
@@ -2818,8 +3036,12 @@ $('bEndMenu').onclick = () => location.reload();
 
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
-  if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
-  partMat.uniforms.uScale.value = h * renderer.getPixelRatio() * 0.5 / Math.tan(camera.fov * Math.PI / 360);
+  const pr = renderer.getPixelRatio(), [lo, hi] = rsBounds(); RS.s = Math.min(hi, Math.max(lo, RS.s));
+  // FSR: the composer (scene, bloom, grade) works at RS.s × the canvas; the upscale passes write the full canvas
+  if (composer) { composer.setPixelRatio(pr * RS.s); composer.setSize(w, h); }
+  if (RS.fsr) RS.fsr.setOutput(Math.floor(w * pr), Math.floor(h * pr));
+  partMat.uniforms.uScale.value = h * pr * RS.s * 0.5 / Math.tan(camera.fov * Math.PI / 360);
+  LOOP.redraw = true;   // an idle (paused / menu) screen is cleared by a canvas resize: draw it once more
 }
 addEventListener('resize', resize);
 
@@ -3433,6 +3655,10 @@ MANAGER.onError = (url) => markMod(url, 'bad');
 function finishLoading() {
   if (LOAD.done) return; LOAD.done = true; $('lFill').style.width = '100%';
   try { const p = renderer.compileAsync(scene, camera); if (p && p.catch) p.catch(() => {}); } catch (e) { /* compile on first use */ }
+  // drain the 2D footprint-circle backlog now (behind the loader, a one-time hitch that costs nothing towards fps)
+  // instead of trickling it into the first seconds of play (Passport.idle's per-frame budget) — every AI actor
+  // (fox/stags/enemies/snowmobile) reads these circles regardless of PH.ok, so they must exist before "Играть" anyway.
+  try { Passport.flush(); } catch (e) { /* world not fully built yet: idle() picks up the rest during play */ }
   setTimeout(() => { $('loader').hidden = true; $('menu').hidden = false; if (LOAD.cb) LOAD.cb(); }, 400);
 }
 MANAGER.onLoad = finishLoading;
@@ -3442,7 +3668,7 @@ if (window.PhysReady) {
     Phys.init({ H, VN, CELL, W, seaLevel: 0, gravity: 22 });
     PH.P = Phys; PH.ok = true;
     Passport.attach(Phys);   // exact colliders for everything registered so far; later registrations attach immediately
-    PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97 });
+    PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97, unstickEvery: Q.unstickEvery ?? 1 });
     PH.vh = Phys.createHoverVehicle({ x: sk.x, z: sk.z, yaw: sk.yaw, hoverHeight: 1.06 }); PH.vh.setEnabled(G.riding);
     if (G.riding) PH.ch.setEnabled(false);
     MANAGER.itemEnd('physics');
@@ -3540,6 +3766,7 @@ if (GL) {
     // inner shell (reversed triangles, flipped normals) + single-sided materials draws the inside correctly lit
     root.traverse((o) => { if (!o.isSkinnedMesh || !window.STRUCT || !STRUCT.shellInside) return; const ms = [].concat(o.material);
       if (ms.some((m) => m.side === THREE.DoubleSide && !m.transparent)) { o.geometry = STRUCT.shellInside(o.geometry); ms.forEach((m) => { if (!m.transparent) m.side = THREE.FrontSide; }); } });
+    if (window.STRUCT && STRUCT.albedoFloor) STRUCT.albedoFloor(root);   // REALISM-QA rule 2: suit plastic_black 28 → floor
     attach(player.c.g, root); player.c.body.visible = false;
     AV.player = makeAnimator(root, g.animations, { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', run: 'Sprint_Loop', jump: 'Jump_Loop', land: 'Jump_Land',
       aim: 'Pistol_Idle_Loop', shoot: 'Pistol_Shoot', roll: 'Roll', interact: 'Interact', wave: 'Idle_Talking_Loop', hit: 'Hit_Chest', death: 'Death01', drive: 'Driving_Loop', slide: 'Slide_Loop', climb: 'ClimbUp_1m' });
@@ -3573,7 +3800,7 @@ function attachContactLib(root, A) {
 const fox = { x: POI.crash.x + 11, z: POI.crash.z + 15, y: 0, yaw: 2.4, st: 'wild', speed: 0, joined: false, g: new THREE.Group(), anim: null, target: null, seekT: 14, yipT: 0, happy: 0 };
 fox.g.position.set(fox.x, groundH(fox.x, fox.z), fox.z); scene.add(fox.g);
 loadPacked('fox', ASSET, (g) => {
-  const root = prepModel(g.scene, 0.55, (m) => { m.map = null; m.color.setHex(0xe8edf5); m.roughness = 0.95; m.metalness = 0; });
+  const root = prepModel(g.scene, 0.353, (m) => { m.map = null; m.color.setHex(0xe8edf5); m.roughness = 0.95; m.metalness = 0; });   // REALISM: 0.45 → 0.353 model height = shoulder 0.408 → ≈ 0.32 m (sizes.json: arctic fox 0.24–0.345 m, Audet/Robbins/Larivière 2002)
   attach(fox.g, root);
   fox.anim = makeAnimator(root, g.animations, { sit: 'Survey', walk: 'Walk', run: 'Run' });
   fox.anim.loop('sit');
@@ -3718,23 +3945,137 @@ function updateScan(dt) {
   if (scan.t > 9.5) { scan.t = -1; scanEl.innerHTML = ''; scan.marks = []; TU.uScanA.value = 0; TU.uScanR.value = -1; }
 }
 
-/* ---------- campfire ---------- */
-const FIRE = { pos: WORLD.stationW(3, 11) }; FIRE.pos.y = groundH(FIRE.pos.x, FIRE.pos.z);
+/* ---------- campfire (CAMP.md) ----------
+ * Flame: 2 crossed quads in ONE mesh sampling a noise-driven flipbook baked offline (assets/camp/flame_atlas.png: 16 frames
+ * 4×4, heat only; heat → colour ramp here, neighbouring frames cross-faded, each quad fades out when seen edge-on).
+ * Embers: the shared particle pool (emit). Smoke: one instanced draw of soft camera-facing puffs drifting with the wind
+ * (terrain wind direction, stronger in a blizzard), also from the camp stove pipe (STRUCT.stove). Heat glow: one ground decal
+ * per fire (coal bed + warm pool on the snow; the camp's cold ring only smoulders) + an ember term on the fire-pit stones.
+ * One flicker value drives the flame height/brightness, the decal, the stones and the point light. ≈ 4 draw calls. */
+const FIRE = { pos: WORLD.stationW(3, 11), flick: 1, fl: [0, 0, 0], smoke: [], smokeT: 0 }; FIRE.pos.y = groundH(FIRE.pos.x, FIRE.pos.z); FIRE.baseY = FIRE.pos.y + 0.08;
 const fireLight = new THREE.PointLight(0xff8a3a, candela(24), 22, 2); fireLight.position.set(FIRE.pos.x, FIRE.pos.y + 1.3, FIRE.pos.z); scene.add(fireLight);
+const FIRE_U = { tFlame: { value: new THREE.TextureLoader(MANAGER).load(ASSET + 'camp/flame_atlas.png') }, uT: { value: 0 }, uFlick: { value: 1 } };
+FIRE.flame = (() => {
+  const g = new THREE.BufferGeometry(), P = [], N = [], UV = [], O = [], ix = [], W = 1.3, Hh = 1.55;
+  for (let q = 0; q < 2; q++) { const a = q * Math.PI / 2 + 0.4, cx = Math.cos(a), cz = Math.sin(a), b = P.length / 3;
+    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { P.push((u - 0.5) * W * cx, v * Hh, (u - 0.5) * W * cz); N.push(-cz, 0, cx); UV.push(q ? 1 - u : u, v); O.push(q * 7); }
+    ix.push(b, b + 1, b + 2, b, b + 2, b + 3); }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('aN', new THREE.Float32BufferAttribute(N, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setAttribute('aOff', new THREE.Float32BufferAttribute(O, 1)); g.setIndex(ix);
+  const m = new THREE.ShaderMaterial({ uniforms: FIRE_U, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    vertexShader: `attribute vec3 aN; attribute float aOff; varying vec2 vUv; varying float vFade, vOff;
+      void main(){ vec4 w = modelMatrix * vec4(position, 1.); vec3 v = normalize(cameraPosition - w.xyz); vec3 n = normalize(mat3(modelMatrix) * aN);
+        vFade = smoothstep(.12, .55, abs(dot(v, n))); vUv = uv; vOff = aOff; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `uniform sampler2D tFlame; uniform float uT, uFlick; varying vec2 vUv; varying float vFade, vOff;
+      float cell(float i, vec2 uv){ float c = mod(i, 4.), r = floor(i / 4.); return texture2D(tFlame, vec2((c + clamp(uv.x, .01, .99)) / 4., 1. - (r + 1.) / 4. + clamp(uv.y, 0., .995) / 4.)).r; }
+      void main(){ float f = uT * 13. + vOff, i0 = mod(floor(f), 16.), k = fract(f);
+        vec2 uv = vec2(vUv.x, vUv.y / (.72 + .34 * uFlick));
+        float h = mix(cell(i0, uv), cell(mod(i0 + 1., 16.), uv), k) * (.8 + .25 * uFlick);
+        vec3 c = vec3(clamp(h * 1.9, 0., 1.), clamp(h * 1.5 - .32, 0., 1.) * .85, clamp(h * 1.4 - .95, 0., 1.) * .4) * 1.02;   // core toned down (was ×1.5 → blown out/bloomed solid within ~4 m)
+        gl_FragColor = vec4(c * h * vFade, 1.); }` });
+  const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = 6; mesh.name = 'fire_flame'; mesh.userData.noCollide = true; mesh.userData.qaIntentional = 'fire';
+  mesh.position.set(FIRE.pos.x, FIRE.baseY, FIRE.pos.z); scene.add(mesh); return mesh;
+})();
+// heat decal: coal bed (r < coal) + warm pool on the snow; strength 1 = the station fire, < 1 = a smouldering ring
+function fireDecal(pos, coal, pool, strength) {
+  const m = new THREE.ShaderMaterial({ uniforms: { uT: FIRE_U.uT, uFlick: FIRE_U.uFlick, uS: { value: strength }, uCoal: { value: coal }, uPool: { value: pool } },
+    // premultiplied: the coal bed covers the snow in the pit with charcoal (alpha), the pool around it only adds light
+    transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, polygonOffset: true, polygonOffsetFactor: -4, fog: false,
+    vertexShader: `varying vec2 vP; uniform float uPool; void main(){ vP = position.xy * uPool; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+    fragmentShader: `uniform float uT, uFlick, uS, uCoal, uPool; varying vec2 vP;
+      float hs(vec2 p){ vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+      float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(hs(i), hs(i + vec2(1, 0)), f.x), mix(hs(i + vec2(0, 1)), hs(i + vec2(1, 1)), f.x), f.y); }
+      void main(){ float r = length(vP);
+        float n = vn(vP * 9. + vec2(0., uT * .35)) * .6 + vn(vP * 23. - uT * .5) * .4;
+        float bed = 1. - smoothstep(uCoal * .7, uCoal, r + (n - .5) * .12);
+        float coal = bed * smoothstep(.45, .8, n) * (.55 + .45 * sin(uT * 2.3 + n * 9.));
+        float pool = exp(-r * r / (uPool * uPool * .18)) * (.55 + .45 * uFlick);
+        vec3 c = vec3(1., .3, .05) * coal * 1.6 * (uS > .9 ? uFlick : .5) + vec3(.02, .017, .015) * bed + vec3(1., .5, .22) * pool * .1 * uS;
+        gl_FragColor = vec4(c, bed * .92); }` });
+  const d = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m); d.rotation.x = -Math.PI / 2; d.position.copy(pos); d.renderOrder = 2; d.name = 'fire_heat'; d.userData.noCollide = true; d.userData.qaIntentional = 'fire';
+  scene.add(d); return d;
+}
+FIRE.decal = fireDecal(new V3(FIRE.pos.x, FIRE.pos.y + 0.05, FIRE.pos.z), 0.5, 2.6, 1);
+// smoke: soft camera-facing puffs, one instanced draw (station fire + camp stove pipe + camp ring; hidden when no puff is alive)
+FIRE.smokeMesh = (() => {
+  const n = 48, g = new THREE.InstancedBufferGeometry(); g.instanceCount = n;
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0], 3)); g.setIndex([0, 1, 2, 0, 2, 3]);
+  const iP = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3), iA = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4);
+  iP.setUsage(THREE.DynamicDrawUsage); iA.setUsage(THREE.DynamicDrawUsage); g.setAttribute('iP', iP); g.setAttribute('iA', iA);
+  const m = new THREE.ShaderMaterial({ uniforms: { uMoon: { value: new THREE.Color(0.24, 0.26, 0.3) } }, transparent: true, depthWrite: false, fog: false,
+    vertexShader: `attribute vec3 iP; attribute vec4 iA; varying vec2 vQ; varying vec4 vA;   // iA: size, alpha, spin, warm
+      void main(){ vec3 r = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), u = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+        float c = cos(iA.z), s = sin(iA.z); vec2 q = mat2(c, s, -s, c) * position.xy; vQ = position.xy; vA = iA;
+        gl_Position = projectionMatrix * viewMatrix * vec4(iP + (r * q.x + u * q.y) * iA.x, 1.); }`,
+    fragmentShader: `uniform vec3 uMoon; varying vec2 vQ; varying vec4 vA;
+      void main(){ vec2 p = vQ * 2.; float d = dot(p, p); if (d > 1.) discard;
+        float lobes = .75 + .25 * sin(atan(p.y, p.x) * 3. + vA.z * 5.) * sqrt(d);
+        float a = pow(1. - d, 1.6) * lobes * vA.y;
+        vec3 c = mix(uMoon, vec3(.55, .24, .08), vA.w);
+        gl_FragColor = vec4(c, a); }` });
+  const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = 7; mesh.name = 'fire_smoke'; mesh.userData.noCollide = true; mesh.userData.qaIntentional = 'fire';
+  scene.add(mesh); for (let i = 0; i < n; i++) FIRE.smoke.push({ life: 0, max: 1, x: 0, y: 0, z: 0, vy: 0, s0: 0, s1: 0, a: 0, spin: 0, warm: 0 });
+  return { mesh, iP, iA, n };
+})();
+FIRE.puff = (x, y, z, o) => {
+  let p = FIRE.smoke.find((q) => q.life <= 0); if (!p) return;
+  Object.assign(p, { x: x + rand(-0.12, 0.12), y, z: z + rand(-0.12, 0.12), vy: o.vy * rand(0.8, 1.2), max: o.life * rand(0.8, 1.2), s0: o.s0, s1: o.s1 * rand(0.8, 1.25), a: o.a, spin: rand(0, 6.28), sp: rand(-0.3, 0.3), warm: o.warm });
+  p.life = p.max;
+};
 loadPacked('firepit', ASSET + 'firepit/', (g) => {
   const r = prepModel(g.scene, 0); r.position.copy(FIRE.pos); scene.add(r); let ent = Passport.register(r, 'solid', { name: 'firepit' });
+  // heat glow on the stones: an ember term on the inner faces near the coal bed, flickering with the flame
+  r.traverse((o) => { if (!o.isMesh) return; const mt = o.material; if (!mt || mt.userData.fireGlow) return; mt.userData.fireGlow = true;
+    const prev = mt.onBeforeCompile, prevKey = mt.customProgramCacheKey;
+    mt.onBeforeCompile = function (sh, rr) { if (prev) prev.call(this, sh, rr); sh.uniforms.uFlick = FIRE_U.uFlick; sh.uniforms.uFireC = { value: FIRE.pos };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFw;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vFw = (modelMatrix * vec4(transformed, 1.)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFw; uniform float uFlick; uniform vec3 uFireC;')
+        .replace('#include <lights_fragment_begin>', `{ float fr = length(vFw.xz - uFireC.xz), fh = vFw.y - uFireC.y;
+          totalEmissiveRadiance += vec3(1., .3, .06) * (1. - smoothstep(.25, .72, fr)) * (1. - smoothstep(.12, .42, fh)) * (.25 + .35 * uFlick); }
+        #include <lights_fragment_begin>`); };
+    mt.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|fireglow'; }; mt.needsUpdate = true; });
   // the ring rests on the loose snow: re-seat once the terrain's snow depth (drifts included) has settled
   setTimeout(() => { const b = new THREE.Box3().setFromObject(r), x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const d = window.Terrain && Terrain.snowDepthAt ? Terrain.snowDepthAt(x, z) : 0, want = groundH(x, z) + d * 0.85 - 0.03;
-    Passport.remove(ent); r.position.y += want - b.min.y; r.updateMatrixWorld(true); ent = Passport.register(r, 'solid', { name: 'firepit' }); }, 6000);
+    Passport.remove(ent); r.position.y += want - b.min.y; r.updateMatrixWorld(true); ent = Passport.register(r, 'solid', { name: 'firepit' });
+    FIRE.baseY = want + 0.06; FIRE.flame.position.y = FIRE.baseY; FIRE.decal.position.y = want + 0.04; }, 6000);
 });
+window.FIREFX = FIRE;   // QA: FIREFX.off = true hides the whole fire system (A/B cost)
 function updateFire(dt) {
-  fireLight.intensity = candela(24) * (0.93 + Math.sin(T * 13) * 0.13 + Math.sin(T * 23.7) * 0.1 + rand(-0.07, 0.07));
-  const d = camera.position.distanceTo(FIRE.pos);
-  if (d > 170 || dt === 0) return;
-  for (let k = 0; k < 2; k++) emit(FIRE.pos.x + rand(-0.35, 0.35), FIRE.pos.y + 0.3, FIRE.pos.z + rand(-0.35, 0.35), rand(-0.3, 0.3), rand(1.4, 2.8), rand(-0.3, 0.3), rand(0.4, 0.8), [0xff6a1a, 0xffa030, 0xff4010][(Math.random() * 3) | 0], rand(0.35, 0.7), 1.2, -1.2);
-  if (Math.random() < 0.15) emit(FIRE.pos.x, FIRE.pos.y + 0.6, FIRE.pos.z, rand(-0.6, 0.6), rand(2, 4), rand(-0.6, 0.6), 2, 0xffc070, 0.12, 0.8, -0.4);
-  if (d < 14 && Math.random() < dt * 5) Sound.crack();
+  if (FIRE.off) { FIRE.flame.visible = FIRE.decal.visible = FIRE.smokeMesh.mesh.visible = false; if (FIRE.campDecal) FIRE.campDecal.visible = false; return; }
+  if (FIRE.campDecal) FIRE.campDecal.visible = true;
+  // flicker: layered sines + a smoothed random walk; the flame, the coal bed, the stones and the light all follow it
+  FIRE.fl[0] = damp(FIRE.fl[0], rand(-1, 1), 6, dt); FIRE.fl[1] = damp(FIRE.fl[1], rand(-1, 1), 1.5, dt);
+  FIRE.flick = clamp(0.92 + Math.sin(T * 7.3) * 0.06 + Math.sin(T * 13.1 + 1) * 0.05 + FIRE.fl[0] * 0.12 + FIRE.fl[1] * 0.1, 0.55, 1.25);
+  FIRE_U.uT.value = T; FIRE_U.uFlick.value = FIRE.flick;
+  fireLight.intensity = candela(24) * (0.55 + 0.45 * FIRE.flick); fireLight.position.y = FIRE.baseY + 0.9 + FIRE.flick * 0.25;
+  const d = camera.position.distanceTo(FIRE.pos), near = d < 170;
+  FIRE.flame.visible = FIRE.decal.visible = near;
+  if (dt === 0) return;
+  const wd = window.Terrain && Terrain.windDir ? Terrain.windDir : { x: 1, z: 0.18 }, wl = Math.hypot(wd.x, wd.z) || 1, ws = 0.5 + 4.5 * (WX.storm || 0), wx = wd.x / wl * ws, wz = wd.z / wl * ws;
+  if (!FIRE.campDecal && window.WorldFill && WorldFill.campFire) FIRE.campDecal = fireDecal(WorldFill.campFire.clone().setY(WorldFill.campFire.y + 0.04), 0.45, 1.4, 0.45);
+  // emitters: station fire (embers + smoke), camp stove pipe, smouldering camp ring
+  FIRE.smokeT += dt;
+  if (near) {
+    if (Math.random() < dt * 10) emit(FIRE.pos.x + rand(-0.3, 0.3), FIRE.baseY + rand(0.2, 0.5), FIRE.pos.z + rand(-0.3, 0.3), rand(-0.4, 0.4) + wx * 0.25, rand(1.4, 3.2), rand(-0.4, 0.4) + wz * 0.25, rand(0.9, 2), [0xff7a20, 0xffa040, 0xff5010][(Math.random() * 3) | 0], rand(0.05, 0.1), 0.7, -0.5);
+    if (Math.random() < dt * 6) FIRE.puff(FIRE.pos.x, FIRE.baseY + 1.0 * FIRE.flick, FIRE.pos.z, { vy: 0.9, life: 6, s0: 0.35, s1: 2.4, a: 0.45, warm: 1 });
+    if (d < 14 && Math.random() < dt * 5) Sound.crack();
+  }
+  const sv = window.STRUCT && STRUCT.stove;
+  if (sv && camera.position.distanceTo(sv) < 170 && Math.random() < dt * 3) FIRE.puff(sv.x, sv.y, sv.z, { vy: 0.6, life: 5, s0: 0.18, s1: 1.4, a: 0.22, warm: 0 });
+  const cf = window.WorldFill && WorldFill.campFire;
+  if (cf && camera.position.distanceTo(cf) < 120 && Math.random() < dt * 1.2) FIRE.puff(cf.x, cf.y + 0.2, cf.z, { vy: 0.35, life: 5, s0: 0.2, s1: 1.1, a: 0.12, warm: 0.3 });
+  const S = FIRE.smokeMesh, P = S.iP.array, A = S.iA.array; let live = 0;
+  for (let i = 0; i < S.n; i++) {
+    const p = FIRE.smoke[i];
+    if (p.life <= 0) { A[i * 4 + 1] = 0; A[i * 4] = 0; continue; }
+    live++;
+    p.life -= dt; const age = 1 - p.life / p.max, drift = Math.min(1, age * 3);
+    p.x += wx * drift * dt; p.z += wz * drift * dt; p.y += p.vy * (1 - age * 0.6) * dt; p.spin += p.sp * dt;
+    P[i * 3] = p.x; P[i * 3 + 1] = p.y; P[i * 3 + 2] = p.z;
+    A[i * 4] = p.s0 + (p.s1 - p.s0) * Math.sqrt(age); A[i * 4 + 1] = p.a * Math.min(1, age * 6) * (1 - age) * (1 - age * 0.3); A[i * 4 + 2] = p.spin; A[i * 4 + 3] = p.warm * Math.max(0, 1 - age * 2.5) * FIRE.flick;
+  }
+  S.mesh.visible = live > 0; if (live) { S.iP.needsUpdate = true; S.iA.needsUpdate = true; }
 }
 function rest() {
   G.restT = 2.4; $('fadeText').textContent = 'ОТДЫХ'; $('fadeText').style.color = 'var(--amber)'; $('fade').classList.add('on'); Sound.heal();
@@ -3874,12 +4215,27 @@ loadPacked('animal_stag', ASSET, (g) => {
   // it can't desaturate a hue (every channel gets the same factor, so the ratio between them — the hue — is
   // unchanged; confirmed by look-gate's own render still reading brown after that first attempt). Dropping the map
   // and using a flat pale hide colour does change the hue, same fix pattern already proven on the fox below.
+  // NATURE: the flat tint lost every marking (a plastic toy). The texture is kept and re-mapped by its LUMINANCE onto a
+  // reindeer palette (i01–i05): dark grey-brown back/legs → grey-fawn flanks → cream neck/belly; the fur detail (high
+  // frequency luminance) stays, the red-brown hue goes. Antlers: velvet-less bone/brown, darker tips. Eyes untouched.
   const base = prepModel(g.scene, 0, (m) => {
-    m.map = null; if (m.color) m.color.setHex(0xc9c2b4);
     m.roughness = 0.92; m.metalness = 0;
     if ('envMapIntensity' in m) m.envMapIntensity = 0.4;
+    if (m.map && /body|head/i.test(m.name || '')) {
+      m.color.setRGB(1, 1, 1);
+      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        { float hl = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)); float hb = diffuseColor.b / max(diffuseColor.r, 1e-3);
+          float t = smoothstep(.015, .12, hl);
+          vec3 hide = mix(vec3(.16, .14, .115), vec3(.46, .43, .37), t);           // grey-brown → grey-fawn (linear, paler than i01–i05's night read)
+          hide = mix(hide, vec3(.66, .64, .58), smoothstep(.12, .28, hl));          // cream neck / rump / belly
+          diffuseColor.rgb = hide * mix(1., .7, smoothstep(1.4, 2.4, hb)); }`); };
+      m.customProgramCacheKey = () => 'stagHide';
+    } else if (m.map && /antler/i.test(m.name || '')) { m.color.setRGB(0.75, 0.68, 0.6); }
+    else if (!m.map && m.color && !/eye/i.test(m.name || '')) m.color.setHex(0xc9c2b4);
     m.needsUpdate = true;
   });
+  // REALISM-QA rule 2: the eyes (39 sRGB) up to the albedo floor (wet dark eye ≈ 0.04 linear), hue kept
+  if (window.STRUCT && STRUCT.albedoFloor) base.traverse((o) => { if (o.isMesh && /eye/i.test(([].concat(o.material)[0] || {}).name || '')) STRUCT.albedoFloor(o); });
   const spots = [[-110, 40], [-95, 55], [-120, 58], [135, -45], [150, -30], [60, 150]];
   for (const [x, z] of spots) {
     if (getH(x, z) < 1 || inRift(x, z)) continue;
@@ -3951,7 +4307,7 @@ function updateModules(dt) {
 // Wave-2 feature modules (modules/*.js) push { name, order, init(ctx), update(dt, ctx) } into window.GameModules.
 // ctx exposes the game's internals by reference; mutable scalars are getters. A failing module is disabled, never the game.
 const MODS = [];
-const MODCTX = { SHADOW,
+const MODCTX = { SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
   H, VN, CELL, W, RES, getH, groundH, normalY, riftD, nearPOI, inRift, POI, RIFT_FLOOR, WORLD, WORLD_TERRAIN, DECOR, FOREST, STAGS, fox, orm, AV, sk, player, enemies, boss,
@@ -3977,13 +4333,46 @@ function updateGameModules(dt) {
 
 /* ============================ LOOP ============================ */
 let lastT = performance.now(), saveT = 0;
+// Frame pacing (LOWEND.md). Idle: in the menu (after 3 s of it), on pause and in a hidden tab the last frame stays on
+// screen and the loop stops completely (no rAF, no GPU work) until input / resize / visibility wakes it. Under #dbg
+// (test tools drive paused frames) idle is off unless ?idle=1. Cap: Q.fpsCap skips rAF ticks; dt is the real time
+// between the frames that run, so the simulation speed does not change.
+function wantsIdle() {
+  if (!LOOP.idleOK) return false;
+  if (document.hidden) return true;
+  if (G.mode === 'play') return !!G.pause;
+  return G.mode === 'menu' && LOAD.done && LOOP.menuT > 3;
+}
+function wakeLoop() {
+  LOOP.redraw = true;
+  if (!LOOP.running) { LOOP.running = true; LOOP.wakes++; lastT = LOOP.capT = LOOP.drawT = performance.now(); requestAnimationFrame(frame); }
+}
+for (const ev of ['keydown', 'pointerdown', 'click', 'wheel', 'focus', 'resize']) addEventListener(ev, wakeLoop, { capture: true, passive: true });
+document.addEventListener('visibilitychange', wakeLoop);
 function frame(now) {
+  if (wantsIdle() && LOOP.idleDrawn && !LOOP.redraw) { LOOP.running = false; return; }   // idle: stop until woken
   requestAnimationFrame(frame);
-  const cpu0 = GPUT.cpuOn ? performance.now() : 0;
+  if (Q.fpsCap > 0 && !LOOP.redraw) {
+    const iv = 1000 / Q.fpsCap;
+    if (now - LOOP.capT < iv - 4) { LOOP.skipped++; return; }
+    LOOP.capT = now - LOOP.capT > iv * 2 ? now : LOOP.capT + iv;   // stay on the 30 Hz grid (no drift) unless we fell behind
+  }
+  const realDt = (now - LOOP.drawT) / 1000; LOOP.drawT = now;
+  const idleFrame = wantsIdle(), redraw = LOOP.redraw; LOOP.idleDrawn = idleFrame; LOOP.redraw = false; LOOP.drawn++;
+  // LOOP.probe (tools/bench): a 1-pixel read of the screen before and after the frame (gl.finish does not wait on
+  // ANGLE-Metal; a readback must) → serialised CPU + GPU busy time of one frame
+  if (LOOP.probe) LOOP.sync();
+  const cpu0 = performance.now();
   let dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+  if (G.mode === 'menu' && LOAD.done) LOOP.menuT += dt; else LOOP.menuT = 0;
   if (window.AI) AI.tick(dt);
   if (G.mode === 'play') {
-    if (G.pause || G.ui) { if (G.ui === 'map') drawBigMap(); render(); pressed.clear(); return; }
+    if (G.pause || G.ui) {
+      if (G.ui === 'map') drawBigMap();
+      if (G.pause || !LOOP.uiDrawn || redraw) render();   // map / journal: the 3D frame behind the panel is drawn once
+      LOOP.uiDrawn = true; pressed.clear(); return;
+    }
+    LOOP.uiDrawn = false;
     G.time += dt;
     if (Dialog.active) { Dialog.update(dt); animChar(player.c, dt, 0, false, false, G.riding); driveAvatar(dt, G.riding ? 'ride' : 'still'); if (G.riding) Sound.setEngine(true, 0); }
     else if (G.deadT > 0) { G.deadT -= dt; if (AV.player) AV.player.update(dt); if (G.deadT <= 0) respawn(); }
@@ -4006,13 +4395,16 @@ function frame(now) {
     const a = T * 0.04 + 0.6;
     camera.position.set(Math.sin(a) * 330, 150, Math.cos(a) * 330); camera.lookAt(0, 20, -20); }
   } else if (G.mode === 'ending') updateEnding(dt);
-  Passport.idle(PH.ok ? 4 : 12);   // footprint circles for the 2D grid (AI / fallback movement)
+  Passport.idle(PH.ok ? (Q.fpBudget ?? 4) : 12);   // footprint circles for the 2D grid (AI / fallback movement); no-physics fallback always gets the full budget
   if (colView.on) { if (Math.hypot(player.x - colView.at.x, player.z - colView.at.z) > 60) toggleColliderView(true); else Passport.debugUpdate(); }
   updateWorld(dt); updateModules(dt); updateGameModules(dt); if (WF_OK) { try { WorldFill.update(dt); } catch (e) { WF_OK = false; console.warn(e); } } updateParticles(dt);
   pressed.clear();
-  const cpu1 = GPUT.cpuOn ? performance.now() : 0;
+  const cpu1 = performance.now();
   render();
-  if (GPUT.cpuOn) { const t = performance.now(); GPUT.cpu.push(t - cpu0); GPUT.cpuR.push(t - cpu1); }
+  const cpuEnd = performance.now();
+  if (LOOP.probe) { LOOP.sync(); LOOP.probe.push({ busy: performance.now() - cpu0, cpu: cpuEnd - cpu0 }); if (LOOP.probe.length > 600) LOOP.probe.shift(); }
+  if (GPUT.cpuOn) { GPUT.cpu.push(cpuEnd - cpu0); GPUT.cpuR.push(cpuEnd - cpu1); }
+  if (window.LowEnd) LowEnd.frame(now, { dt: realDt, cpuMs: cpuEnd - cpu0, gpuMs: FT.gpuOn ? FT.poll() : null, playing: G.mode === 'play' && !G.pause && !G.ui && !document.hidden && !idleFrame });
 }
 
 /* ============================ BOOT ============================ */
@@ -4030,18 +4422,25 @@ function frame(now) {
   player.c.g.position.set(player.x, player.y, player.z);
   if (composer) $('vign').hidden = true;
   initModules();
+  // LOWEND.md: the boot preset once more now that the modules added their knobs; the weak-laptop controller
+  if (Q.name !== 'high') setQuality(Q.name);
+  if (window.LowEnd) LowEnd.attach({ renderer, Q, QUALITY, setQuality, getScale: () => RS.s, setScale: setRenderScale, bounds: rsBounds, toast, loop: LOOP, pick: QPICK, get G() { return G; } });
+  console.log('[quality]', Q.name, '·', QPICK.why);
   startLoader(() => (s ? $('bContinue') : $('bNew')).focus({ preventScroll: true }));
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.
   if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
-    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW,
+    terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW, RS, LOOP, setRenderScale, frameTimer: FT,
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
     STAGES, ZONES, enemies, boss, INTER, spawnShardling, save, continueGame, applySave, store, setPause, ENDINGS, heals,
     newGame: () => startGame(false),
-    // teleport onto whatever is under (x, z): terrain or the top of a solid (rock, wreck, roof)
+    // teleport onto whatever is under (x, z): terrain or the top of a solid (rock, wreck, roof). A plain first-hit
+    // raycast can land on the underside/tip of an overhang above the real surface (a jutting crystal shard over a
+    // spire altar's plinth, a low branch): groundYWalkable walks down past any such un-walkable hit to the first
+    // one the character could actually stand on, so a QA/dev placement lands where a walked-in player would.
     teleport(x, z, yaw, y) {
       let yy = y;
-      if (yy === undefined) { yy = groundH(x, z); if (PH.ok) { const h = PH.P.raycast({ x, y: yy + 60, z }, { x: 0, y: -1, z: 0 }, 80, { groups: PH.P.groups.STATIC }); if (h) yy = h.point.y; } }
+      if (yy === undefined) { yy = groundH(x, z); if (PH.ok) { const h = PH.P.groundYWalkable(x, z, { fromY: yy + 60, bottom: yy - 20 }); if (h) yy = h.point.y; } }
       player.x = x; player.z = z; player.y = yy; player.vx = player.vz = player.vy = 0; CLIMB.t = -1;
       if (PH.ok) { PH.ch.setEnabled(true); PH.ch.setPosition(x, yy + 0.05, z); }
       if (yaw !== undefined) cam.yaw = yaw;
@@ -4102,6 +4501,9 @@ function frame(now) {
       },
     });
   }
+
+  // ?q=… / the pause-menu choice is the player's: the quality director does not move it
+  if (QPICK.forced && window.AI && AI.quality) AI.quality.set(Q.name, 1e9);
 
   requestAnimationFrame(frame);
 })();

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Замер кадров</title>
+<style>
+  :root { color-scheme: dark; --bg: #070b1a; --ink: #e8f4ff; --dim: #8a9cc0; --ice: #7fe3ff; --aur: #5cf5c0; --line: rgba(127,227,255,.22); --panel: rgba(9,15,36,.85); }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, sans-serif; }
+  #start { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .card { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+  h1 { margin: 0; font-size: 20px; display: flex; gap: 8px; align-items: center; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .steps div { padding: 6px 4px; border-radius: 8px; background: rgba(255,255,255,.05); text-align: center; font-size: 11px; color: var(--dim); }
+  .steps b { display: block; font-size: 15px; color: var(--ink); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { height: 40px; padding: 0 14px; border-radius: 10px; border: 0; cursor: pointer; font: 700 14px system-ui, sans-serif; background: rgba(255,255,255,.08); color: var(--ink); }
+  button.p { background: var(--ice); color: #04101f; }
+  .dim { color: var(--dim); font-size: 12px; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: none; }
+  svg { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<div id="start">
+  <div class="card">
+    <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>Замер кадров · 2 мин</h1>
+    <div class="steps"><div><b>10 с</b>меню</div><div><b>24 с</b>прогулка</div><div><b>26 с</b>лес</div><div><b>20 с</b>костёр</div><div><b>20 с</b>снег</div></div>
+    <div class="dim">Не трогайте мышь и клавиатуру. Ноутбук — от сети или от батареи, как обычно играете.</div>
+    <div class="row">
+      <button class="p" data-q="air">Слабый ноутбук</button>
+      <button data-q="low">Низкое</button>
+      <button data-q="">Авто</button>
+    </div>
+  </div>
+</div>
+<iframe id="game" allow="fullscreen" title="Игра"></iframe>
+<script>
+  // the same page as the game, with the bench route switched on (modules/bench.js) and the chosen quality forced
+  document.querySelectorAll('button[data-q]').forEach((b) => b.onclick = () => {
+    const q = b.dataset.q, f = document.getElementById('game');
+    f.src = 'open-world.html?bench=1' + (q ? '&q=' + q : '');
+    f.style.display = 'block'; document.getElementById('start').style.display = 'none';
+    f.focus();
+  });
+  addEventListener('message', (e) => { if (e.data && e.data.type === 'eor-bench') { window.benchResult = e.data.result; document.title = 'Замер · ' + e.data.result.fps + ' к/с'; } });
+</script>
+</body>
+</html>

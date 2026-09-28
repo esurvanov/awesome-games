@@ -1,0 +1,11 @@
+{
+  "pack": "anim_pilot_fall",
+  "rig": "UAL skeleton (pilot_aces / pilot_aces_textured, identical rest)",
+  "source": "Quaternius Universal Animation Library (UAL1 Standard) — the same clips already inside pilot_aces_textured.glb, cut out so they load without re-parsing the model",
+  "license": "CC0 1.0",
+  "clips": {
+    "pb_fall": { "from": "Death01", "duration": 2.4, "use": "no-WASM fallback: collapse to the ground (played to ~1.3 s, then get-up)" },
+    "pb_knock": { "from": "Hit_Knockback", "duration": 0.833, "use": "heavy hit without physics: knocked back" },
+    "pb_getup": { "from": "LayToIdle", "duration": 1.533, "use": "get up from lying after the ragdoll / fall clip" }
+  }
+}
