@@ -310,16 +310,32 @@ def denoise(arr):
     src.pixels.foreach_set(np.dstack([rgb, np.ones((h, w), np.float32)]).astype(np.float32).ravel())
     dn = _DN.get('scene')
     if dn is None:
-        dn = bpy.data.scenes.new('_dn'); dn.render.engine = 'BLENDER_WORKBENCH'; dn.use_nodes = True
+        dn = bpy.data.scenes.new('_dn'); dn.render.engine = 'BLENDER_WORKBENCH'
         cam = bpy.data.objects.new('_dncam', bpy.data.cameras.new('_dncam')); dn.collection.objects.link(cam); dn.camera = cam
         dn.render.image_settings.file_format = 'OPEN_EXR'; dn.render.image_settings.color_depth = '32'; dn.render.image_settings.color_mode = 'RGBA'
         dn.view_settings.view_transform = 'Standard'; dn.render.resolution_percentage = 100; dn.render.film_transparent = True
-        nt = dn.node_tree; nt.nodes.clear()
-        im = nt.nodes.new('CompositorNodeImage'); de = nt.nodes.new('CompositorNodeDenoise'); co = nt.nodes.new('CompositorNodeComposite')
-        de.use_hdr = True
-        try: de.prefilter = 'ACCURATE'
-        except Exception: pass
-        nt.links.new(im.outputs['Image'], de.inputs['Image']); nt.links.new(de.outputs['Image'], co.inputs['Image'])
+        # Blender 5.x moved the compositor tree off Scene.node_tree (removed) onto Scene.compositing_node_group (a
+        # node group the scene must own explicitly — use_nodes=True no longer auto-creates one); 4.x still has node_tree.
+        if hasattr(dn, 'compositing_node_group'):
+            nt = bpy.data.node_groups.new('_dn_comp', 'CompositorNodeTree'); dn.compositing_node_group = nt
+            nt.nodes.clear()
+            im = nt.nodes.new('CompositorNodeImage'); de = nt.nodes.new('CompositorNodeDenoise')
+            try: de.use_hdr = True
+            except Exception: pass
+            try: de.prefilter = 'ACCURATE'
+            except Exception: pass
+            # Blender 5.x: the compositor is a generic node group (no more dedicated Composite node) — the scene
+            # renders whatever the group's own OUTPUT interface socket carries, via a Group Output node
+            nt.interface.new_socket(name='Image', in_out='OUTPUT', socket_type='NodeSocketColor')
+            co = nt.nodes.new('NodeGroupOutput')
+            nt.links.new(im.outputs['Image'], de.inputs['Image']); nt.links.new(de.outputs['Image'], co.inputs['Image'])
+        else:
+            dn.use_nodes = True; nt = dn.node_tree; nt.nodes.clear()
+            im = nt.nodes.new('CompositorNodeImage'); de = nt.nodes.new('CompositorNodeDenoise'); co = nt.nodes.new('CompositorNodeComposite')
+            de.use_hdr = True
+            try: de.prefilter = 'ACCURATE'
+            except Exception: pass
+            nt.links.new(im.outputs['Image'], de.inputs['Image']); nt.links.new(de.outputs['Image'], co.inputs['Image'])
         _DN['scene'] = dn; _DN['img'] = im
     dn.render.resolution_x = w; dn.render.resolution_y = h
     _DN['img'].image = src
@@ -348,9 +364,9 @@ def bake_channels(objs, name, w, h, uv_name, samples=None, vis=True):
         bake('DIFFUSE', objs, img, uv_name, ('DIRECT',), int(opt('vis-samples', max(8, (samples or SAMPLES) // 4))))
         dm = px(img)[..., :3].mean(-1).copy()
         cov = px(img)[..., 3].copy()
-        MOON.data.cycles.cast_shadow = False
+        MOON.data.use_shadow = False   # Blender 5.x removed light.cycles.cast_shadow; the shadow toggle moved to the base light datablock
         bake('DIFFUSE', objs, img, uv_name, ('DIRECT',), 4)
-        MOON.data.cycles.cast_shadow = True
+        MOON.data.use_shadow = True
         du = px(img)[..., :3].mean(-1)
         visv = np.where(du > 1e-4, np.clip(dm / np.maximum(du, 1e-4), 0, 1), 0.0).astype(np.float32)
         visv[cov <= 0] = 1.0
