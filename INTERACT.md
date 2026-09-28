@@ -254,3 +254,123 @@ not yet a clean pass; left for the main agent alongside the rest of this list.
   line away from the object's own bulk (e.g. using the entry's box/trunk radius to bias yaw toward open ground), not a
   fixed per-subject number. Left for the next pass; `pilot_wall`/`pilot_push` (smaller / farther objects) aren't
   affected by this.
+
+### 🔧 Next wave (CONTACT/CT + stags/fox owner)
+
+- **Stag foot sliding — root cause found and fixed** (QA motion FAIL: `stags_flee` ratio 2.0, `stags_flee2` ratio 1.6).
+  Two compounding bugs in `stagUpdate()`, both in the flee-speed / gait-blend code added after the ANIMLIB stag pack:
+  1. The flee top speed (`top`) was still computed from the **legacy flat `Run` clip's** measured stride × `stagRate`
+     (a formula that predates the 20-clip gait blender) — in practice ≈ 4 m/s, sitting squarely between the trot (3.0)
+     and canter (6.0) bands, so a fleeing stag topped out there and stayed for the whole flight: pure trot forced to run
+     ~30 % faster than its authored stride, forever, instead of crossfading up into canter/gallop where the blender's
+     own numbers hold. Fixed: once `S.gait` (the `ANIMLIB.GaitBlender`) is built, `top` is now the **gallop clip's own**
+     measured speed (`s.gaitMeta.gaitTable.gallop.speed`, 11 m/s) capped at the existing `K.stagTop` (9.5) — the legacy
+     formula is now only a fallback for the (rare) case the blender never builds. Acceleration is separately capped at
+     ≤ 7 m/s² (ANIMLIB.md: gait changes need their full stride) since `top` can now be much bigger than before.
+  2. **The bigger one**: `GaitBlender` doesn't monkey-patch `A.loop()`/`A.once()` the way the player/fox `makeGait()`
+     does — it only owns its own walk/trot/canter/gallop + idle actions. The game's own state machine
+     (`open-world.html` `updateStags`) still calls `s.A.loop('run', 0.15)` directly whenever a stag starts fleeing, and
+     nothing ever faded that action back out — so the legacy `run` action sat at effective weight 1 for the *entire*
+     flee, blended **additively** under the gait blender's own weighted pose on the same bones (three.js accumulates
+     per-action weighted contributions; it does not renormalize across actions that were never told about each other).
+     A genuine double-drive, not a blend-tuning issue — the feet-analysis clip list even showed `"run×1.00"` active the
+     whole time, gait blender or not. Fixed: while `s.gaitDriving` is true, `s.A.acts.run`'s weight is forced to 0 every
+     frame after `S.gait.update()`.
+  Measured before → after (`node tools/eye.mjs <label> --views none --no-feet --no-placed --motions stags_flee,stags_flee2,fox_follow,fox_seek,boss`,
+  same harness, `stand/interact-fox1` = before this fix / after re-enabling fox leg retime, `stand/interact-fox2` = after
+  both stag fixes with fox back to its previous config):
+
+  | Take | Before (stag0/3) | After |
+  |---|---|---|
+  | stags_flee | drift 0.166 / p90 0.26, ratio 1.965 (FAIL) | stag0 drift 0.077 / p90 0.082, ratio 1.146 — **PASS** |
+  | stags_flee2 | drift 0.164 / p90 0.451, ratio 1.572 (FAIL) | drift 0.28 / p90 0.28, ratio 3.157 (still FAIL) |
+
+  Honest reading: the fix removes the systematic full-take slide (confirmed: `stag0` now passes cleanly, and the herd's
+  measured speed jumped from a flat, suspicious 4.0 m/s in every take to ~9.5 m/s = `K.stagTop`, i.e. stags actually
+  reach a believable flee speed now instead of being invisibly capped). The residual FAILs (`stags_flee` stag1, all of
+  `stags_flee2`) come from only 1–3 usable steps per take now (steady cruising window got shorter because acceleration
+  to the higher top speed eats more of the ~4 s take, and gallop's own duty factor is short — 0.21, harder for a ~12 fps
+  sampler to catch mid-stance) — the single dominant "step" in each of these is the **very first stride from a
+  standstill**, a known-hard edge case (`GaitBlender` has no analogue to the player/fox `makeGait`'s "start from the
+  idle stance's own foot phase" logic). Left for later: give `GaitBlender` a matching cold-start phase pick, or extend
+  the QA take a couple seconds so more steady gallop strides land in the sampling window.
+- **Fox foot sliding — re-enabling per-leg retime makes it *worse*, confirms the earlier revert was right.**
+  `K.foxLegs` (the `legWarp` per-leg clip-time-warp fix, disabled since commit `e349a91`: "per-leg stance detection
+  unreliable on this clip") was flipped back on and measured: `fox_follow` drift 0.253→0.515 (ratio 4.4→13.4),
+  `fox_seek` drift 0.16→0.66 (ratio 5.0→13.0) — a large regression, not noise. Reverted to `foxLegs: false` (matches
+  HEAD). Root cause not fixed this wave — the fox's front paws genuinely sweep at a different rate than the hind paws
+  in the source clip (`FIX-PERF` comment in `legWarp`), and warping each leg's own clip time independently is the
+  designed answer, but its stance-window detection (`legWarp`'s per-leg local-minimum + tolerance heuristic) picks the
+  wrong window on this rig often enough to make things worse on average. A real fix needs a more robust per-leg stance
+  detector (e.g. cross-check against the other 3 legs' phase instead of a per-leg tolerance band alone), not a knob
+  flip — left for later.
+- **`stag1` +0.144 m leg-clearance reading — investigated, not a bone-identification bug.** All 6 stags share the exact
+  same hoof-bone lookup (`ST.feet` names, resolved once per instance via `root2.getObjectByName`), so a wrong-bone read
+  would show up identically across every stag, not one. A repeat check of the existing QA artifacts found the same
+  class of reading recur on different stag indices across different runs (`stand/qa-contact1/qa.json`: `stag1`
+  `Backleg_R002` +0.101 m; a separate report of `stag1` at +0.144 m) — consistent with a **transient pose**, not a
+  per-instance bug: the 6 stags' idle-family clips (`idle`/`eat`/`look`) run out of phase with each other (each started
+  at a different real time), so whichever stag the "grazing stags" spot happens to sample at the moment one of them is
+  mid-weight-shift in `look`/`eat` reads a lifted hind leg. Any stag can show this at the right instant; it isn't
+  structurally tied to index 1. Not fixed (it isn't a bug to fix) — if a future measurement wants a clean "all planted"
+  reading, sample at a moment `st === 'graze' && s.A.cur === 'idle'` specifically rather than any of the idle family.
+- **Boss (`golem`) foot sliding — root cause is outside this agent's owned files.** `boss` motion take: drift 0.371 m
+  median / 1.973 m worst (ratio 1.057, i.e. it fails on raw drift, not on the stride ratio the way fox/stags do).
+  The golem's gait already goes through the same `makeGait()` this wave's stag fix lives next to (`GOLEM.gait`,
+  `modules/structures.js`), which *does* correctly monkey-patch `A.loop`/`A.once`/`A.update`, so the stag double-drive
+  bug does not apply here. Reading `updateBoss()` (`open-world.html`): the golem only translates (`boss.x/z`) in its
+  `'idle'` state, correctly clamped to `boss.vMax`; the `'rise'`/`'drop'`/`'charge'`/`'recover'` states never move
+  `boss.x/z` at all, only `boss.y` and arm/body rotations — so the measured drift almost certainly comes from the
+  *pose itself* swinging a foot bone sideways during those attack clips (rise/charge have large arm and torso motion)
+  while the generic QA stance-detector (which only looks at foot height + vertical speed, not which state the actor is
+  in) mistakes a low, momentarily-still foot mid-attack-pose for a "planted stance" and measures the pose's own swing
+  as world drift. Fixing this needs either state-aware stance detection (QA-owned, `tools/qa/qa-page.js`) or keeping
+  the attack clips' feet visibly still (`modules/structures.js`/`open-world.html`, both outside CONTACT/CT/stags/fox
+  ownership) — left for the QA or PHYSBODY/structures owner with this diagnosis, not attempted here.
+- **Hand gaps — hab module and ruin column are already fixed** (re-measured this wave, independent Raycaster,
+  `node tools/interact/run.mjs handgap1 --test '^(struct_hab_module|st_ruin_column|tool_crate)\|'`): `st_ruin_column`
+  3/4 · worst 3.1 cm / med 2.6 cm (was 3/4 · 8.3/24.8 cm) and `struct_hab_module` 3/4 · worst 2.6 cm / med 1.7 cm (was
+  4/4 · 10.9/19.1 cm) — both now at or near the ≤ 3 cm target; some other wave's fix (unclear which commit) resolved
+  them since this table was last written, confirmed fresh rather than assumed. `tool_crate` is **not** fixed: 1/4 ·
+  worst 28 cm / med 28 cm (was 1/4 · 20.3/20.3 cm, i.e. still bad, arguably slightly worse) — matches the standing
+  diagnosis ("ledge palms into the lid"): the crate's authored top-rim points assume a rim height that the two-palm
+  ledge clip's own recast (`plan1`'s `Math.abs(hit.point.y - q.y) > 0.25` check) accepts even when the palm lands
+  inside the lid rather than beside it. This is authoring data (`modules/interact-data.js`, generated), not mediator
+  logic — a real fix needs `tool_crate`'s points re-authored with tighter top-rim placement or a smaller y-tolerance
+  for this one kind, then `node tools/interact/author.mjs` re-run (~4 min) and re-measured; not attempted this wave
+  (no safe way to hand-edit the generated data, and the authoring re-run plus a clean re-measure didn't fit the
+  remaining time budget on a very congested shared machine).
+- **Shoulder-contact near-miss — confirmed, not fixed.** PHYSBODY.md left this as a read-only conclusion ("the shoulder
+  probe should fire ~9 cm before the capsule, from the arithmetic alone — never actually measured"). Measured it this
+  wave: stood the pilot at controlled standoffs (0.30 / 0.42 / 0.45 / 0.48 / 0.55 / 0.70 m from a flat Kestrel-hull
+  face, capsule confirmed not touching, physics on) and watched `PHYSBODY.STATS.shoulder`. Result: it fires continuously
+  at 0.30 m and **not at all** from 0.42 m out to 0.70 m — zero events in the whole advertised 0.42–0.48 m near-miss
+  band. The earlier arithmetic (capsule radius 0.2 + shoulder lateral offset 0.22 = 0.18 m of "free" margin before the
+  0.27 m threshold) doesn't hold for a **head-on** approach: a shoulder offset *sideways* from the spine centreline
+  doesn't bring it meaningfully closer to a flat face directly ahead of the character (only to something beside or at
+  a corner), so there's no early-warning margin to find in this exact scenario — the probe is working as coded, the
+  previous read-only prediction was wrong about which geometry it protects against. `PHYSBODY.md`'s own `testBump` (an
+  oblique 30° approach, i.e. actually grazing a face to the side) is the scenario where the shoulder probe's lateral
+  reach is supposed to matter, and that one already measures 8 touches / 17 frames of shoulder contact in this file's
+  existing test suite — left as is; not a bug, just a narrower guarantee than previously believed.
+- **Look-gate `pilot_wreck` — fixed.** `lg-interact.js`'s `shot()` no longer anchors the camera yaw on `P.face +
+  yawOff` (the pilot's own facing, which points *into* the object during a lean); it now anchors on the direction
+  *away* from the touched object's own bulk (the contact's authored surface normal, `CT().plan.normal`, or failing
+  that the object-centre→pilot line), plus a small ± lateral swing for a 3/4 angle, picking whichever side ends up
+  farther from the object's centre (`away()` / `clearance()` in `lg-interact.js`). Re-ran `interact3`
+  (`stand/lookgate-interact3/lean_wreck.png`, looked at directly): the Kestrel's full hull, the pilot leaning on it
+  shoulder-first, and the contact point are all clearly in frame — was "fills the frame with the hull, no pilot, no
+  contact point" before. Clean fix for anything whose bulk is mostly horizontal/2D from the camera's height.
+- **Look-gate `pilot_tree` — still broken, different failure mode than `pilot_wreck`.** Same yaw fix applied, plus a
+  lower `pitch`/`dist` tried afterward (0.35→0.15, 5.2→4.0 m) since the first re-run still failed — neither helped:
+  `stand/lookgate-interact3/lean_tree.png` and `stand/lookgate-interact4/lean_tree.png` (looked at directly) both show
+  the trunk large and correctly in frame (an improvement over the old "unrelated patch of snow, no pilot, no trunk"
+  failure) but still **no pilot anywhere in frame**, camera swung up above and looking steeply down through canopy.
+  Diagnosis: the wreck fix only steers the camera's **horizontal** (yaw) direction away from the object's bulk, which
+  is enough for a shape that's wide but low (a fuselage). A spruce canopy is wide **and** wraps around near the ground
+  from most directions *and* overhead — there's no single horizontal escape direction, so the boom-vs-solid collision
+  keeps rerouting the camera upward over the canopy instead, ending up high and pitched down at the ground with the
+  (much shorter) pilot out of frame. A real fix needs the shot to also account for the **vertical** extent of the
+  object (canopy height) — e.g. explicitly holding the boom below canopy height rather than letting the collision
+  system choose freely — not a yaw-only steer. Left for later; `pilot_wall`/`pilot_push`/`pilot_wreck` (objects without
+  a wide overhead canopy) are unaffected.

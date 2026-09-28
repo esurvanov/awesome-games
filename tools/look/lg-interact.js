@@ -28,26 +28,32 @@
     for (const e of entries(re).slice(0, maxEntries)) for (let k = 0; k < angles; k++) { if (await walkIn(e, k / angles * Math.PI * 2 + 0.3, want)) return e; }
     return null;
   }
-  const playCam = async (dist, pitch, yawOff) => {
-    D.camOv = null; D.cam.dist = dist; D.cam.boom = dist; D.cam.pitch = pitch; D.cam.yaw = P.face + yawOff; D.camera.fov = 62; D.camera.updateProjectionMatrix();
+  const playCam = async (dist, pitch, yaw) => {
+    D.camOv = null; D.cam.dist = dist; D.cam.boom = dist; D.cam.pitch = pitch; D.cam.yaw = yaw; D.camera.fov = 62; D.camera.updateProjectionMatrix();
     await QA.wait(900); const c = D.camera, f = new D.THREE.Vector3(); c.getWorldDirection(f);
     return { pos: c.position.toArray(), look: [c.position.x + f.x * 10, c.position.y + f.y * 10, c.position.z + f.z * 10], fov: 62, keepPilot: true }; };
   const S = LG.shots, M = LG.motions;
-  // pitch is now a per-subject knob (was fixed 0.3 for every subject). Tried: a bigger dist + steeper pitch for
-  // lean_wreck/lean_tree, on the theory that more headroom above the obstruction gives the boom-vs-solid shortening
-  // room before it collapses. Re-checked with a real look-gate run (interact2): it did NOT fix it — lean_wreck still
-  // fills the frame with the Kestrel's own hull (no pilot, no contact point) and lean_tree lands on an unrelated patch
-  // of snow with no pilot in frame at all. Leaving the tuned numbers in (not worse than the untuned ones, which failed
-  // the same way per INTERACT.md) but the framing itself is still broken — see INTERACT.md's "This wave" note for the
-  // actual diagnosis (a fixed dist/yaw can't out-run a boom-vs-solid collapse against an object this size; the shot
-  // needs to steer yaw away from the object's own bulk, not just move further back).
-  const shot = (re, want, note, yawOff = 2.5, dist = 4.2, pitch = 0.3) => async () => {
+  // Camera yaw is `D.cam.yaw`, the azimuth from the pilot TO the camera (camera = look + boom·(sin yaw, …, cos yaw),
+  // open-world.html updateCamera) — so a yaw close to the object's own bulk direction puts the camera INSIDE that bulk
+  // regardless of `dist`; more boom distance just fails further out (tried, see git history: bigger dist/pitch for
+  // lean_wreck/lean_tree did not fix it, because the old `P.face + yawOff` anchor measures the offset from the pilot's
+  // facing — which points INTO the object during a lean/touch — so an offset that "feels" like a 3/4 turn can still
+  // land well inside the object's silhouette for anything wider than a person (Kestrel hull, tree canopy).
+  // Fix: anchor yaw on the direction AWAY from the object's own bulk (the touched surface's own outward normal, or
+  // failing that the object-centre→pilot line) plus a small lateral swing for a 3/4 angle, and pick whichever swing
+  // side (left/right of "away") ends up with the camera farther from the object's centre.
+  const away = (e) => { const c = cen(e), n = CT().plan && CT().plan.normal; if (n && (n.x || n.z)) return Math.atan2(n.x, n.z); return Math.atan2(P.x - c.x, P.z - c.z); };
+  const clearance = (e, yaw, dist) => { const c = cen(e), x = P.x + Math.sin(yaw) * dist, z = P.z + Math.cos(yaw) * dist; return Math.hypot(x - c.x, z - c.z); };
+  const shot = (re, want, note, lateral = 0.6, dist = 4.2, pitch = 0.3) => async () => {
     const e = await engage(re, want); if (!e) return { skip: 'contact never engaged on ' + re };
-    await QA.wait(600); const r = await playCam(dist, pitch, yawOff);
+    await QA.wait(600);
+    const a = away(e), y1 = a + lateral, y2 = a - lateral;
+    const yaw = clearance(e, y1, dist) >= clearance(e, y2, dist) ? y1 : y2;
+    const r = await playCam(dist, pitch, yaw);
     return Object.assign(r, { note: `${note}: ${e.name}, ${CT().pick && CT().pick.clip}` }); };
   S.lean_wall = shot(/^st_ruin_wall$|^st_ruin_arch$/, /hand_wall|lean_shoulder|ledge/, 'palms / shoulder on the ruin wall');
-  S.lean_wreck = shot(/^kestrel(_wing|_tail)?$/, null, 'contact on the Kestrel wreck', 1.3, 6.5, 0.55);
-  S.lean_tree = shot(/^tree_(dead_birch|snag_dead|spruce_tall_snow|fir_windbent)$/, /lean_shoulder|hand_wall/, 'shoulder / palm on a trunk', 2.0, 5.2, 0.5);
+  S.lean_wreck = shot(/^kestrel(_wing|_tail)?$/, null, 'contact on the Kestrel wreck', 0.5, 6.5, 0.4);
+  S.lean_tree = shot(/^tree_(dead_birch|snag_dead|spruce_tall_snow|fir_windbent)$/, /lean_shoulder|hand_wall/, 'shoulder / palm on a trunk', 0.5, 4.0, 0.15);
   // pushing: W held into a crate / drum by the station; frozen mid-push. Was one fixed angle (a = 0.6) — missed every
   // engaging side on a given instance (INTERACT.md: crate_wood engages only 2/4 approach angles, unrelated to this
   // camera code); retries several angles / entries the same way `engage()` does for the other subjects, but the success

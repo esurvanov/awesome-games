@@ -1177,9 +1177,17 @@
         const d = wrapA(want - S.dir), mx = turnK * dt;
         S.dir += clamp(d, -mx, mx); S.turn = clamp(d, -mx, mx) / Math.max(dt, 1e-3);
         // speed ramps up from a standstill (the game moves them at a flat 11 m/s × |f|)
-        // top speed = what the gallop clip strides at its fastest believable rate (hooves stay planted: rate = speed ÷ stride)
-        const top = ST.runV > 0.5 ? Math.min(K.stagTop, ST.runV * K.stagRate) : K.stagTop;
-        S.v = Math.min(top, (S.v || 0) + dt * top / 0.9);
+        // top speed = what the fastest available gait strides at (hooves stay planted: rate = speed ÷ stride). Once the
+        // ANIMLIB GaitBlender is built this must be the gallop clip's own measured speed (11 m/s, ANIMLIB.md gaitTable),
+        // not the legacy flat Run clip's stride × stagRate: that stale ceiling (unchanged since before the blender
+        // existed) sat at ≈ 4 m/s — squarely between the trot (3.0) and canter (6.0) bands — so a fleeing stag topped
+        // out and stayed there for the whole flight, running trot ~30 % faster than its authored stride forever instead
+        // of crossfading up into canter/gallop where the blender's own numbers hold (QA motion FAIL: stride ratio 2.0/1.6).
+        const gTop = S.gait && s.gaitMeta && s.gaitMeta.gaitTable && s.gaitMeta.gaitTable.gallop && s.gaitMeta.gaitTable.gallop.speed;
+        const top = gTop ? Math.min(K.stagTop, gTop) : (ST.runV > 0.5 ? Math.min(K.stagTop, ST.runV * K.stagRate) : K.stagTop);
+        // accel capped at ≤ 7 m/s² (ANIMLIB.md: gait changes need their full stride) even though `top` can now be much
+        // higher than before — ramping over the old fixed 0.9 s at a bigger top would blow past that.
+        S.v = Math.min(top, (S.v || 0) + dt * Math.min(top / 0.9, 7));
         const m = S.v / 11; s.fx = Math.sin(S.dir) * m; s.fz = Math.cos(S.dir) * m; S.wroteX = s.fx; S.wroteZ = s.fz;
         if (!S.gait && ST.runV > 0.5 && s.A.acts.run) s.A.acts.run.setEffectiveTimeScale(clamp(S.v / ST.runV, 0.3, K.stagRate));
       } else {
@@ -1198,8 +1206,21 @@
           S.gait = new ANIMLIB.GaitBlender(s.A.mixer, clips, s.gaitMeta, { idle }); }
         catch (e) { S.gait = null; S.gaitFailed = true; console.warn('[interaction] stag gait blender', e); }
       }
-      if (S.gait && (s.st === 'flee' || S.v > 0.15)) { s.gaitDriving = true; try { S.gait.update(dt, S.v, S.turn || 0); } catch (e) { s.gaitDriving = false; } }
-      else s.gaitDriving = false;
+      if (S.gait && (s.st === 'flee' || S.v > 0.15)) {
+        s.gaitDriving = true;
+        try {
+          S.gait.update(dt, S.v, S.turn || 0);
+          // the game's own state machine still calls s.A.loop('run', …) to start a flee (open-world.html updateStags)
+          // — the GaitBlender only owns walk/trot/canter/gallop + idle, it never touches that action, so whatever
+          // weight the crossfade left it at (usually 1, and never faded back out: nothing else re-triggers .loop()
+          // while fleeing) kept blending its pose ADDITIVELY under the blender's own on the same bones (three.js
+          // accumulates weighted per-action contributions, it does not renormalize across actions that were never
+          // told about each other) — a real double-drive, and the actual cause of the measured foot sliding (QA motion
+          // FAIL stags_flee/2 stride ratio 2.0 / 1.6): the feet-analysis clip list showed "run×1.00" driving the whole
+          // flee, the 20-clip blend riding on top of it rather than replacing it.
+          const r = s.A.acts.run; if (r && r.getEffectiveWeight() > 0) r.setEffectiveWeight(0);
+        } catch (e) { s.gaitDriving = false; }
+      } else s.gaitDriving = false;
       const camD = Math.hypot(s.x - cam.x, s.z - cam.z);
       if (camD > 160 || !s.g.visible) continue;
       // ---- slope alignment (plane through front/back/left/right ground samples) + bank in turns
