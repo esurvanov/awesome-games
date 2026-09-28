@@ -318,7 +318,11 @@
     // Un-stick: a capsule that starts *inside* a trimesh (teleport, respawn, a collider appearing around the player)
     // makes the controller grind through every overlapping triangle each substep (tens of ms per frame). Detect real
     // penetration with a slightly shrunk capsule and lift the character onto the surface above (or push it out).
-    const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.12));
+    // Margin was 0.12 (only caught a spawn dropped deep inside something); walking (not spawning) into a concave
+    // notch of a scanned rock/crystal/prop can wedge the capsule 5-27 cm deep and rest there forever (REALISM-QA
+    // negative gaps) without ever tripping a 0.12 m core. 0.06 still leaves a 3x margin over the 2 cm skin, so
+    // ordinary resting/pushing contact (which the KCC itself keeps within skin) never triggers it.
+    const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.06));
     const stuckGroups = groups(G_ALL, G_STATIC | G_TRUNK);
     function unstick() {
       const c = col.translation(); let hit = null, hitTag = null;
@@ -330,17 +334,26 @@
       // jutting crystal shard a few metres above the real ledge below it): groundYWalkable walks down past any such
       // un-walkable hits to the first real standable surface in range, so the character doesn't perch on the shard
       // and immediately slide/fall off it again next frame; fall through to the push-out if nothing qualifies.
+      // The lift only helps when it actually moves the character (a real "embedded from above/inside" case, e.g.
+      // spire-E's overhang): a capsule wedged sideways into a rock's notch at normal standing height finds the same
+      // ground it is already resting on directly below it, so a lift there would be a silent no-op and the sideways
+      // overlap this margin now also catches would never resolve — fall through to the horizontal push instead.
       const top = groundYWalkable(c.x, c.z, { fromY: feetY + 40, bottom: feetY - P.height * 1.5, cosMax, excludeCollider: col });
-      if (top && top.normal.y >= cosMax - 1e-3) { col.setTranslation(v3(c.x, top.point.y + centerOff + 0.02, c.z)); }
-      else { // no reachable/standable top (tall wall, overhang): push out horizontally away from the obstacle's real
-        // world-space centre. NOTE: hit.translation() is the wrong reference here — 'solid' colliders (addStaticTrimesh/
-        // addStaticConvex) bake world-space vertices with the collider's own transform left at the Rapier default
-        // (0,0,0), so .translation() always reads back the map origin, not the mesh. That silently pushed players away
-        // from (0,0,0) instead of away from the rock/spire/altar they were stuck in — barely noticeable near the origin,
-        // but a multi-metre misdirection far from it (e.g. the east spire at ~x292,z-110), which read back as the
-        // character drifting off the standable altar area with onGround=false until it wandered out of interact range.
+      if (top && top.normal.y >= cosMax - 1e-3 && Math.abs(top.point.y + centerOff + 0.02 - c.y) > 0.08) { col.setTranslation(v3(c.x, top.point.y + centerOff + 0.02, c.z)); }
+      else { // no reachable/standable top (tall wall, overhang), or already at the right height (a sideways notch):
+        // push out horizontally away from the obstacle's real world-space centre. NOTE: hit.translation() is the
+        // wrong reference here — 'solid' colliders (addStaticTrimesh/addStaticConvex) bake world-space vertices with
+        // the collider's own transform left at the Rapier default (0,0,0), so .translation() always reads back the
+        // map origin, not the mesh. That silently pushed players away from (0,0,0) instead of away from the
+        // rock/spire/altar they were stuck in — barely noticeable near the origin, but a multi-metre misdirection
+        // far from it (e.g. the east spire at ~x292,z-110), which read back as the character drifting off the
+        // standable altar area with onGround=false until it wandered out of interact range.
+        // step size: 0.5 m clears even a deep spawn-inside case in a few iterations (k < 4 above); with the lower
+        // 0.06 m margin this same push now also fires for shallow walked-into notches, where 0.5 m overshoots into a
+        // visible standoff on the other side. 0.15 m still clears a typical 6-27 cm notch in one or two iterations
+        // (retried next frame if not) without the overshoot; a genuinely deep embed just takes a couple more frames.
         const o = (hitTag && hitTag.center) || hit.translation();
-        let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.5, c.y, c.z + dz / l * 0.5)); }
+        let dx = c.x - o.x, dz = c.z - o.z; const l = Math.hypot(dx, dz) || 1; col.setTranslation(v3(c.x + dx / l * 0.15, c.y, c.z + dz / l * 0.15)); }
       s.vel.y = Math.min(s.vel.y, 0); s.prev = v3(col.translation().x, col.translation().y - centerOff, col.translation().z); out.unstuck = (out.unstuck || 0) + 1;
       return true;
     }
