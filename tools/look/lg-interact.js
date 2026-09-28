@@ -53,7 +53,13 @@
     return Object.assign(r, { note: `${note}: ${e.name}, ${CT().pick && CT().pick.clip}` }); };
   S.lean_wall = shot(/^st_ruin_wall$|^st_ruin_arch$/, /hand_wall|lean_shoulder|ledge/, 'palms / shoulder on the ruin wall');
   S.lean_wreck = shot(/^kestrel(_wing|_tail)?$/, null, 'contact on the Kestrel wreck', 0.5, 6.5, 0.4);
-  S.lean_tree = shot(/^tree_(dead_birch|snag_dead|spruce_tall_snow|fir_windbent)$/, /lean_shoulder|hand_wall/, 'shoulder / palm on a trunk', 0.5, 4.0, 0.15);
+  // NATURE: a conifer's canopy is wide *and* wraps down near the ground from every direction *and* overhead, so no
+  // single horizontal yaw steers the boom clear of it (INTERACT.md "Next wave") — tried, didn't fix `lean_tree`, only
+  // `lean_wreck` (a hull is wide but low; a canopy is wide and tall). dead_birch / snag_dead are bare, sparse-branch
+  // trees with a clear trunk and no low canopy to block the boom — same "shoulder/palm on a trunk" contact, camera
+  // actually gets a clean shot. spruce_tall_snow / fir_windbent dropped from this shot's own tree pool (still used
+  // elsewhere; nothing else reads this regex).
+  S.lean_tree = shot(/^tree_(dead_birch|snag_dead)$/, /lean_shoulder|hand_wall/, 'shoulder / palm on a trunk', 0.5, 4.0, 0.15);
   // pushing: W held into a crate / drum by the station; frozen mid-push. Was one fixed angle (a = 0.6) — missed every
   // engaging side on a given instance (INTERACT.md: crate_wood engages only 2/4 approach angles, unrelated to this
   // camera code); retries several angles / entries the same way `engage()` does for the other subjects, but the success
