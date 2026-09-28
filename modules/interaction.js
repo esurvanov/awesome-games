@@ -1228,26 +1228,20 @@
       const hF = C.groundH(s.x + fx * 0.9, s.z + fz * 0.9), hB = C.groundH(s.x - fx * 0.9, s.z - fz * 0.9), hR = C.groundH(s.x + rx * 0.35, s.z + rz * 0.35), hL = C.groundH(s.x - rx * 0.35, s.z - rz * 0.35);
       const pitchT = Math.atan2(hF - hB, 1.8) * K.stagAlign, rollT = Math.atan2(hR - hL, 0.7) * K.stagAlign - clamp((S.turn || 0) * 0.08, -0.25, 0.25);
       S.pitch = damp(S.pitch, pitchT, 8, dt); S.roll = damp(S.roll, rollT, 8, dt);
-      const standing = s.st !== 'flee';
+      const standing = s.st !== 'flee'; if (!standing) { S.pf = damp(S.pf || 0, 0, 6, dt); S.rf = damp(S.rf || 0, 0, 6, dt); }
       const q = _qY[1].setFromAxisAngle(_qY[3], -(S.pitch + (S.pf || 0))).premultiply(_qY[2].setFromAxisAngle(_qY[4], S.roll + (S.rf || 0)));
       S.wrap.quaternion.copy(q).multiply(_qY[0]);
       S.wrap.position.y = 0; s.g.updateMatrixWorld(true);
       // ---- ground: hooves on the DRAWN snow (SNOW-CONTACT: the object-pressed map); a planted hoof sinks into the loose
-      // snow like a boot and the hoof mesh itself presses that print. Height: standing uses the least-squares plane's
-      // own intercept (steadier over uneven snow); running keeps the old "lowest hoof touches down" (a full plane fit
-      // through a mid-swing leg would drag the grounded foot's height off). Pitch/roll from that same plane fit, though,
-      // now run in BOTH states: measured a fleeing stag's front hooves floating 0.1-0.45 m above the drawn snow while
-      // the back hooves read correctly (~0 m), frame after frame through a full gallop cycle, not alternating with the
-      // gait's stance/swing phase — a persistent front-up cant in the blended run/canter/gallop pose that only a pitch
-      // correction (previously zeroed out for every non-"standing" state) can correct; a single global height offset
-      // can't fix an asymmetric front-vs-back tilt.
+      // snow like a boot and the hoof mesh itself presses that print. Standing: a plane through the 4 hoof errors sets
+      // height, pitch and roll (all four hooves down on uneven snow); running: the lowest hoof touches down
       let gap = 1e9; const fit = [0, 0, 0, 0, 0, 0, 0, 0, 0], sv = C.snowContact, fp = C.footPress, gx = s.g.position.x, gz = s.g.position.z;
       for (let i = 0; i < 4; i++) {
         const b = S.feet[i]; if (!b) continue; const p = wpos(b, _p[9]), sole = hoofSole(S, i, p.y);
         let g; if (typeof sv === 'function') { const q = sv(p.x, p.z, camD > 25); g = q.s0; if (!S.up[i]) { const fw = C.snowFine ? 0.3 + 0.7 * C.snowFine(p.x, p.z) : 1; g = Math.max(q.s0 - (fp ? fp(p.x, p.z) : 0.5) * q.dep * fw, q.floor); } if (!isFinite(g)) g = C.groundH(p.x, p.z); }
         else g = C.groundH(p.x, p.z) + Math.min(snowDepth(p.x, p.z), 0.6) * K.snowFloat;
         const e = sole - g; gap = Math.min(gap, e);
-        { const a = (p.x - gx) * fx + (p.z - gz) * fz, bb = (p.x - gx) * rx + (p.z - gz) * rz; fit[0] += 1; fit[1] += a; fit[2] += bb; fit[3] += a * a; fit[4] += a * bb; fit[5] += bb * bb; fit[6] += e; fit[7] += e * a; fit[8] += e * bb; }
+        if (standing) { const a = (p.x - gx) * fx + (p.z - gz) * fz, bb = (p.x - gx) * rx + (p.z - gz) * rz; fit[0] += 1; fit[1] += a; fit[2] += bb; fit[3] += a * a; fit[4] += a * bb; fit[5] += bb * bb; fit[6] += e; fit[7] += e * a; fit[8] += e * bb; }
         // hoof plants → trail (terrain deformation if present; else the shared footprint decal near the player)
         const hh = sole - g; if (hh > 0.1) S.up[i] = 1;
         else if (S.up[i] && hh < 0.03) {
@@ -1257,21 +1251,16 @@
         }
       }
       let offT = -gap;
-      if (fit[0] >= 3) {   // least-squares plane e = c0 + c1·a (forward) + c2·b (right) → height, pitch, roll
+      if (standing && fit[0] >= 3) {   // least-squares plane e = c0 + c1·a (forward) + c2·b (right) → height, pitch, roll
         const [n, sa, sb, saa, sab, sbb, se, sea, seb] = fit, M = [[n, sa, sb], [sa, saa, sab], [sb, sab, sbb]], r = [se, sea, seb];
         const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
         const D0 = det(M);
         if (Math.abs(D0) > 1e-6) {
           const col = (k) => M.map((row, i) => row.map((v, j) => (j === k ? r[i] : v))), c0 = det(col(0)) / D0, c1 = det(col(1)) / D0, c2 = det(col(2)) / D0;
-          if (standing) offT = -c0;
-          // running: the 4-hoof fit is much noisier frame to frame (legs swing through their own stride instead of
-          // sitting still), so pf/rf follow it far slower here (~1.5/s vs standing's ~10/s) — fast enough to settle
-          // the gait's own persistent front/back cant over a second or so, too slow to make the pelvis itself visibly
-          // wobble at stride frequency (QA pose continuity caught a 17-27 m/s local pelvis jump at the old rate).
-          const k = Math.min(1, dt * (standing ? 10 : 1.5));
+          offT = -c0; const k = Math.min(1, dt * 10);
           S.pf = clamp((S.pf || 0) - Math.atan(c1) * k, -0.35, 0.35); S.rf = clamp((S.rf || 0) - Math.atan(c2) * k, -0.35, 0.35);
-        } else { S.pf = damp(S.pf || 0, 0, 6, dt); S.rf = damp(S.rf || 0, 0, 6, dt); }
-      } else { S.pf = damp(S.pf || 0, 0, 6, dt); S.rf = damp(S.rf || 0, 0, 6, dt); }
+        }
+      }
       // a teleport / spawn (≥ 2 m in one frame) snaps the height: rate-limited, the hooves would spend frames on the hard ground
       // and press holes deeper than the hoof (SNOW-CONTACT: every object presses the snow map with its own shape)
       const jumped = S.px !== undefined && Math.hypot(s.x - S.px, s.z - S.pz) > 2; S.px = s.x; S.pz = s.z;
