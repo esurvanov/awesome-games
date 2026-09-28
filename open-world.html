@@ -3800,7 +3800,7 @@ function attachContactLib(root, A) {
 const fox = { x: POI.crash.x + 11, z: POI.crash.z + 15, y: 0, yaw: 2.4, st: 'wild', speed: 0, joined: false, g: new THREE.Group(), anim: null, target: null, seekT: 14, yipT: 0, happy: 0 };
 fox.g.position.set(fox.x, groundH(fox.x, fox.z), fox.z); scene.add(fox.g);
 loadPacked('fox', ASSET, (g) => {
-  const root = prepModel(g.scene, 0.45, (m) => { m.map = null; m.color.setHex(0xe8edf5); m.roughness = 0.95; m.metalness = 0; });   // NATURE: 0.55 → 0.45 model height = withers 0.53 → ≈ 0.39 m (real fox 0.35–0.45; measured on the spine bone)
+  const root = prepModel(g.scene, 0.353, (m) => { m.map = null; m.color.setHex(0xe8edf5); m.roughness = 0.95; m.metalness = 0; });   // REALISM: 0.45 → 0.353 model height = shoulder 0.408 → ≈ 0.32 m (sizes.json: arctic fox 0.24–0.345 m, Audet/Robbins/Larivière 2002)
   attach(fox.g, root);
   fox.anim = makeAnimator(root, g.animations, { sit: 'Survey', walk: 'Walk', run: 'Run' });
   fox.anim.loop('sit');
