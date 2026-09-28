@@ -824,6 +824,27 @@ void main() {
     CM.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 120); CM.cam.up.set(0, 0, 1); CM.cam.layers.set(CM.layer);
     CM.camC = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 120); CM.camC.up.set(0, 0, 1); CM.camC.layers.set(CM.layer);
     CM.matDyn = contactMat(false, 1); CM.matStat = contactMat(false, 0); CM.matCoarse = contactMat(true, 1);
+    // SNOW-PRINTS4: the shard's root cause — a single-frame single-texel press spike, MAX-blended straight into the
+    // permanent history map (tNP), never healing. Fix at the source: near actors now press into a scratch capture
+    // (CM.cap, cleared to 0 each frame in just their own footprint), then this despike pass erodes it — a texel
+    // deeper than every one of its 8 neighbours by more than a boot-edge slope (~60° over one texel) is clamped to
+    // the neighbourhood, before the result is MAX-blended into CM.P (tNP). A real print is never a single isolated
+    // texel (a sole/paw/hoof edge is a line: at least one tangential neighbour shares its depth), so this is a no-op
+    // there — only a true rasterisation outlier gets squashed.
+    CM.despikeU = { tCap: { value: null } };
+    CM.despikeMat = new THREE.ShaderMaterial({
+      uniforms: Object.assign({}, CM.despikeU, { uCM: U.uCM }), vertexShader: QUAD_V,
+      fragmentShader: `uniform sampler2D tCap; uniform vec4 uCM; varying vec2 vUv;
+        void main(){ ivec2 t = ivec2(gl_FragCoord.xy), m = ivec2(int(uCM.w) - 1);
+          float c = texelFetch(tCap, t, 0).r, nmax = 0.;
+          #define CAP_TAP(o) nmax = max(nmax, texelFetch(tCap, clamp(t + (o), ivec2(0), m), 0).r);
+          CAP_TAP(ivec2(1,0)) CAP_TAP(ivec2(-1,0)) CAP_TAP(ivec2(0,1)) CAP_TAP(ivec2(0,-1))
+          CAP_TAP(ivec2(1,1)) CAP_TAP(ivec2(1,-1)) CAP_TAP(ivec2(-1,1)) CAP_TAP(ivec2(-1,-1))
+          #undef CAP_TAP
+          float e = uCM.z / uCM.w, d = min(c, nmax + e * 1.7320508);
+          gl_FragColor = vec4(d, d, 0., 0.); }`,
+      blending: THREE.CustomBlending, blendEquation: THREE.MaxEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+      depthTest: false, depthWrite: false, toneMapped: false, fog: false });
     const fsHead = `${GLSL_NOISE}\n${GLSL_SNOWFN}\nvarying vec2 vUv;`;
     // bake: undisturbed surface of the new window (S0, loose depth, compacted floor, gravel)
     CM.bakeMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), depthTest: false, depthWrite: false, toneMapped: false, vertexShader: QUAD_V,
@@ -893,10 +914,11 @@ void main() {
     if (!CM.ok) return;
     const res = ctx.Q.contactRes || 1024, ext = ctx.Q.contactExt || 16;
     if (res !== CM.res || ext !== CM.ext || !CM.S) {
-      for (const r of CM.P) r.dispose(); if (CM.S) { CM.S.dispose(); CM.R.dispose(); }
+      for (const r of CM.P) r.dispose(); if (CM.S) { CM.S.dispose(); CM.R.dispose(); } if (CM.cap) CM.cap.dispose();
       const mk = (type, format, filter) => new THREE.WebGLRenderTarget(res, res, { type, format, minFilter: filter, magFilter: filter, generateMipmaps: false, depthBuffer: false, stencilBuffer: false });
       CM.P = [mk(THREE.HalfFloatType, THREE.RGBAFormat, THREE.LinearFilter), mk(THREE.HalfFloatType, THREE.RGBAFormat, THREE.LinearFilter)];
       CM.S = mk(THREE.FloatType, THREE.RGBAFormat, THREE.NearestFilter); CM.R = mk(THREE.FloatType, THREE.RGFormat, THREE.NearestFilter);
+      CM.cap = mk(THREE.HalfFloatType, THREE.RGBAFormat, THREE.LinearFilter);   // SNOW-PRINTS4: this frame's raw actor press, despiked before it merges into CM.P (tNP)
       CM.res = res; CM.ext = ext; CM.e = ext / res; CM.cur = 0; CM.fresh = true;
       const p = ctx.player; CM.cx = snapCM(p.x); CM.cz = snapCM(p.z);
       U.tNS.value = CM.S.texture; U.tNR.value = CM.R.texture; U.tNP.value = CM.P[0].texture;
@@ -1037,7 +1059,20 @@ void main() {
     }
     footLift(dt);
     CM.evK = ((CM.evK || 0) + 1) % Math.max(1, QK('contactEvery', 1));   // NATURE: Q.contactEvery (air: every 2nd frame)
-    if (near.length && CM.evK === 0) { camFor(CM.cam, CM.cx, CM.cz, CM.ext, c.groundH(CM.cx, CM.cz)); drawRoots(near, CM.matDyn, CM.P[CM.cur], CM.cam); CM.stats.actorDraws += near.length; }
+    const n = CM.res, e = CM.e, ox = CM.cx - h, oz = CM.cz - h, m = 0.1;
+    if (near.length && CM.evK === 0) {
+      camFor(CM.cam, CM.cx, CM.cz, CM.ext, c.groundH(CM.cx, CM.cz));
+      // SNOW-PRINTS4: press this frame's actors into a scratch capture (cleared to 0 in just their own footprint,
+      // padded one texel for the despike kernel), not straight into the permanent history map — a rogue single-texel
+      // spike then never reaches tNP at all. See CM.despikeMat above for the erosion rule.
+      const capPad = m + e, capRects = mergeRects(regions.map((r) => clampRect((r[0] - capPad - ox) / e, (r[1] - capPad - oz) / e, (r[2] + capPad - ox) / e, (r[3] + capPad - oz) / e, n)).filter(Boolean));
+      for (const r of capRects) { CM.cap.scissor.set(r[0], r[1], r[2], r[3]); CM.cap.scissorTest = true;
+        try { withTarget(CM.cap, (rend) => { rend.setClearColor(0, 0); rend.clear(true, false, false); }); } finally { CM.cap.scissorTest = false; } }
+      drawRoots(near, CM.matDyn, CM.cap, CM.cam);
+      CM.despikeMat.uniforms.tCap.value = CM.cap.texture;
+      for (const r of capRects) pass(CM.P[CM.cur], CM.despikeMat, r, false);
+      CM.stats.actorDraws += near.length;
+    }
     // coarse map: its mip chain is regenerated after every render into it — batch this frame's writes, regenerate once
     const defT = DEF.rt[DEF.cur].texture; let defDirty = false; defT.generateMipmaps = false;
     // far objects (outside the fine window) press the coarse map every 3rd frame, and only when near the snow
@@ -1046,7 +1081,6 @@ void main() {
       if (low.length) { camFor(CM.camC, DEF.cx, DEF.cz, DEF.ext, c.player.y); drawRoots(low, CM.matCoarse, DEF.rt[DEF.cur], CM.camC); CM.stats.coarseDraws += low.length; defDirty = true; } }
     if (STAMPQ.length) regions.push(...flushStampShim());
     // drawn surface + coarse copy, only where something pressed this frame (whole window after a move)
-    const n = CM.res, e = CM.e, ox = CM.cx - h, oz = CM.cz - h, m = 0.1;
     const rects = CM.fullSurf ? [[0, 0, n, n]] : mergeRects(regions.map((r) => clampRect((r[0] - m - ox) / e, (r[1] - m - oz) / e, (r[2] + m - ox) / e, (r[3] + m - oz) / e, n)).filter(Boolean));
     for (const r of rects) { surfaceRegion(r); CM.stats.regionTexels += r[2] * r[3]; }
     // fine → coarse, same regions (in coarse texels), inside the fine window only
