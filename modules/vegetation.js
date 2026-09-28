@@ -701,15 +701,53 @@ vec3 impNW;`)
    * was the trunk cylinder — the pilot walked into the mat and stood half hidden in it, the camera too. A low convex
    * dome per instance, fitted to the dense part of the skirt (70th percentile of the needle radius under 1.3 m), is
    * registered as a 'solid' hull: the pilot and the camera boom stop at the needles. Rounded top: nothing to stand on. */
+  // BURIAL-FIX: setupForest() seats every tree's base at bare terrain height (C.getH) with a fixed -0.3 m offset —
+  // tuned for a design ~55-65 % embed (the model's own local origin sits mid-crown, not at its base: IMP_META's
+  // centre y ≈ half the full height already puts half the model below ground before this offset even applies).
+  // That placement never looked at the drawn snow surface (loose snow depth / drifts, SURF above — the same surface
+  // rocks are reseated against and the realism/placed-object QA measures against): wherever local snow is deep, the
+  // dome collider (below) came out 90-100 % buried instead of the intended ~55 %. And that snow depth is not static —
+  // it is the terrain module's live redistribution field (wind/pressure/footprints), the same one that makes rocks
+  // need periodic re-seating (`reseatRocks`, driven by `Terrain.S.obstKey`) — a tree seated once at load can drift
+  // back into over-buried as the snow around it keeps moving. So krummholz gets the same two-part treatment as rocks:
+  // an immediate correction when the dome is built, and a cheap re-check on the same drift-key trigger. Only ever
+  // raises a tree that is over-buried against SURF, up to the design target — never lifts one that wasn't, so the
+  // common case (already inside the intended range) is untouched.
+  const KZ = { trees: null, R: 0, H: 0, g: null, seatKey: null, TARGET: 0.5 };
+  function seatKrummholzOnce(trees, H) {
+    let raised = 0, worstBefore = 0, worstAfter = 0, changed = [];
+    for (const t of trees) {
+      const s = t.s, x = t.mReal.elements[12], y0 = t.mReal.elements[13], z = t.mReal.elements[14], domeH = s * H;
+      if (domeH <= 0.01) continue;
+      const bottom = y0 + s * -0.1, buried = clamp((SURF(x, z) - bottom) / domeH, 0, 1);
+      worstBefore = Math.max(worstBefore, buried);
+      if (buried > KZ.TARGET) { const dy = (buried - KZ.TARGET) * domeH; t.mReal.elements[13] += dy; t.y += dy; raised++; changed.push(t); worstAfter = Math.max(worstAfter, KZ.TARGET); }
+      else worstAfter = Math.max(worstAfter, buried);
+    }
+    return { raised, worstBefore, worstAfter, changed };
+  }
   function krummholzSolids(P, trees) {
     let ps = null; for (const p of P.parts) if (p.name === 'needles') ps = p.geo.attributes.position;
     if (!ps) return;
     const rs = []; let top = 0;
     for (let i = 0; i < ps.count; i++) { const y = ps.getY(i); if (y < 1.3) rs.push(Math.hypot(ps.getX(i), ps.getZ(i))); top = Math.max(top, y); }
     rs.sort((a, b) => a - b); const R = rs[Math.floor(rs.length * 0.85)] || 0.9, H = Math.min(1.25, top * 0.5);
+    const { raised, worstBefore, worstAfter } = seatKrummholzOnce(trees, H);
     const g = new THREE.CylinderGeometry(R * 0.35, R, H, 10, 2); g.translate(0, H / 2 - 0.1, 0);
     const Pp = Passport(); VEG.krummholzSolids = Pp.registerInstances(g, trees.map((t) => t.mReal), 'solid', { shape: 'hull', name: 'krummholz', exact: false });
-    VEG.stats.krummholz = { R: +R.toFixed(2), H: +H.toFixed(2), n: trees.length };
+    KZ.trees = trees; KZ.R = R; KZ.H = H; KZ.g = g;
+    VEG.stats.krummholz = { R: +R.toFixed(2), H: +H.toFixed(2), n: trees.length, raised, worstBefore: +worstBefore.toFixed(2), worstAfter: +worstAfter.toFixed(2) };
+  }
+  // periodic re-check (same trigger as reseatRocks): the terrain re-stamped its drifts, so re-test against the new snow
+  function reseatKrummholz(why) {
+    if (!KZ.trees || !KZ.trees.length) return;
+    const t0 = performance.now(), { raised, worstBefore, worstAfter, changed } = seatKrummholzOnce(KZ.trees, KZ.H);
+    if (raised) {
+      for (const t of changed) for (const G of F.groups) { const ids = G.inst.get(t); if (ids) for (const id of ids) G.b.setMatrixAt(id, t.mReal); }
+      const Pp = Passport(); if (VEG.krummholzSolids) for (const e of VEG.krummholzSolids) Pp.remove(e);
+      VEG.krummholzSolids = Pp.registerInstances(KZ.g, KZ.trees.map((t) => t.mReal), 'solid', { shape: 'hull', name: 'krummholz', exact: false });
+    }
+    VEG.stats.krummholz = { R: +KZ.R.toFixed(2), H: +KZ.H.toFixed(2), n: KZ.trees.length, raised, worstBefore: +worstBefore.toFixed(2), worstAfter: +worstAfter.toFixed(2), ms: +(performance.now() - t0).toFixed(2), why };
   }
   /* NATURE — the wind-bent fir read as a black stick with white smears (a 4 k-tri model: bare pole + a few flagged
    * cards). Rebuilt from the young spruce: same bark and needle cards, ×k taller, a slight downwind lean, and the
@@ -1427,6 +1465,12 @@ vec3 impNW;`)
     rocksStep();
     // the terrain re-stamps its drifts when the set of solids changes (our rocks included): re-seat against the new snow
     { const TS = window.Terrain && window.Terrain.S; if (R.done && R.sets && TS && TS.obstKey && TS.obstKey !== R.seatKey && !TS.obstPending) { R.seatKey = TS.obstKey; reseatRocks('drifts ' + TS.obstKey); } }
+    // krummholz: don't wait on the terrain's own obstacle-key handshake (a wall-clock debounce that a loaded shared
+    // machine can stretch past any fixed QA settle wait — confirmed live: the same 1.5 s post-newGame wait converged
+    // cleanly on a quiet machine and left up to 94 % of instances over target on a busy one, same code, same seed).
+    // A plain frame-counted re-check instead: every ~15 real frames regardless of how long each one took, so
+    // convergence is bounded by render-loop iterations, not by elapsed wall time.
+    if (KZ.trees && (KZ.tick = (KZ.tick || 0) + 1) % 15 === 0) reseatKrummholz('tick');
     updateGround();
     autoBump(dt);
     director(dt);
