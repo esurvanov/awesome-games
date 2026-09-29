@@ -4,11 +4,10 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Хроники Королевств и Берёзовка" width="100%">
 
-### Восемь законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, история очереди на Верхнем Ларсе в 2022 году от первого лица, сюжетный открытый мир на полярном острове, бесконечный полёт по ледяному каньону, субботняя IT-сходка в баре Батуми и симулятор жизни в духе The Sims. Все восемь запускаются прямо в браузере — или скачайте и играйте локально.
+### Семь законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, сюжетный открытый мир на полярном острове, бесконечный полёт по ледяному каньону, субботняя IT-сходка в баре Батуми и симулятор жизни в духе The Sims. Все семь запускаются прямо в браузере — или скачайте и играйте локально.
 
 [![Играть в Берёзовку в браузере](https://img.shields.io/badge/▶_Играть_в_Берёзовку-прямо_в_браузере-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Играть в Хроники Королевств в браузере](https://img.shields.io/badge/⚔_Играть_в_Хроники_Королевств-прямо_в_браузере-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
-[![Играть в Ларс в браузере](https://img.shields.io/badge/🏔_Играть_в_Ларс-прямо_в_браузере-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
 [![Играть в Сходку в браузере](https://img.shields.io/badge/🍣_Играть_в_Сходку-прямо_в_браузере-E0457B?style=for-the-badge)](https://www.urvanov.com/skhodka/)
 [![Играть в Эхо Разлома в браузере](https://img.shields.io/badge/🌌_Играть_в_Эхо_Разлома-прямо_в_браузере-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 [![Играть в Житьё в браузере](https://img.shields.io/badge/🏡_Играть_в_Житьё-прямо_в_браузере-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
@@ -84,27 +83,6 @@
 </td>
 <td width="50%" valign="top">
 
-<a href="lars/README.ru.md"><img src="lars/docs/screenshots/checkpoint-night.jpg" alt="Ларс: ночью цепочка машин с красными стоп-сигналами тянется к КПП Верхний Ларс"></a>
-
-### 🏔 [Ларс](lars/README.ru.md)
-**Сентябрь 2022-го, очередь на КПП Верхний Ларс — проживи её от первого лица.**
-
-Ты — Артём, 27 лет, программист, один в машине до Тбилиси. Впереди 25 км очереди по Дарьяльскому ущелью, тысячи незнакомых людей и десять дней. В игре нет злодеев и нет чьей-то стороны.
-
-- 🚗 очередь 25 км · ~4 000 машин · ~12 000 человек · реальные цифры по дням
-- 🥪 еда, вода, тепло, сон, нервы, заряд · 💸 ₽ / $ / ₾, цены растут по часам
-- 📣 слухи · 📱 телефон и чаты · 👥 люди с хорошим и плохим
-- 🏔 Дарьяльское ущелье на WebGL вручную · 🔊 голоса по желанию
-
-`WebGL` · `чистый JS` · любой браузер, двойной щелчок по `index.html`
-
-**[▶ Играть](https://www.urvanov.com/lars/)**
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
 <a href="ekho-razloma/README.ru.md"><img src="ekho-razloma/docs/screenshots/camp-night.jpg" alt="Эхо Разлома: лагерь полярной станции ночью под северным сиянием"></a>
 
 ### 🌌 [Эхо Разлома](ekho-razloma/README.ru.md)
@@ -122,6 +100,8 @@
 **[▶ Играть](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)**
 
 </td>
+</tr>
+<tr>
 <td width="50%" valign="top">
 
 <a href="severny-razlom/README.ru.md"><img src="severny-razlom/docs/screenshots/menu.jpg" alt="Северный Разлом: маленький корабль у входа в ледяной каньон под северным сиянием"></a>
@@ -140,8 +120,6 @@
 **[▶ Играть](https://esurvanov.github.io/awesome-games/severny-razlom/)**
 
 </td>
-</tr>
-<tr>
 <td width="50%" valign="top">
 
 <a href="https://www.urvanov.com/skhodka/"><img src="skhodka/docs/screenshots/game-05-hall-peak-2130.jpg" alt="Сходка: бар SushiGO в Батуми в разгар субботней встречи, вид сверху"></a>
@@ -161,6 +139,8 @@
 **[▶ Играть](https://www.urvanov.com/skhodka/)**
 
 </td>
+</tr>
+<tr>
 <td width="50%" valign="top">
 
 <a href="zhitie/README.ru.md"><img src="zhitie/docs/screenshots/home.jpg" alt="Житьё: два сима в обставленном доме, панель потребностей и меню действий на экране"></a>
@@ -196,7 +176,7 @@
 |---|---|
 | 🆓 **Открыто до последнего файла** | Код под MIT. Спрайты, модели, текстуры и звуки — из открытых проектов под CC0, CC-BY, CC BY-SA и MIT, авторы указаны в `CREDITS.md` каждой игры. |
 | 🎯 **Законченные игры** | У каждой есть начало, цели и финал. Их можно пройти. |
-| 📏 **Сверено с реальностью** | Цифры проверены по настоящим: войска — по классической стратегии, у Берёзовки размеры построек, скорость шага и разгон машины проверяются автоматически, а очередь в Ларсе идёт по реальным цифрам по дням. |
+| 📏 **Сверено с реальностью** | Цифры проверены по настоящим: войска — по классической стратегии, а у Берёзовки размеры построек, скорость шага и разгон машины проверяются автоматически. |
 | 🧩 **Читаемый код** | Без редакторов движков и закрытых инструментов. Скачайте репозиторий и читайте код. |
 
 ## 🚀 Как играть
@@ -205,7 +185,6 @@
 |---|---|
 | ❄️ Берёзовка | Откройте **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — или `cd berezovka && python3 -m http.server` |
 | 🐺 Сибирь | Откройте **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — или `cd sibiria && python3 -m http.server` |
-| 🏔 Ларс | Откройте **[urvanov.com/lars](https://www.urvanov.com/lars/)** — или двойной щелчок по `lars/index.html` |
 | 🍣 Сходка | Откройте **[urvanov.com/skhodka](https://www.urvanov.com/skhodka/)** — или двойной щелчок по `skhodka/index.html` |
 | 🛩 Северный Разлом | Откройте **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — или двойной щелчок по `severny-razlom/index.html` |
 | 🌌 Эхо Разлома | Откройте **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — или `cd ekho-razloma && python3 -m http.server` и откройте `/open-world.html` |

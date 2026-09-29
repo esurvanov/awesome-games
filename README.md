@@ -4,11 +4,10 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Eight complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, a first-person story of the 2022 border queue at Verkhny Lars, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar and a Sims-style life sim. All eight run right in your browser — or clone and play locally.
+### Seven complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar and a Sims-style life sim. All seven run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
-[![Play Lars in your browser](https://img.shields.io/badge/🏔_Play_Lars-in_your_browser-E07A2E?style=for-the-badge)](https://www.urvanov.com/lars/)
 [![Play Skhodka in your browser](https://img.shields.io/badge/🍣_Play_Skhodka-in_your_browser-E0457B?style=for-the-badge)](https://www.urvanov.com/skhodka/)
 [![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 [![Play Zhitiyo in your browser](https://img.shields.io/badge/🏡_Play_Zhitiyo-in_your_browser-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
@@ -84,27 +83,6 @@ Your Mi-8 went down in Evenkia and the radio is smashed. Light the stove, meet t
 </td>
 <td width="50%" valign="top">
 
-<a href="https://www.urvanov.com/lars/"><img src="lars/docs/screenshots/checkpoint-night.jpg" alt="Lars: a line of cars with red tail lights at night leading up to the Verkhny Lars checkpoint"></a>
-
-### 🏔 [Lars](lars/)
-**September 2022, the queue at the Verkhny Lars border crossing — live through it in the first person.**
-
-You are Artyom, 27, a programmer, alone in a car bound for Tbilisi. Ahead: 25 km of queue up the Darial gorge, thousands of strangers and ten days. The game has no villains and takes no sides.
-
-- 🚗 25 km queue · ~4,000 cars · ~12,000 people · real day-by-day numbers
-- 🥪 food, water, warmth, sleep, nerves, charge · 💸 ₽ / $ / ₾, prices rise by the hour
-- 📣 rumours · 📱 phone and chats · 👥 people with good and bad sides
-- 🏔 the Darial gorge in hand-written WebGL · 🔊 optional AI voices
-
-`WebGL` · `vanilla JS` · any browser, double-click `index.html`
-
-**[▶ Play now](https://www.urvanov.com/lars/)**
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
 <a href="https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html"><img src="ekho-razloma/docs/screenshots/camp-night.jpg" alt="Echo of the Rift: the polar station camp at night under the northern lights"></a>
 
 ### 🌌 [Echo of the Rift](ekho-razloma/)
@@ -122,6 +100,8 @@ Your plane goes down under the aurora. A station AI wakes you in the wreck; an o
 **[▶ Play now](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)**
 
 </td>
+</tr>
+<tr>
 <td width="50%" valign="top">
 
 <a href="https://esurvanov.github.io/awesome-games/severny-razlom/"><img src="severny-razlom/docs/screenshots/menu.jpg" alt="Northern Rift: a small ship at the mouth of an ice canyon under the northern lights"></a>
@@ -140,8 +120,6 @@ Collect shards, turn them into energy and burst through the ice walls. Weave aro
 **[▶ Play now](https://esurvanov.github.io/awesome-games/severny-razlom/)**
 
 </td>
-</tr>
-<tr>
 <td width="50%" valign="top">
 
 <a href="https://www.urvanov.com/skhodka/"><img src="skhodka/docs/screenshots/game-05-hall-peak-2130.jpg" alt="Skhodka: the SushiGO bar in Batumi at the peak of a Saturday meetup, seen from above"></a>
@@ -161,6 +139,8 @@ Collect shards, turn them into energy and burst through the ice walls. Weave aro
 **[▶ Play now](https://www.urvanov.com/skhodka/)**
 
 </td>
+</tr>
+<tr>
 <td width="50%" valign="top">
 
 <a href="https://esurvanov.github.io/awesome-games/zhitie/"><img src="zhitie/docs/screenshots/home.jpg" alt="Zhitiyo: two sims inside their furnished house, needs panel and interaction menu on screen"></a>
@@ -196,7 +176,7 @@ Move into Berёzovaya Roshcha, a neighbourhood of ten households, a park, a caf�
 |---|---|
 | 🆓 **Open all the way down** | Code under MIT. Every sprite, model, texture and sound comes from open projects under CC0, CC-BY, CC BY-SA or MIT, with authors credited in each game's `CREDITS.md`. |
 | 🎯 **Finished, not a demo** | Each game has a start, goals and an ending. You can play it through. |
-| 📏 **Built against reality** | Numbers are checked against real ones: unit stats follow the classic RTS, Berezovka's buildings, walking speeds and car acceleration each have an automated check, and the Lars queue follows the real day-by-day numbers. |
+| 📏 **Built against reality** | Numbers are checked against real ones: unit stats follow the classic RTS, and Berezovka's buildings, walking speeds and car acceleration each have an automated check. |
 | 🧩 **Readable source** | No engine editor and no proprietary tools. Clone the repo and read the code. |
 
 ## 🚀 Play
@@ -205,7 +185,6 @@ Move into Berёzovaya Roshcha, a neighbourhood of ten households, a park, a caf�
 |---|---|
 | ❄️ Berezovka | Open **[esurvanov.github.io/awesome-games/berezovka](https://esurvanov.github.io/awesome-games/berezovka/)** — or `cd berezovka && python3 -m http.server` |
 | 🐺 Sibiria | Open **[esurvanov.github.io/awesome-games/sibiria](https://esurvanov.github.io/awesome-games/sibiria/)** — or `cd sibiria && python3 -m http.server` |
-| 🏔 Lars | Open **[urvanov.com/lars](https://www.urvanov.com/lars/)** — or double-click `lars/index.html` |
 | 🍣 Skhodka | Open **[urvanov.com/skhodka](https://www.urvanov.com/skhodka/)** — or double-click `skhodka/index.html` |
 | 🛩 Northern Rift | Open **[esurvanov.github.io/awesome-games/severny-razlom](https://esurvanov.github.io/awesome-games/severny-razlom/)** — or double-click `severny-razlom/index.html` |
 | 🌌 Echo of the Rift | Open **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — or `cd ekho-razloma && python3 -m http.server` and open `/open-world.html` |
