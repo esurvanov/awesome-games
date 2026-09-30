@@ -77,7 +77,7 @@ const Transport = (() => {
   function dismount(msg) {
     const p = G.p, v = G.veh[p.ride];
     if (v) { v.x = p.x; v.y = p.y; v.face = p.face; }
-    p.ride = null; p.x += 26; Hero.snap();
+    p.ride = null; p.y += 24; Hero.snap(); // сошёл на снег у транспорта (сам транспорт — преграда, js/content/footprints.js)
     if (msg) Fx.toast(msg);
   }
   // шаг движения верхом: транспорт идёт с героем, «Буран» тратит бензин, в запретную местность не въехать

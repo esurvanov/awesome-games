@@ -1,8 +1,17 @@
 # Credits · Авторы
 
-Code: MIT (see [LICENSE](LICENSE)). The game draws all of its art and sound itself in code (canvas 2D, Web Audio); the only third-party assets are the icons and the web fonts below.
+Code: MIT (see [LICENSE](LICENSE)). The game draws all of its art and sound itself in code (canvas 2D, Web Audio); the only third-party assets are the icons, the web fonts and two CC0 photo textures below.
 
-Код — MIT. Всю графику и звук игра рисует и синтезирует сама (canvas 2D, Web Audio); внешние ресурсы — только иконки и шрифты из списка ниже. Авторы иконок также перечислены в окне «Об игре» и в итоговом акте.
+Код — MIT. Всю графику и звук игра рисует и синтезирует сама (canvas 2D, Web Audio); внешние ресурсы — только иконки, шрифты и две фото-текстуры CC0 из списка ниже. Авторы иконок также перечислены в окне «Об игре» и в итоговом акте.
+
+## Photo textures · Фото-текстуры
+
+Used in `assets/photo/` (via `js/photo.js`, high quality only): neutral-grey high-pass detail maps made from the photographs below (tileable, resized, converted to WebP; `photo-data.js` holds the same two files as data URIs so the canvas stays readable when the game is opened from `file://`). Both are **CC0 1.0** (public domain) by Rob Tuytel, published on [Poly Haven](https://polyhaven.com/license) (licence checked on the site and via `api.polyhaven.com/info`).
+
+| File | Source | Author | Licence |
+|---|---|---|---|
+| `snow-detail-1k.webp` | [Snow 02](https://polyhaven.com/a/snow_02) | Rob Tuytel | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `needles-detail-512.webp` | [Forest Leaves 04](https://polyhaven.com/a/forest_leaves_04) (pine-needle litter) | Rob Tuytel | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
 ## Icons · Иконки
 

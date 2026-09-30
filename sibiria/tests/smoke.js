@@ -31,7 +31,7 @@ require('fs').mkdirSync(OUT, { recursive: true });
       G.p.x = HUT.x; G.p.y = HUT.y; update(0.05); log.push('inside ' + G.p.inside);
       Stove.add(); Stove.add(); log.push('fuel ' + G.hut.fuel);
       for (const u of HUT_UPG) { G.inv.scrap = 10; Actions.buildHut(u); } log.push('hut ' + JSON.stringify(G.hut));
-      for (const rcp of RECIPES) { Object.assign(G.inv, { scrap: 10, hare: 5, wpelt: 3, fish: 2, meat: 2, cable: 1, tea: 1 }); Actions.craft(rcp); }
+      for (const rcp of RECIPES) { Object.assign(G.inv, { scrap: 10, hare: 5, wpelt: 3, fish: 2, meat: 2, cable: 1, tea: 1 }); if (Actions.craft(rcp)) for (let i = 0; i < 400 && G.p.action; i++) update(0.05); }
       log.push('gear ' + Object.keys(G.gear).join(','));
       UI.openCraft('craft'); UI.openChest(); UI.openTrade(); document.getElementById('panel-close').click();
       UI.dialog(Npc.talk('urk')); document.getElementById('dialog').hidden = true;
@@ -46,6 +46,7 @@ require('fs').mkdirSync(OUT, { recursive: true });
       G.storm = { a: G.time, b: G.time + 30 }; step(200);
       // сон
       G.time = tAt(G.day, 20); G.p.x = SPOT.bed.x; G.p.y = SPOT.bed.y; G.hut.fuel = 400; input.mx = input.my = 0; update(0.05); Actions.trySleep();
+      for (let i = 0; i < 80 && !G.p.sleeping && Actions.busy(); i++) update(0.05);
       for (let i = 0; i < 4000 && G.p.sleeping; i++) update(0.05);
       log.push('slept → ' + hourOf().toFixed(1) + ' day ' + G.day + ' sleeping ' + G.p.sleeping);
       // сохранение и загрузка

@@ -18,6 +18,7 @@ catch (e) { console.error('Нет playwright: cd tests && npm i  (и один р
 
 const jobs = fs.readdirSync(DIR).filter(f => /^smoke.*\.js$/.test(f)).sort().map(f => ({ name: f, args: [f] }));
 jobs.push({ name: 'ui-overlap.js', args: ['ui-overlap.js'] }); // SPEC-ui §6: 4 размера × S/M/L → 0 наложений
+jobs.push({ name: 'coll.js', args: ['coll.js'] }); // подножия вещей, линии героя насквозь, ходоки и стволы, расталкивание
 jobs.push({ name: 'visual.js', args: ['visual.js'] }); // 16 эталонных сцен canvas (эталоны: node visual.js --update)
 for (const [i, fixBed] of [[1, false], [2, false], [3, true]]) jobs.push({ name: `bot#${i}`, args: ['run.js', JSON.stringify({ tag: 'all' + i, limit: LIMIT, fixBed })], bot: true });
 const only = process.env.ONLY;

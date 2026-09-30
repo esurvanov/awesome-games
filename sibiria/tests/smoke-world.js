@@ -54,7 +54,7 @@ function scene() {
   G.time = tAt(3, 22.5); Wolves.spawnPack(3, false); for (let i = 0; i < 60; i++) update(1 / 60);
   const tr = G.trees.find(t => !t.wall && t.wood > 0 && Math.hypot(t.x - G.p.x, t.y - G.p.y) < 400);
   if (tr) { G.p.x = tr.x + 30; G.p.y = tr.y; input.mx = input.my = 0; G.p.action = { k: 'chop', t: 0, dur: Hero.chopTime(), o: tr }; update(1 / 60); }
-  ok(G.p.action && G.p.action.k === 'chop', 'герой рубит перед сейвом');
+  ok(G.p.action && G.p.action.k === 'chop', 'герой рубит перед сейвом' + (G.p.action && G.p.action.k === 'chop' ? '' : ` (дерево ${tr ? 'есть' : 'нет'}, действие ${G.p.action && G.p.action.k}, iT ${(G.p.iT || 0).toFixed(2)}, лёд ${onIce(G.p.x, G.p.y)}, волки ${G.wolves.map(w => w.st + ':' + Math.round(Math.hypot(w.x - G.p.x, w.y - G.p.y))).join(',')})`));
   // 4. save → load → глубокое сравнение
   const s1 = SaveGame.snapshot(); out.saveKB = +(s1.length / 1024).toFixed(1);
   const old = G; SaveGame.load(s1);
@@ -100,6 +100,8 @@ function scene() {
         return { x: e.left + (G.p.x - wx) / S * e.width, y: e.top + (G.p.y - wy) / S * e.height };
       });
       await pg.waitForTimeout(400);
+      // за 400 мс игра идёт дальше — сюжет мог открыть окно (диалог/записка): закрыть его перед кликом, иначе клик уходит в окно
+      for (let i = 0; i < 5 && await pg.evaluate(() => UI.modal()); i++) { await pg.keyboard.press('Escape'); await pg.waitForTimeout(120); }
       await pg.mouse.click(mm.x, mm.y); await pg.waitForTimeout(100);
       const cm = await pg.evaluate(() => ({ d: Math.hypot(cam.x + GFX.vw / 2 - G.p.x, cam.y + GFX.vh / 2 - G.p.y), st: state, modal: UI.modal() }));
       if (!(cm.d < 150)) r.fails.push('мини-карта: клик по герою → камера у героя ' + JSON.stringify(cm));

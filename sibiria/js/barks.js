@@ -1,6 +1,7 @@
 'use strict';
 // Barks — «голос мира»: короткие реплики над головой без открытия диалога (как правила реплик Left 4 Dead).
 // Раз в 0.5 с — факты о мире (кто рядом, тепло/раны/голод героя, ночь, пурга, волки, свежие события Interact);
+// где герой и что вокруг (у огня, в избе, час, пурга) — из общей сводки Ctx (js/context.js): строка выбирается по ней;
 // из подходящих правил берётся самое важное (prio); паузы у правила, у говорящего, у строки; на экране ≤ 2 пузырей.
 // Контракт: Barks.tick(dt) — game.js; Barks.draw(g) — gfx.js (мировые координаты, слой ui); Barks.say(o, text, {h, life}).
 // Всё состояние — в памяти модуля (не в G): сейвы не меняются.
@@ -12,11 +13,21 @@ const Barks = (() => {
   // люди посёлка за работой (по типу)
   const WORK = {
     bich: ['Сучья — не продохнуть…', 'Эх, топор бы наточить.', 'Ещё кубик — и перекур.'],
-    evenk: ['След свежий. Утренний.', 'Соболь тут ходил.'],
+    evenk: c => [c.phase === 'morning' || c.phase === 'dawn' ? 'След свежий. Утренний.' : c.phase === 'night' || c.phase === 'dusk' ? 'След свежий. Ночной.' : 'След свежий. Сегодняшний.', 'Соболь тут ходил.'],
     strelok: ['Тихо пока.', 'Смотрю, смотрю.'],
   };
   // короткий разговор двух людей посёлка: [реплика, ответ]
   const CHAT = [['Курево есть?', 'Последняя. Пополам.'], ['Мороз-то давит.', 'Январь. Чего хотел.'], ['Вертолёт будет?', 'Будет. Весной. Может.']];
+  // реплики по сводке Ctx (js/context.js): одна и та же мысль звучит по-разному у огня, в избе, в пургу, днём и ночью
+  const CL = {
+    storm: c => c.inside ? ['Воет-то как… Хорошо, что под крышей.'] : c.atFire ? ['Пурга. Огонь бы не задуло.'] : ['Пурга. Надо в тепло.'],
+    cold: c => c.shelter ? ['Отогреваюсь… Пальцы колет.', 'Ещё чуть — и оттаю.'] : ['Пальцев не чую…', 'Зуб на зуб… К огню бы.'],
+    dusk: c => c.byStove || (c.inside && c.stove) ? ['Темнеет. Печь греет — и ладно.'] : c.atFire ? ['Темнеет. Хорошо, что огонь есть.'] : c.inside ? ['Темнеет. Печь бы растопить.'] : ['Темнеет. Пора к огню.'],
+    hi: c => c.warmSrc ? null : c.storm ? ['Пурга, а ты ходишь. Живой?'] : null,
+    npcCold: c => c.shelter ? ['Грейся, грейся.'] : null,
+  };
+  const ctxOr = (k, fb) => { const c = typeof Ctx !== 'undefined' ? Ctx.now() : null, v = c && CL[k] ? CL[k](c) : null; return v || fb; };
+  const workLines = s => { const w = WORK[s.o.type] || WORK.bich; return typeof w === 'function' ? w(typeof Ctx !== 'undefined' && Ctx.now() || { phase: 'day' }) : w; };
   const npcLines = (s, k) => { const v = s.rec.bark && s.rec.bark[k]; return (typeof v === 'function' ? v(G) : v) || GEN[k]; };
   // «живые» фразы персонажа (idle из диалогов), которые влезают в пузырь
   const idleLines = s => { const r = s.rec.idle; if (!r) return null; for (const [c, t] of r) if (t.length <= 56 && c(G)) return [t]; return null; };
@@ -28,22 +39,22 @@ const Barks = (() => {
     { id: 'wolf', who: f => f.guard, prio: 8, cd: 25, lines: ['Волки! Все к избе!', 'Серые у кромки. Вижу.'] },
     { id: 'fell', who: f => f.feller, prio: 7, cd: 6, lines: ['Берегись!', 'Па-адает!'] },
     { id: 'push', who: f => f.hero, when: f => f.push, prio: 6, cd: 12, lines: ['Не пройти…', 'Тут не пролезть. В обход.'] },
-    { id: 'storm', who: f => f.hero, when: f => f.ev('storm', 6), prio: 6, cd: 120, lines: ['Пурга. Надо в тепло.'] },
-    { id: 'hi', who: f => f.npcNew, prio: 6, cd: 3, lines: (f, s) => npcLines(s, 'hi') },
-    { id: 'cold', who: f => f.hero, when: f => f.warm < 25, prio: 5, cd: 45, lines: ['Пальцев не чую…', 'Зуб на зуб… К огню бы.'] },
+    { id: 'storm', who: f => f.hero, when: f => f.ev('storm', 6), prio: 6, cd: 120, lines: () => ctxOr('storm', ['Пурга. Надо в тепло.']) },
+    { id: 'hi', who: f => f.npcNew, prio: 6, cd: 3, lines: (f, s) => (s.rec.bark && s.rec.bark.hi ? npcLines(s, 'hi') : ctxOr('hi', npcLines(s, 'hi'))) },
+    { id: 'cold', who: f => f.hero, when: f => f.warm < 25, prio: 5, cd: 45, lines: () => ctxOr('cold', ['Пальцев не чую…', 'Зуб на зуб… К огню бы.']) },
     { id: 'hurt', who: f => f.hero, when: f => f.hp < 35, prio: 5, cd: 50, lines: ['Ох… Перевязаться бы.'] },
-    { id: 'npcSay', who: f => f.npc, when: f => f.warm < 30 || f.hp < 40, prio: 5, cd: 60, lines: (f, s) => npcLines(s, f.warm < 30 ? 'cold' : 'hurt') },
+    { id: 'npcSay', who: f => f.npc, when: f => f.warm < 30 || f.hp < 40, prio: 5, cd: 60, lines: (f, s) => (f.warm < 30 ? ctxOr('npcCold', npcLines(s, 'cold')) : npcLines(s, 'hurt')) },
     // жесты героя (js/actions.js): сидит на пне, греет руки, пнул пустой сугроб
     { id: 'rest', who: f => f.hero, when: f => f.act === 'rest' && f.actT > 1.5, prio: 4, cd: 40, lines: ['Посижу. Ноги гудят.', 'Тихо-то как…', 'Минутку. Отдышусь.', 'Эх, Семёныч…'] },
     { id: 'warmUp', who: f => f.hero, when: f => f.act === 'warm' && f.actT > 1, prio: 4, cd: 35, lines: ['Ох, хорошо…', 'Пальцы оживают.', 'Огонь — это жизнь.'] },
     { id: 'hungry', who: f => f.hero, when: f => f.food < 15, prio: 4, cd: 60, lines: ['Живот к спине прилип.'] },
-    { id: 'dusk', who: f => f.hero, when: f => f.ev('dusk', 12), prio: 3, cd: 300, lines: ['Темнеет. Пора к огню.'] },
+    { id: 'dusk', who: f => f.hero, when: f => f.ev('dusk', 12), prio: 3, cd: 300, lines: () => ctxOr('dusk', ['Темнеет. Пора к огню.']) },
     { id: 'idle', who: f => f.npcStay, prio: 2, cd: 45, lines: (f, s) => idleLines(s) },
-    { id: 'work', who: f => f.worker, when: () => Math.random() < 0.2, prio: 1, cd: 35, lines: (f, s) => WORK[s.o.type] || WORK.bich },
+    { id: 'work', who: f => f.worker, when: () => Math.random() < 0.2, prio: 1, cd: 35, lines: (f, s) => workLines(s) },
     { id: 'chat', who: f => f.pair, when: () => Math.random() < 0.15, prio: 1, cd: 90, pair: CHAT },
   ];
 
-  let T = 0, chk = 0, lastNew = -9, wasNight = null, wasStorm = null, view = null;
+  let lastP = null, T = 0, chk = 0, lastNew = -9, wasNight = null, wasStorm = null, view = null;
   const bub = [], wait = [], E = {}, ruleT = {}, said = new Map(), greet = new Map(), stay = new Map(), spk = new WeakMap();
   const mark = (k, ev = {}) => { E[k] = { ev, t: T }; };
   Interact.on('push', ev => mark('push', ev));
@@ -123,15 +134,17 @@ const Barks = (() => {
     if (bub.length >= MAX + 1) bub.shift();
     bub.push({ o, text, h: opts.h || 60, t: 0, life: opts.life || Math.min(5, 2 + text.length * 0.06), lines: null, w: 0 });
     said.set(text, T); spk.set(o, T + (o.type === 'laika' ? 3 : 6)); lastNew = T;
+    if (typeof Talk !== 'undefined' && o.type !== 'laika') Talk.bark(o, text, { to: opts.to, life: bub[bub.length - 1].life });   // жест и мимика по смыслу реплики
   }
   function tick(dt) {
     T += dt;
-    for (let i = bub.length - 1; i >= 0; i--) if ((bub[i].t += dt) > bub[i].life) bub.splice(i, 1);
+    if (G && G.p !== lastP) { lastP = G && G.p; bub.length = 0; wait.length = 0; }   // новая игра / загрузка: старые пузыри не висят над новыми людьми
+    for (let i = bub.length - 1; i >= 0; i--) { const b = bub[i]; if (b.wait) { b.waitT = (b.waitT || 0) + dt; if (b.waitT > 4) bub.splice(i, 1); continue; } if ((b.t += dt) > b.life) bub.splice(i, 1); }
     if (state !== 'play' || !G || !G.p || UI.modal()) return;
     for (let i = wait.length - 1; i >= 0; i--) {
       const q = wait[i]; if (q.at > T) continue; wait.splice(i, 1);
       const o = G.col && G.col.units.find(u => u !== q.from && u.type !== 'laika' && vis(u) && dist2(u, q.from) < 140 * 140);
-      if (o) say(o, q.line, { h: 58 });
+      if (o) say(o, q.line, { h: 58, to: q.from });
     }
     if ((chk -= dt) > 0) return; chk = 0.5;
     choose(facts());
@@ -145,20 +158,36 @@ const Barks = (() => {
   }
   function draw(g) {
     const m = g.getTransform(); view = { x0: -m.e / m.a, y0: -m.f / m.d, x1: -m.e / m.a + GFX.vw, y1: -m.f / m.d + GFX.vh };
+    const TK = typeof Talk !== 'undefined' && Talk.fit ? Talk : null;
+    if (TK) TK.slotsReset();   // раскладка пузырей кадра: HUD, компас, уже поставленные пузыри (js/talk.js)
     if (!bub.length || UI.modal()) return;
     g.save(); g.font = '12px "PT Sans", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 1;
+    const z = GFX.zoom;
     for (const b of bub) {
       if (!vis(b.o)) continue;
       if (!b.lines) wrap(g, b);
       const a = Math.min(1, b.t * 6, (b.life - b.t) * 3), bh = b.lines.length * 14 + 6;
       const x = b.o.x, y1 = b.o.y - b.h - Math.min(6, b.t * 14), y0 = y1 - bh, x0 = x - b.w / 2;
+      const uk = GFX.uiK ? GFX.uiK() : 1; // на большом зуме пузырь экранного размера, хвостик у головы
+      // место на экране без пересечений: вбок, выше; нет места — пузырь ждёт очереди (не стареет)
+      let dx = 0, dy = 0;
+      if (TK) {
+        const sc = GFX.worldToScreen(x, y1), k = uk * z, f = TK.fit(sc.x - b.w / 2 * k, sc.y - (bh + 2) * k, b.w * k, (bh + 2) * k);
+        if (!f) { b.wait = true; continue; }
+        b.wait = false; dx = f.dx / k; dy = f.dy / k;
+      }
+      g.save(); if (uk !== 1) { g.translate(x, y1); g.scale(uk, uk); g.translate(-x, -y1); }
+      const bx0 = x0 + dx, by0 = y0 + dy, tx = Math.max(bx0 + 8, Math.min(bx0 + b.w - 8, x)), ty = by0 + bh;
       g.globalAlpha = a; g.fillStyle = '#ebe6d3'; g.strokeStyle = 'rgba(39,57,74,0.75)';
-      g.beginPath(); g.roundRect(x0, y0, b.w, bh, 5); g.moveTo(x - 4, y1); g.lineTo(x, y1 + 5); g.lineTo(x + 4, y1); g.fill(); g.stroke();
-      g.fillRect(x - 3.5, y1 - 1, 7, 2); // стереть рамку у основания хвостика
+      g.beginPath(); g.roundRect(bx0, by0, b.w, bh, 5); g.moveTo(tx - 4, ty); g.lineTo(x, y1 + 5); g.lineTo(tx + 4, ty); g.fill(); g.stroke();
+      g.fillRect(tx - 3.5, ty - 1, 7, 2); // стереть рамку у основания хвостика
       g.fillStyle = '#27394a';
-      b.lines.forEach((s, i) => g.fillText(s, x, y0 + 10 + i * 14));
+      b.lines.forEach((s, i) => g.fillText(s, bx0 + b.w / 2, by0 + 10 + i * 14));
+      g.restore();
     }
     g.restore();
   }
-  return { tick, draw, say };
+  // для тестов: какие строки дало бы правило сейчас (без пауз и случайности)
+  function linesFor(id, s) { const r = RULES.find(q => q.id === id); if (!r) return null; return typeof r.lines === 'function' ? r.lines(facts(), s || { o: G.p, rec: {} }) : r.lines; }
+  return { tick, draw, say, linesFor, workLines };
 })();

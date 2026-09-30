@@ -203,7 +203,9 @@ const TIPS = '{"move":1,"act":1,"fire":1,"cold":1,"eat":1,"stove":1,"night":1,"c
       const w1 = await pg.evaluate(p => ({ ...GFX.screenToWorld(p.x, p.y), z: GFX.zoom }), P);
       ok(w1.z > 1.05 && Math.hypot(w1.x - w0.x, w1.y - w0.y) < 3, `S21 колесо у курсора: z=${w1.z.toFixed(2)}, сдвиг ${Math.hypot(w1.x - w0.x, w1.y - w0.y).toFixed(1)}`);
       await pg.evaluate(() => GFX.setZoom(1));
-      const z22 = await pg.evaluate(() => { const c = document.getElementById('game'); const z0 = GFX.zoom; for (let i = 0; i < 10; i++) c.dispatchEvent(new WheelEvent('wheel', { deltaY: -3, deltaMode: 1, clientX: 640, clientY: 400, bubbles: true, cancelable: true })); return GFX.zoom / z0; });
+      await pg.evaluate(() => { const c = document.getElementById('game'); const z0 = GFX.zoom; for (let i = 0; i < 10; i++) c.dispatchEvent(new WheelEvent('wheel', { deltaY: -3, deltaMode: 1, clientX: 640, clientY: 400, bubbles: true, cancelable: true })); window.__z0 = z0; });
+      // зум плавный: цель набрана сразу, сам зум догоняет за доли секунды
+      const z22 = (await W.until(pg, () => GFX.zoom / window.__z0 > 1.3 && GFX.zoom / window.__z0)) || await pg.evaluate(() => GFX.zoom / window.__z0);
       ok(z22 > 1.3, `S22 колесо строками (deltaMode 1) ×10 → зум ×${z22.toFixed(2)}`);
       await pg.evaluate(() => { GFX.setZoom(1); UI.openCraft('build'); }); await fr();
       const pb = await pg.locator('#panel').boundingBox();

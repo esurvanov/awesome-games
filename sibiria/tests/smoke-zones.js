@@ -83,7 +83,7 @@ function scene() {
   const k0 = Inv.cnt('kero', false); let guard = 0;
   while ((G.loot.drillBalok || []).length && guard++ < 20) { const c = Actions.context(); if (!c || c.k !== 'loot') break; Actions.interact(false); run(TUNE.zone.lootT + 0.1, () => { input.mx = input.my = 0; }); }
   ok(!G.loot.drillBalok.length && Inv.cnt('kero', false) > k0, 'буровая: балок обыскан, есть :kero:');
-  const B = G.veh.buran; go(B.x + 30, B.y);
+  const B = G.veh.buran; go(B.x + 30, B.y); G.hares = []; // заяц рядом (замер от героя) перехватил бы E «Поймать»
   const cf = Actions.context(); ok(cf && cf.k === 'vfix', '«Буран»: «Починить» ' + (cf && cf.k));
   Inv.add('scrap', 3); Inv.add('cable', 1); Actions.interact(false); run(TUNE.tr.fixT + 0.2, () => { input.mx = input.my = 0; });
   ok(B.fixed === 1, '«Буран» починен');

@@ -43,9 +43,10 @@ function update(dt) {
   if (h >= TUNE.time.wakeAt && h < 12 && G.lastDawn !== G.day) { G.lastDawn = G.day; Game.dawn(); }
   p.inside = insideHut(p.x, p.y);
 
-  Actions.tickSleep(h);
+  Actions.tickSleep(h, dt);
   Hero.move(dt, storm);
   Fx.tick(dt, storm);
+  if (typeof Depth !== 'undefined') Depth.tick(dt, storm); // траншеи и разгребы заметает
   Hero.tickLoad();
   Actions.tick(dt);
   Fire.tick(dt, night, storm);
@@ -64,6 +65,7 @@ function update(dt) {
   Npc.tick(dt);
   Colony.update(dt, h, storm);
   Fauna.living(dt);
+  World.crowd(dt);        // тела расталкиваются (r1 + r2), герой сквозь людей и зверей не проходит
   Interact.tick(dt);
   Barks.tick(dt);
 
@@ -92,13 +94,8 @@ const Game = (() => {
   }
   function die(cause) {
     const m = CHAPTERS[G.chapter].softDeath;
-    if (m) {
-      G.p.x = SPOT.bed.x; G.p.y = SPOT.bed.y + 4; G.p.action = null; G.p.sleeping = false; Hero.snap();
-      G.s.hp = m.hp; G.s.warm = m.warm; G.s.food = Math.max(G.s.food, m.food); G.time += CYCLE * m.skip; G.hut.fuel = Math.max(G.hut.fuel, m.fuel);
-      G.inv.wood = Math.floor((G.inv.wood || 0) * m.woodKeep); G.wolves = []; G.pack = null;
-      UI.card(...m.card);
-      return;
-    }
+    // «мягкая» смерть: не телепорт в тот же кадр — упал/замерз → затемнение → очнулся в избе (карточка: кто донёс) → встаёт (Actions.knockout)
+    if (m) { if (!G.p.ko) Actions.knockout(cause, m); return; }
     deathLog[G.chapter] = (deathLog[G.chapter] || 0) + 1;
     end('death', cause);
   }
@@ -107,11 +104,11 @@ const Game = (() => {
   function visual(dt) {
     const storm = stormOn(), P = G.parts;
     for (const f of G.fires) if (f.fuel > 0) {
-      if (Math.random() < dt * 7) P.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15) + (storm ? 70 : 0), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
-      if (Math.random() < dt * 3) P.push({ type: 'smoke', x: f.x, y: f.y - 24, vx: rnd(-6, 6) + (storm ? 80 : 12), vy: rnd(-30, -18), life: 2.5, max: 2.5 });
+      if (Math.random() < dt * 7) P.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
+      if (Math.random() < dt * 3) P.push({ type: 'smoke', x: f.x, y: f.y - 24, vx: rnd(-6, 6), vy: rnd(-30, -18), life: 2.5, max: 2.5 });
     }
-    for (const s of G.stacks) if (s.lit > 0 && Math.random() < dt * 8) P.push({ type: 'smoke', x: s.x, y: s.y - 40, vx: rnd(-8, 8) + (storm ? 80 : 15), vy: rnd(-45, -25), life: 3.5, max: 3.5, big: 1 });
-    if (G.hut.fuel > 0 && Math.random() < dt * 3) P.push({ type: 'smoke', x: HUT.x - 70 + rnd(-2, 2), y: HUT.y - 150, vx: rnd(-5, 5) + (storm ? 90 : 14), vy: rnd(-30, -20), life: 3, max: 3 });
+    for (const s of G.stacks) if (s.lit > 0 && Math.random() < dt * 8) P.push({ type: 'smoke', x: s.x, y: s.y - 40, vx: rnd(-8, 8), vy: rnd(-45, -25), life: 3.5, max: 3.5, big: 1 });
+    if (G.hut.fuel > 0 && Math.random() < dt * 3) P.push({ type: 'smoke', x: HUT.x - 70 + rnd(-2, 2), y: HUT.y - 150, vx: rnd(-5, 5), vy: rnd(-30, -20), life: 3, max: 3 });
     FX.update(P, dt); World.tickTrees(dt);
   }
   function end(kind, cause) { state = 'over'; input.act = false; if (kind !== 'death' && typeof Finale !== 'undefined') Finale.play(kind, G.stats, () => UI.end(kind, cause)); else { if (kind === 'death') Sound.sting && Sound.sting('death'); UI.end(kind, cause); } }

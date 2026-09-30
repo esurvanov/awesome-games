@@ -24,7 +24,7 @@ const Director = (() => {
         if (!isNight || (p.sleeping && G.hut.door)) break;
         // задание деда «вожак»: вожак приходит сам, пока не отогнан
         if (G.urk.wolfQuest && !G.flags.leaderDone && !G.pack && !storm && G.fired.E5 && D.budget >= D0.cost.pack && !D.queued) {
-          D.dir = Math.random() * Math.PI * 2; Sound.howl(0, 0.22); Fx.toast(':wolf: Вожак с рваным ухом близко'); Wolves.spawnPack(3, true); D.budget -= D0.cost.pack; D.phase = 'peak'; break;
+          D.dir = Math.random() * Math.PI * 2; howlFrom(D.dir, TUNE.wolf.leaderD, 0.22); Fx.toast(':wolf: Вожак с рваным ухом близко'); Wolves.spawnPack(3, true); D.budget -= D0.cost.pack; D.phase = 'peak'; break;
         }
         if (!D.queued) D.queued = pick(ch, storm);
         if (D.queued && D.omenT === 0) { D.dir = Math.random() * Math.PI * 2; omen(D.queued); D.omenT = D.queued === 'pack' ? D0.omenPack : D0.omenScout; }
@@ -52,10 +52,12 @@ const Director = (() => {
     if (D.budget >= C.pack && max >= 2) return 'pack';
     return null;
   }
+  // вой с места: громкость и панорама — от точки на расстоянии d по направлению a (Sound.at)
+  function howlFrom(a, d, vol) { const p = G.p; Sound.at(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, () => Sound.howl(0, vol)); }
   function omen(type) {
     const p = G.p, a = G.D.dir;
     if (type === 'pack') {
-      Sound.howl(Math.cos(a), 0.2); Fx.toast(':wolf: Вой. Близко.');
+      const D = (TUNE.wolf.packD[0] + TUNE.wolf.packD[1]) / 2; howlFrom(a, D, 0.2); Fx.toast(Ctx.howl(D, true)); // фраза — по дистанции, откуда придёт стая
       for (let i = -6; i < 6; i++) Fx.print(p.x + Math.cos(a) * 180 + Math.cos(a + 1.57) * i * 26, p.y + Math.sin(a) * 180 + Math.sin(a + 1.57) * i * 26, a + 1.57, 'w');
     }
   }

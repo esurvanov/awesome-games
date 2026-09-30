@@ -32,13 +32,13 @@ const Fire = (() => {
   function tick(dt, night, storm) {
     for (const f of G.fires) if (f.fuel > 0) {
       f.fuel = Math.max(0, f.fuel - dt * (storm ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn'))));
-      if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15) + (storm ? 70 : 0), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
-      if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: f.x, y: f.y - 24, vx: rnd(-6, 6) + (storm ? 80 : 12), vy: rnd(-30, -18), life: 2.5, max: 2.5 });
+      if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
+      if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: f.x, y: f.y - 24, vx: rnd(-6, 6), vy: rnd(-30, -18), life: 2.5, max: 2.5 });
     }
     for (const st of G.stacks) if (st.lit > 0) {
       st.lit = Math.max(0, st.lit - dt);
       if (Math.random() < dt * 14) G.parts.push({ type: 'spark', x: st.x + rnd(-12, 12), y: st.y - 24, vx: rnd(-20, 20), vy: rnd(-120, -60), life: rnd(0.6, 1.2), max: 1.2, g: -10 });
-      if (Math.random() < dt * 8) G.parts.push({ type: 'smoke', x: st.x, y: st.y - 40, vx: rnd(-8, 8) + (storm ? 80 : 15), vy: rnd(-45, -25), life: 3.5, max: 3.5, big: 1 });
+      if (Math.random() < dt * 8) G.parts.push({ type: 'smoke', x: st.x, y: st.y - 40, vx: rnd(-8, 8), vy: rnd(-45, -25), life: 3.5, max: 3.5, big: 1 });
     }
   }
   // на рассвете гаснут забытые далёкие костры
@@ -69,7 +69,7 @@ const Stove = (() => {
     if (!(G.hut.fuel > 0)) return;
     const p = G.p;
     G.hut.fuel = Math.max(0, G.hut.fuel - dt * (storm && !G.hut.walls ? S.stormDraft : 1) * (1 + S.nightBurn * night));
-    if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: HUT.x - 70 + rnd(-2, 2), y: HUT.y - 150, vx: rnd(-5, 5) + (storm ? 90 : 14), vy: rnd(-30, -20), life: 3, max: 3 });
+    if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: HUT.x - 70 + rnd(-2, 2), y: HUT.y - 150, vx: rnd(-5, 5), vy: rnd(-30, -20), life: 3, max: 3 });
     // аккумулятор заряжается у горящей печи (в руках в избе или в лабазе)
     const battHere = p.inside ? Inv.cnt('battery', true) > 0 : (G.chest.battery || 0) > 0;
     if (battHere && G.charge < 100 && !G.flags.radioBuilt) {

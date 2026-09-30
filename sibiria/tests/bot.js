@@ -65,10 +65,13 @@
   function wait(sec, cond) { const t0 = B.T; input.mx = input.my = 0; while (B.T - t0 < sec) { if (cond && cond()) return true; tick(); survive(); } return false; }
   B.wait = wait;
   function doAction() { // ждать завершения текущего p.action
+    // «взять» (take: наклон → в руке → в сумку) — вещь уже в сумке с первого кадра, поза снимается шагом или E (cx);
+    // игрок идёт дальше не дожидаясь — бот тоже (иначе 2.2 с на каждую чурку/зайца/банку)
     input.mx = input.my = 0; let n = 0;
-    while (G.p.action && n++ < 400) tick();
+    while (G.p.action && !G.p.action.cx && n++ < 400) tick();
     while (G.p.cd > 0 && n++ < 440) tick();
   }
+  B.doAction = doAction;
 
   // ---------- ходьба ----------
   function rawGo(x, y, tol = 14, maxT = 150) {
@@ -80,8 +83,14 @@
       let ax = x, ay = y;
       const inDoor = Math.abs(p.x - HUT.x) < 22 && p.y > HUT_IN.y1 - 30 && p.y < HUT_IN.y1 + 26;
       if ((p.inside || inDoor) && !insideHut(x, y)) { if (Math.abs(p.x - HUT.x) > 8 && !inDoor) { ax = HUT.x; ay = HUT_IN.y1 - 25; } else { ax = HUT.x; ay = HUT_IN.y1 + 60; } }
+      // снаружи — обход вещей по сетке Nav (подножия Ми-8, домов зон… — js/content/footprints.js), как у ИИ
+      // (в избе — тоже: лежанка, печь, верстак, ящик — подножия; через дверь — своим путём выше)
+      const viaNav = typeof Nav !== 'undefined' && !!p.inside === insideHut(ax, ay) && Math.hypot(ax - p.x, ay - p.y) > 40;
+      if (viaNav) { const q = Nav.way(p, ax, ay); ax = q.x; ay = q.y; }
       const dx = ax - p.x, dy = ay - p.y, dd = Math.hypot(dx, dy) || 1;
       let mx = dx / dd, my = dy / dd;
+      // глубокий снег (js/depth.js): как игрок — в обход сугроба, по натоптанному (далеко от цели и не в обходе вещи)
+      if (typeof Depth !== 'undefined' && !p.inside && dd > 60 && ax === x && ay === y) { const v = Depth.steer(p, mx, my, 'p'); if (v) { mx = v.x; my = v.y; } }
       if (!B.allowIce) {
         const px = p.x - POI.polynya.x, py = p.y - POI.polynya.y, pd = Math.hypot(px, py);
         if (pd < 160 && Math.hypot(x - POI.polynya.x, y - POI.polynya.y) > 120) {
@@ -90,7 +99,7 @@
         }
       }
       // обход избы снаружи
-      if (!p.inside && !insideHut(x, y) && Math.abs(p.x - HUT.x) < 150 && p.y > HUT.y - 150 && p.y < HUT.y + 80) {
+      if (!viaNav && !p.inside && !insideHut(x, y) && Math.abs(p.x - HUT.x) < 150 && p.y > HUT.y - 150 && p.y < HUT.y + 80) {
         const nx = p.x + mx * 40, ny = p.y + my * 40;
         if (Math.abs(nx - HUT.x) < 125 && ny > HUT.y - 125 && ny < HUT.y + 65) { const s = p.x < HUT.x ? -1 : 1; mx = s; my = 0.2 * Math.sign(dy); }
       }
@@ -107,6 +116,8 @@
   }
   const DOOR_OUT = () => ({ x: HUT.x, y: HUT_IN.y1 + 48 });
   function goTo(x, y, tol = 14, maxT = 150) {
+    // цель в подножии вещи (сундук, лежанка, обломки — js/content/footprints.js) — встаём у её края
+    if (typeof World !== 'undefined' && World.freeNear) { const f = World.freeNear(x, y, 10); x = f.x; y = f.y; }
     const tIn = insideHut(x, y);
     if (G.p.inside && !tIn) { rawGo(HUT.x, HUT.y + 5, 10); rawGo(DOOR_OUT().x, DOOR_OUT().y, 10); }
     else if (!G.p.inside && tIn) { rawGo(DOOR_OUT().x, DOOR_OUT().y + 10, 12); rawGo(HUT.x, HUT.y + 5, 10); }
@@ -136,8 +147,37 @@
     } finally { inS = false; }
   }
   B.survive = survive;
+  // этап 4: ель валится без дров → лежачий ствол разделать (чурки на снег) → чурки подобрать = дрова
+  function pickChunks(r = 160) {
+    for (let k = 0; k < 12; k++) {
+      const q = (G.chunks || []).find(c => dist2(c, G.p) < r * r); if (!q) return;
+      let c = Actions.context();
+      // чурка лежит у ствола (в его подножии не встать) — к ближайшему свободному месту рядом, «Взять» — с 46 px
+      if (!c || c.k !== 'chunks') { const f = World.freeNear(q.x, q.y + 8, 10); rawGo(f.x, f.y, 18, 3); c = Actions.context(); }
+      if (c && c.k === 'chunks') { Actions.interact(true); doAction(); } else { G.chunks.splice(G.chunks.indexOf(q), 1); }
+    }
+  }
+  // место у лежачего ствола: сбоку от середины оставшейся части, на той стороне, где герой (ствол — преграда, World.solid)
+  function logSide(L, side) {
+    const q = Actions.logEnd(L, Actions.logK(L) * 0.55), vx = Math.cos(L.a), vy = Math.sin(L.a) * 0.6, l = Math.hypot(vx, vy) || 1;
+    let nx = -vy / l, ny = vx / l; if (side == null) side = (G.p.x - q.x) * nx + (G.p.y - q.y) * ny >= 0 ? 1 : -1;
+    const f = World.freeNear(q.x + nx * side * 24, q.y + ny * side * 24, 10); return f;
+  }
+  function buck(L) {
+    for (let k = 0; k < 14 && G.logs.includes(L) && L.n > 0; k++) {
+      let c = Actions.context();
+      if (!c || (c.k !== 'log' && c.k !== 'chunks')) { const q = logSide(L, k % 3 === 2 ? -1 : null); rawGo(q.x, q.y, 10, 4); c = Actions.context(); }
+      if (c && (c.k === 'drift' || c.k === 'digout' || c.k === 'tracks' || c.k === 'litter')) { Actions.interact(false); doAction(); c = Actions.context(); }
+      if (c && (c.k === 'log' || c.k === 'chunks')) { Actions.interact(true); doAction(); } else { const q = logSide(L, -1); rawGo(q.x, q.y, 8, 3); }
+      if (Inv.weight() > Inv.capKg() + 6) break;
+    }
+    pickChunks();
+  }
+  B.buck = buck;
   function chopOne(maxDist = 900) {
     const p = G.p;
+    const L0 = (G.logs || []).find(L => L.n > 0 && dist2(L, p) < 500 * 500);
+    if (L0) { const w0 = Inv.cnt('wood', false), q = logSide(L0); goTo(q.x, q.y, 14, 30); buck(L0); if (Inv.cnt('wood', false) > w0) return true; }
     let best = null, bd = maxDist * maxDist;
     for (const t of treesNear(p.x, p.y, maxDist)) if (t.wood > 0 && !t.wall && !onIce(t.x, t.y)) { const d = dist2(t, p); if (d < bd && Math.hypot(t.x - HUT.x, t.y - HUT.y) > 150 && !(G.col && G.col.builds.some(b => dist2(b, t) < (BUILDS[b.type].w / 2 + 50) ** 2)) && !G.stacks.some(s => dist2(s, t) < 70 * 70)) { bd = d; best = t; } }
     if (!best) { L('нет деревьев рядом'); return false; }
@@ -146,16 +186,19 @@
     // пешком (тем более в мороз/с перегрузом) не успеть, и «дерево нашлось» превращалось в тот же
     // «не смог», просто на маршруте; время в пути даём по факту расстояния до найденного дерева.
     goTo(best.x + Math.cos(a) * 30, best.y + Math.sin(a) * 30, 12, 40 + Math.sqrt(bd) / 100);
-    for (let k = 0; k < 6 && best.wood > 0; k++) {
+    for (let k = 0; k < 10 && best.wood > 0; k++) {
       const c = Actions.context();
       if (!c) { rawGo(best.x, best.y, 30, 5); continue; }
-      if (c.k === 'amulet' || c.k === 'trap') { Actions.interact(true); tick(); continue; }
-      if (c.k !== 'tree' && c.k !== 'hare') { rawGo(best.x + 20, best.y + 20, 8, 3); continue; }
-      const w0 = Inv.cnt('wood', false);
+      if (c.k === 'amulet' || c.k === 'trap' || c.k === 'chunks') { Actions.interact(true); doAction(); continue; }
+      if (c.k === 'drift' || c.k === 'digout' || c.k === 'tracks' || c.k === 'litter') { Actions.interact(false); doAction(); continue; } // сугроб/след под ногами перекрывает «Рубить» — пнуть/прочитать и дальше
+      if (c.k === 'log') { buck(c.o); return Inv.cnt('wood', false) > 0; } // рядом лежит сваленный ствол — он тоже дрова (и перехватывает «Рубить»)
+      if (c.k === 'tree' && c.o !== best) best = c.o; // под рукой другое дерево — рубим его
+      else if (c.k !== 'tree') { const rr = World.trunkR(best) + 14; rawGo(best.x + Math.cos(a) * rr, best.y + Math.sin(a) * rr, 8, 3); const c2 = Actions.context(); if (!c2 || c2.k !== 'tree') continue; best = c2.o; }
       Actions.interact(true); doAction();
       if (Inv.weight() > Inv.capKg() + 6) return true;
-      if (Inv.cnt('wood', false) > w0) return true;
     }
+    const L = (G.logs || []).find(L => L.n > 0 && Math.hypot(L.x - best.x, L.y - best.y) < 2);
+    if (best.wood <= 0 && L) buck(L);
     return Inv.cnt('wood', false) > 0;
   }
   // тайник в поле («Оставить здесь»): лишний груз — не бесконечная рубка, свалить и продолжить налегке.
@@ -244,7 +287,7 @@
   }
   B.fillStove = fillStove;
   function build(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const ok = Actions.buildHut(HUT_UPG.find(u => u.id === id)); L(`стройка ${id}: ${ok}`); return ok; }
-  function doCraft(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const r = RECIPES.find(r => r.id === id); const st = Actions.recipeState(r); const ok = Actions.craft(r); L(`крафт ${id}: ${ok ? 'ok' : st}`); return ok; }
+  function doCraft(id) { if (!G.p.inside) enterHut(); goTo(SPOT.bench.x, SPOT.bench.y + 20, 10); const r = RECIPES.find(r => r.id === id); const st = Actions.recipeState(r); const ok = Actions.craft(r); if (ok) doAction(); L(`крафт ${id}: ${ok ? 'ok' : st}`); return ok; }
   B.build = build; B.doCraft = doCraft;
 
   // ночь: к 18:00 в избе, печь полна, сон с 19:00
@@ -256,7 +299,7 @@
     let best = null;
     for (let r = 0; r <= 46 && !best; r += 4) for (let a = 0; a < 6.28 && !best; a += 0.4) {
       const x = SPOT.bed.x + Math.cos(a) * r, y = SPOT.bed.y + Math.sin(a) * r;
-      if (!insideHut(x, y) || x < HUT_IN.x0 + 11 || x > HUT_IN.x1 - 11 || y < HUT_IN.y0 + 11 || y > HUT_IN.y1 - 11) continue;
+      if (!insideHut(x, y) || (World.blocked && World.blocked(x, y, 10)) || x < HUT_IN.x0 + 11 || x > HUT_IN.x1 - 11 || y < HUT_IN.y0 + 11 || y > HUT_IN.y1 - 11) continue;
       G.p.x = x; G.p.y = y; G.p.inside = true; const c = Actions.context(); if (c && c.k === 'bed') best = { x, y };
     }
     G.p.x = sx; G.p.y = sy; G.p.inside = si; return best;
@@ -266,6 +309,7 @@
     const bs = bedSpot(); if (!bs) return false;
     goTo(bs.x, bs.y, 4, 10);
     const c = Actions.context(); if (c && c.k === 'bed') Actions.interact(false);
+    for (let k = 0; k < 120 && !G.p.sleeping && Actions.busy(); k++) tick(); // идёт к лежанке и ложится
     return G.p.sleeping;
   }
   function night(opts = {}) {
@@ -308,7 +352,7 @@
     while (G.bear && B.T - t0 < 60 && G.bear.st !== 'flee' && G.bear.st !== 'fleeHurt') {
       // ниже 40 hp — одна оплеуха (−50) добивает; лучше отступить за дверь и переждать, чем ловить вторую
       if (G.s.hp < 40 && G.hut.door) { if (!G.p.inside) enterHut(); break; }
-      if (G.p.torch < 10 && G.p.inside && G.hut.fuel > 0 && Inv.cnt('wood', true) > 0) { Actions.craft(RECIPES.find(r => r.id === 'torch')); B.torches = (B.torches || 0) + 1; }
+      if (G.p.torch < 10 && G.p.inside && G.hut.fuel > 0 && Inv.cnt('wood', true) > 0) { if (Actions.craft(RECIPES.find(r => r.id === 'torch'))) doAction(); B.torches = (B.torches || 0) + 1; }
       if (G.p.torch > 0) { const b = G.bear; if (dist2(b, G.p) > 70 * 70) goTo(b.x, b.y, 60, 1.5); else { input.mx = input.my = 0; tick(); } }
       else { if (!G.p.inside) enterHut(); wait(1); }
       if (G.hut.fuel < Stove.secPerLog() * 2 && G.p.inside) fillStove();

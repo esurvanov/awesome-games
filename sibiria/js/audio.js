@@ -7,13 +7,13 @@
 const Sound = {
   ctx: null, on: true, master: null, out: null, noise: null, noise2: null, sfxG: null, musicG: null, _mus: false, _layer: null,
   vol: { music: 0.7, sfx: 0.8 },
-  windG: null, windF: null, droneG: null, heartT: 0, crackT: 0, stepT: 0, gustT: 3, frostT: 20,
+  windG: null, windF: null, droneG: null, heartT: 0, crackT: 0, stepT: 0, frostT: 20,
   SFX_K: 2.4, MUS_K: 2.518,
   mood: null, lay: null, mT: 0, mStep: 0,
   // калибровка по аудиту: множитель громкости на эффект; EXT — для прямых Sound.tone/burst из игры
   LV: { chop: 2.691, pick: 1.779, ok2: 2.213, hit: 2.065, bite: 5, splash: 4.842, creak: 2.188, shot: 4, howl: 0.922, growl: 3.4, treeCrack: 2.291, thud: 2.4, step: 4.2, frost: 4.2, heart: 1.035, sting: 1.495, fire: 1.6 },
   EXT: 2.113, _g: null,
-  fx(name, fn) { const was = this._g; this._g = this.LV[name] || 1; try { fn(); } finally { this._g = was; } },
+  fx(name, fn) { const was = this._g, wn = this._nm; this._g = this.LV[name] || 1; this._nm = name; try { fn(); } finally { this._g = was; this._nm = wn; } },
   gk() { return this._mus ? 1 : this._g != null ? this._g : this.EXT; },
 
   init() {
@@ -99,22 +99,64 @@ const Sound = {
     g.gain.exponentialRampToValueAtTime(Math.max(peak * 0.001, 1e-5), t + a + d); g.gain.linearRampToValueAtTime(0, t + a + d + 0.015);
   },
   pan(p) { const c = this.ctx; if (c.createStereoPanner) { const s = c.createStereoPanner(); s.pan.value = Math.max(-1, Math.min(1, p)); return s; } return c.createGain(); },
+
+  // ---------- звук с местом: одно правило для всех звуков с источником ----------
+  // Слушатель — герой (камера его держит). Источник (x, y) мира →
+  //   громкость g = 1 / (1 + max(0, d − REF) / 240), REF — «ближняя зона» источника (громкие: вой, выстрел — слышны дальше);
+  //   тише 0.004 — не играем; дальше 3600 px — не слышно;
+  //   панорама = (x − героя) / 380 (±0.9): слева — влево;
+  //   воздух: низкие частоты — дальше, верх гаснет: lp = 16 кГц / (1 + d / 260);
+  //   стены: источник и слушатель по разные стороны стены избы — ×0.3 и lp ≤ 700 Гц;
+  //   ветер: у слушателя снаружи с 5 м/с дальние звуки тонут в ветре (до −60 % и −40 % верха в пургу).
+  REF: { howl: 520, shot: 600, treeCrack: 180, heli: 900 }, _at: null, _atN: null, _nm: null,
+  spatial(x, y, name) {
+    if (x == null || y == null || typeof G === 'undefined' || !G || !G.p) return null;
+    const L = G.p, dx = x - L.x, dy = y - L.y, d = Math.hypot(dx, dy), ref = this.REF[name] || 60;
+    if (d > 3600) return { g: 0, pan: 0, lp: 200, d };
+    let g = 1 / (1 + Math.max(0, d - ref) / 240), lp = 16000 / (1 + Math.max(0, d - ref * 0.5) / 260);
+    const pan = Math.max(-0.9, Math.min(0.9, dx / 380));
+    const inL = !!L.inside, inS = typeof insideHut === 'function' && insideHut(x, y);
+    if (inL !== inS) { g *= 0.3; lp = Math.min(lp, 700); }
+    if (!inL && typeof Wind !== 'undefined') {
+      const ms = Wind.ms(L.x, L.y), k = Math.max(0, Math.min(1, (ms - 5) / 13)), m = k * k * (3 - 2 * k) * Math.min(1, d / 260);
+      g *= 1 - 0.6 * m; lp *= 1 - 0.4 * m;
+    }
+    return { g, pan, lp: Math.max(180, lp), d };
+  },
+  // сыграть fn() «из точки» (x, y): все burst/tone/howl/growl внутри берут громкость, панораму и фильтр от места
+  // (правило считается на каждом звуке по его имени — REF громких: вой, выстрел, треск ствола)
+  at(x, y, fn, name) {
+    const was = this._at, wn = this._atN; this._at = { x, y }; if (name) this._atN = name;
+    try { fn(); } finally { this._at = was; this._atN = wn; }
+  },
+  // Sound.src(o).growl(0.3) — то же, что Sound.at(o.x, o.y, () => Sound.growl(0.3)); src(x, y) — точкой
+  src(o, y) {
+    const x = typeof o === 'object' && o ? o.x : o, yy = typeof o === 'object' && o ? o.y : y, S = this;
+    return new Proxy(S, { get(t, k) { const f = S[k]; return typeof f === 'function' && k !== 'at' && k !== 'src' ? (...a) => S.at(x, yy, () => f.apply(S, a), k) : f; } });
+  },
+  // место одного звука: vol × g, панорама места (+¼ своей), фильтр воздуха/стен; музыка — без места
+  place(vol, pan) {
+    const A = this._mus ? null : this._at; if (!A) return { vol, pan, lp: 0 };
+    const P = A.P || this.spatial(A.x, A.y, this._atN || this._nm); if (!P) return { vol, pan, lp: 0 };
+    return { vol: P.g < 0.004 ? 0 : vol * P.g, pan: Math.max(-1, Math.min(1, P.pan + pan * 0.25)), lp: P.lp < 15000 ? P.lp : 0 };
+  },
+  out2(node, lp, dest) { if (!lp) { node.connect(dest); return; } const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; node.connect(f); f.connect(dest); },
   burst(dur, type, freq, vol, q = 1, opt = {}) {
     if (!this.ok()) return;
-    const c = this.ctx, t = c.currentTime + (opt.at || 0), s = c.createBufferSource(); s.buffer = Math.random() < 0.5 ? this.noise : this.noise2;
+    const c = this.ctx, t = c.currentTime + (opt.at || 0), s = c.createBufferSource(); s.buffer = (opt.r != null ? opt.r : Math.random()) < 0.5 ? this.noise : this.noise2; // opt.r — свой случайный 0..1 (живые вещи не тратят Math.random игры)
     const f = c.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(freq, t); f.Q.value = q;
     if (opt.f1) f.frequency.exponentialRampToValueAtTime(opt.f1, t + dur);
-    const g = c.createGain(); this.env(g, t, opt.a || 0.004, vol * this.gk(), dur);
-    const p = this.pan(opt.pan || 0);
-    s.connect(f); f.connect(g); g.connect(p); p.connect(opt.dest || this.bus()); s.start(t, Math.random() * 1.5); s.stop(t + (opt.a || 0.004) + dur + 0.05);
+    const Q = this.place(vol, opt.pan || 0), g = c.createGain(); this.env(g, t, opt.a || 0.004, Q.vol * this.gk(), dur);
+    const p = this.pan(Q.pan);
+    s.connect(f); f.connect(g); g.connect(p); this.out2(p, Q.lp, opt.dest || this.bus()); s.start(t, (opt.r != null ? (opt.r * 7.13) % 1 : Math.random()) * 1.5); s.stop(t + (opt.a || 0.004) + dur + 0.05);
   },
   tone(type, f0, f1, dur, vol, pan = 0, opt = {}) {
     if (!this.ok()) return;
-    const c = this.ctx, t = c.currentTime + (opt.at || 0), o = c.createOscillator(), g = c.createGain(), p = this.pan(pan);
+    const Q = this.place(vol, pan), c = this.ctx, t = c.currentTime + (opt.at || 0), o = c.createOscillator(), g = c.createGain(), p = this.pan(Q.pan);
     o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
     let node = o;
     if (opt.lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = opt.lp; o.connect(f); node = f; }
-    this.env(g, t, opt.a || 0.008, vol * this.gk(), dur); node.connect(g); g.connect(p); p.connect(opt.dest || this.bus()); o.start(t); o.stop(t + (opt.a || 0.008) + dur + 0.05);
+    this.env(g, t, opt.a || 0.008, Q.vol * this.gk(), dur); node.connect(g); g.connect(p); this.out2(p, Q.lp, opt.dest || this.bus()); o.start(t); o.stop(t + (opt.a || 0.008) + dur + 0.05);
   },
 
   // --- события (уровни — под −14…−10 dBFS RMS на выходе) ---
@@ -145,26 +187,29 @@ const Sound = {
       vib.frequency.value = this.rnd(4.5, 6); vg.gain.value = 7; vib.connect(vg); vg.connect(o.frequency);
       f.type = 'lowpass'; f.frequency.value = 1300; f.Q.value = 2;
       g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + 0.45); g.gain.linearRampToValueAtTime(v * 0.8, t0 + d * 0.8); g.gain.linearRampToValueAtTime(0, t0 + d);
-      o.connect(f); f.connect(g); g.connect(p); p.connect(this.bus());
-      const vs = c.createGain(); vs.gain.value = 0.5; g.connect(vs); vs.connect(this.verb); // даль
+      o.connect(f); f.connect(g); g.connect(p); this.out2(p, Q.lp, this.bus());
+      const vs = c.createGain(); vs.gain.value = 0.5 + 0.3 * (1 - Q.vol / Math.max(1e-6, vol)); g.connect(vs); vs.connect(this.verb); // даль: дальше — больше зала
       o.start(t0); vib.start(t0); o.stop(t0 + d + 0.05); vib.stop(t0 + d + 0.05);
     };
-    const v = vol * 2.6 * this.gk();
+    const Q = this.place(vol, 0), v = Q.vol * 2.6 * this.gk(); if (this._at) pan = Q.pan; // с местом — панорама от места
     one(t, base, peakF, v, pan, dur);
-    if (Math.random() < 0.5) one(t + this.rnd(0.6, 1.2), base * 1.19, peakF * 1.12, v * 0.55, Math.max(-1, Math.min(1, pan + this.rnd(-0.5, 0.5))), dur * 0.85); // подвывает второй
+    if (Math.random() < 0.5) one(t + this.rnd(0.6, 1.2), base * 1.19, peakF * 1.12, v * 0.55, Math.max(-1, Math.min(1, pan + this.rnd(-0.5, 0.5) * (this._at ? 0.3 : 1))), dur * 0.85); // подвывает второй
   },
   growl(vol = 0.35) {
     if (!this.ok()) return;
-    const c = this.ctx, t = c.currentTime, d = this.rnd(0.9, 1.3), o = c.createOscillator(), am = c.createOscillator(), amg = c.createGain(), g = c.createGain(), f = c.createBiquadFilter(), g2 = c.createGain();
+    const Q = this.place(vol, 0), c = this.ctx, t = c.currentTime, d = this.rnd(0.9, 1.3), o = c.createOscillator(), am = c.createOscillator(), amg = c.createGain(), g = c.createGain(), f = c.createBiquadFilter(), g2 = c.createGain(), p = this.pan(Q.pan);
     o.type = 'sawtooth'; o.frequency.setValueAtTime(this.rnd(78, 95), t); o.frequency.linearRampToValueAtTime(this.rnd(65, 75), t + d);
     f.type = 'lowpass'; f.frequency.value = 520; f.Q.value = 3;
     am.frequency.value = this.rnd(22, 30); amg.gain.value = 0.5; am.connect(amg); amg.connect(g2.gain); g2.gain.value = 0.5;
-    this.env(g, t, 0.12, vol * 2.2 * this.gk(), d); o.connect(f); f.connect(g2); g2.connect(g); g.connect(this.bus());
+    this.env(g, t, 0.12, Q.vol * 2.2 * this.gk(), d); o.connect(f); f.connect(g2); g2.connect(g); g.connect(p); this.out2(p, Q.lp, this.bus()); // рык — с панорамой места (раньше — всегда по центру)
     o.start(t); am.start(t); o.stop(t + d + 0.2); am.stop(t + d + 0.2);
     this.burst(d, 'bandpass', 350, vol * 1.3, 1.2, { a: 0.1 });
   },
   // вертолёт: непрерывный ротор. heli() зовут раз в ~2 с — ротор держится и сам затухает, если перестали звать
-  heli() { if (!this.ok()) return; this.rotorOn(); this.heliUntil = this.ctx.currentTime + 2.8; this.heliLvl = 1.4; },
+  heli() {
+    if (!this.ok()) return; this.rotorOn(); this.heliUntil = this.ctx.currentTime + 2.8;
+    const Q = this.place(1.4, 0); this.heliLvl = Math.max(0.15, Q.vol); if (this.rotorP.pan) this.rotorP.pan.setTargetAtTime(Q.pan, this.ctx.currentTime, 0.6); // с местом борта
+  },
   rotorOn() {
     if (this.rotorG) return;
     const c = this.ctx;
@@ -201,9 +246,11 @@ const Sound = {
     this.burst(0.35, 'lowpass', 220, 0.8, 1, { at: 0.18 }); this.tone('sine', 90, 45, 0.4, 0.4, 0, { at: 0.2 });
   },
   // шаги: снег хрустит, лыжи шуршат, лёд щёлкает, пол в избе глухо стучит
-  step(surf = 'snow') {
+  step(surf = 'snow', dk = 0) {
     if (!this.ok()) return;
     const pan = this.rnd(-0.1, 0.1);
+    // глубокий снег: глухой «вдох» снега и шорох по одежде; хруст зёрен тише — чем глубже, тем глуше
+    if (surf === 'deep') { const k = Math.min(1, (dk - 30) / 90); this.burst(0.26 + 0.2 * k, 'lowpass', this.vary(420 - 160 * k, 0.1), 0.34, 1, { a: 0.05, pan }); this.burst(0.3 + 0.25 * k, 'bandpass', this.vary(1500, 0.12), 0.06 + 0.06 * k, 0.6, { at: 0.04, a: 0.12, pan }); if (k < 0.6) for (let i = 0; i < 3; i++) this.burst(this.rnd(0.006, 0.012), 'bandpass', this.rnd(1100, 2200), 0.1 * (1 - k), 1.4, { at: i * 0.012, pan }); return; }
     if (surf === 'wood') { this.tone('sine', this.vary(120, 0.1), 75, 0.05, 0.06, pan); this.burst(0.04, 'lowpass', 450, 0.05, 1, { pan }); return; }
     if (surf === 'ski') { this.burst(0.28, 'bandpass', this.vary(1400, 0.1), 0.18, 1.2, { f1: 700, a: 0.06, pan }); return; }
     if (surf === 'ice') { this.burst(0.012, 'bandpass', this.vary(2000, 0.15), 0.12, 4, { pan }); this.tone('sine', 180, 140, 0.05, 0.05, pan); return; }
@@ -329,24 +376,28 @@ const Sound = {
   },
   setMood(m) { this.mood = m || null; this.chT = 1e9; },
 
+  // ветер → уровни звука (монотонно по м/с): тихий мороз ~0.035, день ~0.07, пурга 0.35–0.55; свист с 9 м/с
+  windLevel(ms, inside) {
+    const k = Math.max(0, Math.min(1, ms / 18)), sm = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+    const gain = (0.03 + 0.52 * Math.pow(k, 1.3)) * (inside ? 0.35 : 1);
+    return (this.wind = { ms, gain, whistle: 0.35 * sm(9, 16, ms), q: 0.9 - 0.4 * sm(8, 15, ms) });
+  },
   // --- каждый кадр ---
   frame(dt, o) {
     if (!this.ctx) return;
     if (this.on) this.music(dt, o.tension, o.night);
     const t = this.ctx.currentTime;
     if (!this._ambOff) {
-      // порывы: ветер не ровный, а дышит
-      this.gustT -= dt; if (this.gustT <= 0) { this.gustT = this.rnd(3, 9); this.gust = this.rnd(0.6, 1.5); }
-      this.gust = (this.gust || 1) + (1 - (this.gust || 1)) * Math.min(1, dt * 0.6);
-      const base = o.storm ? 0.55 : 0.05 + o.night * 0.03;
-      this.windG.gain.setTargetAtTime(base * this.gust * (o.inside ? 0.35 : 1), t, 0.6);
-      this.windF.Q.setTargetAtTime(o.storm ? 0.5 : 0.9, t, 1);
-      this.whG.gain.setTargetAtTime(o.storm ? 0.35 * this.gust : 0, t, 1.2);
+      // ветер — только из единого Wind (js/wind.js) у героя: громкость, «свист» и ширина полосы — от м/с
+      const L = this.windLevel(o.ms != null ? o.ms : 4.5 * 0.6, o.inside);
+      this.windG.gain.setTargetAtTime(L.gain, t, 0.6);
+      this.windF.Q.setTargetAtTime(L.q, t, 1);
+      this.whG.gain.setTargetAtTime(L.whistle, t, 1.2);
     }
     this.droneG.gain.setTargetAtTime(Math.max(0, o.tension - 30) / 70 * 0.07, t, 1);
     // огонь: гул + треск (короткие щелчки, без долгих верхов)
     this.fireG.gain.setTargetAtTime((o.fire || 0) * 0.14, t, 0.4);
-    if (o.fire > 0) { this.crackT -= dt; if (this.crackT <= 0) { this.crackT = 1 / (3 + o.fire * 6) * (0.4 + Math.random() * 1.2); this.fx('fire', () => this.burst(this.rnd(0.008, 0.02), 'bandpass', this.rnd(1200, 2800), this.rnd(0.12, 0.3) * o.fire, 1.5, { pan: this.rnd(-0.3, 0.3) })); } }
+    if (o.fire > 0) { this.crackT -= dt; if (this.crackT <= 0) { this.crackT = 1 / (3 + o.fire * 6) * (0.4 + Math.random() * 1.2); const cr = () => this.fx('fire', () => this.burst(this.rnd(0.008, 0.02), 'bandpass', this.rnd(1200, 2800), this.rnd(0.12, 0.3) * o.fire, 1.5, { pan: this.rnd(-0.3, 0.3) })); if (o.fireAt) { const P = this.spatial(o.fireAt.x, o.fireAt.y); this._at = P && { P: { g: 1, pan: P.pan, lp: P.lp } }; try { cr(); } finally { this._at = null; } } else cr(); } } // треск — с той стороны, где огонь (громкость уже от расстояния в o.fire)
     // сердцебиение: «тук-тук» с обертоном, слышно и на ноутбуке
     if (o.tension > 55 || o.warm < 20) {
       const bpm = 60 + Math.min(80, Math.max(o.tension - 50, (20 - o.warm) * 3) * 1.6);
@@ -364,8 +415,9 @@ const Sound = {
     // шаги — по состоянию игрока (без хуков в game.js)
     const P = typeof G !== 'undefined' && G && G.p;
     if (P && P.moving && !P.blocked && !P.sleeping && !P.action) {
-      const surf = P.inside ? 'wood' : (typeof onIce === 'function' && onIce(P.x, P.y)) ? 'ice' : G.gear && G.gear.skis ? 'ski' : 'snow';
-      this.stepT -= dt; if (this.stepT <= 0) { this.stepT = (surf === 'ski' ? 0.55 : 0.34) * this.rnd(0.92, 1.08); this.step(surf); }
+      const dk = typeof Depth !== 'undefined' ? Depth.heroSink : 0; // провал в снег, см (js/depth.js): глубже — глуше и реже, шорох
+      const surf = P.inside ? 'wood' : (typeof onIce === 'function' && onIce(P.x, P.y)) ? 'ice' : G.gear && G.gear.skis ? 'ski' : dk > 30 ? 'deep' : 'snow';
+      this.stepT -= dt; if (this.stepT <= 0) { this.stepT = (surf === 'ski' ? 0.55 : surf === 'deep' ? 0.42 + dk / 250 : 0.34) * this.rnd(0.92, 1.08); this.step(surf, dk); }
     } else this.stepT = Math.min(this.stepT, 0.08);
     // ночью в лютый мороз трещат деревья
     if (o.night > 0.6 && !o.storm) { this.frostT -= dt; if (this.frostT <= 0) { this.frostT = this.rnd(14, 40); this.frostCrack(this.rnd(-0.9, 0.9)); } }

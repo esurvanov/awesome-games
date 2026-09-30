@@ -3,7 +3,7 @@
 // breath — глобально: его зовёт и рендер (пар изо рта деда).
 function breath(x, y, face, T) {
   for (let i = 0, n = T < -35 ? 4 : 3; i < n; i++)
-    G.parts.push({ type: 'breath', x: x + i * face * 2, y, vx: face * rnd(10, 22) + (stormOn() ? 60 : 4), vy: rnd(-8, -3), life: 1.1, max: 1.1 });
+    G.parts.push({ type: 'breath', x: x + i * face * 2, y, vx: face * rnd(10, 22), vy: rnd(-8, -3), life: 1.1, max: 1.1 });
 }
 
 const Fx = (() => {
@@ -19,9 +19,10 @@ const Fx = (() => {
   function shake(n) { if (!UI.reduced && Settings.get('shake')) G.shake = Math.max(G.shake || 0, n); }
   function corpse(kind, x, y) { ArtWorld.fx.blood(G.parts, x, y, G.decals = G.decals || []); (G.corpses = G.corpses || []).push({ kind, x: Math.round(x), y: Math.round(y), t0: G.time }); if (G.corpses.length > E.corpses) G.corpses.shift(); }
   function print(x, y, a, k, d) { G.prints.push({ x, y, a, k, life: E.printLife, d }); if (G.prints.length > E.prints) G.prints.shift(); }
-  // шаг частиц, следов и пятен
+  // шаг частиц, следов и пятен; следы заносит по ветру у героя (js/snow.js, паспорт №9): штиль ×0.25 · 5 м/с ×1 · 10 м/с ×2 · пурга ×4
   function tick(dt, storm) {
-    for (const f of G.prints) f.life -= dt * (storm ? 4 : 1);
+    const k = typeof Snow !== 'undefined' ? Snow.printRate(storm) : storm ? 4 : 1;
+    for (const f of G.prints) f.life -= dt * k;
     while (G.prints.length && G.prints[0].life <= 0) G.prints.shift();
   }
   function tickParts(dt) {

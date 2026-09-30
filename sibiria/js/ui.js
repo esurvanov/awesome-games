@@ -176,12 +176,18 @@ const UI = (() => {
   // ---------- тосты и баннеры ----------
   // вид тоста по первой иконке: отказ/угроза — danger, мир/погода — info, внимание — warn, остальное — ok
   const T_DANGER = /^:(close|wolf|bear|hp|alarm):/, T_INFO = /^:(frost|storm|day|night|radio|heli|antenna|talk|evenk|person|paw):/, T_WARN = /^:(pad|build|sleep|weight|pack|stove|food|timer|epoch):/;
+  // одинаковый тост, пока прежний на экране, не дублируется: склеивается в один со счётчиком «×2», срок продлевается
   function toast(txt) {
     const box = $('toasts'); txt = String(txt);
+    for (const e of box.children) if (e._txt === txt) {
+      e._n = (e._n || 1) + 1; e.innerHTML = icx(txt, 'm') + `<span class="tn"> ×${e._n}</span>`;
+      clearTimeout(e._tm); e._tm = setTimeout(() => e.remove(), 2600); if (e !== box.lastChild) box.appendChild(e);
+      return;
+    }
     while (box.children.length > 2) box.firstChild.remove();
     const kind = T_DANGER.test(txt) ? 'danger' : T_INFO.test(txt) ? 'info' : T_WARN.test(txt) ? 'warn' : 'ok';
-    const el = document.createElement('div'); el.className = 'plate toast show ' + kind; el.innerHTML = icx(txt, 'm'); box.appendChild(el);
-    setTimeout(() => el.remove(), 2600);
+    const el = document.createElement('div'); el.className = 'plate toast show ' + kind; el.innerHTML = icx(txt, 'm'); el._txt = txt; box.appendChild(el);
+    el._tm = setTimeout(() => el.remove(), 2600);
   }
   function zone(poi) {
     const el = $('zone'); el.innerHTML = `${ic(poi.ic)}${esc(poi.n)}`; el.hidden = false;
@@ -217,10 +223,15 @@ const UI = (() => {
     box.innerHTML = ''; box.appendChild(c);
   }
   // ---------- диалоги ----------
-  function dialog(node) {
+  // вещи до/после узла (act, run): что передали из рук в руки — для постановки разговора (js/talk.js)
+  const invSnap = () => { const o = {}; for (const k of ITEM_ORDER) o[k] = Inv.cnt(k, true); return o; };
+  const invDiff = (a, d = {}) => { const b = invSnap(); for (const k in b) { const v = b[k] - (a[k] || 0); if (v) d[k] = (d[k] || 0) + v; } return d; };
+  const TK = typeof Talk !== 'undefined' ? Talk : null;
+  function dialog(node, pre) {
     if (!node) return;
     closePanel(true);
     dlg = node; kind = 'dialog'; typeN = 0; typeT = 0; dlgT = 0;
+    const inv0 = invSnap();
     if (node.act) Story.act(node.act);
     const w = NPCS[node.who];
     face(w); $('dlg-name').textContent = w.n;
@@ -229,6 +240,8 @@ const UI = (() => {
     if (reduced) typeN = node.t.length;
     renderOpts();
     $('dialog').hidden = false;
+    // разговор в мире: реплика — пузырём над говорящим (после ответа героя), лица и жесты; окно — компактная плашка ответов
+    if (TK) { const d = TK.line(node, invDiff(inv0, Object.assign({}, pre || {}))); if (!reduced) typeT = -d * 45; $('dialog').classList.toggle('inworld', TK.inWorld()); }
   }
   function renderOpts() {
     const opts = dlg.opts || [{ t: 'Дальше' }], done = typeN >= dlg.t.length;
@@ -239,13 +252,16 @@ const UI = (() => {
     if (typeN < dlg.t.length) { typeN = dlg.t.length; $('dlg-text').textContent = dlg.t; renderOpts(); return; }
     const opts = dlg.opts || [{ t: 'Дальше' }], o = opts[i]; if (!o) return;
     $('dialog').hidden = true; kind = null; const was = dlg; dlg = null;
+    if (TK && (o.t !== 'Дальше' || opts.length > 1)) TK.reply(o.t);   // ответ героя — его пузырь
     if (o.trade) return openTrade(was.who);
-    if (o.run) { const n = Npc.run(was.who, o.run); return n ? dialog(DIALOG[n]) : undefined; }
+    if (o.run) { const inv0 = invSnap(), n = Npc.run(was.who, o.run); return n ? dialog(DIALOG[n], invDiff(inv0)) : undefined; }
     if (o.next) return dialog(DIALOG[o.next]);
     Npc.closed(was.who);
   }
   $('dlg-opts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b) choose(+b.dataset.i); });
   $('dialog').addEventListener('click', e => { if (!e.target.closest('.opt') && typeN < (dlg ? dlg.t.length : 0)) choose(0); });
+  // щелчок/тап по миру в разговоре (js/input.js) — дальше: допечатать реплику / единственный ответ
+  function advance() { if (kind === 'dialog' && dlg && (typeN < dlg.t.length || (dlg.opts || [0]).length === 1)) choose(0); }
 
   // ---------- записки ----------
   function note(n) {
@@ -376,7 +392,7 @@ const UI = (() => {
   $('panel').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.tab) { panelTab = b.dataset.tab; }
-    else if (b.dataset.r) Actions.craft(RECIPES.find(r => r.id === b.dataset.r));
+    else if (b.dataset.r) { if (Actions.craft(RECIPES.find(r => r.id === b.dataset.r))) { closePanel(); hud(true); return; } } // работа — в мире: окно закрывается, прогресс над героем
     else if (b.dataset.u) Actions.buildHut(HUT_UPG.find(u => u.id === b.dataset.u));
     else if (b.dataset.t) Npc.buy(NPCS[tradeWho].trade.goods.find(t => t.id === b.dataset.t), tradeWho);
     else if (b.dataset.radio) { closePanel(); return Actions.radioSession(); }
@@ -386,16 +402,23 @@ const UI = (() => {
     else if (b.dataset.tech) Colony.research(b.dataset.tech);
     else if (b.dataset.sell) Colony.sell(b.dataset.sell);
     else if (b.dataset.buy) Colony.buy(b.dataset.buy);
-    else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { G.inv[k]--; G.chest[k] = (G.chest[k] || 0) + 1; } }
-    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; Inv.add(k); } }
-    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { G.inv[k]--; curStash.inv[k] = (curStash.inv[k] || 0) + 1; } }
-    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { curStash.inv[k]--; Inv.add(k); } }
+    else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { G.inv[k]--; G.chest[k] = (G.chest[k] || 0) + 1; stowGesture(true, k); } }
+    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; Inv.add(k); stowGesture(false, k); } }
+    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { G.inv[k]--; curStash.inv[k] = (curStash.inv[k] || 0) + 1; stowGesture(true, k); } }
+    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { curStash.inv[k]--; Inv.add(k); stowGesture(false, k); } }
     else if (b.dataset.all === 'stashput' && curStash) { for (const k in G.inv) if (G.inv[k] > 0) { curStash.inv[k] = (curStash.inv[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.all) { for (const k in G.inv) if (G.inv[k] > 0) { G.chest[k] = (G.chest[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.close) return closePanel();
     renderPanel(); hud(true);
   });
   $('panel-close').addEventListener('click', () => closePanel());
+  // положить/взять: герой наклоняется к ящику/тайнику (крышка открыта, пока окно открыто), вещь — в руке
+  function stowGesture(put, k) {
+    const at = kind === 'chest' ? SPOT.chest : curStash; if (!at || typeof Hero === 'undefined') return;
+    if (put) { Hero.play('place', { react: 1, tg: at, th: kind === 'chest' ? -14 : -6 }); } else Hero.play('pickUp', { react: 1, tg: at, th: kind === 'chest' ? -14 : -6 });
+    if (typeof Interact !== 'undefined') Interact.emit('open', { who: 'p', obj: kind === 'chest' ? 'crate' : 'stash', target: at, x: at.x, y: at.y });
+    Fx.floatText(at.x, at.y - 30, (put ? '→ ' : '+') + (ITEMS[k] ? ITEMS[k].i : ''));
+  }
 
   // ---------- подсказки первых минут: каждая один раз, по одной, можно выключить ----------
   const tips = (() => {
@@ -507,8 +530,9 @@ const UI = (() => {
     // подсказки действий
     const items = [];
     const K = (key, i) => (isTouch ? '' : `<kbd>${key}</kbd>`) + ic(i, 's');
-    const c = ctxCache;
-    if (c) items.push(['E', `${ic('axe', 's')}${esc(c.label)}<kbd>E</kbd>`]);
+    const pl = Actions.plate, c = pl ? null : ctxCache;
+    if (pl) items.push(['E', `${ic(pl.note ? 'log' : 'ok', 's')}${pl.page + 1 < pl.pages ? 'Дальше' : pl.note ? 'Положить' : 'Закрыть'}<kbd>E</kbd>`]); // плашка записки/осмотра
+    else if (c) items.push(['E', `${ic('axe', 's')}${esc(c.label)}<kbd>E</kbd>`]);
     const al = !G.p.sleeping && Actions.altLabel(c); // второе действие: X или долгое E (на таче — удержать кнопку)
     if (al) items.push(['X', `${ic(al[1], 's')}${esc(al[0])}` + (isTouch ? '' : `<kbd>${c && c.alt && !c.rep ? 'E…' : 'X'}</kbd>`)]);
     if (!G.p.inside && !G.p.sleeping) {
@@ -668,7 +692,7 @@ const UI = (() => {
   mm.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (document.body.classList.contains('narrow')) return openMap(); mapDrag = true; try { mm.setPointerCapture(e.pointerId); } catch (_) {} mapLook(e); });
   mm.addEventListener('pointermove', e => { if (mapDrag) mapLook(e); });
   for (const ev of ['pointerup', 'pointercancel']) mm.addEventListener(ev, () => { mapDrag = false; });
-  $('cam-btn').addEventListener('click', () => { GFX.recenter(); GFX.setZoom(1); });
+  $('cam-btn').addEventListener('click', () => { GFX.recenter(); GFX.zoomTo(1); });
   $('map-btn').addEventListener('click', () => { if (kind === 'map') closePanel(); else openMap(); });
 
   // ---------- цель: метки компаса — MARKERS (js/content/chapters.js), выбор цели — Story.goalTarget ----------
@@ -681,7 +705,7 @@ const UI = (() => {
       case 'tree': return { x: o.x, y: o.y, h: 100 * o.s };
       case 'wolf': return { x: o.x, y: o.y, h: 36 }; case 'bear': return { x: o.x, y: o.y, h: 60 };
       case 'hare': return { x: o.x, y: o.y, h: 26 };
-      case 'note': return { x: NOTES[o].x, y: NOTES[o].y, h: 14 };
+      case 'note': { const q = Live.notePos(o, {}); return { x: q.x, y: q.y, h: 14 }; }
       case 'stove': return { x: SPOT.stove.x, y: SPOT.stove.y, h: 76 }; case 'bench': return { x: SPOT.bench.x, y: SPOT.bench.y, h: 36 };
       case 'chest': return { x: SPOT.chest.x, y: SPOT.chest.y, h: 22 }; case 'bed': return { x: SPOT.bed.x, y: SPOT.bed.y, h: 16 };
       case 'trap': return { x: o.x, y: o.y, h: 18 }; case 'stack': return { x: o.x, y: o.y, h: 30 };
@@ -706,8 +730,9 @@ const UI = (() => {
     const n = G.col.sel.length; if (isTouch && n && !selN && !orderMode) setOrder(true);
     if (n !== selN) $('t-cmd').dataset.n = n || ''; selN = n;
     if (mapT <= 0) { mapT = 0.3; drawMap(); }
+    if (TK) TK.tick(dt);   // постановка разговора: камера, подход, жесты, мимика (и бытовые реплики)
     if (kind === 'dialog' && dlg && typeN < dlg.t.length) {
-      typeT += dt * 45; const n = Math.min(dlg.t.length, Math.floor(typeT));
+      typeT += dt * 45; const n = Math.max(0, Math.min(dlg.t.length, Math.floor(typeT)));
       if (n !== typeN) { typeN = n; $('dlg-text').textContent = dlg.t.slice(0, n); if (n >= dlg.t.length) renderOpts(); }
     }
     if (kind === 'dialog' && dlg && typeN >= dlg.t.length) dlgT += dt;
@@ -801,8 +826,15 @@ const UI = (() => {
       toast(':evenk: Уркачан оставил в лабазе :wood:4 :meat:2');
     }
   }
+  // журнал: прочитанные записки (текст сохраняется, перечитать — в паузе, раздел «Записки»)
+  function journal() {
+    const ids = Object.keys(NOTES).filter(id => G.notes[id]), el = $('p-notes'); if (!el) return;
+    $('p-notes-n').textContent = `${ids.length}/${Object.keys(NOTES).length}`;
+    el.innerHTML = ids.length ? ids.map(id => `<div class="jn">${ic(NOTES[id].i || 'log', 's')}<span>${esc(NOTES[id].t)}</span></div>`).join('') : '<p class="hint">Пока пусто</p>';
+  }
+  $('p-notes-b') && $('p-notes-b').addEventListener('click', () => { const el = $('p-notes'); el.hidden = !el.hidden; $('p-notes-b').classList.toggle('on', !el.hidden); });
   function pause(on) {
-    if (on && state === 'play') { state = 'pause'; $('pause').hidden = false; input.act = false; keys.clear(); }
+    if (on && state === 'play') { state = 'pause'; $('pause').hidden = false; input.act = false; keys.clear(); journal(); }
     else if (!on && state === 'pause') { state = 'play'; $('pause').hidden = true; }
     document.body.classList.toggle('paused', state === 'pause');
   }
@@ -831,6 +863,7 @@ const UI = (() => {
     if (keys.has('KeyA') || keys.has('ArrowLeft')) mx_ -= 1;
     if (keys.has('KeyD') || keys.has('ArrowRight')) mx_ += 1;
     input.mx = kind ? 0 : mx_ + joy.x; input.my = kind ? 0 : my_ + joy.y;
+    if (Math.hypot(input.mx, input.my) > 0.15) input.auto = 0; // свой шаг игрока снимает автопуть (к лежанке)
     const s = Input.steer(mx_ + joy.x, my_ + joy.y); if (s && !kind) { input.mx = s.x; input.my = s.y; } // путь героя по ПКМ
   }
   addEventListener('keydown', e => {
@@ -843,6 +876,7 @@ const UI = (() => {
       if (/^Digit[1-4]$/.test(e.code)) choose(+e.code.slice(5) - 1);
       else if (['KeyE', 'Space', 'Enter'].includes(e.code) && !e.repeat) { if (typeN < dlg.t.length || (dlg.opts || [0]).length === 1) choose(0); }
       else if (e.code === 'Escape') { closePanel(); }
+      else if (/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(e.code) && !e.repeat && dlgT + typeN / 45 > 0.4) { closePanel(); keys.add(e.code); }   // ушёл — разговор прерван
       return;
     }
     if (kind) {
@@ -851,6 +885,7 @@ const UI = (() => {
     }
     if (e.code === 'Escape' && G.col.ghost) { G.col.ghost = null; return; }
     if (e.code === 'Escape' && G.col.sel.length) { G.col.sel = []; return; }
+    if (e.code === 'Escape' && Actions.reading()) { Actions.plateClose(true); return; } // плашка записки: положить лист
     if (e.code === 'Escape' || e.code === 'KeyP') { pause(true); return; }
     keys.add(e.code);
     if (e.repeat) return;
@@ -866,9 +901,9 @@ const UI = (() => {
     if (e.code === 'KeyV') keyAction('V');
     if (e.code === 'KeyB') keyAction('B');
     if (e.code === 'Period') keyAction('.');
-    if (e.code === 'Equal' || e.code === 'NumpadAdd') { GFX.setZoom(GFX.zoom * 1.15); tips.did('zoom'); }
-    if (e.code === 'Minus' || e.code === 'NumpadSubtract') { GFX.setZoom(GFX.zoom / 1.15); tips.did('zoom'); }
-    if (e.code === 'Digit0' || e.code === 'Numpad0') { GFX.recenter(); GFX.setZoom(1); }
+    if (e.code === 'Equal' || e.code === 'NumpadAdd') { GFX.zoomBy(1.25); tips.did('zoom'); }
+    if (e.code === 'Minus' || e.code === 'NumpadSubtract') { GFX.zoomBy(1 / 1.25); tips.did('zoom'); }
+    if (e.code === 'Digit0' || e.code === 'Numpad0') { GFX.recenter(); GFX.zoomTo(1); }
     if (e.code === 'KeyG') focusSel();
     const g = /^(Digit|Numpad)([1-3])$/.exec(e.code);
     if (g) { if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); groupSet(+g[2]); } else groupGet(+g[2]); }
@@ -1020,15 +1055,15 @@ const UI = (() => {
     }
     if (state === 'menu') {
       for (const f of G.fires) if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
-      if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: HUT.x - 70, y: HUT.y - 150, vx: rnd(-5, 5) + 14, vy: rnd(-30, -20), life: 3, max: 3 });
+      if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: HUT.x - 70, y: HUT.y - 150, vx: rnd(-5, 5), vy: rnd(-30, -20), life: 3, max: 3 });
       FX.update(G.parts, dt); // единый слой частиц (js/particles.js)
     }
     frame(dt);
     GFX.render(state === 'play' || state === 'menu' ? dt : 0, state === 'play' ? ctxTarget() : null);
     if (state === 'play') {
       const f = Fire.near(260);
-      Sound.frame(dt, { storm: stormOn(), night: 1 - daylight(), tension: G.D.tension, warm: G.s.warm,
-        fire: f ? clamp(1 - dist(f, G.p) / 260, 0, 1) : (G.p.inside && G.hut.fuel > 0 ? 0.6 : 0) });
+      Sound.frame(dt, { storm: stormOn(), ms: Wind.ms(G.p.x, G.p.y), inside: G.p.inside, night: 1 - daylight(), tension: G.D.tension, warm: G.s.warm,
+        fire: f ? clamp(1 - dist(f, G.p) / 260, 0, 1) : (G.p.inside && G.hut.fuel > 0 ? 0.6 : 0), fireAt: f || (G.p.inside && G.hut.fuel > 0 ? SPOT.stove : null) });
     }
     Quality.sample(iv, performance.now() - w0, state === 'play' && !kind);
     requestAnimationFrame(loop);
@@ -1036,9 +1071,9 @@ const UI = (() => {
   requestAnimationFrame(loop);
 
   applyScale();
-  return { openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; },
+  return { advance, openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; },
     // кто в разговоре и чей черёд: пока печатается реплика — говорит собеседник; варианты на экране — герой отвечает с паузами (hero)
-    get talk() { return kind === 'dialog' && dlg ? { who: dlg.who, typing: typeN < dlg.t.length, hero: typeN >= dlg.t.length && dlgT % 5 > 0.8 && dlgT % 5 < 3.4 } : null; },
+    get talk() { return kind === 'dialog' && dlg ? { who: dlg.who, typing: typeN < dlg.t.length, hero: typeN >= dlg.t.length && dlgT % 5 > 0.8 && dlgT % 5 < 3.4, n: typeN, len: dlg.t.length } : null; },
     get panel() { return { tab: panelTab, stash: curStash, trade: tradeWho }; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,
     focusSel, groupSet, groupGet, setOrder, get orderMode() { return orderMode; }, slotsOpen, loadSlot };
 })();

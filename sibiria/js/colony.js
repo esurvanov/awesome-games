@@ -52,8 +52,9 @@ const Colony = (() => {
     const D = Math.hypot(x - u.x, y - u.y);
     if (D <= stop) return true;
     const wp = D > 40 ? Nav.way(u, x, y) : { x, y }, fin = wp.x === x && wp.y === y;
-    const dx = wp.x - u.x, dy = wp.y - u.y, d = Math.hypot(dx, dy) || 1e-3;
+    let dx = wp.x - u.x, dy = wp.y - u.y; const d = Math.hypot(dx, dy) || 1e-3;
     const s = Math.min(fin ? d - stop : d, sp * dt);
+    if (D > 70 && fin && typeof Depth !== 'undefined') { const v = Depth.steer(u, dx, dy, u.type === 'laika' ? 'dog' : 'n'); if (v) { dx = v.x * d; dy = v.y * d; } } // по натоптанному (js/depth.js)
     u.x += dx / d * s; u.y += dy / d * s;
     World.solid(u, 7, 'u');
     if (Math.abs(dx) > 1) u.face = Math.sign(dx);
@@ -89,7 +90,7 @@ const Colony = (() => {
     const T = UNITS[u.type], d = dist(u, th), dmg = T.dmg + mod('dmg');
     if (T.melee) {
       if (d > 26) go(u, th.x, th.y, sp * 1.1, dt, 20);
-      else if (u.cd <= 0) { u.cd = C0.meleeCd; damage(th, dmg); Sound.bite(); u.face = Math.sign(th.x - u.x) || u.face; }
+      else if (u.cd <= 0) { u.cd = C0.meleeCd; damage(th, dmg); Sound.src(u).bite(); u.face = Math.sign(th.x - u.x) || u.face; }
     } else {
       if (d > T.rng) go(u, th.x, th.y, sp, dt, T.rng - 10);
       else if (u.cd <= 0) {
@@ -163,7 +164,7 @@ const Colony = (() => {
     if (!open.length || G.flags.rescued) { if (u.carry.wood) { t.k = 'chop'; t.ph = 'drop'; t.stop = 1; } else u.task = { k: 'idle' }; return; }
     const s = nearestOf(open, u);
     if ((u.carry.wood || 0) > 0) {
-      if (go(u, s.x, s.y + 24, sp, dt, 10)) { const n = Math.min(u.carry.wood, 4 - s.wood); s.wood += n; u.carry.wood -= n; if (!u.carry.wood) delete u.carry.wood; Sound.chop(); Fx.floatText(s.x, s.y - 30, `:fire: ${s.wood}/4`); }
+      if (go(u, s.x, s.y + 24, sp, dt, 10)) { const n = Math.min(u.carry.wood, 4 - s.wood); s.wood += n; u.carry.wood -= n; if (!u.carry.wood) delete u.carry.wood; Sound.src(s).chop(); Fx.floatText(s.x, s.y - 30, `:fire: ${s.wood}/4`); }
       return;
     }
     let tree = t.tree && t.tree.wood > 0 ? t.tree : null;
@@ -224,7 +225,7 @@ const Colony = (() => {
       case 'build': {
         const b = bById(t.b); if (!b || b.done) { u.task = { k: 'idle' }; break; }
         const R = BUILDS[b.type].w / 2 + 12;
-        if (dist(u, b) > R) go(u, b.x, b.y, sp, dt, R - 4); else { u.working = 'build'; u.face = Math.sign(b.x - u.x) || u.face; if (Math.random() < dt * 2) Sound.chop(); }
+        if (dist(u, b) > R) go(u, b.x, b.y, sp, dt, R - 4); else { u.working = 'build'; u.face = Math.sign(b.x - u.x) || u.face; if (Math.random() < dt * 2) Sound.src(u).chop(); }
         break;
       }
       case 'chop': case 'fish': case 'wreck': case 'hunt': gather(u, dt, sp); break;
@@ -277,7 +278,7 @@ const Colony = (() => {
     for (const b of C.builds) if (b.done) {
       b.t = (b.t || 0) + dt;
       if (b.type === 'labaz2' && b.t > C0.furT) { b.t = 0; const k = World.inCedar(b.x, b.y) && Math.random() < C0.furSable ? 'sable' : 'hare'; G.chest[k] = (G.chest[k] || 0) + 1; Fx.floatText(b.x, b.y - 40, '+' + ITEMS[k].i); }
-      if (b.type === 'smoke' && b.t > C0.smokeT) { b.t = 0; const k = (G.chest.meat || 0) > 0 ? 'meat' : (G.chest.fish || 0) > 0 ? 'fish' : null; if (k) { G.chest[k]--; G.chest.dried = (G.chest.dried || 0) + 1; } if (Math.random() < 0.5) G.parts.push({ type: 'smoke', x: b.x + 10, y: b.y - 50, vx: rnd(-5, 5) + 12, vy: -25, life: 3, max: 3 }); }
+      if (b.type === 'smoke' && b.t > C0.smokeT) { b.t = 0; const k = (G.chest.meat || 0) > 0 ? 'meat' : (G.chest.fish || 0) > 0 ? 'fish' : null; if (k) { G.chest[k]--; G.chest.dried = (G.chest.dried || 0) + 1; } if (Math.random() < 0.5) G.parts.push({ type: 'smoke', x: b.x + 10, y: b.y - 50, vx: rnd(-5, 5), vy: -25, life: 3, max: 3 }); }
       if (b.type === 'tower') {
         b.fuel = Math.max(0, (b.fuel || 0) - dt);
         if (b.fuel <= 0 && (G.chest.wood || 0) > 0 && (1 - daylight(h)) > 0.3) { G.chest.wood--; b.fuel = C0.towerFuel; }
@@ -293,7 +294,7 @@ const Colony = (() => {
     const pet = C.units.find(u => u.pet);
     if (pet && C.barkT <= 0) {
       const w = G.wolves.find(w => dist2(w, p) < TUNE.r.hutWolves * TUNE.r.hutWolves && w.st !== 'retreat');
-      if (w) { C.barkT = C0.barkT; pet.barkUntil = now + 2; Fx.toast(':dog: Пурга лает — волки ' + dirName(w)); Sound.bite(); }
+      if (w) { C.barkT = C0.barkT; pet.barkUntil = now + 2; Fx.toast(':dog: Пурга лает — волки ' + dirName(w)); Sound.src(pet).bite(); }
     }
     // призрак стройки на таче — перед героем
     if (C.ghost && C.ghost.touch) { C.ghost.x = p.x + p.face * 90; C.ghost.y = p.y - 10; C.ghost.ok = canPlace(C.ghost.type, C.ghost.x, C.ghost.y); }

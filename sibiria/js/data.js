@@ -106,6 +106,7 @@ const GEAR = {
   kukhl: { i: ':deer:', n: 'Кухлянка', d: 'холод −40%' },
   skis:  { i: ':skis:', n: 'Лыжи', d: 'скорость +20%' },
   sled:  { i: ':sled:', n: 'Нарты', d: '+20 кг' },
+  shoes: { i: ':skis:', n: 'Снегоступы', d: 'в снегу вязнешь втрое меньше' },
 };
 
 // at: fire — у огня или горящей печи; stove — у печи; bench — верстак в избе
@@ -119,6 +120,7 @@ const RECIPES = [
   { id: 'hat', i: ':hat:', n: 'Ушанка', in: { hare: 3 }, gear: 'hat', at: 'bench', d: 'холод −15%' },
   { id: 'dokha', i: ':coat:', n: 'Доха', in: { wpelt: 2, hare: 2 }, gear: 'dokha', at: 'bench', d: 'холод −30%' },
   { id: 'sled', i: ':sled:', n: 'Нарты', in: { wood: 6, scrap: 2 }, gear: 'sled', at: 'bench', d: '+20 кг' },
+  { id: 'shoes', i: ':skis:', n: 'Снегоступы', in: { wood: 2, hare: 2 }, gear: 'shoes', at: 'bench', d: 'в снегу вязнешь втрое меньше' },
   { id: 'antenna', i: ':antenna:', n: 'Антенна', in: { scrap: 3, cable: 1 }, out: { antenna: 1 }, at: 'bench', d: 'деталь рации' },
   { id: 'radio', i: ':radio:', n: 'Рация', in: { quartz: 1, battery: 1, tube: 1, antenna: 1 }, at: 'bench', d: 'аккумулятор заряжен', radio: 1 },
 ];
@@ -204,6 +206,10 @@ const NOTES = {
   gosha2: { i: ':log:', x: riverX(WORLD.oy + 700) - 150, y: WORLD.oy + 700, t: 'Дальше не пошёл — лёд гудит. Вернусь к хвосту другой дорогой. Если меня нет, значит, дорога длинная. Г.' },
 };
 
+// чем записка прижата (рисунок js/art-world.js note): stone — под камнем (в пургу лист может выскочить, js/live.js),
+// crate — под углом ящика, panel — под куском обшивки, crack — в щели бревна/столба (crate/panel/crack держат лист на месте)
+for (const [k, h] of Object.entries({ log: 'panel', pilot: 'stone', wife: 'crate', door: 'crack', manual: 'panel', vera: 'stone', gosha: 'stone', labaz: 'crack', chum: 'stone', plan: 'stone', trap: 'crack', gosha2: 'stone' })) if (NOTES[k]) NOTES[k].hold = h;
+
 const INSPECT = [
   { id: 'sign', i: ':sign:', x: HUT.x - 150, y: HUT.y + 90, t: 'Табличка: «Геологическая партия №7. Посторонним — некуда».' },
   { id: 'pennant', i: ':flag:', x: POI.cockpit.x - 120, y: POI.cockpit.y + 10, t: 'Вымпел «Ударнику коммунистического труда». Семёныч возил с собой. На удачу.' },
@@ -267,7 +273,7 @@ const TUNE = {
     wetP: 0.05, wetT: 30,                         // наледь: шанс промокнуть за секунду пути, мокрый — 30 с
     sprainP: 0.025, sprainT: 45, sprain: 0.6,     // курумник: вывих за секунду пути, 45 с скорость ×0.6
     fallEvery: [22, 40], fallWarn: 1.4, fallDmg: 14, fallR: 48, // гарь: сухостой падает рядом
-    windX: 28,                                    // голец: ветер сносит, px/с
+    windX: 28,                                    // голец: ветер сносит, px/с при 8 м/с (Wind.at, js/wind.js)
     surveyR: 2600, surveyT: 3,                    // «съёмка»: радиус и время
     lootT: 4, collapseP: 0.2, collapseDmg: 8,     // обыск построек; буровая: обрушение
     garBurn: 0.6, garChop: 0.6,                   // гарь: костёр горит дольше, сушняк рубится быстрее

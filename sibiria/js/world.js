@@ -13,11 +13,55 @@ function driftAt(x, y) {
 const World = (() => {
   // туман войны: клетка FOG.cell px мира, сетка nx × ny (при ×1 — 36 × 36); значение клетки 0..3
   const FOG = { cell: WORLD.fogCell, nx: Math.ceil(W / WORLD.fogCell), ny: Math.ceil(H / WORLD.fogCell) };
-  const COLL = [
-    { x: POI.cockpit.x - 30, y: POI.cockpit.y, r: 40, k: 'wreck' }, { x: POI.cockpit.x + 40, y: POI.cockpit.y - 10, r: 38, k: 'wreck' },
-    { x: POI.tail.x, y: POI.tail.y, r: 34, k: 'wreck' }, { x: POI.chum.x, y: POI.chum.y - 10, r: 34, k: 'build' },
-    { x: POI.labaz.x, y: POI.labaz.y, r: 22, k: 'build' },
-  ];
+  // ---------- подножия вещей (js/content/footprints.js) → преграды ----------
+  // Запись COLL: { key, k, o, x, y, r (центр и радиус рамки — для посёлка и быстрых отсевов), x0..y1 — рамка, sh — фигуры в мире, need? }
+  // Фигура: { t: 0, x0, y0, x1, y1, k } — прямоугольник; { t: 1, cx, cy, cr, k } — круг.
+  function footShapes(key, ax, ay, f = 1, s = 1) {
+    let F = FOOT[key]; if (F && F.alias) F = FOOT[F.alias];
+    if (!F) return null;
+    const sh = F.fp.map(q => {
+      const g = q.s || q, k = q.k || F.k;
+      if (g.length === 3) return { t: 1, cx: ax + g[0] * s * f, cy: ay + g[1] * s, cr: g[2] * s, k };
+      const a = ax + g[0] * s * f, b = ax + g[2] * s * f;
+      return { t: 0, x0: Math.min(a, b), y0: ay + g[1] * s, x1: Math.max(a, b), y1: ay + g[3] * s, k };
+    });
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const q of sh) {
+      const a = q.t ? [q.cx - q.cr, q.cy - q.cr, q.cx + q.cr, q.cy + q.cr] : [q.x0, q.y0, q.x1, q.y1];
+      x0 = Math.min(x0, a[0]); y0 = Math.min(y0, a[1]); x1 = Math.max(x1, a[2]); y1 = Math.max(y1, a[3]);
+    }
+    return { key, k: F.k, sh, x0, y0, x1, y1, x: (x0 + x1) / 2, y: (y0 + y1) / 2, r: Math.hypot(x1 - x0, y1 - y0) / 2 };
+  }
+  const COLL = [], FOOT_BY = {}, NC = [];
+  let CG = null, CMAX = 0; // сетка подножий (ленивая: пересборка после addFoot)
+  function addFoot(key, x, y, o, extra) {
+    const c = footShapes(key, x, y); if (!c) return null;
+    c.o = o || null; if (extra) Object.assign(c, extra);
+    COLL.push(c); CG = null; if (!FOOT_BY[key]) FOOT_BY[key] = c;
+    return c;
+  }
+  addFoot('mi8', POI.cockpit.x, POI.cockpit.y); addFoot('tail', POI.tail.x, POI.tail.y);
+  addFoot('chum', POI.chum.x, POI.chum.y); addFoot('labaz', POI.labaz.x, POI.labaz.y);
+  addFoot('urkSled', POI.chum.x + 80, POI.chum.y + 120);
+  for (const k of ['stove', 'bench', 'chest', 'bed']) addFoot(k, SPOT[k].x, SPOT[k].y);
+  for (const q of INSPECT) if (FOOT[q.id]) addFoot(q.id, q.x, q.y, q);
+  // транспорт на стоянке (верхом — не преграда): подножие по месту и face, пересчёт при сдвиге
+  const VEH_FOOT = { deer: 'vDeer', buran: 'vBuran' }, VC = {};
+  function vehFoot() {
+    const out = [];
+    if (!G || !G.veh) return out;
+    for (const k in VEH_FOOT) {
+      const v = G.veh[k]; if (!v || G.p.ride === k) continue;
+      const f = (v.face || 1) < 0 ? -1 : 1, c = VC[k];
+      if (!c || c.vx !== v.x || c.vy !== v.y || c.f !== f) { VC[k] = Object.assign(footShapes(VEH_FOOT[k], v.x, v.y, f), { vx: v.x, vy: v.y, f, o: v }); }
+      out.push(VC[k]);
+    }
+    return out;
+  }
+  // глыба и ствол — те же подножия (глыба — FOOT.rock × q.s; ствол — круг)
+  const RF = new WeakMap();
+  function rockFoot(q) { let c = RF.get(q); if (!c) { c = footShapes('rock', q.x, q.y, 1, q.s); RF.set(q, c); } return c; }
+  const trunkR = t => 4 + 8 * t.s;
   const nearHut = (r = TUNE.r.nearHut) => Math.hypot(G.p.x - HUT.x, G.p.y - (HUT.y - 30)) < r;
   const inCedar = (x, y) => Math.hypot(x - POI.cedar.x, y - POI.cedar.y) < POI.cedar.r;
   const onThinIce = o => Math.hypot(o.x - POI.polynya.x, o.y - POI.polynya.y) < POI.polynya.r - 20;
@@ -66,17 +110,85 @@ const World = (() => {
       }
     }
     // стена по краю мира: верх/низ — по ширине, лево/право — по высоте (при W = H — как раньше, тот же порядок r())
+    // Разброс стены (размер, порода, вариант, тёмный/светлый рисунок, сдвиг внутрь/наружу, прогалы, подлесок, сухостой, второй ряд) —
+    // из своего потока r2: основной r тратится ровно как прежде (сугробы, кочки, обереги под старыми сейвами на месте).
+    // Край держит clamp в solid (герой не выйдет за 40 px), стена — только вид: прогал не открывает дыру.
+    const r2 = mulberry((G.seed | 0) ^ 0x2F6B1D35), wg = new Space.Grid(null, 0, 64), WX = [];
+    const IN = [[0, 1], [0, -1], [1, 0], [-1, 0]]; // нормаль внутрь мира: верх, низ, лево, право
+    // соседи стены (ближе 70 px) — хотя бы 2 отличия из (ступень размера, порода+вариант, тёмный/светлый рисунок): tests/variety.js
+    const wdiff = (a, b) => (Math.round(a.s / 0.15) !== Math.round(b.s / 0.15)) + (a.kind * 8 + a.v !== b.kind * 8 + b.v) + ((a.dk | 0) !== (b.dk | 0));
+    const wallScore = t => { let m = 3; for (const o of wg.near(t.x, t.y, 70)) if ((o.x - t.x) ** 2 + (o.y - t.y) ** 2 < 70 * 70) m = Math.min(m, wdiff(o, t)); return m; };
+    function wallTree(x, y, v0, ug, back, list) {
+      let best = null, bs = -1;
+      for (let k = 0; k < 32 && bs < 2; k++) {
+        const zt = Zones.treeAt(x, y), q = r2();
+        let kind = 0;
+        if (!ug && !back) kind = zt && q < 0.4 ? zt.kind(r2) : q < 0.08 ? 3 : q < 0.13 ? 1 : 0; // сухостой-горельник, берёза, порода зоны
+        else if (ug && q < 0.2) kind = 1;                                                      // подлесок: молодая берёзка
+        if (kind === 3 && typeof ArtZones === 'undefined') kind = 0;
+        const dk = kind === 0 && (back || r2() < 0.4) ? 1 : 0;
+        const v = kind === 0 ? (k ? (r2() * (dk ? 4 : 3)) | 0 : v0 % (dk ? 4 : 3)) : (r2() * 2) | 0;
+        const s = ug ? +(0.3 + r2() * 0.45).toFixed(2) : +(0.8 + r2() * 0.65).toFixed(2);
+        const t = { x: Math.round(x), y: Math.round(y), s, wood: 3, kind, wall: 1, dk, v, shake: 0 }, sc = wallScore(t);
+        if (sc > bs) { bs = sc; best = t; }
+      }
+      if (bs < 2) return; // тесно (углы мира, где сходятся две стороны) — лишнюю копию не ставим
+      wg.add(best); list.push(best);
+    }
     for (let v = 0; v <= Math.max(W, H); v += WORLD.wallStep) {
       const q = [[v + r() * 10, 16 + r() * 20, v <= W], [v + r() * 10, H - 6 - r() * 16, v <= W], [12 + r() * 20, v + r() * 10, v <= H], [W - 12 - r() * 20, v + r() * 10, v <= H]];
-      for (const [x, y, on] of q) if (on) G.trees.push({ x: Math.round(x), y: Math.round(y), s: 1.25, wood: 3, kind: 0, wall: 1, v: (r() * 2) | 0, shake: 0 });
+      q.forEach(([x, y, on], side) => {
+        if (!on) return;
+        const v0 = (r() * 2) | 0, [nx, ny] = IN[side], tx = ny ? 1 : 0, ty = nx ? 1 : 0; // (tx, ty) — вдоль края
+        const d = -6 + r2() * 34, a = (r2() - 0.5) * 14, gap = r2() < 0.1;
+        // основной ряд: прогал (≈10 %) — вместо ели куст подлеска
+        if (!gap) wallTree(x + nx * d + tx * a, y + ny * d + ty * a, v0 + ((r2() * 3) | 0), 0, 0, G.trees);
+        else wallTree(x + nx * (d + 6) + tx * a, y + ny * (d + 6) + ty * a, v0, 1, 0, WX);
+        // второй ряд ближе к краю (тёмный) — закрывает прогалы от пустоты за миром
+        if (r2() < 0.5) wallTree(x - nx * (8 + r2() * 8) + tx * (a + 22), y - ny * (8 + r2() * 8) + ty * (a + 22), v0 + 1, 0, 1, WX);
+        // подлесок перед стеной: 0–2 молодых ёлки
+        for (let n = r2() < 0.45 ? 1 + (r2() < 0.35) : 0; n > 0; n--) { const dd = d + 14 + r2() * 22, aa = a + (r2() - 0.5) * 40; wallTree(x + nx * dd + tx * aa, y + ny * dd + ty * aa, (r2() * 3) | 0, 1, 0, WX); }
+      });
     }
+    for (const t of WX) G.trees.push(t); // подлесок и второй ряд — после основного (индексы прежних деревьев в сейве те же)
     G.trees.forEach((t, i) => TREE_I.set(t, i));
-    for (let i = 0, n = WORLD.count('drifts'); i < n; i++) G.drifts.push({ x: r() * W | 0, y: r() * H | 0, rx: 30 + r() * 90 | 0, ry: 8 + r() * 18 | 0 });
+    // сугробы; на накатанной колее зимника их нет (иначе зимник местами медленнее целины) — r() тратится как прежде
+    const onTrail = d => [-d.rx, 0, d.rx].some(o => Zones.terrainKey(d.x + o, d.y) === 'trail');
+    for (let i = 0, n = WORLD.count('drifts'); i < n; i++) {
+      const d = { x: r() * W | 0, y: r() * H | 0, rx: 30 + r() * 90 | 0, ry: 8 + r() * 18 | 0 };
+      // на колее — сдвигаем на обочину (число сугробов и поток r те же)
+      for (let k = 0; k < 8 && onTrail(d); k++) d.x = (d.x + (d.x >= riverX(d.y) ? 1 : -1) * (d.rx + 24)) | 0;
+      G.drifts.push(d);
+    }
     for (let i = 0, n = WORLD.count('cracks'); i < n; i++) G.cracks.push({ y: r() * H | 0, off: (r() - 0.5) * 110 | 0, len: 18 + r() * 50 | 0, a: +((r() - 0.5) * 1.2).toFixed(2) });
     // кочки — только на мари: их число от площади мари, а не мира
+    // Кочки растут куртинами с пустотами (мочажины) между ними; у каждой — форма v (4), зеркало m, наклон rot, цвет травы c.
+    // Место и вид — из r2 (поток r тратится как прежде); соседи ближе 26 px различаются хотя бы по 2 признакам (tests/variety.js).
+    const M = POI.mar, MR = M.r, TAU = Math.PI * 2, CL = [], VOID = [];
+    for (let i = 0; i < 16; i++) { const a = r2() * TAU, d = Math.sqrt(r2()) * MR * 0.85; CL.push([M.x + Math.cos(a) * d, M.y + Math.sin(a) * d, 16 + r2() * 38]); }
+    for (let i = 0; i < 5; i++) { const a = r2() * TAU, d = Math.sqrt(r2()) * MR * 0.8; VOID.push([M.x + Math.cos(a) * d, M.y + Math.sin(a) * d, 45 + r2() * 50]); }
+    const okAt = (x, y) => (x - M.x) ** 2 + (y - M.y) ** 2 < MR * MR && !VOID.some(([vx, vy, vr]) => (x - vx) ** 2 + (y - vy) ** 2 < vr * vr) && !G.tussocks.some(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 100);
+    const nb = (x, y) => G.tussocks.filter(o => (o.x - x) ** 2 + (o.y - y) ** 2 <= 27 * 27); // с запасом: соседи для проверки — «≤ 26 px» (координаты целые)
+    const tdiff = (a, b) => (Math.round(a.s / 0.2) !== Math.round(b.s / 0.2)) + (a.v !== b.v) + (a.m !== b.m || Math.abs(a.rot - b.rot) > 0.15) + (a.c !== b.c);
     for (let i = 0; i < 260; i++) {
-      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * POI.mar.r;
-      G.tussocks.push({ x: POI.mar.x + Math.cos(a) * d | 0, y: POI.mar.y + Math.sin(a) * d | 0, s: +(0.6 + r() * 0.8).toFixed(2) });
+      const a = r() * TAU, d = Math.sqrt(r()) * MR, s0 = r();
+      let x = M.x + Math.cos(a) * d, y = M.y + Math.sin(a) * d;
+      for (let k = 0; k < 8; k++) {
+        let px, py;
+        if (r2() < 0.8) { const c = CL[(r2() * CL.length) | 0]; px = c[0] + (r2() + r2() + r2() - 1.5) * c[2]; py = c[1] + (r2() + r2() + r2() - 1.5) * c[2] * 0.7; }
+        else { const a2 = r2() * TAU, d2 = Math.sqrt(r2()) * MR; px = M.x + Math.cos(a2) * d2; py = M.y + Math.sin(a2) * d2; }
+        if (okAt(px, py)) { x = px; y = py; break; }
+      }
+      x |= 0; y |= 0;
+      const near = nb(x, y);
+      // до 40 проб вида; не нашлось отличного от всех соседей хотя бы по 2 признакам — лучший из проб (самый непохожий)
+      let t = null, best = -1;
+      for (let k = 0; k < 40 && best < 2; k++) {
+        const c = { x, y, s: +(0.5 + (k ? r2() : s0) * 0.95).toFixed(2), v: (r2() * 4) | 0, m: r2() < 0.5 ? -1 : 1, rot: +((r2() - 0.5) * 0.5).toFixed(2), c: (r2() * 4) | 0 };
+        let q = 9; for (const o of near) q = Math.min(q, tdiff(o, c));
+        if (q > best) { best = q; t = c; }
+      }
+      G.tussocks.push(t);
     }
   }
   // живое из seed: обереги, стадо деда, вороны (после gen — тот же поток r)
@@ -162,7 +274,7 @@ const World = (() => {
       s.raidNight = nk;
       if (Math.random() < TUNE.world.stashRaidP) {
         let n = 0; for (const k of FOOD_KEYS) while (n < 2 && (s.inv[k] || 0) > 0) { s.inv[k]--; n++; }
-        if (n) { Fx.toast(':cache: Тайник разорён — унесли еду'); Fx.burst(s.x, s.y - 6, 10, '#c0392b'); Sound.growl(0.2); }
+        if (n) { Fx.toast(':cache: Тайник разорён — унесли еду'); Fx.burst(s.x, s.y - 6, 10, '#c0392b'); Sound.src(s).growl(0.2); }
       }
     }
   }
@@ -185,22 +297,145 @@ const World = (() => {
     return false;
   }
   const touch = (k, o) => { CONTACT.k = k; CONTACT.o = o; };
-  function solid(o, r, who) {
-    const x0 = o.x, y0 = o.y; CONTACT.k = CONTACT.o = null;
-    if (who === 'p') {
-      NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, 4 + 8 * t.s)) touch('tree', t);
-      NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushCircle(o, r, q.x, q.y - 4, 14 * q.s)) touch('rock', q);
-    }
+  // сваленный ствол героя (G.logs, пока не разделан): отрезок комель → оставшийся конец (вид 3/4: y ×0.6), толщина — как у картинки
+  // (ArtWorld.felledLog: полуширина 4.2·s у комля → 1.6·s у вершины); разделка укорачивает преграду вместе со стволом
+  function pushLog(o, r, L) {
+    const s = L.s || 1, k = Actions.logK(L), ex = L.x + Math.cos(L.a) * L.len * k, ey = L.y + Math.sin(L.a) * L.len * 0.6 * k;
+    const R = 4.2 * s + r + 2; // рамка — быстрый отсев
+    if (o.x < Math.min(L.x, ex) - R || o.x > Math.max(L.x, ex) + R || o.y < Math.min(L.y, ey) - R || o.y > Math.max(L.y, ey) + R) return false;
+    const vx = ex - L.x, vy = ey - L.y, u = clamp(((o.x - L.x) * vx + (o.y - L.y) * vy) / (vx * vx + vy * vy || 1), 0, 1);
+    return pushCircle(o, r, L.x + vx * u, L.y + vy * u, (4.2 + (1.6 - 4.2) * u * k) * s);
+  }
+  // фигуры подножия c → выталкивание (рамка c — быстрый отсев)
+  function pushFoot(o, r, c) {
+    if (o.x + r < c.x0 || o.x - r > c.x1 || o.y + r < c.y0 || o.y - r > c.y1) return false;
+    let hit = false;
+    for (const q of c.sh) if (q.t ? pushCircle(o, r, q.cx, q.cy, q.cr) : pushRect(o, r, q.x0, q.x1, q.y0, q.y1)) { hit = true; touch(q.k, c.o || c); }
+    return hit;
+  }
+  // все преграды одним проходом: стволы, глыбы, изба, подножия вещей, транспорт, постройки посёлка
+  // who: 'p' — герой, 'n' — человек (NPC, Вера) — оба проходят в дверь; 'u' — посёлок, 'w' — волк, 'b' — медведь, 'a' — олень/заяц
+  function pushAll(o, r, who) {
+    NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, trunkR(t))) touch('tree', t);
+    NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushFoot(o, r, rockFoot(q))) touch('rock', q);
+    if (G.logs) for (const L of G.logs) if (L.n > 0 && pushLog(o, r, L)) touch('log', L);
     if (Math.abs(o.x - HUT.x) < 180 && Math.abs(o.y - HUT.y) < 160) {
       for (const R of HUT_WALLS) if (pushRect(o, r, R.x0, R.x1, R.y0, R.y1)) touch('wall', null);
-      if (who !== 'p' && G.hut.door) pushRect(o, r, DOOR_RECT.x0, DOOR_RECT.x1, DOOR_RECT.y0, DOOR_RECT.y1);
+      if (who !== 'p' && who !== 'n' && G.hut.door) pushRect(o, r, DOOR_RECT.x0, DOOR_RECT.x1, DOOR_RECT.y0, DOOR_RECT.y1);
     }
-    for (const c of COLL) if (pushCircle(o, r, c.x, c.y, c.r)) touch(c.k, c);
+    if (!CG) { CG = new Space.Grid(null, 0, 256); CMAX = 0; for (const c of COLL) { CG.add(c); CMAX = Math.max(CMAX, (c.x1 - c.x0) / 2, (c.y1 - c.y0) / 2); } }
+    NC.length = 0;
+    for (const c of CG.near(o.x, o.y, r + CMAX, NC)) {
+      if (c.o && c.o.need && !Zones.here(c.o)) continue;
+      if (c.key === 'bed' && o === G.p) { bedPush(o, r, c); continue; }
+      pushFoot(o, r, c);
+    }
+    if (G.veh) for (const c of vehFoot()) pushFoot(o, r, c);
     if (G.col) { NB.length = 0; for (const b of Space.builds.near(o.x, o.y, r + 60, NB)) if (b.done && !BUILDS[b.type].flat) { const B = BUILDS[b.type]; if (Math.abs(o.x - b.x) < B.w / 2 + r + 2 && Math.abs(o.y - b.y) < B.h / 2 + r + 2 && pushRect(o, r, b.x - B.w / 2, b.x + B.w / 2, b.y - B.h / 2, b.y + B.h / 2)) touch('build', b); } }
+  }
+  // лежанка для героя: ложится/спит/встаёт (и идёт к ней автопилотом) — не преграда; сошёл с неё — шагом (≤ 3 px за кадр), не рывком
+  const heroOnBed = p => p.sleeping || p.ko || (p.action && (p.action.k === 'lie' || p.action.k === 'getUp')) || (typeof input !== 'undefined' && input.auto);
+  function bedPush(o, r, c) {
+    if (heroOnBed(o)) return;
+    const x0 = o.x, y0 = o.y; if (!pushFoot(o, r, c)) return;
+    const dx = o.x - x0, dy = o.y - y0, d = Math.hypot(dx, dy);
+    if (d > 12) { o.x = x0 + dx / d * 3; o.y = y0 + dy / d * 3; }
+  }
+  // обход для ИИ: упёрся — шаг вдоль преграды (в ту сторону, куда шёл; лоб в лоб — своя сторона на ходока), чтобы не встать у ствола
+  const LAST = new WeakMap();
+  function solid(o, r, who) {
+    if (o !== G.p && typeof Depth !== 'undefined') Depth.drag(o, who, r); // в снегу по брюхо/пояс — шаг короче (js/depth.js)
+    const x0 = o.x, y0 = o.y; CONTACT.k = CONTACT.o = null;
+    pushAll(o, r, who);
+    if (CONTACT.k) { const k = CONTACT.k, ob = CONTACT.o; pushAll(o, r, who); CONTACT.k = k; CONTACT.o = ob; } // вытолкнуло в соседнюю вещь (два ствола рядом) — ещё проход
+    if (o !== G.p && CONTACT.k) {
+      const nx = o.x - x0, ny = o.y - y0, d = Math.hypot(nx, ny);
+      if (d > 1e-3) {
+        let L = LAST.get(o); if (!L) { L = { x: x0, y: y0, side: Math.random() < 0.5 ? 1 : -1 }; LAST.set(o, L); }
+        const mx = x0 - L.x, my = y0 - L.y, tx = -ny / d, ty = nx / d, dot = tx * mx + ty * my;
+        if (Math.abs(dot) > 0.15 * Math.hypot(mx, my) + 1e-3) L.side = dot > 0 ? 1 : -1;
+        o.x += tx * d * L.side; o.y += ty * d * L.side;
+        const k = CONTACT.k, ob = CONTACT.o; pushAll(o, r, who); if (!CONTACT.k) { CONTACT.k = k; CONTACT.o = ob; }
+      }
+    }
+    if (o !== G.p) { const L = LAST.get(o); if (L) { L.x = o.x; L.y = o.y; } else LAST.set(o, { x: o.x, y: o.y, side: Math.random() < 0.5 ? 1 : -1 }); }
     const cx = o.x, cy = o.y; o.x = clamp(o.x, 40, W - 40); o.y = clamp(o.y, 50, H - 40);
     if ((cx !== o.x || cy !== o.y) && !CONTACT.k) touch('edge', null);
     if (CONTACT.k) { const dx = o.x - x0, dy = o.y - y0, d = Math.hypot(dx, dy); if (d > 1e-4) { CONTACT.nx = dx / d; CONTACT.ny = dy / d; } else CONTACT.k = null; }
     return CONTACT.k ? CONTACT : null;
+  }
+  // точка внутри подножия/ствола/стены? (цель ходока, проверки)
+  function blocked(x, y, r = 0) { const q = { x, y }; pushAll(q, Math.max(0.5, r), 'p'); return q.x !== x || q.y !== y; }
+  // ближайшая свободная точка к (x, y) для тела r (цель внутри вещи — идём к её краю)
+  function freeNear(x, y, r) { const q = { x, y }; for (let i = 0; i < 3; i++) pushAll(q, r, 'n'); return q; }
+
+  // ---------- ходьба ИИ: к точке с обходом (Nav), упором (solid) и шагом в сторону, если встал ----------
+  // Цель внутри вещи — идём к её краю. Возвращает остаток пути (0 — дошёл или стоит вплотную у цели и дальше не пройти).
+  const STK = new WeakMap();
+  function walk(u, tx, ty, sp, dt, r = 9, who = 'n') {
+    const T = freeNear(tx, ty, r), D = Math.hypot(T.x - u.x, T.y - u.y);
+    if (D < 1) return D;
+    let s = STK.get(u); if (!s) { s = { t: 0, moved: 0, side: 0, sideT: 0 }; STK.set(u, s); }
+    const q = D > 40 ? Nav.way(u, T.x, T.y) : T, fin = q === T || (q.x === T.x && q.y === T.y);
+    let dx = q.x - u.x, dy = q.y - u.y; const dq = Math.hypot(dx, dy) || 1; dx /= dq; dy /= dq;
+    if (D > 70 && fin && !(s.sideT > 0) && typeof Depth !== 'undefined') { const v = Depth.steer(u, dx, dy, who === 'u' && u.type === 'laika' ? 'dog' : 'n'); if (v) { dx = v.x; dy = v.y; } } // по натоптанному, в обход глубокого
+    if (s.sideT > 0) { s.sideT -= dt; const sx = -dy * s.side, sy = dx * s.side; dx = dx * 0.3 + sx; dy = dy * 0.3 + sy; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; }
+    const st = Math.min(sp * dt, fin ? D : dq), x0 = u.x, y0 = u.y;
+    u.x += dx * st; u.y += dy * st; solid(u, r, who);
+    if (Math.abs(dx) > 0.1) u.face = Math.sign(dx);
+    s.t += dt; s.moved += Math.hypot(u.x - x0, u.y - y0);
+    const rest = Math.hypot(T.x - u.x, T.y - u.y);
+    if (s.t > 0.8) {
+      const stuck = s.moved < sp * 0.12;
+      s.t = 0; s.moved = 0;
+      if (stuck && rest < 40) { s.near = (s.near || 0) + 1; if (s.near >= 2) { s.near = 0; return 0; } } // встал вплотную (у цели человек/вещь) — считаем, что дошёл
+      else s.near = 0;
+      if (stuck && !(s.sideT > 0)) { s.sideT = 0.7; s.side = Math.random() < 0.5 ? 1 : -1; }
+    }
+    return rest;
+  }
+
+  // ---------- тела расталкиваются: r1 + r2; герой сквозь людей и зверей не проходит ----------
+  // Мягко (доля за кадр) между всеми, жёстко — с героем; доля сдвига — по массе. После сдвига — упор в вещи.
+  const BODY = [], PIN = new Set(), MOVED = new Set();
+  function crowd(dt) {
+    const p = G.p, B = BODY; B.length = 0;
+    const near = o => Math.abs(o.x - p.x) < 900 && Math.abs(o.y - p.y) < 700;
+    const add = (o, r, m, who) => { if (o && near(o)) B.push(o, r, m, who); };
+    if (!p.sleeping) add(p, p.ride ? 16 : 10, p.ride ? 3 : 1, 'p');
+    for (const n of Npc.list()) {
+      const st = n.st; if (!st || st.x == null) continue;
+      if ((n.id === 'urk' && st.state === 'away') || (n.id === 'vera' && st.state === 'dead')) continue;
+      if (Math.abs(st.x - SPOT.veraBed.x) < 4 && Math.abs(st.y - SPOT.veraBed.y) < 4) continue; // лежит на своём месте в избе — не толкается
+      add(st, 9, 1.2, 'n');
+    }
+    if (G.col) for (const u of G.col.units) if (!u.hidden) add(u, u.type === 'laika' ? 6 : 7, 1, 'u');
+    for (const w of G.wolves) add(w, 12, 1, 'w');
+    if (G.bear) add(G.bear, 18, 4, 'b');
+    for (const d of G.deer || []) add(d, 12, 2, 'a');
+    for (const h of G.hares) add(h, 5, 0.3, 'a');
+    const n = B.length, soft = Math.min(1, dt * 8);
+    // проходы 2–4: тело, которое упор (ствол, стена, край мира) вернул назад, — неподвижно; сдвигается второе
+    // (герой между медведем и стволом; герой у края мира, волк между ним и медведем — цепочка из трёх тел)
+    PIN.clear();
+    for (let pass = 0; pass < 4; pass++) {
+      MOVED.clear();
+      for (let i = 0; i < n; i += 4) for (let j = i + 4; j < n; j += 4) {
+        const a = B[i], b = B[j], rr = B[i + 1] + B[j + 1];
+        let dx = b.x - a.x, dy = b.y - a.y; if (dx > rr || dx < -rr || dy > rr || dy < -rr) continue;
+        const d2 = dx * dx + dy * dy; if (d2 >= rr * rr) continue;
+        let d = Math.sqrt(d2); if (d < 1e-3) { const an = (i * 7 + j * 13) % 628 / 100; dx = Math.cos(an); dy = Math.sin(an); d = 1; } else { dx /= d; dy /= d; }
+        const pa = PIN.has(i), pb = PIN.has(j); if (pass && pa && pb) continue;
+        const k = (a === p || b === p ? 1 : soft) * (rr - d), ma = B[i + 2], mb = B[j + 2];
+        const sa = pa ? 0 : pb ? 1 : mb / (ma + mb), sb = 1 - sa;
+        a.x -= dx * k * sa; a.y -= dy * k * sa; b.x += dx * k * sb; b.y += dy * k * sb;
+        if (sa) MOVED.add(i); if (sb) MOVED.add(j);
+      }
+      if (typeof Depth !== 'undefined') Depth.hold = 1;
+      for (const i of MOVED) if (solid(B[i], B[i + 1], B[i + 3])) PIN.add(i);
+      if (typeof Depth !== 'undefined') Depth.hold = 0;
+      if (!PIN.size) break;
+    }
   }
 
   // ---------- туман войны и открытие мест ----------
@@ -217,11 +452,15 @@ const World = (() => {
   function tickFog(dt) { G.fogT = (G.fogT || 0) - dt; if (G.fogT <= 0) { G.fogT = TUNE.engine.fogT; reveal(); } }
 
   // ---------- опасности места: тонкий лёд у переката ----------
+  // провал — эпизод Ice (js/ice.js): на месте, без телепорта; после вылаза — 5 с «форы» (отползает), открытая дыра — не пройти
   function thinIce(dt) {
-    const p = G.p, I = TUNE.ice;
-    if (onThinIce(p)) {
+    const p = G.p, I = TUNE.ice, ice = typeof Ice !== 'undefined';
+    if (ice) { Ice.tick(dt); if (Ice.active()) return; }
+    if (!onThinIce(p)) { p.iceInX = p.x; p.iceInY = p.y; } // откуда пришёл на тонкий лёд — туда и выползать
+    if (onThinIce(p) && !(p.iceSafe > 0) && !p.ride) {
       p.iceT += dt;
-      if (p.iceT > I.creakT && !p.creaked) { p.creaked = 1; Sound.creak(); Fx.shake(3); Fx.toast(':frost: Лёд трещит!'); }
+      if (p.iceT > I.creakT && !p.creaked) { p.creaked = 1; Sound.creak(); Fx.shake(3); Fx.toast(':frost: Лёд трещит!'); if (typeof Hero !== 'undefined') Hero.play('flinch', { react: 1 }); }
+      if (ice && (p.iceT > I.breakT || Ice.inWater(p.x, p.y))) { Ice.start(p); return; } // шагнул в открытую воду — сразу
       if (p.iceT > I.breakT) {
         p.iceT = 0; p.creaked = 0; G.s.warm = Math.min(G.s.warm, I.warm); p.wetT = I.wetT; p.action = null;
         p.x = POI.polynya.x - 140; Hero.snap(); Sound.splash(); Fx.shake(10); Fx.toast(':frost: Провалился! Сушись у огня');
@@ -230,7 +469,7 @@ const World = (() => {
     } else { p.iceT = Math.max(0, p.iceT - dt * 2); if (p.iceT === 0) p.creaked = 0; }
   }
 
-  return { FOG, COLL, GEN_V, TREE_I, wood0, nearHut, inCedar, onThinIce, gen, genLiving, buildGrid, shakeTree, tickTrees,
+  return { walk, crowd, FOG, COLL, FOOT_BY, footShapes, addFoot, vehFoot, rockFoot, trunkR, blocked, freeNear, GEN_V, TREE_I, wood0, nearHut, inCedar, onThinIce, gen, genLiving, buildGrid, shakeTree, tickTrees,
     solid, reveal, tickFog, thinIce, felled, tickRegrow, nearestStash, tickStashRaids };
 })();
 
@@ -256,13 +495,17 @@ const Nav = (() => {
   function ensure() {
     if (lastG === G && lastT === G.time) return;
     lastT = G.time;
-    const k = (G.hut.door ? 'd' : '') + '|' + (G.col ? G.col.builds.filter(b => b.done && !BUILDS[b.type].flat).map(b => b.id).join(',') : '');
+    const lg = G.logs ? G.logs.filter(L => L.n > 0) : [];
+    const k = (G.hut.door ? 'd' : '') + '|' + lg.map(L => L.id + ':' + L.n).join(',') + '|' + World.COLL.filter(c => c.o && c.o.need && !Zones.here(c.o)).length + '|' + (G.col ? G.col.builds.filter(b => b.done && !BUILDS[b.type].flat).map(b => b.id).join(',') : '');
     if (k === key && lastG === G) return;
     key = k; lastG = G; ver++; blk.fill(0);
     for (const R of HUT_WALLS) stampRect(R.x0, R.y0, R.x1, R.y1, 7);
     if (G.hut.door) stampRect(DOOR_RECT.x0, DOOR_RECT.y0, DOOR_RECT.x1, DOOR_RECT.y1, 7);
-    for (const c of World.COLL) stampCircle(c.x, c.y, c.r + 8);
+    for (const c of World.COLL) if (!(c.o && c.o.need && !Zones.here(c.o))) for (const q of c.sh) { if (q.t) stampCircle(q.cx, q.cy, q.cr + 8); else stampRect(q.x0, q.y0, q.x1, q.y1, 8); }
     if (G.col) for (const b of G.col.builds) if (b.done && !BUILDS[b.type].flat) { const B = BUILDS[b.type]; stampRect(b.x - B.w / 2, b.y - B.h / 2, b.x + B.w / 2, b.y + B.h / 2, 6); }
+    // сваленные стволы (World.solid → pushLog): кружки вдоль оставшейся части
+    for (const L of lg) { const k = Actions.logK(L), ex = L.x + Math.cos(L.a) * L.len * k, ey = L.y + Math.sin(L.a) * L.len * 0.6 * k, n = Math.max(1, Math.ceil(Math.hypot(ex - L.x, ey - L.y) / 10));
+      for (let i = 0; i <= n; i++) stampCircle(L.x + (ex - L.x) * i / n, L.y + (ey - L.y) * i / n, 4.2 * (L.s || 1) + 6); }
   }
   const cell = (x, y) => { const i = (x / C) | 0, j = (y / C) | 0; return i < 0 || j < 0 || i >= NX || j >= NY ? -1 : j * NX + i; };
   const free = (x, y) => { const c = cell(x, y); return c >= 0 && !blk[c]; };

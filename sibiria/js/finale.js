@@ -176,9 +176,12 @@ const Finale = (() => {
     cx.lineTo(W, H); cx.lineTo(0, H); cx.fill();
     if (K === 'C') { cx.strokeStyle = 'rgba(95,120,143,.4)'; cx.lineWidth = 2 * U; for (const o of [-5, 5]) { cx.beginPath(); cx.moveTo(W * 0.48 + o * U, H); cx.quadraticCurveTo(W * 0.5, H * 0.8, W * 0.52 + o * 0.3 * U, H * 0.66); cx.stroke(); } }
   }
-  function smoke(x, y, k, lean) {
-    if (Math.random() < 0.5 * k) fx.spawn({ t: 'smoke', x: x + R(-4, 4) * U, y, vx: lean * R(10, 40) * U, vy: -R(20, 40) * U, life: R(2, 3.5), max: 3.5, r: R(6, 10) * U, grow: 6 * U });
+  // дым: wash 0..1 — нисходящий поток винта (борт низко и близко): столб прижимает к земле и сносит от борта (lean — знак стороны)
+  function smoke(x, y, k, lean, wash = 0) {
+    if (Math.random() < 0.5 * k) fx.spawn({ t: 'smoke', x: x + R(-4, 4) * U, y: y + wash * 40 * U, vx: (lean * R(10, 40) + Math.sign(lean || 1) * wash * R(140, 260)) * U, vy: -R(20, 40) * U * (1 - 0.9 * wash), life: R(2, 3.5) * (1 - 0.5 * wash), max: 3.5, r: R(6, 10) * U, grow: 6 * U * (1 + wash) });
   }
+  // сила нисходящего потока в точке x (px экрана): борт ниже ~40 % высоты и ближе ~0.35 ширины экрана
+  function washAt(x) { const h = heliPos(T), gy = H * 0.8, alt = cl(1 - (gy - h.y * H) / (H * 0.45)), d = Math.abs(x - h.x * W) / W; return T < 10 ? alt * alt * cl(1 - d / 0.35) : 0; }
   // мировые модели в экранном масштабе: окружение для ArtWorld (свет и искры здесь не нужны — свой грейд)
   const NOENV = () => ({ now: T, night: K === 'D' ? 1 : 0.2, wind: 1, light() {}, glow() {}, spark() {}, eye() {} });
   function world(x, y, s, fn) { cx.save(); cx.translate(x, y); cx.scale(s, s); fn(); cx.restore(); }
@@ -189,8 +192,9 @@ const Finale = (() => {
     for (let i = 0; i < 3; i++) {
       const x = W * (0.24 + i * 0.12), y = H * 0.76 + (i % 2) * 8 * U;
       glowAt(x, y - 20 * s, 110 * s, 0.35);
-      world(x, y, s, () => ArtWorld.stack(cx, STK[i], NOENV()));
-      smoke(x, y - 60 * s, 1, (x - h.x * W) / W * 6 * close + 0.3);
+      const wash = washAt(x), env = NOENV(); env.wind = 1 + wash * 4; env.wx = x < h.x * W ? -1 : 1; // пламя клонит потоком от борта
+      world(x, y, s, () => ArtWorld.stack(cx, STK[i], env));
+      smoke(x, y - 60 * s * (1 - 0.5 * wash), 1, (x - h.x * W) / W * 6 * close + 0.3, wash);
     }
   }
   // метеостанция (глава VII): дом и мачта из мира (ArtZones.obj), упряжка у крыльца, флюгер крутится
@@ -202,7 +206,7 @@ const Finale = (() => {
     world(W * 0.13, H * 0.74, s, () => ArtZones.obj(cx, MET, env));
     world(W * 0.42, H * 0.75, s * 0.95, () => ArtZones.obj(cx, MAST, env));
     if (typeof ArtAnimals !== 'undefined') world(W * 0.9, H * 0.84, U * 1.1, () => ArtZones.deerSled(cx, SLED, env));
-    smoke(W * 0.13 + 34 * s, H * 0.74 - 114 * s, 1, 0.5);
+    smoke(W * 0.13 + 34 * s, H * 0.74 - 114 * s, 1, 0.5, washAt(W * 0.13) * 0.6);
   }
   function glowAt(x, y, r, a) { const gl = cx.createRadialGradient(x, y, 0, x, y, r); gl.addColorStop(0, `rgba(255,179,71,${a})`); gl.addColorStop(1, 'rgba(255,179,71,0)'); cx.fillStyle = gl; cx.fillRect(x - r, y - r, r * 2, r * 2); }
   // посёлок — постройки мира (ArtWorld.building), ночью окна горят
@@ -250,7 +254,7 @@ const Finale = (() => {
     cx.restore();
   }
   function people(dt) {
-    const h = heliPos(T), door = { x: (h.x - 0.02) * W, y: H * 0.8 };
+    const h = heliPos(T), D = ArtWorld.MI8_DOOR, doorX = h.x + (D.x0 + D.x1) / 2 * U * 1.1 / W, door = { x: doorX * W, y: H * 0.8 }; // дверь модели (сдвижная, левый борт)
     const list = crowd.slice().sort((a, b) => a.y - b.y);
     for (const p of list) {
       if (p.gone) continue;
@@ -260,7 +264,7 @@ const Finale = (() => {
         if (p.away) { const k = (T - p.delay) * p.sp; p.px = p.x + Math.sin(k * 6) * 0.01; p.py = p.y - k * 1.1; x = p.px * W; y = p.py * H; s *= cl(1 - k * 2.4, 0.2); p.moving = true; cx.globalAlpha = cl(1 - k * 2); }
         else if (p.roam) { p.cx = (p.cx == null ? p.x : p.cx) + p.sp * dt; if (p.cx > 0.95 || p.cx < 0.05) p.sp *= -1; x = p.cx * W; p.moving = true; }
         else if (p.sp) {
-          p.cx = (p.cx == null ? p.x : p.cx); const tx = p.stop ? h.x - 0.1 - p.stop * 0.2 : h.x + 0.025;
+          p.cx = (p.cx == null ? p.x : p.cx); const tx = p.stop ? doorX - 0.1 - p.stop * 0.2 : doorX;
           if (p.cx < tx) { p.cx = Math.min(tx, p.cx + p.sp * dt); p.moving = true; } else if (!p.stop) { p.gone = T > 8.3; p.waving = p.who === 'vera'; } else p.waving = !!p.wave && T > 8;
           x = p.cx * W; y = (p.y + (door.y / H - p.y) * cl((p.cx - p.x) / 0.4) * 0.5) * H;
         }
@@ -276,9 +280,15 @@ const Finale = (() => {
     cx.fillStyle = `rgba(39,57,74,${0.25 * alt})`; cx.beginPath(); cx.ellipse(x, gy + 6 * U, 110 * s * (0.6 + alt * 0.4), 10 * s, 0, 0, 7); cx.fill();
     cx.save(); cx.translate(x, y - 22 * s); cx.rotate(tilt); cx.scale(s, s);
     cx.drawImage(ArtWorld.mi8Fly(), -108, -70, 290, 132);
-    // дверь: после посадки открыта, изнутри тёплый свет
-    if (T > LAND + 0.6) { cx.fillStyle = '#10271f'; cx.fillRect(18, -32, 18, 32); cx.fillStyle = 'rgba(255,179,71,.35)'; cx.fillRect(20, -30, 14, 28); }
-    ArtWorld.rotor(cx, -2, -66, 150, T);
+    // сдвижная дверь (та же, что у обломков, MI8_DOOR): после посадки отъезжает назад, изнутри тёплый свет
+    const D = ArtWorld.MI8_DOOR, op = cl((T - LAND - 0.4) / 0.6), dw = D.x1 - D.x0;
+    if (op > 0) {
+      cx.fillStyle = '#10151a'; cx.fillRect(D.x0, D.y0 + 8, dw * op, D.y1 - D.y0 - 8); cx.fillStyle = 'rgba(255,179,71,.35)'; cx.fillRect(D.x0 + 2, D.y0 + 10, Math.max(0, dw * op - 4), D.y1 - D.y0 - 12);
+      cx.fillStyle = '#a5acb3'; cx.fillRect(D.x0 + dw * op, D.y0 + 8, dw, D.y1 - D.y0 - 8); cx.fillStyle = '#6c7178'; cx.fillRect(D.x0 + dw * op, D.y0 + 8, 1, D.y1 - D.y0 - 8);
+    }
+    // винты: лопасти с размытием движения (раскрутка — и после посадки не стоят), рулевой — на пилоне
+    const spin = T < LAND + 3 ? 1 : 1 - ease((T - LAND - 3) / 4) * 0.6;
+    ArtWorld.rotor(cx, 0, -66, 150, T * spin); ArtWorld.tailRotor(cx, 175, -56, 13, T * spin);
     cx.restore();
   }
   function downwash(dt, h) {

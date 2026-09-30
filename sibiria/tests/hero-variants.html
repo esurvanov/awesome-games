@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Герой — варианты</title>
+<style>
+  :root { --bg: #e9eff5; --fg: #22303e; --btn: #ffffff; --bd: #c7d3df; --acc: #d9822b; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0f1522; --fg: #d8e2ee; --btn: #1b2436; --bd: #33415a; } }
+  :root[data-theme="dark"] { --bg: #0f1522; --fg: #d8e2ee; --btn: #1b2436; --bd: #33415a; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
+  .bar { position: sticky; top: 0; display: flex; gap: 6px; align-items: center; padding: 6px 10px; background: var(--bg); border-bottom: 1px solid var(--bd); z-index: 2; flex-wrap: wrap; }
+  button { background: var(--btn); color: var(--fg); border: 1px solid var(--bd); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; }
+  button.on { outline: 2px solid var(--acc); }
+  .sep { width: 1px; height: 20px; background: var(--bd); margin: 0 4px; }
+  .wrap { overflow: auto; }
+  canvas { display: block; }
+  #cur { margin-left: auto; opacity: .75; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button id="bPlay">⏸ пауза</button>
+  <button id="bNight">🌙 ночь</button>
+  <button id="bLow">🐢 low</button>
+  <span class="sep"></span>
+  <span>🎮 в игру:</span>
+  <button data-go="">🧭 B (по умолчанию)</button>
+  <button data-go="a">🪓 A</button>
+  <button data-go="c">🏹 C</button>
+  <button data-go="old">↩ прежний</button>
+  <span id="cur"></span>
+</div>
+<div class="wrap"><canvas id="cv"></canvas></div>
+<script>window.HERO_LOOK = null;</script>
+<script src="../js/icons.js"></script>
+<script src="../js/art-people.js"></script>
+<script src="../js/art-poses.js"></script>
+<script>
+'use strict';
+// облик героя: B полярник (по умолчанию, без флага), A промысловик, C эвенк, прежний — крупно ×4 и 1:1 на снегу.
+// Флаг в игре: window.HERO_LOOK = 'a'|'c'|'old' или localStorage 'sibir-hero-look'; без флага — B.
+const VARS = [
+  { k: null, name: 'B полярник', ic: '🧭' },
+  { k: 'a', name: 'A промысловик', ic: '🪓' },
+  { k: 'c', name: 'C эвенк', ic: '🏹' },
+  { k: 'old', name: 'прежний', ic: '↩' },
+];
+const CELLS = [
+  { n: 'к камере', anim: 'idle', vy: 1 },
+  { n: 'от камеры', anim: 'idle', vy: -1 },
+  { n: 'боком', anim: 'idle', vy: 0 },
+  { n: 'идёт', anim: 'walk', vy: 0.25, walk: 1 },
+  { n: 'идёт ↓', anim: 'walk', vy: 1, walk: 1 },
+  { n: 'замах', anim: 'chop', animT: 0.3, tool: 'axe' },
+  { n: 'удар', anim: 'chop', animT: 0.53, tool: 'axe' },
+  { n: 'ноша', anim: 'carry', vy: 0.3, carry: 'wood' },
+  { n: 'факел', anim: 'walk', vy: 0.2, tool: 'torch', walk: 1 },
+  { n: 'костёр', anim: 'warmHands', vy: 0.3, target: { x: 10, y: -2 } },
+  { n: 'бросок', anim: 'throw', animT: 0.5 },
+];
+const qs = new URLSearchParams(location.search);
+const Z = 4, CW = 40, CH = 54, LX = 30, TY = 16;
+const W = Math.round(LX * 1 + CELLS.length * CW * Z), BIG = VARS.length * (CH * Z + 8), SMALL = 200;
+const cv = document.getElementById('cv'), g = cv.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+cv.width = W * dpr; cv.height = (TY + BIG + SMALL) * dpr; cv.style.width = W + 'px'; cv.style.height = (TY + BIG + SMALL) + 'px';
+let T = +(qs.get('t') || 2.5), play = !qs.has('t'), night = 0, last = performance.now();
+const btn = id => document.getElementById(id);
+btn('bPlay').onclick = e => { play = !play; e.target.textContent = play ? '⏸ пауза' : '▶ ход'; };
+btn('bNight').onclick = e => { night = night ? 0 : 1; e.target.classList.toggle('on', !!night); };
+btn('bLow').onclick = e => { window.QUALITY = window.QUALITY === 'low' ? 'high' : 'low'; e.target.classList.toggle('on', window.QUALITY === 'low'); };
+if (qs.get('q') === 'low') btn('bLow').onclick({ target: btn('bLow') });
+for (const b of document.querySelectorAll('[data-go]')) b.onclick = () => { try { if (b.dataset.go) localStorage.setItem('sibir-hero-look', b.dataset.go); else localStorage.removeItem('sibir-hero-look'); } catch (e) {} location.href = '../index.html'; };
+try { const v = localStorage.getItem('sibir-hero-look'); btn('cur').textContent = '🎮 в игре: ' + (v === 'old' ? 'прежний' : v && v !== 'b' ? v.toUpperCase() : 'B'); } catch (e) {}
+const env = { now: 0, night: 0, light() {}, spark() {} };
+// снег: мягкие пятна и синеватые впадины (фиксированный узор)
+const SN = (() => { let q = 7; const a = []; for (let i = 0; i < 400; i++) { q = (q * 1103515245 + 12345) & 0x7fffffff; a.push(q / 0x7fffffff); } return a; })();
+function snow(x, y, w, h) {
+  g.fillStyle = night ? '#6a7a92' : '#e8eef4'; g.fillRect(x, y, w, h);
+  for (let i = 0; i < 60; i++) { const px = x + SN[i * 3] * w, py = y + SN[i * 3 + 1] * h, r = 6 + SN[i * 3 + 2] * 22;
+    g.fillStyle = i % 3 ? (night ? 'rgba(40,52,74,.10)' : 'rgba(150,170,196,.10)') : (night ? 'rgba(150,170,200,.10)' : 'rgba(255,255,255,.5)');
+    g.beginPath(); g.ellipse(px, py, r, r * 0.4, 0, 0, Math.PI * 2); g.fill(); }
+}
+function fig(c, v, t, x, y, i) {
+  window.HERO_LOOK = v.k;
+  const o = { x, y, face: 1, vy: c.vy || 0, speed: 0.5, t, phase: c.walk ? t * 7.5 : 0, anim: c.anim, animT: c.animT != null ? c.animT : 0, look: 'anorak', tool: c.tool || 'axe', carry: c.carry || null, target: c.target, frost: 0.1, seed: 1 + i };
+  if ((c.anim === 'chop' || c.anim === 'throw') && play) o.animT = (t / ArtPeople.DUR[c.anim] + (c.animT || 0)) % 1;
+  env.night = night;
+  if (c.anim === 'warmHands') { g.fillStyle = '#5b3d27'; g.fillRect(x + 7, y - 1.5, 7, 2); g.fillStyle = '#ff9a3c'; g.beginPath(); g.ellipse(x + 10.5, y - 4, 2.4, 3.6 + Math.sin(t * 17) * 0.4, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffd27a'; g.beginPath(); g.ellipse(x + 10.5, y - 3.2, 1.2, 2, 0, 0, Math.PI * 2); g.fill(); }
+  ArtPeople.draw(g, o, env);
+  window.HERO_LOOK = null;
+}
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; if (play) T += dt;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = getComputedStyle(document.body).backgroundColor; g.fillRect(0, 0, W, TY + BIG + SMALL);
+  g.fillStyle = getComputedStyle(document.body).color; g.font = '600 11px system-ui'; g.textAlign = 'center';
+  CELLS.forEach((c, k) => g.fillText(c.n, LX + (k + 0.5) * CW * Z, 12));
+  VARS.forEach((v, r) => {
+    const y0 = TY + r * (CH * Z + 8);
+    snow(LX, y0, CELLS.length * CW * Z, CH * Z);
+    g.save(); g.translate(LX, y0); g.scale(Z, Z);
+    CELLS.forEach((c, k) => fig(c, v, T + k * 0.1, (k + 0.5) * CW, CH - 6, k));
+    g.restore();
+    g.save(); g.translate(16, y0 + CH * Z / 2); g.rotate(-Math.PI / 2); g.fillStyle = getComputedStyle(document.body).color; g.font = '700 12px system-ui'; g.fillText(v.ic + ' ' + v.name, 0, 0); g.restore();
+  });
+  // 1:1 и ×2 на снегу
+  const y1 = TY + BIG + 4, pw = (W - LX) / VARS.length;
+  VARS.forEach((v, r) => {
+    const x0 = LX + r * pw; snow(x0 + 2, y1, pw - 4, SMALL - 10);
+    g.fillStyle = night ? '#dde6ee' : '#22303e'; g.font = '600 11px system-ui'; g.textAlign = 'left'; g.fillText(v.ic + ' ' + v.name + '  1× / 2×', x0 + 8, y1 + 14);
+    CELLS.forEach((c, k) => fig(c, v, T + k * 0.1, x0 + 14 + k * 23, y1 + 70, k));
+    g.save(); g.translate(x0, y1 + 80); g.scale(2, 2);
+    [0, 1, 2, 3, 6].forEach((ci, k) => fig(CELLS[ci], v, T + k * 0.1, 12 + k * 26, 50, k));
+    g.restore();
+  });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

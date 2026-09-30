@@ -11,14 +11,15 @@
 // Конец игры ({end}) останавливает список на этом шаге.
 const EVENTS = [
   { id: 'hutFound', once: 'flags.hutFound', when: g => g.p.inside || dist2(g.p, HUT) < 170 * 170, do: [{ known: 'hut' }] },
-  { id: 'E1', when: (g, c) => g.day === 1 && c.night > 0.6, do: [{ toast: ':wolf: Далеко воют. Много.' }, { sound: ['howl', -0.6, 0.12] }] },
+  // вой первой ночи: фраза и звук — по тому, где стая (Ctx): нет волков — далеко на северо-западе; стая рядом — «рядом»
+  { id: 'E1', when: (g, c) => g.day === 1 && c.night > 0.6, do: [{ toast: g => Ctx.howl(Ctx.howlSrc().d, true) }, { sound: ['howl', 0, 0.12], at: () => Ctx.howlSrc() }] },
   { id: 'E2', when: (g, c) => g.day >= 2 && c.h >= 7 && g.urk.state === 'away',
     do: [{ npc: 'urk', state: 'hut', at: 'urkDoor' }, { toast: ':storm: У зимовья кто-то есть' }] },
   // Вера у хвоста: подошёл — разговор сам
   { id: 'E3', when: g => g.vera.state === 'tail' && dist2(g.vera, g.p) < 130 * 130 && !UI.modal(), do: [{ dialog: 'vera_found' }] },
   // осада: 21:00 3-го дня (или позже, пока глава III не закрыта)
   { id: 'E5', when: (g, c) => (g.day === 3 || (g.day > 3 && g.chapter === 2)) && c.h >= 21,
-    do: [{ toast: ':wolf: Стая идёт к зимовью!' }, { dialog: 'siege_urk' }, { sound: ['howl', 0, 0.25] }, { fn: g => { Wolves.spawnPack(4, true); g.pack.siege = 1; } }] },
+    do: [{ toast: ':wolf: Стая идёт к зимовью!' }, { dialog: 'siege_urk' }, { sound: ['howl', 0, 0.25], at: () => Ctx.howlSrc(900) }, { fn: g => { Wolves.spawnPack(4, true); g.pack.siege = 1; } }] },
   { id: 'siegeDone', once: 'flags.siegeDone', when: (g, c) => g.fired.E5 && (!g.pack || !g.pack.siege || (g.day >= 4 && c.h >= 7)),
     do: [{ toast: ':wolf: Стая отступила · осада снята' }] },
   // шатун: предвестник — следы у мари
@@ -46,8 +47,8 @@ const EVENTS = [
   // борт после сеанса: на следующий день с 09 до 12 — если герой у метеостанции
   { id: 'expHeli', repeat: 1, when: (g, c) => g.flags.expCalled && !g.flags.expRescued && g.day > g.flags.expCallDay && c.h >= STORY.heli.from && c.h < STORY.heli.to,
     do: [{ fn: g => {
-      if (Zones.idAt(g.p.x, g.p.y) === 'meteo') { g.flags.expRescued = 1; Sound.heli(); Fx.toast(':heli: Ми-8 садится у мачты!'); }
-      else if (g.fired.expHeliDay !== g.day) { g.fired.expHeliDay = g.day; Fx.toast(':heli: Борт кружит над Кербо-2 — к мачте, до полудня!'); Sound.heli(); }
+      if (Zones.idAt(g.p.x, g.p.y) === 'meteo') { g.flags.expRescued = 1; Sound.src(ZONES.meteo).heli(); Fx.toast(':heli: Ми-8 садится у мачты!'); }
+      else if (g.fired.expHeliDay !== g.day) { g.fired.expHeliDay = g.day; Fx.toast(':heli: Борт кружит над Кербо-2 — к мачте, до полудня!'); Sound.src(ZONES.meteo).heli(); }
     } }] },
   // не успел за STORY.expDays суток — поход кончился зимовкой у деда (концовка C)
   { id: 'expLate', when: (g, c) => g.chapter === 6 && !g.flags.expCalled && g.day >= (g.flags.expDay || g.day) + STORY.expDays && c.h >= TUNE.time.wakeAt,

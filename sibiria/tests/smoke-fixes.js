@@ -26,6 +26,7 @@ function page() {
     G.time = tAt(1, 19.0); inHut(); stoke();
     const full = G.hut.fuel;
     G.p.x = SPOT.bed.x; G.p.y = SPOT.bed.y; Actions.trySleep();
+    for (let i = 0; i < 80 && !G.p.sleeping && Actions.busy(); i++) update(0.05); // дошёл до лежанки и лёг (этап 4)
     const slept0 = G.p.sleeping;
     run(CYCLE * 0.6, () => !G.p.sleeping);
     const h = hourOf(), good = !!G.flags.slept && h >= 7 && h < 12;

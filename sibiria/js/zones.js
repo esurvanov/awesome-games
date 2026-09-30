@@ -17,7 +17,7 @@ const Zones = (() => {
     z.active = z.x - z.r > 150 && z.x + z.r < W - 150 && z.y - z.r > 150 && z.y + z.r < H - 150 ? 1 : 0;
   }
   const ACT = IDS.filter(id => ZONES[id].active && !ZONES[id].core).map(id => ZONES[id]);
-  // объекты зон: абсолютные координаты; осмотр — в INSPECT, преграды — в World.COLL
+  // объекты зон: абсолютные координаты; осмотр — в INSPECT, преграды — подножия в World.COLL
   const OBJS = [], BY_ID = {};
   for (const z of ACT) for (const o0 of z.objects || []) {
     const o = Object.assign({ zone: z.id }, o0, { x: z.x + o0.dx, y: z.y + o0.dy });
@@ -26,7 +26,7 @@ const Zones = (() => {
     if (o.type === 'note') { NOTES[o.id] = { i: ':log:', x: o.x, y: o.y, t: o.t, zone: z.id }; BY_ID[o.id] = o; continue; }
     OBJS.push(o); BY_ID[o.id] = o;
     if (o.t && !o.loot && !o.survey && !o.rent) INSPECT.push({ id: o.id, i: z.ic, x: o.x, y: o.y + 8, t: o.t, zone: 1 });
-    if (o.solid) World.COLL.push({ x: o.x, y: o.y - 6, r: o.solid });
+    o.foot = World.addFoot(o.type === 'chum' ? 'zchum' : o.type, o.x, o.y, o); // подножие по рисунку (js/content/footprints.js)
   }
   // объект с условием (need) — есть в мире только после него
   const here = o => !o.need || !!(G && Story.get(o.need));
@@ -187,7 +187,7 @@ const Zones = (() => {
     p.sprainT = Math.max(0, (p.sprainT || 0) - dt);
     if (p.inside || p.sleeping) return;
     // голец: ветер сносит (и стоя)
-    if (tk === 'golets') { p.x += T.windX * dt * (stormOn() ? 2 : 1); World.solid(p, 10, 'p'); }
+    if (tk === 'golets') { const w = Wind.at(p.x, p.y), k = T.windX * dt * Math.min(2.2, (w.base + w.ms) / 16); p.x += w.dx * k; p.y += w.dy * k * 0.6; World.solid(p, 10, 'p'); } // Wind: windX px/с при 8 м/с (половина — средний ветер, половина — порыв)
     // гарь: сухостой падает рядом (предупреждение → удар)
     if (id === 'gar') tickFall(dt, T); else if (G.fall) G.fall = null;
     if (!p.moving) return;
@@ -211,7 +211,7 @@ const Zones = (() => {
       const t = Space.nearest(Space.trees, p.x, p.y, 260, q => q.kind === 3 && q.wood > 0 && !q.wall);
       if (!t) return;
       G.fall = { x: t.x, y: t.y, t: T.fallWarn, a: +(Math.atan2(p.y - t.y, p.x - t.x) + rnd(-0.5, 0.5)).toFixed(2), tree: World.TREE_I.get(t) };
-      World.shakeTree(t, T.fallWarn); Sound.treeCrack(); Fx.toast(ZONE_TXT.fallWarn);
+      World.shakeTree(t, T.fallWarn); Sound.src(t).treeCrack(); Fx.toast(ZONE_TXT.fallWarn);
       return;
     }
     const f = G.fall; f.t -= dt; if (f.t > 0) return;
@@ -219,7 +219,7 @@ const Zones = (() => {
     const t = G.trees[f.tree]; if (t) { t.wood = 0; World.felled(t); }
     const len = 110, ex = f.x + Math.cos(f.a) * len, ey = f.y + Math.sin(f.a) * len * 0.6;
     G.fallen.push({ x: f.x, y: f.y, a: f.a, len }); if (G.fallen.length > 24) G.fallen.shift();
-    Fx.shake(6); Sound.hit(); ArtWorld.fx.snowPuff(G.parts, ex, ey, 1); ArtWorld.fx.snowPuff(G.parts, (f.x + ex) / 2, (f.y + ey) / 2, 1);
+    Fx.shake(6); Sound.src(ex, ey).hit(); ArtWorld.fx.snowPuff(G.parts, ex, ey, 1); ArtWorld.fx.snowPuff(G.parts, (f.x + ex) / 2, (f.y + ey) / 2, 1);
     // удар — по отрезку ствола
     const vx = ex - f.x, vy = ey - f.y, k = clamp(((p.x - f.x) * vx + (p.y - f.y) * vy) / (vx * vx + vy * vy), 0, 1);
     if (Math.hypot(p.x - f.x - vx * k, p.y - f.y - vy * k) < T.fallR) { G.s.hp -= T.fallDmg; G.hurt = 1; Fx.toast(ZONE_TXT.fallHit); }

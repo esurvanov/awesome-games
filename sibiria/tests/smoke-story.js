@@ -107,6 +107,7 @@ function lib() {
       const b = document.querySelector('#panel ' + sel);
       if (!b || b.disabled) break;
       b.click(); n++;
+      if (G.p.action && G.p.action.k === 'craft') S.run(15, () => !G.p.action || G.p.action.k !== 'craft'); // крафт идёт в мире (этап 4)
     }
     if (vis('panel')) $$('#panel-close').click();
     return n;
@@ -128,7 +129,9 @@ function lib() {
       if (!t) break;
       S.tp(t.x + 26, t.y + 4); S.tick();
       const before = G.stats.wood; S.act();
-      if (G.stats.wood === before && Inv.weight() > Inv.capKg() + 6) break;
+      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки)
+      for (let j = 0; j < 12; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) break; S.act(); }
+      if (G.stats.wood === before && t.wood > 0 && Inv.weight() > Inv.capKg() + 6) break;
     }
     return G.stats.wood - w0;
   };
@@ -147,7 +150,7 @@ function lib() {
     for (let n = 0; n < 80 && !morning() && state === 'play'; n++) {
       if (!insideHut(G.p.x, G.p.y)) IN();
       stoke(); S.tp(SPOT.bed.x, SPOT.bed.y); S.tick();
-      Actions.interact(false);
+      Actions.interact(false); S.run(4, () => G.p.sleeping || !Actions.busy());
       if (!G.p.sleeping) { S.run(5); continue; } // не дают уснуть (шатун/волки рядом) — бодрствуем в избе
       S.run(400, () => !G.p.sleeping);
       if (!morning() && wakes++ < 3) L('проснулся ночью: ' + S.toasts.slice(-2).join(' / ') + ` · дверь ${G.hut.door}`);
@@ -159,7 +162,8 @@ function lib() {
       if (s.lit > 0) continue;
       S.tp(s.x, s.y + 34); S.tick();
       for (let i = 0; i < 8 && s.wood < 4; i++) { Actions.interact(true); S.run(0.3); }
-      if (light) { S.act(); S.run(0.3); }
+      // рядом может оказаться заяц/сугроб (первое E — «поймать»/«пнуть») — жмём ещё, как игрок
+      if (light) for (let i = 0; i < 4 && !(s.lit > 0); i++) { S.tp(s.x, s.y + 34); S.tick(); S.act(); S.run(0.3); }
     }
   };
   // чекпоинт/сейв → слот → загрузка настоящим путём (UI.loadSlot = кнопка «Загрузить»)
@@ -206,7 +210,7 @@ function phases() {
     ok(S.note('log') && G.notes.log, '📓 бортжурнал прочитан');
     // мягкий проигрыш в главе I: замёрз у обломков → «Уркачан дотащил»
     S.tp(POI.cockpit.x + 200, POI.cockpit.y + 200); G.s.warm = 0; G.s.hp = 6; const t0 = G.time, wood = G.inv.wood || 0;
-    S.care = false; S.run(10, () => G.s.hp >= 40); S.care = true;
+    S.care = false; S.run(10, () => G.s.hp >= 40); S.run(14, () => !G.p.ko && !G.p.action); S.care = true; // этап 4: упал → затемнение → очнулся в избе → встал
     ok(state === 'play' && G.chapter === 0 && insideHut(G.p.x, G.p.y) && Math.abs(G.s.hp - 50) < 3 && G.time - t0 >= CYCLE / 8,
       `💀→🛖 смерть в гл. I мягкая: жив в избе, hp ${G.s.hp | 0}, время +${(G.time - t0).toFixed(0)} с`);
     ok(/Уркачан дотащил/.test($('ch-title').textContent) && !$('chapter').hidden && $('over').hidden, '🪪 карточка «Уркачан дотащил», экрана гибели нет');

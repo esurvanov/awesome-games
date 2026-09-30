@@ -11,10 +11,12 @@ const Story = (() => {
     set: o => set(o.set, o.v === undefined ? 1 : o.v),
     inc: o => { const v = get(o.inc) || 0; if (o.max === undefined || v < o.max) set(o.inc, v + 1); },
     known: o => { for (const k of [].concat(o.known)) G.known[k] = 1; },
-    toast: o => { if (o.delay) setTimeout(() => Fx.toast(o.toast), o.delay); else Fx.toast(o.toast); },
+    // тост: строка или g → строка (по сводке Ctx: что вокруг героя)
+    toast: o => { const t = () => Fx.toast(typeof o.toast === 'function' ? o.toast(G) : o.toast); if (o.delay) setTimeout(t, o.delay); else t(); },
     dialog: o => { if (DIALOG[o.dialog]) UI.dialog(DIALOG[o.dialog]); },
-    sound: o => { const [k, ...a] = o.sound; Sound[k](...a); },
-    npc: o => { const st = Npc.state(o.npc); st.state = o.state; if (o.at) { st.x = SPOT[o.at].x; st.y = SPOT[o.at].y; } },
+    // звук: at — g → {x, y} источника (громкость и панорама от места, Sound.at); без at — у героя
+    sound: o => { const [k, ...a] = o.sound, q = o.at && o.at(G); if (q && Sound.at) Sound.at(q.x, q.y, () => Sound[k](...a)); else Sound[k](...a); },
+    npc: o => { const st = Npc.state(o.npc); st.state = o.state; if (o.at) Npc.arrive(o.npc, SPOT[o.at]); },   // приходит из-за края видимости своими ногами
     end: o => Game.end(typeof o.end === 'function' ? o.end(G) : o.end),
     add: o => { for (const [k, v] of Object.entries(o.add)) Inv.add(k, v); },   // выдать предметы в рюкзак {kero: 2}
     chapter: o => go(o.chapter),                                                // перейти в главу (номер 'V' | индекс)
@@ -60,7 +62,7 @@ const Story = (() => {
     }
     if (G.heli) {
       G.heli.t -= dt; G.heli.snd -= dt;
-      if (G.heli.snd <= 0) { G.heli.snd = H.snd; Sound.heli(); }
+      if (G.heli.snd <= 0) { G.heli.snd = H.snd; Sound.src(POI.mar).heli(); }
       if (G.stacks.every(s => s.lit > 0) && padDone()) {
         f.rescued = 1; G.heli = null; G.rescueT = STORY.rescueT; f.rescueReady = 1; Fx.toast(':heli: Заметили! Садится!'); Sound.ok2(); UI.card(':heli:', 'Борт 24713 — домой', 'Заметили! Садится на марь.'); G.aurora = 1;
       } else if (G.heli.t <= 0) {

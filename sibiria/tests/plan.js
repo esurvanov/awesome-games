@@ -65,10 +65,12 @@
     if (G.wreck.cockpit.length) { B.wreck('cockpit'); return; }
     if (!f.stoveLit) { ensureWood(8, 600); B.enterHut(); B.chestAll(); B.fillStove(Stove.secPerLog() * 2); return; }
     if (!G.hut.walls) { ensureWood(6 - (G.chest.wood || 0) > 0 ? 9 : 3, 600); B.enterHut(); B.chestAll(); B.build('walls'); return; }
-    if (!G.hut.bench) { ensureWood(8, 600); B.enterHut(); B.chestAll(); B.build('bench'); return; }
+    // дверь — до верстака: без неё волки у избы не дают уснуть (Actions.trySleep), и первая ночь проходит без сна (время ×1, не ×sleepX)
     if (!G.hut.door) { ensureWood(8, 600); B.enterHut(); B.chestAll(); B.build('door'); return; }
+    if (!G.hut.bench) { ensureWood(8, 600); B.enterHut(); B.chestAll(); B.build('bench'); return; }
     // запасы на ночь
-    if (Inv.cnt('wood', true) < 12) { ensureWood(9, 600); B.enterHut(); B.chestAll(); return; }
+    // ночь без двери/с новой рубкой (валка → разделка → чурки) — на ночь печи нужно ≈ 15 полен: с 11–13 печь гаснет к 4 ч и сна нет
+    if (Inv.cnt('wood', true) < 15) { ensureWood(9, 600); B.enterHut(); B.chestAll(); return; }
     if (!B.snared && Inv.cnt('scrap', true) >= 1 && G.hut.bench) { B.enterHut(); B.chestTake('scrap', 1); B.doCraft('snare'); B.snared = 1; }
     if (Inv.cnt('snare', false) > 0) { B.goTo(HUT.x + 400, HUT.y + 200, 20); Actions.placeKey(); B.wait(2.2); B.goTo(HUT.x + 400, HUT.y - 250, 20); Actions.placeKey(); B.wait(2.2); return; }
     // ранний вечер — ждём
@@ -218,7 +220,7 @@
     // с главы V это делаем рядом с избой отдельно (см. B.run), а col.js поверх upkeep() ведёт торг
     // и подкормку посёлка — это должно работать независимо от того, где сейчас герой
     const nearHut2 = Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 1200;
-    for (const id of nearHut2 ? ['walls', 'bench', 'door'] : []) {
+    for (const id of nearHut2 ? ['walls', 'door', 'bench'] : []) {
       if (G.hut[id]) continue;
       const u = HUT_UPG.find(x => x.id === id), needW = u.in.wood || 0;
       if (Inv.cnt('scrap', true) < (u.in.scrap || 0)) continue;
@@ -352,7 +354,7 @@
     const d = Math.hypot(b.x - G.p.x, b.y - G.p.y);
     if (d > 500 || G.p.torch > 0) return false;
     // огонь рядом (от warmUp/ночёвки) — факел безопаснее голых рук: 2× урон + шатун от него отпрянет (Bear.hit)
-    if (Fire.near(TUNE.fire.heatR) && Inv.cnt('wood', false) >= 1) { Actions.craft(RECIPES.find(r => r.id === 'torch')); return false; }
+    if (Fire.near(TUNE.fire.heatR) && Inv.cnt('wood', false) >= 1) { if (Actions.craft(RECIPES.find(r => r.id === 'torch'))) B.doAction(); return false; }
     if (d > 260) {
       const a = Math.atan2(G.p.y - b.y, G.p.x - b.x);
       input.mx = Math.cos(a); input.my = Math.sin(a);
@@ -492,7 +494,7 @@
         // защиты вообще нет. Чиним дверь только когда и так рядом с избой — не отдельный поход.
         if (G.chapter >= 4 && !farHut && !G.hut.door && Inv.canPay({ wood: 4, scrap: 1 }, true)) { B.enterHut(); B.chestAll(); B.build('door'); }
         if (G.p.inside) feedVeraIfNeeded();
-        if (!farHut && h >= 15.8 && h < 17.2 && Inv.cnt('wood', true) < 10) { B.chop(9, 600); B.enterHut(); B.chestAll(); continue; }
+        if (!farHut && h >= 15.8 && h < 17.2 && Inv.cnt('wood', true) < (G.chapter < 1 ? 15 : 10)) { B.chop(9, 600); B.enterHut(); B.chestAll(); continue; }
         if (h >= 17.2 || h < 6.9) {
           if (farHut) { campNight(); continue; }
           B.night({

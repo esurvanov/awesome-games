@@ -13,11 +13,11 @@ const Survival = (() => {
     heat = Fire.heatAt(p, heat);
     let loss = (B.lossBase + Math.max(0, -T + B.lossFrom) * B.lossPerDeg) * Hero.clothMul() * (1 - B.coldSkill * (Hero.lvl('cold') - 1)) * Settings.diff().cold;
     if (!p.inside) loss *= 1 + B.nightLoss * night; // ночной мороз
-    if (p.moving) loss *= B.moving; if (onIce(p.x, p.y)) loss *= B.ice; if (p.wetT > 0) loss *= B.wet; if (p.teaT > 0) loss *= B.tea;
+    if (p.moving) loss *= B.moving * (1 + 0.5 * (typeof Depth !== 'undefined' ? Depth.effort() : 0)); // по пояс в снегу — выдыхается, потеет, мёрзнет if (onIce(p.x, p.y)) loss *= B.ice; if (p.wetT > 0) loss *= B.wet; if (p.teaT > 0) loss *= B.tea;
     s.warm = clamp(s.warm + (heat - loss) * dt, 0, Hero.maxWarm());
     if (s.warm < B.frostBelow) { G.frostAcc += dt; if (G.frostAcc > B.frostT && s.frost < B.frostMax) { G.frostAcc = 0; s.frost++; Fx.toast(':frost: Обморожение · макс. тепло −10'); } } else G.frostAcc = 0;
     if (s.warm < B.hardenBelow && heat === 0 && !p.inside) { G.coldAcc += dt; if (G.coldAcc > B.hardenT) { G.coldAcc = 0; Hero.xp('cold'); } }
-    const hunger = (p.sleeping ? B.hungerSleep : (B.hunger + (p.moving ? B.hungerMove : 0)) * (T < B.deepFrost ? B.hungerDeep : 1)) * Settings.diff().hunger;
+    const hunger = (p.sleeping ? B.hungerSleep : (B.hunger + (p.moving ? B.hungerMove * (1 + 0.5 * (typeof Depth !== 'undefined' ? Depth.effort() : 0)) : 0)) * (T < B.deepFrost ? B.hungerDeep : 1)) * Settings.diff().hunger;
     s.food = clamp(s.food - hunger * dt, 0, 100);
     if (s.warm <= 0) { s.hp -= B.coldDmg * dt; G.cause = 'cold'; }
     if (s.food <= 0) { s.hp -= B.foodDmg * dt; if (s.warm > 0) G.cause = 'food'; }

@@ -51,6 +51,7 @@ var FX = (() => {
   const TYPES = {
     smoke: { layer: 'air', wind: 1.0, cap: 120, low: 60 },
     breath: { layer: 'air', wind: 0.8, cap: 40, low: 20 },
+    steam: { layer: 'air', wind: 0.6, cap: 36, low: 14 },
     spark: { layer: 'glow', wind: 0.6, cap: 80, low: 40 },
     ember: { layer: 'glow', wind: 0.4, cap: 40, low: 0 },
     puff: { layer: 'ground', wind: 0.3, cap: 60, low: 30 },
@@ -63,11 +64,14 @@ var FX = (() => {
   const T = t => TYPES[t] || DEF;
   const low = () => typeof window !== 'undefined' && window.QUALITY === 'low';
 
-  // ---------- ветер: один на всех, из пурги ----------
-  // WIND — порывистая составляющая сверх «зашитого» в спавн сноса (px/с по x); gust — медленная волна
+  // ---------- ветер: единый js/wind.js (паспорт R1) ----------
+  // снос частицы = Wind.px(Wind.ms(x, y)) × доля типа вдоль Wind.dir (px/с); в спавнах сноса нет. low — одно значение у героя на кадр.
+  // WIND() — снос у героя, px/с (для совместимости)
   let storm = false, clock = 0;
+  const HAS_W = () => typeof Wind !== 'undefined';
   function setStorm(s) { storm = !!s; }
-  function WIND() { return (storm ? 46 : 5) * (0.75 + 0.25 * Math.sin(clock * 0.7) * Math.sin(clock * 0.23 + 1)); }
+  const heroMs = () => !HAS_W() ? (storm ? 18 : 4.5) * 0.6 : typeof G !== 'undefined' && G && G.p ? Wind.ms(G.p.x, G.p.y) : Wind.base() * 0.6;
+  function WIND() { return heroMs() * 16; }
 
   // ---------- эмиттеры: рендер только объявляет источник, частицы рождаются в update по темпу ----------
   const EM = new Map();
@@ -81,7 +85,9 @@ var FX = (() => {
   function update(parts, dt, rnd = ER) {
     if (!(dt > 0)) return;
     clock += dt;
-    const w = WIND(), L = low();
+    const L = low(), W1 = HAS_W() && !L, w = WIND();
+    // направление ветра (js/wind.js — гуляет за часы игры): снос по x — cos, по y — sin × 0.6 (земля в ракурсе 3/4)
+    const wd = HAS_W() && Wind.dir ? Wind.dir() : 0, wcx = Math.cos(wd), wcy = Math.sin(wd) * 0.6;
     for (const [k, e] of EM) {
       if (--e.seen < 0) { EM.delete(k); continue; }
       e.acc += e.rate * dt;
@@ -96,8 +102,8 @@ var FX = (() => {
       const q = parts[i];
       if (drop[q.type] > 0) { drop[q.type]--; continue; }       // самые старые — в начале массива
       q.life -= dt; if (q.life <= 0) continue;
-      const k = T(q.type).wind;
-      q.x += (q.vx + w * k) * dt; q.y += q.vy * dt;
+      const k = T(q.type).wind, wv = k ? (W1 ? Wind.ms(q.x, q.y) * 16 : w) * k : 0, wx = wv * wcx, wy = wv * wcy;
+      q.wx = wx; q.wy = wy; q.x += (q.vx + wx) * dt; q.y += (q.vy + wy) * dt;
       if (q.g) q.vy += q.g * dt;
       parts[j++] = q;
     }
@@ -125,34 +131,81 @@ var FX = (() => {
     const R = () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const flakes = Array.from({ length: 460 }, () => ({ x: R(), y: R(), z: R(), ph: R() * 6 }));
     const streaks = Array.from({ length: 200 }, () => ({ x: R(), y: R(), l: 20 + R() * 40, z: R() }));
-    let t = 0;
+    let t = 0, wsm = -1, wdx = 1, wdy = 0;
+    // мягкая «крупная» снежинка вблизи (размытый диск): квадраты 1–2 px читались как пиксели
+    // DOT — маска (белый мягкий диск); TINT — её копия, перекрашенная в текущий цвет снега × ambient (перекраска только при смене цвета)
+    const DOT = (() => { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'), gr = g.createRadialGradient(8, 8, 0, 8, 8, 8); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 16, 16); return c; })();
+    // пурга: мягкая вытянутая чёрточка (эллипс 32×8 с радиальным спадом) — вместо fillRect, который читался прямоугольниками
+    const STREAK = (() => { const c = document.createElement('canvas'); c.width = 32; c.height = 8; const g = c.getContext('2d'); g.translate(16, 4); g.scale(16, 4); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); return c; })();
+    // перекрашенные копии масок в текущий цвет снега × ambient (перекраска только при смене цвета)
+    const tintOf = mask => { const c = document.createElement('canvas'); c.width = mask.width; c.height = mask.height; return { c, mask, col: '' }; };
+    const TD = tintOf(DOT), TS = tintOf(STREAK), TL = tintOf(STREAK);
+    function tint(T, col) {
+      if (col !== T.col) {
+        T.col = col; const g = T.c.getContext('2d'), w = T.c.width, h = T.c.height;
+        g.globalCompositeOperation = 'copy'; g.drawImage(T.mask, 0, 0);
+        g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'source-over';
+      }
+      return T.c;
+    }
+    const tinted = col => tint(TD, col);
     function seed(v) { s = v | 0; for (const f of flakes) { f.x = R(); f.y = R(); f.z = R(); f.ph = R() * 6; } for (const q of streaks) { q.x = R(); q.y = R(); q.l = 20 + R() * 40; q.z = R(); } }
-    // o = { vw, vh, camDX, camDY, storm, amb:[r,g,b], dark 0..1, px, py (герой на экране) }
+    // o = { vw, vh, camDX, camDY, storm, amb:[r,g,b], dark 0..1, px, py (герой на экране), z — зум камеры, dpr — масштаб слоя (для поворота штрихов) }
+    // Слой рисуется в мировом масштабе (× зум), а хлопья и штрихи — это снег у самой камеры: их размер держим в экранных px
+    // (÷ z), иначе на зуме 4× хлопья раздувались в квадратики. Скорости и позиции — как были.
     function draw(g, dt, o) {
       t += dt;
-      const L = low(), n = (o.storm ? 460 : 150) >> (L ? 1 : 0), gust = WIND();
-      const wx = o.storm ? 294 + gust : 25 + gust, vw = o.vw, vh = o.vh;
+      const Z = 1 / Math.max(0.25, o.z || 1);
+      // снос хлопьев — ветер у героя, сглаженный ~1 с (инерция снежинки): 18 px/с на 1 м/с, позёмка ×1.55 + 40
+      const L = low(), n = (o.storm ? 460 : 150) >> (L ? 1 : 0), m = heroMs();
+      wsm = wsm < 0 ? m : wsm + (m - wsm) * Math.min(1, dt * 1.2);
+      // направление — Wind.dir (гуляет медленно; сглажено, чтобы снег не «поворачивал» рывком): по экрану x — cos, y — sin × 0.6
+      const wd = HAS_W() && Wind.dir ? Wind.dir() : 0; wdx = wdx + (Math.cos(wd) - wdx) * Math.min(1, dt * 0.8); wdy = wdy + (Math.sin(wd) * 0.6 - wdy) * Math.min(1, dt * 0.8);
+      const W0 = 18 * wsm, wx = W0 * wdx, wy = W0 * wdy, S0 = 1.55 * W0 + 40, sx = S0 * wdx, sy = S0 * wdy, vw = o.vw, vh = o.vh;
+      // штрихи и пурговые хлопья — вдоль скорости (ветер + падение): угол один на кадр
+      const fall = (30 + 60 * 0.5) * (o.storm ? 1.5 : 1), ang = Math.atan2(wy + (o.storm ? fall * 0.35 : 0), Math.abs(wx) + 1e-3) * Math.sign(wx || 1), rot = Math.abs(ang) > 0.06 && !L;
+      const ca = Math.cos(ang), sa = Math.sin(ang), DP = o.dpr || 1;
       // снег светлее земли вокруг, но умножен на ambient: ночью — тёмно-синий, не «светящийся»
       const gain = 1.1 + 0.8 * (1 - (o.dark == null ? 1 : o.dark)); // ночью чуть светлее земли, но не «светится»
-      g.fillStyle = PAL.lit('snow', o.amb, gain);
+      const snowCol = PAL.lit('snow', o.amb, gain);
+      g.fillStyle = snowCol;
+      const dot = L ? null : tinted(snowCol), streak = L || !o.storm ? null : tint(TS, snowCol);
       for (let i = 0; i < n; i++) {
         const f = flakes[i];
         f.x += ((wx * (0.5 + f.z) + Math.sin(t + f.ph) * 12) * dt - o.camDX * (0.3 + f.z * 0.7)) / vw;
-        f.y += ((30 + 60 * f.z) * (o.storm ? 1.5 : 1) * dt - o.camDY * (0.3 + f.z * 0.7)) / vh;
+        f.y += (((30 + 60 * f.z) * (o.storm ? 1.5 : 1) + wy * (0.5 + f.z)) * dt - o.camDY * (0.3 + f.z * 0.7)) / vh;
         f.x -= Math.floor(f.x); f.y -= Math.floor(f.y);
         g.globalAlpha = 0.35 + f.z * 0.6;
-        const r = 0.8 + f.z * 1.8;
-        if (o.storm) g.fillRect(f.x * vw, f.y * vh, r * 4, r * 0.8); else g.fillRect(f.x * vw, f.y * vh, r, r);
+        const r = (0.8 + f.z * 1.8) * Z;
+        if (o.storm) { if (L) g.fillRect(f.x * vw, f.y * vh, r * 4, r * 0.8); else if (rot) { g.setTransform(DP * ca, DP * sa, -DP * sa, DP * ca, f.x * vw * DP, f.y * vh * DP); g.drawImage(streak, -r, -r * 0.35, r * 7.5, r * 1.5); } else g.drawImage(streak, f.x * vw - r, f.y * vh - r * 0.35, r * 7.5, r * 1.5); }
+        else if (!L && f.z > 0.45) { g.globalAlpha *= 0.55 * (0.35 + 0.65 * (o.dark == null ? 1 : o.dark)); g.drawImage(dot, f.x * vw - r * 1.5, f.y * vh - r * 1.5, r * 3, r * 3); }
+        else if (!L) g.drawImage(dot, f.x * vw - r, f.y * vh - r, r * 2, r * 2); // дальние мелкие — тоже мягкий диск (квадрат 1–2 px на зуме читался пикселем)
+        else g.fillRect(f.x * vw, f.y * vh, r, r);
       }
+      if (rot) g.setTransform(DP, 0, 0, DP, 0, 0);
       g.globalAlpha = 1;
       const ns = (o.storm ? 200 : 40) >> (L ? 1 : 0);
-      g.strokeStyle = PAL.lit('snow', o.amb, gain, 0.25); g.lineWidth = 1; g.beginPath();
-      for (let i = 0; i < ns; i++) {
-        const q = streaks[i];
-        q.x += ((o.storm ? 454 + gust : 85 + gust) * (0.6 + q.z) * dt - o.camDX) / vw; q.y -= o.camDY / vh; q.x -= Math.floor(q.x); q.y -= Math.floor(q.y);
-        const X = q.x * vw, Y = q.y * vh; g.moveTo(X, Y); g.lineTo(X + q.l * (o.storm ? 2 : 1), Y + 1);
+      if (L) { // low: простые линии одним проходом
+        g.strokeStyle = PAL.lit('snow', o.amb, gain, 0.25); g.lineWidth = Z; g.beginPath();
+        for (let i = 0; i < ns; i++) {
+          const q = streaks[i];
+          q.x += (sx * (0.6 + q.z) * dt - o.camDX) / vw; q.y += (sy * (0.6 + q.z) * dt - o.camDY) / vh; q.x -= Math.floor(q.x); q.y -= Math.floor(q.y);
+          const X = q.x * vw, Y = q.y * vh, l = q.l * (o.storm ? 2 : 1) * Z; g.moveTo(X, Y); g.lineTo(X + l * ca, Y + l * sa + Z);
+        }
+        g.stroke();
+      } else { // high: те же штрихи мягкой чёрточкой — без жёстких концов, толщина 1–2 px с растушёвкой
+        const sp = tint(TL, snowCol); g.globalAlpha = 0.42;
+        for (let i = 0; i < ns; i++) {
+          const q = streaks[i];
+          q.x += (sx * (0.6 + q.z) * dt - o.camDX) / vw; q.y += (sy * (0.6 + q.z) * dt - o.camDY) / vh; q.x -= Math.floor(q.x); q.y -= Math.floor(q.y);
+          const X = q.x * vw, Y = q.y * vh, len = q.l * (o.storm ? 2 : 1) * Z, th = (2.4 + q.z * 1.6) * Z;
+          if (rot) { g.setTransform(DP * ca, DP * sa, -DP * sa, DP * ca, X * DP, Y * DP); g.drawImage(sp, 0, -th / 2, len, th); }
+          else g.drawImage(sp, X, Y - th / 2, len, th);
+        }
+        if (rot) g.setTransform(DP, 0, 0, DP, 0, 0);
+        g.globalAlpha = 1;
       }
-      g.stroke();
       // пурга: вуаль к краям — цвет снега × ambient (ночью тёмная, а не молочная)
       if (o.storm) {
         const gr = g.createRadialGradient(o.px, o.py, 140, o.px, o.py, 420);

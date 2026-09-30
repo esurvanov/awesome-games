@@ -22,18 +22,50 @@ const ArtWorld = (() => {
 
   // ---------- спрайты-заготовки (создаются один раз) ----------
   // масштаб кэша задаёт рендер (GFX: rdpr и ступень зума zb); стенды без GFX — dpr окна
-  let BASE = 0, ZB = 1;
+  let BASE = 0, ZB = 1, ZPREV = 1;
   const DPR = () => BASE || Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
-  const SC = () => DPR() * ZB; // спрайты объектов: резкие и при зуме 1.3–1.6
-  function setScale(base, zb = 1) { BASE = base; ZB = zb; }
-  const cache = {};
+  const SC = () => DPR() * ZB; // спрайты объектов: резкие на любом зуме (ступень ZB задаёт GFX)
+  // смена ступени: держим текущую и прошлую (запасной кэш, пока новая допекается), остальные — вон
+  function setScale(base, zb = 1) {
+    if (base !== BASE) { // другой растровый dpr (качество, монитор): все масштабные кэши — вон
+      const had = BASE; BASE = base; ZB = ZPREV = zb;
+      if (had) for (const k in cache) if (cache[k]._zb != null) drop(k);
+      return;
+    }
+    if (zb === ZB) return;
+    ZPREV = ZB; ZB = zb; purge(ZPREV);
+  }
+  const cache = {}, last = {}; // last[ключ] — последний испечённый вариант любой ступени (запасной)
+  let BUD = Infinity, spent = 0, tick = 0, bytes = 0, CAP = Infinity; // бюджет печи на кадр, мс (GFX.budget); стенды — без ограничений
+  function drop(k) { const c = cache[k]; delete cache[k]; bytes -= c.width * c.height * 4; if (last[c._key] === c) delete last[c._key]; }
+  // кадр: сброс бюджета печи; сверх потолка памяти — выселить давно не рисованные масштабные спрайты (LRU)
+  function budget(ms, capMB) {
+    BUD = ms; spent = 0; tick++; if (capMB) CAP = capMB * 1048576;
+    if (bytes <= CAP) return;
+    const old = Object.keys(cache).filter(k => cache[k]._zb != null && cache[k]._u < tick - 1).sort((a, b) => cache[a]._u - cache[b]._u);
+    for (const k of old) { if (bytes <= CAP * 0.85) break; drop(k); }
+  }
+  function purge(keep = ZB) { for (const k in cache) { const c = cache[k]; if (c._zb != null && c._zb !== ZB && c._zb !== keep) drop(k); } }
   function sprite(key, w, h, draw, sc) {
-    const s = sc || SC(); key += '@' + s;
-    if (cache[key]) return cache[key];
-    const c = document.createElement('canvas');
+    const s = sc || SC(), k = key + '@' + s;
+    const hit = cache[k]; if (hit) { hit._u = tick; return hit; }
+    // бюджет кадра исчерпан: есть прошлая ступень — она; нет (новый объект в кадре) — дешёвая печь ступени 1, крупную допечём потом
+    if (spent >= BUD && sc !== 1) { const fb = last[key]; if (fb) return fb; if (ZB > 1) return bake(key, w, h, draw, s / ZB, 1); }
+    return bake(key, w, h, draw, s, sc === 1 ? null : ZB);
+  }
+  function bake(key, w, h, draw, s, zb) {
+    const t0 = performance.now(), c = document.createElement('canvas');
     c.width = Math.ceil(w * s); c.height = Math.ceil(h * s);
     const g = c.getContext('2d'); g.scale(s, s); draw(g, w, h);
-    return (cache[key] = c);
+    c._s = s; c._key = key; c._u = tick; bytes += c.width * c.height * 4; if (zb != null) c._zb = zb; // масштаб от зума — чистится при смене ступени
+    spent += performance.now() - t0;
+    return (cache[key + '@' + s] = last[key] = c);
+  }
+  function stats() {
+    const by = {}; let n = 0, b = 0;
+    for (const k in cache) { const c = cache[k], z = c._zb == null ? '-' : c._zb, m = c.width * c.height * 4; n++; b += m; by[z] = by[z] || { n: 0, mb: 0 }; by[z].n++; by[z].mb += m / 1048576; }
+    for (const z in by) by[z].mb = +by[z].mb.toFixed(1);
+    return { n, mb: +(b / 1048576).toFixed(1), by };
   }
   function radial(key, size, stops) {
     return sprite(key, size, size, g => {
@@ -79,33 +111,76 @@ const ArtWorld = (() => {
   }
 
   // ================= ДЕРЕВЬЯ =================
+  // воронка-наддув у ствола (общая для всех деревьев): неровный тёмный провал у комля и рваный наддув, растворяющийся в снег
+  // (без плотного края-«наклейки»). k — масштаб по ширине комля (ель 1), seed — своя рябь у каждого вида.
+  function trunkWell(g, s, v, k = 1, seed = 4401) {
+    v = +v || 0;
+    const rs = rng(seed + Math.round(v * 53) + Math.round(s * 100) * 7), q = s * k;
+    const soft = (x, y, rx, ry, rot, c0, c1) => {
+      g.save(); g.translate(x, y); g.rotate(rot); g.scale(rx, ry);
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, c0); gr.addColorStop(0.6, c0.replace(/[\d.]+\)$/, m => (parseFloat(m) * 0.5).toFixed(2) + ')')); gr.addColorStop(1, c1);
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
+    };
+    // общий мягкий синий ореол просадки снега
+    soft(0.5 * q, -0.5 * s, 22 * q, 6.4 * q, (rs() - 0.5) * 0.2, 'rgba(120,150,190,0.30)', 'rgba(120,150,190,0)');
+    // наддув: несколько разных бугров вокруг ствола, левые светлее, правые уходят в синюю тень
+    for (let j = 0; j < 7; j++) {
+      const an = j / 7 * TAU + rs() * 0.6, rd = 0.55 + rs() * 0.5;
+      const px = Math.cos(an) * 12 * q * rd, py = -0.5 * s + Math.sin(an) * 3.2 * q * rd, rx = (4.5 + rs() * 6) * q, ry = (1.6 + rs() * 1.8) * q;
+      soft(px, py, rx, ry, (rs() - 0.5) * 0.7, px < 0 ? 'rgba(250,252,255,0.85)' : 'rgba(226,235,246,0.7)', 'rgba(240,246,252,0)');
+    }
+    // рваная воронка у самого ствола: неровный тёмный контур без правильной формы
+    // край провала слегка размыт (где есть ctx.filter): на крупном зуме ломаная читалась вырезанным многоугольником
+    const hasF = typeof g.filter === 'string'; if (hasF) g.filter = 'blur(' + (1.1 * s * Math.hypot(g.getTransform().a, g.getTransform().b)).toFixed(2) + 'px)';
+    g.fillStyle = 'rgba(70,96,140,0.44)'; g.beginPath();
+    const nn = 9; for (let j = 0; j < nn; j++) {
+      const an = j / nn * TAU, rr0 = (1 + (rs() - 0.5) * 0.7), px = Math.cos(an) * 7.4 * q * rr0, py = -0.8 * s + Math.sin(an) * 2 * q * rr0;
+      j ? g.lineTo(px, py) : g.moveTo(px, py);
+    } g.closePath(); g.fill(); if (hasF) g.filter = 'none';
+    // светлый край с солнечной стороны воронки — снег выпирает
+    g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 0.9 * s; g.lineCap = 'round'; g.beginPath();
+    g.moveTo(-8 * q, -0.3 * s); g.quadraticCurveTo(-5 * q, 1.9 * s, -1 * q, 2 * s); g.stroke();
+    // комочки осыпавшегося снега — мягкие (на крупном зуме чёткие овалы читались наклейками)
+    for (let j = 0; j < 6; j++) { const px = (rs() - 0.5) * 30 * q, py = (rs() * 6 - 1) * s, d = (0.7 + rs() * 1.1) * s; soft(px, py, d * 1.3, d * 0.65, 0, 'rgba(250,252,255,0.9)', 'rgba(250,252,255,0)'); }
+    el(g, 1.5 * s, -1.6 * s, 4.5 * q, 1.2 * s, SH(0.28)); // ствол уходит в снег
+  }
+
   function paintSpruce(g, s, wall, v) {
     v = +v || 0;
     const r = rng(1013 + Math.round(v * 97) + Math.round(s * 100) * 13 + (wall ? 7 : 0));
     const dk = wall ? '#10271f' : '#10271f', md = wall ? '#10271f' : '#1c4034', lt = wall ? '#1c4034' : '#2f5a3a';
+    const lean = (r() - 0.5) * 0.14; // лёгкий наклон кроны: комель на месте, верх смещён
     shadow(g, 0, 0, 19 * s, 5.5 * s, 0.4);
+    g.save(); g.transform(1, 0, lean, 1, 0, 0);
     g.fillStyle = lg(g, -4 * s, 0, 4 * s, 0, [[0, '#765436'], [0.45, '#5b3d27'], [1, '#3a2618']]);
     g.beginPath(); g.moveTo(-4 * s, 0); g.lineTo(-2.2 * s, -34 * s); g.lineTo(2.2 * s, -34 * s); g.lineTo(4 * s, 0); g.fill();
-    // сугроб у ствола
-    g.fillStyle = lg(g, -16 * s, 0, 16 * s, 0, [[0, '#f6f9fc'], [0.6, '#eaf0f5'], [1, '#b6c9df']]);
-    g.beginPath(); g.ellipse(0, -1 * s, 15 * s, 4.5 * s, 0, 0, TAU); g.fill();
-    el(g, 1 * s, -2.2 * s, 5.5 * s, 1.5 * s, SH(0.22)); // AO: ствол уходит в снег
+    trunkWell(g, s, v); // воронка-наддув у ствола
     const N = 5, T = []; let prev = null;
-    for (let i = 0; i < N; i++) T.push({ w: (34 - i * 6.4) * s * (0.93 + r() * 0.14), yb: -11 * s - i * 18.5 * s, h: (33 - i * 2.4) * s });
+    { let yy = -11 * s; for (let i = 0; i < N; i++) { const w = (34 - i * 6.4) * s * (0.86 + r() * 0.28); T.push({ w, wl: w * (0.82 + r() * 0.36), wr: w * (0.82 + r() * 0.36), yb: yy, h: (33 - i * 2.4) * s * (0.88 + r() * 0.24), mm: i < 2 ? 6 + (r() * 3 | 0) : i < 4 ? 5 + (r() * 2 | 0) : 4 }); yy -= (14.5 + r() * 8) * s; } }
     for (let i = 0; i < N; i++) {
-      const { w, yb, h } = T[i], top = yb - h, m = i < 2 ? 6 : i < 4 ? 5 : 4;
+      const { w, wl, wr, yb, h, mm: m } = T[i], top = yb - h;
       // тень от яруса выше уже нарисованного — нет; рисуем тень этого яруса на нижний
       if (prev) { g.save(); g.clip(prev); g.fillStyle = 'rgba(40,60,110,0.3)'; g.beginPath(); g.ellipse(w * 0.12, yb + 2.5 * s, w * 1.02, 3.6 * s, 0, 0, TAU); g.fill(); g.restore(); }
       const tips = [], P = new Path2D();
       g.fillStyle = lg(g, -w, 0, w, 0, [[0, lt], [0.42, md], [1, dk]]);
       P.moveTo(0, top);
-      P.quadraticCurveTo(-w * 0.28, yb - h * 0.42, -w, yb + 2 * s);
+      // рваный силуэт: лапы разной длины, с зубцами и провалами, часть обломана
+      P.quadraticCurveTo(-wl * 0.28, yb - h * 0.42, -wl, yb + (1 + r() * 2) * s);
       for (let j = 1; j <= m; j++) {
-        const xj = -w + 2 * w * j / m, dr = (1.2 + 2.6 * Math.abs(xj) / w + r() * 1.4) * s;
+        const tj = j / m, xj = -wl + (wl + wr) * tj + (j < m ? (r() - 0.5) * w * 0.22 : 0), edge = Math.abs(xj) / Math.max(wl, wr);
+        const dr = (0.4 + 3.2 * edge + r() * 3.4) * s * (r() < 0.18 ? 0.25 : 1), nx = xj - (wl + wr) / m * (0.35 + r() * 0.3), ny = yb - (2 + r() * 4.5) * s;
         tips.push([xj, yb + dr]);
-        P.quadraticCurveTo(xj - w / m, yb - 3.5 * s, xj, yb + dr);
+        P.quadraticCurveTo(nx, ny, xj, yb + dr);
+        if (j < m && r() < 0.55) P.lineTo(xj + (r() * 2.4 + 0.6) * s, yb + dr - (1.2 + r() * 2.4) * s); // зубец-рубец между лапами
       }
-      P.quadraticCurveTo(w * 0.28, yb - h * 0.42, 0, top); g.fill(P); prev = P;
+      P.quadraticCurveTo(wr * 0.28, yb - h * 0.42, 0, top); g.fill(P); prev = P;
+      // мелкие торчащие веточки на кромке (рвут ровный контур)
+      g.strokeStyle = 'rgba(16,39,31,0.95)'; g.lineWidth = 0.8 * s; g.lineCap = 'round'; g.beginPath();
+      for (let k = 0; k < 5; k++) {
+        const side = r() < 0.5 ? -1 : 1, ty = r(), py = yb - ty * h * 0.8, ex = (side < 0 ? wl : wr) * (1 - (yb - py) / h) * 0.95;
+        g.moveTo(side * (ex - 1.5 * s), py); g.lineTo(side * (ex + (2 + r() * 3.5) * s), py + (1 + r() * 2.5) * s);
+      }
+      g.stroke();
       // хвоя: светлые штрихи слева, тёмные справа
       g.lineWidth = 0.9 * s; g.lineCap = 'round';
       for (const [col, side] of [['rgba(92,150,120,0.55)', -1], ['rgba(16,39,31,0.55)', 1]]) {
@@ -119,7 +194,7 @@ const ArtWorld = (() => {
       // снежная шапка: тень, снег, синяя кромка
       const sl = -w * (0.72 + 0.16 * r()) * (wall ? 0.85 : 1), sr = w * (0.18 + r() * 0.2), ey = yb - h * 0.06;
       const lumps = [];
-      for (let k = 0; k <= 4; k++) { const t = k / 4; lumps.push([sl + (sr - sl) * t, ey - (ey - (yb - h * 0.52)) * t * t + (k % 2 ? 1.6 : -0.4) * s]); }
+      for (let k = 0; k <= 6; k++) { const t = k / 6; lumps.push([sl + (sr - sl) * t + (k && k < 6 ? (r() - 0.5) * 4 * s : 0), ey - (ey - (yb - h * 0.52)) * t * t + ((k % 2 ? 1.6 : -0.4) + (r() - 0.5) * 3.4) * s]); }
       const cap = (dx, dy) => {
         g.beginPath(); g.moveTo(dx, top - 1 * s + dy);
         g.quadraticCurveTo(-w * 0.26 + dx, yb - h * 0.44 + dy, lumps[0][0] + dx, lumps[0][1] + dy);
@@ -132,13 +207,24 @@ const ArtWorld = (() => {
       g.moveTo(lumps[0][0], lumps[0][1]);
       for (let k = 1; k < lumps.length; k++) { const [px, py] = lumps[k - 1], [qx, qy] = lumps[k]; g.quadraticCurveTo((px + qx) / 2, Math.max(py, qy) + 2.6 * s, qx, qy); }
       g.stroke();
-      // снег на кончиках лап
-      g.fillStyle = '#f6f9fc'; g.beginPath();
-      for (const [tx, ty] of tips) if (tx < w * 0.3 && r() < (wall ? 0.5 : 0.8)) { g.moveTo(tx + 3 * s, ty - 1.5 * s); g.ellipse(tx, ty - 1.5 * s, 3 * s, 1.4 * s, 0, 0, TAU); }
-      g.fill();
-      g.fillStyle = 'rgba(182,201,223,0.9)'; g.beginPath();
-      for (const [tx, ty] of tips) if (tx >= w * 0.3 && r() < 0.6) { g.moveTo(tx + 2.4 * s, ty - 1.3 * s); g.ellipse(tx, ty - 1.3 * s, 2.4 * s, 1.1 * s, 0, 0, TAU); }
-      g.fill();
+      // комья снега на лапах: неровные, с тенью под комом и синей стороной от солнца
+      const clump = (x, y, rx, ry, k) => {
+        g.fillStyle = 'rgba(16,39,31,0.5)'; g.beginPath(); g.ellipse(x + 0.6 * s, y + ry * 0.7, rx * 1.05, ry * 0.7, 0, 0, TAU); g.fill();
+        g.fillStyle = k ? '#dfe8f1' : '#f6f9fc'; g.beginPath();
+        const n = 7, ph = r() * TAU; for (let q = 0; q < n; q++) { const an = ph + q / n * TAU, rr0 = 0.75 + r() * 0.5, px = x + Math.cos(an) * rx * rr0, py = y + Math.sin(an) * ry * rr0; q ? g.lineTo(px, py) : g.moveTo(px, py); }
+        g.closePath(); g.fill();
+        g.fillStyle = 'rgba(147,172,196,0.75)'; g.beginPath(); g.ellipse(x + rx * 0.3, y + ry * 0.35, rx * 0.7, ry * 0.55, 0, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.ellipse(x - rx * 0.25, y - ry * 0.3, rx * 0.5, ry * 0.4, 0, 0, TAU); g.fill();
+      };
+      for (const [tx, ty] of tips) if (r() < (wall ? 0.5 : (tx < w * 0.3 ? 0.75 : 0.5))) clump(tx, ty - (1 + r() * 2) * s, (1.8 + r() * 2.6) * s, (0.9 + r() * 1.1) * s, tx >= w * 0.3);
+      for (let k = 0; k < 3; k++) { const ty = r(), py = yb - 3 * s - ty * h * 0.6, hw = w * (1 - (yb - py) / h) * 0.8; clump((r() - 0.7) * hw, py, (1.5 + r() * 2.2) * s, (0.8 + r()) * s, 0); }
+      // обломанные ветки: сухие сучья с торчащим краем и снегом сверху
+      if (i > 0 && r() < 0.6) {
+        const sd = r() < 0.5 ? -1 : 1, x0 = sd * (sd < 0 ? wl : wr) * (0.55 + r() * 0.35), y0 = yb + (1 + r() * 2) * s, l1 = (4 + r() * 5) * s;
+        g.lineCap = 'round'; g.strokeStyle = '#4a4038'; g.lineWidth = 1.5 * s; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + sd * l1, y0 + l1 * 0.35); g.stroke();
+        g.lineWidth = 0.8 * s; g.beginPath(); g.moveTo(x0 + sd * l1 * 0.55, y0 + l1 * 0.2); g.lineTo(x0 + sd * l1 * 0.9, y0 + l1 * 0.8); g.stroke();
+        g.strokeStyle = '#eef4f9'; g.lineWidth = 0.9 * s; g.beginPath(); g.moveTo(x0 + sd * 0.6 * s, y0 - 0.6 * s); g.lineTo(x0 + sd * l1 * 0.8, y0 + l1 * 0.2); g.stroke();
+      }
     }
     // верхушка
     const tt = T[N - 1].yb - T[N - 1].h;
@@ -154,6 +240,8 @@ const ArtWorld = (() => {
       el(g, x0 + side * 11.3 * s, y0 - 5.1 * s, 1.1 * s, 1.1 * s, '#cea977');
     }
     crownLight(g, s, 36, 130);
+    volume(g, s, 36, 130, T.map(t => [t.yb, t.h]), 771 + Math.round(v * 31));
+    g.restore();
   }
   // объём кроны: свет №1 сверху-слева, теневой бок справа-снизу — поверх уже нарисованного (source-atop), выше сугроба
   function crownLight(g, s, hw, ht) {
@@ -161,6 +249,92 @@ const ArtWorld = (() => {
     g.globalCompositeOperation = 'source-atop';
     g.fillStyle = lg(g, -hw * s, -ht * s, hw * s, -ht * 0.25 * s, [[0, 'rgba(255,246,228,0.14)'], [0.42, 'rgba(255,246,228,0)'], [0.6, 'rgba(16,30,52,0)'], [1, 'rgba(16,30,52,0.26)']]);
     g.fillRect(-hw * 1.4 * s, -(ht + 20) * s, hw * 2.8 * s, (ht + 12) * s);
+    g.restore();
+  }
+
+  // фото-зерно хвои (CC0): серая текстура по силуэту уже нарисованного дерева. Слой маскируется силуэтом, затем накладывается
+  // overlay (source-atop с режимом смешивания несовместим): белый снег на лапах не темнеет, зерно только в хвое. Нет файла / QUALITY low — пропуск.
+  let grainCv = null;
+  function needleGrain(g, alpha = 0.5) {
+    if (typeof Photo === 'undefined') return;
+    const p = Photo.pattern('needles', 0.34 * Math.round(g.getTransform().a * 100) / 100, 0.4); if (!p) return;
+    try {
+      const cv = g.canvas, w = cv.width, h = cv.height;
+      if (!grainCv) grainCv = document.createElement('canvas');
+      if (grainCv.width !== w || grainCv.height !== h) { grainCv.width = w; grainCv.height = h; }
+      const L = grainCv.getContext('2d');
+      L.setTransform(1, 0, 0, 1, 0, 0); L.globalCompositeOperation = 'source-over'; L.globalAlpha = 1; L.clearRect(0, 0, w, h);
+      L.fillStyle = p; L.fillRect(0, 0, w, h);
+      L.globalCompositeOperation = 'destination-in'; L.drawImage(cv, 0, 0);
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'overlay'; g.globalAlpha = alpha; g.drawImage(grainCv, 0, 0); g.restore();
+    } catch (e) { /* фолбэк: дерево остаётся процедурным */ }
+  }
+  // хвоинки для крупных ступеней: короткие штрихи с круглыми концами вдоль лап (наружу и вниз), размер — доля спрайта,
+  // уменьшенная как √(ступень), число — наоборот (плотность зерна та же). Слой по силуэту накладывается overlay:
+  // на белом снегу лап почти не виден (нет серых крапин), в тёмной хвое — темнит/светлит. Цена — только при печи спрайта.
+  function needleStrokes(g, s, hw, ht, r) {
+    const P = g.getTransform().a, f = Math.sqrt(1.6 * DPR() / P), m = 1 / (f * f);
+    try {
+      const cv = g.canvas, w = cv.width, h = cv.height, T = g.getTransform();
+      if (!grainCv) grainCv = document.createElement('canvas');
+      if (grainCv.width !== w || grainCv.height !== h) { grainCv.width = w; grainCv.height = h; }
+      const L = grainCv.getContext('2d');
+      L.setTransform(1, 0, 0, 1, 0, 0); L.globalCompositeOperation = 'source-over'; L.globalAlpha = 1; L.clearRect(0, 0, w, h);
+      L.setTransform(T); L.lineCap = 'round';
+      for (const [c, n, lw] of [['rgba(10,22,18,0.5)', 240, 0.55], ['rgba(190,225,200,0.34)', 110, 0.45]]) {
+        L.strokeStyle = c; L.lineWidth = Math.max(lw * s * f, 1.1 / P); L.beginPath();
+        for (let k = 0, N = Math.round(n * m); k < N; k++) {
+          const x = (r() * 2 - 1) * hw * s, y = -r() * ht * s, sd = x < 0 ? -1 : 1, a = 0.25 + r() * 0.45, l = s * f * (1.3 + r() * 1.5);
+          const dx = Math.cos(a) * l * sd, dy = Math.sin(a) * l;
+          L.moveTo(x - dx / 2, y - dy / 2); L.lineTo(x + dx / 2, y + dy / 2);
+        }
+        L.stroke();
+      }
+      L.setTransform(1, 0, 0, 1, 0, 0); L.globalCompositeOperation = 'destination-in'; L.drawImage(cv, 0, 0);
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 1; g.drawImage(grainCv, 0, 0); g.restore();
+    } catch (e) { /* фолбэк: без зерна */ }
+  }
+  // объём поверх готовой кроны (source-atop, только по силуэту): тёмная подошва каждого яруса, тёмный низ, светлый левый бок,
+  // мелкая хвойная «зернистость» — плоские заливки перестают читаться как вырезанные из бумаги
+  function volume(g, s, hw, ht, tiers, seed) {
+    const r = rng(seed);
+    g.save(); g.globalCompositeOperation = 'source-atop';
+    const W = hw * 1.5 * s, top = -(ht + 20) * s, H = (ht + 12) * s;
+    g.fillStyle = lg(g, -W, 0, W, 0, [[0, 'rgba(236,250,226,0.1)'], [0.38, 'rgba(255,244,222,0)'], [0.62, 'rgba(6,34,22,0.04)'], [1, 'rgba(6,34,22,0.22)']]);
+    g.fillRect(-W, top, W * 2, H);
+    g.fillStyle = lg(g, 0, -ht * s, 0, 0, [[0, 'rgba(6,34,22,0)'], [0.55, 'rgba(6,34,22,0.03)'], [1, 'rgba(6,34,22,0.2)']]);
+    g.fillRect(-W, top, W * 2, H);
+    for (const [yb, h] of tiers) {
+      g.fillStyle = lg(g, 0, yb - 7 * s, 0, yb + 4 * s, [[0, 'rgba(6,34,22,0)'], [1, 'rgba(6,34,22,0.24)']]);
+      g.fillRect(-W, yb - 7 * s, W * 2, 11 * s);
+      g.fillStyle = lg(g, 0, yb - h, 0, yb - h + 9 * s, [[0, 'rgba(255,248,232,0.12)'], [1, 'rgba(255,248,232,0)']]);
+      g.fillRect(-W, yb - h, W * 2, 9 * s);
+    }
+    needleGrain(g);
+    // крупные ступени (2.5, 4): прямоугольное зерно растёт вместе со спрайтом и на зуме читается квадратиками — вместо него хвоинки
+    if (g.getTransform().a / DPR() > 1.7) { needleStrokes(g, s, hw, ht, r); g.restore(); return; }
+    // зерно хвои: тёмное плотнее, светлое — зеленоватое и слабое (серо-голубая общая заливка убрана: кроны выцветали в туман)
+    for (const [c, n] of [['rgba(8,26,20,0.24)', 240], ['rgba(120,170,140,0.12)', 110]]) {
+      g.fillStyle = c; g.beginPath();
+      for (let k = 0; k < n; k++) g.rect((r() * 2 - 1) * hw * s, -r() * ht * s, s * (0.8 + r() * 0.9), s * 0.8);
+      g.fill();
+    }
+    g.restore();
+  }
+
+  // объёмный свет для больших тел (source-atop по уже нарисованному): светлый левый бок, тёмный правый, тёмный низ, зерно
+  function bodyLight(g, x0, y0, w, h, k = 1, seed = 5) {
+    const r = rng(seed);
+    g.save(); g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = lg(g, x0, 0, x0 + w, 0, [[0, `rgba(255,244,222,${0.16 * k})`], [0.35, 'rgba(255,244,222,0)'], [0.6, `rgba(14,26,48,${0.05 * k})`], [1, `rgba(14,26,48,${0.36 * k})`]]);
+    g.fillRect(x0, y0, w, h);
+    g.fillStyle = lg(g, 0, y0, 0, y0 + h, [[0, `rgba(255,248,232,${0.08 * k})`], [0.55, 'rgba(14,26,48,0)'], [1, `rgba(14,26,48,${0.3 * k})`]]);
+    g.fillRect(x0, y0, w, h);
+    for (const [c, n] of [['rgba(14,24,40,0.12)', 500], ['rgba(255,255,255,0.14)', 350]]) {
+      g.fillStyle = c; g.beginPath();
+      for (let i = 0; i < n; i++) g.rect(x0 + r() * w, y0 + r() * h, 0.8 + r() * 1.2, 0.7);
+      g.fill();
+    }
     g.restore();
   }
 
@@ -214,9 +388,8 @@ const ArtWorld = (() => {
       g.rect(xx, yy, ww, (0.7 + r() * 0.9) * s);
     }
     g.fill();
-    // сугроб у комля и упавшая ветка
-    g.fillStyle = lg(g, -12 * s, 0, 12 * s, 0, [[0, '#f6f9fc'], [1, '#c6d5e6']]);
-    g.beginPath(); g.ellipse(0, -0.5 * s, 11 * s, 3.4 * s, 0, 0, TAU); g.fill();
+    // воронка-наддув у комля (как у ели) и упавшая ветка
+    trunkWell(g, s, v, 0.8, 5203);
     if (r() < 0.7) {
       const side = r() < 0.5 ? -1 : 1, x0 = side * 14 * s, y0 = 3 * s;
       line(g, '#473930', 1.6 * s, x0, y0, x0 + side * 16 * s, y0 - 2 * s);
@@ -225,6 +398,17 @@ const ArtWorld = (() => {
     }
   }
 
+  // корни-клинья от комля, уходят под снег (вместо овальных «пятаков»): side −1/1, длина в s, цвет
+  function rootsInSnow(g, s, hw, roots) {
+    for (const [sd, L, c] of roots) {
+      g.fillStyle = c; g.beginPath(); g.moveTo(sd * (hw - 1.5) * s, -4.2 * s);
+      g.quadraticCurveTo(sd * (hw + 1) * s, -2.6 * s, sd * L * s, 0.2 * s);
+      g.quadraticCurveTo(sd * (hw + 0.5) * s, 0.4 * s, sd * (hw - 2.5) * s, -0.6 * s); g.closePath(); g.fill();
+      // снег присыпал конец корня: мягкий бугорок без края
+      g.fillStyle = 'rgba(246,249,252,0.8)'; g.beginPath(); g.moveTo(sd * (L - 3.5) * s, 0.6 * s);
+      g.quadraticCurveTo(sd * (L - 1.5) * s, -1.6 * s, sd * (L + 1.5) * s, 0.5 * s); g.closePath(); g.fill();
+    }
+  }
   // кедр: тёмная, раскидистая крона из плоских «лап» на кривых сучьях, несколько вершин, рваный силуэт
   function paintCedar(g, s, v) {
     v = +v || 0;
@@ -288,11 +472,9 @@ const ArtWorld = (() => {
     }
     // шишки
     for (let k = 0; k < 3; k++) { const [px, py, rx] = pads[(r() * pads.length) | 0]; if (r() < 0.5) continue; const cx0 = px + J(rx), cy0 = py + 3 * s; el(g, cx0, cy0, 2.2 * s, 2.8 * s, '#5b3d27'); el(g, cx0 - 0.6 * s, cy0 - 0.9 * s, 0.9 * s, 1.1 * s, '#8a6a45'); }
-    // снег у комля
-    g.fillStyle = lg(g, -15 * s, 0, 15 * s, 0, [[0, '#f6f9fc'], [1, '#c6d5e6']]);
-    g.beginPath(); g.ellipse(0, -0.5 * s, 15 * s, 4 * s, 0, 0, TAU); g.fill();
-    el(g, -9 * s, -2 * s, 3.4 * s, 1.6 * s, '#4b3220'); el(g, 10 * s, -1.5 * s, 3.6 * s, 1.5 * s, '#3a2618');
-    el(g, 1.5 * s, -2.4 * s, 8 * s, 1.6 * s, SH(0.2));
+    // воронка-наддув у комля (как у ели), из снега торчат корни
+    trunkWell(g, s, v, 1.3, 6311);
+    rootsInSnow(g, s, 7.2, [[-1, 12, '#4b3220'], [1, 13, '#3a2618']]);
     crownLight(g, s, 44, 105);
   }
 
@@ -300,8 +482,18 @@ const ArtWorld = (() => {
   // кэш дерева 110×170, опора (55,160) — как в gfx.js
   const treeW = kind => kind === 2 ? 150 : 110; // кедр раскидистый — шире спрайт
   const treeK = s => TS[clamp(Math.round((s - 0.8) / 0.15), 0, 4)]; // ступень размера, в которой испечён спрайт
+  // быстрый путь: дерево спрашивается дважды за кадр (тень и само дерево) — без сборки строки-ключа и замыкания;
+  // запись верна, пока спрайт того же масштаба лежит в кэше (смена ступени/purge — снова через sprite())
+  const TMEMO = new Map();
   function treeSprite(kind, s, wall, v, sc) {
-    const si = clamp(Math.round((s - 0.8) / 0.15), 0, 4), key = `tree${kind}${wall | 0}${si}${v | 0}`, tw = treeW(kind);
+    const si = clamp(Math.round((s - 0.8) / 0.15), 0, 4), nk = ((kind * 2 + (wall ? 1 : 0)) * 5 + si) * 8 + (v | 0), m = TMEMO.get(nk);
+    if (m && m.sc === sc && cache[m.k] === m.c) return m.c;
+    const c = treeSpriteBake(kind, si, wall, v, sc);
+    if (sc && c._s === sc) TMEMO.set(nk, { sc, c, k: c._key + '@' + c._s });
+    return c;
+  }
+  function treeSpriteBake(kind, si, wall, v, sc) {
+    const key = `tree${kind}${wall | 0}${si}${v | 0}`, tw = treeW(kind);
     return sprite(key, tw, 170, g => {
       g.translate(tw / 2, 160); const sc = TS[si];
       if (kind === 1) paintBirch(g, sc, v); else if (kind === 2) paintCedar(g, sc, v); else if (kind === 3 && typeof ArtZones !== 'undefined') ArtZones.paintBurnt(g, sc, v); else paintSpruce(g, sc, wall, v);
@@ -309,7 +501,18 @@ const ArtWorld = (() => {
   }
 
   // ================= Ми-8, хвост, чум, лабаз =================
-  function paintMi8(g) {
+  // Ми-8 разрезан (паспорт №2): mode — 'full' (весь, для тени и стендов) · 'static' (корпус без живых частей) ·
+  // 'blade' (согнутая лопасть) · 'door' (полотно сдвижной двери) · 'lip' (снег и тень крыши над дверью — поверх полотна).
+  // Живые части кладутся поверх статики в тех же координатах (js/live.js); свет bodyLight у всех один (тот же прямоугольник и seed):
+  // в покое сумма слоёв = прежний спрайт.
+  function paintMi8(g, mode = 'full') {
+    const all = mode === 'full';
+    if (mode === 'blade') { mi8Blade(g); bodyLight(g, -160, -140, 320, 210, 1, 17); return; }
+    if (mode === 'door' || mode === 'lip') {
+      g.save(); g.translate(-10, -36); g.rotate(-0.09);
+      if (mode === 'door') mi8Door(g); else { g.beginPath(); g.rect(14, -50, 26, 35); g.clip(); mi8Roof(g); }
+      g.restore(); bodyLight(g, -160, -140, 320, 210, 1, 17); return;
+    }
     shadow(g, 0, 4, 150, 28, 0.4);
     // лопасть за фюзеляжем
     g.save(); g.translate(-4, -84); g.rotate(-0.16);
@@ -347,30 +550,41 @@ const ArtWorld = (() => {
     // открытая сдвижная дверь
     g.fillStyle = '#10151a'; g.fillRect(-6, -22, 22, 40);
     g.fillStyle = '#76593a'; g.fillRect(-2, 6, 12, 10); g.fillStyle = '#2f3542'; g.fillRect(-4, -18, 3, 20);
-    g.fillStyle = lg(g, 16, 0, 38, 0, [[0, '#a5acb3'], [1, '#c2c9d0']]); g.fillRect(16, -23, 22, 42);
-    line(g, '#6c7178', 1, 16, -23, 16, 19);
+    if (all) mi8Door(g);
     // слом
     g.fillStyle = '#161b21'; g.beginPath(); g.ellipse(83, 0, 7, 24, 0, 0, TAU); g.fill();
     g.restore();
     g.strokeStyle = '#6c7178'; g.lineWidth = 1.4; g.beginPath();
     for (let k = 0; k < 3; k++) { g.moveTo(74 + k * 4, -24); g.quadraticCurveTo(86 + k * 3, 0, 76 + k * 4, 24); } g.stroke();
-    g.strokeStyle = '#313031'; g.lineWidth = 1; g.beginPath(); g.moveTo(84, -2); g.bezierCurveTo(96, 6, 90, 18, 98, 22); g.moveTo(82, 6); g.bezierCurveTo(90, 14, 86, 22, 92, 26); g.stroke();
-    g.strokeStyle = '#ca4528'; g.beginPath(); g.moveTo(84, 2); g.bezierCurveTo(94, 10, 94, 18, 102, 20); g.stroke();
-    // снег на крыше и капоте
-    g.fillStyle = SH(0.35); g.beginPath(); g.moveTo(-90, -24); g.quadraticCurveTo(-70, -30, -46, -38); g.lineTo(46, -42); g.quadraticCurveTo(60, -36, 72, -24); g.lineTo(70, -20); g.lineTo(-88, -19); g.fill();
-    g.fillStyle = lg(g, 0, -46, 0, -24, [[0, '#f6f9fc'], [1, '#dde6ee']]); g.beginPath();
-    g.moveTo(-92, -25); g.quadraticCurveTo(-72, -31, -48, -41); g.quadraticCurveTo(0, -48, 46, -44); g.quadraticCurveTo(62, -38, 73, -27);
-    g.quadraticCurveTo(60, -23, 50, -25); g.quadraticCurveTo(40, -21, 30, -25); g.quadraticCurveTo(10, -22, -10, -25); g.quadraticCurveTo(-30, -21, -50, -25); g.quadraticCurveTo(-70, -21, -92, -25); g.fill();
+    if (all) for (const w of MI8_WIRES) { g.strokeStyle = w[0]; g.lineWidth = 1; g.beginPath(); g.moveTo(w[1], w[2]); g.bezierCurveTo(w[3], w[4], w[5], w[6], w[7], w[8]); g.stroke(); }
+    mi8Roof(g);
     // мачта и втулка
     rr(g, -5, -58, 10, 14, 2, '#4e535d'); el(g, 0, -58, 12, 4, '#2f3542'); el(g, 0, -60, 9, 3, '#f6f9fc');
     g.restore();
-    // лопасть, согнутая в снег
+    if (all) mi8Blade(g);
+    // обломок лопасти
+    g.save(); g.translate(-20, -94); g.rotate(2.2); g.fillStyle = '#2f3542'; g.fillRect(0, -3, 46, 6); g.restore();
+    mi8Ground(g);
+  }
+  // провода из разлома (в координатах корпуса): цвет, начало, две опоры, конец — живые цепочки в js/live.js стартуют с этой формы
+  const MI8_WIRES = [['#313031', 84, -2, 96, 6, 90, 18, 98, 22], ['#313031', 82, 6, 90, 14, 86, 22, 92, 26], ['#ca4528', 84, 2, 94, 10, 94, 18, 102, 20]];
+  function mi8Door(g) { // полотно открытой сдвижной двери (в координатах корпуса), петля-ролик сверху
+    g.fillStyle = lg(g, 16, 0, 38, 0, [[0, '#a5acb3'], [1, '#c2c9d0']]); g.fillRect(16, -23, 22, 42);
+    line(g, '#6c7178', 1, 16, -23, 16, 19);
+  }
+  function mi8Blade(g) { // лопасть, согнутая в снег (корень у втулки −8,−95, кончик в снегу 138,5)
     g.fillStyle = lg(g, 0, -80, 0, 20, [[0, '#4e535d'], [1, '#323138']]);
     g.beginPath(); g.moveTo(-8, -98); g.quadraticCurveTo(90, -104, 124, -54); g.quadraticCurveTo(138, -30, 142, 4); g.lineTo(134, 6); g.quadraticCurveTo(130, -26, 118, -50); g.quadraticCurveTo(90, -94, -8, -92); g.fill();
     line(g, 'rgba(255,255,255,0.35)', 1, 0, -97, 80, -98);
     g.fillStyle = '#f6f9fc'; g.beginPath(); g.moveTo(-6, -99); g.quadraticCurveTo(60, -104, 100, -86); g.lineTo(98, -83); g.quadraticCurveTo(60, -99, -6, -96); g.fill();
-    // обломок лопасти
-    g.save(); g.translate(-20, -94); g.rotate(2.2); g.fillStyle = '#2f3542'; g.fillRect(0, -3, 46, 6); g.restore();
+  }
+  function mi8Roof(g) { // снег на крыше и капоте (в координатах корпуса)
+    g.fillStyle = SH(0.35); g.beginPath(); g.moveTo(-90, -24); g.quadraticCurveTo(-70, -30, -46, -38); g.lineTo(46, -42); g.quadraticCurveTo(60, -36, 72, -24); g.lineTo(70, -20); g.lineTo(-88, -19); g.fill();
+    g.fillStyle = lg(g, 0, -46, 0, -24, [[0, '#f6f9fc'], [1, '#dde6ee']]); g.beginPath();
+    g.moveTo(-92, -25); g.quadraticCurveTo(-72, -31, -48, -41); g.quadraticCurveTo(0, -48, 46, -44); g.quadraticCurveTo(62, -38, 73, -27);
+    g.quadraticCurveTo(60, -23, 50, -25); g.quadraticCurveTo(40, -21, 30, -25); g.quadraticCurveTo(10, -22, -10, -25); g.quadraticCurveTo(-30, -21, -50, -25); g.quadraticCurveTo(-70, -21, -92, -25); g.fill();
+  }
+  function mi8Ground(g) { // сугроб у борта, лёд, ящики, бочка, обшивка, наддув — статика; общий свет корпуса
     // сугроб наметён к борту
     g.save();
     g.fillStyle = lg(g, 0, -30, 0, 36, [[0, '#f6f9fc'], [0.5, '#f6f9fc'], [1, SNOW]]);
@@ -394,47 +608,83 @@ const ArtWorld = (() => {
     el(g, 65.5, 6, 7.5, 2.6, '#f6f9fc');
     g.save(); g.translate(-146, 44); g.rotate(-0.3); g.fillStyle = '#c2c9d0'; g.fillRect(0, -6, 26, 10); g.fillStyle = '#ca4528'; g.fillRect(0, -2, 26, 3); g.restore();
     drift(g, -156, -110, 50, 8, 11);
+    bodyLight(g, -160, -140, 320, 210, 1, 17);
   }
 
+  // Хвост Ми-8 — обломок: хвостовая балка оторвана по шпангоуту (рваный край, стрингеры, провода), лежит по диагонали в снегу,
+  // смята и надломлена посередине; на конце — концевая балка-пилон, погнута набок, на ней рулевой винт: одна лопасть обломана,
+  // одна согнута и ушла в снег, третья висит. Под пилоном — обрубок стабилизатора. Ливрея — как у корпуса (paintMi8): белый низ-серый,
+  // красная полоса #ca4528, тёмная нитка #27394a. Верх балки — цепочка шапки js/snow.js (tail): [-87,-42 … -21,-35 … 46,-11].
   function paintTail(g) {
-    shadow(g, 0, 6, 100, 20, 0.4);
-    g.save(); g.translate(-8, -20); g.rotate(0.2);
-    // пилон и рулевой винт (сзади балки)
-    g.fillStyle = lg(g, 48, 0, 80, 0, [[0, '#dde6ee'], [1, '#8e99a3']]);
-    g.beginPath(); g.moveTo(48, -6); g.lineTo(70, -46); g.lineTo(80, -44); g.lineTo(66, 6); g.closePath(); g.fill();
-    g.fillStyle = '#ca4528'; g.beginPath(); g.moveTo(58, -24); g.lineTo(64, -34); g.lineTo(73, -32); g.lineTo(68, -20); g.fill();
-    g.save(); g.translate(76, -47); g.strokeStyle = '#2f3542'; g.lineCap = 'round';
-    g.lineWidth = 4; g.beginPath(); g.moveTo(0, 0); g.lineTo(18, -14); g.moveTo(0, 0); g.lineTo(-6, -22); g.stroke();
-    g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(12, 6, 14, 18); g.stroke();
-    g.fillStyle = '#f6f9fc'; g.fillRect(2, -4, 12, 2);
-    el(g, 0, 0, 4.5, 4.5, '#5d626b'); el(g, -1, -1, 1.6, 1.6, '#a5acb3');
+    shadow(g, -18, 4, 96, 16, 0.36);
+    // балка: два конуса с изломом; axis — ось, r — полутолщина (сужается к пилону)
+    const seg = (x0, y0, r0, x1, y1, r1) => { const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = dy / L, ny = -dx / L; return [[x0 + nx * r0, y0 + ny * r0], [x1 + nx * r1, y1 + ny * r1], [x1 - nx * r1, y1 - ny * r1], [x0 - nx * r0, y0 - ny * r0]]; };
+    const A = seg(-88, -30, 12, -22, -25, 10), B = seg(-22, -25, 10, 44, -4, 7);
+    // пилон (за балкой — рисуем раньше): погнут вправо-вверх, со складкой
+    g.fillStyle = lg(g, 36, 0, 70, 0, [[0, '#dde6ee'], [1, '#8e99a3']]);
+    poly(g, g.fillStyle, 34, -10, 48, -30, 58, -46, 66, -44, 60, -26, 50, -2);
+    line(g, 'rgba(62,68,80,0.55)', 1, 47, -29, 57, -27);                                  // складка излома
+    poly(g, '#ca4528', 51, -35, 57, -45, 64, -43, 59, -33);
+    // стабилизатор (дальний) — обрубок
+    poly(g, '#b2bac3', 20, -14, 30, -19, 26, -24, 16, -20);
+    // лопасть, ушедшая в снег (за балкой пилона)
+    g.lineCap = 'round';
+    g.strokeStyle = '#2f3542'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(62, -45); g.quadraticCurveTo(78, -38, 84, -18); g.stroke();
+    // балка: белый корпус с тенью к низу
+    const body = new Path2D(); body.moveTo(A[0][0], A[0][1]); body.lineTo(A[1][0], A[1][1]); body.lineTo(B[1][0], B[1][1]); body.lineTo(B[2][0], B[2][1]); body.lineTo(A[2][0] + 1.5, A[2][1] + 1); body.lineTo(A[3][0], A[3][1]);
+    // рваный край: зубцы обшивки по шпангоуту
+    body.lineTo(-92, -22); body.lineTo(-87, -27); body.lineTo(-93, -32); body.lineTo(-88, -36); body.lineTo(-91, -40); body.closePath();
+    g.fillStyle = lg(g, 0, -40, 0, 0, [[0, '#f6f9fc'], [0.35, '#dde6ee'], [0.8, '#b2bac3'], [1, '#7f8792']]); g.fill(body);
+    g.save(); g.clip(body);
+    // нитка и красная полоса — по оси, с изломом
+    g.strokeStyle = '#27394a'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(-95, -28); g.lineTo(-22, -22.5); g.lineTo(48, -1.5); g.stroke();
+    g.strokeStyle = '#ca4528'; g.lineWidth = 16; g.beginPath(); g.moveTo(6, -18); g.lineTo(20, -13.5); g.stroke();
+    // стыки панелей поперёк оси и заклёпки
+    g.strokeStyle = 'rgba(62,68,80,0.35)'; g.lineWidth = 0.8; g.beginPath();
+    for (const x of [-70, -54, -38]) { g.moveTo(x - 1, -44); g.lineTo(x + 1, -12); }
+    for (const x of [-4, 14, 30]) { g.moveTo(x + 3, -36); g.lineTo(x - 3, -4); }
+    g.stroke();
+    g.fillStyle = 'rgba(78,83,93,0.45)'; for (let x = -84; x < 40; x += 5) g.fillRect(x, x < -22 ? -33.5 + (x + 88) * 0.075 : -34.5 + (x + 22) * 0.31, 1, 1);
+    // смятие у излома: гармошка складок и надрыв
+    g.strokeStyle = 'rgba(47,53,66,0.55)'; g.lineWidth = 1; g.beginPath();
+    for (let k = 0; k < 4; k++) { const x = -28 + k * 3.6; g.moveTo(x, -37); g.lineTo(x + 2, -30); g.lineTo(x - 1, -23); g.lineTo(x + 1.5, -15); }
+    g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 0.7; g.beginPath(); for (let k = 0; k < 4; k++) { const x = -26.6 + k * 3.6; g.moveTo(x, -36); g.lineTo(x + 2, -29.5); } g.stroke();
+    poly(g, '#161b21', -22, -27, -16, -25, -19, -22);
+    // объём: блик сверху, тень снизу
+    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-84, -39); g.lineTo(-22, -32.5); g.lineTo(44, -9.5); g.stroke();
     g.restore();
-    // балка
-    const boom = new Path2D();
-    boom.moveTo(-80, -14); boom.lineTo(62, -6); boom.lineTo(62, 7); boom.lineTo(-80, 14); boom.lineTo(-86, 9); boom.lineTo(-78, 3); boom.lineTo(-87, -2); boom.lineTo(-79, -7); boom.lineTo(-85, -12); boom.closePath();
-    g.fillStyle = lg(g, 0, -14, 0, 14, [[0, '#f6f9fc'], [0.45, '#dde6ee'], [1, '#7f8792']]); g.fill(boom);
-    g.save(); g.clip(boom);
-    g.fillStyle = '#ca4528'; g.fillRect(-44, -20, 26, 40); g.fillStyle = '#27394a'; g.fillRect(-100, 1, 170, 1.4);
-    g.strokeStyle = 'rgba(62,68,80,0.35)'; g.lineWidth = 0.8; g.beginPath(); for (let x = -70; x < 60; x += 18) { g.moveTo(x, -16); g.lineTo(x, 16); } g.stroke();
-    g.fillStyle = 'rgba(78,83,93,0.45)'; for (let x = -76; x < 60; x += 5) g.fillRect(x, -5, 1, 1);
-    g.restore();
-    el(g, -82, 0, 5, 13, '#161b21');
-    g.strokeStyle = '#6c7178'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-76, -13); g.quadraticCurveTo(-84, 0, -76, 13); g.moveTo(-70, -13); g.quadraticCurveTo(-78, 0, -70, 13); g.stroke();
-    line(g, '#313031', 1, -84, 2, -96, 10, -100, 20);
-    // хвостовая опора
-    line(g, '#4e535d', 2.5, 40, 7, 48, 18); line(g, '#4e535d', 2.5, 48, 18, 58, 16);
-    // снег сверху
-    g.fillStyle = SH(0.35); g.beginPath(); g.moveTo(-80, -12); g.lineTo(62, -4); g.lineTo(62, -1); g.lineTo(-80, -7); g.fill();
-    g.fillStyle = '#f6f9fc'; g.beginPath(); g.moveTo(-82, -14); g.quadraticCurveTo(-10, -20, 64, -8); g.quadraticCurveTo(40, -5, 20, -8); g.quadraticCurveTo(-20, -6, -40, -10); g.quadraticCurveTo(-60, -7, -82, -10); g.fill();
-    g.restore();
-    // сугроб на нижнюю половину
+    // торец: чёрное нутро, шпангоут, стрингеры торчат, провода свисают
+    el(g, -89, -30, 3.4, 11, '#161b21');
+    g.strokeStyle = '#8f9aa4'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(-88, -30, 2.6, 10.4, 0, -1.4, 1.6); g.stroke();
+    g.strokeStyle = '#6c7178'; g.lineWidth = 1; g.beginPath(); g.moveTo(-89, -38); g.lineTo(-97, -42); g.moveTo(-90, -24); g.lineTo(-99, -21); g.moveTo(-89, -31); g.lineTo(-96, -30); g.stroke();
+    line(g, '#313031', 1, -90, -27, -97, -18, -99, -8); line(g, '#ca4528', 0.9, -89, -29, -94, -20, -93, -10);
+    // рулевой винт на пилоне: втулка, обломанная лопасть, висящая лопасть (виден под углом — укорочены)
+    g.strokeStyle = '#2f3542'; g.lineWidth = 3.2; g.beginPath(); g.moveTo(62, -45); g.lineTo(57, -52); g.stroke();              // обломок
+    poly(g, '#2f3542', 55.5, -51, 58.5, -54, 57.2, -50);
+    g.beginPath(); g.moveTo(62, -45); g.lineTo(70, -30); g.stroke();                                                          // висит
+    g.fillStyle = '#f6f9fc'; g.fillRect(68, -33, 3, 1.4);
+    el(g, 62, -45, 3.6, 3.2, '#5d626b'); el(g, 61.2, -45.8, 1.4, 1.2, '#a5acb3');
+    el(g, 60, -47.5, 5, 1.4, '#f6f9fc');                                                                                        // снег на пилоне
+    // хвостовая опора — погнута
+    line(g, '#4e535d', 2.2, 36, -4, 40, 4, 47, 6);
+    // снег: наметён под балку по всей длине (лежит на снегу, а не висит) и большой сугроб спереди
+    g.fillStyle = lg(g, 0, -24, 0, 6, [[0, '#f6f9fc'], [1, '#dde6ee']]);
+    g.beginPath(); g.moveTo(-102, -12); g.quadraticCurveTo(-90, -22, -76, -18); g.quadraticCurveTo(-50, -16, -24, -14); g.quadraticCurveTo(10, -6, 40, 3); g.quadraticCurveTo(56, 6, 66, 12); g.lineTo(-100, 12); g.closePath(); g.fill();
     g.fillStyle = lg(g, 0, -20, 0, 36, [[0, '#f6f9fc'], [0.5, '#f6f9fc'], [1, SNOW]]);
-    g.beginPath(); g.moveTo(-108, 28); g.quadraticCurveTo(-96, -6, -70, -2); g.quadraticCurveTo(-40, 6, -10, 8); g.quadraticCurveTo(30, 12, 60, 18); g.quadraticCurveTo(90, 16, 106, 30); g.quadraticCurveTo(0, 42, -108, 28); g.fill();
+    g.beginPath(); g.moveTo(-108, 28); g.quadraticCurveTo(-100, -2, -80, -8); g.quadraticCurveTo(-50, -6, -24, -6); g.quadraticCurveTo(10, 0, 44, 8); g.quadraticCurveTo(76, 6, 90, -10); g.quadraticCurveTo(100, 8, 106, 30); g.quadraticCurveTo(0, 42, -108, 28); g.fill();
     g.fillStyle = lg(g, -108, 0, 108, 0, [[0, 'rgba(60,80,130,0)'], [1, 'rgba(60,80,130,0.18)']]); g.fill();
-    g.strokeStyle = 'rgba(111,142,168,0.5)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-70, -2); g.quadraticCurveTo(-40, 6, -10, 8); g.quadraticCurveTo(30, 12, 60, 18); g.stroke();
-    ice(g, -92, 22, 1, -2); ice(g, 74, 26, 0.8, 3);
-    g.save(); g.translate(28, 32); g.rotate(0.2); g.fillStyle = '#b2bac3'; g.fillRect(-10, -4, 20, 7); g.restore();
-    el(g, 30, 30, 10, 2.5, '#f6f9fc');
+    g.strokeStyle = 'rgba(111,142,168,0.5)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-80, -8); g.quadraticCurveTo(-50, -6, -24, -6); g.quadraticCurveTo(10, 0, 44, 8); g.stroke();
+    // кончик лопасти торчит из сугроба
+    el(g, 84, -15, 5, 2, '#f6f9fc');
+    // снег на балке
+    g.fillStyle = SH(0.3); g.beginPath(); g.moveTo(-86, -40); g.lineTo(-21, -33); g.lineTo(46, -9); g.lineTo(45, -6.5); g.lineTo(-21, -30); g.lineTo(-86, -37); g.fill();
+    g.fillStyle = '#f6f9fc'; g.beginPath(); g.moveTo(-88, -41.5); g.quadraticCurveTo(-54, -41, -21, -36.5); g.quadraticCurveTo(12, -25, 47, -11); g.quadraticCurveTo(20, -18, -4, -26); g.quadraticCurveTo(-30, -31, -50, -35); g.quadraticCurveTo(-70, -36, -88, -38); g.fill();
+    // обломки обшивки и льдины вокруг
+    ice(g, -96, 22, 0.9, -2); ice(g, 70, 24, 0.8, 3);
+    g.save(); g.translate(22, 30); g.rotate(0.25); poly(g, '#b2bac3', -10, -3, 8, -5, 11, 2, -7, 4); poly(g, '#ca4528', -4, -3.6, 1, -4.2, 2, 3.2, -3, 3.6); g.restore();
+    g.save(); g.translate(-60, 20); g.rotate(-0.4); poly(g, '#c2c9d0', -5, -2, 6, -3, 4, 3); g.restore();
+    el(g, 22, 28, 10, 2.5, '#f6f9fc');
   }
 
   function paintChum(g) {
@@ -516,9 +766,38 @@ const ArtWorld = (() => {
   // ================= ОГОНЬ =================
   const FL = [['#b8392d', 1, 0], ['#ff6a1a', 0.86, 0.9], ['#ffa13c', 0.66, 1.9], ['#ffd27a', 0.44, 2.8], ['#f8e8cf', 0.22, 3.7]];
   // многослойное пламя с язычками; ~7 путей
-  function flame(g, x, y, k, t, wind = 1) {
-    const lean = (wind - 1) * 1.6;
-    for (const [c, sc, off] of FL) {
+  // wx — куда дует (знак и доля x, gfx ENV.wx); soft — мягкие языки: внешние слои полупрозрачны и чуть шире
+  const FL_SOFT = [0.55, 0.8, 0.95, 1, 1];
+  // мягкий язык пламени: капля с радиальным спадом (без контура), кэш на цвет; рисуется вытянутой по высоте языка
+  const TONG = new Map();
+  function tongue(c) {
+    let e = TONG.get(c); if (e) return e;
+    e = document.createElement('canvas'); e.width = 32; e.height = 64; const q = e.getContext('2d');
+    const [r0, g0, b0] = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+    q.save(); q.translate(16, 46); q.scale(1, 2.6);
+    const gr = q.createRadialGradient(0, 0, 0, 0, 0, 16); gr.addColorStop(0, `rgba(${r0},${g0},${b0},1)`); gr.addColorStop(0.55, `rgba(${r0},${g0},${b0},0.75)`); gr.addColorStop(1, `rgba(${r0},${g0},${b0},0)`);
+    q.fillStyle = gr; q.beginPath(); q.arc(0, 0, 16, 0, TAU); q.fill(); q.restore();
+    TONG.set(c, e); return e;
+  }
+  function flame(g, x, y, k, t, wind = 1, wx = 1, soft = 0) {
+    const lean = (wind - 1) * 1.6 * wx;
+    if (soft) { // мягкие языки: слои цвета — капли без контура, покачиваются и тянутся по ветру
+      let li = 0;
+      for (const [c, sc, off] of FL) {
+        const ww = 11 * k * sc, n = 3, sw = 2 * ww / n, T = tongue(c); g.globalAlpha = FL_SOFT[li++];
+        for (let i = 0; i < n; i++) {
+          const cx0 = x - ww + (i + 0.5) * sw, main = i === 1 ? 1 : 0.72 + 0.1 * Math.sin(t * 3 + i);
+          const hh = 30 * k * sc * main * (1 + 0.16 * Math.sin(t * (11 + i * 3) + off * 2 + i * 1.7) + 0.07 * Math.sin(t * 27 + i + off));
+          const tx = Math.sin(t * 8 + off + i * 2) * 2.4 * k * sc + lean * k * (1 + sc), w = sw * 1.55;
+          g.save(); g.translate(cx0, y); g.transform(1, 0, -tx / Math.max(1, hh), 1, 0, 0); // верх языка — вбок по ветру и дрожи
+          g.drawImage(T, -w / 2, -hh, w, hh * 1.25); g.restore();
+        }
+      }
+      g.globalAlpha = 1;
+    } else {
+    let li = 0;
+    for (const [c, sc0, off] of FL) {
+      const sc = soft ? sc0 * (li < 2 ? 1.1 : 1) : sc0; if (soft) g.globalAlpha = FL_SOFT[li]; li++;
       const ww = 11 * k * sc, n = 3, sw = 2 * ww / n;
       g.fillStyle = c; g.beginPath(); g.moveTo(x - ww, y);
       for (let i = 0; i < n; i++) {
@@ -531,6 +810,7 @@ const ArtWorld = (() => {
       }
       g.quadraticCurveTo(x, y + 4 * k * sc, x - ww, y); g.fill();
     }
+    }
     // отрывающиеся язычки
     for (let j = 0; j < 2; j++) {
       const p = (t * 1.7 + j * 0.53 + x * 0.001) % 1, hy = y - 27 * k * (0.8 + p * 0.7), hx = x + Math.sin(t * 5 + j * 3) * 4 * k + lean * k * 2 * p;
@@ -542,11 +822,11 @@ const ArtWorld = (() => {
   }
   // дым-клубы по фазе (без частиц), 3–4 drawImage
   function wisp(g, x, y, env, k = 1, n = 4, dark = 0) {
-    const t = env.now, w = env.wind || 1;
+    const t = env.now, w = env.wind || 1, wx = env.wx == null ? 1 : env.wx; // дым сносит по ветру (wx — знак и доля x)
     for (let i = 0; i < n; i++) {
       const p = (t * 0.32 + i / n + x * 0.0013) % 1, r = (3 + p * 11) * k;
       g.globalAlpha = (dark ? 0.55 : 0.4) * (1 - p) * Math.min(1, p * 6);
-      g.drawImage(SMK(), x + p * (8 + w * 16) * k + Math.sin(t * 1.3 + i * 2) * 2.5 - r, y - p * 40 * k - r, r * 2, r * 2);
+      g.drawImage(SMK(), x + p * (8 + w * 16) * k * wx + Math.sin(t * 1.3 + i * 2) * 2.5 - r, y - p * 40 * k - r, r * 2, r * 2);
     }
     g.globalAlpha = 1;
   }
@@ -568,7 +848,14 @@ const ArtWorld = (() => {
   }
   function fire(g, f, env) {
     env = E(env);
-    const x = f.x, y = f.y, t = env.now, lit = f.fuel > 0;
+    const x = f.x, y = f.y, t = env.now, lit = f.fuel > 0, mk = f.melt || 0;
+    // подтаявший снег: тёмное влажное кольцо растёт со временем горения (f.melt 0..1 — рендер), без кромки — радиальный спад
+    if (mk > 0.01) {
+      const R = 26 + 38 * mk, a = 0.3 + 0.28 * mk;
+      g.save(); g.translate(x, y + 1); g.scale(1, 0.42);
+      g.fillStyle = rg(g, 0, 0, R, [[0, `rgba(58,64,70,${a})`], [0.45, `rgba(84,104,122,${a * 0.8})`], [0.8, `rgba(111,142,168,${a * 0.35})`], [1, 'rgba(111,142,168,0)']]);
+      g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill(); g.restore();
+    }
     g.fillStyle = 'rgba(111,142,168,0.35)'; g.beginPath(); g.ellipse(x, y + 1, 26, 11, 0, 0, TAU); g.fill();
     el(g, x, y, 16, 6.5, lit ? '#352b25' : '#6c7178');
     el(g, x, y - 0.5, 10, 4, lit ? '#742a1f' : '#605e60');
@@ -585,9 +872,14 @@ const ArtWorld = (() => {
       el(g, x, y - 2, 9 * k + 2, 3.6, '#ff6a1a');
       g.fillStyle = pul > 0.5 ? '#ffd27a' : '#ffb347'; g.beginPath();
       for (let i = 0; i < 6; i++) { const a = i * 1.7 + (t * 0.7 | 0) * 0.9; g.rect(x + Math.cos(a) * 6 * k - 1, y - 2 + Math.sin(a) * 2 - 0.6, 2, 1.2); } g.fill();
-      flame(g, x, y - 2, k, t + x * 0.01, env.wind);
+      // мягкая подсветка под языками (без края), потом пламя с полупрозрачными внешними слоями
+      g.save(); g.translate(x, y - 10 * k); g.scale(1, 1.25); g.globalAlpha = 0.5;
+      g.fillStyle = rg(g, 0, 0, 20 * k + 6, [[0, 'rgba(255,190,110,0.8)'], [0.5, 'rgba(255,130,50,0.3)'], [1, 'rgba(255,106,26,0)']]);
+      g.beginPath(); g.arc(0, 0, 20 * k + 6, 0, TAU); g.fill(); g.restore(); g.globalAlpha = 1;
+      flame(g, x, y - 2, k, t + x * 0.01, env.wind, env.wx == null ? 1 : env.wx, 1);
       wisp(g, x, y - 32 * k - 6, env, 0.9 + k * 0.4, 4);
-      env.light(x, y - 10, (110 + Math.min(f.fuel, 120) * 1.3) * (1 + Math.sin(t * 11 + x) * 0.03), 'w', 1);
+      // свет: один мягкий источник ('f' — спад без края), чуть шире прежнего; дрожь ±3 %
+      env.light(x, y - 10, (140 + Math.min(f.fuel, 120) * 1.6) * (1 + Math.sin(t * 11 + x) * 0.03), 'f', 1);
       env.glow(x, y - 12, 1.2);
     } else {
       g.fillStyle = '#93979f'; g.beginPath(); g.ellipse(x - 2, y - 2, 6, 2, 0, 0, TAU); g.ellipse(x + 4, y - 1, 4, 1.5, 0, 0, TAU); g.fill();
@@ -1063,7 +1355,7 @@ const ArtWorld = (() => {
       }
     },
     smoke(parts, x, y, big) {
-      for (let i = 0; i < (big ? 3 : 1); i++) parts.push({ type: 'smoke', x: x + rnd(-4, 4), y: y + rnd(-3, 3), vx: rnd(-6, 6) + 12, vy: rnd(-32, -18) * (big ? 1.3 : 1), life: big ? 3.5 : 2.6, max: big ? 3.5 : 2.6, big: big ? 1 : 0, sd: FXR() });
+      for (let i = 0; i < (big ? 3 : 1); i++) parts.push({ type: 'smoke', x: x + rnd(-4, 4), y: y + rnd(-3, 3), vx: rnd(-6, 6), vy: rnd(-32, -18) * (big ? 1.3 : 1), life: big ? 3.5 : 2.6, max: big ? 3.5 : 2.6, big: big ? 1 : 0, sd: FXR() });
     },
   };
 
@@ -1075,16 +1367,19 @@ const ArtWorld = (() => {
       case 'smoke': {
         const big = q.big ? 1.8 : 1, r = (7 + (1 - a) * 15) * big, sd = q.sd || 0;
         // сильный снос (пурга) вытягивает клуб по ветру вместо симметричного пятна
-        const wx = q.vx || 0, str = 1 + Math.min(1.5, Math.abs(wx) / 45), dx = Math.sign(wx) * r * (str - 1) * 0.6;
+        const wx = (q.vx || 0) + (q.wx || 0), str = 1 + Math.min(1.5, Math.abs(wx) / 45), dx = Math.sign(wx) * r * (str - 1) * 0.6;
         g.globalAlpha = a * (q.big ? 0.55 : 0.42) * Math.min(1, el0 * 4);
         g.drawImage(SMK(), q.x - r * str + dx, q.y - r * 0.85, r * 2 * str, r * 1.7);
         g.globalAlpha *= 0.5; g.drawImage(PUFF(), q.x - r * 0.7 - 2 + sd * 3 + dx, q.y - r * 0.8, r * 1.2, r * 1.1);
         break;
       }
+      case 'steam': // пар над открытой водой (полынья): тот же мягкий клуб, крупнее и прозрачнее, растёт, поднимаясь
       case 'breath': {
-        g.globalAlpha = a * 0.5; const r = 2 + (1 - a) * 8;
-        const wx = q.vx || 0, str = 1 + Math.min(1.2, Math.abs(wx) / 40), dx = Math.sign(wx) * r * (str - 1) * 0.5;
-        g.drawImage(PUFF(), q.x - r * str + dx, q.y - r, r * 2 * str, r * 2); break;
+        const S = q.type === 'steam' ? 2.6 : 1; g.globalAlpha = a * (S > 1 ? 0.42 * Math.min(1, (1 - a) * 5) : 0.5); const r = (2 + (1 - a) * 8) * S;
+        const wx = (q.vx || 0) + (S > 1 ? q.wx || 0 : 0), str = 1 + Math.min(1.2, Math.abs(wx) / 40), dx = Math.sign(wx) * r * (str - 1) * 0.5;
+        g.drawImage(PUFF(), q.x - r * str + dx, q.y - r, r * 2 * str, r * 2);
+        if (S > 1) { g.globalAlpha *= 0.55; g.drawImage(SMK(), q.x - r * str + dx, q.y - r * 0.9, r * 2 * str, r * 1.8); } // пар читается и на светлом льду — лёгкой серой дымкой
+        break;
       }
       case 'spark': { // слой glow: рисуется после карты света режимом 'lighter' (его ставит рендер)
         g.globalAlpha = a * 0.5; g.drawImage(HALO(), q.x - 4, q.y - 4, 8, 8);
@@ -1093,7 +1388,10 @@ const ArtWorld = (() => {
       }
       case 'text': {
         g.globalAlpha = Math.min(1, a * 2); g.textAlign = 'center'; g.font = '600 15px "PT Sans", sans-serif';
-        g.fillStyle = '#fff'; Icons.text(g, q.text, q.x, q.y, 16, { stroke: 'rgba(10,20,30,0.75)', lw: 3 }); break;
+        const uk = typeof GFX !== 'undefined' && GFX.uiK ? GFX.uiK() : 1; // на большом зуме — экранного размера
+        if (uk !== 1) { g.save(); g.translate(q.x, q.y); g.scale(uk, uk); g.translate(-q.x, -q.y); }
+        g.fillStyle = '#fff'; Icons.text(g, q.text, q.x, q.y, 16, { stroke: 'rgba(10,20,30,0.75)', lw: 3 });
+        if (uk !== 1) g.restore(); break;
       }
       case 'puff': {
         const r = q.r0 + (q.r1 - q.r0) * (1 - a * a), hz = q.h ? q.h * a : 0; // h — облачко в кроне, оседает к земле
@@ -1173,56 +1471,85 @@ const ArtWorld = (() => {
 
   // ================= СЛЕДЫ =================
   // f = {x,y,a,k,life}; a — направление движения; затухание как в игре (life 25 → 0)
-  function print(g, f) {
-    const al = 0.5 * Math.min(1, f.life / 8);
-    if (al <= 0.01) return;
-    const c = Math.cos(f.a), s = Math.sin(f.a);
-    g.save(); g.transform(c, s, -s, c, f.x, f.y);
-    if (f.d && f.d !== 1) g.scale(f.d, f.d); // сугроб: след глубже и шире
-    const dep = `rgba(111,142,168,${al})`, rim = `rgba(255,255,255,${al * 1.2})`, sh = `rgba(60,80,130,${al * 0.9})`;
-    switch (f.k) {
-      case 'p': // валенок: рант светлый со стороны солнца, внутренняя тень сверху
-        el(g, 0.8, 0.8, 5.2, 2.8, rim);
-        el(g, 0, 0, 5, 2.6, dep);
-        el(g, -1.2, -0.7, 3.2, 1.4, sh);
+  // неровная вмятина: рваный овал (9 узлов со случайным радиусом), глубина по краю — тёмный верхне-левый скат, светлое дно, светлый рант снизу-справа
+  function dent(g, r, x, y, rx, ry, rot, al, jit) {
+    const n = 9, ph = r() * TAU, pts = [];
+    for (let i = 0; i < n; i++) { const an = ph + i / n * TAU, k = 1 + (r() - 0.5) * (jit || 0.5); pts.push([Math.cos(an) * rx * k, Math.sin(an) * ry * k]); }
+    const cr = Math.cos(rot), sr = Math.sin(rot);
+    const path = (ox, oy, sc) => {
+      g.beginPath();
+      for (let i = 0; i < n; i++) {
+        const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % n], mx = (ax + bx) / 2 * sc + ox, my = (ay + by) / 2 * sc + oy;
+        const px = x + mx * cr - my * sr, py = y + mx * sr + my * cr;
+        if (i === 0) { const [zx, zy] = pts[n - 1], lx = (zx + ax) / 2 * sc + ox, ly = (zy + ay) / 2 * sc + oy; g.moveTo(x + lx * cr - ly * sr, y + lx * sr + ly * cr); }
+        const cx0 = ax * sc + ox, cy0 = ay * sc + oy; g.quadraticCurveTo(x + cx0 * cr - cy0 * sr, y + cx0 * sr + cy0 * cr, px, py);
+      }
+      g.closePath();
+    };
+    g.fillStyle = `rgba(255,255,255,${al * 0.9})`; path(0.7, 0.8, 1.06); g.fill();       // светлый рант с солнечной стороны
+    g.fillStyle = `rgba(96,126,160,${al})`; path(0, 0, 1); g.fill();                        // стенка
+    g.fillStyle = `rgba(58,80,128,${al * 0.7})`; path(-0.35, -0.4, 0.8); g.fill();          // тёмный скат у дальнего края
+    g.fillStyle = `rgba(218,229,240,${al * 0.9})`; path(0.55, 0.6, 0.55); g.fill();         // утоптанное светлое дно
+  }
+  // след покадровый и их сотни — рваная форма печётся один раз в спрайт (6 вариантов на вид), в кадре — один drawImage
+  // с поворотом, разбросом размера и затуханием через globalAlpha
+  const PRW = 28, PRH = 20, PRV = 6;
+  function printBody(g, k, r) {
+    const al = 0.62;
+    const a2 = al * (0.8 + r() * 0.4), sh = `rgba(60,80,130,${al * 0.9})`;
+    const crumbs = n => { g.fillStyle = `rgba(246,249,252,${al * 0.9})`; g.beginPath(); for (let i = 0; i < n; i++) { const px = (r() - 0.5) * 12, py = (r() - 0.5) * 8; g.moveTo(px + 0.7, py); g.ellipse(px, py, 0.7, 0.4, r() * 3, 0, TAU); } g.fill(); };
+    switch (k) {
+      case 'p': // валенок: пятка и носок раздельно, носок шире; края рваные, комочки снега
+        dent(g, r, -2.4, 0, 2.5, 2.1, 0, a2, 0.55);
+        dent(g, r, 1.6, 0.1, 3.5, 2.6, (r() - 0.5) * 0.2, a2, 0.6);
+        g.fillStyle = `rgba(218,229,240,${a2 * 0.8})`; g.fillRect(-0.9, -0.9, 1.3, 1.8); // перемычка подъёма
+        crumbs(3 + (r() * 3 | 0));
         break;
-      case 'w': { // волк: пятка + 4 пальца + когти
-        g.fillStyle = dep; g.beginPath();
-        g.moveTo(-1, 2.2); g.ellipse(-2, 0, 2, 2.4, 0, 0, TAU);
-        for (const [px, py] of [[2, -2.2], [2.6, 2.2], [3.8, -0.8], [3.8, 0.9]]) { g.moveTo(px + 1.1, py); g.ellipse(px, py, 1.1, 0.95, 0, 0, TAU); }
-        g.fill();
+      case 'w': { // волк: пятка + 4 пальца + когти, разной глубины
+        dent(g, r, -2, 0, 2.2, 2.5, 0, a2, 0.5);
+        for (const [px, py] of [[2, -2.2], [2.6, 2.2], [3.8, -0.8], [3.8, 0.9]]) if (r() < 0.93) dent(g, r, px + (r() - 0.5) * 0.5, py, 1.2, 1, 0, a2 * (0.75 + r() * 0.3), 0.5);
         g.fillStyle = sh; g.fillRect(5, -1.1, 1, 0.7); g.fillRect(5, 0.7, 1, 0.7);
+        crumbs(2);
         break;
       }
       case 'h': { // заяц: длинные задние впереди, передние гуськом позади
-        g.fillStyle = dep; g.beginPath();
-        g.moveTo(8.5, -2.4); g.ellipse(5.5, -2.4, 3, 1.3, 0, 0, TAU); g.moveTo(8.5, 2.4); g.ellipse(5.5, 2.4, 3, 1.3, 0, 0, TAU);
-        g.moveTo(0.9, 0); g.ellipse(0, 0.3, 1.2, 1, 0, 0, TAU); g.moveTo(-3.1, 0); g.ellipse(-4, -0.3, 1.2, 1, 0, 0, TAU);
-        g.fill();
+        dent(g, r, 5.5, -2.4, 3.1, 1.4, 0, a2, 0.4); dent(g, r, 5.5, 2.4, 3.1, 1.4, 0, a2, 0.4);
+        dent(g, r, 0, 0.3, 1.3, 1.1, 0, a2, 0.5); dent(g, r, -4, -0.3, 1.3, 1.1, 0, a2, 0.5);
+        crumbs(3);
         break;
       }
       case 'b': { // медведь: широкая подушка + 5 пальцев + когти
-        el(g, 1, 1, 7.4, 5.6, rim);
-        g.fillStyle = dep; g.beginPath();
-        g.moveTo(5, 0); g.ellipse(-1, 0, 6, 4.8, 0, 0, TAU);
-        for (let i = 0; i < 5; i++) { const py = -4.4 + i * 2.2, px = 6.5 - Math.abs(i - 2) * 0.8; g.moveTo(px + 1.3, py); g.ellipse(px, py, 1.3, 1.1, 0, 0, TAU); }
-        g.fill();
+        dent(g, r, -1, 0, 6, 4.8, 0, a2, 0.35);
+        for (let i = 0; i < 5; i++) { const py = -4.4 + i * 2.2, px = 6.5 - Math.abs(i - 2) * 0.8; dent(g, r, px, py, 1.4, 1.2, 0, a2, 0.5); }
         g.strokeStyle = sh; g.lineWidth = 0.8; g.beginPath(); for (let i = 0; i < 5; i++) { const py = -4.4 + i * 2.2, px = 8 - Math.abs(i - 2) * 0.8; g.moveTo(px, py); g.lineTo(px + 2.2, py); } g.stroke();
-        el(g, -2, -1.2, 3.5, 2, sh);
+        crumbs(5);
         break;
       }
       case 'd': { // олень: раздвоенное копыто + прибылые пальцы
-        g.fillStyle = dep; g.beginPath();
-        g.moveTo(5, -1.7); g.ellipse(1.4, -1.7, 3.6, 1.5, 0.12, 0, TAU); g.moveTo(5, 1.7); g.ellipse(1.4, 1.7, 3.6, 1.5, -0.12, 0, TAU);
-        g.moveTo(-3.2, -3.2); g.ellipse(-4.2, -3.2, 1, 0.8, 0, 0, TAU); g.moveTo(-3.2, 3.2); g.ellipse(-4.2, 3.2, 1, 0.8, 0, 0, TAU);
-        g.fill();
+        dent(g, r, 1.4, -1.7, 3.7, 1.6, 0.12, a2, 0.4); dent(g, r, 1.4, 1.7, 3.7, 1.6, -0.12, a2, 0.4);
+        if (r() < 0.8) { dent(g, r, -4.2, -3.2, 1, 0.8, 0, a2, 0.4); dent(g, r, -4.2, 3.2, 1, 0.8, 0, a2, 0.4); }
+        crumbs(3);
         break;
       }
-      case 's': // полозья нарт: две колеи
-        g.fillStyle = rim; g.fillRect(-9, -5.2, 18, 0.9); g.fillRect(-9, 4.6, 18, 0.9);
-        g.fillStyle = dep; g.fillRect(-9, -6, 18, 1.6); g.fillRect(-9, 3.6, 18, 1.6);
+      case 's': // полозья нарт: две колеи с неровным краем
+        for (const y0 of [-4.9, 4.3]) {
+          g.fillStyle = `rgba(255,255,255,${al * 1.1})`; g.fillRect(-9, y0 + 1.1, 18, 0.9);
+          g.fillStyle = `rgba(96,126,160,${al})`; g.beginPath(); g.moveTo(-9, y0);
+          for (let i = 1; i <= 6; i++) g.lineTo(-9 + i * 3, y0 + (r() - 0.5) * 0.7); g.lineTo(9, y0 + 1.6); g.lineTo(-9, y0 + 1.6); g.fill();
+          g.fillStyle = `rgba(58,80,128,${al * 0.6})`; g.fillRect(-9, y0, 18, 0.6);
+        }
         break;
     }
+  }
+  function print(g, f) {
+    const lk = Math.min(1, f.life / 8);
+    if (0.62 * lk <= 0.01) return;
+    const r = rng(((f.x * 73.7 + f.y * 191.3) | 0) ^ 0x5bd1e995);
+    const sz = (0.88 + r() * 0.26) * (f.d && f.d !== 1 ? f.d : 1), jr = (r() - 0.5) * 0.22, vi = (r() * PRV) | 0, k = f.k;
+    const S = sprite('print' + k + vi, PRW, PRH, gg => { gg.translate(PRW / 2, PRH / 2); printBody(gg, k, rng(0x51ed + vi * 7919 + k.charCodeAt(0) * 131)); });
+    const c = Math.cos(f.a), s = Math.sin(f.a), ga = g.globalAlpha;
+    g.save(); g.transform(c, s, -s, c, f.x, f.y); g.rotate(jr); g.scale(sz, sz); // сугроб: след глубже и шире
+    g.globalAlpha = ga * lk; g.drawImage(S, -PRW / 2, -PRH / 2, PRW, PRH);
     g.restore();
   }
 
@@ -1233,7 +1560,7 @@ const ArtWorld = (() => {
   const HW = 44, HRISE = 56, HOV = 8, HOV_S = 16;
   const HLOG = { hi: '#9a754e', mid: '#765436', dk: '#4b3220', sh: '#3a2618' };
   const HLOG_IN = { hi: '#8a6a45', mid: '#5b3d27', dk: '#3a2618', sh: '#3a2618' };
-  const hsc = () => DPR() * 1.5;
+  const hsc = () => DPR() * (ZB > 1.6 ? ZB : 1.5); // изба крупная и близко: ×1.5 до ступени 1.6, дальше — ступень зума
   function hg(H) {
     const X0 = H.in.x0 - H.x - H.wall, X1 = H.in.x1 - H.x + H.wall, Yn = H.in.y0 - H.y - H.wall, Ys = H.in.y1 - H.y + H.wall;
     const hw = (X1 - X0) / 2, s = HRISE / hw, L = X0 - HOV_S, R = X1 + HOV_S, ze = HW - HOV_S * s;
@@ -1275,7 +1602,7 @@ const ArtWorld = (() => {
     }
   }
   function hutSprite(key, H, x0, y0, w, h, paint) {
-    return sprite('hut' + key + ':' + H.in.x0 + ',' + H.in.y0, w, h, g => { g.translate(-x0, -y0); paint(g, hg(H)); }, hsc());
+    return sprite('hut' + key + ':' + H.in.x0 + ',' + H.in.y0, w, h, g => { g.translate(-x0, -y0); paint(g, hg(H)); if (key !== 'floor') bodyLight(g, x0, y0, w, h, key === 'roof' ? 0.9 : 0.7, 29); }, hsc());
   }
 
   // пол, верх боковых стен (рисуется в проходе земли)
@@ -1646,7 +1973,21 @@ const ArtWorld = (() => {
     g.fillStyle = '#6c7178'; for (const bx of [-10, 8]) for (const by of [-21, -12, -4]) g.fillRect(bx + 0.8, by, 1.2, 1.2);
     rr(g, -3, -17, 6, 6, 1, '#cea977'); el(g, 0, -13, 1, 1.4, '#3a2618');
   }
-  function hutChest(g, x, y) { g.drawImage(sprite('hutChest', 40, 34, g2 => { g2.translate(20, 28); paintChest(g2); }, hsc()), x - 20, y - 28, 40, 34); }
+  // открытый ящик: тёмное нутро с поклажей, крышка откинута назад (видна изнанкой над задней кромкой)
+  function paintChestOpen(g) {
+    g.fillStyle = 'rgba(15,8,4,0.4)'; g.beginPath(); g.ellipse(1, 1, 17, 4, 0, 0, TAU); g.fill();
+    g.fillStyle = lg(g, 0, -32, 0, -22, [[0, '#76593a'], [1, '#5b3d27']]); g.beginPath(); g.roundRect(-16, -33, 32, 10, 3); g.fill();   // крышка стоит за ящиком
+    g.fillStyle = '#3a2618'; g.fillRect(-14, -30, 28, 5);
+    g.fillStyle = lg(g, 0, -16, 0, 0, [[0, '#8a6a45'], [1, '#5b3d27']]); g.fillRect(-15, -16, 30, 16);
+    g.fillStyle = '#1e140c'; g.beginPath(); g.ellipse(0, -18, 14.5, 3.6, 0, 0, TAU); g.fill();                                          // нутро
+    el(g, -6, -18.6, 4, 1.6, '#8a6a45'); el(g, 4, -18.2, 3.6, 1.4, '#6c7178'); el(g, 0, -19.4, 2.6, 1.1, '#b8392d');                       // поклажа
+    g.fillStyle = '#a08561'; g.fillRect(-15, -16, 30, 1.6);
+    g.fillStyle = '#2f3542'; for (const bx of [-10, 8]) { g.fillRect(bx, -16, 3, 16); g.fillRect(bx, -33, 3, 10); }
+  }
+  function hutChest(g, x, y, open) {
+    if (open) return g.drawImage(sprite('hutChestO', 40, 42, g2 => { g2.translate(20, 36); paintChestOpen(g2); }, hsc()), x - 20, y - 36, 40, 42);
+    g.drawImage(sprite('hutChest', 40, 34, g2 => { g2.translate(20, 28); paintChest(g2); }, hsc()), x - 20, y - 28, 40, 34);
+  }
   function paintBed(g) {
     // нары: дощатый настил на чурках
     g.fillStyle = 'rgba(15,8,4,0.45)'; g.beginPath(); g.ellipse(2, 13, 30, 5, 0, 0, TAU); g.fill();
@@ -1704,7 +2045,8 @@ const ArtWorld = (() => {
     el(g, x - 4, y - 10, 15, 7, 'rgba(246,249,252,0.85)');
     el(g, x + 8, y - 6, 9, 5, 'rgba(234,239,245,0.85)');
   }
-  function stump(g, x, y, s = 1) {
+  // snow 0..1 — снег на срезе: свежий пень (0) — светлый срез с каплями смолы, за ~0.6 суток нарастает шапка
+  function stump(g, x, y, s = 1, snow = 1) {
     shadow(g, x, y + 1, 11 * s, 3.6 * s, 0.34);
     g.fillStyle = '#5b3d27'; g.beginPath(); g.moveTo(x - 7 * s, y); g.lineTo(x - 6.4 * s, y - 8 * s); g.lineTo(x + 6.4 * s, y - 8 * s); g.lineTo(x + 7 * s, y); g.fill();
     el(g, x, y, 7 * s, 2.6 * s, '#5b3d27');
@@ -1712,8 +2054,58 @@ const ArtWorld = (() => {
     g.fillStyle = '#8a6a45'; g.fillRect(x - 5.6 * s, y - 7.4 * s, 1.4 * s, 6.6 * s);             // блик коры
     el(g, x, y - 8 * s, 6.6 * s, 2.5 * s, '#c79a62');
     g.strokeStyle = '#8a6a45'; g.lineWidth = 0.7 * s; g.beginPath(); g.ellipse(x + 0.4 * s, y - 8 * s, 3.6 * s, 1.3 * s, 0, 0, TAU); g.stroke();
-    el(g, x - 1.8 * s, y - 8.8 * s, 3.8 * s, 1.5 * s, SNOW_HI);                                  // снег на срезе
+    if (snow < 0.5) { el(g, x, y - 8 * s, 5.4 * s, 1.9 * s, '#e8c894'); el(g, x - 2 * s, y - 8.2 * s, 0.7 * s, 0.5 * s, '#d9a441'); el(g, x + 2.4 * s, y - 7.8 * s, 0.6 * s, 0.4 * s, '#d9a441'); }  // свежий срез, смола
+    if (snow > 0.05) el(g, x - 1.8 * s * snow, y - 8.8 * s, 3.8 * s * Math.min(1, snow * 1.2) + 0.1, 1.5 * s * Math.min(1, snow * 1.2) + 0.1, SNOW_HI);   // снег на срезе
+    if (snow < 0.3) { g.fillStyle = '#d9bd8a'; for (let i = 0; i < 5; i++) g.fillRect(x + (i - 2) * 3.2 * s, y + 1.5 + (i % 2) * 1.6, 1.8, 1); }   // щепа у комля
     el(g, x - 5 * s, y + 0.4 * s, 5 * s, 1.8 * s, SNOW_HI); el(g, x + 5.5 * s, y + 0.8 * s, 3.4 * s, 1.2 * s, '#dde6ee');
+  }
+  // сваленная ель (G.logs): ствол от комля по направлению a (вид 3/4: y ×0.6), k — сколько осталось; до первого реза — крона лапником,
+  // если её не рисует спрайт падения (sprite = true); после — голый ствол, у вершины куча сучьев; снег на верхней кромке
+  function felledLog(g, L, k, sprite) {
+    const c = Math.cos(L.a), sn = Math.sin(L.a) * 0.6, s = L.s || 1, len = L.len;
+    const ex = L.x + c * len * k, ey = L.y + sn * len * k, R0 = 4.2 * s, R1 = (4.2 + (1.6 - 4.2) * k) * s;
+    const nl = Math.hypot(-sn, c) || 1, nx = -sn / nl, ny = c / nl;
+    // сучья: где была крона (дальний конец), остаются после обрубки
+    if (L.lim) {
+      const tx = L.x + c * len * 0.82, ty = L.y + sn * len * 0.82;
+      for (let i = 0; i < 7; i++) { const q = (i * 0.37) % 1, bx = tx + c * (q - 0.5) * 30 * s + nx * (i % 2 ? 5 : -5), by = ty + sn * (q - 0.5) * 30 * s + ny * (i % 3 - 1) * 3;
+        line(g, '#3a2618', 1.2, bx - c * 6, by - sn * 6 + 1, bx + c * 6 + nx * 3, by + sn * 6 + ny * 2);
+        el(g, bx, by - 1.5, 6 * s, 2.2 * s, i % 2 ? '#2f5a3a' : '#274d33', L.a * 0.6 + (i - 3) * 0.3); }
+      el(g, tx, ty - 3, 14 * s, 3 * s, 'rgba(246,249,252,0.75)', L.a * 0.6);
+    }
+    if (sprite) return;
+    shadow(g, (L.x + ex) / 2 + 2, (L.y + ey) / 2 + 3, Math.hypot(ex - L.x, ey - L.y) / 2 + 6, 5, 0.3);
+    g.lineCap = 'round';
+    // тело ствола: трапеция R0 → R1, тёмная нижняя кромка, светлая верхняя, снег поверх
+    g.fillStyle = '#5b3d27'; g.beginPath(); g.moveTo(L.x + nx * R0, L.y + ny * R0 - R0); g.lineTo(ex + nx * R1, ey + ny * R1 - R1); g.lineTo(ex - nx * R1, ey - ny * R1 - R1); g.lineTo(L.x - nx * R0, L.y - ny * R0 - R0); g.closePath(); g.fill();
+    line(g, '#3a2618', 1.6 * s, L.x + nx * R0 * 0.6, L.y + ny * R0 * 0.6 - R0 * 0.3, ex + nx * R1 * 0.6, ey + ny * R1 * 0.6 - R1 * 0.3);
+    line(g, '#8a6a45', 1 * s, L.x - nx * R0 * 0.5, L.y - ny * R0 * 0.5 - R0 * 1.3, ex - nx * R1 * 0.5, ey - ny * R1 * 0.5 - R1 * 1.3);
+    // торцы: комель и свежий рез — светлое дерево с кольцом
+    el(g, L.x, L.y - R0, R0 * 0.55, R0, '#c79a62', L.a * 0.6); el(g, L.x, L.y - R0, R0 * 0.25, R0 * 0.45, '#8a6a45', L.a * 0.6);
+    if (L.lim || k < 0.999) { el(g, ex, ey - R1, R1 * 0.55, R1, '#e0b47a', L.a * 0.6); el(g, ex, ey - R1, R1 * 0.22, R1 * 0.4, '#c79a62', L.a * 0.6); }
+    else {   // крона (после загрузки сейва — без спрайта падения): лапник вдоль вершины
+      for (let i = 0; i < 9; i++) { const q = 0.35 + i * 0.075, bx = L.x + c * len * q, by = L.y + sn * len * q, w = (1.15 - q) * 16 * s;
+        el(g, bx + nx * w * 0.35, by + ny * w * 0.35 - 3, w * 0.55, 3.2 * s, '#274d33', L.a * 0.6 + 0.5); el(g, bx - nx * w * 0.35, by - ny * w * 0.35 - 3, w * 0.55, 3 * s, '#2f5a3a', L.a * 0.6 - 0.5);
+        el(g, bx, by - 5, w * 0.35, 1.2 * s, 'rgba(246,249,252,0.85)', L.a * 0.6); }
+    }
+    line(g, 'rgba(246,249,252,0.9)', 1.6 * s, L.x + c * 6, L.y + sn * 6 - R0 * 1.8, ex - c * 4, ey - sn * 4 - R1 * 1.8);   // снег по верху
+  }
+  // чурка на снегу: короткий кругляк торцом к камере, a — поворот
+  function chunk(g, x, y, a = 0) {
+    shadow(g, x, y + 1, 8, 2.6, 0.3);
+    g.save(); g.translate(x, y); g.rotate(a * 0.4);
+    rr(g, -6, -7, 12, 7, 2.5, '#765436'); g.fillStyle = '#5b3d27'; g.fillRect(-6, -2.4, 12, 2.4);
+    el(g, 6, -3.5, 2.4, 3.5, '#e0b47a'); el(g, 6, -3.5, 1, 1.5, '#c79a62');
+    el(g, -1, -7, 4, 0.9, 'rgba(246,249,252,0.8)');
+    g.restore();
+  }
+  // пустая банка на снегу (после еды): лежит на боку, крышка отогнута
+  function emptyCan(g, x, y, a = 0) {
+    shadow(g, x, y + 1, 5, 1.8, 0.25);
+    g.save(); g.translate(x, y); g.rotate(Math.sin(a) * 0.5);
+    rr(g, -4, -5, 8, 5, 1.2, '#8f9399'); g.fillStyle = '#b8392d'; g.fillRect(-1.6, -5, 3.2, 5);
+    el(g, 4, -2.5, 1.2, 2.5, '#3a2618'); line(g, '#c2c9d0', 0.8, 4.5, -5, 6.5, -7);
+    g.restore();
   }
   // нарты: полозья с загнутым носом, копылья, настил, груз брёвен; dir — куда смотрит нос (±1)
   function sled(g, x, y, load, dir = 1) {
@@ -1733,16 +2125,57 @@ const ArtWorld = (() => {
     if (n) el(g, -4, -12 - (n > 3 ? 4.6 : 0) - 2.2, 10, 1.4, SNOW_HI); else { el(g, -8, -9.6, 6, 1.2, SNOW_HI); el(g, 7, -9.6, 4, 1, SNOW_HI); }
     g.restore();
   }
-  // записка: лист бересты под камнем
-  function note(g, x, y, read) {
-    shadow(g, x, y + 1, 9, 2.6, 0.28);
-    g.save(); g.translate(x, y); g.rotate(-0.2);
-    rr(g, -7, -8, 14, 10, 1, read ? '#dde6ee' : '#e3d5b6');
-    g.fillStyle = read ? '#b6c9df' : '#c79a62'; g.fillRect(-7, -8, 14, 1.2);
+  // записка: лист бересты, чем-то прижат (hold, см. NOTES в data.js) и частью присыпан снегом (snow 0..1 — шапка класса «глыба» js/snow.js:
+  // растёт в снегопад, сдувается ветром; базовый слой есть всегда — лист лежит давно). pose (js/live.js, от Wind) = { dx, dy — сдвиг ветром,
+  // lift — высота прыжка, flut — подъём свободного уголка px (≤ 3), rot — поворот }: только у записки под камнем лист может выскочить
+  // и прыгать рядом (камень на месте); ящик, обшивка и щель держат лист — трепещет лишь уголок. Строки видны всегда.
+  function note(g, x, y, read, pose, hold = 'stone', snow = 0) {
+    const pin = hold !== 'stone', P = pose || NOPOSE, px = x + (pin ? 0 : P.dx), py = y + (pin ? 0 : P.dy), up = pin ? 0 : P.lift, f = pin ? Math.min(1.2, P.flut) : P.flut;
+    const sn = clamp(0.3 + 0.6 * snow, 0, 1), paper = read ? '#dde6ee' : '#e3d5b6', band = read ? '#b6c9df' : '#c79a62';
+    if (hold === 'crack') { // обрубок бревна с трещиной, лист сложен и засунут в щель — торчит край со строкой
+      g.save(); g.translate(x, y); g.rotate(-0.12);
+      shadow(g, 0, 1.5, 15, 3.4, 0.3);
+      rr(g, -14, -8, 28, 8.5, 4, '#6b4c31'); g.fillStyle = '#8a6a45'; g.fillRect(-12, -7.4, 24, 2.2);
+      el(g, 14, -3.7, 3, 4.2, '#c79a62'); g.strokeStyle = '#8a6a45'; g.lineWidth = 0.6; g.beginPath(); g.ellipse(14, -3.7, 1.6, 2.4, 0, 0, TAU); g.stroke();
+      g.strokeStyle = '#2a1a0f'; g.lineWidth = 1.1; g.beginPath(); g.moveTo(-11, -4.6); g.lineTo(-4, -3.8); g.lineTo(3, -4.9); g.lineTo(10, -4.2); g.stroke();
+      g.save(); g.translate(-1, -4.6); g.rotate(-0.08 - f * 0.05);
+      poly(g, paper, -5, 0, 5, 0, 5.6, -4.6 - f * 0.4, -4.4, -4.2); g.fillStyle = '#6c7178'; g.fillRect(-3.6, -2.6, 6.5, 0.8); g.fillStyle = band; g.fillRect(-4.6, -4.4, 10, 0.9);
+      g.restore();
+      el(g, -2, -8.4, 11 * (0.5 + 0.5 * sn), 1.6 + sn, SNOW_HI);                                 // снег на бревне
+      el(g, -13, 0.4, 5 + 5 * sn, 1.4 + sn, SNOW_HI); el(g, 9, 1, 4 + 3 * sn, 1.2, '#dde6ee');
+      g.restore(); return;
+    }
+    shadow(g, px, py + 1, 9 * (1 - Math.min(0.5, up / 24)), 2.6, 0.28 * (1 - Math.min(0.6, up / 20)));
+    const moved = !pin && P.dx * P.dx + P.dy * P.dy + up * up > 1, stone = () => { el(g, 5, -7.5, 3.2, 2.2, '#6c7178'); el(g, 5.6, -6.6, 2.2, 1.2, '#4e535d'); el(g, 4.3, -8.4, 2, 1.1, '#b6c9df'); el(g, 4.6, -9.2, 2.4 * sn + 0.4, 0.9, SNOW_HI); };
+    if (moved) { g.save(); g.translate(x, y); g.rotate(-0.2); stone(); g.restore(); }
+    g.save(); g.translate(px, py - up); g.rotate(-0.2 + (pin ? 0 : P.rot));
+    if (f > 0.05) { // свободный уголок (слева внизу) приподнят ветром: лист — четырёхугольник, под уголком — тень
+      el(g, -5, 1.5, 3, 1, 'rgba(39,57,74,0.18)');
+      poly(g, paper, -7, -8, 7, -8, 7, 2, -7 + f * 0.4, 2 - f);
+    } else rr(g, -7, -8, 14, 10, 1, paper);
+    g.fillStyle = band; g.fillRect(-7, -8, 14, 1.2);
     g.fillStyle = '#6c7178'; g.fillRect(-4.5, -5, 8, 0.9); g.fillRect(-4.5, -2.6, 6, 0.9); g.fillRect(-4.5, -0.2, 7, 0.9);
-    el(g, 5, -7.5, 3.2, 2.2, '#6c7178'); el(g, 4.3, -8.4, 2, 1.1, '#b6c9df');                      // камень-гнёт
+    if (hold === 'crate') { // угол ящика стоит на листе
+      el(g, 7, 0.8, 8, 2, SH(0.3));
+      g.fillStyle = lg(g, 1, 0, 14, 0, [[0, '#8a6a45'], [1, '#62482f']]); g.fillRect(1, -12, 13, 12);
+      g.strokeStyle = 'rgba(58,38,24,0.6)'; g.lineWidth = 0.9; g.strokeRect(1.5, -11.5, 12, 11); g.beginPath(); g.moveTo(1.5, -11.5); g.lineTo(13.5, -0.5); g.stroke();
+      rr(g, 0.4, -14 - sn, 14.2, 2.6 + sn, 1.3, SNOW_HI);
+    } else if (hold === 'panel') { // гнутый лист обшивки Ми-8 с заклёпками и обрывком полосы
+      poly(g, SH(0.25), 0, -9, 13, -7, 12, 2.5, -1, 1.5);
+      poly(g, '#c2c9d0', -1, -10, 12, -8.5, 11.5, 0.5, 2, 0.5, 0.5, -4); poly(g, '#ca4528', 0.3, -6.5, 11.9, -5.2, 11.8, -3.4, 0.9, -4.6);
+      line(g, '#8f9aa4', 0.7, 0, -9.4, 11.5, -8); g.fillStyle = '#6c7178'; for (let k = 0; k < 4; k++) g.fillRect(1.5 + k * 2.8, -8.6 + k * 0.35, 0.7, 0.7);
+      el(g, 6, -9.4, 5.5 * sn + 1, 1 + 0.5 * sn, SNOW_HI);
+    } else if (!moved) stone();                                                              // камень-гнёт
     g.restore();
+    // снег: наметён на край листа с наветренной (левой) стороны, лист не заметён целиком — строки видны
+    if (!moved || up < 1) {
+      g.save(); g.translate(px, py); g.rotate(-0.2);
+      g.globalAlpha = 0.95; el(g, -7.5, -1.5, 3.2 + 3.4 * sn, 2.6 + 1.6 * sn, SNOW_HI); el(g, -6, 1.6, 4.5 + 4 * sn, 1.4 + 0.8 * sn, '#f1f5f9');
+      g.globalAlpha = 0.55; el(g, -3.5, -6.8, 1.6 + 2 * sn, 0.8 + 0.4 * sn, SNOW_HI); el(g, 1, 1.3, 2 + 3 * sn, 0.9, '#f1f5f9');
+      g.globalAlpha = 1; g.restore();
+    }
   }
+  const NOPOSE = { dx: 0, dy: 0, lift: 0, flut: 0, rot: 0 };
   // ловушки: капкан (дуги-челюсти, цепь к колышку) или петля на палке; улов лежит рядом
   function trap(g, t) {
     const x = t.x, y = t.y;
@@ -1823,9 +2256,27 @@ const ArtWorld = (() => {
     shadow(g, q.x, q.y + 1, Math.min(18, w * 0.34), 3.4, 0.32);
     g.drawImage(sprite('insp' + q.id, w, h, g2 => { g2.translate(ax, ay); paint(g2); }), q.x - ax, q.y - ay, w, h);
     if (q.id === 'pennant') {
-      const t = E(env).now, x = q.x + 1, y = q.y - 34, wv = Math.sin(t * 3) * 2, wv2 = Math.sin(t * 3 - 1.1) * 2;
-      g.fillStyle = '#b8392d'; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y + 2 + wv, x + 16, y + 6 + wv2); g.quadraticCurveTo(x + 8, y + 8 + wv, x, y + 12); g.fill();
-      g.fillStyle = '#7c241c'; g.beginPath(); g.moveTo(x + 8, y + 3 + wv * 0.8); g.quadraticCurveTo(x + 12, y + 5 + wv2, x + 16, y + 6 + wv2); g.quadraticCurveTo(x + 12, y + 8 + wv, x + 8, y + 9 + wv); g.fill();
+      const F = typeof Live !== 'undefined' ? Live.flag(q, env) : null; // форма от Wind: обвис · полощется · хлопает · рвётся
+      if (F) pennant(g, F);
+      else { // стенды без ветра: прежний вымпел
+        const t = E(env).now, x = q.x + 1, y = q.y - 34, wv = Math.sin(t * 3) * 2, wv2 = Math.sin(t * 3 - 1.1) * 2;
+        g.fillStyle = '#b8392d'; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y + 2 + wv, x + 16, y + 6 + wv2); g.quadraticCurveTo(x + 8, y + 8 + wv, x, y + 12); g.fill();
+        g.fillStyle = '#7c241c'; g.beginPath(); g.moveTo(x + 8, y + 3 + wv * 0.8); g.quadraticCurveTo(x + 12, y + 5 + wv2, x + 16, y + 6 + wv2); g.quadraticCurveTo(x + 12, y + 8 + wv, x + 8, y + 9 + wv); g.fill();
+      }
+    }
+  }
+  // вымпел по точкам формы F = { top: [x, y], bot: [x, y], up: [[x, y]…], dn: [[x, y]…], shade: 0..1 } (верхняя и нижняя кромки от древка к кончику)
+  function pennant(g, F) {
+    const up = F.up, dn = F.dn, n = up.length;
+    g.fillStyle = '#b8392d'; g.beginPath(); g.moveTo(F.top[0], F.top[1]);
+    for (let i = 0; i < n; i++) g.lineTo(up[i][0], up[i][1]);
+    for (let i = n - 2; i >= 0; i--) g.lineTo(dn[i][0], dn[i][1]);
+    g.lineTo(F.bot[0], F.bot[1]); g.closePath(); g.fill();
+    if (n > 2 && F.shade > 0.05) { // складка: тёмная половина к кончику, сила — от волны
+      const h = n >> 1; g.globalAlpha = Math.min(1, F.shade); g.fillStyle = '#7c241c'; g.beginPath(); g.moveTo(up[h - 1][0], up[h - 1][1]);
+      for (let i = h; i < n; i++) g.lineTo(up[i][0], up[i][1]);
+      for (let i = n - 2; i >= h - 1; i--) g.lineTo(dn[i][0], dn[i][1]);
+      g.closePath(); g.fill(); g.globalAlpha = 1;
     }
   }
   // вода: полынья и лунки — тон №4→№5 без белых обводок, кромка льда №3
@@ -1854,52 +2305,108 @@ const ArtWorld = (() => {
     g.restore();
   }
   // кочка мари: бугорок, сухая трава пучком, снежная шапка
+  // t.v — форма: 0 веер осоки, 1 высокий густой пучок, 2 плоская кочка с пригнутой ветром травой, 3 двойная кочка с редкой травой;
+  // t.m — зеркало, t.rot — наклон пучка, t.c — цвет сухой травы (4 тона). Пучок — свой поток по координатам (две кочки не совпадают травинка в травинку).
+  const TUSS_C = [['#a8825a', '#c9a877'], ['#96764f', '#b8966a'], ['#b8925f', '#d6b884'], ['#8c7458', '#a99478']];
   function tussock(g, t) {
-    const x = t.x, y = t.y, s = t.s || 1;
-    el(g, x + 0.8 * s, y + 1 * s, 8.5 * s, 3.4 * s, 'rgba(182,201,223,0.6)');          // тень формы №3
-    el(g, x, y - 0.6 * s, 7.4 * s, 3.4 * s, '#dde6ee');                                // заснеженный бугорок №2
-    g.strokeStyle = '#a8825a'; g.lineWidth = 1 * s; g.lineCap = 'round'; g.beginPath();  // сухая осока — mix(№9, №10)
-    for (let i = -3; i <= 3; i++) { const bx = x + i * 1.8 * s, h = (6 - Math.abs(i) * 1.1) * s; g.moveTo(bx, y - 1.5 * s); g.quadraticCurveTo(bx + i * 0.5 * s, y - 1.5 * s - h * 0.6, bx + i * 1.3 * s, y - 1.5 * s - h); }
-    g.stroke();
-    el(g, x - 1 * s, y - 2.2 * s, 5.2 * s, 1.9 * s, SNOW_HI);                          // шапка снега
+    const x = t.x, y = t.y, s = t.s || 1, v = t.v | 0, m = t.m || 1, [c0, c1] = TUSS_C[t.c | 0] || TUSS_C[0];
+    const r = rng(((t.x * 73856093) ^ (t.y * 19349663)) >>> 0);
+    const wide = v === 2 ? 1.35 : v === 1 ? 0.8 : 1, hi = v === 1 ? 1.45 : v === 2 ? 0.7 : v === 3 ? 0.85 : 1;
+    g.save(); g.translate(x, y); g.scale(m, 1);
+    el(g, 0.8 * s, 1 * s, 8.5 * s * wide, 3.4 * s, 'rgba(182,201,223,0.6)');                   // тень формы №3
+    el(g, 0, -0.6 * s, 7.4 * s * wide, 3.4 * s * (v === 2 ? 0.8 : 1), '#dde6ee');              // заснеженный бугорок №2
+    if (v === 3) { el(g, 6.5 * s, 0.4 * s, 4.6 * s, 2.4 * s, '#dde6ee'); el(g, 7.2 * s, 1.2 * s, 5.2 * s, 1.6 * s, 'rgba(182,201,223,0.45)'); }
+    // сухая осока: травинки разной длины, пучок наклонён (rot) и у плоской кочки пригнут ветром
+    const n = v === 1 ? 11 : v === 3 ? 5 : 8, lean = (t.rot || 0) + (v === 2 ? 0.9 : 0), base = -1.5 * s;
+    g.lineCap = 'round';
+    for (const [col, lw, k0] of [[c0, 1, 0], [c1, 0.7, 1]]) {
+      g.strokeStyle = col; g.lineWidth = lw * s; g.beginPath();
+      for (let i = k0; i < n; i += 2) {
+        const u = n > 1 ? i / (n - 1) * 2 - 1 : 0, bx = u * 5.4 * s * wide * (v === 1 ? 0.7 : 1), h = (6.2 - Math.abs(u) * 3.2) * s * hi * (0.75 + r() * 0.5);
+        const a = u * 0.55 + lean + (r() - 0.5) * 0.3, tx = bx + Math.sin(a) * h, ty = base - Math.cos(a) * h;
+        g.moveTo(bx, base); g.quadraticCurveTo(bx + Math.sin(a) * h * 0.3, base - h * 0.62, tx, ty);
+      }
+      g.stroke();
+      if (v === 3) { g.beginPath(); for (let i = 0; i < 3; i++) { const bx = (5 + i * 1.6) * s, h = (3 + r() * 2) * s; g.moveTo(bx, 0); g.lineTo(bx + (i - 1 + lean) * 1.2 * s, -h); } g.stroke(); }
+    }
+    el(g, -1 * s, -2.2 * s, 5.2 * s * (v === 2 ? 1.4 : v === 1 ? 0.7 : 1), 1.9 * s, SNOW_HI);            // шапка снега
+    g.restore();
   }
 
-  // ================= Ми-8 в полёте (та же ливрея, что у обломков) =================
-  // нос влево, опора — центр фюзеляжа; ротор — отдельно (размытый диск, без стробоскопа)
+  // ================= Ми-8 в полёте — та же модель, что обломки (paintMi8): контур корпуса, ливрея, иллюминаторы, кабина, капот =================
+  // нос влево; координаты корпуса обломков сдвинуты на 8 px вверх (Y), корпус цел — вместо разлома сужение в хвостовую балку,
+  // балка и пилон — как у обломка хвоста (paintTail), но целые. Дверь (сдвижная, левый борт) — x −6…16, y −30…10 (MI8_DOOR); втулка — (0, −66).
+  const MI8_DOOR = { x0: -6, x1: 16, y0: -30, y1: 10 };
   function paintMi8Fly(g) {
-    // хвостовая балка и киль
-    g.fillStyle = lg(g, 0, -12, 0, 10, [[0, '#f6f9fc'], [0.5, '#dde6ee'], [1, '#6f8ea8']]);
-    g.beginPath(); g.moveTo(50, -14); g.lineTo(168, -26); g.lineTo(170, -18); g.lineTo(50, 6); g.fill();
-    g.fillStyle = '#dde6ee'; g.beginPath(); g.moveTo(158, -24); g.lineTo(166, -58); g.lineTo(174, -58); g.lineTo(172, -18); g.fill();
-    g.fillStyle = '#b8392d'; g.fillRect(70, -13, 80, 4.4); g.fillRect(162, -40, 11, 5);
-    el(g, 170, -44, 3, 3, '#6c7178');
-    // фюзеляж
-    const body = new Path2D(); body.moveTo(-96, 6); body.quadraticCurveTo(-104, -34, -62, -40); body.lineTo(52, -40); body.quadraticCurveTo(74, -34, 64, 6); body.quadraticCurveTo(0, 18, -96, 6); body.closePath();
-    g.fillStyle = lg(g, 0, -40, 0, 14, [[0, '#f6f9fc'], [0.35, '#dde6ee'], [0.8, '#b6c9df'], [1, '#6f8ea8']]); g.fill(body);
+    const Y = -8;
+    g.save(); g.translate(0, Y);
+    // хвостовая балка (конус) и пилон с рулевым винтом — позади корпуса
+    g.fillStyle = lg(g, 0, -22, 0, 12, [[0, '#f6f9fc'], [0.35, '#dde6ee'], [0.8, '#b2bac3'], [1, '#7f8792']]);
+    g.beginPath(); g.moveTo(70, -24); g.lineTo(166, -16); g.lineTo(168, -8); g.lineTo(76, 14); g.closePath(); g.fill();
+    g.strokeStyle = '#27394a'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(80, -3); g.lineTo(166, -11); g.stroke();
+    g.strokeStyle = '#ca4528'; g.lineWidth = 7; g.beginPath(); g.moveTo(128, -14); g.lineTo(140, -15); g.stroke();
+    g.strokeStyle = 'rgba(62,68,80,0.35)'; g.lineWidth = 0.8; g.beginPath(); for (const x of [96, 114, 150]) { g.moveTo(x, -21 + (x - 70) * 0.07); g.lineTo(x, 9 - (x - 76) * 0.2); } g.stroke();
+    g.fillStyle = lg(g, 156, 0, 178, 0, [[0, '#dde6ee'], [1, '#8e99a3']]);
+    g.beginPath(); g.moveTo(156, -16); g.lineTo(170, -52); g.lineTo(178, -52); g.lineTo(170, -8); g.closePath(); g.fill();
+    poly(g, '#ca4528', 163, -34, 168, -46, 175, -46, 171, -34);
+    poly(g, '#b2bac3', 140, -12, 152, -13, 150, -7, 138, -6);                                   // стабилизатор
+    el(g, 175, -48, 3, 3, '#5d626b');
+    // корпус — контур обломков без разлома
+    const body = new Path2D();
+    body.moveTo(-70, -27); body.lineTo(58, -27); body.quadraticCurveTo(76, -26, 84, -20); body.lineTo(84, 12); body.quadraticCurveTo(70, 24, 50, 25);
+    body.lineTo(-62, 25); body.quadraticCurveTo(-100, 25, -108, 6); body.quadraticCurveTo(-111, -14, -92, -23); body.quadraticCurveTo(-83, -27, -70, -27); body.closePath();
+    g.fillStyle = lg(g, 0, -42, 0, -26, [[0, '#f6f9fc'], [1, '#b1b5ba']]); g.beginPath(); g.roundRect(-46, -40, 92, 16, 6); g.fill();   // капот двигателей
+    el(g, -46, -32, 4, 6, '#2f3542'); el(g, 46, -33, 5, 5, '#2f3542'); el(g, 50, -33, 4, 4, '#111418');
+    g.fillStyle = lg(g, 0, -27, 0, 25, [[0, '#f6f9fc'], [0.3, '#dde6ee'], [0.75, '#b2bac3'], [1, '#7f8792']]); g.fill(body);
     g.save(); g.clip(body);
-    g.fillStyle = '#b8392d'; g.fillRect(-110, -6, 190, 7); g.fillStyle = '#7c241c'; g.fillRect(-110, 1, 190, 1.6);
-    g.fillStyle = '#27394a'; g.fillRect(-110, -11, 190, 1.4);
-    g.fillStyle = 'rgba(39,57,74,0.22)'; g.fillRect(-110, 6, 190, 10);
-    g.restore();
+    g.fillStyle = '#ca4528'; g.fillRect(-120, 1, 220, 7); g.fillStyle = '#8b2920'; g.fillRect(-120, 7, 220, 1.6);
+    g.fillStyle = '#27394a'; g.fillRect(-120, -4, 220, 1.6);
+    g.fillStyle = 'rgba(47,53,66,0.25)'; g.fillRect(-120, 17, 220, 8);
+    g.strokeStyle = 'rgba(62,68,80,0.35)'; g.lineWidth = 0.8; g.beginPath(); for (let x = -60; x < 80; x += 22) { g.moveTo(x, -27); g.lineTo(x, 25); } g.stroke();
+    g.fillStyle = 'rgba(78,83,93,0.4)'; for (let x = -58; x < 78; x += 5) g.fillRect(x, -19, 1, 1);
     // кабина
-    g.fillStyle = lg(g, -100, -36, -66, -8, [[0, '#6f8ea8'], [0.5, '#27394a'], [1, '#10271f']]);
-    g.beginPath(); g.moveTo(-96, -8); g.quadraticCurveTo(-98, -32, -68, -35); g.lineTo(-64, -14); g.closePath(); g.fill();
-    poly(g, 'rgba(246,249,252,0.55)', -92, -14, -86, -28, -83, -27, -89, -13);
-    for (let i = 0; i < 4; i++) { el(g, -40 + i * 20, -22, 5.4, 5.4, '#6c7178'); el(g, -40 + i * 20, -22, 4.2, 4.2, '#27394a'); el(g, -41.4 + i * 20, -23.6, 1.5, 1, 'rgba(246,249,252,0.8)'); }
-    rr(g, 16, -34, 22, 36, 2, '#b6c9df'); line(g, '#6f8ea8', 1, 16, -34, 16, 2);
-    // двигательный отсек и втулка
-    g.fillStyle = lg(g, 0, -54, 0, -38, [[0, '#f6f9fc'], [1, '#b6c9df']]); g.beginPath(); g.roundRect(-48, -54, 92, 16, 6); g.fill();
-    el(g, -48, -46, 3.4, 5, '#27394a'); rr(g, -6, -66, 8, 14, 2, '#6c7178');
-    // шасси
-    g.lineCap = 'round'; line(g, '#27394a', 2.6, -70, 10, -72, 22); line(g, '#27394a', 2.6, 30, 10, 34, 22);
-    el(g, -72, 23, 5, 5, '#2f3542'); el(g, 34, 23, 6, 6, '#2f3542'); el(g, -73, 21.5, 2, 2, '#6c7178'); el(g, 33, 21.5, 2.4, 2.4, '#6c7178');
+    g.fillStyle = lg(g, -108, -24, -80, 0, [[0, '#6f8ea8'], [0.5, '#27394a'], [1, '#2f3542']]);
+    g.beginPath(); g.moveTo(-94, -22); g.quadraticCurveTo(-108, -12, -106, 2); g.lineTo(-86, 2); g.lineTo(-80, -22); g.closePath(); g.fill();
+    line(g, '#c2c9d0', 1.5, -93, -10, -84, -10); line(g, '#c2c9d0', 1.5, -95, 2, -88, -22);
+    poly(g, 'rgba(221,230,238,0.6)', -104, -6, -99, -12, -101, -3);
+    for (let i = 0; i < 5; i++) { const wx = -58 + i * 17 + (i > 2 ? 26 : 0), wy = -13; el(g, wx, wy, 5.4, 5.4, '#8f9aa4'); el(g, wx, wy, 4.2, 4.2, '#2f3542'); el(g, wx - 1.4, wy - 1.6, 1.6, 1.1, 'rgba(221,230,238,0.85)'); }
+    // сдвижная дверь (закрыта; финал открывает её поверх)
+    g.fillStyle = lg(g, -6, 0, 16, 0, [[0, '#c2c9d0'], [1, '#a5acb3']]); g.fillRect(-6, -22, 22, 40); line(g, '#6c7178', 1, -6, -22, -6, 18); line(g, '#6c7178', 1, 16, -22, 16, 18);
+    g.restore();
+    // мачта и втулка несущего винта
+    rr(g, -5, -58, 10, 18, 2, '#4e535d'); el(g, 0, -58, 12, 4, '#2f3542');
+    // шасси: носовая стойка и основные
+    g.lineCap = 'round'; line(g, '#27394a', 2.6, -84, 22, -86, 32); line(g, '#27394a', 2.6, 30, 22, 34, 32); line(g, '#27394a', 1.6, 20, 12, 34, 30);
+    el(g, -86, 33, 5, 5, '#2f3542'); el(g, 34, 33, 6, 6, '#2f3542'); el(g, -87, 31.5, 2, 2, '#6c7178'); el(g, 33, 31.5, 2.4, 2.4, '#6c7178');
+    g.restore();
   }
-  // ротор: размытый диск α≈.35 + светлая кромка + втулка (без 5 лопастей — нет стробоскопа при 30 FPS)
+  // несущий винт: 5 лопастей в перспективе (плоскость диска сжата ×0.12), у каждой — шлейф размытия по ходу вращения
+  // (веер из полупрозрачных копий, затухает назад); частота видимого вращения ≈ 1.1 об/с — без стробоскопа. k — прозрачность (появление)
   function rotor(g, x, y, R, t, k = 1) {
-    g.globalAlpha = 0.35 * k; el(g, x, y, R, R * 0.12, '#6c7178');
-    g.globalAlpha = 0.22 * k; g.strokeStyle = '#dde6ee'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(x, y, R, R * 0.12, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
-    g.globalAlpha = 0.18 * k; el(g, x + Math.cos(t * 7) * R * 0.5, y, R * 0.45, R * 0.05, '#27394a');
-    g.globalAlpha = 1; el(g, x, y, 5, 2.2, '#27394a');
+    const w = t * 6.9, fl = 0.12;
+    g.save(); g.translate(x, y);
+    g.globalAlpha = 0.1 * k; el(g, 0, 0, R, R * fl, '#6c7178');                                   // лёгкий след диска
+    for (let b = 0; b < 5; b++) {
+      const a0 = w + b * TAU / 5;
+      for (let q = 7; q >= 0; q--) {
+        const a = a0 - q * 0.075, ca = Math.cos(a), sa = Math.sin(a), front = sa > 0;
+        g.globalAlpha = k * (q ? 0.22 * (1 - q / 8) : 0.85);
+        g.strokeStyle = front ? '#27394a' : '#4e535d'; g.lineWidth = q ? 2.4 : 2.8;
+        g.beginPath(); g.moveTo(ca * 6, sa * 6 * fl); g.lineTo(ca * R, sa * R * fl); g.stroke();
+      }
+      g.globalAlpha = k * 0.8; g.fillStyle = '#ca4528'; const ca = Math.cos(a0), sa = Math.sin(a0); g.fillRect(ca * R * 0.95 - 1, sa * R * 0.95 * fl - 1, 2, 2);
+    }
+    g.globalAlpha = 1; el(g, 0, 0, 6, 2.6, '#27394a'); el(g, 0, -1, 3, 1.2, '#6c7178');
+    g.restore();
+  }
+  // рулевой винт (сбоку на пилоне, плоскость — к зрителю): 3 лопасти с размытием, быстрее несущего
+  function tailRotor(g, x, y, r, t, k = 1) {
+    const w = t * 17;
+    for (let b = 0; b < 3; b++) for (let q = 5; q >= 0; q--) {
+      const a = w + b * TAU / 3 - q * 0.16; g.globalAlpha = k * (q ? 0.18 * (1 - q / 6) : 0.8);
+      g.strokeStyle = '#2f3542'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.stroke();
+    }
+    g.globalAlpha = 1; el(g, x, y, 2.4, 2.4, '#5d626b');
   }
   function mi8Fly() { return sprite('mi8fly', 290, 132, g => { g.translate(108, 70); paintMi8Fly(g); }); }
 
@@ -1912,13 +2419,13 @@ const ArtWorld = (() => {
       case 'labaz': return sprite('labaz', 80, 90, g => { g.translate(40, 80); paintLabaz(g); });
     }
   }
-  function reset() { for (const k in cache) delete cache[k]; }
+  function reset() { for (const k in cache) delete cache[k]; for (const k in last) delete last[k]; bytes = 0; }
 
   return {
-    paintSpruce, paintBirch, paintCedar, paintMi8, paintTail, paintChum, paintLabaz, paintMi8Fly, mi8Fly, rotor,
-    treeSprite, treeW, treeK, spr, reset, rng, setScale, shadow,
+    paintSpruce, paintBirch, trunkWell, rootsInSnow, bodyLight, paintCedar, paintMi8, mi8Wires: () => MI8_WIRES, paintTail, paintChum, paintLabaz, paintMi8Fly, mi8Fly, rotor, tailRotor, MI8_DOOR,
+    treeSprite, treeW, treeK, spr, reset, rng, setScale, shadow, budget, purge, stats,
     sprite, el, rr, poly, line, lg, rg, // примитивы — для js/art-zones.js (тот же кэш и масштаб)
-    stump, sapling, stashPile, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
+    stump, felledLog, chunk, emptyCan, sapling, stashPile, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
     hutFloor, hutNorth, hutFront, hutRoof, hutStove, hutBench, hutChest, hutBed, hutTop: HUT_TOP,
     fire, stack, building, flame,
     fx, drawParticle, decal, print,

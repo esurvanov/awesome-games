@@ -32,7 +32,7 @@ const Bear = (() => {
       // последний разрешённый выход — драка по-настоящему: без hurtFlee подранок не убегает недобитым,
       // у вышек/стрелков/факела есть реальный шанс закрыть тему шатуна убийством, а не вечным подранком.
       G.bear = { x: POI.mar.x + Math.cos(a) * 420, y: POI.mar.y + Math.sin(a) * 420, hp, hp0: hp, st: 'wander', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0, finalStand: apps >= B.appsMax };
-      Sound.treeCrack(); setTimeout(() => Sound.growl(0.2), 1500);
+      { const nb = G.bear; Sound.src(nb).treeCrack(); setTimeout(() => Sound.src(nb).growl(0.2), 1500); }
       Fx.toast(apps >= B.appsMax ? ':bear: Шатун вышел в последний раз — либо он, либо посёлок' : ':bear: Треск в тайге. Шатун вышел');
     }
     const b = G.bear; if (!b) return;
@@ -51,13 +51,13 @@ const Bear = (() => {
             if (b.t <= 0) { b.tgt++; b.t = 4; b.raid = 1; }
           }
         }
-        if (dp < B.huntR && !(p.inside && G.hut.door)) { b.st = 'hunt'; Sound.growl(0.35); }
+        if (dp < B.huntR && !(p.inside && G.hut.door)) { b.st = 'hunt'; Sound.src(b).growl(0.35); }
         break;
       }
       case 'hunt':
         tx = p.x; ty = p.y; sp = 120;
         if (p.inside && G.hut.door) { b.st = 'wander'; break; }
-        if (dp < 75 && b.cd <= 0) { b.st = 'windup'; b.t = 0.65; Sound.growl(0.3); }
+        if (dp < 75 && b.cd <= 0) { b.st = 'windup'; b.t = 0.65; Sound.src(b).growl(0.3); }
         else if (dp > 150 && dp < 300 && b.cd <= 0 && Math.random() < dt * 0.5) { b.st = 'charge'; b.t = 1.5; b.lx = Math.cos(ap) * 200; b.ly = Math.sin(ap) * 200; }
         else if (dp > 650) b.st = 'wander';
         break;
@@ -66,7 +66,7 @@ const Bear = (() => {
         b.face = Math.sign(p.x - b.x) || b.face;
         if (b.t <= 0) {
           if (dp < 88 && !(p.iT > 0)) {
-            p.iT = 1.1; G.s.hp -= B.swipe * Settings.diff().wolf; G.cause = 'bear'; G.hurt = 1; Fx.shake(18); p.x += Math.cos(ap) * 50; p.y += Math.sin(ap) * 50; p.action = null; Sound.bite();
+            p.iT = 1.1; G.s.hp -= B.swipe * Settings.diff().wolf; G.cause = 'bear'; G.hurt = 1; Fx.shake(18); p.x += Math.cos(ap) * 50; p.y += Math.sin(ap) * 50; World.solid(p, 10, 'p'); p.action = null; Sound.bite();
             Fx.burst(p.x, p.y - 16, 16, '#c0392b');
           }
           b.st = 'hunt'; b.cd = 1.1;
@@ -78,10 +78,10 @@ const Bear = (() => {
     }
     // подранок уходит до следующей ночи — кроме последнего разрешённого выхода (finalStand): там это
     // и был бы вечный неубиваемый цикл «подранок → hpWounded → опять подранок», дерётся до конца.
-    if (!b.finalStand && b.hp <= b.hp0 * B.hurtFlee && b.st !== 'fleeHurt' && b.st !== 'flee') { b.st = 'fleeHurt'; b.t = 10; G.flags.bearWounded = 1; Fx.toast(':bear: Шатун уходит, огрызаясь · вернётся'); Sound.growl(0.4); }
+    if (!b.finalStand && b.hp <= b.hp0 * B.hurtFlee && b.st !== 'fleeHurt' && b.st !== 'flee') { b.st = 'fleeHurt'; b.t = 10; G.flags.bearWounded = 1; Fx.toast(':bear: Шатун уходит, огрызаясь · вернётся'); Sound.src(b).growl(0.4); }
     // дед стреляет — раз за ночь (исправление: раньше — раз за игру)
     if (G.urk.respect >= B.urkRespect && G.flags.urkShotN !== G.bearNight && (b.st === 'hunt' || b.st === 'windup' || b.st === 'charge') && dp < B.urkR) {
-      G.flags.urkShot = 1; G.flags.urkShotN = G.bearNight; G.flags.bearWounded = 1; b.hp -= B.urkDmg; b.st = 'flee'; b.t = 6; Sound.shot(); Fx.shake(6);
+      G.flags.urkShot = 1; G.flags.urkShotN = G.bearNight; G.flags.bearWounded = 1; b.hp -= B.urkDmg; b.st = 'flee'; b.t = 6; Sound.src(G.urk).shot(); Fx.shake(6);
       Fx.toast(':rifle: Уркачан выстрелил! Шатун ушёл');
     }
     if (!direct) {
@@ -95,7 +95,8 @@ const Bear = (() => {
     const spd = Math.hypot(b.vx, b.vy); b.step += dt * spd * 0.05;
     if (spd > 20) { b.pr += dt; if (b.pr > 0.45) { b.pr = 0; Fx.print(b.x, b.y, Math.atan2(b.vy, b.vx), 'b'); } }
     if (World.onThinIce(b)) {
-      G.bear = null; G.flags.bearDead = 1; Sound.splash(); Sound.growl(0.4); Fx.shake(12);
+      if (typeof Ice !== 'undefined') Ice.animal(b, 'bear'); // лёд проломился под ним: дыра, брызги, уходит в воду (js/ice.js)
+      G.bear = null; G.flags.bearDead = 1; Sound.src(b).splash(); Sound.src(b).growl(0.4); Fx.shake(12);
       Fx.burst(b.x, b.y, 30, '#9fd0ee', 180); Fx.toast(':frost: Шатун ушёл под лёд!');
     }
   }
@@ -113,14 +114,14 @@ const Bear = (() => {
     if (bl) {
       const Bd = BUILDS[bl.type], pt = { x: bl.x, y: bl.y + Bd.h / 2 + 18 };
       if (dist2(b, pt) < 36 * 36 && b.t <= 0) {
-        b.t = 1.2; bl.hp = (bl.hp == null ? TUNE.colony.buildHp : bl.hp) - B.buildDmg; Fx.shake(4); Sound.hit();
-        if (bl.bearN !== G.bearNight) { bl.bearN = G.bearNight; Fx.toast(`:bear: Шатун ломает: ${Bd.i} ${Bd.n}!`); Sound.growl(0.35); }
+        b.t = 1.2; bl.hp = (bl.hp == null ? TUNE.colony.buildHp : bl.hp) - B.buildDmg; Fx.shake(4); Sound.src(bl).hit();
+        if (bl.bearN !== G.bearNight) { bl.bearN = G.bearNight; Fx.toast(`:bear: Шатун ломает: ${Bd.i} ${Bd.n}!`); Sound.src(b).growl(0.35); }
         if (bl.type === 'smoke') { let n = 0; for (const k of FOOD_KEYS) while (n < 2 && (G.chest[k] || 0) > 0) { G.chest[k]--; n++; } }
         for (const u of G.col.units) if (!u.hidden && dist2(u, b) < 60 * 60) { u.hp -= B.unitDmg; Fx.burst(u.x, u.y - 12, 8, '#c0392b'); }
         if (bl.hp <= 0) {
           G.col.builds.splice(G.col.builds.indexOf(bl), 1); b.rid = 0; b.rHut = 1;
           for (const u of G.col.units) if (u.hidden && dist2(u, bl) < 90 * 90) { u.hidden = false; u.x = bl.x; u.y = bl.y + Bd.h / 2 + 20; }
-          Fx.toast(`:bear: ${Bd.i} ${Bd.n} разломан`); Sound.treeCrack(); for (let i = 0; i < 4; i++) ArtWorld.fx.chips(G.parts, bl.x + rnd(-20, 20), bl.y + rnd(-10, 10));
+          Fx.toast(`:bear: ${Bd.i} ${Bd.n} разломан`); Sound.src(bl).treeCrack(); for (let i = 0; i < 4; i++) ArtWorld.fx.chips(G.parts, bl.x + rnd(-20, 20), bl.y + rnd(-10, 10));
         }
       }
       return pt;
@@ -130,12 +131,12 @@ const Bear = (() => {
     if (dist2(b, door) < 40 * 40) {
       if (G.hut.door) {
         G.hut.doorHp -= dt * B.doorDmg;
-        if (!b.doorSaid) { b.doorSaid = 1; Fx.toast(':bear: Шатун ломится в дверь!'); Sound.growl(0.4); Fx.shake(6); }
-        if (G.hut.doorHp <= 0) { G.hut.door = 0; G.hut.doorHp = 100; Fx.toast(':door: Шатун выломал дверь!'); Fx.shake(12); Sound.treeCrack(); }
+        if (!b.doorSaid) { b.doorSaid = 1; Fx.toast(':bear: Шатун ломится в дверь!'); Sound.src(b).growl(0.4); Fx.shake(6); }
+        if (G.hut.doorHp <= 0) { G.hut.door = 0; G.hut.doorHp = 100; Fx.toast(':door: Шатун выломал дверь!'); Fx.shake(12); Sound.src(b).treeCrack(); }
       } else if (p.inside) { b.st = 'hunt'; }
       else if (b.t <= 0 && Inv.cnt('food', true) - Inv.cnt('food', false) > 0) {
         let n = 0; for (const k of FOOD_KEYS) while (n < 3 && (G.chest[k] || 0) > 0) { G.chest[k]--; n++; }
-        Fx.toast(':bear: Шатун ворует еду из избы!'); b.t = 10; Sound.growl(0.3);
+        Fx.toast(':bear: Шатун ворует еду из избы!'); b.t = 10; Sound.src(b).growl(0.3);
       }
     }
     return door;

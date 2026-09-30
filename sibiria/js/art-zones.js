@@ -35,9 +35,8 @@ const ArtZones = (() => {
     el(g, 0, -hgt - 1 * s, 2.2 * s, 1.2 * s, SN);
     g.restore();
     // снег у комля, обугленная кора в снегу
-    g.fillStyle = lg(g, -15 * s, 0, 15 * s, 0, [[0, SN], [1, '#c6d5e6']]);
-    g.beginPath(); g.ellipse(0, -0.5 * s, 13 * s, 3.6 * s, 0, 0, TAU); g.fill();
-    el(g, -8 * s, -1.4 * s, 2.6 * s, 1.1 * s, CHAR); el(g, 7 * s, -0.8 * s, 2 * s, 0.9 * s, CHAR3);
+    if (W_.trunkWell) W_.trunkWell(g, s, v, 0.9, 7129); // воронка-наддув, как у ели
+    if (W_.rootsInSnow) W_.rootsInSnow(g, s, 4.6, [[-1, 9, CHAR], [1, 8, CHAR3]]); // обугленные корни уходят под снег
   }
 
   // ================= глыба =================
@@ -461,7 +460,7 @@ const ArtZones = (() => {
   function wispAt(g, o, E) {
     const ch = { meteoHouse: [34, -114], factory: [-36, -106], balokSkid: [-17, -74], lodge: [25, -80], zaimka: [23, -104] }[o.type]; if (!ch) return;
     const x = o.x + ch[0], y = o.y + ch[1];
-    if (state === 'play' && typeof FX !== 'undefined' && !UI.modal()) FX.emit('zs' + o.id, 2, (parts, r) => parts.push({ type: 'smoke', x, y, vx: (r() - 0.5) * 8 + 10, vy: -18 - r() * 8, life: 2.6, max: 2.6 }));
+    if (state === 'play' && typeof FX !== 'undefined' && !UI.modal()) FX.emit('zs' + o.id, 2, (parts, r) => parts.push({ type: 'smoke', x, y, vx: (r() - 0.5) * 8, vy: -18 - r() * 8, life: 2.6, max: 2.6 }));
   }
   // промоина с паром (слой земли)
   function steamGround(g, o, E) {

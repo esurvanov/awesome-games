@@ -52,11 +52,14 @@ const Wolves = (() => {
       w.cd = Math.max(0, w.cd - dt); w.t -= dt;
       let tx = w.x, ty = w.y, sp = 0, direct = false;
       const dp = dist(w, p), ap = Math.atan2(w.y - p.y, w.x - p.x);
+      const ws = stormOn(), wdx = ws ? Math.cos(Wind.dir()) : 0, wdy = ws ? Math.sin(Wind.dir()) : 0;
       if (dawn && w.st !== 'retreat') w.st = 'retreat';
       switch (w.st) {
         case 'scout': {
           const a = ap + 0.3 * w.dir * dt * 3; tx = p.x + Math.cos(a) * 420; ty = p.y + Math.sin(a) * 420; sp = 95;
-          if (w.t <= 0) { const prt = Fire.protection(); if (!prt && Math.random() < 0.4) { w.st = 'crouch'; w.t = 0.6; Sound.growl(0.15); } else w.st = 'retreat'; }
+          // пурга: разведчик идёт по ветру (запах несёт от героя) и, выдохшись, ложится в снег, а не бросается
+          if (ws) { tx = w.x + wdx * 120; ty = w.y + wdy * 120; sp = 60; if (w.t <= 0) { w.st = 'lie'; w.t = 8 + (i % 3) * 3; } break; }
+          if (w.t <= 0) { const prt = Fire.protection(); if (!prt && Math.random() < 0.4) { w.st = 'crouch'; w.t = 0.6; Sound.src(w).growl(0.15); } else w.st = 'retreat'; }
           break;
         }
         case 'circle': {
@@ -65,14 +68,14 @@ const Wolves = (() => {
           for (const u of Space.units.near(w.x, w.y, WF.preyR)) { const d = dist2(u, w); if (!u.hidden && d < pd && (prot || d < dist2(p, w))) { pd = d; prey = u; } }
           if (prey) {
             tx = prey.x; ty = prey.y; sp = 150;
-            if (dist2(prey, w) < 28 * 28 && w.cd <= 0) { prey.hp -= WF.biteUnit * Settings.diff().wolf; w.cd = WF.biteCd; w.st = 'flee'; w.t = 0.6; Sound.bite(); Fx.burst(prey.x, prey.y - 12, 8, '#c0392b'); }
+            if (dist2(prey, w) < 28 * 28 && w.cd <= 0) { prey.hp -= WF.biteUnit * Settings.diff().wolf; w.cd = WF.biteCd; w.st = 'flee'; w.t = 0.6; Sound.src(prey).bite(); Fx.burst(prey.x, prey.y - 12, 8, '#c0392b'); }
             break;
           }
           const c = prot || p, R = prot ? prot.r + 50 : (pk ? pk.R : 220);
           w.ang = Math.atan2(w.y - c.y, w.x - c.x) + 0.4 * w.dir * dt * 2;
           tx = c.x + Math.cos(w.ang) * R; ty = c.y + Math.sin(w.ang) * R; sp = 110;
           if (!prot && !lunging && pk && pk.lungeT <= 0 && dp < 320) {
-            w.st = 'crouch'; w.t = 0.6; lunging = true; pk.lungeT = rnd(2, 3.5); Sound.growl(0.12);
+            w.st = 'crouch'; w.t = 0.6; lunging = true; pk.lungeT = rnd(2, 3.5); Sound.src(w).growl(0.12);
           }
           if (!pk && !prot) { w.st = 'crouch'; w.t = 0.6; }
           break;
@@ -84,13 +87,15 @@ const Wolves = (() => {
           if (dp < 30 && w.cd <= 0 && !(p.inside && G.hut.door) && !(p.iT > 0)) {
             p.iT = 1.1;
             G.s.hp -= WF.bite * Settings.diff().wolf; G.s.warm = Math.max(0, G.s.warm - WF.biteWarm); w.cd = WF.biteCd; G.cause = 'wolf'; G.hurt = 1; Fx.shake(9);
-            p.x += Math.cos(ap + Math.PI) * 18; p.y += Math.sin(ap + Math.PI) * 18; p.action = null; Sound.bite();
+            p.x += Math.cos(ap + Math.PI) * 18; p.y += Math.sin(ap + Math.PI) * 18; World.solid(p, 10, 'p'); p.action = null; Sound.bite(); // отброс — не сквозь стволы/стены
             ArtWorld.fx.blood(G.parts, p.x, p.y, G.decals = G.decals || []); w.st = 'flee'; w.t = 0.8;
             if (p.sleeping) Actions.wake(false, ':wolf: Волк!');
           }
           break;
         case 'flee': tx = w.x + Math.cos(ap) * 100; ty = w.y + Math.sin(ap) * 100; sp = 170; if (w.t <= 0) w.st = G.pack ? 'circle' : 'retreat'; break;
-        case 'retreat': tx = w.x + Math.cos(ap) * 100; ty = w.y + Math.sin(ap) * 100; sp = 170; if (dp > WF.goneR) { G.wolves.splice(i, 1); continue; } break;
+        case 'lie': sp = 0; w.vx *= 0.8; w.vy *= 0.8; if (w.t <= 0 || dp < 160 || !ws) w.st = 'retreat'; break; // лежит, мордой в хвост; спугнули/стихло — уходит
+        case 'retreat': tx = w.x + (ws ? wdx : Math.cos(ap)) * 100; ty = w.y + (ws ? wdy : Math.sin(ap)) * 100; sp = ws ? 120 : 170; // в пургу уходят по ветру
+          if (dp > WF.goneR) { G.wolves.splice(i, 1); continue; } break;
       }
       if (!direct) {
         if (sp > 0 && (tx - w.x) ** 2 + (ty - w.y) ** 2 > 40 * 40) { const q = Nav.way(w, tx, ty); if (q.x !== tx || q.y !== ty) { const l0 = Math.hypot(tx - w.x, ty - w.y), l1 = Math.hypot(q.x - w.x, q.y - w.y) || 1; tx = w.x + (q.x - w.x) / l1 * l0; ty = w.y + (q.y - w.y) / l1 * l0; } }

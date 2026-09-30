@@ -2,6 +2,8 @@
 // Герой: навыки, производные параметры (скорость, одежда, предел тепла) и движение (лёд, пурга, следы, нарты).
 const Hero = (() => {
   const H = TUNE.hero;
+  // сглаживание, не зависящее от FPS: доля пути за кадр dt при «жёсткости» k (1/с), калибровка — как у прежнего min(1, dt·k) при 60 к/с
+  const RATE = k => -60 * Math.log(1 - Math.min(k / 60, 0.99)), ease = (k, dt) => 1 - Math.exp(-dt * RATE(k));
   function lvl(k) { const x = G.skills[k]; let l = 1; for (let i = 1; i < LV.length; i++) if (x >= LV[i]) l = i + 1; return l; }
   function xp(k, n = 1) {
     const b = lvl(k); G.skills[k] += n; const a = lvl(k);
@@ -19,7 +21,9 @@ const Hero = (() => {
       if (Inv.weight() > Inv.capKg()) s *= H.over;
       if (G.s.warm < H.coldBelow) s *= H.cold;
       if (p.sprainT > 0) s *= TUNE.zone.sprain;
-      if (driftAt(p.x, p.y)) s *= H.drift;
+      // снег: по колено ×0.7 · по пояс ×0.35 · по грудь ×0.2, рывками (js/depth.js; поверхность — уже в TERRAIN.walk); без поля — сугроб ×H.drift
+      if (typeof Depth !== 'undefined') s *= Depth.heroMul(); else if (driftAt(p.x, p.y)) s *= H.drift;
+      if (p.creaked && World.onThinIce(p)) s *= 0.5; // лёд трещит — ступает осторожно
     }
     if (stormOn() && !p.inside) s *= H.storm;
     return s;
@@ -27,31 +31,36 @@ const Hero = (() => {
   // шаг движения: разгон/скольжение по льду, снос пургой, следы, нарты следом; перегруз — сообщение
   function move(dt, storm) {
     const p = G.p;
+    if (typeof Ice !== 'undefined' && Ice.active()) { p.moving = false; B.glide = false; p.inside = false; return; } // в полынье: телом правит Ice (js/ice.js)
     if (!p.sleeping) {
       let mx = input.mx, my = input.my, want = 0;
       const ox = p.x, oy = p.y;
       const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
       p.moving = len > 0.15;
       B.glide = false; // скольжение по льду без ввода — своё состояние тела (не ходьба); действие держит героя на месте
-      if (!p.moving && !p.action && onIce(p.x, p.y) && Math.hypot(p.vx || 0, p.vy || 0) > PT.glideV) { B.glide = true; p.vx *= 1 - Math.min(1, dt * H.iceGrip); p.vy *= 1 - Math.min(1, dt * H.iceGrip); p.x += p.vx * dt; p.y += p.vy * dt; }
-      else if (!p.moving) { p.vx = p.vy = 0; }
+      if (!p.moving && !p.action && onIce(p.x, p.y) && Math.hypot(p.vx || 0, p.vy || 0) > PT.glideV) { B.glide = true; const q = 1 - ease(H.iceGrip, dt); p.vx *= q; p.vy *= q; p.x += p.vx * dt; p.y += p.vy * dt; p.face = B.vf; }
+      else if (!p.moving) { p.vx = p.vy = 0; B.vf = p.face; }
       if (p.moving) {
         if (p.action) p.action = null;
         let sp = speed();
         const k = onIce(p.x, p.y) ? H.iceGrip : H.grip;
-        p.vx = (p.vx || 0) + (mx * sp - (p.vx || 0)) * Math.min(1, dt * k); p.vy = (p.vy || 0) + (my * sp - (p.vy || 0)) * Math.min(1, dt * k);
+        const e = ease(k, dt); p.vx = (p.vx || 0) + (mx * sp - (p.vx || 0)) * e; p.vy = (p.vy || 0) + (my * sp - (p.vy || 0)) * e;
         p.x += p.vx * dt; p.y += p.vy * dt; want = sp * dt;
-        if (storm && !p.inside) { p.x += H.stormDrift * dt; }
+        if (storm && !p.inside) { const w = Wind.at(p.x, p.y), k = H.stormDrift * dt * (0.6 + 0.8 * w.gust); p.x += w.gx * k; p.y += w.gy * k * 0.6; } // снос — по ветру (Wind.dir, порыв рыщет), сильнее в порыв
         if (p.ride) Transport.moved(ox, oy);
         if (Math.abs(mx) > 0.1) p.face = Math.sign(mx);
+        // видимая сторона (B.vf) — за фактической скоростью: пока тело ещё едет в старую сторону быстрее FACE_V (лёд), не разворачиваем
+        const vx = p.vx || 0; if (B.vf !== p.face && !(Math.sign(vx) === B.vf && Math.abs(vx) > FACE_V)) B.vf = p.face;
         p.step += dt * 12;
       }
       contact(p, World.solid(p, 10, 'p'), dt, mx, my, want, ox, oy);
+      if (typeof Ice !== 'undefined') Ice.keepOut(p); // открытая полынья — обходить
       if (p.moving) B.odo += Math.hypot(p.vx || 0, p.vy || 0) * dt; // путь ногами (после упора — только вдоль стены): фаза шага
       if (Math.hypot(p.x - p.lx, p.y - p.ly) > 20) {
         const a = Math.atan2(p.y - p.ly, p.x - p.lx), dr = !p.inside && !!driftAt(p.x, p.y);
         if (!p.inside) Interact.emit('step', { who: 'p', x: p.x, y: p.y, drift: dr });
-        if (!p.inside && !p.ride) Fx.print(p.x + Math.cos(a + 1.57) * (G.prints.length % 2 ? 4 : -4), p.y + Math.sin(a + 1.57) * (G.prints.length % 2 ? 4 : -4), a, 'p', dr ? 1.35 : 1);
+        // следы ставит рисование — там, где встала стопа (footStep); по пути — только если стоп давно не было (кадр не рисуется)
+        if (!p.inside && !p.ride && now - B.feetT > 0.6 && !(typeof Depth !== 'undefined' && Depth.heroSink > 40)) Fx.print(p.x + Math.cos(a + 1.57) * (G.prints.length % 2 ? 4 : -4), p.y + Math.sin(a + 1.57) * (G.prints.length % 2 ? 4 : -4), a, 'p', dr ? 1.35 : 1);
         // задел ветку / кочку на ходу — отклик решают правила Interact (кочки густо: только одна ближайшая)
         if (!p.inside) {
           NB.length = 0; for (const t of treesNear(p.x, p.y, 26, NB)) if (t.wood > 0 && !t.shake) Interact.emit('brush', { who: 'p', target: t, obj: 'tree', x: t.x, y: t.y });
@@ -64,6 +73,7 @@ const Hero = (() => {
       if (sd > 34) { p.sx = p.x - sdx / sd * 34; p.sy = p.y - sdy / sd * 34; }
     } else { p.moving = false; B.glide = false; }
     p.inside = insideHut(p.x, p.y);
+    if (typeof Depth !== 'undefined') Depth.tickHero(dt); // провал в снег: плавно, траншея, разлёт снега
   }
   // упор в препятствие (c — World.solid): гасим скорость «в стену» → герой скользит вдоль; удар 'bump' и упор 'push' — в Interact.
   // Поля p.blocked/bumpCd/touchT/pressT/pushN — только рантайм (в сейве безвредны).
@@ -107,13 +117,23 @@ const Hero = (() => {
   // Ходьба — только из ввода и своей скорости (p.vx/vy), не из сдвига на экране: рывки, телепорты, отскоки, ветер позу не меняют.
   // Рантайм, не в G: сейвы не меняются.
   const PRI = { gesture: 1, react: 2, hurt: 3 };
-  const B = { s: 'idle', since: 0, one: null, act: null, sw: 0, hurt: 0, glide: false, odo: 0, pp: null };
+  // vf — сторона, куда герой смотрит на экране (p.face — игровая: куда ставить/бить; расходятся только на ходу/скольжении)
+  const B = { s: 'idle', since: 0, one: null, act: null, sw: 0, hurt: 0, glide: false, odo: 0, pp: null, vf: 1, feetT: -9 };
+  const FACE_V = 25; // px/с: быстрее этого в старую сторону — ещё не развернулся
+  // стопа героя встала на снег (ArtPeople.draw → o.onStep): след в этой точке, по направлению хода
+  function footStep(x, y, i, a) {
+    const p = G.p; if (p.inside || p.ride || p.sleeping) return;
+    B.feetT = now; const dk = typeof Depth !== 'undefined' ? Depth.heroSink : driftAt(x, y) ? 30 : 0;
+    if (dk > 40) return; // глубже колена — не следы, а траншея (js/depth.js)
+    Fx.print(x, y, a, 'p', dk > 22 ? 1.35 : 1);
+  }
+  const vface = () => { const p = G.p; return (p.moving || B.glide) && !p.ride ? B.vf : p.face; };
   const intent = () => { const p = G.p; return !!p.moving && !p.sleeping && !p.ride && !UI.kind; };
   const ORDER = [
-    ['sleep', p => p.sleeping], ['ride', p => p.ride], ['act', p => p.action], ['one', () => B.one],
+    ['sleep', p => p.sleeping], ['ice', () => typeof Ice !== 'undefined' && Ice.active()], ['ride', p => p.ride], ['act', p => p.action], ['one', () => B.one],
     ['walk', () => intent()], ['glide', () => B.glide], ['panel', p => (B.pp = UI.kind ? panelPose(p) : null)], ['idle', () => true],
   ];
-  const STATES = ['sleep', 'ride', 'act', 'hurt', 'react', 'gesture', 'walk', 'glide', 'panel', 'idle'];
+  const STATES = ['sleep', 'ice', 'ride', 'act', 'hurt', 'react', 'gesture', 'walk', 'glide', 'panel', 'idle'];
   // разовая поза: o.react — реакция/подбор, o.kind:'hurt' — урон, иначе возня/жест; tg — точка в мире, th — высота касания, ik — тянуть руку; a0..a1 — доля позы
   function play(k, o = {}) {
     const p = G.p, kind = o.kind || (o.react ? 'react' : 'gesture');
@@ -162,6 +182,7 @@ const Hero = (() => {
     const p = G.p, s = sync(), D = ArtPeople.DUR;
     const r = { st: s, anim: 'idle', animT: 0, tool: G.gear.saw ? 'saw' : 'axe', tg: null, th: 0, ik: true, target: null, loco: false, speed: 0, vy: 0 };
     if (s === 'sleep') r.anim = 'sleep';
+    else if (s === 'ice') { const q = Ice.pose(); r.anim = has(q.k) ? q.k : 'hurt'; r.animT = q.a; r.tool = 'none'; } // полынья: провал → в воде → кромка → ползком → на ноги
     else if (s === 'ride') r.anim = 'sit';
     else if (s === 'act') actPose(p.action, r);
     else if (PRI[s]) { const o = B.one; r.anim = o.k; r.animT = o.a0 + (o.a1 - o.a0) * clamp((now - o.t0) / o.dur, 0, 1); r.tg = o.tg; r.th = o.th; r.ik = o.ik; }
@@ -170,6 +191,8 @@ const Hero = (() => {
     else if (s === 'panel') { const q = B.pp, d = D[q.k] || 1.6; r.anim = q.k; r.animT = (now % d) / d; r.tg = q.tg || null; r.th = q.th || 0; r.ik = !!q.ik; }
     else { r.anim = idlePose(); if (r.anim !== 'idle') { const f = heat(); r.animT = (now % 1.6) / 1.6; if (f) { r.tg = f; r.th = -8; } } }
     if (p.torch > 0 && s !== 'act' && r.anim !== 'swing' && r.anim !== 'sleep') r.tool = 'torch';
+    // усталость/холод 0..1 — только для рисования (походка ниже, мах рук короче, дыхание чаще); до порогов поз tired/cold — плавно
+    r.tire = clamp(Math.max((38 - G.s.warm) / 20, (38 - G.s.food) / 20, (50 - G.s.hp) / 22, typeof Depth !== 'undefined' ? Depth.effort() * 0.8 : 0), 0, 1);
     return r;
   }
   // герой в открытой панели/диалоге (игра стоит, он «занят»): поза-петля и к чему обращён; null — обычный idle
@@ -194,9 +217,9 @@ const Hero = (() => {
     return null;
   }
   // рывок/телепорт (сел на пень, лёг, сел в нарты, слез, провалился): скорость и след не тянутся через скачок; позу не трогает
-  function snap() { const p = G.p; p.vx = p.vy = 0; p.lx = p.x; p.ly = p.y; B.glide = false; }
+  function snap() { const p = G.p; p.vx = p.vy = 0; p.lx = p.x; p.ly = p.y; B.glide = false; B.vf = p.face; }
   // для проверок (tests/body-check.js): сбросить память автомата под текущее G
-  function bodyReset() { B.one = null; B.act = G.p.action; B.sw = G.p.swing || 0; B.hurt = G.hurt || 0; B.glide = false; B.s = 'idle'; B.since = now; }
+  function bodyReset() { B.one = null; B.act = G.p.action; B.sw = G.p.swing || 0; B.hurt = G.hurt || 0; B.glide = false; B.vf = G.p.face; B.s = 'idle'; B.since = now; }
   const cold = () => G.s.warm < 30, freezing = () => G.s.warm < 20, tired = () => G.s.food < 20 || G.s.hp < 30;
   const outStorm = () => stormOn() && !G.p.inside;
   // рубка по состоянию: устал/голоден → тяжело, мёрзнет → зябко, пурга → пригнувшись (длительность — TUNE.act.chopK)
@@ -212,7 +235,8 @@ const Hero = (() => {
   // походка по обстановке
   function walkPose(run) {
     const p = G.p; if (run || p.ride) return run ? 'run' : 'walk';
-    const k = !p.inside && driftAt(p.x, p.y) ? 'trudge' : outStorm() ? 'shield' : freezing() ? 'cold' : tired() ? 'tired' : 'walk';
+    const dk = typeof Depth !== 'undefined' ? Depth.heroSink : driftAt(p.x, p.y) ? 40 : 0; // провал, см: по пояс и глубже — «плывёт» руками
+    const k = !p.inside && dk > 85 && has('wade') ? 'wade' : !p.inside && dk > 25 ? 'trudge' : outStorm() ? 'shield' : freezing() ? 'cold' : tired() ? 'tired' : 'walk';
     return has(k) ? k : 'walk';
   }
   // чем греться стоя: горящая печь рядом (в избе) или костёр (снаружи, без факела в руке); точка в мире | null
@@ -223,6 +247,7 @@ const Hero = (() => {
   }
   // стоя без дела: у огня или печи — греет руки, на морозе — дрожит
   function idlePose() {
+    if (!G.p.inside && typeof Depth !== 'undefined' && Depth.heroSink > 95 && has('wade')) return 'wade'; // по грудь в снегу: руки на снегу, не опущены
     if (heat()) { const k = cold() ? 'warmHandsCold' : 'warmHands'; if (has(k)) return k; }
     if (freezing() && has('shiver')) return 'shiver';
     return 'idle';
@@ -272,5 +297,5 @@ const Hero = (() => {
     if (LF.still > LF.next) { LF.still = 0; LF.next = lr(LT.again[0], LT.again[1]); const k = pickFidget(); if (k) play(k); }
   }
   return { lvl, xp, chopTime, clothMul, maxWarm, speed, move, tickLoad, play, has, chopPose, chopCycle, pickPose, walkPose, idlePose, heat, tickLife,
-    sync, pose, snap, bodyReset, STATES, PRI, odo: () => B.odo, get body() { return B; } };
+    sync, pose, snap, bodyReset, STATES, PRI, vface, footStep, odo: () => B.odo, get body() { return B; } };
 })();

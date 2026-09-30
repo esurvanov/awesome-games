@@ -71,8 +71,9 @@ const Npc = (() => {
     face(u, b, dt) { u.face = Math.sign(G.p.x - u.x) || u.face; },
     // идёт к точке b.to(); дошёл — состояние b.arrive
     goto(u, b, dt) {
-      const t = b.to(), dx = t.x - u.x, dy = t.y - u.y, d = Math.hypot(dx, dy);
-      if (d < 8) u.state = b.arrive; else { u.x += dx / d * b.speed * dt; u.y += dy / d * b.speed * dt; u.face = Math.sign(dx) || u.face; u.step += dt * 8; }
+      // обход вещей и стволов (World.walk: Nav + упор + шаг в сторону); цель внутри вещи — к её краю
+      const t = b.to(), fr = World.freeNear(t.x, t.y, 9);
+      if (Math.hypot(fr.x - u.x, fr.y - u.y) < 8 || World.walk(u, t.x, t.y, b.speed, dt) < 8) u.state = b.arrive; else u.step += dt * 8;
     },
     // ковыляет за героем (или сама к двери избы, если герой внутри); вошла в избу — состояние b.into у лежанки
     follow(v, b, dt) {
@@ -90,7 +91,7 @@ const Npc = (() => {
         const sp = d > b.lagR ? b.slow : (typeof b.speed === 'function' ? b.speed(G) : b.speed), st = Math.min(sp * dt, q === tgt ? dt2 : dq);
         const x0 = v.x, y0 = v.y;
         v.x += dx * st; v.y += dy * st; v.face = Math.sign(dx) || v.face; v.step += dt * 6;
-        World.solid(v, 9, 'p');
+        World.solid(v, 9, 'n');
         v.chk = (v.chk || 0) + dt; v.moved = (v.moved || 0) + Math.hypot(v.x - x0, v.y - y0);
         if (v.chk > 0.8) { if (v.moved < 12 && !(v.sideT > 0)) { v.sideT = 0.7; v.side = Math.random() < 0.5 ? 1 : -1; } v.chk = 0; v.moved = 0; }
       }
@@ -101,15 +102,31 @@ const Npc = (() => {
   MOVES.sched = function (u, b, dt) {
     const t = b.at(G, u);
     if (!t || (UI.modal() && dist2(u, G.p) < 110 * 110)) return MOVES.face(u, b, dt);
-    const dx = t.x - u.x, dy = t.y - u.y, d = Math.hypot(dx, dy);
-    if (d < 6) return MOVES.face(u, b, dt);
-    const s = Math.min(d, b.speed * dt);
-    u.x += dx / d * s; u.y += dy / d * s; u.face = Math.sign(dx) || u.face; u.step += dt * 8;
+    const fr = World.freeNear(t.x, t.y, 9); // точка распорядка у стены/в вещи — встаём у края
+    if (Math.hypot(fr.x - u.x, fr.y - u.y) < 6) return MOVES.face(u, b, dt);
+    if (World.walk(u, t.x, t.y, b.speed, dt) < 6) return MOVES.face(u, b, dt);
+    u.step += dt * 8;
   };
+  // появиться в точке to: не возникнуть у двери, а прийти из-за края видимости (от своего дома — чум деда — или от героя прочь)
+  function arrive(id, to) {
+    const st = state(id), r = NPCS[id], p = G.p; if (!st || !to) return;
+    const home = r.from || (id === 'urk' ? POI.chum : null);
+    let dx = home ? home.x - to.x : to.x - p.x, dy = home ? home.y - to.y : to.y - p.y; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    const hw = (typeof GFX !== 'undefined' && GFX.vw ? GFX.vw : 1280) / 2 + 70, hh = (typeof GFX !== 'undefined' && GFX.vh ? GFX.vh : 800) / 2 + 90;
+    let d = 200;
+    for (; d < 1600; d += 40) { const x = to.x + dx * d, y = to.y + dy * d; if (Math.abs(x - p.x) > hw || Math.abs(y - p.y) > hh) break; }
+    st.x = clamp(to.x + dx * d, 40, W - 40); st.y = clamp(to.y + dy * d, 40, H - 40); st.come = { x: to.x, y: to.y };
+  }
+  function come(st, dt) {
+    const c = st.come;
+    if ((st.comeT = (st.comeT || 0) + dt) > 60 || World.walk(st, c.x, c.y, 78, dt) < 6) { st.come = null; st.comeT = 0; return; }
+    st.step = (st.step || 0) + dt * 8;
+  }
   function tick(dt) {
     for (const id of ids()) {
       const r = NPCS[id], st = state(id); if (!st) continue;
       if (r.tick) r.tick(G, st, dt);                      // хук персонажа: смена состояния по времени (почтальон приезжает)
+      if (st.come) { come(st, dt); continue; }             // идёт к месту появления (Story: шаг npc с at)
       const b = beh(r, st); if (b.move && MOVES[b.move]) MOVES[b.move](st, b, dt);
     }
   }
@@ -134,5 +151,5 @@ const Npc = (() => {
     Fx.toast(`${t.i} ${t.n}`); Sound.ok2(); return true;
   }
 
-  return { state, ensure, list, context, talk, run, closed, dawn, tick, MOVES, price, furTotal, buy, unit };
+  return { state, ensure, list, context, talk, run, closed, dawn, tick, MOVES, price, furTotal, buy, unit, arrive };
 })();

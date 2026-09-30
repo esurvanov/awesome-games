@@ -202,7 +202,7 @@ const Input = (() => {
     if (e.pointerType !== 'mouse') return touchDown(e);
     lastType = 'mouse'; mouse = { x: e.clientX, y: e.clientY, over: true };
     const g = gate();
-    if (g === 'modal') return;
+    if (g === 'modal') { if (e.button === 0 && UI.advance) UI.advance(); return; }   // разговор: щелчок по миру — дальше
     if (g === 'panel') { if (e.button !== 1) { e.preventDefault(); UI.closePanel(); } return; }
     try { cvs.setPointerCapture(e.pointerId); } catch (_) { /* нет захвата — хватит window */ }
     const x = e.clientX, y = e.clientY;
@@ -266,7 +266,8 @@ const Input = (() => {
     e.preventDefault();
     if (gate() !== 'world') return;
     const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 800 : 1);
-    GFX.setZoom(GFX.zoom * Math.exp(-clamp(dy, -120, 120) * 0.0018), e.clientX, e.clientY);
+    // плавно к курсору: цель копится, зум догоняет. Щипок тачпада (ctrlKey) шлёт мелкие дельты — чувствительнее
+    GFX.zoomBy(Math.exp(-clamp(dy, -120, 120) * (e.ctrlKey ? 0.01 : 0.0018)), e.clientX, e.clientY);
     tips('zoom');
   }
 
@@ -274,7 +275,7 @@ const Input = (() => {
   function touchDown(e) {
     lastType = 'touch';
     const g = gate();
-    if (g === 'modal') return;
+    if (g === 'modal') { if (UI.advance) UI.advance(); return; }   // разговор: тап по миру — дальше
     if (g === 'panel') { e.preventDefault(); UI.closePanel(); return; }
     const x = e.clientX, y = e.clientY;
     touches.set(e.pointerId, { x, y });
@@ -296,7 +297,7 @@ const Input = (() => {
     lastType = 'touch'; q.x = e.clientX; q.y = e.clientY;
     if (pinch && touches.size >= 2) {
       const [a, b] = [...touches.values()], d = Math.hypot(a.x - b.x, a.y - b.y) || 1, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-      GFX.setZoom(pinch.z * d / pinch.d, mx, my); panMove(mx, my);
+      GFX.setZoom(pinch.z * d / pinch.d, mx, my, true); panMove(mx, my); // за пальцами — мгновенно; ступень кэшей — после жеста
       return;
     }
     if (!tp || tp.id !== e.pointerId) return;
@@ -410,7 +411,8 @@ const Input = (() => {
     cx.setTransform(dpr, 0, 0, dpr, (-cam.x + o.shx) * dpr, (-cam.y + o.shy) * dpr);
     cx.lineWidth = 2; cx.textAlign = 'center';
     const ring = (x, y, rx, col) => { cx.strokeStyle = col; cx.beginPath(); cx.ellipse(x, y, rx, rx * 0.4, 0, 0, Math.PI * 2); cx.stroke(); };
-    const label = (t, x, y, col = '#fff') => { cx.font = '600 12px "PT Sans", sans-serif'; cx.lineWidth = 3; cx.strokeStyle = 'rgba(10,20,30,0.75)'; cx.strokeText(t, x, y); cx.fillStyle = col; cx.fillText(t, x, y); cx.lineWidth = 2; };
+    const uk = GFX.uiK ? GFX.uiK() : 1; // подписи на большом зуме — экранного размера, якорь на месте
+    const label = (t, x, y, col = '#fff') => { cx.save(); cx.translate(x, y); cx.scale(uk, uk); cx.font = '600 12px "PT Sans", sans-serif'; cx.lineWidth = 3; cx.strokeStyle = 'rgba(10,20,30,0.75)'; cx.strokeText(t, 0, 0); cx.fillStyle = col; cx.fillText(t, 0, 0); cx.restore(); cx.lineWidth = 2; };
     const rect = (x, y, h, col, dash) => { cx.strokeStyle = col; if (dash) cx.setLineDash([6, 4]); cx.strokeRect(x - h.hw, y + h.top, h.hw * 2, h.bot - h.top); cx.setLineDash([]); };
     if (heroSel) ring(G.p.x, G.p.y, 18, '#ffd27a');
     if (heroGo) { cx.fillStyle = '#ffd27a'; cx.beginPath(); cx.arc(heroGo.x, heroGo.y, 3 + Math.sin(now_ * 6), 0, Math.PI * 2); cx.fill(); }

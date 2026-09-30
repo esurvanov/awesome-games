@@ -180,7 +180,7 @@ const ArtAnimals = (() => {
     g.restore();
     if (eyeKind && env.eye) {
       const ex = SP.eye[0], ey = SP.eye[1], lx = hd[0] + ex * ca - ey * sa, ly = hd[1] + ex * sa + ey * ca;
-      env.eye(x + f * k * sx * lx, y + k * ly, f, eyeKind);
+      env.eye(x + f * k * sx * lx, y + k * ly, f, eyeKind, m.dy, tq); // ракурс: dy > 0 — морда к камере, < 0 — от камеры; tq < 1 — разворот
     }
   }
 
@@ -269,6 +269,12 @@ const ArtAnimals = (() => {
       if (G) { const p = frac(ph + G.o[3]); if (p < G.d) { P.F[3][1] = Math.min(P.F[3][1], -2.2); P.S[1] += 1.8 * sin(p / G.d * Math.PI); P.hd[1] += 1.4 * sin(p / G.d * Math.PI); } }
       else P.F[3] = [12.5, -2.5];
     }
+    // пурга: лежит в снегу — тело к земле, голова на лапах, уши прижаты, хвост обёрнут (без оскала)
+    if (st === 'lie') {
+      const br = sin(now * 1.6 + m.seed) * 0.3;
+      const C = { H: [-11.5, -8 + br * 0.3], S: [9, -8.5 + br], F: [[-12, 0], [-10, 0], [15, 0], [14, 0]], bend: [1, 1, -1, -1], hd: [20, -8, 0.15], jaw: 0, ear: 0.9, tail: [0.2, 1], hack: 0, snarl: 0, roll: 0, sitK: 0 };
+      return mix(P, C, sstep(0, 0.6, m.el));
+    }
     // припадание перед броском
     if (st === 'crouch') {
       const tr = sin(now * 45) * 0.3;
@@ -288,7 +294,7 @@ const ArtAnimals = (() => {
     const m = mem(w, env), st = w.st || 'scout', k = w.leader ? 1.16 : 1, spd = m.spd / k;
     const fast = st === 'lunge' || st === 'flee' || st === 'retreat';
     let gait = spd < 4 ? 'stand' : (fast && spd > 60) || spd > 135 ? 'gallop' : spd > 50 || st === 'circle' ? 'trot' : 'walk';
-    if (st === 'crouch' || w.howl) gait = 'stand';
+    if (st === 'crouch' || st === 'lie' || w.howl) gait = 'stand';
     setGait(m, gait); advance(m, k);
     const P = wolfPose(m, w, env.now);
     quad(g, w, env, m, WOLF, P, w.leader ? LEAD_C : WOLF_C, k, st === 'crouch' || st === 'lunge' ? 'wolfRed' : 'wolf');
@@ -477,49 +483,76 @@ const ArtAnimals = (() => {
   }
 
   // ======================= ЗАЯЦ-БЕЛЯК =======================
+  // окрас: 0 чисто-белый · 1 холодный серо-голубой подшёрсток · 2 кремовый · 3 недолинявший (бурое седло и затылок)
+  const HARE_C = [
+    { hi: '#f6f9fc', mid: '#dde6ee', leg: '#c2d0dd', saddle: null },
+    { hi: '#eef2f6', mid: '#cfd9e3', leg: '#b4c3d1', saddle: null },
+    { hi: '#f7f3ea', mid: '#e2d9c8', leg: '#cdc2ae', saddle: null },
+    { hi: '#f4f5f4', mid: '#dcdcd8', leg: '#c4c0b6', saddle: '#b9ab98' },
+  ];
+  // h.sz — рост (0.5–0.64 от прежней модели: беляк ≈ 55 см, сидя ≈ 1/3 роста человека вместе с ушами);
+  // h.pose — поза на месте: sit · alert (столбиком) · scratch (чешет ухо задней лапой) · gnaw (грызёт веточку) · sniff (нюхает снег) · lie (лёжка)
   function hare(g, h, env) {
     const m = mem(h, env), now = env.now, [f, tq] = turn(m, h.face, now), moving = m.spd > 5 || (h.vx || h.vy);
+    const C = HARE_C[h.coat | 0] || HARE_C[0], K = h.sz || 0.57, pose = moving ? 'hop' : h.pose || 'sit';
     const p = moving ? frac((h.hop || 0) / Math.PI) : 0, air = moving ? sin(p * Math.PI) : 0;
     const st = moving ? clamp(air * 1.4, 0, 1) : 0, lift = air * 7, sx = 1 - 0.22 * Math.abs(m.dy);
     const pitch = moving ? (p < 0.5 ? -0.25 : 0.22) * st : 0;
-    shadow(g, h.x, h.y + 1, 9 * (1 - air * 0.25) * sx, 3.2 * (1 - air * 0.25), 0.2);
-    if (air < 0.25) shadow(g, h.x - f * 1.5 * sx, h.y + 0.4, 6 * sx, 1.3, 0.3);   // контактная — только на снегу
-    g.save(); g.translate(h.x, h.y - lift); g.scale(f * sx * tq, 1);
-    const cx = -2 + 2 * st, cy = -7 - st, rx = 7.5 + 3 * st, ry = 6 - 1.8 * st, rot = -0.35 * (1 - st) + pitch;
-    const hx = 5 + 5.5 * st, hy = -12.5 + 3 * st + (moving ? 0 : sin(now * 1.3 + m.seed) * 0.3);
+    // плавный переход между позами (0.25 с)
+    if (m.hp !== pose) { m.hpFrom = m.hp || pose; m.hp = pose; m.hpT = now; }
+    const pk = sstep(0, 0.25, now - (m.hpT || -9));
+    const PZ = { sit: [0, 0, 0, 0], hop: [0, 0, 0, 0], alert: [1, 0, 0, 0], sniff: [0, 1, 0, 0], gnaw: [0, 0.7, 0, 0], scratch: [0, 0, 1, 0], lie: [0, 0, 0, 1] };
+    const A = PZ[m.hpFrom] || PZ.sit, B = PZ[pose] || PZ.sit, mixp = i => A[i] + (B[i] - A[i]) * pk;
+    const up = mixp(0), down = mixp(1), scr = mixp(2), lie = mixp(3);
+    shadow(g, h.x, h.y + 1, 9 * K * (1 - air * 0.25) * sx * (1 + lie * 0.2), 3.2 * K * (1 - air * 0.25), 0.2);
+    if (air < 0.25) shadow(g, h.x - f * 1.5 * K * sx, h.y + 0.4, 6 * K * sx, 1.3 * K, 0.3);   // контактная — только на снегу
+    g.save(); g.translate(h.x, h.y - lift * K); g.scale(f * sx * tq * K, K);
+    const cx = -2 + 2 * st - up * 1.2, cy = -7 - st - up * 2.5 + lie * 2.6, rx = 7.5 + 3 * st + lie * 1.6 - up * 1.4, ry = 6 - 1.8 * st - lie * 1.6 + up * 0.8;
+    const rot = -0.35 * (1 - st) + pitch - up * 0.55 + lie * 0.3 + down * 0.12;
+    const nod = pose === 'gnaw' ? Math.abs(sin(now * 9 + m.seed)) * 0.9 : pose === 'sniff' ? sin(now * 5 + m.seed) * 0.4 : 0;
+    const hx = 5 + 5.5 * st + down * 3 + lie * 2.5 - up * 0.8, hy = -12.5 + 3 * st + (moving ? 0 : sin(now * 1.3 + m.seed) * 0.3) - up * 4.5 + down * 6.5 + lie * 6 + nod;
     // задние лапы
-    g.lineCap = 'round'; g.strokeStyle = '#c2d0dd'; g.lineWidth = 3;
+    g.lineCap = 'round'; g.strokeStyle = C.leg; g.lineWidth = 3;
     g.beginPath();
     if (st > 0.2) { g.moveTo(cx - rx * 0.6, cy + 2); g.lineTo(cx - rx - 4 * st, cy + 5 + 2 * st); }
-    else { g.moveTo(-8, -1.2); g.lineTo(1, -1.2); }
+    else { g.moveTo(-8 - lie * 2, -1.2); g.lineTo(1, -1.2); }
     g.stroke();
-    // уши (дальнее)
+    // уши: лёжка — прижаты к спине, столбиком — торчком, нюхает — чуть назад
     const tw = sin(now * 2.3 + m.seed) * 0.1 + Math.max(0, sin(now * 0.9 + m.seed * 2) - 0.85) * 3;
-    const ea = moving ? -2.55 + 0.5 * (1 - st) : -1.62 + tw, eb = moving ? -2.45 : -1.4 - tw * 0.6;
+    const back = lie * 1.25 + down * 0.35, ea = moving ? -2.55 + 0.5 * (1 - st) : -1.62 + tw * (1 - up) * (1 - lie) - back - scr * 0.3, eb = moving ? -2.45 : -1.4 - tw * 0.6 * (1 - up) - back;
     const ear = (a, dx, col, tip) => {
       const bx = hx - 1.5 + dx, by = hy - 2.5;
       ell(g, bx + cos(a) * 5, by + sin(a) * 5, 6.1, 2.2, 'rgba(111,142,168,0.6)', a);
       ell(g, bx + cos(a) * 5, by + sin(a) * 5, 5.6, 1.7, col, a);
       ell(g, bx + cos(a) * 9.6, by + sin(a) * 9.6, 1.7, 1.25, tip, a);
     };
-    ear(eb, 1.2, '#dde6ee', '#313031');
-    // тело: контур, тень, свет
+    ear(eb, 1.2, C.mid, '#313031');
+    // тело: контур, тень, свет; недолинявший — бурое седло
     ell(g, cx, cy, rx + 0.8, ry + 0.8, 'rgba(111,142,168,0.55)', rot);
-    ell(g, cx, cy + 0.6, rx, ry, '#dde6ee', rot);
-    ell(g, cx + 0.5, cy - 0.8, rx - 1.2, ry - 1.4, '#f6f9fc', rot);
-    ell(g, cx - rx + 0.5, cy - 1.5, 2.4, 2.3, '#f6f9fc'); // хвостик
-    // передние лапы
-    g.strokeStyle = '#dde6ee'; g.lineWidth = 2.2; g.beginPath();
+    ell(g, cx, cy + 0.6, rx, ry, C.mid, rot);
+    ell(g, cx + 0.5, cy - 0.8, rx - 1.2, ry - 1.4, C.hi, rot);
+    if (C.saddle) { g.globalAlpha = 0.55; ell(g, cx - 1, cy - ry * 0.55, rx * 0.62, ry * 0.36, C.saddle, rot); g.globalAlpha = 1; }
+    ell(g, cx - rx + 0.5, cy - 1.5, 2.4, 2.3, C.hi); // хвостик
+    // передние лапы; чешется — задняя лапа у уха
+    g.strokeStyle = C.mid; g.lineWidth = 2.2; g.beginPath();
     if (st > 0.2) { const fx = cx + rx * 0.7; g.moveTo(fx, cy + 2); g.lineTo(fx + 4 + 2 * (p > 0.5 ? 1 : -0.5), cy + 7 + lift * 0.4 * (p > 0.5 ? 1 : 0.3)); }
-    else { g.moveTo(4, -5); g.lineTo(5.2, -0.8); }
+    else if (up > 0.5) { g.moveTo(3, -9); g.lineTo(4.5, -6.5); }                                  // столбиком: лапки поджаты
+    else { g.moveTo(4 + lie * 2, -5 + lie * 3); g.lineTo(5.2 + down * 2 + lie * 3, -0.8); }
     g.stroke();
+    if (scr > 0.05) {
+      const k = sin(now * 22 + m.seed) * 1.2 * scr;
+      g.strokeStyle = C.leg; g.lineWidth = 2.6; g.beginPath(); g.moveTo(cx - 1, cy + 3); g.quadraticCurveTo(cx + 3, cy - 4, hx - 3 + k, hy + 1 - 3 * scr); g.stroke();
+    }
+    if (pose === 'gnaw' && pk > 0.5) { g.strokeStyle = '#6b5236'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(hx + 1, -0.5); g.lineTo(hx + 8, -2.2); g.stroke(); } // веточка
     // голова
-    ell(g, hx, hy, 4.6, 3.9, 'rgba(111,142,168,0.55)', 0.25 + pitch);
-    ell(g, hx, hy, 4.2, 3.6, '#f6f9fc', 0.25 + pitch);
-    ear(ea, 0, '#f6f9fc', '#313031');
-    ell(g, hx + 1.3, hy - 0.8, 1.15, 1.25, '#313031');
-    g.fillStyle = '#f6f9fc'; g.fillRect(hx + 1.3, hy - 1.4, 0.5, 0.5);
-    const nw = moving ? 0 : sin(now * 18) * 0.35 * (sin(now * 0.7 + m.seed) > 0 ? 1 : 0);
+    const hr = 0.25 + pitch + down * 0.35 - up * 0.1;
+    ell(g, hx, hy, 4.6, 3.9, 'rgba(111,142,168,0.55)', hr);
+    ell(g, hx, hy, 4.2, 3.6, C.hi, hr);
+    if (C.saddle) { g.globalAlpha = 0.45; ell(g, hx - 1.8, hy - 1.6, 2, 1.3, C.saddle, hr); g.globalAlpha = 1; }
+    ear(ea, 0, C.hi, '#313031');
+    ell(g, hx + 1.3, hy - 0.8, 1.15, lie > 0.6 ? 0.5 : 1.25, '#313031');
+    g.fillStyle = C.hi; g.fillRect(hx + 1.3, hy - 1.4, 0.5, 0.5);
+    const nw = moving ? 0 : sin(now * (pose === 'sniff' ? 26 : 18)) * 0.35 * (pose === 'sniff' || sin(now * 0.7 + m.seed) > 0 ? 1 : 0);
     ell(g, hx + 4, hy + 0.6 + nw, 0.9, 0.7, '#c89468');
     g.restore();
   }

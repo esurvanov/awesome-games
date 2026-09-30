@@ -1,5 +1,39 @@
 # Changelog · История версий
 
+## v1.2.0 — 30.09.2026
+
+A photographic look, a body with weight, and a world that answers back. Play in the browser: https://www.urvanov.com/sibiria/
+
+Фотографичная картинка, тело с весом и мир, который отвечает. Играть в браузере: https://www.urvanov.com/sibiria/
+
+### Picture · Картинка
+- Snow lit by a low sun (drifts, sastrugi), CC0 snow and needle grain, soft silhouette shadows, ragged spruces with clumped snow and trunk wells, film grade, mist, grain · Снег при низком солнце (надувы, заструги), CC0-фактура снега и хвои, мягкие тени по силуэту, рваные ёлки с комьями снега и воронками у стволов, плёночная коррекция, дымка, зерно
+- Zoom up to 4× with sprites and snow baked per zoom step; storm and snowfall particles stay soft at any zoom · Приближение до 4× со ступенчатой выпечкой спрайтов и снега; снегопад и пурга мягкие на любом зуме
+- Photo textures: Poly Haven (CC0), see CREDITS · Фото-текстуры: Poly Haven (CC0), см. CREDITS
+
+### Hero and people · Герой и люди
+- New hero: bright polar explorer with a real face; proportions of a grown man, tapered limbs, distinct sleeves and mitts · Новый герой: яркий полярник с настоящим лицом; пропорции взрослого человека, сужающиеся конечности, заметные рукава и варежки
+- Motion without snaps: arms no longer spin 360°, poses blend without jumps, feet are planted and do not slide, turns go through the camera · Движение без рывков: руки не крутятся на 360°, позы смешиваются без скачков, стопы закреплены и не скользят, повороты идут через камеру
+- Weight and inertia: lean on acceleration, pack and hood lag behind, breath and steam in sync, fatigue and cold change the gait · Вес и инерция: наклон при разгоне, рюкзак и капюшон отстают, дыхание и пар синхронны, усталость и холод меняют походку
+- Conversations are staged in the world: camera leans in, people face each other, bubbles, mouth and gestures by meaning, emotions, items handed from hand to hand · Разговоры разыграны в мире: камера подъезжает, люди лицом друг к другу, облачка, рот и жесты по смыслу, эмоции, вещи передаются из рук в руки
+
+### World · Мир
+- One wind for everything (direction drifts, gusts, forest shelter); a living wreck: pennant, blade, wires, door, notes · Один ветер на всё (направление меняется, порывы, укрытие леса); живые обломки: вымпел, лопасть, провода, дверь, записки
+- Snow caps on things, lee drifts, blown tracks, ground blizzard · Шапки снега на вещах, подветренные наддувы, заметаемые следы, позёмка
+- Snow depth: knee, waist, chest; trenches; snowshoes; animals sink by their own rules; a full fall through the ice and climb out · Глубина снега: по колено, пояс, грудь; траншеи; снегоступы; звери вязнут по своим правилам; полный провал под лёд и выбирание
+- Footprint table: no walking through the wreck, houses, barrels or furniture; people and animals push each other apart · Таблица подножий: нельзя пройти сквозь вертолёт, дома, бочки и мебель; люди и звери расталкиваются
+- Actions take time and leave traces: read a note in hands, eat from a can, craft with progress, walk to bed, felled tree is limbed and bucked into logs · Действия занимают время и оставляют след: записка читается в руках, еда из банки, крафт с прогрессом, сон пешком к лежанке, срубленная ель обрубается и разделывается на чурки
+- Context-aware remarks, sound by place, animals react to weather, varied forest edge, hares of real size · Реплики по обстановке, звук с местом, звери по погоде, разный край леса, зайцы реального размера
+
+### Under the hood · Внутри
+- Interaction passport (docs/design/INTERACTION-PASSPORT.md), new tests: passport, collisions, context, variety, snow depth · Паспорт взаимодействий и новые тесты: паспорт, столкновения, контекст, разнообразие, глубина снега
+- Older saves load; only the world-edge trees differ · Старые сохранения загружаются; отличается только край леса
+
+### Known limits · Известные ограничения
+- Legs still look wooden when walking straight toward or away from the camera; deer and other animals turn like cardboard; trees are still flat sprites; the wreck is taken apart the same way everywhere; dragging logs and the backpack volume are not modelled yet · Ноги при ходьбе прямо на камеру и от неё всё ещё деревянные; олени и другие звери поворачиваются как картонка; деревья всё ещё плоские спрайты; обломки везде разбираются одинаково; переноска брёвен и объём рюкзака пока не смоделированы
+- Reference screenshots of the visual test are outdated and are not part of the release checks; the zone speed check can fail on a loaded machine · Эталонные кадры визуального теста устарели и не входят в проверки релиза; проверка скорости зон может падать на загруженной машине
+- Long bot runs die of hunger or cold more often now that snow is deep · В длинных прогонах бот чаще гибнет от голода и холода: снег стал глубоким
+
 ## v1.1.0 — 27.09.2026
 
 A living world and a living hero. Play in the browser: https://www.urvanov.com/sibiria/
