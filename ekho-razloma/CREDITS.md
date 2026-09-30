@@ -9,7 +9,7 @@ Code: MIT (see `LICENSE`). Everything below keeps its original licence. Only the
 | Pilot suit (Advanced Crew Escape Suit mesh) | [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources) | Public domain |
 | Pilot / hermit rig and base clips (Universal Animation Library 1–2, Universal Base Characters, Modular Character Outfits) | [Quaternius](https://quaternius.com) | CC0 |
 | Pilot suit textures (Fabric036, Leather026/032, Rubber004) | [ambientCG](https://ambientcg.com) | CC0 |
-| Contact clips (lean, touch, vault, kneel, pick up …) | [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu), FBX via gbionics/cmu-fbx | Free for all uses; credit requested |
+| Contact clips (lean, touch, vault, kneel, pick up, sit on a rock — 13_04, side step in a gap — 111_26, foot on a ledge — 111_31, jump down — 82_02 / 82_04 …) | [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu), FBX via gbionics/cmu-fbx | Free for all uses; credit requested |
 | Stag | "Old deer male" by [CDmir](https://opengameart.org/content/old-deer-male) | CC0 |
 | Fox | [Khronos glTF Sample Models](https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/Fox): model PixelMannen (CC0), rig @tomkranis (CC-BY 4.0), glTF @AsoboStudio & @scurest (CC-BY 4.0) | CC0 / CC-BY 4.0 |
 | Crystal golem | "Rock Golem" by Dm3d, based on "Fire/Ice/Stone Golem" by umask007 ([OpenGameArt](https://opengameart.org/content/rock-golem)) | CC-BY 3.0 |

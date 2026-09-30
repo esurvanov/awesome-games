@@ -88,7 +88,7 @@
     if (c.d.arm) {   // hands held by something else: climbing edge, pushed prop, contact layer hold, aiming
       if (P.aimT > 0) return 0;
       const arms = I && I.B && I.B.arms; if (arms && arms.mode && arms.w > 0.01) return 1 - arms.w;
-      if (I && I.CT && I.CT.state === 'play') return 0;
+      if ((I && I.CT && I.CT.state === 'play') || (window.ROCKBRAIN && ROCKBRAIN.ownsAnim())) return 0;
     }
     return 1;
   }
@@ -155,7 +155,7 @@
       // the shoulders: wider than the tips, they meet a rock face the capsule only grazes (the controller's capsule is
       // 0.4 m wide at every height; a shoulder is 0.22 m from the centre line) — probe spheres at the shoulder joints ride
       // on the chest offset and push it away from whatever they sink into
-      if (d.id === 'spine' && K.upper && C.PH.ok && C.PH.P.nearestSurface && !(I && I.CT && I.CT.state === 'play') && !(I && I.B && I.B.arms && I.B.arms.mode === 'push')) {
+      if (d.id === 'spine' && K.upper && C.PH.ok && C.PH.P.nearestSurface && !(I && I.CT && I.CT.state === 'play') && !(window.ROCKBRAIN && ROCKBRAIN.ownsAnim()) && !(I && I.B && I.B.arms && I.B.arms.mode === 'push')) {
         const lever = Math.max(0.2, len0(t, pv));
         for (const sn of ['upperarm_l', 'upperarm_r']) {
           const sp = wpos(b[sn], _p[21]), lam = clamp(sp.distanceTo(pv) / lever, 0.5, 1.2);

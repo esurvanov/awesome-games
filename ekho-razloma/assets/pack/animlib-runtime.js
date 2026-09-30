@@ -67,12 +67,18 @@
       this.isHand = endName.startsWith('hand'); this.side = side;
       this.pole = new THREE.Vector3(side === '_l' ? 0.6 : -0.6, -0.7, -0.3);
     }
-    // target: world position of the END joint (wrist/ankle). weight 0..1. palmNormal (world, optional): surface normal to press the palm on
-    solve(target, weight = 1, palmNormal = null) {
+    // target: world position of the END joint (wrist/ankle). weight 0..1. palmNormal (world, optional): surface normal to press the palm on.
+    // surf (world, optional, hands): the SURFACE point itself — with a measured palm (inHand / A.palmSpec) the wrist goes where
+    // the palm centre lands on `surf` (the hand keeps the clip's own rotation)
+    solve(target, weight = 1, palmNormal = null, surf = null, inHand = null) {
       if (weight <= 0.001) return;
       const THREE = T(), [a, b, c] = this.b, [pa, pb, pc, t, n] = this.v;
       a.updateWorldMatrix(true, true);
       a.getWorldPosition(pa); b.getWorldPosition(pb); c.getWorldPosition(pc);
+      // measured palm (A.palmSpec ← contact.palm.inHand of the clip / meta.palm / BODYSPEC.palm_*): the clip already lays the drawn palm on
+      // the surface with its own hand rotation (the glove is rigid with the forearm), so the hand is NOT re-aimed: wrist = surface point − R_hand · inHand
+      const spec = this.isHand && palmNormal && surf && (inHand || A.palmSpec) ? { center: inHand || (A.palmSpec(this.side) || {}).center } : null;
+      if (spec && spec.center) target = new THREE.Vector3(spec.center[0], spec.center[1], spec.center[2]).applyQuaternion(c.getWorldQuaternion(new THREE.Quaternion())).negate().add(surf);
       t.copy(pc).lerp(target, weight);
       const la = pa.distanceTo(pb), lb = pb.distanceTo(pc), d = Math.min(pa.distanceTo(t), (la + lb) * 0.999);
       const dir = t.clone().sub(pa).normalize();
@@ -88,7 +94,8 @@
       rotateTo(b, pc.clone().sub(pb), pa.clone().add(dir.multiplyScalar(d)).sub(pb));
       // keep the end rotation (or press the palm onto the surface)
       let want = endWorldQ;
-      if (palmNormal && this.isHand) {
+      if (spec && spec.center) want = endWorldQ;   // measured palm: the clip's own hand rotation stays
+      else if (palmNormal && this.isHand) {
         // UAL hand bones: the palm faces local +X (hand_l) / -X (hand_r) (measured from the T-pose bind)
         const pa = (!window.INTERACT_OFF && A.PALM[this.side]) || [this.side === '_l' ? 1 : -1, 0, 0];   // INTERACT_OFF: the pre-INTERACT axis (A/B)
         const cur = new THREE.Vector3(pa[0], pa[1], pa[2]).applyQuaternion(endWorldQ).normalize();
@@ -110,7 +117,11 @@
   // ------------------------------------------------------------------ contact layer (per character)
   A.SURF_OFF = { hand: 0.035, shoulder: 0.10, back: 0.16, foot: 0 };
   // hand-bone local axis that points out of the palm (per side); INTERACT.md: measured on the pilot's drawn glove
-  A.PALM = { _l: [0, 1, 0], _r: [0, 1, 0] };   // was ±X (the finger axis on this rig: fingers went 8–9 cm into the wall)
+  // (BODYSPEC.palm_*, measured on the glove: the palm faces hand-local +X (left) / −X (right); +Y runs along the fingers — the old +Y here was wrong)
+  A.PALM = { _l: [1, 0, 0], _r: [-1, 0, 0] };
+  // measured palm per side ('_l' / '_r') → { normal: hand-local axis the palm faces, center: hand-local contact centre (m) } | null
+  // (set by modules/pose-pipeline.js from BODYSPEC.palm_* under POSE.K.palmSpec; null = the old wrist offset + A.PALM axis)
+  A.palmSpec = null;
   A.ContactLayer = class {
     constructor(root, meta) { this.root = root; this.meta = meta; this.ik = {}; this.active = null; }
     // call each frame after mixer.update(dt). action = the playing THREE.AnimationAction; hit(contact) -> {point: Vector3, normal: Vector3} in world or null
@@ -124,9 +135,9 @@
         w *= fade * action.getEffectiveWeight(); if (w <= 0) continue;
         const h = hit(c); if (!h) continue;
         const ik = this.ik[c.bone] || (this.ik[c.bone] = new A.LimbIK(this.root, c.bone));
-        // wrist target = surface point pushed out by the palm thickness
+        // wrist target = surface point pushed out by the palm thickness (a measured palm: placed by the solver from the surface point)
         const tgt = h.point.clone().add(h.normal.clone().multiplyScalar(A.SURF_OFF.hand * scale));
-        ik.solve(tgt, w, c.bone.startsWith('hand') ? h.normal : null);
+        ik.solve(tgt, w, c.bone.startsWith('hand') ? h.normal : null, c.bone.startsWith('hand') ? h.point : null, c.palm && c.palm.inHand && A.palmSpec ? c.palm.inHand : null);
       }
     }
   };

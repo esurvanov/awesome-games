@@ -325,8 +325,9 @@ def clip_tracks(tg, clip, rot_tol=0.0025, pos_tol=0.0008):
         out[i] = {'rotation': (ts[kr], R[kr]), 'translation': (ts[kt], T[kt])}
     return out
 
-def write_clips(path, tg, named_clips, extras=None):
-    """named_clips: list of (name, clip, extras_dict). Each track gets its own time accessor (after reduction)."""
+def write_clips(path, tg, named_clips, extras=None, dedup=False):
+    """named_clips: list of (name, clip, extras_dict). Each track gets its own time accessor (after reduction).
+    dedup: identical value arrays (e.g. constant finger rotations shared by many clips) share one accessor."""
     import json, struct
     sk = tg.sk
     nodes = []
@@ -345,8 +346,8 @@ def write_clips(path, tg, named_clips, extras=None):
     def add(arr, typ, minmax=False):
         arr = np.ascontiguousarray(arr, np.float32)
         key = None
-        if typ == 'SCALAR':
-            key = arr.tobytes()
+        if typ == 'SCALAR' or dedup:
+            key = (typ, arr.tobytes())
             if key in tcache: return tcache[key]
         while len(buf) % 4: buf.append(0)
         off = len(buf); buf.extend(arr.tobytes())

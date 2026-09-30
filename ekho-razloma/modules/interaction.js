@@ -309,7 +309,7 @@
     if (!B.ready && !bodySetup()) return;
     const A = B.A, P = C.player, G = C.G, c = P.c;
     const mixT = A.mixer.time; if (mixT === B.prevMixT) return; B.prevMixT = mixT;   // bones not re-posed this frame
-    restoreBones();
+    restoreBones(); if (window.POSE) POSE.rebase();   // the pipeline's audit reference: clip pose + the restored bones
     const play = C.mode === 'play' || C.mode === 'menu';
     const climbing = C.CLIMB && C.CLIMB.t >= 0, riding = G.riding, dead = G.deadT > 0;
     // the controller's onGround flickers for single frames at a stop / on a crest (snap-to-ground): a flicker must not
@@ -320,7 +320,8 @@
     B.wLegs = damp(B.wLegs, grounded && K.ik ? 1 : 0, grounded ? 10 : 18, dt);
     B.wrap.position.y = 0; B.wrap.position.x = 0; B.wrap.position.z = 0;
     c.g.updateMatrixWorld(true);
-    const face = c.g.rotation.y, F = _p[16].set(-Math.sin(face), 0, -Math.cos(face)), R = _p[17].set(Math.cos(face), 0, -Math.sin(face));
+    // own vectors (not the shared scratch _p): the pose pipeline applies the requests after other code reused the scratch
+    const face = c.g.rotation.y, F = (B.F || (B.F = new V3())).set(-Math.sin(face), 0, -Math.cos(face)), R = (B.R || (B.R = new V3())).set(Math.cos(face), 0, -Math.sin(face));
     const hs = Math.hypot(P.vx, P.vz);
     // PHYSBODY (modules/physbody.js): a ragdoll / fall clip / get-up owns the whole body — no feet to place, no look, no arms
     const PB = C.physbody;
@@ -421,15 +422,34 @@
     // ---- pelvis offset: the lower foot must reach its ground; the other bends its knee
     const pel = grounded ? clamp(minD - B.sink, K.pelvisMin, K.pelvisMax) : 0;
     B.pelvis = damp(B.pelvis, pel * B.wLegs, 16, dt);
-    // ---- lean into turns / slopes / speed (spine), plus slide stance
-    leanUpdate(dt, F, R, hs, grounded);
-    B.wrap.position.y = B.pelvis;
     if (P.sliding && !riding) {   // face down the slope while sliding
       const L0 = B.legs[0].g; const dl = Math.hypot(L0.nx, L0.nz);
       if (dl > 0.2) { const want = Math.atan2(-L0.nx, -L0.nz); B.slideYaw = B.slideYaw === null ? face : B.slideYaw + wrapA(want - B.slideYaw) * Math.min(1, dt * 6); c.g.rotation.y = B.slideYaw; }
     } else B.slideYaw = null;
-    c.g.updateMatrixWorld(true);
-    // ---- legs
+    // POSE (modules/pose-pipeline.js): with the pipeline on, every bone write below is a PoseRequest applied after all
+    // modules decided (same order as here: pelvis → legs → spine → look → arms → springs), reading the rock-brain's
+    // lean / dip / look of THIS frame; off (POSE.K.<name> = false) → written at once, as before
+    const PP = window.POSE, pp = (n) => !!(PP && PP.active(n));
+    const ppLegs = pp('legs'), ppLean = pp('lean'), ppLook = pp('look'), ppArms = pp('arms'), ppSprings = pp('springs');
+    // ---- lean into turns / slopes / speed (spine), plus slide stance
+    if (ppLean) PP.request({ slot: 'spine', source: 'lean', type: 'spineLean', data: B.lean, apply: () => leanUpdate(dt, F, R, hs, grounded) });
+    else leanUpdate(dt, F, R, hs, grounded);
+    if (ppLegs) {
+      PP.request({ slot: 'pelvis', source: 'legs', type: 'pelvisOffset', data: { dy: B.pelvis }, apply: () => { B.wrap.position.y = B.pelvis - RK.dip; c.g.updateMatrixWorld(true); } });
+      PP.request({ slot: 'legs', source: 'legs', type: 'limbTarget', data: B.legs.map((L) => ({ bone: L.foot.name, point: L.tgt, weight: B.wLegs, normal: L.g })), apply: () => legsApply(climbing, R) });
+    } else { B.wrap.position.y = B.pelvis - RK.dip; c.g.updateMatrixWorld(true); legsApply(climbing, R); }
+    if (ppLook) PP.request({ slot: 'look', source: 'look', type: 'look', data: B.look, apply: () => lookUpdate(dt, F, R) }); else lookUpdate(dt, F, R);
+    if (ppArms) PP.request({ slot: 'arms', source: 'arms', type: 'limbTarget', data: B.arms, apply: () => armsUpdate(dt, F, R) }); else armsUpdate(dt, F, R);
+    if (PB && PB.pose) {   // springs + collision tips on the upper body
+      if (ppSprings) PP.request({ slot: 'springs', source: 'physbody', type: 'spring', data: null, apply: () => { try { PB.pose(dt, F); } catch (e) { /* physbody guards itself */ } } });
+      else { try { PB.pose(dt, F); } catch (e) { /* physbody guards itself */ } }
+    }
+    // the IK'd pose is remembered once every bone write of the frame is done (restoreBones() puts back what the mixer skips)
+    if (ppLegs || ppLean || ppLook || ppArms || ppSprings) PP.after(markBones); else markBones();
+    stepsFromPose(dt, grounded, hs);
+  }
+  // legs onto the ground (after the pelvis offset): two-bone IK + the sole on the ground normal; the climb's foot lock
+  function legsApply(climbing, R) {
     if (B.wLegs > 0.001) for (const L of B.legs) {
       const tgt = _p[18].copy(L.anim); tgt.y += B.pelvis;
       tgt.lerp(_p[19].set(L.tgt.x, L.tgt.y - B.sink, L.tgt.z), B.wLegs);
@@ -445,11 +465,6 @@
     // climbing: the left foot, once on the top, stays where it landed while the body rises over it (CLIMB.footLock)
     const fk = climbing && C.CLIMB.footLock;
     if (fk && fk.w > 0.01 && B.legs[0]) { const L = B.legs[0], cur = wpos(L.foot, _p[18]); cur.lerp(_p[19].set(fk.x, fk.y, fk.z), fk.w); solve2(L.thigh, L.calf, L.foot, cur, R, L.n); }
-    lookUpdate(dt, F, R);
-    armsUpdate(dt, F, R);
-    if (PB && PB.pose) { try { PB.pose(dt, F); } catch (e) { /* physbody guards itself */ } }   // springs + collision tips on the upper body
-    markBones();
-    stepsFromPose(dt, grounded, hs);
   }
   function leanUpdate(dt, F, R, hs, grounded) {
     const P = C.player, L = B.lean, sp = B.bones.spine_01; if (!sp) return;
@@ -458,8 +473,9 @@
     const acc = (hs - L.prevHs) / Math.max(dt, 1e-3); L.prevHs = hs;
     const g0 = B.legs[0].g, g1 = B.legs[1].g, slope = grounded ? -(g0.nx + g1.nx) * 0.5 * F.x - (g0.nz + g1.nz) * 0.5 * F.z : 0;   // >0 = uphill ahead
     const push = B.arms.mode === 'push' ? B.arms.w : 0;
-    const rollT = grounded ? clamp(-yawRate * hs * 0.018, -0.28, 0.28) : 0;
-    const pitchT = grounded ? clamp(-(hs / 11) * 0.1 - clamp(acc, -20, 20) * 0.004 - slope * 0.45 - push * 0.3, -0.45, 0.2) : 0;
+    const lk = window.POSE && window.POSE.MOD && window.POSE.active('lean') && window.POSE.K.solve ? window.POSE.MOD.lean : 1;   // PoseSolver: 'less lean' step
+    const rollT = grounded ? clamp(-yawRate * hs * 0.018, -0.28, 0.28) + RK.roll * lk : 0;
+    const pitchT = grounded ? clamp(clamp(-(hs / 11) * 0.1 - clamp(acc, -20, 20) * 0.004 - slope * 0.45 - push * 0.3, -0.45, 0.2) + RK.pitch * lk, -0.6, 0.5) : 0;
     L.roll = damp(L.roll, rollT * K.lean, 6, dt); L.pitch = damp(L.pitch, pitchT * K.lean, 5, dt);
     if (Math.abs(L.roll) + Math.abs(L.pitch) < 1e-4) return;
     const q = _q[5].setFromAxisAngle(F, L.roll).multiply(_q[6].setFromAxisAngle(R, L.pitch));
@@ -468,6 +484,7 @@
   function lookTarget() {
     const P = C.player, out = _p[21];
     if (C.G.riding || C.CLIMB && C.CLIMB.t >= 0 || P.aimT > 0) return null;
+    if (RK.lookOn) return out.set(RK.lookPt.x, RK.lookPt.y, RK.lookPt.z);
     let best = null, bd = K.lookRange;
     const orm = C.orm && C.orm.pos;
     if (orm && C.G.stage >= 1) { const d = Math.hypot(orm.x - P.x, orm.z - P.z); if (d < 9 || C.Dialog && C.Dialog.active && d < 14) { best = out.set(orm.x, C.orm.g.position.y + 1.62, orm.z); bd = 0; } }
@@ -512,13 +529,15 @@
     Aa.lastClimb = CL ? CL.t : -1;
     const push = pushState(F);
     if (!mode && push) { mode = 'push'; wT = push.w; }
-    Aa.w = damp(Aa.w, wT, mode === 'climb' ? 30 : 8, dt);
+    if (!mode && RK.armW > 0.01) { mode = 'rock'; wT = RK.armW; }
+    Aa.w = damp(Aa.w, wT, mode === 'climb' ? 30 : mode === 'rock' ? 14 : 8, dt);
     if (mode) Aa.mode = mode; else if (Aa.w < 0.01) Aa.mode = null;
     if (Aa.w < 0.01 || !Aa.mode) return;
     for (const s of ['l', 'r']) {
       const hand = b['hand_' + s], cur = wpos(hand, _p[12]), tgt = _p[13];
       const pv = wpos(b.pelvis || b.spine_01, _p[14]), side = (cur.x - pv.x) * R.x + (cur.z - pv.z) * R.z >= 0 ? 1 : -1;   // which side of the body this hand is on
       if (Aa.mode === 'climb' && Aa.edge) { const e = Aa.edge, rx = -e.uz, rz = e.ux; tgt.set(e.x + rx * 0.24 * side, e.y, e.z + rz * 0.24 * side); }
+      else if (Aa.mode === 'rock') tgt.copy(RK.hands[side]);
       else if (Aa.mode === 'push' && Aa.push) { const pp = Aa.push, hh = pp.hands && pp.hands[side]; if (hh) tgt.copy(hh); else tgt.set(pp.x + R.x * 0.22 * side, pp.y, pp.z + R.z * 0.22 * side); }
       else continue;
       if (Aa.mode === 'climb') { const sp = wpos(b['upperarm_' + s], _p[14]); if (sp.distanceTo(tgt) > 0.95) continue; }   // out of reach early in the clip: let the clip lead
@@ -570,6 +589,17 @@
   // INTERACT (modules/interact.js): kinds with authored contact points go through the mediator — stand spot, facing
   // and hand/foot targets come from the object's interaction passport; unmarked surfaces keep the probe + BVH path below
   K.passport = true; K.passportOnly = true; K.steerSpeed = 1.4; K.steerTurn = 4.5; K.steerMax = 2.2;
+  // ROCKS (Passport names rock*, st_rock*, boulder*) belong to modules/rock-brain.js: while it is on, this generic
+  // contact path never acts on a rock (contactDecide / contactStep / contactUpdate below) — one owner, no competing rules.
+  const ROCK_RE = /^(st_)?(rock|boulder)/i;
+  const rockOwner = () => !!(window.ROCKBRAIN && window.ROCKBRAIN.K.on);
+  // the physics tag of some scans carries only the Passport id, not the name: resolve the entry's own name
+  const rockTag = (h) => {
+    if (!h || !h.tag) return false;
+    let n = h.tag.name;
+    if (!n && h.tag.passport != null && window.INTERACT) { const e = window.INTERACT.entryById(h.tag.passport); n = e && e.name; }
+    return !!(n && ROCK_RE.test(String(n)));
+  };
   function contactReady() {
     const A = C.AV && C.AV.player;
     if (A && A.contact && A.contactMeta) { CT.meta = A.contactMeta; CT.layer = A.contact; CT.ready = true; }
@@ -646,6 +676,8 @@
     const raw = { surface: kind.surface, height: kind.height || 0, distance: clamp(kind.dist, 0, 3), angleDeg: 0, speed: sense.speed, state,
       stamina: clamp(P.hp / Math.max(1, P.hpMax), 0, 1), cold: clamp((C.WX && C.WX.storm) || 0, 0, 1), animalsNear: Math.min(9, animalsNear), npcNear, onIce: sense.onIce };
     CT.wantIntent = AC && AC.contactRules ? AC.contactRules(raw) : 'none'; CT.wantState = state;
+    // a rock ahead (or under the knee probe) is rock-brain's: no generic intent on it
+    if (rockOwner() && rkFront(sense)) { CT.wantIntent = 'none'; return; }
     const key = raw.surface + '|' + Math.round(raw.distance * 4) + '|' + raw.state + '|' + Math.round(raw.height * 4) + '|' + (raw.onIce ? 1 : 0);
     if (window.AI && window.AI.available && window.AI.ask && (key !== CT.askKey) && (C.T - CT.askAt > K.contactAsk)) {
       CT.askKey = key; CT.askAt = C.T; STATS.contactAsks = (STATS.contactAsks || 0) + 1;
@@ -775,10 +807,22 @@
     for (const pr of [s.front, s.knee, s.left, s.right]) { const e = pr && pr.tag ? I.entryById(pr.tag.passport) : null; if (e && !out.includes(e)) out.push(e); }
     return out;
   }
+
+  // is the thing a probe touched a rock (rock-brain's)? Some rocks sit in a terrain hump: the probes hit the ground
+  // collider right at the rock — a terrain hit inside a rock's box counts as that rock
+  let _rkList = null, _rkN = -1;
+  function rockEntryNear(x, z, pad) {
+    const L = (C.Passport && C.Passport.list) || []; if (!_rkList || _rkN !== L.length) { _rkList = L.filter((e) => e.alive && e.box && ROCK_RE.test(String(e.name || ''))); _rkN = L.length; }
+    let best = null, bd = 1e9;
+    for (const e of _rkList) { const b = e.box; if (!e.alive || x < b.min[0] - pad || x > b.max[0] + pad || z < b.min[2] - pad || z > b.max[2] + pad) continue; const d = Math.hypot(x - (b.min[0] + b.max[0]) / 2, z - (b.min[2] + b.max[2]) / 2); if (d < bd) { bd = d; best = e; } }
+    return best;
+  }
+  const rkOne = (h) => { if (!h) return null; if (rockTag(h)) return h; if (h.tag && h.tag.kind === 'terrain') { const e = rockEntryNear(h.px, h.pz, 0.8); if (e) { h.rockEntry = e; return h; } } return null; };
+  const rkFront = (s) => (s ? (rkOne(s.front) || rkOne(s.knee)) : null);
   // mediator: kinds with an interaction passport get their stand spot / facing / targets from it
   function contactPlan() {
     const I = window.INTERACT; if (!K.passport || !I || !CT.sense) return { marked: false, plan: null };
-    const ents = sensedEntries(CT.sense), marked = ents.some((e) => I.hasPoints(e)); if (!marked) return { marked: false, plan: null };
+    const ents = sensedEntries(CT.sense).filter((e) => !(rockOwner() && ROCK_RE.test(String(e.name || '')))), marked = ents.some((e) => I.hasPoints(e)); if (!marked) return { marked: false, plan: null };
     const P = C.player; let plan = null;
     // the same situation that just failed is not re-planned every 0.2 s (standing still next to a rock with no valid point)
     const key = CT.wantIntent + '|' + ents.map((e) => e.id).join(',') + '|' + Math.round(P.x * 8) + ',' + Math.round(P.z * 8) + ',' + Math.round(P.face * 8);
@@ -790,7 +834,7 @@
   function contactStep(dt) {
     const A = C.AV.player;
     if (CT.state === 'idle') {
-      if (CT.wantIntent !== 'none' && CT.sense) {
+      if (CT.wantIntent !== 'none' && CT.sense && !(rockOwner() && rkFront(CT.sense))) {
         const mp = contactPlan();
         if (mp.plan && A.acts[mp.plan.clip] && CT.meta.clips[mp.plan.clip]) {
           CT.plan = mp.plan; CT.pick = { clip: mp.plan.clip, enter: mp.plan.enter, standOff: mp.plan.standOff, heightScale: mp.plan.heightScale }; CT.state = 'steer'; CT.t = 0; CT.keyT = 0; STATS.planned = (STATS.planned || 0) + 1;
@@ -836,10 +880,21 @@
         else playPick(A, pick.clip);   // re-assert the hold (idempotent: same key each frame, no crossfade churn)
       }
     }
-    if (A.cur && CT.layer && A.acts[A.cur]) { try { CT.layer.update(A.acts[A.cur], contactHit, 1); } catch (e) { /* clip has no hand/foot contacts */ } }
+    if (A.cur && CT.layer && A.acts[A.cur]) layerHands(A.acts[A.cur], contactHit, 'contact');
   }
+  // RK: the channel modules/rock-brain.js drives the body through (it decides; this module only applies it next frame):
+  // spine pitch / roll (leanUpdate), knees (pelvis dip), the head's look-at, both arms onto hand points (armsUpdate)
+  const RK = { pitch: 0, roll: 0, dip: 0, armW: 0, hands: { 1: { x: 0, y: 0, z: 0 }, '-1': { x: 0, y: 0, z: 0 } }, lookPt: { x: 0, y: 0, z: 0 }, lookOn: false };
+  const rkReset = () => { RK.pitch = RK.roll = RK.dip = 0; RK.lookOn = false; RK.armW = 0; };
   // planned contact: walk the last bit to the stand spot while turning to the planned facing, then play; the hold ends
   // when the player moves (a movement key held past the enter clip) or the pose is knocked off the stand spot
+  // the contact clip's hand / foot IK (ANIMLIB ContactLayer): a PoseRequest when the pose pipeline owns the hands
+  function layerHands(act, hit, source, slot) {
+    const PP = window.POSE, lay = CT.layer; if (!lay || !act) return;
+    const hit2 = PP && PP.hit && PP.active('hands') ? PP.hit(hit) : hit;   // PoseSolver: palm feedback / palms higher
+    const go = () => { try { lay.update(act, hit2, 1); } catch (e) { /* clip has no hand/foot contacts */ } };
+    if (PP && PP.active('hands')) PP.request({ slot: slot || 'contact', source, type: 'limbTarget', data: { clip: act.getClip().name, hit }, apply: go }); else go();
+  }
   function planStep(dt, A, P) {
     const pl = CT.plan, PH = C.PH;
     if (CT.state === 'steer') {
@@ -879,13 +934,15 @@
           const d = (w.x - q.x) * q.ex + (w.z - q.z) * q.ez - 0.1 * B.root.getWorldScale(_p[19]).x, st = clamp(d, -0.3, 0.3) * Math.min(1, dt * 6);
           if (Math.abs(d) > 0.01 && Math.abs(pl.slid || 0) < 0.45) { P.x -= q.ex * st; P.z -= q.ez * st; pl.at.x -= q.ex * st; pl.at.z -= q.ez * st; pl.slid = (pl.slid || 0) + st; if (PH.ok) PH.ch.setPosition(P.x, P.y, P.z); } } }
     }
-    if (A.cur && CT.layer && A.acts[A.cur]) { try { CT.layer.update(A.acts[A.cur], contactHit, 1); } catch (e) { /* clip has no hand/foot contacts */ } }
+    if (A.cur && CT.layer && A.acts[A.cur]) layerHands(A.acts[A.cur], contactHit, 'contact');
   }
   function contactUpdate(dt) {
     if (!K.contact || !B.ready || (!CT.ready && !contactReady())) return;
     const P = C.player, G = C.G;
     const active = (C.mode === 'play' || C.mode === 'menu') && P.onGround && !G.riding && G.deadT <= 0 && !(C.CLIMB && C.CLIMB.t >= 0) && P.aimT <= 0 && B.arms.mode !== 'push';
+    rkReset();
     if (!active) { if (CT.state !== 'idle') contactExit(); return; }
+    if (rockOwner() && window.ROCKBRAIN.owns()) { if (CT.state !== 'idle') contactExit(); return; }   // rock-brain is acting: no generic contact
     CT.senseT -= dt;
     if (CT.senseT <= 0) { CT.senseT = 0.2; CT.sense = contactSense(); contactDecide(); CT.steerDist = CT.sense && CT.sense.front ? CT.sense.front.dist : null; }
     contactStep(dt);
@@ -954,7 +1011,7 @@
     // ---- pushing props: extra shove + scrape sound, spray at the base
     let scrape = 0;
     if (PUSH.prop && B.arms.push && C.PH.ok) {
-      const e = PUSH.prop, F = _p[16], mass = e.opts && e.opts.mass || 20;
+      const e = PUSH.prop, F = B.F || _p[16], mass = e.opts && e.opts.mass || 20;
       try { C.PH.P.applyImpulseAt(B.arms.push.col, B.arms.push, { x: F.x * mass * 1.6 * dt, y: 0, z: F.z * mass * 1.6 * dt }); } catch (err) { /* body asleep / removed */ }
       const lv = e.debris.body && e.debris.body.linvel ? e.debris.body.linvel() : null, sp = lv ? Math.hypot(lv.x, lv.z) : 0;
       scrape = clamp(sp / 2.5, 0, 1);
@@ -1657,7 +1714,7 @@
     return 'interaction off';
   }
   function on() { for (const k in SUB) SUB[k] = true; return 'interaction on'; }
-  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, contactTarget: (c) => contactHit(c), testIK, testWalk, testContact, testContactSurface, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
+  window.INTERACTION = { off, on, K, SUB, ERR, STATS, AU, B, ST, FX, ICE, CAM, W, CT, RK, layerHands: (a, h, s, sl) => layerHands(a, h, s, sl), rkFront: (x) => rkFront(x), rockTag: (x) => rockTag(x), contactTarget: (c) => contactHit(c), testIK, testWalk, testContact, testContactSurface, strideSpeed: (...a) => strideSpeed(...a), makeGait: (...a) => makeGait(...a), surfaceAt: (x, z) => { const h = hitDown(x, C.groundH(x, z) + 30, z, 60); return surfaceAt(x, h ? h.y : C.groundH(x, z), z, h); } };
   (window.GameModules = window.GameModules || []).push({
     name: 'interaction',
     order: 50,

@@ -7,6 +7,7 @@ from loadlib import *
 W = sys.argv[1]
 tg = Target(W + '/pilot_aces_textured.glb')
 glb = W + '/out/anim_pilot_contact.glb'; meta = json.load(open(W + '/out/anim_pilot_contact.meta.json'))['clips']
+_M = json.load(open(W + '/out/anim_pilot_contact.meta.json')); PALM = _M.get('palm', {})
 rest_foot = tg.Pw[tg.i('foot_l'), 1]; rest_ball = tg.Pw[tg.i('ball_l'), 1]
 rows = {}
 for name, m in meta.items():
@@ -60,10 +61,12 @@ for name, m in meta.items():
         s = ct['bone'][-1]
         h = Pw[f0:f1 + 1, tg.i('hand_' + s)]; mid = Pw[f0:f1 + 1, tg.i('middle_01_' + s)]
         palm = h + (mid - h) * 0.6
+        if ct.get('palm') and PALM.get(s):      # palm-fixed clips: the drawn palm centre (glove rigid with the forearm), surface.point IS the palm centre
+            il = tg.i('lowerarm_' + s); Lw = q_to_mat(Qw[f0:f1 + 1, il]); palm = Pw[f0:f1 + 1, il] + np.einsum('fij,j->fi', Lw, np.array(PALM[s]['inForearm']))
         n = np.array(ct['surface']['normal']); p = np.array(ct['surface']['point'])
         if rmS and ct.get('space', 'character') == 'character': p = qrot(Yq[f0:f1 + 1], p) + np.stack([rmF[f0:f1 + 1, 0], 0 * rmF[f0:f1 + 1, 0], rmF[f0:f1 + 1, 1]], -1); n = qrot(Yq[f0:f1 + 1], n)
         n = np.broadcast_to(n, palm.shape)
-        d = np.abs(np.sum((palm - n * 0.035 - p) * n, -1))   # palm surface to the contact plane
+        d = np.abs(np.sum((palm - n * (0.0 if ct.get('palm') else 0.035) - p) * n, -1))   # palm surface to the contact plane (palm-fixed: the palm centre itself)
         drift = np.linalg.norm(palm - palm[0], axis=-1).max()
         errs.append((ct['effector'], round(float(d.max()) * 100, 1), round(float(drift) * 100, 1)))
     if errs: r['contactPlaneErr_cm/drift_cm'] = errs

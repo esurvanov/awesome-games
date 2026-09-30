@@ -14,6 +14,8 @@ await page.goto(base + '/sheet.html'); await page.waitForFunction('window.ready'
 await page.evaluate((u, h) => loadModel(u, +h), modelUrl, height);
 const list = await page.evaluate((u) => loadAnims(u), animUrl);
 if (process.env.BOX) await page.evaluate((b) => { window.BOX = JSON.parse(b); }, process.env.BOX);
+if (process.env.CLOSE) await page.evaluate((b) => { window.CLOSE = JSON.parse(b); }, process.env.CLOSE);   // {"bone":"hand_l","dist":0.8}
+if (process.env.SIZE) await page.evaluate((b) => { window.SIZE = JSON.parse(b); }, process.env.SIZE);
 if (process.env.NOFOLLOW) await page.evaluate(() => { window.FOLLOW = false; });
 const want = which === 'all' ? list.map((l) => l[0]) : which.split(',');
 for (let [name, dur, ntr, ex] of list) {

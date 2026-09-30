@@ -569,8 +569,12 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/terrain.js"></script>
 <script src="modules/vegetation.js"></script>
 <script src="modules/atmosphere.js"></script>
+<script src="modules/body-spec.js"></script>   <!-- BodySpec: the one source of the pilot's body measures (ARCH-INTERACT.md) -->
 <script src="modules/interaction.js"></script>
+<script src="modules/rock-brain.js"></script>
+<script src="modules/rock-feel.js"></script>
 <script src="modules/physbody.js"></script>
+<script src="modules/pose-pipeline.js"></script>   <!-- PosePipeline: the one writer of the pilot skeleton (ARCH-INTERACT.md steps 3–4) -->
 <script src="modules/interact.js"></script>
 <script src="modules/structures.js"></script>
 <script src="modules/perf.js"></script>
@@ -578,6 +582,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/groundblend.js"></script>
 <script src="modules/lowend.js"></script>
 <script src="modules/bench.js"></script>
+<script src="modules/rock-lab.js"></script>   <!-- ?rocklab only: test ground for the rock interaction (tools/rockgallery --lab) -->
 <script type="module">
 (function () {
 'use strict';
@@ -3081,6 +3086,7 @@ function updatePlayer(dt) {
     // with the feet still in the idle stance: they slid); braking and turning stay as crisp as the controller makes them
     let wantS = (run ? 11.5 : 6.5) * Math.min(1, ml);
     if (ml > 0.05 && player.onGround) { const along = Math.max(0, (player.vx * mx + player.vz * mz) / ml); wantS = Math.min(wantS, along + RUNUP * dt); }
+    if (player.speedCap !== undefined) wantS = Math.min(wantS, player.speedCap);   // modules/interaction.js: braking before a rock (the controller re-accelerates every frame, so the cap must limit the WANTED speed)
     player.wantS = ml > 0.05 ? (run ? 11.5 : 6.5) * Math.min(1, ml) : 0;   // wanted speed (the gait picks jog vs walk from it)
     const want = player.rollT > 0 ? { x: player.rollDir[0] * 15, z: player.rollDir[1] * 15 } : { x: ml > 0.05 ? mx / ml * wantS : 0, z: ml > 0.05 ? mz / ml * wantS : 0 };
     const st = PH.ch.move(dt, want, pressed.has('Space'));
@@ -3128,6 +3134,12 @@ const CLIMB = { t: -1, dur: 1, from: new V3(), to: new V3(), h: 1, curve: null, 
 // ledge ahead: a near-vertical face on STATIC geometry (terrain, rocks, 'solid' Passport meshes incl. the wreck) with a
 // walkable top 0.8–1.8 m above the feet, open above the edge and head room on top. feet = the ground the climb starts from.
 function ledgeAhead(dx, dz, feetY) {
+  const L = ledgeAhead0(dx, dz, feetY);
+  // rocks (rock*, boulder*) are climbed by modules/rock-brain.js (it reads the drawn rock; one owner for everything at a rock)
+  if (L && L.rock && window.ROCKBRAIN && ROCKBRAIN.K.on) return null;
+  return L;
+}
+function ledgeAhead0(dx, dz, feetY) {
   const P = PH.P, S = P.groups.STATIC, feet = feetY === undefined ? player.y : feetY;
   let wall = null;
   for (const hy of [0.6, 0.35, 0.95]) { wall = P.raycast({ x: player.x, y: feet + hy, z: player.z }, { x: dx, y: 0, z: dz }, 1.6, { groups: S }); /* reach: a step + a lunge */ if (wall && wall.normal.y <= 0.6) break; wall = null; }
@@ -3137,7 +3149,7 @@ function ledgeAhead(dx, dz, feetY) {
   const h = top.point.y - feet; if (h < 0.8 || h > 1.8) return null;
   if (P.raycast({ x: player.x, y: top.point.y + 0.35, z: player.z }, { x: dx, y: 0, z: dz }, d + 0.3, { groups: S })) return null;   // wall continues above
   if (P.sphereCast({ x: top.point.x, y: top.point.y + 0.45, z: top.point.z }, { x: 0, y: 1, z: 0 }, 1.2, 0.35, { groups: S | P.groups.TRUNK })) return null;   // head room
-  return { x: top.point.x, y: top.point.y, z: top.point.z, h, wall: wall.distance };
+  return { x: top.point.x, y: top.point.y, z: top.point.z, h, wall: wall.distance, rock: !!(window.ROCKBRAIN && (ROCKBRAIN.isRockTag(wall.tag) || ROCKBRAIN.isRockTag(top.tag))) };
 }
 // root curve of ClimbUp_1m (the clip is in place): while the hands hold the edge the body rises by the hands' drop in
 // the clip; once the left foot is on the top it rises by that foot's drop. Normalised to 0…1 and scaled to the ledge.
@@ -3668,7 +3680,10 @@ if (window.PhysReady) {
     Phys.init({ H, VN, CELL, W, seaLevel: 0, gravity: 22 });
     PH.P = Phys; PH.ok = true;
     Passport.attach(Phys);   // exact colliders for everything registered so far; later registrations attach immediately
-    PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97, unstickEvery: Q.unstickEvery ?? 1 });
+    // slim: next to a rock the body capsule narrows 0.4 → 0.26 m (a 1.9 m pilot's shoulder half-width): the chest meets the
+    // drawn face and a 0.6 m gap between two rocks is passable (physics.js createCharacter)
+    PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97, unstickEvery: Q.unstickEvery ?? 1,
+      slim: /[?&]noslim\b/.test(location.search) ? null : { r: 0.26, test: (t) => t.kind === 'solid' && /^(rock|boulder|st_rock)/i.test(String(t.name || '')) } });
     PH.vh = Phys.createHoverVehicle({ x: sk.x, z: sk.z, yaw: sk.yaw, hoverHeight: 1.06 }); PH.vh.setEnabled(G.riding);
     if (G.riding) PH.ch.setEnabled(false);
     MANAGER.itemEnd('physics');
@@ -3722,7 +3737,7 @@ function driveAvatar(dt, mode) {
   const A = AV.player; if (!A) return;
   // the interaction module's contact layer (leaning on a rock, hand on a wall, vault…) owns A.cur while its 'play'
   // phase is active — it sets the clip itself (modules/interaction.js); we still have to advance the mixer every frame
-  const CTplaying = window.INTERACTION && INTERACTION.CT && INTERACTION.CT.state === 'play';
+  const CTplaying = (window.INTERACTION && INTERACTION.CT && INTERACTION.CT.state === 'play') || (window.ROCKBRAIN && ROCKBRAIN.ownsAnim());   // modules/rock-brain.js: same, at a rock
   if (!CTplaying) {
     const hs = Math.hypot(player.vx, player.vz);
     let k;
@@ -4311,7 +4326,7 @@ const MODCTX = { SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
   H, VN, CELL, W, RES, getH, groundH, normalY, riftD, nearPOI, inRift, POI, RIFT_FLOOR, WORLD, WORLD_TERRAIN, DECOR, FOREST, STAGS, fox, orm, AV, sk, player, enemies, boss,
-  Passport, PH, CLIMB, cam, keys, pressed, Dialog, INTER, Sound, WX, addFootprint, toast, srand, srange, fbm, vnoise, ridge, hash2,
+  Passport, PH, CLIMB, startClimb, ledgeAhead, cam, keys, pressed, Dialog, INTER, Sound, WX, addFootprint, toast, srand, srange, fbm, vnoise, ridge, hash2,
   get T() { return T; }, get G() { return G; }, get mode() { return G.mode; },
   ENV,   // atmosphere: ENV.dirty = true re-bakes the sky environment
   STYLE: window.STYLE,   // shared palette / material presets / light constants (style.js, STYLE.md)

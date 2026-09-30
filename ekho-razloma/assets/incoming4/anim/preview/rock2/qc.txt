@@ -1,0 +1,77 @@
+wave_r                   {"groundPen_cm": -0.6, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 1581, "maxJointSpeedBone": "hand_r"}
+pickup_small_r           {"groundPen_cm": -2.2, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 737, "maxJointSpeedBone": "lowerarm_r"}
+pickup_small_l           {"groundPen_cm": -2.2, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 737, "maxJointSpeedBone": "lowerarm_l"}
+crouch_inspect           {"groundPen_cm": -0.5, "footSlide_cm": 1.6, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 1040, "maxJointSpeedBone": "upperarm_l"}
+kneel_in                 {"groundPen_cm": -2.6, "footSlide_cm": 0.4, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 684, "maxJointSpeedBone": "calf_l"}
+kneel_loop               {"groundPen_cm": 0.0, "footSlide_cm": 3.1, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 587, "maxJointSpeedBone": "neck_01", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+kneel_out                {"groundPen_cm": -1.0, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 334, "maxJointSpeedBone": "foot_r"}
+step_over                {"groundPen_cm": -1.4, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 2614, "maxJointSpeedBone": "foot_r"}
+cold_shiver_loop         {"groundPen_cm": -0.7, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 449, "maxJointSpeedBone": "hand_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+lean_hands_ledge_loop    {"groundPen_cm": -2.6, "footSlide_cm": 0.4, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 272, "maxJointSpeedBone": "Head", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 0.8, 1.0], ["hand_r", 1.3, 1.6]]}
+catch_balance            {"groundPen_cm": -1.7, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 556, "maxJointSpeedBone": "foot_r"}
+slip_recover             {"groundPen_cm": -2.4, "footSlide_cm": 1.1, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 938, "maxJointSpeedBone": "hand_l"}
+reach_branch_r           {"groundPen_cm": -0.4, "footSlide_cm": 0.8, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 535, "maxJointSpeedBone": "hand_r"}
+reach_branch_l           {"groundPen_cm": -0.4, "footSlide_cm": 0.8, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 535, "maxJointSpeedBone": "hand_l"}
+push_heavy_loop          {"groundPen_cm": -0.4, "footSlide_cm": 2.7, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 355, "maxJointSpeedBone": "thigh_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 76.3, "contactPlaneErr_cm/drift_cm": [["hand_l", 2.0, 76.3], ["hand_r", 1.8, 76.3]]}
+hand_wall_r_in           {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 434, "maxJointSpeedBone": "lowerarm_r", "contactPlaneErr_cm/drift_cm": [["hand_r", 0.1, 0.1]]}
+hand_wall_r_loop         {"groundPen_cm": -0.2, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 184, "maxJointSpeedBone": "lowerarm_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 0.8, 0.8]]}
+hand_wall_l_in           {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 336, "maxJointSpeedBone": "hand_l", "contactPlaneErr_cm/drift_cm": [["hand_l", 0.0, 0.1]]}
+hand_wall_l_loop         {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 24, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 0.1, 0.2]]}
+hand_wall_both_in        {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 396, "maxJointSpeedBone": "lowerarm_r", "contactPlaneErr_cm/drift_cm": [["hand_l", 0.0, 0.1], ["hand_r", 0.0, 0.1]]}
+hand_wall_both_loop      {"groundPen_cm": -0.2, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 168, "maxJointSpeedBone": "lowerarm_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 0.1, 0.2], ["hand_r", 0.4, 0.4]]}
+lean_shoulder_r_in       {"groundPen_cm": -0.1, "footSlide_cm": 0.7, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 151, "maxJointSpeedBone": "calf_l"}
+lean_shoulder_r_loop     {"groundPen_cm": -0.1, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 94, "maxJointSpeedBone": "foot_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+lean_shoulder_l_in       {"groundPen_cm": -0.2, "footSlide_cm": 0.6, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 95, "maxJointSpeedBone": "calf_r"}
+lean_shoulder_l_loop     {"groundPen_cm": -0.2, "footSlide_cm": 0.6, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 103, "maxJointSpeedBone": "foot_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+lean_back_in             {"groundPen_cm": -0.2, "footSlide_cm": 0.6, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 271, "maxJointSpeedBone": "calf_l"}
+lean_back_loop           {"groundPen_cm": -0.2, "footSlide_cm": 1.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 90, "maxJointSpeedBone": "foot_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+brace_slope_r_in         {"groundPen_cm": -0.1, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 588, "maxJointSpeedBone": "lowerarm_r", "contactPlaneErr_cm/drift_cm": [["hand_r", 5.0, 4.6]]}
+brace_slope_r_loop       {"groundPen_cm": -0.1, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 15, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 2.6, 2.2]]}
+brace_slope_l_in         {"groundPen_cm": -0.2, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 356, "maxJointSpeedBone": "lowerarm_l", "contactPlaneErr_cm/drift_cm": [["hand_l", 4.5, 4.6]]}
+brace_slope_l_loop       {"groundPen_cm": -0.2, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 165, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 1.8, 1.9]]}
+tired_hands_knees_loop   {"groundPen_cm": -0.2, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 21, "maxJointSpeedBone": "upperarm_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 1.7, 1.2], ["hand_r", 1.2, 1.4]]}
+tired_breath_loop        {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 23, "maxJointSpeedBone": "clavicle_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+look_around_loop         {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 56, "maxJointSpeedBone": "Head", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+point_r                  {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 1110, "maxJointSpeedBone": "lowerarm_r"}
+point_l                  {"groundPen_cm": -0.2, "footSlide_cm": 0.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 1110, "maxJointSpeedBone": "lowerarm_l"}
+vault_1m                 {"groundPen_cm": -0.2, "footSlide_cm": 4.9, "kneeBack_cm": -0.1, "maxJointSpeed_dps": 2047, "maxJointSpeedBone": "calf_r", "contactPlaneErr_cm/drift_cm": [["hand_l", 0.5, 1.3], ["hand_r", 3.8, 4.6]]}
+sit_rock_in              {"groundPen_cm": -0.1, "footSlide_cm": 0.7, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 402, "maxJointSpeedBone": "spine_01"}
+sit_rock_loop            {"groundPen_cm": -0.1, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 146, "maxJointSpeedBone": "Head", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+sit_rock_out             {"groundPen_cm": -0.9, "footSlide_cm": 2.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 346, "maxJointSpeedBone": "calf_l"}
+sit_rock_high_in         {"groundPen_cm": -0.1, "footSlide_cm": 0.7, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 402, "maxJointSpeedBone": "spine_01"}
+sit_rock_high_loop       {"groundPen_cm": -0.1, "footSlide_cm": 0.2, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 146, "maxJointSpeedBone": "Head", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+sit_rock_high_out        {"groundPen_cm": -0.9, "footSlide_cm": 2.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 376, "maxJointSpeedBone": "calf_l"}
+touch_walk_r             {"groundPen_cm": 0.0, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 171, "maxJointSpeedBone": "lowerarm_r", "loopSeam_deg": 0.03, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 7.2, 8.5]]}
+touch_walk_l             {"groundPen_cm": 0.0, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 291, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.03, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 4.5, 7.8]]}
+squeeze_side_r_in        {"groundPen_cm": -1.0, "footSlide_cm": 2.1, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 656, "maxJointSpeedBone": "lowerarm_l", "contactPlaneErr_cm/drift_cm": [["hand_r", 3.8, 18.6], ["hand_l", 2.6, 7.1]]}
+squeeze_side_r_loop      {"groundPen_cm": -0.8, "footSlide_cm": 4.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 504, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 80.9, "contactPlaneErr_cm/drift_cm": [["hand_r", 0.2, 80.9], ["hand_l", 1.9, 81.0]]}
+squeeze_side_l_in        {"groundPen_cm": -1.0, "footSlide_cm": 4.3, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 849, "maxJointSpeedBone": "lowerarm_r", "contactPlaneErr_cm/drift_cm": [["hand_l", 1.3, 8.2], ["hand_r", 5.5, 16.4]]}
+squeeze_side_l_loop      {"groundPen_cm": -0.8, "footSlide_cm": 4.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 504, "maxJointSpeedBone": "lowerarm_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 80.9, "contactPlaneErr_cm/drift_cm": [["hand_l", 0.1, 80.9], ["hand_r", 2.0, 81.0]]}
+foot_on_ledge_l_in       {"groundPen_cm": -0.9, "footSlide_cm": 5.1, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 393, "maxJointSpeedBone": "hand_l"}
+foot_on_ledge_l_loop     {"groundPen_cm": 0.0, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 1, "maxJointSpeedBone": "spine_03", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+foot_on_ledge_l_out      {"groundPen_cm": -2.1, "footSlide_cm": 0.9, "kneeBack_cm": -3.2, "maxJointSpeed_dps": 528, "maxJointSpeedBone": "calf_l"}
+foot_on_ledge_r_in       {"groundPen_cm": -0.9, "footSlide_cm": 5.1, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 393, "maxJointSpeedBone": "hand_r"}
+foot_on_ledge_r_loop     {"groundPen_cm": 0.0, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 2, "maxJointSpeedBone": "spine_03", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+foot_on_ledge_r_out      {"groundPen_cm": -2.1, "footSlide_cm": 0.9, "kneeBack_cm": -3.2, "maxJointSpeed_dps": 528, "maxJointSpeedBone": "calf_r"}
+duck_under               {"groundPen_cm": -0.4, "footSlide_cm": 5.4, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 495, "maxJointSpeedBone": "thigh_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 1.1, 1.9]]}
+duck_under_half          {"groundPen_cm": -0.1, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 524, "maxJointSpeedBone": "hand_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 0.9, 5.8]]}
+jump_down_low            {"groundPen_cm": -60.1, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 785, "maxJointSpeedBone": "calf_r"}
+jump_down                {"groundPen_cm": -99.5, "footSlide_cm": 8.6, "kneeBack_cm": -11.3, "maxJointSpeed_dps": 2036, "maxJointSpeedBone": "upperarm_r"}
+jump_down_high           {"groundPen_cm": -151.0, "footSlide_cm": 7.6, "kneeBack_cm": -14.5, "maxJointSpeed_dps": 2036, "maxJointSpeedBone": "upperarm_r"}
+knee_on_rock_l_in        {"groundPen_cm": -0.1, "footSlide_cm": 2.9, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 261, "maxJointSpeedBone": "calf_l", "contactPlaneErr_cm/drift_cm": [["hand_l", 4.6, 4.7]]}
+knee_on_rock_l_loop      {"groundPen_cm": 0.0, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 190, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 2.2, 1.0]]}
+knee_on_rock_r_in        {"groundPen_cm": -0.1, "footSlide_cm": 2.9, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 261, "maxJointSpeedBone": "calf_r", "contactPlaneErr_cm/drift_cm": [["hand_r", 4.4, 4.7]]}
+knee_on_rock_r_loop      {"groundPen_cm": 0.0, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 190, "maxJointSpeedBone": "lowerarm_r", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 2.2, 1.1]]}
+lean_dome_r_in           {"groundPen_cm": -0.1, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 605, "maxJointSpeedBone": "lowerarm_r", "contactPlaneErr_cm/drift_cm": [["hand_r", 0.5, 1.8]]}
+lean_dome_r_loop         {"groundPen_cm": -0.3, "footSlide_cm": 0.6, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 17, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_r", 2.0, 1.8]]}
+lean_dome_l_in           {"groundPen_cm": -0.2, "footSlide_cm": 0.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 363, "maxJointSpeedBone": "hand_l", "contactPlaneErr_cm/drift_cm": [["hand_l", 0.1, 2.0]]}
+lean_dome_l_loop         {"groundPen_cm": -0.3, "footSlide_cm": 0.6, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 33, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 0.5, 0.6]]}
+lean_low_in              {"groundPen_cm": -0.3, "footSlide_cm": 2.5, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 446, "maxJointSpeedBone": "hand_l", "contactPlaneErr_cm/drift_cm": [["hand_l", 3.0, 0.7], ["hand_r", 3.0, 0.6]]}
+lean_low_loop            {"groundPen_cm": -0.2, "footSlide_cm": 0.7, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 63, "maxJointSpeedBone": "lowerarm_l", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0, "contactPlaneErr_cm/drift_cm": [["hand_l", 3.2, 0.5], ["hand_r", 3.1, 0.4]]}
+sit_uneven_l             {"groundPen_cm": -0.2, "footSlide_cm": 0.4, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 146, "maxJointSpeedBone": "Head", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+sit_uneven_r             {"groundPen_cm": -0.1, "footSlide_cm": 0.4, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 146, "maxJointSpeedBone": "Head", "loopSeam_deg": 0.0, "loopSeamPelvis_cm": 0.0}
+hand_wall_r_in_walk      {"groundPen_cm": -2.6, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 555, "maxJointSpeedBone": "hand_r", "contactPlaneErr_cm/drift_cm": [["hand_r", 0.8, 16.2]]}
+hand_wall_l_in_walk      {"groundPen_cm": -2.3, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 425, "maxJointSpeedBone": "hand_l", "contactPlaneErr_cm/drift_cm": [["hand_l", 3.3, 11.3]]}
+hand_wall_both_in_walk   {"groundPen_cm": -2.9, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 494, "maxJointSpeedBone": "hand_r", "contactPlaneErr_cm/drift_cm": [["hand_l", 3.1, 11.3], ["hand_r", 0.7, 15.7]]}
+lean_shoulder_r_in_walk  {"groundPen_cm": -4.7, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 376, "maxJointSpeedBone": "upperarm_r"}
+lean_shoulder_l_in_walk  {"groundPen_cm": -3.6, "footSlide_cm": 0.0, "kneeBack_cm": 0.0, "maxJointSpeed_dps": 376, "maxJointSpeedBone": "upperarm_r"}

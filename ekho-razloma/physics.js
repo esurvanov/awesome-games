@@ -194,7 +194,11 @@
       mass: o.mass ?? 80, skin: 0.02,
       unstickEvery: Math.max(1, o.unstickEvery | 0 || 1),   // weak profiles: check less often (still forced right after a teleport/placement)
     };
-    const halfCyl = Math.max(0.01, P.height / 2 - P.radius);
+    // slim: next to a solid the slim.test(tag) accepts (rocks), the capsule narrows to slim.r — a 0.4 m radius keeps the
+    // body axis ~45 cm off a drawn rock face (chest ~30 cm off it) and no 0.6–0.8 m gap between two rocks lets it in.
+    // The height and the feet stay put (half-cylinder + radius constant); growing back is gradual and only into free space.
+    P.radiusBase = P.radius; const slim = o.slim && o.slim.r > 0.1 && o.slim.r < P.radius ? o.slim : null;
+    let halfCyl = Math.max(0.01, P.height / 2 - P.radius);
     const centerOff = P.height / 2 + P.skin;               // feet -> capsule center
     const col = world.createCollider(R.ColliderDesc.capsule(halfCyl, P.radius)
       .setTranslation(o.x ?? 0, (o.y ?? 0) + centerOff, o.z ?? 0)
@@ -221,7 +225,7 @@
     const out = { position: v3(), velocity: v3(), grounded: false, landed: false, landingSpeed: 0, slideDir: null, groundNormal: v3(0, 1, 0), sliding: false, jumped: false };
     const tmpT = v3();
 
-    const probeBall = new R.Ball(P.radius * 0.9), qId = { x: 0, y: 0, z: 0, w: 1 }, down = v3(0, -1, 0);
+    let probeBall = new R.Ball(P.radius * 0.9); const qId = { x: 0, y: 0, z: 0, w: 1 }, down = v3(0, -1, 0);
     const probeGroups = groups(G_ALL, G_STATIC | G_PROP | G_VEHICLE);
     function probeGround(c) {
       const foot = v3(c.x, c.y - halfCyl, c.z);
@@ -238,7 +242,11 @@
       const v = s.vel;
       if (jumpNow) s.bufT = P.buffer;
       // --- horizontal control
-      const tx = desired.x || 0, tz = desired.z || 0, hasInput = tx * tx + tz * tz > 1e-4;
+      let tx = desired.x || 0, tz = desired.z || 0;
+      // a goal (setGoal): the wanted velocity is toward the point, at most goal.v, never past it — the way others "place" the body
+      // (the pose / rock modules) without writing its position: the controller still collides, steps, slides
+      if (s.goal) { const c0 = col.translation(), gx = s.goal.x - c0.x, gz = s.goal.z - c0.z, gl = Math.hypot(gx, gz); if (gl < 0.001) { tx = 0; tz = 0; } else { const sp = Math.min(s.goal.v, gl / dt); tx = gx / gl * sp; tz = gz / gl * sp; } }
+      const hasInput = tx * tx + tz * tz > 1e-4;
       if (s.walkable) {
         const a = hasInput ? P.groundAccel : P.groundDecel;
         let dx = tx - v.x, dz = tz - v.z; const dl = Math.hypot(dx, dz), m = a * dt;
@@ -322,7 +330,39 @@
     // notch of a scanned rock/crystal/prop can wedge the capsule 5-27 cm deep and rest there forever (REALISM-QA
     // negative gaps) without ever tripping a 0.12 m core. 0.06 still leaves a 3x margin over the 2 cm skin, so
     // ordinary resting/pushing contact (which the KCC itself keeps within skin) never triggers it.
-    const coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.06));
+    let coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, P.radius - 0.06));
+    function applyRadius(r) {
+      P.radius = r; halfCyl = Math.max(0.01, P.height / 2 - r);
+      col.setShape(new R.Capsule(halfCyl, r)); probeBall = new R.Ball(r * 0.9);
+      coreShape = new R.Capsule(Math.max(0.01, halfCyl - 0.05), Math.max(0.05, r - 0.06));
+    }
+    // does a capsule of radius r at the current centre overlap anything solid (terrain / ice excluded, like unstick)?
+    function overlapsAt(r) {
+      const c = col.translation(); let hit = false;
+      world.intersectionsWithShape(c, qId, new R.Capsule(Math.max(0.01, P.height / 2 - r), r), (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = true; return false; } return true; }, undefined, groups(G_ALL, G_STATIC | G_TRUNK | G_PROP), col);
+      return hit;
+    }
+    // a slim-able solid within reach of the base-radius body (chest / knee height, + 0.18 m)?
+    const slimProbe = slim ? new R.Ball(P.radiusBase + 0.18) : null;
+    function nearSlimSolid() {
+      const c = col.translation(); let near = false;
+      for (const dy of [-0.35, 0.35]) {
+        world.intersectionsWithShape(v3(c.x, c.y + dy, c.z), qId, slimProbe, (other) => { const t = tags.get(other.handle); if (t && slim.test(t)) { near = true; return false; } return true; }, undefined, groups(G_ALL, G_STATIC), col);
+        if (near) break;
+      }
+      return near;
+    }
+    function slimStep() {
+      if (!slim || !s.enabled) return;
+      if ((s.slimN = ((s.slimN || 0) + 1) % 3) === 0) s.slimNear = nearSlimSolid();   // 3 frames ≈ 50 ms: cheap, still ahead of a run (0.6 m)
+      const want = s.slimNear ? slim.r : P.radiusBase;
+      if (want < P.radius - 1e-3) { applyRadius(want); out.slim = true; }        // narrowing never creates an overlap: at once
+      else if (want > P.radius + 1e-3) {                                          // widening: 1.5 cm a frame, only into free space
+        const r = Math.min(want, P.radius + 0.015);
+        if (!overlapsAt(r)) applyRadius(r);
+        out.slim = P.radius < P.radiusBase - 1e-3;
+      }
+    }
     const stuckGroups = groups(G_ALL, G_STATIC | G_TRUNK);
     function unstick() {
       const c = col.translation(); let hit = null, hitTag = null;
@@ -363,11 +403,13 @@
         out.landed = false; out.landingSpeed = 0; out.jumped = false;
         if (!s.enabled) return out;
         flushQueries();
+        if (s.goal && s.goal.n-- <= 0) s.goal = null;   // a goal lives for the next two moves unless it is set again
         // unstick is an exact-shape overlap query against every nearby static/trunk collider — real cost on a weak
         // profile in a dense forest. Only worth paying every single frame right after something could actually have
         // changed (a teleport/placement, or a static collider added/removed nearby — Passport's exact-mesh streaming);
         // otherwise a periodic check (P.unstickEvery, 1 = every frame, unchanged default) still catches it within a
         // few frames, which is what the original bug (spire-E, commit 9616747) needed anyway.
+        slimStep();
         if (s.forceUnstick || s.staticSeen !== dirtyEpoch || (s.unstickN = (s.unstickN + 1) % P.unstickEvery) === 0) {
           for (let k = 0; k < 4 && unstick(); k++) { /* lift out of whatever we were placed inside */ }
           s.forceUnstick = false; s.staticSeen = dirtyEpoch;
@@ -396,6 +438,9 @@
         col.setTranslation(v3(x, y + centerOff, z)); s.prev = v3(x, y, z); s.pos = v3(x, y, z);
         s.vel = v3(); s.acc = 0; out.position = v3(x, y, z); s.forceUnstick = true;
       },
+      // horizontal goal: walk to (x, z) at up to v m/s (a desired velocity for the controller, refreshed every frame by the caller)
+      setGoal(x, z, v = 1.2) { s.goal = { x, z, v, n: 2 }; },
+      clearGoal() { s.goal = null; },
       setVelocity(x, y, z) { s.vel.x = x; s.vel.y = y; s.vel.z = z; if (y > 0.5) { s.walkable = false; s.jumping = true; } },
       addVelocity(x, y, z) { ch.setVelocity(s.vel.x + x, s.vel.y + y, s.vel.z + z); },
       setEnabled(on) { s.enabled = on; col.setEnabled(on); if (on) s.acc = 0; },

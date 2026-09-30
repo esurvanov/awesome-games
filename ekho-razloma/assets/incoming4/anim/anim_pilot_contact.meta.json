@@ -29,6 +29,20 @@
      0.3,
      1.4
     ]
+   },
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
    }
   },
   "pickup_small_r": {
@@ -94,7 +108,21 @@
     }
    ],
    "notes": "squat + right-hand grab from the ground; object ~0.3 m in front, slightly right",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "ground",
+    "h": [
+     0.0,
+     0.3
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
+   }
   },
   "pickup_small_l": {
    "name": "pickup_small_l",
@@ -159,7 +187,21 @@
     }
    ],
    "notes": "mirror of pickup_small_r",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "ground",
+    "h": [
+     0.0,
+     0.3
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
+   }
   },
   "crouch_inspect": {
    "name": "crouch_inspect",
@@ -263,7 +305,21 @@
     }
    ],
    "notes": "one-shot: crouch, both hands touch/probe the ground ~0.7 m ahead, stand up",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "ground",
+    "h": [
+     0.0,
+     0.1
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
+   }
   },
   "kneel_in": {
    "name": "kneel_in",
@@ -283,7 +339,21 @@
    ],
    "contacts": [],
    "notes": "stand -> low kneel/squat. knee heights over loop: L 0.52 m, R 0.07 m",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "ground",
+    "h": [
+     0.0,
+     0.1
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   }
   },
   "kneel_loop": {
    "name": "kneel_loop",
@@ -303,7 +373,21 @@
    ],
    "contacts": [],
    "notes": "hold; knee heights over loop: L 0.52 m, R 0.07 m",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "ground",
+    "h": [
+     0.0,
+     0.1
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "kneel_out": {
    "name": "kneel_out",
@@ -323,7 +407,21 @@
    ],
    "contacts": [],
    "notes": "kneel -> stand",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "ground",
+    "h": [
+     0.0,
+     0.1
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "exit"
+   }
   },
   "step_over": {
    "name": "step_over",
@@ -551,6 +649,20 @@
      ]
     ],
     "r": []
+   },
+   "req": {
+    "cls": "step_up",
+    "h": [
+     0.15,
+     0.5
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
    }
   },
   "cold_shiver_loop": {
@@ -572,7 +684,21 @@
    ],
    "contacts": [],
    "notes": "arms hugging the torso + 7.5 Hz loop-safe tremor layer (authored) on spine/shoulders/head",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "lean_hands_ledge_loop": {
    "name": "lean_hands_ledge_loop",
@@ -606,9 +732,9 @@
      "surface": {
       "type": "ledge_top",
       "point": [
-       0.047,
-       0.625,
-       0.489
+       0.228,
+       0.765,
+       0.828
       ],
       "normal": [
        0.0,
@@ -617,14 +743,14 @@
       ]
      },
      "heightRange": [
-      0.46,
-      0.81
+      0.665,
+      0.865
      ],
      "approach": {
       "distance": [
-       0.409,
-       0.489,
-       0.609
+       0.748,
+       0.828,
+       0.948
       ],
       "facing": [
        -0.0,
@@ -633,7 +759,31 @@
       ]
      },
      "space": "character",
-     "note": "palm on top of a waist-high surface; runtime IK raises/lowers hands to the real top"
+     "note": "palm on top of a waist-high surface; runtime IK raises/lowers hands to the real top",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.339,
+       0.859,
+       0.773
+      ],
+      "gapCm": 0.8,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 2.2,
+      "surfaceMoved": 0.14,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "hand_r",
@@ -648,9 +798,9 @@
      "surface": {
       "type": "ledge_top",
       "point": [
-       -0.146,
-       0.616,
-       0.49
+       -0.235,
+       0.756,
+       0.794
       ],
       "normal": [
        0.0,
@@ -659,14 +809,14 @@
       ]
      },
      "heightRange": [
-      0.451,
-      0.801
+      0.656,
+      0.856
      ],
      "approach": {
       "distance": [
-       0.41,
-       0.49,
-       0.61
+       0.714,
+       0.794,
+       0.914
       ],
       "facing": [
        -0.0,
@@ -675,11 +825,51 @@
       ]
      },
      "space": "character",
-     "note": "palm on top of a waist-high surface; runtime IK raises/lowers hands to the real top"
+     "note": "palm on top of a waist-high surface; runtime IK raises/lowers hands to the real top",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.344,
+       0.865,
+       0.754
+      ],
+      "gapCm": 1.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.0,
+      "surfaceMoved": 0.14,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "both palms on a surface ~0.7 m high, ~0.45 m ahead; weight forward",
-   "rootMotion": null
+   "notes": "both palms on a surface ~0.7 m high, ~0.45 m ahead; weight forward | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_ledge",
+    "h": [
+     0.64,
+     0.92
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "phase": "hold"
+   },
+   "palmFix": true
   },
   "catch_balance": {
    "name": "catch_balance",
@@ -902,6 +1092,20 @@
       67
      ]
     ]
+   },
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
    }
   },
   "slip_recover": {
@@ -1122,6 +1326,20 @@
       67
      ]
     ]
+   },
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
    }
   },
   "reach_branch_r": {
@@ -1187,7 +1405,24 @@
     }
    ],
    "notes": "reach up-right, catch and push a branch aside, return",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "touch",
+    "h": [
+     1.4,
+     2.1
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
+   }
   },
   "reach_branch_l": {
    "name": "reach_branch_l",
@@ -1248,7 +1483,24 @@
     }
    ],
    "notes": "mirror of reach_branch_r",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "touch",
+    "h": [
+     1.4,
+     2.1
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
+   }
   },
   "push_heavy_loop": {
    "name": "push_heavy_loop",
@@ -1561,6 +1813,23 @@
       0.0
      ]
     ]
+   },
+   "req": {
+    "cls": "push",
+    "h": [
+     0.8,
+     1.5
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
    }
   },
   "hand_wall_r_in": {
@@ -1592,9 +1861,9 @@
      "surface": {
       "type": "wall",
       "point": [
-       -0.176,
-       1.372,
-       0.445
+       -0.32,
+       1.474,
+       0.405
       ],
       "normal": [
        0.0,
@@ -1603,14 +1872,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.124,
+      1.774
      ],
      "approach": {
       "distance": [
-       0.365,
-       0.445,
-       0.565
+       0.345,
+       0.405,
+       0.485
       ],
       "facing": [
        -0.0,
@@ -1619,11 +1888,53 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.316,
+       1.358,
+       0.296
+      ],
+      "gapCm": 1.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 0.6,
+      "surfaceMoved": 0.04,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "enter (play reversed / crossfade to idle to exit). rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m",
-   "rootMotion": null
+   "notes": "enter (play reversed / crossfade to idle to exit). rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.22,
+     1.72
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   },
+   "palmFix": true
   },
   "hand_wall_r_loop": {
    "name": "hand_wall_r_loop",
@@ -1654,9 +1965,9 @@
      "surface": {
       "type": "wall",
       "point": [
-       -0.176,
-       1.372,
-       0.445
+       -0.314,
+       1.492,
+       0.405
       ],
       "normal": [
        0.0,
@@ -1665,14 +1976,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.142,
+      1.792
      ],
      "approach": {
       "distance": [
-       0.365,
-       0.445,
-       0.565
+       0.345,
+       0.405,
+       0.485
       ],
       "facing": [
        -0.0,
@@ -1681,11 +1992,53 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.405,
+       1.42,
+       0.293
+      ],
+      "gapCm": 1.8,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.1,
+      "thumbTipInsideCm": 0.4,
+      "surfaceMoved": 0.04,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "hold loop. rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m",
-   "rootMotion": null
+   "notes": "hold loop. rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.24,
+     1.74
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   },
+   "palmFix": true
   },
   "hand_wall_l_in": {
    "name": "hand_wall_l_in",
@@ -1716,9 +2069,9 @@
      "surface": {
       "type": "wall",
       "point": [
-       0.176,
-       1.372,
-       0.445
+       0.309,
+       1.482,
+       0.405
       ],
       "normal": [
        0.0,
@@ -1727,14 +2080,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.132,
+      1.782
      ],
      "approach": {
       "distance": [
-       0.365,
-       0.445,
-       0.565
+       0.345,
+       0.405,
+       0.485
       ],
       "facing": [
        -0.0,
@@ -1743,11 +2096,53 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.427,
+       1.445,
+       0.313
+      ],
+      "gapCm": 0.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.5,
+      "surfaceMoved": 0.04,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "enter (play reversed / crossfade to idle to exit). rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m",
-   "rootMotion": null
+   "notes": "enter (play reversed / crossfade to idle to exit). rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.23,
+     1.73
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   },
+   "palmFix": true
   },
   "hand_wall_l_loop": {
    "name": "hand_wall_l_loop",
@@ -1778,9 +2173,9 @@
      "surface": {
       "type": "wall",
       "point": [
-       0.176,
-       1.372,
-       0.445
+       0.311,
+       1.486,
+       0.405
       ],
       "normal": [
        0.0,
@@ -1789,14 +2184,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.136,
+      1.786
      ],
      "approach": {
       "distance": [
-       0.365,
-       0.445,
-       0.565
+       0.345,
+       0.405,
+       0.485
       ],
       "facing": [
        -0.0,
@@ -1805,11 +2200,53 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.414,
+       1.419,
+       0.313
+      ],
+      "gapCm": 0.6,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.4,
+      "surfaceMoved": 0.04,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "hold loop. rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m",
-   "rootMotion": null
+   "notes": "hold loop. rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.24,
+     1.74
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   },
+   "palmFix": true
   },
   "hand_wall_both_in": {
    "name": "hand_wall_both_in",
@@ -1840,8 +2277,8 @@
      "surface": {
       "type": "wall",
       "point": [
-       0.196,
-       1.372,
+       0.318,
+       1.465,
        0.445
       ],
       "normal": [
@@ -1851,14 +2288,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.115,
+      1.765
      ],
      "approach": {
       "distance": [
-       0.365,
+       0.385,
        0.445,
-       0.565
+       0.525
       ],
       "facing": [
        -0.0,
@@ -1867,7 +2304,31 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.322,
+       1.341,
+       0.354
+      ],
+      "gapCm": 0.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.5,
+      "surfaceMoved": 0.0,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "hand_r",
@@ -1882,8 +2343,8 @@
      "surface": {
       "type": "wall",
       "point": [
-       -0.196,
-       1.372,
+       -0.312,
+       1.449,
        0.445
       ],
       "normal": [
@@ -1893,14 +2354,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.099,
+      1.749
      ],
      "approach": {
       "distance": [
-       0.365,
+       0.385,
        0.445,
-       0.565
+       0.525
       ],
       "facing": [
        -0.0,
@@ -1909,11 +2370,54 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.403,
+       1.377,
+       0.338
+      ],
+      "gapCm": 1.2,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.2,
+      "surfaceMoved": 0.0,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "enter (play reversed / crossfade to idle to exit). rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m",
-   "rootMotion": null
+   "notes": "enter (play reversed / crossfade to idle to exit). rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.2,
+     1.72
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "width": 0.4,
+    "phase": "enter"
+   },
+   "palmFix": true
   },
   "hand_wall_both_loop": {
    "name": "hand_wall_both_loop",
@@ -1944,8 +2448,8 @@
      "surface": {
       "type": "wall",
       "point": [
-       0.196,
-       1.372,
+       0.316,
+       1.47,
        0.445
       ],
       "normal": [
@@ -1955,14 +2459,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.12,
+      1.77
      ],
      "approach": {
       "distance": [
-       0.365,
+       0.385,
        0.445,
-       0.565
+       0.525
       ],
       "facing": [
        -0.0,
@@ -1971,7 +2475,31 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.407,
+       1.387,
+       0.353
+      ],
+      "gapCm": 0.6,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.4,
+      "surfaceMoved": 0.0,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "hand_r",
@@ -1986,8 +2514,8 @@
      "surface": {
       "type": "wall",
       "point": [
-       -0.196,
-       1.372,
+       -0.314,
+       1.45,
        0.445
       ],
       "normal": [
@@ -1997,14 +2525,14 @@
       ]
      },
      "heightRange": [
-      0.95,
-      1.6
+      1.1,
+      1.75
      ],
      "approach": {
       "distance": [
-       0.365,
+       0.385,
        0.445,
-       0.565
+       0.525
       ],
       "facing": [
        -0.0,
@@ -2013,11 +2541,54 @@
       ]
      },
      "space": "character",
-     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange"
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.393,
+       1.365,
+       0.337
+      ],
+      "gapCm": 1.4,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.1,
+      "surfaceMoved": 0.0,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     }
    ],
-   "notes": "hold loop. rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m",
-   "rootMotion": null
+   "notes": "hold loop. rock/wall face 0.45 m ahead (range in approach); palm height 1.3 m | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.2,
+     1.72
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "width": 0.4,
+    "phase": "hold"
+   },
+   "palmFix": true
   },
   "lean_shoulder_r_in": {
    "name": "lean_shoulder_r_in",
@@ -2080,7 +2651,24 @@
     }
    ],
    "notes": "enter (play reversed / crossfade to idle to exit). arms folded",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_shoulder",
+    "h": [
+     1.1,
+     1.9
+    ],
+    "tilt": [
+     -0.1,
+     0.2
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   }
   },
   "lean_shoulder_r_loop": {
    "name": "lean_shoulder_r_loop",
@@ -2143,7 +2731,24 @@
     }
    ],
    "notes": "hold loop. arms folded",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_shoulder",
+    "h": [
+     1.1,
+     1.9
+    ],
+    "tilt": [
+     -0.1,
+     0.2
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "lean_shoulder_l_in": {
    "name": "lean_shoulder_l_in",
@@ -2206,7 +2811,24 @@
     }
    ],
    "notes": "enter (play reversed / crossfade to idle to exit). arms folded",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_shoulder",
+    "h": [
+     1.1,
+     1.9
+    ],
+    "tilt": [
+     -0.1,
+     0.2
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   }
   },
   "lean_shoulder_l_loop": {
    "name": "lean_shoulder_l_loop",
@@ -2269,7 +2891,24 @@
     }
    ],
    "notes": "hold loop. arms folded",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_shoulder",
+    "h": [
+     1.1,
+     1.9
+    ],
+    "tilt": [
+     -0.1,
+     0.2
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "lean_back_in": {
    "name": "lean_back_in",
@@ -2332,7 +2971,24 @@
     }
    ],
    "notes": "enter (play reversed / crossfade to idle to exit). arms folded",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_back",
+    "h": [
+     1.0,
+     2.2
+    ],
+    "tilt": [
+     -0.05,
+     0.25
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   }
   },
   "lean_back_loop": {
    "name": "lean_back_loop",
@@ -2395,7 +3051,24 @@
     }
    ],
    "notes": "hold loop. arms folded",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_back",
+    "h": [
+     1.0,
+     2.2
+    ],
+    "tilt": [
+     -0.05,
+     0.25
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "brace_slope_r_in": {
    "name": "brace_slope_r_in",
@@ -2426,9 +3099,9 @@
      "surface": {
       "type": "slope",
       "point": [
-       -0.172,
-       0.799,
-       0.477
+       -0.288,
+       0.948,
+       0.451
       ],
       "normal": [
        0.0,
@@ -2437,14 +3110,14 @@
       ]
      },
      "heightRange": [
-      0.35,
-      0.95
+      0.748,
+      1.148
      ],
      "approach": {
       "distance": [
-       0.4,
-       0.477,
-       0.8
+       0.391,
+       0.451,
+       0.531
       ],
       "facing": [
        0,
@@ -2453,7 +3126,31 @@
       ]
      },
      "space": "character",
-     "note": "palm on rising ground (~32 deg) ahead; lead foot l planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal"
+     "note": "palm on rising ground (~32 deg) ahead; lead foot l planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.371,
+       1.002,
+       0.322
+      ],
+      "gapCm": 2.0,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.0,
+      "surfaceMoved": 0.14,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "foot_l",
@@ -2497,8 +3194,26 @@
      "space": "character"
     }
    ],
-   "notes": "enter (play reversed / crossfade to idle to exit). one hand braced on a steep slope while climbing/pausing",
-   "rootMotion": null
+   "notes": "enter (play reversed / crossfade to idle to exit). one hand braced on a steep slope while climbing/pausing | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "brace_slope",
+    "h": [
+     0.65,
+     1.25
+    ],
+    "tilt": [
+     0.35,
+     0.9
+    ],
+    "feetDelta": 0.25,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   },
+   "palmFix": true
   },
   "brace_slope_r_loop": {
    "name": "brace_slope_r_loop",
@@ -2529,9 +3244,9 @@
      "surface": {
       "type": "slope",
       "point": [
-       -0.172,
-       0.799,
-       0.477
+       -0.279,
+       0.947,
+       0.45
       ],
       "normal": [
        0.0,
@@ -2540,14 +3255,14 @@
       ]
      },
      "heightRange": [
-      0.35,
-      0.95
+      0.747,
+      1.147
      ],
      "approach": {
       "distance": [
-       0.4,
-       0.477,
-       0.8
+       0.39,
+       0.45,
+       0.53
       ],
       "facing": [
        0,
@@ -2556,7 +3271,31 @@
       ]
      },
      "space": "character",
-     "note": "palm on rising ground (~32 deg) ahead; lead foot l planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal"
+     "note": "palm on rising ground (~32 deg) ahead; lead foot l planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.375,
+       1.008,
+       0.334
+      ],
+      "gapCm": 1.9,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.0,
+      "surfaceMoved": 0.14,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "foot_l",
@@ -2600,8 +3339,26 @@
      "space": "character"
     }
    ],
-   "notes": "hold loop. one hand braced on a steep slope while climbing/pausing",
-   "rootMotion": null
+   "notes": "hold loop. one hand braced on a steep slope while climbing/pausing | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "brace_slope",
+    "h": [
+     0.65,
+     1.25
+    ],
+    "tilt": [
+     0.35,
+     0.9
+    ],
+    "feetDelta": 0.25,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   },
+   "palmFix": true
   },
   "brace_slope_l_in": {
    "name": "brace_slope_l_in",
@@ -2632,9 +3389,9 @@
      "surface": {
       "type": "slope",
       "point": [
-       0.17,
-       0.709,
-       0.54
+       0.329,
+       0.845,
+       0.644
       ],
       "normal": [
        0.0,
@@ -2643,14 +3400,14 @@
       ]
      },
      "heightRange": [
-      0.35,
-      0.95
+      0.645,
+      1.045
      ],
      "approach": {
       "distance": [
-       0.4,
-       0.54,
-       0.8
+       0.584,
+       0.644,
+       0.724
       ],
       "facing": [
        0,
@@ -2659,7 +3416,31 @@
       ]
      },
      "space": "character",
-     "note": "palm on rising ground (~32 deg) ahead; lead foot r planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal"
+     "note": "palm on rising ground (~32 deg) ahead; lead foot r planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.402,
+       0.87,
+       0.509
+      ],
+      "gapCm": 0.7,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.1,
+      "armInsideCm": 0.1,
+      "thumbTipInsideCm": 2.3,
+      "surfaceMoved": 0.06,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "foot_r",
@@ -2703,8 +3484,26 @@
      "space": "character"
     }
    ],
-   "notes": "enter (play reversed / crossfade to idle to exit). one hand braced on a steep slope while climbing/pausing",
-   "rootMotion": null
+   "notes": "enter (play reversed / crossfade to idle to exit). one hand braced on a steep slope while climbing/pausing | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "brace_slope",
+    "h": [
+     0.54,
+     1.15
+    ],
+    "tilt": [
+     0.35,
+     0.9
+    ],
+    "feetDelta": 0.25,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter"
+   },
+   "palmFix": true
   },
   "brace_slope_l_loop": {
    "name": "brace_slope_l_loop",
@@ -2735,9 +3534,9 @@
      "surface": {
       "type": "slope",
       "point": [
-       0.17,
-       0.709,
-       0.54
+       0.321,
+       0.841,
+       0.638
       ],
       "normal": [
        0.0,
@@ -2746,14 +3545,14 @@
       ]
      },
      "heightRange": [
-      0.35,
-      0.95
+      0.641,
+      1.041
      ],
      "approach": {
       "distance": [
-       0.4,
-       0.54,
-       0.8
+       0.578,
+       0.638,
+       0.718
       ],
       "facing": [
        0,
@@ -2762,7 +3561,31 @@
       ]
      },
      "space": "character",
-     "note": "palm on rising ground (~32 deg) ahead; lead foot r planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal"
+     "note": "palm on rising ground (~32 deg) ahead; lead foot r planted 0.17 m higher, 0.3 m ahead. Runtime: raycast down in front of the shoulder, orient palm to the hit normal",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.413,
+       0.875,
+       0.518
+      ],
+      "gapCm": 0.6,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.1,
+      "armInsideCm": 0.1,
+      "thumbTipInsideCm": 2.4,
+      "surfaceMoved": 0.06,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
     },
     {
      "effector": "foot_r",
@@ -2806,8 +3629,26 @@
      "space": "character"
     }
    ],
-   "notes": "hold loop. one hand braced on a steep slope while climbing/pausing",
-   "rootMotion": null
+   "notes": "hold loop. one hand braced on a steep slope while climbing/pausing | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "brace_slope",
+    "h": [
+     0.54,
+     1.14
+    ],
+    "tilt": [
+     0.35,
+     0.9
+    ],
+    "feetDelta": 0.25,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   },
+   "palmFix": true
   },
   "tired_hands_knees_loop": {
    "name": "tired_hands_knees_loop",
@@ -2910,7 +3751,21 @@
     }
    ],
    "notes": "after sprint / climb; 2 breaths per 2.5 s loop",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "tired_breath_loop": {
    "name": "tired_breath_loop",
@@ -2928,7 +3783,21 @@
    ],
    "contacts": [],
    "notes": "upright, head down, shoulders heave 0.8 Hz",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "look_around_loop": {
    "name": "look_around_loop",
@@ -2945,7 +3814,21 @@
    ],
    "contacts": [],
    "notes": "scan +55 deg left, -50 deg right; head yaw ~0.7, torso ~0.3 of the look angle",
-   "rootMotion": null
+   "rootMotion": null,
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "hold"
+   }
   },
   "point_r": {
    "name": "point_r",
@@ -2970,6 +3853,20 @@
      0.45,
      1.45
     ]
+   },
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
    }
   },
   "point_l": {
@@ -2994,6 +3891,20 @@
      0.45,
      1.45
     ]
+   },
+   "req": {
+    "cls": "other",
+    "h": null,
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "once"
    }
   },
   "vault_1m": {
@@ -3238,7 +4149,5637 @@
     "frontZ": 0.62,
     "top": 1.0,
     "depth": 0.4
+   },
+   "req": {
+    "cls": "climb",
+    "h": [
+     0.8,
+     1.2
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "phase": "once"
    }
+  },
+  "sit_rock_in": {
+   "name": "sit_rock_in",
+   "duration": 2.8667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "13_04 sit on stepstool, chin in hand (subject 13)",
+    "window_s": [
+     1.6,
+     8.85
+    ]
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      2.517,
+      2.867
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.431,
+       -0.203
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.371,
+      0.501
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks on a flat top 0.43 m high, 0.20 m behind the feet; feet 0.38 m ahead of the hips. Runtime: stand with the back to the rock at approach distance; vertical IK only (pelvis \u00b16 cm)"
+    }
+   ],
+   "notes": "stand with the back to the rock -> sit down, settle the feet (2.9 s). seat 0.43 m (pelvis raised 0.10 m over the 0.33 m source seat, legs re-solved)",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.37,
+     0.5
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "facesAway": true,
+    "phase": "enter"
+   }
+  },
+  "sit_rock_loop": {
+   "name": "sit_rock_loop",
+   "duration": 1.8,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "cmu": "13_04 sit on stepstool, chin in hand (subject 13)",
+    "window_s": [
+     1.6,
+     8.85
+    ]
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.0,
+      1.8
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.431,
+       -0.203
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.371,
+      0.501
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks on a flat top 0.43 m high, 0.20 m behind the feet; feet 0.38 m ahead of the hips. Runtime: stand with the back to the rock at approach distance; vertical IK only (pelvis \u00b16 cm)"
+    }
+   ],
+   "notes": "seated, forearms on the knees, slow breathing. seat 0.43 m (pelvis raised 0.10 m over the 0.33 m source seat, legs re-solved)",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.37,
+     0.5
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "facesAway": true,
+    "phase": "hold"
+   }
+  },
+  "sit_rock_out": {
+   "name": "sit_rock_out",
+   "duration": 1.5667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "13_04 sit on stepstool, chin in hand (subject 13)",
+    "window_s": [
+     1.6,
+     8.85
+    ]
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.0,
+      0.25
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.431,
+       -0.203
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.371,
+      0.501
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks on a flat top 0.43 m high, 0.20 m behind the feet; feet 0.38 m ahead of the hips. Runtime: stand with the back to the rock at approach distance; vertical IK only (pelvis \u00b16 cm)"
+    }
+   ],
+   "notes": "lean forward, push up, stand (ends on the Idle stance). seat 0.43 m (pelvis raised 0.10 m over the 0.33 m source seat, legs re-solved)",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.37,
+     0.5
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "facesAway": true,
+    "phase": "exit"
+   }
+  },
+  "sit_rock_high_in": {
+   "name": "sit_rock_high_in",
+   "duration": 2.8667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "13_04 sit on stepstool, chin in hand (subject 13)",
+    "window_s": [
+     1.6,
+     8.85
+    ]
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      2.517,
+      2.867
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.601,
+       -0.203
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.541,
+      0.671
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks on a flat top 0.60 m high, 0.20 m behind the feet; feet 0.38 m ahead of the hips. Runtime: stand with the back to the rock at approach distance; vertical IK only (pelvis \u00b16 cm)"
+    }
+   ],
+   "notes": "stand with the back to the rock -> sit down, settle the feet (2.9 s). seat 0.60 m (pelvis raised 0.27 m over the 0.33 m source seat, legs re-solved)",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.54,
+     0.67
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "facesAway": true,
+    "phase": "enter"
+   }
+  },
+  "sit_rock_high_loop": {
+   "name": "sit_rock_high_loop",
+   "duration": 1.8,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "cmu": "13_04 sit on stepstool, chin in hand (subject 13)",
+    "window_s": [
+     1.6,
+     8.85
+    ]
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.0,
+      1.8
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.601,
+       -0.203
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.541,
+      0.671
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks on a flat top 0.60 m high, 0.20 m behind the feet; feet 0.38 m ahead of the hips. Runtime: stand with the back to the rock at approach distance; vertical IK only (pelvis \u00b16 cm)"
+    }
+   ],
+   "notes": "seated, forearms on the knees, slow breathing. seat 0.60 m (pelvis raised 0.27 m over the 0.33 m source seat, legs re-solved)",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.54,
+     0.67
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "facesAway": true,
+    "phase": "hold"
+   }
+  },
+  "sit_rock_high_out": {
+   "name": "sit_rock_high_out",
+   "duration": 1.5667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "13_04 sit on stepstool, chin in hand (subject 13)",
+    "window_s": [
+     1.6,
+     8.85
+    ]
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.0,
+      0.25
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.601,
+       -0.203
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.541,
+      0.671
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks on a flat top 0.60 m high, 0.20 m behind the feet; feet 0.38 m ahead of the hips. Runtime: stand with the back to the rock at approach distance; vertical IK only (pelvis \u00b16 cm)"
+    }
+   ],
+   "notes": "lean forward, push up, stand (ends on the Idle stance). seat 0.60 m (pelvis raised 0.27 m over the 0.33 m source seat, legs re-solved)",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.54,
+     0.67
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "flat": true,
+    "facesAway": true,
+    "phase": "exit"
+   }
+  },
+  "touch_walk_r": {
+   "name": "touch_walk_r",
+   "duration": 2.0,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "side-wall palm slide, arm layer",
+    "base": "UAL Idle_Loop (arm only)"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "wall",
+    "layer",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.0,
+      2.0
+     ],
+     "blendIn": 0.25,
+     "blendOut": 0.3,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.465,
+       1.224,
+       0.127
+      ],
+      "normal": [
+       1.0,
+       0.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.85,
+      1.45
+     ],
+     "approach": {
+      "distance": [
+       0.365,
+       0.465,
+       0.585
+      ],
+      "facing": [
+       -1.0,
+       0,
+       -0.0
+      ],
+      "lateral": true
+     },
+     "space": "character",
+     "note": "palm slides along a wall on the character right while walking (0.4-1.5 m/s). Runtime: raycast sideways from the shoulder each frame, IK the palm onto the hit; play over locomotion"
+    }
+   ],
+   "notes": "ARM LAYER: only clavicle/arm/hand/finger tracks of the right side. three.js averages overlapping tracks by weight, so play it with a high weight (x3-4) over walk/jog, or pose the arm with it and let LimbIK do the rest",
+   "rootMotion": null,
+   "layer": {
+    "mask": "arm_r",
+    "bones": [
+     "clavicle_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "lowerarm_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "upperarm_r"
+    ]
+   },
+   "req": {
+    "cls": "touch_walk",
+    "h": [
+     0.85,
+     1.45
+    ],
+    "tilt": [
+     -0.2,
+     0.4
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "layer": true,
+    "speed": [
+     0.4,
+     1.5
+    ],
+    "phase": "hold"
+   }
+  },
+  "touch_walk_l": {
+   "name": "touch_walk_l",
+   "duration": 2.0,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "side-wall palm slide, arm layer",
+    "base": "UAL Idle_Loop (arm only)"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "wall",
+    "layer",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.0,
+      2.0
+     ],
+     "blendIn": 0.25,
+     "blendOut": 0.3,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.46,
+       1.222,
+       0.123
+      ],
+      "normal": [
+       -1.0,
+       0.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.85,
+      1.45
+     ],
+     "approach": {
+      "distance": [
+       0.36,
+       0.46,
+       0.58
+      ],
+      "facing": [
+       1.0,
+       0,
+       -0.0
+      ],
+      "lateral": true
+     },
+     "space": "character",
+     "note": "palm slides along a wall on the character left while walking (0.4-1.5 m/s). Runtime: raycast sideways from the shoulder each frame, IK the palm onto the hit; play over locomotion"
+    }
+   ],
+   "notes": "ARM LAYER: only clavicle/arm/hand/finger tracks of the left side. three.js averages overlapping tracks by weight, so play it with a high weight (x3-4) over walk/jog, or pose the arm with it and let LimbIK do the rest",
+   "rootMotion": null,
+   "layer": {
+    "mask": "arm_l",
+    "bones": [
+     "clavicle_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "lowerarm_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "upperarm_l"
+    ]
+   },
+   "req": {
+    "cls": "touch_walk",
+    "h": [
+     0.85,
+     1.45
+    ],
+    "tilt": [
+     -0.2,
+     0.4
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "layer": true,
+    "speed": [
+     0.4,
+     1.5
+    ],
+    "phase": "hold"
+   }
+  },
+  "squeeze_side_r_in": {
+   "name": "squeeze_side_r_in",
+   "duration": 0.7,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "turn-in: palms onto both walls"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "gap",
+    "traverse"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.56,
+      0.7
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.488,
+       1.363,
+       0.33
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.063,
+      1.663
+     ],
+     "approach": {
+      "distance": [
+       0.28,
+       0.33,
+       0.43
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ]
+     },
+     "space": "character",
+     "note": "lead palm on the FRONT wall (the one the chest faces)"
+    },
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.56,
+      0.7
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.22,
+       0.928,
+       -0.36
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       1.0
+      ]
+     },
+     "heightRange": [
+      0.628,
+      1.228
+     ],
+     "approach": {
+      "distance": [
+       0.31,
+       0.36,
+       0.46
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ]
+     },
+     "space": "character",
+     "note": "trailing palm behind the hip on the BACK wall"
+    }
+   ],
+   "notes": "standing in the gap mouth, chest to the front wall -> palms onto both walls (0.7 s)",
+   "rootMotion": null,
+   "gap": {
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "frontZ": 0.33,
+    "backZ": -0.36,
+    "travel": "right (-X)"
+   },
+   "req": {
+    "cls": "squeeze",
+    "h": [
+     1.0,
+     1.6
+    ],
+    "tilt": [
+     -0.15,
+     0.15
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "phase": "enter"
+   }
+  },
+  "squeeze_side_r_loop": {
+   "name": "squeeze_side_r_loop",
+   "duration": 2.9,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_26 Walk sideways (legs)",
+    "authored": "arms on both walls, narrow chest, head turned to the travel"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx + authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "gap",
+    "traverse"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.0,
+      2.9
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.488,
+       1.363,
+       0.33
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.063,
+      1.663
+     ],
+     "approach": {
+      "distance": [
+       0.28,
+       0.33,
+       0.43
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ]
+     },
+     "space": "character",
+     "note": "lead palm on the FRONT wall (the one the chest faces)"
+    },
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.0,
+      2.9
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.22,
+       0.928,
+       -0.36
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       1.0
+      ]
+     },
+     "heightRange": [
+      0.628,
+      1.228
+     ],
+     "approach": {
+      "distance": [
+       0.31,
+       0.36,
+       0.46
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ]
+     },
+     "space": "character",
+     "note": "trailing palm behind the hip on the BACK wall"
+    }
+   ],
+   "notes": "side-step cycle through a 0.6-1.0 m gap, native speed 0.28 m/s along right (-X) (scale timeScale = v/that); palms stay on the walls (runtime: re-cast per hand each frame)",
+   "rootMotion": null,
+   "gap": {
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "frontZ": 0.33,
+    "backZ": -0.36,
+    "travel": "right (-X)"
+   },
+   "locomotion": {
+    "speed": 0.282,
+    "cycle": 2.9,
+    "dir": [
+     -1,
+     0
+    ],
+    "rootMotionCycle": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      -0.0219,
+      0.0036,
+      -0.0037
+     ],
+     [
+      -0.0468,
+      0.0074,
+      -0.0126
+     ],
+     [
+      -0.0741,
+      0.011,
+      -0.0204
+     ],
+     [
+      -0.103,
+      0.0135,
+      -0.0228
+     ],
+     [
+      -0.1317,
+      0.0142,
+      -0.0195
+     ],
+     [
+      -0.1589,
+      0.0125,
+      -0.0138
+     ],
+     [
+      -0.1834,
+      0.0081,
+      -0.0078
+     ],
+     [
+      -0.2053,
+      0.0024,
+      -0.0054
+     ],
+     [
+      -0.2228,
+      -0.0039,
+      0.0019
+     ],
+     [
+      -0.2373,
+      -0.0098,
+      0.0153
+     ],
+     [
+      -0.2493,
+      -0.015,
+      0.0303
+     ],
+     [
+      -0.2601,
+      -0.019,
+      0.0442
+     ],
+     [
+      -0.2711,
+      -0.0213,
+      0.0525
+     ],
+     [
+      -0.2826,
+      -0.0226,
+      0.0555
+     ],
+     [
+      -0.2951,
+      -0.0235,
+      0.0562
+     ],
+     [
+      -0.3084,
+      -0.0242,
+      0.0559
+     ],
+     [
+      -0.3217,
+      -0.0249,
+      0.0536
+     ],
+     [
+      -0.3347,
+      -0.0259,
+      0.0494
+     ],
+     [
+      -0.3471,
+      -0.0268,
+      0.0421
+     ],
+     [
+      -0.3593,
+      -0.0273,
+      0.035
+     ],
+     [
+      -0.3723,
+      -0.0268,
+      0.0332
+     ],
+     [
+      -0.3866,
+      -0.0245,
+      0.0374
+     ],
+     [
+      -0.4027,
+      -0.0204,
+      0.0462
+     ],
+     [
+      -0.4221,
+      -0.0154,
+      0.0545
+     ],
+     [
+      -0.4447,
+      -0.0103,
+      0.0617
+     ],
+     [
+      -0.4705,
+      -0.0056,
+      0.0719
+     ],
+     [
+      -0.4992,
+      -0.0019,
+      0.0838
+     ],
+     [
+      -0.5287,
+      0.0006,
+      0.0949
+     ],
+     [
+      -0.5573,
+      0.0013,
+      0.104
+     ],
+     [
+      -0.5842,
+      -0.0002,
+      0.1088
+     ],
+     [
+      -0.6083,
+      -0.0031,
+      0.1113
+     ],
+     [
+      -0.6293,
+      -0.0063,
+      0.1163
+     ],
+     [
+      -0.6481,
+      -0.0087,
+      0.1178
+     ],
+     [
+      -0.6645,
+      -0.0099,
+      0.1159
+     ],
+     [
+      -0.6797,
+      -0.0104,
+      0.112
+     ],
+     [
+      -0.6948,
+      -0.0104,
+      0.1026
+     ],
+     [
+      -0.7105,
+      -0.0105,
+      0.0876
+     ],
+     [
+      -0.7271,
+      -0.0104,
+      0.0705
+     ],
+     [
+      -0.7439,
+      -0.0099,
+      0.0531
+     ],
+     [
+      -0.7605,
+      -0.009,
+      0.0378
+     ],
+     [
+      -0.7766,
+      -0.008,
+      0.025
+     ],
+     [
+      -0.7926,
+      -0.0062,
+      0.0124
+     ],
+     [
+      -0.8092,
+      -0.0026,
+      0.0023
+     ]
+    ]
+   },
+   "req": {
+    "cls": "squeeze",
+    "h": [
+     1.0,
+     1.6
+    ],
+    "tilt": [
+     -0.15,
+     0.15
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "phase": "hold"
+   }
+  },
+  "squeeze_side_l_in": {
+   "name": "squeeze_side_l_in",
+   "duration": 0.7,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "turn-in: palms onto both walls"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "gap",
+    "traverse"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.56,
+      0.7
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.488,
+       1.363,
+       0.33
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.063,
+      1.663
+     ],
+     "approach": {
+      "distance": [
+       0.28,
+       0.33,
+       0.43
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ]
+     },
+     "space": "character",
+     "note": "lead palm on the FRONT wall (the one the chest faces)"
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.56,
+      0.7
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.22,
+       0.928,
+       -0.36
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       1.0
+      ]
+     },
+     "heightRange": [
+      0.628,
+      1.228
+     ],
+     "approach": {
+      "distance": [
+       0.31,
+       0.36,
+       0.46
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ]
+     },
+     "space": "character",
+     "note": "trailing palm behind the hip on the BACK wall"
+    }
+   ],
+   "notes": "standing in the gap mouth, chest to the front wall -> palms onto both walls (0.7 s)",
+   "rootMotion": null,
+   "gap": {
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "frontZ": 0.33,
+    "backZ": -0.36,
+    "travel": "left (+X)"
+   },
+   "req": {
+    "cls": "squeeze",
+    "h": [
+     1.0,
+     1.6
+    ],
+    "tilt": [
+     -0.15,
+     0.15
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "phase": "enter"
+   }
+  },
+  "squeeze_side_l_loop": {
+   "name": "squeeze_side_l_loop",
+   "duration": 2.9,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_26 Walk sideways (legs)",
+    "authored": "arms on both walls, narrow chest, head turned to the travel"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx + authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "gap",
+    "traverse"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.0,
+      2.9
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.488,
+       1.363,
+       0.33
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.063,
+      1.663
+     ],
+     "approach": {
+      "distance": [
+       0.28,
+       0.33,
+       0.43
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ]
+     },
+     "space": "character",
+     "note": "lead palm on the FRONT wall (the one the chest faces)"
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.0,
+      2.9
+     ],
+     "blendIn": 0.2,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.22,
+       0.928,
+       -0.36
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       1.0
+      ]
+     },
+     "heightRange": [
+      0.628,
+      1.228
+     ],
+     "approach": {
+      "distance": [
+       0.31,
+       0.36,
+       0.46
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ]
+     },
+     "space": "character",
+     "note": "trailing palm behind the hip on the BACK wall"
+    }
+   ],
+   "notes": "side-step cycle through a 0.6-1.0 m gap, native speed 0.28 m/s along left (+X) (scale timeScale = v/that); palms stay on the walls (runtime: re-cast per hand each frame)",
+   "rootMotion": null,
+   "gap": {
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "frontZ": 0.33,
+    "backZ": -0.36,
+    "travel": "left (+X)"
+   },
+   "locomotion": {
+    "speed": 0.282,
+    "cycle": 2.9,
+    "dir": [
+     1,
+     0
+    ],
+    "rootMotionCycle": [
+     [
+      -0.0,
+      0.0,
+      -0.0
+     ],
+     [
+      0.0219,
+      0.0036,
+      0.0037
+     ],
+     [
+      0.0468,
+      0.0074,
+      0.0126
+     ],
+     [
+      0.0741,
+      0.011,
+      0.0204
+     ],
+     [
+      0.103,
+      0.0135,
+      0.0228
+     ],
+     [
+      0.1317,
+      0.0142,
+      0.0195
+     ],
+     [
+      0.1589,
+      0.0125,
+      0.0138
+     ],
+     [
+      0.1834,
+      0.0081,
+      0.0078
+     ],
+     [
+      0.2053,
+      0.0024,
+      0.0054
+     ],
+     [
+      0.2228,
+      -0.0039,
+      -0.0019
+     ],
+     [
+      0.2373,
+      -0.0098,
+      -0.0153
+     ],
+     [
+      0.2493,
+      -0.015,
+      -0.0303
+     ],
+     [
+      0.2601,
+      -0.019,
+      -0.0442
+     ],
+     [
+      0.2711,
+      -0.0213,
+      -0.0525
+     ],
+     [
+      0.2826,
+      -0.0226,
+      -0.0555
+     ],
+     [
+      0.2951,
+      -0.0235,
+      -0.0562
+     ],
+     [
+      0.3084,
+      -0.0242,
+      -0.0559
+     ],
+     [
+      0.3217,
+      -0.0249,
+      -0.0536
+     ],
+     [
+      0.3347,
+      -0.0259,
+      -0.0494
+     ],
+     [
+      0.3471,
+      -0.0268,
+      -0.0421
+     ],
+     [
+      0.3593,
+      -0.0273,
+      -0.035
+     ],
+     [
+      0.3723,
+      -0.0268,
+      -0.0332
+     ],
+     [
+      0.3866,
+      -0.0245,
+      -0.0374
+     ],
+     [
+      0.4027,
+      -0.0204,
+      -0.0462
+     ],
+     [
+      0.4221,
+      -0.0154,
+      -0.0545
+     ],
+     [
+      0.4447,
+      -0.0103,
+      -0.0617
+     ],
+     [
+      0.4705,
+      -0.0056,
+      -0.0719
+     ],
+     [
+      0.4992,
+      -0.0019,
+      -0.0838
+     ],
+     [
+      0.5287,
+      0.0006,
+      -0.0949
+     ],
+     [
+      0.5573,
+      0.0013,
+      -0.104
+     ],
+     [
+      0.5842,
+      -0.0002,
+      -0.1088
+     ],
+     [
+      0.6083,
+      -0.0031,
+      -0.1113
+     ],
+     [
+      0.6293,
+      -0.0063,
+      -0.1163
+     ],
+     [
+      0.6481,
+      -0.0087,
+      -0.1178
+     ],
+     [
+      0.6645,
+      -0.0099,
+      -0.1159
+     ],
+     [
+      0.6797,
+      -0.0104,
+      -0.112
+     ],
+     [
+      0.6948,
+      -0.0104,
+      -0.1026
+     ],
+     [
+      0.7105,
+      -0.0105,
+      -0.0876
+     ],
+     [
+      0.7271,
+      -0.0104,
+      -0.0705
+     ],
+     [
+      0.7439,
+      -0.0099,
+      -0.0531
+     ],
+     [
+      0.7605,
+      -0.009,
+      -0.0378
+     ],
+     [
+      0.7766,
+      -0.008,
+      -0.025
+     ],
+     [
+      0.7926,
+      -0.0062,
+      -0.0124
+     ],
+     [
+      0.8092,
+      -0.0026,
+      -0.0023
+     ]
+    ]
+   },
+   "req": {
+    "cls": "squeeze",
+    "h": [
+     1.0,
+     1.6
+    ],
+    "tilt": [
+     -0.15,
+     0.15
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "gap": [
+     0.6,
+     1.0
+    ],
+    "phase": "hold"
+   }
+  },
+  "foot_on_ledge_l_in": {
+   "name": "foot_on_ledge_l_in",
+   "duration": 1.6667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_31 stepping up / stepping down (subject 111), 9.25-10.35 s",
+    "authored": "ledge height 0.45, hand on the knee hold"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx + authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "ledge",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_l",
+     "bone": "foot_l",
+     "window": [
+      1.0,
+      1.667
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "ledge_top",
+      "point": [
+       -0.003,
+       0.45,
+       0.436
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.3,
+      0.8
+     ],
+     "approach": {
+      "distance": [
+       0.236,
+       0.316,
+       0.356
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the ledge FRONT edge"
+     },
+     "space": "character",
+     "note": "lead (left) sole flat on a top 0.45 m high; runtime scales the lift to the real top (IK, +-0.2 m)"
+    }
+   ],
+   "notes": "walking up to a ledge: the left foot goes up onto it, the left hand settles on the knee (1.7 s)",
+   "rootMotion": {
+    "fps": 15.0,
+    "units": "m, rad (character space at clip start: +Z forward, +X left)",
+    "samples": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      -0.0023,
+      0.0109,
+      0.007
+     ],
+     [
+      -0.005,
+      0.0246,
+      0.0145
+     ],
+     [
+      -0.0079,
+      0.0405,
+      0.0199
+     ],
+     [
+      -0.011,
+      0.0587,
+      0.023
+     ],
+     [
+      -0.0131,
+      0.0786,
+      0.0261
+     ],
+     [
+      -0.014,
+      0.0997,
+      0.0293
+     ],
+     [
+      -0.0141,
+      0.1213,
+      0.0308
+     ],
+     [
+      -0.0137,
+      0.1416,
+      0.0294
+     ],
+     [
+      -0.0129,
+      0.1607,
+      0.0289
+     ],
+     [
+      -0.0115,
+      0.1785,
+      0.0314
+     ],
+     [
+      -0.0096,
+      0.1952,
+      0.0381
+     ],
+     [
+      -0.0071,
+      0.2103,
+      0.0466
+     ],
+     [
+      -0.0048,
+      0.2227,
+      0.0541
+     ],
+     [
+      -0.0029,
+      0.232,
+      0.0609
+     ],
+     [
+      -0.0013,
+      0.2388,
+      0.0672
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ],
+     [
+      0.0,
+      0.2436,
+      0.0717
+     ]
+    ],
+    "total": [
+     0.0,
+     0.2436,
+     0.0717
+    ]
+   },
+   "ledge": {
+    "height": 0.45,
+    "lead": "l"
+   },
+   "req": {
+    "cls": "foot_on",
+    "h": [
+     0.3,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.2,
+     "spine": 0.15
+    },
+    "flat": true,
+    "phase": "enter"
+   }
+  },
+  "foot_on_ledge_l_loop": {
+   "name": "foot_on_ledge_l_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_31 stepping up / stepping down (subject 111), 9.25-10.35 s",
+    "authored": "ledge height 0.45, hand on the knee hold"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "ledge",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_l",
+     "bone": "foot_l",
+     "window": [
+      0.0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "ledge_top",
+      "point": [
+       -0.003,
+       0.45,
+       0.436
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.3,
+      0.8
+     ],
+     "approach": {
+      "distance": [
+       0.236,
+       0.316,
+       0.356
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the ledge FRONT edge"
+     },
+     "space": "character",
+     "note": "lead (left) sole flat on a top 0.45 m high; runtime scales the lift to the real top (IK, +-0.2 m)"
+    }
+   ],
+   "notes": "rest: foot on the ledge, forearm on the knee, looking out",
+   "rootMotion": null,
+   "ledge": {
+    "height": 0.45,
+    "lead": "l"
+   },
+   "req": {
+    "cls": "foot_on",
+    "h": [
+     0.3,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.2,
+     "spine": 0.15
+    },
+    "flat": true,
+    "phase": "hold"
+   }
+  },
+  "foot_on_ledge_l_out": {
+   "name": "foot_on_ledge_l_out",
+   "duration": 0.8,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_31 stepping up / stepping down (subject 111), 9.25-10.35 s",
+    "authored": "ledge height 0.45, hand on the knee hold"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "ledge",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_l",
+     "bone": "foot_l",
+     "window": [
+      0.0,
+      0.2
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "ledge_top",
+      "point": [
+       -0.003,
+       0.45,
+       0.436
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.3,
+      0.8
+     ],
+     "approach": {
+      "distance": [
+       0.236,
+       0.316,
+       0.356
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the ledge FRONT edge"
+     },
+     "space": "character",
+     "note": "lead (left) sole flat on a top 0.45 m high; runtime scales the lift to the real top (IK, +-0.2 m)"
+    }
+   ],
+   "notes": "foot back off the ledge to the idle stance",
+   "rootMotion": null,
+   "ledge": {
+    "height": 0.45,
+    "lead": "l"
+   },
+   "req": {
+    "cls": "foot_on",
+    "h": [
+     0.3,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.2,
+     "spine": 0.15
+    },
+    "flat": true,
+    "phase": "exit"
+   }
+  },
+  "foot_on_ledge_r_in": {
+   "name": "foot_on_ledge_r_in",
+   "duration": 1.6667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_31 stepping up / stepping down (subject 111), 9.25-10.35 s",
+    "authored": "ledge height 0.45, hand on the knee hold"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx + authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "ledge",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_r",
+     "bone": "foot_r",
+     "window": [
+      1.0,
+      1.667
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "ledge_top",
+      "point": [
+       0.003,
+       0.45,
+       0.436
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.3,
+      0.8
+     ],
+     "approach": {
+      "distance": [
+       0.236,
+       0.316,
+       0.356
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the ledge FRONT edge"
+     },
+     "space": "character",
+     "note": "lead (left) sole flat on a top 0.45 m high; runtime scales the lift to the real top (IK, +-0.2 m)"
+    }
+   ],
+   "notes": "walking up to a ledge: the right foot goes up onto it, the right hand settles on the knee (1.7 s) (mirror)",
+   "rootMotion": {
+    "fps": 15.0,
+    "units": "m, rad (character space at clip start: +Z forward, +X left)",
+    "samples": [
+     [
+      -0.0,
+      0.0,
+      -0.0
+     ],
+     [
+      0.0023,
+      0.0109,
+      -0.007
+     ],
+     [
+      0.005,
+      0.0246,
+      -0.0145
+     ],
+     [
+      0.0079,
+      0.0405,
+      -0.0199
+     ],
+     [
+      0.011,
+      0.0587,
+      -0.023
+     ],
+     [
+      0.0131,
+      0.0786,
+      -0.0261
+     ],
+     [
+      0.014,
+      0.0997,
+      -0.0293
+     ],
+     [
+      0.0141,
+      0.1213,
+      -0.0308
+     ],
+     [
+      0.0137,
+      0.1416,
+      -0.0294
+     ],
+     [
+      0.0129,
+      0.1607,
+      -0.0289
+     ],
+     [
+      0.0115,
+      0.1785,
+      -0.0314
+     ],
+     [
+      0.0096,
+      0.1952,
+      -0.0381
+     ],
+     [
+      0.0071,
+      0.2103,
+      -0.0466
+     ],
+     [
+      0.0048,
+      0.2227,
+      -0.0541
+     ],
+     [
+      0.0029,
+      0.232,
+      -0.0609
+     ],
+     [
+      0.0013,
+      0.2388,
+      -0.0672
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ],
+     [
+      -0.0,
+      0.2436,
+      -0.0717
+     ]
+    ],
+    "total": [
+     -0.0,
+     0.2436,
+     -0.0717
+    ]
+   },
+   "ledge": {
+    "height": 0.45,
+    "lead": "r"
+   },
+   "req": {
+    "cls": "foot_on",
+    "h": [
+     0.3,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.2,
+     "spine": 0.15
+    },
+    "flat": true,
+    "phase": "enter"
+   }
+  },
+  "foot_on_ledge_r_loop": {
+   "name": "foot_on_ledge_r_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_31 stepping up / stepping down (subject 111), 9.25-10.35 s",
+    "authored": "ledge height 0.45, hand on the knee hold"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "ledge",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_r",
+     "bone": "foot_r",
+     "window": [
+      0.0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "ledge_top",
+      "point": [
+       0.003,
+       0.45,
+       0.436
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.3,
+      0.8
+     ],
+     "approach": {
+      "distance": [
+       0.236,
+       0.316,
+       0.356
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the ledge FRONT edge"
+     },
+     "space": "character",
+     "note": "lead (left) sole flat on a top 0.45 m high; runtime scales the lift to the real top (IK, +-0.2 m)"
+    }
+   ],
+   "notes": "rest: foot on the ledge, forearm on the knee, looking out (mirror)",
+   "rootMotion": null,
+   "ledge": {
+    "height": 0.45,
+    "lead": "r"
+   },
+   "req": {
+    "cls": "foot_on",
+    "h": [
+     0.3,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.2,
+     "spine": 0.15
+    },
+    "flat": true,
+    "phase": "hold"
+   }
+  },
+  "foot_on_ledge_r_out": {
+   "name": "foot_on_ledge_r_out",
+   "duration": 0.8,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "111_31 stepping up / stepping down (subject 111), 9.25-10.35 s",
+    "authored": "ledge height 0.45, hand on the knee hold"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "ledge",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_r",
+     "bone": "foot_r",
+     "window": [
+      0.0,
+      0.2
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "ledge_top",
+      "point": [
+       0.003,
+       0.45,
+       0.436
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.3,
+      0.8
+     ],
+     "approach": {
+      "distance": [
+       0.236,
+       0.316,
+       0.356
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the ledge FRONT edge"
+     },
+     "space": "character",
+     "note": "lead (left) sole flat on a top 0.45 m high; runtime scales the lift to the real top (IK, +-0.2 m)"
+    }
+   ],
+   "notes": "foot back off the ledge to the idle stance (mirror)",
+   "rootMotion": null,
+   "ledge": {
+    "height": 0.45,
+    "lead": "r"
+   },
+   "req": {
+    "cls": "foot_on",
+    "h": [
+     0.3,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.2,
+     "spine": 0.15
+    },
+    "flat": true,
+    "phase": "exit"
+   }
+  },
+  "duck_under": {
+   "name": "duck_under",
+   "duration": 2.0,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "ual": "Crouch_Fwd_Loop",
+    "authored": "hand on the underside"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "overhang",
+    "traverse"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.0,
+      2.0
+     ],
+     "blendIn": 0.25,
+     "blendOut": 0.3,
+     "hold": true,
+     "surface": {
+      "type": "overhang",
+      "point": [
+       -0.163,
+       1.225,
+       0.321
+      ],
+      "normal": [
+       0.0,
+       -1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      1.09,
+      1.44
+     ],
+     "approach": {
+      "distance": [
+       -0.4,
+       0.0,
+       0.4
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "under the overhang"
+     },
+     "space": "character",
+     "note": "right palm guides along the underside (IK up to the real underside, lateral=free)"
+    }
+   ],
+   "notes": "crouched walk under an overhang, helmet top <= 1.30 m; one palm on the underside. Play as locomotion (timeScale = speed / native)",
+   "rootMotion": null,
+   "overhang": {
+    "clearance": 1.299
+   },
+   "locomotion": {
+    "loop": true
+   },
+   "req": {
+    "cls": "duck",
+    "h": null,
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "clearance": [
+     1.33,
+     1.71
+    ],
+    "phase": "hold"
+   }
+  },
+  "duck_under_half": {
+   "name": "duck_under_half",
+   "duration": 1.3333,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "ual": "Walk_Loop",
+    "authored": "pelvis -0.17, spine 24 deg, hand on the underside"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "overhang",
+    "traverse"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.0,
+      1.333
+     ],
+     "blendIn": 0.25,
+     "blendOut": 0.3,
+     "hold": true,
+     "surface": {
+      "type": "overhang",
+      "point": [
+       -0.161,
+       1.66,
+       0.352
+      ],
+      "normal": [
+       0.0,
+       -1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      1.525,
+      1.875
+     ],
+     "approach": {
+      "distance": [
+       -0.4,
+       0.0,
+       0.4
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "under the overhang"
+     },
+     "space": "character",
+     "note": "right palm guides along the underside (IK up to the real underside, lateral=free)"
+    }
+   ],
+   "notes": "crouched walk under an overhang, helmet top <= 1.71 m; one palm on the underside. Play as locomotion (timeScale = speed / native)",
+   "rootMotion": null,
+   "overhang": {
+    "clearance": 1.709
+   },
+   "locomotion": {
+    "loop": true
+   },
+   "req": {
+    "cls": "duck",
+    "h": null,
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "clearance": [
+     1.74,
+     1.75
+    ],
+    "phase": "hold"
+   }
+  },
+  "jump_down_low": {
+   "name": "jump_down_low",
+   "duration": 1.3,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "82_02 jump off ledge (subject 82), 9.70-11.00 s",
+    "authored": "drop 0.60 m (source 0.67), flight time x0.95, idle settle"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "drop"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_l",
+     "bone": "foot_l",
+     "window": [
+      0.0,
+      0.567
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "drop_edge",
+      "point": [
+       0.013,
+       0.0,
+       0.266
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.0,
+      0.05
+     ],
+     "approach": {
+      "distance": [
+       0.383,
+       0.483,
+       0.633
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "toes at the edge of the top"
+     },
+     "space": "character",
+     "note": "feet on the top before take-off; land 0.60 m lower at 0.79 s, 1.29 m ahead"
+    },
+    {
+     "effector": "foot_r",
+     "bone": "foot_r",
+     "window": [
+      0.0,
+      0.567
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "drop_edge",
+      "point": [
+       -0.04,
+       0.0,
+       -0.418
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.0,
+      0.05
+     ],
+     "approach": {
+      "distance": [
+       0.383,
+       0.483,
+       0.633
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "toes at the edge of the top"
+     },
+     "space": "character",
+     "note": "feet on the top before take-off; land 0.60 m lower at 0.79 s, 1.29 m ahead"
+    }
+   ],
+   "notes": "step off a 0.60 m top and land with a knee bend; origin = top surface at the edge, y<0 after landing",
+   "rootMotion": {
+    "fps": 15.0,
+    "units": "m, rad (character space at clip start: +Z forward, +X left)",
+    "samples": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.002,
+      0.0581,
+      0.0183
+     ],
+     [
+      0.0058,
+      0.1279,
+      0.041
+     ],
+     [
+      0.0141,
+      0.2152,
+      0.0626
+     ],
+     [
+      0.0279,
+      0.3226,
+      0.0815
+     ],
+     [
+      0.047,
+      0.4492,
+      0.095
+     ],
+     [
+      0.0714,
+      0.5832,
+      0.0995
+     ],
+     [
+      0.0972,
+      0.7095,
+      0.1017
+     ],
+     [
+      0.121,
+      0.8268,
+      0.1086
+     ],
+     [
+      0.1426,
+      0.9349,
+      0.1114
+     ],
+     [
+      0.1615,
+      1.0312,
+      0.1086
+     ],
+     [
+      0.1733,
+      1.1086,
+      0.1072
+     ],
+     [
+      0.1796,
+      1.1656,
+      0.1101
+     ],
+     [
+      0.1834,
+      1.2049,
+      0.1107
+     ],
+     [
+      0.1854,
+      1.2292,
+      0.105
+     ],
+     [
+      0.1864,
+      1.2418,
+      0.0921
+     ],
+     [
+      0.1879,
+      1.2508,
+      0.0712
+     ],
+     [
+      0.1898,
+      1.2573,
+      0.0558
+     ],
+     [
+      0.1921,
+      1.263,
+      0.0421
+     ],
+     [
+      0.1964,
+      1.2689,
+      0.0275
+     ]
+    ],
+    "total": [
+     0.1983,
+     1.2724,
+     0.0195
+    ]
+   },
+   "drop": {
+    "height": 0.6,
+    "land": 0.788
+   },
+   "req": {
+    "cls": "jump_down",
+    "h": [
+     0.45,
+     0.8
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "drop": true,
+    "phase": "once"
+   }
+  },
+  "jump_down": {
+   "name": "jump_down",
+   "duration": 2.4333,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "82_04 jump off ledge (subject 82), 1.20-3.60 s",
+    "authored": "drop 1.00 m (source 0.85), flight time x1.09, idle settle"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "drop"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_l",
+     "bone": "foot_l",
+     "window": [
+      0.0,
+      1.133
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "drop_edge",
+      "point": [
+       0.152,
+       0.0,
+       0.14
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.0,
+      0.05
+     ],
+     "approach": {
+      "distance": [
+       0.256,
+       0.356,
+       0.506
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "toes at the edge of the top"
+     },
+     "space": "character",
+     "note": "feet on the top before take-off; land 1.00 m lower at 1.35 s, 1.66 m ahead"
+    },
+    {
+     "effector": "foot_r",
+     "bone": "foot_r",
+     "window": [
+      0.0,
+      1.133
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "drop_edge",
+      "point": [
+       -0.202,
+       0.0,
+       0.03
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.0,
+      0.05
+     ],
+     "approach": {
+      "distance": [
+       0.256,
+       0.356,
+       0.506
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "toes at the edge of the top"
+     },
+     "space": "character",
+     "note": "feet on the top before take-off; land 1.00 m lower at 1.35 s, 1.66 m ahead"
+    }
+   ],
+   "notes": "step off a 1.00 m top and land with a knee bend; origin = top surface at the edge, y<0 after landing",
+   "rootMotion": {
+    "fps": 15.0,
+    "units": "m, rad (character space at clip start: +Z forward, +X left)",
+    "samples": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      -0.0003,
+      -0.0015,
+      0.0028
+     ],
+     [
+      -0.001,
+      -0.0043,
+      0.0127
+     ],
+     [
+      -0.0021,
+      -0.0093,
+      0.0311
+     ],
+     [
+      -0.0014,
+      -0.0116,
+      0.057
+     ],
+     [
+      0.0032,
+      0.001,
+      0.0886
+     ],
+     [
+      0.0113,
+      0.0265,
+      0.1256
+     ],
+     [
+      0.022,
+      0.0599,
+      0.1642
+     ],
+     [
+      0.0337,
+      0.102,
+      0.2031
+     ],
+     [
+      0.0483,
+      0.1603,
+      0.237
+     ],
+     [
+      0.067,
+      0.2374,
+      0.2598
+     ],
+     [
+      0.0873,
+      0.3298,
+      0.2715
+     ],
+     [
+      0.1061,
+      0.4333,
+      0.2728
+     ],
+     [
+      0.125,
+      0.5435,
+      0.2694
+     ],
+     [
+      0.1448,
+      0.6626,
+      0.2651
+     ],
+     [
+      0.167,
+      0.7913,
+      0.2624
+     ],
+     [
+      0.1918,
+      0.9244,
+      0.2603
+     ],
+     [
+      0.2139,
+      1.0438,
+      0.2648
+     ],
+     [
+      0.2231,
+      1.0977,
+      0.2657
+     ],
+     [
+      0.2397,
+      1.1946,
+      0.2696
+     ],
+     [
+      0.2536,
+      1.2681,
+      0.2728
+     ],
+     [
+      0.2594,
+      1.3145,
+      0.2796
+     ],
+     [
+      0.2558,
+      1.3345,
+      0.2878
+     ],
+     [
+      0.2488,
+      1.3297,
+      0.2943
+     ],
+     [
+      0.2438,
+      1.3092,
+      0.2979
+     ],
+     [
+      0.2463,
+      1.2875,
+      0.2896
+     ],
+     [
+      0.2545,
+      1.2792,
+      0.2744
+     ],
+     [
+      0.2606,
+      1.3003,
+      0.2565
+     ],
+     [
+      0.2606,
+      1.3398,
+      0.2311
+     ],
+     [
+      0.2691,
+      1.3836,
+      0.1943
+     ],
+     [
+      0.2796,
+      1.4296,
+      0.1562
+     ],
+     [
+      0.2874,
+      1.4797,
+      0.1296
+     ],
+     [
+      0.2867,
+      1.5317,
+      0.1189
+     ],
+     [
+      0.2808,
+      1.5881,
+      0.1251
+     ],
+     [
+      0.2724,
+      1.6191,
+      0.1426
+     ],
+     [
+      0.2713,
+      1.6288,
+      0.1679
+     ],
+     [
+      0.2733,
+      1.6327,
+      0.2017
+     ]
+    ],
+    "total": [
+     0.2731,
+     1.6363,
+     0.2191
+    ]
+   },
+   "drop": {
+    "height": 1.0,
+    "land": 1.35
+   },
+   "req": {
+    "cls": "jump_down",
+    "h": [
+     0.8,
+     1.25
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "drop": true,
+    "phase": "once"
+   }
+  },
+  "jump_down_high": {
+   "name": "jump_down_high",
+   "duration": 2.4667,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "cmu": "82_04 jump off ledge (subject 82), 1.20-3.60 s",
+    "authored": "drop 1.50 m (source 0.85), flight time x1.33, idle settle"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "drop"
+   ],
+   "contacts": [
+    {
+     "effector": "foot_l",
+     "bone": "foot_l",
+     "window": [
+      0.0,
+      1.133
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "drop_edge",
+      "point": [
+       0.152,
+       0.0,
+       0.14
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.0,
+      0.05
+     ],
+     "approach": {
+      "distance": [
+       0.256,
+       0.356,
+       0.506
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "toes at the edge of the top"
+     },
+     "space": "character",
+     "note": "feet on the top before take-off; land 1.50 m lower at 1.40 s, 1.66 m ahead"
+    },
+    {
+     "effector": "foot_r",
+     "bone": "foot_r",
+     "window": [
+      0.0,
+      1.133
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": false,
+     "surface": {
+      "type": "drop_edge",
+      "point": [
+       -0.202,
+       0.0,
+       0.03
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.0,
+      0.05
+     ],
+     "approach": {
+      "distance": [
+       0.256,
+       0.356,
+       0.506
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "toes at the edge of the top"
+     },
+     "space": "character",
+     "note": "feet on the top before take-off; land 1.50 m lower at 1.40 s, 1.66 m ahead"
+    }
+   ],
+   "notes": "step off a 1.50 m top and land with a knee bend; origin = top surface at the edge, y<0 after landing",
+   "rootMotion": {
+    "fps": 15.0,
+    "units": "m, rad (character space at clip start: +Z forward, +X left)",
+    "samples": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      -0.0003,
+      -0.0015,
+      0.0028
+     ],
+     [
+      -0.001,
+      -0.0043,
+      0.0127
+     ],
+     [
+      -0.0021,
+      -0.0093,
+      0.0311
+     ],
+     [
+      -0.0014,
+      -0.0116,
+      0.057
+     ],
+     [
+      0.0032,
+      0.001,
+      0.0886
+     ],
+     [
+      0.0113,
+      0.0265,
+      0.1256
+     ],
+     [
+      0.022,
+      0.0599,
+      0.1642
+     ],
+     [
+      0.0337,
+      0.102,
+      0.2031
+     ],
+     [
+      0.0483,
+      0.1603,
+      0.237
+     ],
+     [
+      0.067,
+      0.2374,
+      0.2598
+     ],
+     [
+      0.0873,
+      0.3298,
+      0.2715
+     ],
+     [
+      0.1061,
+      0.4333,
+      0.2728
+     ],
+     [
+      0.125,
+      0.5435,
+      0.2694
+     ],
+     [
+      0.1448,
+      0.6626,
+      0.2651
+     ],
+     [
+      0.167,
+      0.7913,
+      0.2624
+     ],
+     [
+      0.1918,
+      0.9244,
+      0.2603
+     ],
+     [
+      0.2139,
+      1.0438,
+      0.2648
+     ],
+     [
+      0.2231,
+      1.0977,
+      0.2657
+     ],
+     [
+      0.2397,
+      1.1946,
+      0.2696
+     ],
+     [
+      0.2477,
+      1.2351,
+      0.2704
+     ],
+     [
+      0.2575,
+      1.2945,
+      0.2759
+     ],
+     [
+      0.2581,
+      1.3273,
+      0.2835
+     ],
+     [
+      0.2528,
+      1.3356,
+      0.292
+     ],
+     [
+      0.2454,
+      1.3195,
+      0.2968
+     ],
+     [
+      0.2447,
+      1.2988,
+      0.2936
+     ],
+     [
+      0.2497,
+      1.2796,
+      0.2839
+     ],
+     [
+      0.2582,
+      1.2872,
+      0.266
+     ],
+     [
+      0.2601,
+      1.3185,
+      0.2453
+     ],
+     [
+      0.2636,
+      1.3608,
+      0.213
+     ],
+     [
+      0.2745,
+      1.4065,
+      0.1753
+     ],
+     [
+      0.2844,
+      1.4546,
+      0.1411
+     ],
+     [
+      0.2872,
+      1.5021,
+      0.1221
+     ],
+     [
+      0.2847,
+      1.5613,
+      0.12
+     ],
+     [
+      0.2766,
+      1.6078,
+      0.1326
+     ],
+     [
+      0.2698,
+      1.6256,
+      0.1546
+     ],
+     [
+      0.2731,
+      1.6298,
+      0.1836
+     ],
+     [
+      0.2731,
+      1.6363,
+      0.2191
+     ]
+    ],
+    "total": [
+     0.2731,
+     1.6363,
+     0.2191
+    ]
+   },
+   "drop": {
+    "height": 1.5,
+    "land": 1.399
+   },
+   "req": {
+    "cls": "jump_down",
+    "h": [
+     1.25,
+     1.7
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "drop": true,
+    "phase": "once"
+   }
+  },
+  "knee_on_rock_l_in": {
+   "name": "knee_on_rock_l_in",
+   "duration": 1.0,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "knee onto a low top, palm on it",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "knee",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "knee_l",
+     "bone": "calf_l",
+     "window": [
+      0.85,
+      1.0
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       0.156,
+       0.499,
+       0.638
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "left knee 0.28 m in from the edge, shin on the top (keyed top 0.50, measured knee 0.56)"
+    },
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.85,
+      1.0
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       0.32,
+       0.5,
+       0.673
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "same-side palm on the top beside the knee"
+    }
+   ],
+   "notes": "enter (1.0 s, from Idle). knee on a 0.4-0.7 m flat top (keyed for 0.5), other foot on the ground",
+   "rootMotion": null,
+   "req": {
+    "cls": "knee_on",
+    "h": [
+     0.4,
+     0.7
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.12,
+     "spine": 0.15
+    },
+    "flat": true,
+    "depth": 0.45,
+    "phase": "enter"
+   }
+  },
+  "knee_on_rock_l_loop": {
+   "name": "knee_on_rock_l_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "knee onto a low top, palm on it",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "knee",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "knee_l",
+     "bone": "calf_l",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       0.156,
+       0.499,
+       0.638
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "left knee 0.28 m in from the edge, shin on the top (keyed top 0.50, measured knee 0.56)"
+    },
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       0.32,
+       0.5,
+       0.673
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "same-side palm on the top beside the knee"
+    }
+   ],
+   "notes": "hold loop. knee on a 0.4-0.7 m flat top (keyed for 0.5), other foot on the ground",
+   "rootMotion": null,
+   "req": {
+    "cls": "knee_on",
+    "h": [
+     0.4,
+     0.7
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.12,
+     "spine": 0.15
+    },
+    "flat": true,
+    "depth": 0.45,
+    "phase": "hold"
+   }
+  },
+  "knee_on_rock_r_in": {
+   "name": "knee_on_rock_r_in",
+   "duration": 1.0,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "knee onto a low top, palm on it",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "knee",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "knee_r",
+     "bone": "calf_r",
+     "window": [
+      0.85,
+      1.0
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       -0.156,
+       0.499,
+       0.638
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "right knee 0.28 m in from the edge, shin on the top (keyed top 0.50, measured knee 0.56)"
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.85,
+      1.0
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       -0.32,
+       0.5,
+       0.673
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "same-side palm on the top beside the knee"
+    }
+   ],
+   "notes": "enter (1.0 s, from Idle). knee on a 0.4-0.7 m flat top (keyed for 0.5), other foot on the ground (mirror of the left)",
+   "rootMotion": null,
+   "req": {
+    "cls": "knee_on",
+    "h": [
+     0.4,
+     0.7
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.12,
+     "spine": 0.15
+    },
+    "flat": true,
+    "depth": 0.45,
+    "phase": "enter"
+   }
+  },
+  "knee_on_rock_r_loop": {
+   "name": "knee_on_rock_r_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "knee onto a low top, palm on it",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "knee",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "knee_r",
+     "bone": "calf_r",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       -0.156,
+       0.499,
+       0.638
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "right knee 0.28 m in from the edge, shin on the top (keyed top 0.50, measured knee 0.56)"
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "knee_top",
+      "point": [
+       -0.32,
+       0.5,
+       0.673
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.4,
+      0.7
+     ],
+     "approach": {
+      "distance": [
+       0.3,
+       0.36,
+       0.44
+      ],
+      "facing": [
+       0,
+       0,
+       1
+      ],
+      "note": "distance from the feet origin to the top front edge"
+     },
+     "space": "character",
+     "note": "same-side palm on the top beside the knee"
+    }
+   ],
+   "notes": "hold loop. knee on a 0.4-0.7 m flat top (keyed for 0.5), other foot on the ground (mirror of the left)",
+   "rootMotion": null,
+   "req": {
+    "cls": "knee_on",
+    "h": [
+     0.4,
+     0.7
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.12,
+     "spine": 0.15
+    },
+    "flat": true,
+    "depth": 0.45,
+    "phase": "hold"
+   }
+  },
+  "lean_dome_r_in": {
+   "name": "lean_dome_r_in",
+   "duration": 0.6,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "palm on a rounded top",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "dome",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.51,
+      0.6
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "dome",
+      "point": [
+       -0.227,
+       1.182,
+       0.428
+      ],
+      "normal": [
+       0.0,
+       0.8,
+       -0.6
+      ]
+     },
+     "heightRange": [
+      0.982,
+      1.382
+     ],
+     "approach": {
+      "distance": [
+       0.368,
+       0.428,
+       0.508
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm on the rising front of a rounded top (normal tilted 37 deg toward the character); body inclined over it, weight on the right arm",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.321,
+       1.231,
+       0.306
+      ],
+      "gapCm": 1.8,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.0,
+      "surfaceMoved": 0.06,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "enter (0.6 s, from Idle). rounded top 0.85-1.3 m (keyed for 1.1) | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_dome",
+    "h": [
+     0.88,
+     1.48
+    ],
+    "tilt": [
+     0.4,
+     1.0
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "round": [
+     0.1,
+     1.0
+    ],
+    "phase": "enter"
+   },
+   "palmFix": true
+  },
+  "lean_dome_r_loop": {
+   "name": "lean_dome_r_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "palm on a rounded top",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "dome",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "dome",
+      "point": [
+       -0.229,
+       1.181,
+       0.426
+      ],
+      "normal": [
+       0.0,
+       0.8,
+       -0.6
+      ]
+     },
+     "heightRange": [
+      0.981,
+      1.381
+     ],
+     "approach": {
+      "distance": [
+       0.366,
+       0.426,
+       0.506
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm on the rising front of a rounded top (normal tilted 37 deg toward the character); body inclined over it, weight on the right arm",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.335,
+       1.244,
+       0.319
+      ],
+      "gapCm": 2.0,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.0,
+      "surfaceMoved": 0.06,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "hold loop. rounded top 0.85-1.3 m (keyed for 1.1) | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_dome",
+    "h": [
+     0.88,
+     1.48
+    ],
+    "tilt": [
+     0.4,
+     1.0
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "round": [
+     0.1,
+     1.0
+    ],
+    "phase": "hold"
+   },
+   "palmFix": true
+  },
+  "lean_dome_l_in": {
+   "name": "lean_dome_l_in",
+   "duration": 0.6,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "palm on a rounded top",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "dome",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.51,
+      0.6
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "dome",
+      "point": [
+       0.134,
+       1.222,
+       0.521
+      ],
+      "normal": [
+       0.0,
+       0.8,
+       -0.6
+      ]
+     },
+     "heightRange": [
+      1.022,
+      1.422
+     ],
+     "approach": {
+      "distance": [
+       0.461,
+       0.521,
+       0.601
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm on the rising front of a rounded top (normal tilted 37 deg toward the character); body inclined over it, weight on the left arm",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.255,
+       1.28,
+       0.446
+      ],
+      "gapCm": 0.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.5,
+      "surfaceMoved": 0.06,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "enter (0.6 s, from Idle). rounded top 0.85-1.3 m (keyed for 1.1) | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_dome",
+    "h": [
+     0.92,
+     1.52
+    ],
+    "tilt": [
+     0.4,
+     1.0
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "round": [
+     0.1,
+     1.0
+    ],
+    "phase": "enter"
+   },
+   "palmFix": true
+  },
+  "lean_dome_l_loop": {
+   "name": "lean_dome_l_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "palm on a rounded top",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "dome",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "dome",
+      "point": [
+       0.135,
+       1.221,
+       0.52
+      ],
+      "normal": [
+       0.0,
+       0.8,
+       -0.6
+      ]
+     },
+     "heightRange": [
+      1.021,
+      1.421
+     ],
+     "approach": {
+      "distance": [
+       0.46,
+       0.52,
+       0.6
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm on the rising front of a rounded top (normal tilted 37 deg toward the character); body inclined over it, weight on the left arm",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.258,
+       1.289,
+       0.457
+      ],
+      "gapCm": 0.6,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.4,
+      "surfaceMoved": 0.06,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "hold loop. rounded top 0.85-1.3 m (keyed for 1.1) | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_dome",
+    "h": [
+     0.92,
+     1.52
+    ],
+    "tilt": [
+     0.4,
+     1.0
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "round": [
+     0.1,
+     1.0
+    ],
+    "phase": "hold"
+   },
+   "palmFix": true
+  },
+  "lean_low_in": {
+   "name": "lean_low_in",
+   "duration": 0.6,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "authored": "perch against a low edge",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "lean",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.54,
+      0.6
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "edge_back",
+      "point": [
+       0.0,
+       0.72,
+       -0.248
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       1.0
+      ]
+     },
+     "heightRange": [
+      0.65,
+      0.95
+     ],
+     "approach": {
+      "distance": [
+       0.208,
+       0.248,
+       0.308
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the edge; faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks / lower back against the edge of a 0.80 m top behind, feet forward"
+    },
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.54,
+      0.6
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "edge_back",
+      "point": [
+       0.27,
+       0.8,
+       -0.128
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.65,
+      0.95
+     ],
+     "approach": {
+      "distance": [
+       0.208,
+       0.248,
+       0.308
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the edge; faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "palm on the top beside the hip"
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.54,
+      0.6
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "edge_back",
+      "point": [
+       -0.27,
+       0.8,
+       -0.128
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.65,
+      0.95
+     ],
+     "approach": {
+      "distance": [
+       0.208,
+       0.248,
+       0.308
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the edge; faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "palm on the top beside the hip"
+    }
+   ],
+   "notes": "enter (0.6 s, from Idle). low edge 0.65-0.95 m behind (keyed for 0.8)",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_low",
+    "h": [
+     0.65,
+     0.95
+    ],
+    "tilt": [
+     -0.1,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "facesAway": true,
+    "flat": true,
+    "phase": "enter"
+   }
+  },
+  "lean_low_loop": {
+   "name": "lean_low_loop",
+   "duration": 2.5,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "authored": "perch against a low edge",
+    "base": "UAL Idle_Loop"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "rock",
+    "lean",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "edge_back",
+      "point": [
+       0.0,
+       0.72,
+       -0.248
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       1.0
+      ]
+     },
+     "heightRange": [
+      0.65,
+      0.95
+     ],
+     "approach": {
+      "distance": [
+       0.208,
+       0.248,
+       0.308
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the edge; faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "buttocks / lower back against the edge of a 0.80 m top behind, feet forward"
+    },
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "edge_back",
+      "point": [
+       0.27,
+       0.8,
+       -0.128
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.65,
+      0.95
+     ],
+     "approach": {
+      "distance": [
+       0.208,
+       0.248,
+       0.308
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the edge; faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "palm on the top beside the hip"
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0,
+      2.5
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "edge_back",
+      "point": [
+       -0.27,
+       0.8,
+       -0.128
+      ],
+      "normal": [
+       0.0,
+       1.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      0.65,
+      0.95
+     ],
+     "approach": {
+      "distance": [
+       0.208,
+       0.248,
+       0.308
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the edge; faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "palm on the top beside the hip"
+    }
+   ],
+   "notes": "hold loop. low edge 0.65-0.95 m behind (keyed for 0.8)",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_low",
+    "h": [
+     0.65,
+     0.95
+    ],
+    "tilt": [
+     -0.1,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "facesAway": true,
+    "flat": true,
+    "phase": "hold"
+   }
+  },
+  "sit_uneven_l": {
+   "name": "sit_uneven_l",
+   "duration": 1.8,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "from": "sit_rock_loop",
+    "authored": "pelvis roll + spine counter-roll"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.0,
+      1.8
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.431,
+       -0.203
+      ],
+      "normal": [
+       -0.156,
+       0.988,
+       0
+      ]
+     },
+     "heightRange": [
+      0.371,
+      0.501
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "seat top uneven: the left thigh rests ~0.07 m higher (pelvis rolled 9 deg, spine upright)"
+    }
+   ],
+   "notes": "seated on an uneven top; enter / exit through sit_rock_in / sit_rock_out with a 0.35 s crossfade",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.37,
+     0.55
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "uneven": [
+     0.03,
+     0.1
+    ],
+    "facesAway": true,
+    "phase": "hold"
+   }
+  },
+  "sit_uneven_r": {
+   "name": "sit_uneven_r",
+   "duration": 1.8,
+   "loop": true,
+   "fps": 30.0,
+   "source": {
+    "from": "sit_rock_loop",
+    "authored": "pelvis roll + spine counter-roll"
+   },
+   "license": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu) - free for all uses incl. commercial; FBX via cgspeed BVH / gbionics/cmu-fbx",
+   "tags": [
+    "contact",
+    "rock",
+    "sit",
+    "rest"
+   ],
+   "contacts": [
+    {
+     "effector": "seat",
+     "bone": "pelvis",
+     "window": [
+      0.0,
+      1.8
+     ],
+     "blendIn": 0.15,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "seat_top",
+      "point": [
+       0.0,
+       0.431,
+       -0.203
+      ],
+      "normal": [
+       0.156,
+       0.988,
+       0
+      ]
+     },
+     "heightRange": [
+      0.371,
+      0.501
+     ],
+     "approach": {
+      "distance": [
+       0.013,
+       0.073,
+       0.153
+      ],
+      "facing": [
+       0,
+       0,
+       -1
+      ],
+      "note": "distance from the feet origin BACK to the seat front edge; the character faces AWAY from the rock"
+     },
+     "space": "character",
+     "note": "seat top uneven: the right thigh rests ~0.07 m higher (pelvis rolled 9 deg, spine upright)"
+    }
+   ],
+   "notes": "seated on an uneven top; enter / exit through sit_rock_in / sit_rock_out with a 0.35 s crossfade",
+   "rootMotion": null,
+   "req": {
+    "cls": "sit",
+    "h": [
+     0.37,
+     0.55
+    ],
+    "tilt": null,
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "uneven": [
+     0.03,
+     0.1
+    ],
+    "facesAway": true,
+    "phase": "hold"
+   }
+  },
+  "hand_wall_r_in_walk": {
+   "name": "hand_wall_r_in_walk",
+   "duration": 0.3333,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "from": "UAL Walk_Loop -> hand_wall_r_loop first pose"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "wall",
+    "rock",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.245,
+      0.35
+     ],
+     "blendIn": 0.12,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.305,
+       1.494,
+       0.405
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.144,
+      1.794
+     ],
+     "approach": {
+      "distance": [
+       0.345,
+       0.405,
+       0.485
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.414,
+       1.456,
+       0.292
+      ],
+      "gapCm": 1.9,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.2,
+      "surfaceMoved": 0.04,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "enter straight from walking (0.35 s, feet settle, hand / shoulder reaches the face); then play hand_wall_r_loop | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.24,
+     1.74
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter",
+    "from": "walk"
+   },
+   "palmFix": true
+  },
+  "hand_wall_l_in_walk": {
+   "name": "hand_wall_l_in_walk",
+   "duration": 0.3333,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "from": "UAL Walk_Loop -> hand_wall_l_loop first pose"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "wall",
+    "rock",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.245,
+      0.35
+     ],
+     "blendIn": 0.12,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.308,
+       1.483,
+       0.405
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.133,
+      1.783
+     ],
+     "approach": {
+      "distance": [
+       0.345,
+       0.405,
+       0.485
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.428,
+       1.451,
+       0.314
+      ],
+      "gapCm": 0.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.5,
+      "surfaceMoved": 0.04,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "enter straight from walking (0.35 s, feet settle, hand / shoulder reaches the face); then play hand_wall_l_loop | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.23,
+     1.73
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter",
+    "from": "walk"
+   },
+   "palmFix": true
+  },
+  "hand_wall_both_in_walk": {
+   "name": "hand_wall_both_in_walk",
+   "duration": 0.3333,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "from": "UAL Walk_Loop -> hand_wall_both_loop first pose"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "wall",
+    "rock",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "hand_l",
+     "bone": "hand_l",
+     "window": [
+      0.245,
+      0.35
+     ],
+     "blendIn": 0.12,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.314,
+       1.468,
+       0.445
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.118,
+      1.768
+     ],
+     "approach": {
+      "distance": [
+       0.385,
+       0.445,
+       0.525
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       0.086,
+       -0.006,
+       0.124
+      ],
+      "normalHand": [
+       1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       0.426,
+       1.415,
+       0.354
+      ],
+      "gapCm": 0.5,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.2,
+      "armInsideCm": 0.2,
+      "thumbTipInsideCm": 2.5,
+      "surfaceMoved": 0.0,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    },
+    {
+     "effector": "hand_r",
+     "bone": "hand_r",
+     "window": [
+      0.245,
+      0.35
+     ],
+     "blendIn": 0.12,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.311,
+       1.45,
+       0.445
+      ],
+      "normal": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "heightRange": [
+      1.1,
+      1.75
+     ],
+     "approach": {
+      "distance": [
+       0.385,
+       0.445,
+       0.525
+      ],
+      "facing": [
+       -0.0,
+       0,
+       1.0
+      ]
+     },
+     "space": "character",
+     "note": "palm flat on a vertical-ish face; IK target = raycast from shoulder along facing; clamp to heightRange",
+     "palm": {
+      "inHand": [
+       -0.093,
+       -0.0,
+       0.117
+      ],
+      "normalHand": [
+       -1.0,
+       0.0,
+       -0.0
+      ],
+      "wrist": [
+       -0.406,
+       1.383,
+       0.339
+      ],
+      "gapCm": 1.2,
+      "tiltDeg": 19.1,
+      "gloveInsideCm": 0.0,
+      "armInsideCm": 0.0,
+      "thumbTipInsideCm": 0.3,
+      "surfaceMoved": 0.0,
+      "note": "surface.point = centre of the drawn palm on the surface (glove rigid with the forearm, tilted <= 20 deg so the thumb clears it); runtime IK: wrist = point - Rhand*inHand"
+     }
+    }
+   ],
+   "notes": "enter straight from walking (0.35 s, feet settle, hand / shoulder reaches the face); then play hand_wall_both_loop | palm-fixed: forearm oriented so the drawn palm lies on the surface (palm centre = surface.point)",
+   "rootMotion": null,
+   "req": {
+    "cls": "hands_wall",
+    "h": [
+     1.2,
+     1.72
+    ],
+    "tilt": [
+     -0.15,
+     0.3
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "width": 0.4,
+    "phase": "enter",
+    "from": "walk"
+   },
+   "palmFix": true
+  },
+  "lean_shoulder_r_in_walk": {
+   "name": "lean_shoulder_r_in_walk",
+   "duration": 0.3333,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "from": "UAL Walk_Loop -> lean_shoulder_r_loop first pose"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "wall",
+    "lean",
+    "rest",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "shoulder_r",
+     "bone": "upperarm_r",
+     "window": [
+      0.245,
+      0.35
+     ],
+     "blendIn": 0.12,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       -0.538,
+       1.337,
+       -0.112
+      ],
+      "normal": [
+       1.0,
+       0.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      1.1,
+      1.9
+     ],
+     "approach": {
+      "distance": [
+       0.488,
+       0.538,
+       0.588
+      ],
+      "facing": [
+       -1.0,
+       0,
+       -0.0
+      ]
+     },
+     "space": "character",
+     "note": "outer shoulder touches the wall; body inclined 11 deg, feet planted. Runtime: rotate the character so its side faces the wall at approach distance"
+    }
+   ],
+   "notes": "enter straight from walking (0.35 s, feet settle, hand / shoulder reaches the face); then play lean_shoulder_r_loop",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_shoulder",
+    "h": [
+     1.1,
+     1.9
+    ],
+    "tilt": [
+     -0.1,
+     0.2
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter",
+    "from": "walk"
+   }
+  },
+  "lean_shoulder_l_in_walk": {
+   "name": "lean_shoulder_l_in_walk",
+   "duration": 0.3333,
+   "loop": false,
+   "fps": 30.0,
+   "source": {
+    "from": "UAL Walk_Loop -> lean_shoulder_l_loop first pose"
+   },
+   "license": "authored for this project (key poses + IK on the UAL skeleton, UAL Idle base CC0) - same license as the game",
+   "tags": [
+    "contact",
+    "wall",
+    "lean",
+    "rest",
+    "walk"
+   ],
+   "contacts": [
+    {
+     "effector": "shoulder_l",
+     "bone": "upperarm_l",
+     "window": [
+      0.245,
+      0.35
+     ],
+     "blendIn": 0.12,
+     "blendOut": 0.2,
+     "hold": true,
+     "surface": {
+      "type": "wall",
+      "point": [
+       0.552,
+       1.32,
+       0.008
+      ],
+      "normal": [
+       -1.0,
+       0.0,
+       0.0
+      ]
+     },
+     "heightRange": [
+      1.1,
+      1.9
+     ],
+     "approach": {
+      "distance": [
+       0.502,
+       0.552,
+       0.602
+      ],
+      "facing": [
+       1.0,
+       0,
+       -0.0
+      ]
+     },
+     "space": "character",
+     "note": "outer shoulder touches the wall; body inclined 11 deg, feet planted. Runtime: rotate the character so its side faces the wall at approach distance"
+    }
+   ],
+   "notes": "enter straight from walking (0.35 s, feet settle, hand / shoulder reaches the face); then play lean_shoulder_l_loop",
+   "rootMotion": null,
+   "req": {
+    "cls": "lean_shoulder",
+    "h": [
+     1.1,
+     1.9
+    ],
+    "tilt": [
+     -0.1,
+     0.2
+    ],
+    "feetDelta": 0.08,
+    "stretch": {
+     "contact": 0.15,
+     "spine": 0.2
+    },
+    "phase": "enter",
+    "from": "walk"
+   }
+  }
+ },
+ "req": {
+  "doc": "ARCH-INTERACT.md MotionRequirements",
+  "fields": {
+   "cls": "affordance class",
+   "h": "support height range, m over the stand ground",
+   "tilt": "face tilt range, rad (0 vertical, + leans away, - overhang)",
+   "feetDelta": "allowed ground height difference under the feet, m",
+   "stretch.contact": "max contact displacement the MotionFitter may apply, m",
+   "stretch.spine": "max extra spine tilt, rad",
+   "phase": "enter / hold / exit / once",
+   "from": "entry source pose"
+  }
+ },
+ "palm": {
+  "l": {
+   "inHand": [
+    0.086,
+    -0.006,
+    0.124
+   ],
+   "normalHand": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "inForearm": [
+    0.0859,
+    0.269,
+    0.1239
+   ],
+   "normalForearm": [
+    0.9448,
+    0.3236,
+    0.0511
+   ],
+   "flatNormalForearm": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "fingersForearm": [
+    -0.2532,
+    0.6222,
+    0.7408
+   ],
+   "tiltDeg": 19.1,
+   "note": "palm centre / normal of the DRAWN glove in the lowerarm bone frame (origin = elbow); normalForearm = the palm normal the clips lay on the surface (flat normal tilted by tiltDeg so the rigid thumb clears it)"
+  },
+  "r": {
+   "inHand": [
+    -0.093,
+    -0.0,
+    0.117
+   ],
+   "normalHand": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "inForearm": [
+    -0.0929,
+    0.2743,
+    0.1168
+   ],
+   "normalForearm": [
+    -0.9448,
+    0.3239,
+    0.049
+   ],
+   "flatNormalForearm": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "fingersForearm": [
+    0.2532,
+    0.627,
+    0.7368
+   ],
+   "tiltDeg": 19.1,
+   "note": "palm centre / normal of the DRAWN glove in the lowerarm bone frame (origin = elbow); normalForearm = the palm normal the clips lay on the surface (flat normal tilted by tiltDeg so the rigid thumb clears it)"
   }
  }
 }

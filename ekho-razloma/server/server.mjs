@@ -134,6 +134,22 @@ export function startServer(opts = {}) {
         const origin = req.headers.origin;
         if (origin && origin !== 'http://' + req.headers.host) return send(res, 403, { ok: false, reason: 'origin' });
         if (url.pathname === '/api/stats' && req.method === 'GET') return send(res, 200, statsJson());
+        // rock gallery review marks (tools/rockgallery): the human verdict, kept in the repo next to the gallery
+        if (url.pathname === '/api/marks') {
+          const dir = path.join(root, 'tools', 'rockgallery', 'marks'), ok = (l) => /^[\w.-]{1,48}$/.test(l);
+          if (req.method === 'GET') { const l = url.searchParams.get('label') || ''; if (!ok(l)) return send(res, 400, { ok: false });
+            try { return send(res, 200, JSON.parse(fs.readFileSync(path.join(dir, l + '.json'), 'utf8'))); } catch { return send(res, 200, { ok: true, label: l, marks: {} }); } }
+          if (req.method === 'POST' && String(req.headers['content-type'] || '').startsWith('application/json')) {
+            let body; try { body = JSON.parse(await readBody(req, 512 * 1024)); } catch { return send(res, 413, { ok: false, reason: 'body' }); }
+            if (!body || !ok(String(body.label || '')) || typeof body.marks !== 'object' || Array.isArray(body.marks)) return send(res, 400, { ok: false });
+            const marks = {}; for (const [k, v] of Object.entries(body.marks)) { if (!/^[\w.-]{1,80}$/.test(k) || !v || typeof v !== 'object') continue;
+              marks[k] = { v: v.v === 'yes' || v.v === 'no' ? v.v : null, note: String(v.note || '').slice(0, 500) }; }
+            fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(path.join(dir, body.label + '.json'), JSON.stringify({ ok: true, label: body.label, at: new Date().toISOString(), marks }, null, 1));
+            return send(res, 200, { ok: true, n: Object.keys(marks).length });
+          }
+          return send(res, 405, { ok: false });
+        }
         if (req.method !== 'POST' || !String(req.headers['content-type'] || '').startsWith('application/json')) return send(res, 405, { ok: false });
         if (url.pathname === '/api/decide') {
           let body; try { body = JSON.parse(await readBody(req, 16 * 1024)); } catch { return send(res, 413, { ok: false, reason: 'body' }); }

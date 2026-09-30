@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 window.THREE = THREE;
-const W = 180, H = 240;
+const W = 180, H = 240;   // window.CLOSE = {bone, dist, up} puts the camera next to a bone (close-up of a hand on its wall); window.SIZE = [w, h] tile size
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
 renderer.shadowMap.enabled = true;
@@ -54,7 +54,7 @@ function helperFor(meta, t) {
 }
 // render a strip of N frames of clip `name` from camera yaw `yaw` (deg, 0 = front)
 window.strip = (name, n, yaw = 35, meta = null, rm = null, dist = 3.6, cols = 12) => {
-  cols = Math.min(cols, n); const rows = Math.ceil(n / cols);
+  const W = window.SIZE ? window.SIZE[0] : 180, H = window.SIZE ? window.SIZE[1] : 240; cols = Math.min(cols, n); const rows = Math.ceil(n / cols);
   const c = clips[name]; const act = mixer.clipAction(c); mixer.stopAllAction(); act.reset().play(); act.setLoop(THREE.LoopOnce); act.clampWhenFinished = true;
   renderer.setSize(W * cols, H * rows); renderer.setClearColor(0xdfe5ea); renderer.setScissorTest(false); renderer.clear();  renderer.setScissorTest(true);
   const cam = new THREE.PerspectiveCamera(35, W / H, 0.05, 100);
@@ -65,7 +65,8 @@ window.strip = (name, n, yaw = 35, meta = null, rm = null, dist = 3.6, cols = 12
     helperFor(meta, t);
     model.updateMatrixWorld(true); const pv = new THREE.Vector3(); (model.getObjectByName('pelvis') || holder).getWorldPosition(pv);
     const a = yaw * Math.PI / 180, cx = window.FOLLOW === false ? holder.position.x : pv.x, cz = window.FOLLOW === false ? holder.position.z : pv.z;
-    cam.position.set(cx + Math.sin(a) * dist, 1.25, cz + Math.cos(a) * dist); cam.lookAt(cx, 0.85, cz);
+    if (window.CLOSE) { const bp = new THREE.Vector3(); model.getObjectByName(window.CLOSE.bone).getWorldPosition(bp); const d = window.CLOSE.dist; cam.position.set(bp.x + Math.sin(a) * d, bp.y + (window.CLOSE.up || 0.05), bp.z + Math.cos(a) * d); cam.lookAt(bp.x, bp.y, bp.z); }
+    else { cam.position.set(cx + Math.sin(a) * dist, 1.25, cz + Math.cos(a) * dist); cam.lookAt(cx, 0.85, cz); }
     renderer.setScissorTest(true); const cx0 = (i % cols) * W, cy0 = (rows - 1 - Math.floor(i / cols)) * H; renderer.setViewport(cx0, cy0, W, H); renderer.setScissor(cx0, cy0, W, H);
     renderer.render(scene, cam);
   }

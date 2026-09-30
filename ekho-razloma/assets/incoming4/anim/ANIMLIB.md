@@ -4,7 +4,7 @@ Staged here, **not wired into the game**. Pack format = `assets/pack/*.js` (base
 
 | file | what | size |
 |---|---|---|
-| `anim_pilot_contact.js` | 37 clips, UAL skeleton (pilot + hermit, identical rest) | 2.5 MB |
+| `anim_pilot_contact.js` | 77 clips, UAL skeleton (pilot + hermit, identical rest) | 3.86 MB (was 4.20 before the palm fix: the 18 clips were re-emitted and the pack compacted) |
 | `anim_stag_gaits.js` | 20 clips, `animal_stag` rig (CDmir) | 0.7 MB |
 | `*.meta.json` | contact / gait metadata (also embedded: `gltf.parser.json.extras.animlib`) | |
 | `qc_pilot.json`, `qc_stag.json` | automatic checks on the shipped GLBs | |
@@ -23,14 +23,14 @@ QC: foot slide / palm-to-surface error, cm.
 
 | clip | s | source | contact | root motion | slide | palm err |
 |---|---|---|---|---|---|---|
-| hand_wall_r_in / _loop | 0.6 / 2.5 | authored | hand_r | – | 0.3 | 0.8 |
-| hand_wall_l_in / _loop | 0.6 / 2.5 | authored | hand_l | – | 0.3 | 0.1 |
-| hand_wall_both_in / _loop | 0.6 / 2.5 | authored | both hands | – | 0.3 | 0.4 |
+| hand_wall_r_in / _loop | 0.6 / 2.5 | authored, **palm-fixed** | hand_r | – | 0.8 / 0.5 | 1.9 (palm centre) |
+| hand_wall_l_in / _loop | 0.6 / 2.5 | authored, **palm-fixed** | hand_l | – | 0.4 / 0.5 | 0.9 |
+| hand_wall_both_in / _loop | 0.6 / 2.5 | authored, **palm-fixed** | both hands | – | 0.9 / 0.5 | 0.9 / 1.5 |
 | lean_shoulder_r_in / _loop | 0.6 / 2.5 | authored (fold-arms base) | shoulder_r | – | 0.7 | – |
 | lean_shoulder_l_in / _loop | 0.6 / 2.5 | authored | shoulder_l | – | 0.6 | – |
 | lean_back_in / _loop | 0.6 / 2.5 | authored | back | – | 1.3 | – |
-| lean_hands_ledge_loop | 2.5 | CMU 22_18 | both hands, top | – | 0.4 | 1.3 |
-| brace_slope_r/l_in / _loop | 0.6 / 2.5 | authored | hand + lead foot | – | 0.2 | ≤2.6 |
+| lean_hands_ledge_loop | 2.5 | CMU 22_18 base, arms/torso **palm-fixed** | both hands, top 0.8-0.9 m | – | 0.4 | 1.1 / 1.8 |
+| brace_slope_r/l_in / _loop | 0.6 / 2.5 | authored, hand **palm-fixed** | hand + lead foot | – | 0.4-1.4 | ≤2.9 |
 | push_heavy_loop | 2.67 | UAL1 Push_Loop | both hands | cycle | 2.7 | 2.0 |
 | reach_branch_r / _l | 1.67 | CMU 144_24 (+mirror) | hand sweep | – | 0.8 | – |
 | crouch_inspect | 3.0 | CMU 77_08 | both hands, ground | – | 1.6 | – |
@@ -46,6 +46,62 @@ QC: foot slide / palm-to-surface error, cm.
 | tired_hands_knees_loop | 2.5 | authored | self (thighs) | – | 0.2 | 1.7 |
 | tired_breath_loop | 2.5 | authored | – | – | 0.3 | – |
 | cold_shiver_loop | 5.3 | CMU 79_68 + tremor | – | – | 0.0 | – |
+| sit_rock_in / _loop / _out | 2.87 / 1.8 / 1.57 | CMU 13_04 (stepstool sit) | seat (pelvis), top 0.43 m | – | 0.7 / 0.2 / 2.5 | – |
+| sit_rock_high_in / _loop / _out | 2.87 / 1.8 / 1.57 | CMU 13_04, pelvis +0.27, legs re-solved | seat, top 0.60 m | – | 0.7 / 0.2 / 2.5 | – |
+| touch_walk_r / _l | 2.0 | authored **arm layer** (arm/hand tracks only) | hand on a side wall, 0.85–1.45 m | – | – | 0.3 (full-body build) |
+| squeeze_side_r_in / _loop (+ _l) | 0.7 / 2.9 | CMU 111_26 walk sideways + authored arms | lead palm front wall, trail palm back wall (gap 0.6–1 m) | loop: locomotion 0.28 m/s sideways | 2.1 / 4.0 | 0.2–2.0 |
+| foot_on_ledge_l/_r _in / _loop / _out | 1.67 / 2.5 / 0.8 | CMU 111_31 step-up (0.27 m step → 0.45 m ledge) + authored hold | lead sole on a top 0.3–0.8 m, hand on the knee | in: yes | 5.1 / 0.0 / 0.9 | – |
+| knee_on_rock_l/_r _in / _loop | 1.0 / 2.5 | authored (no CMU take has a knee on a surface); _r = mirror | knee + shin on a 0.4–0.7 m top, same-side palm beside it | – | 2.9 / 0.0 | 2.2–4.6 |
+| lean_dome_l/_r _in / _loop | 0.6 / 2.5 | authored, **palm-fixed** | palm on a rounded top ~1.0-1.4 m (normal 37° toward the pilot) | – | 0.6-0.7 | 0.7-2.2 |
+| lean_low_in / _loop | 0.6 / 2.5 | authored | buttocks against a 0.65–0.95 m edge behind, palms on its top | – | 2.5 / 0.7 | 3.0 |
+| sit_uneven_l / _r | 1.8 | sit_rock_loop + pelvis roll 9°, spine upright | seat with one thigh ~0.07 m higher | – | 0.4 | – |
+| duck_under / duck_under_half | 2.0 / 1.33 | UAL Crouch_Fwd_Loop / Walk_Loop lowered 0.17 m + spine 24°; right palm on the underside | overhang, helmet top ≤ 1.30 / 1.71 m | loop locomotion | 5.4 / 0.0 | 0.9–1.1 |
+| jump_down_low / jump_down / jump_down_high | 1.2 / 2.43 / 2.5 | CMU 82_02 (0.66 m) / 82_04 (0.86 m) jump off ledge, flight time-warped | feet on the top edge; landing 0.6 / 1.0 / 1.5 m below the origin | yes | 0.0 / 8.6 / 7.6 | – |
+| hand_wall_r/_l/_both_in_walk (**palm-fixed**), lean_shoulder_r/_l_in_walk | 0.33 | UAL Walk_Loop crossfaded into the `_loop` first pose | same contacts as the `_loop` (window 0.23–0.33 s) | – | 0.0 | 0.5–1.9 (palm) |
+
+Rock clips (`tools/anim/build_rock_clips.py`) are **appended** to the shipped GLB: the 37 clips above stay byte-for-byte
+(buffer prefix, accessors, animations, nodes and meta all checked identical after the merge). New surface type `seat_top`
+(bone `pelvis`, effector `seat`): the character stands with its back to the rock, `approach.facing = [0,0,-1]`,
+`approach.distance` = feet origin → seat front edge. `touch_walk_*` carries `layer.bones`: three.js averages overlapping
+tracks by weight, so play it with a high weight over walk/jog (or pose + LimbIK). QC's contactPlaneErr for these two
+(5–8 cm) is an artefact of the masked load (the spine sits at bind pose there); the full-body build measures 0.3 cm.
+
+Wave 2 (`tools/anim/build_rock_clips2.py`, ARCH-INTERACT.md step 7) appends 28 more clips the same way (49 shipped clips checked
+identical) and writes a **`req` block (MotionRequirements) on every clip**, in the World vocabulary: `cls` (affordance class:
+hands_wall, lean_shoulder, lean_back, hands_ledge, sit, step_up, climb, squeeze, touch_walk, knee_on, foot_on, duck, jump_down,
+lean_dome, lean_low, brace_slope, push, touch, ground, other), `h` (support height range over the stand ground), `tilt` (face
+tilt, rad, 0 = vertical), `feetDelta` (ground height difference under the feet), `stretch.contact` / `stretch.spine` (how far the
+MotionFitter may move the contact / tilt the spine), `phase` (enter / hold / exit / once) and `from: walk` for the walk entries;
+extras per class (`flat`, `facesAway`, `uneven`, `round`, `gap`, `clearance`, `drop`, `layer`, `speed`, `width`, `depth`).
+Drop clips: origin = the top surface at the take-off edge, the body ends `drop.height` below it (QC's groundPen for them is
+that drop, not an error). Size: new clips carry translation tracks only where they move (pelvis) and share identical constant
+accessors (`write_clips(dedup=True)`) — the pack grew 3.25 → 4.20 MB. Sheets: `preview/rock2/`.
+Known limits of wave 2: knee_on_rock / lean_dome / lean_low / sit_uneven are hand-keyed (readable, less organic than mocap);
+jump_down(_high) is the 0.86 m take with a stronger hop, flight stretched for 1.0 / 1.5 m (slightly floaty at 1.5); duck_under's
+palm follows the body (slides along the underside, not planted); walk entries do not pin the stance foot to the ground while the
+body decelerates (the runtime brakes the capsule).
+
+#### Palm fix (`tools/anim/build_palm_fix.py`) — 18 clips: hand_wall_r/l/both (_in, _loop, _in_walk), lean_hands_ledge_loop, brace_slope_r/l (_in, _loop), lean_dome_r/l (_in, _loop)
+
+Why the old clips put 6–8 cm of glove into the surface: the drawn glove of this model is **one rigid piece skinned to the forearm** (`lowerarm_*`;
+the hand bone has no vertices, only the thumb bones move a few thumb vertices), so a wrist cannot bend - "wrist extension" = the angle of the whole forearm.
+The old keys oriented the *hand bone* and put the bone-derived palm point on the wall, so the fingertips met the wall and the palm faced sideways. The rigid
+thumb tip additionally sticks 6–7 cm out of the palm plane towards the palm normal.
+New clips (measured on the CPU-skinned mesh, `skin.py`; looked at with `miniview.py` + three.js close-ups in `preview/palm/close/`):
+per contact window the forearm is oriented so the drawn palm faces the surface (fingers up on a wall / slope, forward on a ledge, spun <= 45° when the arm needs it), the palm
+centre lies 0.5–2.0 cm off it, the elbow is solved on the upper-arm sphere for a natural arm (elbow flexion 30–140°, elbow down / out, forearm twist in range, away from
+torso and helmet), the thumb bones are tucked toward the palm plane, and the mitten is rolled / pitched by a fixed **19°** (`meta.palm.<side>.tiltDeg`, hands mirror each other) so the
+rigid thumb clears the surface. Body: 0–8° lean, ledge = 8° hip fold, two-hand clips square the shoulders (18° turn), the palm points are mirrored.
+The finger spin is re-tuned per frame so the palm stays planted while the body breathes (palm drift <= 1.1 cm in the loops).
+Surface moves (the arm-along-the-surface pose needs the shoulders within ~0.36 m of the surface): walls 0–0.04 m closer, ledge top 0.62 -> 0.77 m, slope point +0.06/+0.14 m, dome +0.06 m -
+`surface.point`, `approach`, `heightRange` and `req.h` moved with them (`hands_wall` h 1.0–1.6 -> 1.2–1.72: a flat forearm needs a face at chest-head height; hands_ledge 0.55–1.05 -> 0.64–0.92).
+Meta: `surface.point` = the drawn palm CENTRE on the surface; `contact.palm` = {inHand, normalHand, wrist (character space), gapCm, tiltDeg, gloveInsideCm, armInsideCm, thumbTipInsideCm};
+`meta.palm.<l|r>` = palm centre / normals of the drawn glove in the lowerarm frame (`inForearm`, `normalForearm` = the tilted palm normal the clips lay on the surface,
+`flatNormalForearm`, `fingersForearm`) for the runtime IK: wrist = point - R_hand * inHand.
+Checked on the skinned glove + arm (max penetration of any vertex, all frames of the hold): glove / cuff / sleeve <= 0.4 cm inside; the 24 rigid thumb-tip vertices may sit up to
+2.5 cm inside (0–2.5 cm measured, hidden in the rock) - before: 4.7–8.7 cm of glove inside. Palm-normal deviation from -N: 19° (before: ~90°, fingertips on the wall).
+Known: the right glove has ~22 vertices weighted 2–27 % to `thigh_r` (model skin bug; global vertex ids 88, 89, 717-719, 13489, 13748, 13772-13791, worst 13783 = 27 %; the left glove has none) - when the arm is raised they stretch to a black
+ribbon down to the thigh (visible in the sheets; in the old clips it was a needle). `_in` clips blend the new arm over 0.36 s (peak joint speed 450–800 dps; old 340–590).
 
 ### Pipeline
 ```
@@ -236,5 +292,9 @@ $PY tools/anim/deer_gait.py  $W   && $PY tools/anim/qc_stag.py  $W              
 python3 tools/anim/pack.py $W/out/anim_pilot_contact.glb $W/out/anim_pilot_contact.meta.json assets/incoming4/anim/anim_pilot_contact.js anim_pilot_contact
 node tools/anim/sheet.mjs <http root> <model pack> <anim glb> <outdir> all 8 55 1.9 <meta>   # contact sheets (three r186)
 node tools/anim/runtime_test.mjs <http root> <outdir>                                   # runtime IK + gait blender test
+$PY tools/anim/build_rock_clips.py $W   # rock clips appended onto $W/anim_pilot_contact.glb (+ .meta.json, unpacked from the shipped pack); needs npz/13_04, npz/111_26
+$PY tools/anim/build_rock_clips2.py $W  # wave 2 + `req` on every clip, appended onto the wave-1 pack; needs npz/111_31, npz/82_02, npz/82_04
+$PY tools/anim/build_palm_fix.py $W     # palm fix: re-poses 18 hand-contact clips -> $W/out_palm/ (env PALM_ONLY=hand_wall,... / PALM_FAST=1 / PALM_TILT / PALM_TIPK / PALM_TIPIN); then pack.py on out_palm/*
+python3 tools/anim/verify_identical.py <old pack> <new pack>   # byte check: every other clip identical
 ```
 `$W` needs: `pilot_aces_textured.glb`, `npc_hermit.glb`, `animal_stag.glb` (unpacked from assets/pack), `src/UAL1_Standard_RM.glb`, `npz/`.

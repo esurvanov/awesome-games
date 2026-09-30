@@ -18,3 +18,7 @@ assets/incoming3/
 .DS_Store
 tools/.stand.lock
 tools/.stand-queue/
+# generated galleries / caches
+tools/rockgallery/out/
+tools/rockgallery/marks/
+__pycache__/
