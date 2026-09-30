@@ -422,6 +422,7 @@ class Bld{constructor(){this.l=[]}add(geo,col,...a){this.l.push(P(geo,col,...a))
 const tri=(bw,h,d=.16)=>{const s=new THREE.Shape();s.moveTo(-bw/2,0);s.lineTo(bw/2,0);s.lineTo(0,h);s.closePath();return new THREE.ExtrudeGeometry(s,{depth:d,bevelEnabled:false})};
 
 /* ================= COLLIDERS ================= */
+const CAMOCC=[],CAMRC=new THREE.Raycaster();let CAMMAT=null;   // постройки, сквозь которые камера не ходит
 const CG=new Map(),CC=8;
 function cins(o,x,z,R){const m=R+2.5;for(let i=Math.floor((x-m)/CC);i<=Math.floor((x+m)/CC);i++)for(let j=Math.floor((z-m)/CC);j<=Math.floor((z+m)/CC);j++){const k=gk(i,j);let l=CG.get(k);if(!l)CG.set(k,l=[]);l.push(o)}}
 function addBox(x,z,hx,hz,rot=0,tag){const o={t:0,x,z,hx,hz,c:Math.cos(rot),s:Math.sin(rot),tag};cins(o,x,z,Math.hypot(hx,hz));return o}
@@ -454,7 +455,7 @@ function wrapPlace(geoObj,x,z,rot,opt={}){
   if(geoObj.gold){const gm=new THREE.Mesh(geoObj.gold,MAT.gold);gm.castShadow=true;g.add(gm)}
   if(geoObj.glass){g.add(new THREE.Mesh(geoObj.glass,MAT.glass))}
   (geoObj.extra||[]).forEach(e=>g.add(e));
-  scene.add(g);g.updateMatrixWorld(true);
+  scene.add(g);g.updateMatrixWorld(true);CAMOCC.push(g);
   const cs=Math.cos(rot),sn=Math.sin(rot);
   const tw=(lx,lz)=>[x+lx*cs+lz*sn,z-lx*sn+lz*cs];
   (geoObj.cols||[]).forEach(c=>{const [wx,wz]=tw(c[0],c[1]);addBox(wx,wz,c[2],c[3],rot)});
@@ -531,7 +532,7 @@ function topPoint(w){let best=null;const v=new V3();w.updateMatrixWorld(true);w.
 function placeM(name,x,z,rot=0,o={}){const w=model(name,o);if(!w)return null;
   let gy=o.y;if(gy===undefined){const gf=SC.groundFit(name,w,x,z,rot,terrainH,reg,o.dy||0);gy=gf.y;if(gf.plinth)scene.add(gf.plinth);SC.LOG.placed.push({name,x,z,gap:Math.max(0,gf.gap+(o.dy||0)),plinth:!!gf.plinth})}SC.scheduleGates(terrainH);
   w.position.set(x,gy+(o.dy||0),z);w.rotation.y=rot;scene.add(w);
-  const sz=w.userData.size,k=o.cs===undefined?.9:o.cs;if(k>0)addBox(x,z,sz.x/2*k,sz.z/2*k,rot);
+  const sz=w.userData.size,k=o.cs===undefined?.9:o.cs;if(k>0){addBox(x,z,sz.x/2*k,sz.z/2*k,rot);if(sz.y>2)CAMOCC.push(w)}
   if(o.map!==false)mapShapes.push({x,z,hx:sz.x/2,hz:sz.z/2,rot,col:o.mapCol||'#6a4a3a'});
   if(o.smoke){w.updateMatrixWorld(true);o.smoke.forEach(p=>{const v=new V3(p[0]*sz.x,p[1]*sz.y,p[2]*sz.z);w.localToWorld(v);smokeSrc.push(v)})}
   return w}
@@ -1201,6 +1202,13 @@ function updateCamera(dt){
   const d=(driving?cam.dist+Math.abs(carS.spd)*.06:cam.dist)*(fishing?.7:1),cp=Math.cos(cam.pitch);
   const want=new V3(tgt.x+Math.sin(cam.yaw)*cp*d,tgt.y+Math.sin(cam.pitch)*d,tgt.z+Math.cos(cam.yaw)*cp*d);
   const gy=terrainH(want.x,want.z)+.6;if(want.y<gy)want.y=gy;
+  if(!driving&&!fishing){                               // стена или крыша между героем и камерой: подъезжаем ближе
+    const dir=want.clone().sub(tgt),len=dir.length();
+    if(len>1e-3){dir.divideScalar(len);CAMRC.camera=camera;CAMRC.set(tgt,dir);CAMRC.far=len;
+      if(!CAMMAT){CAMMAT=new Set();CAMOCC.forEach(g=>g.traverse(m=>{if(m.isMesh&&m.material)CAMMAT.add(m.material)}))}
+      const sd=[...CAMMAT].map(m=>m.side);[...CAMMAT].forEach(m=>m.side=THREE.DoubleSide);
+      const h=CAMRC.intersectObjects(CAMOCC,true);[...CAMMAT].forEach((m,k)=>m.side=sd[k]);
+      if(h.length)want.copy(tgt).addScaledVector(dir,Math.max(1.2,h[0].distance-.35))}}
   camera.position.lerp(want,Math.min(1,dt*(driving?8:16)));
   CJ.shake=Math.max(0,CJ.shake-dt*2);if(CJ.shake>0)camera.position.add(new V3(R(-1,1),R(-1,1),R(-1,1)).multiplyScalar(.3*CJ.shake));
   camera.lookAt(tgt);
