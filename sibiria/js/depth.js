@@ -5,7 +5,8 @@
 //   🗺 depthAt(x, y) = сетка 24 px (лениво блоками 16×16, Uint8, ≤ 200 КБ на весь мир ×9) — поверхность зоны (TERRAIN), шум seed,
 //      выдув на открытом (мало деревьев в 90 px), река (лёд выдут, береговой надув), натоптанное у избы/чума/лабаза
 //      + поверх, без сетки: сугробы G.drifts (эллипсы), приствольные ямы, подветренные наддувы Snow (вещи), проталины у огня
-//      и промоин, постройки посёлка, траншеи и «разгребы» (утоптано, заметает ветром как следы); на льду реки — не глубже ICE см.
+//      и промоин, постройки посёлка, тропы и расчистка (js/trail.js), траншеи и «разгребы» (утоптано, заметает ветром как следы);
+//      на льду реки — не глубже ICE см.
 //      Ямы на месте глубокого провала (стоял/выбирался) — только рисунок, заметает как колею. Кусков земли не перепекаем.
 //   🧍 sink = depth × k × (1 − опора); опора = тело (лапы/копыта) ⊕ наст (свой у вида) ⊕ лыжи 0.88 / снегоступы 0.7.
 //      Вход плавный (τ 0.1 с → 95 % за 0.3 с). Скорость людей: f(sink) / f(обычный провал поверхности) — поверхность (TERRAIN.walk)
@@ -142,6 +143,8 @@ const Depth = (() => {
     for (const o of STEAM) { const dx = o.x - x, dy = o.y - y; if (dx * dx + dy * dy < 55 * 55) d *= sm(18, 55, Math.hypot(dx, dy)); }
     // посёлок: вокруг построек натоптано
     if (G.col && G.col.builds.length) { NB.length = 0; for (const b of Space.builds.near(x, y, 90, NB)) { const B = BUILDS[b.type], ex = Math.abs(x - b.x) - B.w / 2, ey = Math.abs(y - b.y) - B.h / 2; if (ex < 40 && ey < 40) d = Math.min(d, 14 + Math.max(0, Math.max(ex, ey)) * 0.8); } }
+    // тропы и расчистка лопатой (js/trail.js): × (1 − 0.85·pack), у края расчистки — отвал
+    if (typeof Trail !== 'undefined') d = Trail.depth(d, x, y);
     // траншеи (свежая — утоптано до 0.3 глубины) и разгребы
     const tb = TB.get(((x / 32) | 0) + ((y / 32) | 0) * 4096);
     if (tb) for (let i = tb.length - 1; i >= 0; i--) {
@@ -198,11 +201,16 @@ const Depth = (() => {
     const p = G.p; if (!G || p.ride || p.inside || !ensure()) return 1;
     if (CL) return 0.12;
     let m = mulHuman(HS.s, p.x, p.y);
+    if (typeof Trail !== 'undefined') { // по тропе — быстрее целины: в тайге до зимника, у жилья ×1.12 (js/trail.js)
+      const ter = Zones.terrainAt(p.x, p.y), ski = typeof Transport !== 'undefined' && Transport.mode() === 'ski', cap = Trail.speedCap(p.x, p.y, ski ? (ter.ski || 1) / 1.3 : ter.walk);
+      if (cap > 1) m = Math.max(KIND.p.min, Math.min(cap, fH(HS.s) / fH(refSink(p.x, p.y))));
+    }
     if (HS.s > 110) m *= (0.45 + 1.1 * Math.max(0, Math.sin(HS.ph))) / 0.8; // по грудь — рывками: выдернул ногу — шаг, увяз — стоит
     return m;
   }
   // 0..1: насколько тяжело идти (тепло/еда тратятся быстрее, дыхание чаще)
-  const effort = () => (G && G.p && G.p.moving ? (CL ? 1 : sm(35, 120, HS.s)) : 0);
+  // порог — 22 см: по тропе (провал < 22) не выматывает, по целине — заметно; работа лопатой — не меньше 0.6 (пот на морозе)
+  const effort = () => { if (!G || !G.p) return 0; const a = G.p.action, w = a && a.k === 'clear' ? 0.6 : 0; return G.p.moving ? Math.max(w, CL ? 1 : sm(22, 120, HS.s)) : w; };
   // яма на месте глубокого провала: одна на место (ближе 12 px — та же, углубляется)
   function pitAt(x, y, s) {
     let q = PT.find(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 144);
@@ -235,6 +243,7 @@ const Depth = (() => {
     HS.stillT = !p.moving && !forced && HS.s > PIT0 ? HS.stillT + dt : 0;
     if (HS.stillT > 0.4) pitAt(p.x, p.y, HS.s);
     if (HS.s > 60) HS.snow = Math.max(HS.snow, sm(60, 130, HS.s)); else HS.snow = Math.max(0, HS.snow - dt / 45 * (p.inside ? 3 : 1));
+    if (typeof Trail !== 'undefined' && !p.inside && !(typeof Ice !== 'undefined' && Ice.active())) Trail.step(p, p.x, p.y, p.ride ? 'ride' : g >= 0.85 ? 'ski' : g > 0 ? 'shoes' : 'p'); // протаптывает тропу
     if (jump) { HS.run = ++RUN; HS.acc = 0; return; } // рывок/телепорт — не шаг
     if (p.moving && d > 0) {
       HS.ph += dt * TAU * 1.5;
@@ -265,6 +274,7 @@ const Depth = (() => {
       const d = Math.sqrt(d2) * m;
       rec(st, o.x, o.y, Math.atan2(dy, dx), KIND[kind], d, kind);
       if (pd < 900) spray(st, o.x, o.y, dx / Math.sqrt(d2), dy / Math.sqrt(d2), d / dt, KIND[kind], dt);
+      if (kind !== 'hare' && typeof Trail !== 'undefined') Trail.step(o, o.x, o.y, kind); // люди и звери тоже протаптывают
     }
     st.x = o.x; st.y = o.y;
   }
@@ -325,6 +335,7 @@ const Depth = (() => {
   function tick(dt, storm) {
     if (!ensure()) return;
     const k = typeof Snow !== 'undefined' ? Snow.printRate(storm) : storm ? 4 : 1;
+    if (typeof Trail !== 'undefined') Trail.tick(dt, storm); // тропы заметает (счётчик FILL — без обхода сетки)
     let n = 0; for (const q of TR) { q.life -= dt * k; if (q.life <= 0) n++; }
     if (n) { let w = 0; for (const q of TR) if (q.life > 0) TR[w++] = q; TR.length = w; for (const [id, r] of RUNS) { let v = 0; for (const q of r) if (q.life > 0) r[v++] = q; r.length = v; if (!v) RUNS.delete(id); } tbRebuild(); }
     for (let i = DG.length - 1; i >= 0; i--) { DG[i].life -= dt * k; if (DG[i].life <= 0) DG.splice(i, 1); }

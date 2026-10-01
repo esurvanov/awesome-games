@@ -108,6 +108,7 @@ const GEAR = {
   skis:  { i: ':skis:', n: 'Лыжи', d: 'скорость +20%' },
   sled:  { i: ':sled:', n: 'Нарты', d: '+20 кг' },
   shoes: { i: ':skis:', n: 'Снегоступы', d: 'в снегу вязнешь втрое меньше' },
+  shovel: { i: ':shovel:', n: 'Лопата', d: 'удержание E в поле — расчищать снег' },
 };
 
 // at: fire — у огня или горящей печи; stove — у печи; bench — верстак в избе
@@ -122,6 +123,7 @@ const RECIPES = [
   { id: 'dokha', i: ':coat:', n: 'Доха', in: { wpelt: 2, hare: 2 }, gear: 'dokha', at: 'bench', d: 'холод −30%' },
   { id: 'sled', i: ':sled:', n: 'Нарты', in: { wood: 6, scrap: 2 }, gear: 'sled', at: 'bench', d: '+20 кг' },
   { id: 'shoes', i: ':skis:', n: 'Снегоступы', in: { wood: 2, hare: 2 }, gear: 'shoes', at: 'bench', d: 'в снегу вязнешь втрое меньше' },
+  { id: 'shovel', i: ':shovel:', n: 'Лопата', in: { wood: 2, scrap: 1 }, gear: 'shovel', at: 'bench', d: 'расчищать снег, прокладывать тропы' },
   { id: 'antenna', i: ':antenna:', n: 'Антенна', in: { scrap: 3, cable: 1 }, out: { antenna: 1 }, at: 'bench', d: 'деталь рации' },
   { id: 'radio', i: ':radio:', n: 'Рация', in: { quartz: 1, battery: 1, tube: 1, antenna: 1 }, at: 'bench', d: 'аккумулятор заряжен', radio: 1 },
 ];
