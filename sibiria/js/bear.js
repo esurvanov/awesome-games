@@ -12,7 +12,7 @@ const Bear = (() => {
     const p = G.p; p.swing = 0.25; p.cd = 0.45;
     if (p.torch > 0 && b.stunCd <= 0) { b.st = 'stun'; b.t = 1; b.stunCd = 4; Fx.toast(':fire: Шатун отпрянул'); }
     b.hp -= (p.torch > 0 ? 1.5 : 1) + 0.15 * (Hero.lvl('hunt') - 1); Fx.burst(b.x, b.y - 20, 10, '#6b4f3a'); // шкура толстая: подранить можно, добить — трудно Sound.hit();
-    if (b.hp <= 0) { Fx.corpse('bear', b.x, b.y); G.bear = null; G.flags.bearDead = 1; Inv.add('meat', 4); Hero.xp('hunt', 5); Fx.toast(':bear: Шатун повержен'); Sound.ok2(); }
+    if (b.hp <= 0) { const a = Math.atan2(b.y - p.y, b.x - p.x); Carry.carcass('bear', b.x, b.y, Math.cos(a) * 90, Math.sin(a) * 90); G.bear = null; G.flags.bearDead = 1; Hero.xp('hunt', 5); Fx.toast(':bear: Шатун повержен · разделать — мясо'); Sound.ok2(); }
   }
 
   function tick(dt, h, night) {

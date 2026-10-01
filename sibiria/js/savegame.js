@@ -112,6 +112,7 @@ const SaveGame = (() => {
     G.col.ghost = null;
     Npc.ensure(); // персонажи, которых не было в этом сейве
     Zones.initState(); Transport.initState();
+    G.hand = G.hand || { p: [], t: null }; Inv.migrate();   // вещи с массой и объёмом: старые «числа» → вещи (js/inventory.js)
   }
   // пересчёт сейва на другой темп (k = новые сутки / старые): метки времени и календарное топливо ×k
   function retime(g, k) {
@@ -120,8 +121,8 @@ const SaveGame = (() => {
     mul(g.flags, 'contactT'); mul(g.hut, 'fuel');
     for (const f of g.fires || []) { mul(f, 'fuel'); mul(f, 't0'); mul(f, 't1'); }
     for (const t of g.traps || []) mul(t, 't');
-    for (const L of [g.litter, g.chunks]) for (const q of L || []) mul(q, 't');
-    for (const L of [g.logs, g.iceHoles, g.corpses]) for (const q of L || []) mul(q, 't0');
+    for (const L of [g.litter, g.chunks, g.loose]) for (const q of L || []) mul(q, 't');
+    for (const L of [g.logs, g.iceHoles, g.corpses, g.carcs]) for (const q of L || []) { mul(q, 't0'); mul(q, 'done'); }
     if (g.col) { mul(g.col, 'eatT'); for (const b of g.col.builds || []) { mul(b, 't'); if (b.type === 'tower') mul(b, 'fuel'); } }
   }
   return { V, snapshot, checkpoint: saveCheckpoint, problem, load, packFog, unpackFog };

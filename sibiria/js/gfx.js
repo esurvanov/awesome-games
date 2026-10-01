@@ -446,7 +446,7 @@ const GFX = (() => {
     const e = el - w - T, b = e < 0.2 ? 0.075 * Math.sin(e / 0.2 * Math.PI) : e < 0.36 ? 0.028 * Math.sin((e - 0.2) / 0.16 * Math.PI) : 0;
     return { th: Math.PI / 2 - b, lag: -9 * Math.exp(-e * 6) * Math.cos(e * 21), roll: (f.r || 0.06) * (1 - Math.exp(-e * 8)), ph: 2 };
   }
-  const LIE = { th: Math.PI / 2, lag: 0, roll: 0, ph: 3 };
+  const LIE = { th: Math.PI / 2, lag: 0, roll: 0, ph: 3 }, DRAGP = { th: Math.PI / 2, lag: 0, roll: 0, ph: 2.5 };
   // снег с ветвей: спрайт без снега для лежачей кроны (снег сверху рисуется отдельно, по месту) — один раз на спрайт, не больше одного за кадр
   const NOSNOW = new WeakMap(); let nsBudget = 1;
   function desnow(S) {
@@ -568,7 +568,7 @@ const GFX = (() => {
     for (const k of ['x', 'y', 'a', 'sk', 'k', 'hc', 'zt', 'cl', 'zTop', 'top', 'cut', 'sink', 'kind', 'len']) o[k] = L[k];
     const age = G.time - (L.t0 || 0); o.snowN = +clamp(0.12 + age / (CYCLE * 1.2), 0, 0.85).toFixed(1); o.dsnow = +clamp(age / (CYCLE * 0.8), 0, 0.8).toFixed(1);
     const bury = Actions.logSnow(L), al = 1 - smooth(0.55, 0.9, bury) * 0.999; if (al <= 0.01) return;
-    let P = LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); if (P.ph < 2) o.snowN = 1 - smooth(0.2, 1.2, P.th); }
+    let P = L.drag ? DRAGP : LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); if (P.ph < 2) o.snowN = 1 - smooth(0.2, 1.2, P.th); }   // волоком — живой рисунок, не запечённый
     cx.globalAlpha = al; Tree.drawLog(cx, o, P); cx.globalAlpha = 1;
     fallFx(o, P);
     if (bury > 0) buryMound(o, bury);
@@ -797,7 +797,7 @@ const GFX = (() => {
     if (p.ride && !ghost) { const v = G.veh[p.ride]; if (p.ride === 'buran') ArtZones.buran(g, v, ENV, true); else ArtZones.deerSled(g, v, ENV); }
     const x = p.sleeping ? p.x - 4 : p.x, sp = clamp(b.speed / 200, 0, 1), rime = typeof Ice !== 'undefined' ? Ice.rime() : 0;
     const fig = () => ArtPeople.draw(g, { key: p, x: p.ride ? x - p.face * 8 : x, y: p.ride ? p.y - (p.ride === 'buran' ? 14 : 8) : p.y, face, vy, speed: sp, t: now, phase: stepPhase(HMOT, anim, b.loco ? b.speed : 0, vy), gait: b.loco && !p.ride ? HMOT.gait : null, onStep: ghost ? null : Hero.footStep,
-      anim, animT: b.animT, item: p.action && p.action.item, wind: WP.w, gust: WP.g, look: heroLook(), tool: b.tool, target, frost: Math.max(clamp((30 - G.s.warm) / 30, 0, 1), rime), tire: b.tire || 0, wet: p.wetT > 0, blink: p.iT > 0, seed: 1, deep: typeof Depth !== 'undefined' ? Depth.heroSink : 0 }, ENV);
+      anim, animT: b.animT, item: p.action && p.action.item, load: ghost || (b.st === 'act' && !(ArtPeople.POSE[anim] && ArtPeople.POSE[anim].own)) ? null : Carry.art(), wind: WP.w, gust: WP.g, look: heroLook(), tool: b.tool, target, frost: Math.max(clamp((30 - G.s.warm) / 30, 0, 1), rime), tire: b.tire || 0, wet: p.wetT > 0, blink: p.iT > 0, seed: 1, deep: typeof Depth !== 'undefined' ? Depth.heroSink : 0 }, ENV);
     const fig2 = p.action && p.action.k === 'clear' && !ghost && typeof Trail !== 'undefined' ? () => { fig(); Trail.drawTool(g, p.action, face, p.x, p.y, !!b.loco); } : fig; // лопата в руках
     if (p.ride || p.sleeping) fig(); else sunk(g, p, 'p', fig2); // в снегу по колено/пояс/грудь — ниже снега не видно (js/depth.js)
     if (p.torch > 0 && b.tool === 'torch') light(p.x + face * 14, p.y - 38, 240, 'w', 0.9);
@@ -862,6 +862,11 @@ const GFX = (() => {
   function drawSinker(s) { sunkL(cx, { px: Ice.sinkPx(s), rx: 20, ry: 6, mode: 'water', cx: s.x, cy: s.y }, () => ArtAnimals.bear(cx, s.o, ENV)); }
   // брошенная палка на снегу/льду (Actions: G.litter, k 'stick'): тень, кора, светлый торец; в снегу — присыпана с концов
   function drawStick(q) {
+    if (q.fl) {   // летит: тень на земле, палка в воздухе крутится
+      const h = Actions.stickH(q), a = q.a + q.fl.t * 14, c = Math.cos(a) * 11, sn = Math.sin(a) * 5;
+      cx.globalAlpha = 0.2; ell(q.x, q.y + 1, 8, 2, '#27394a'); cx.globalAlpha = 1;
+      cx.lineCap = 'round'; cx.strokeStyle = '#5a3d22'; cx.lineWidth = 2.2; cx.beginPath(); cx.moveTo(q.x - c, q.y - h - sn); cx.lineTo(q.x + c, q.y - h + sn); cx.stroke(); return;
+    }
     const c = Math.cos(q.a) * 11, sn = Math.sin(q.a) * 4, onI = typeof Depth !== 'undefined' && Depth.bareIce(q.x, q.y);
     cx.lineCap = 'round'; cx.globalAlpha = 0.25; cx.strokeStyle = '#5d7a96'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(q.x - c, q.y - sn + 1.5); cx.lineTo(q.x + c, q.y + sn + 1.5); cx.stroke();
     cx.globalAlpha = 1; cx.strokeStyle = '#5a3d22'; cx.lineWidth = 2.2; cx.beginPath(); cx.moveTo(q.x - c, q.y - sn); cx.lineTo(q.x + c, q.y + sn); cx.stroke();
@@ -1340,6 +1345,9 @@ const GFX = (() => {
     }
     for (const a of G.amuletsAt || []) if ((!a.got || Actions.grabbing(a)) && vis(a.x, a.y)) L.push([a.y, 25, a]);
     if (typeof Tree !== 'undefined') { Tree.frame(); for (const q of G.chunks || []) if (vis(q.x, q.y)) L.push([q.y, 39, q]); }   // части дерева на снегу (js/tree3d.js)
+    for (const q of G.loose || []) if (vis(q.x, q.y)) L.push([q.y, 40, q]);   // вещи на снегу, туши, поленница у избы (js/carry.js)
+    for (const c of G.carcs || []) if (vis(c.x, c.y)) L.push([c.y - 2, 41, c]);
+    { const P0 = Carry.PILE(); if (vis(P0.x, P0.y)) L.push([P0.y + 4, 42, P0]); }
     for (const lg of G.logs || []) if (vis(lg.x, lg.y) || vis(lg.x + Math.cos(lg.a) * lg.len, lg.y + Math.sin(lg.a) * lg.len * 0.6)) L.push([lg.f && !lg.f.hit ? lg.y : fallY(lg), 37, lg]);
     // зоны: объекты, глыбы, транспорт на стоянке (верхом — рисуется с героем)
     for (const o of Zones.OBJS) if (o.type !== 'steam' && o.x > x0 - 120 && o.x < x1 + 120 && o.y > y0 && o.y < y1 + 120) L.push([o.y, 32, o]);
@@ -1365,7 +1373,10 @@ const GFX = (() => {
         case 0: drawTree(o, wind); break; case 1: drawHare(o); break; case 2: drawWolf(o); break; case 3: drawFire(o); break;
         case 4: drawStack(o); break; case 5: drawBear(o); break;
         case 6: drawPlayer(); if (!p.inside && !p.sleeping) watch.push({ o: p, r: figRect(p), fn: g => drawPlayer(g), hit: 0 }); break;
-        case 27: ArtWorld.sled(cx, p.sx, p.sy, G.inv.wood || 0, Math.sign(p.x - p.sx) || 1); break;
+        case 27: { const dr = Math.sign(p.x - p.sx) || 1; ArtWorld.sled(cx, p.sx, p.sy, 0, dr); Carry.drawSledLoad(cx, p.sx, p.sy, dr); } break;
+        case 40: Carry.drawLoose(cx, o); break;
+        case 41: Carry.drawCarc(cx, o); break;
+        case 42: Carry.drawPile(cx); break;
         case 7: drawUrk(); break;
         case 8: drawVera(); if (G.vera.state === 'follow') watch.push({ o: G.vera, r: figRect(G.vera), fn: g => drawVera(g), hit: 0 }); break;
         case 9: drawWreck(0); break; case 29: drawWreck(1); break; case 30: drawWreck(2); break; case 10: drawTailObj(); break;
@@ -1531,6 +1542,10 @@ const GFX = (() => {
         cx.fillStyle = '#ffd27a'; cx.fillRect(bx + pos * 140 - 2, by - 3, 4, 20);
         cx.font = '400 13px "Russo One", "PT Sans", sans-serif'; cx.textAlign = 'center'; cx.fillStyle = Math.floor(now * 6) % 2 ? '#ffd27a' : '#ebe6d3';
         Icons.text(cx, UI.isTouch ? 'КЛЮЁТ! ЖМИ :axe:' : 'КЛЮЁТ! ЖМИ E', bx + 70, by - 10, 14);
+      } else if (a.ph === 'play') {   // вываживание: прогресс до льда
+        Icons.plate(cx, hx - 46, by - 6, 92, 26);
+        Icons.draw(cx, 'fish', hx - 30, by + 7, 16, '#ebe6d3');
+        rr(hx - 18, by + 3, 56, 8, 2, '#0d140f'); rr(hx - 18, by + 3, 56 * clamp(a.t / a.dur, 0, 1), 8, 2, '#8cc3e6');
       } else {
         Icons.plate(cx, hx - 26, by - 6, 52, 26);
         Icons.draw(cx, 'rod', hx - 10, by + 7, 16, '#ebe6d3');

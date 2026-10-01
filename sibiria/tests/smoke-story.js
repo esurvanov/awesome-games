@@ -70,10 +70,12 @@ function lib() {
   };
   S.until = (day, h) => { const t = tAt(day, h); return S.run(Math.max(0, t - G.time) + 1, () => G.time >= t); };
   S.untilH = h => { let t = tAt(dayOf(), h); if (t <= G.time) t += CYCLE; return S.run(t - G.time + 1, () => G.time >= t); }; // ближайшее h:00 впереди
-  S.tp = (x, y) => { const p = G.p; p.x = x; p.y = y; p.vx = p.vy = 0; p.action = null; p.lx = x; p.ly = y; p.sx = x - 30; p.sy = y; input.mx = input.my = 0; };
-  S.act = () => { Actions.interact(true); S.run(8, () => !G.p.action && G.p.cd <= 0 && !input.auto); };   // E у дерева/ствола — сам подходит (автопуть)
+  // перед телепортом — доиграть цепочку ноши (вещь в руке → в рюкзак), иначе она осталась бы в руках
+  S.tp = (x, y) => { if (G.p.action && G.p.action.j === 'carry') S.run(10, () => !(G.p.action && G.p.action.j === 'carry')); const p = G.p; p.x = x; p.y = y; p.vx = p.vy = 0; p.action = null; p.lx = x; p.ly = y; p.sx = x - 30; p.sy = y; input.mx = input.my = 0; };
+  S.act = () => { Actions.interact(true); S.run(14, () => !G.p.action && G.p.cd <= 0 && !input.auto); };   // цепочка: работа → вещь на снег → в руку → в рюкзак   // E у дерева/ствола — сам подходит (автопуть)
   // заговорить — когда руки свободны (забота подкидывает в печь — это теперь шаги ≈2 с, js/actions.js stoveFeed)
-  S.talk = (prefer) => { if (G.p.action) { const c0 = S.care; S.care = false; S.run(5, () => !G.p.action); S.care = c0; } S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
+  // еда из лабаза — сперва дойти до него (автопуть): дождаться и вернуться к собеседнику
+  S.talk = (prefer) => { if (G.p.action || input.auto) { const c0 = S.care, x = G.p.x, y = G.p.y; S.care = false; S.run(8, () => !G.p.action && !input.auto); S.care = c0; S.tp(x, y); } S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
   const IN = () => S.tp(HUT.x + 20, HUT.y - 30); // середина избы (не у печи/верстака/кровати)
   S.IN = IN;
 
@@ -119,6 +121,16 @@ function lib() {
   S.takeN = (k, n) => S.panel('chest', `[data-take="${k}"]`, n);
 
   // ---------- действия мира ----------
+  // охапку — в поленницу у избы (по одной) и обратно на место
+  S.deliver = function () {
+    if (!Carry.busy()) return; const x = G.p.x, y = G.p.y, q = Carry.PILE();
+    S.tp(q.x - 26, q.y + 16); S.tick(); if (!Carry.put('pile', [])) Carry.stow([]); S.run(20, () => !G.p.action && !input.auto); S.tp(x, y); S.tick();
+  };
+  // из поленницы в охапку (до n и пока берётся)
+  S.fromPile = function (n) {
+    const q = Carry.PILE(); S.tp(q.x - 26, q.y + 16); S.tick();
+    for (let i = 0; i < n && (G.chest.wood || 0) > 0 && !Carry.cantTake({ kind: 'chunk', mass: Inv.wkg(G.chest) / G.chest.wood, len: 0.45, vol: 0.006 }); i++) { Carry.pick('pile', null, []); S.run(3, () => !G.p.action); }
+  };
   S.wreck = function (w, until) {
     const P = POI[w], at = w === 'cockpit' ? [P.x, P.y + 90] : [P.x + 20, P.y + 100];
     let n = 0;
@@ -133,8 +145,9 @@ function lib() {
       S.tp(t.x + 26, t.y + 4); S.tick();
       const before = G.stats.wood; S.act(); S.act();
       S.run(4, () => !(G.logs || []).some(L => L.f));   // валка: надлом и падение, ствол ложится
-      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки)
-      for (let j = 0; j < 40; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) break; S.act(); }   // обрубка, чурки, подбор по одной
+      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки); охапка полна — отнести в поленницу и вернуться
+      for (let j = 0; j < 60; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) { if (Carry.busy() && (G.chunks || []).some(q => Tree.isWood(q) && dist2(q, G.p) < 90 * 90)) { S.deliver(); continue; } break; } S.act(); }
+      S.deliver();
       if (G.stats.wood === before && t.wood > 0 && Inv.weight() > Inv.capKg() + 6) break;
     }
     return G.stats.wood - w0;
@@ -144,6 +157,7 @@ function lib() {
     for (let k = 0; k < 60 && G.stats.hares === n0; k++) {
       const h = Space.nearest(G.hares, G.p.x, G.p.y); if (!h) { S.run(1); continue; }
       S.tp(h.x + 6, h.y); Actions.interact(true); S.run(0.5);
+      S.run(20, () => !G.p.action && !Carry.busy() && !input.auto);   // тушка в руке → на снег → разделка → шкурка и мясо в рюкзак
     }
     return G.stats.hares > n0;
   };
@@ -153,7 +167,7 @@ function lib() {
     let wakes = 0;
     for (let n = 0; n < 80 && !morning() && state === 'play'; n++) {
       if (!insideHut(G.p.x, G.p.y)) IN();
-      stoke(); S.tp(SPOT.bed.x, SPOT.bed.y); S.tick();
+      stoke(); if (n === 0) L(`печь ${G.hut.fuel | 0} с (${(G.hut.fuel / Stove.secPerLog()).toFixed(1)} пол.) · поленница ${G.chest.wood} · руки ${Carry.count()}`); S.tp(SPOT.bed.x, SPOT.bed.y); S.tick();
       Actions.interact(false); S.run(4, () => G.p.sleeping || !Actions.busy());
       if (!G.p.sleeping) { S.run(5); continue; } // не дают уснуть (шатун/волки рядом) — бодрствуем в избе
       S.run(CYCLE * 0.8, () => !G.p.sleeping);
@@ -164,10 +178,12 @@ function lib() {
   S.stacks = function (light) {
     for (const s of G.stacks) {
       if (s.lit > 0) continue;
+      if (s.wood < 4 && Carry.woodN() + (G.inv.wood || 0) < 4 - s.wood) S.fromPile(4 - s.wood - Carry.woodN());   // дрова на кучу — охапкой из поленницы
       S.tp(s.x, s.y + 34); S.tick();
       for (let i = 0; i < 8 && s.wood < 4; i++) { Actions.interact(true); S.run(1.6, () => !G.p.action); S.run(0.1); }   // полено за поленом из рук (≈1 с каждое)
       // рядом может оказаться заяц/сугроб (первое E — «поймать»/«пнуть») — жмём ещё, как игрок
       if (light) for (let i = 0; i < 4 && !(s.lit > 0); i++) { S.tp(s.x, s.y + 34); S.tick(); S.act(); S.run(0.3); }
+      if (s.wood < 4) { S.tp(s.x, s.y + 34); S.tick(); const c = Actions.context(); L(`куча ${s.wood}/4 · руки ${Carry.woodN()} · поленница ${G.chest.wood} · E: ${c && c.k}/${c && c.label} · ${S.toasts.slice(-2).join(' / ')}`); }
     }
   };
   // чекпоинт/сейв → слот → загрузка настоящим путём (UI.loadSlot = кнопка «Загрузить»)
@@ -318,8 +334,7 @@ function phases() {
     ok(site && !site.done, '🛬 стройка площадки заложена (дрова из лабаза)');
     S.run(400, () => { if (site.done) return true; if (dist2(G.p, site) > 70 * 70) S.tp(site.x, site.y + 40); if (!G.p.action && G.p.cd <= 0) Actions.interact(true); return false; });
     ok(site.done && padDone(), `🛬 площадка построена к ${hourOf().toFixed(1)} ч`);
-    S.IN(); S.tp(SPOT.chest.x - 10, SPOT.chest.y); S.tick(); S.takeN('wood', 12);
-    S.stacks(false);
+    S.stacks(false);   // по охапке из поленницы на каждую кучу
     ok(G.stacks.every(s => s.wood >= 4), '🪵 3 кучи на мари по 4');
     S.IN(); S.until(4, 20.5); ok(S.sleepNight(), `😴 ночь 4 → ${hourOf().toFixed(1)} ч дня ${G.day}`);
     ok(G.day === 5 && G.flags.slept && JSON.parse(checkpoint).day === 5, '💾 утро 5-го дня — автосейв');
@@ -332,8 +347,7 @@ function phases() {
     S.IN(); S.run(300, () => G.heli);
     ok(!!G.heli, `🚁 гул винтов в ${hourOf().toFixed(2)} ч дня ${G.day}`);
     const need = G.stacks.reduce((a, s) => a + (s.lit > 0 ? 0 : 4 - s.wood), 0);
-    S.tp(SPOT.chest.x - 10, SPOT.chest.y); S.tick(); S.takeN('wood', need);
-    if (Inv.cnt('wood', false) < need) S.chop(need - Inv.cnt('wood', false));
+    if ((G.chest.wood || 0) + Inv.cnt('wood', false) < need) S.chop(need - Inv.cnt('wood', false) - (G.chest.wood || 0));
     S.stacks(true);
     if (!(G.flags.rescued || G.stacks.every(s => s.lit > 0))) L('кучи: ' + JSON.stringify(G.stacks) + ' inv ' + JSON.stringify(G.inv) + ' modal ' + UI.kind + ' heli ' + JSON.stringify(G.heli) + ' · ' + S.toasts.slice(-4).join(' / '));
     ok(G.flags.rescued || G.stacks.every(s => s.lit > 0), '🔥 три кучи горят при гуле');
@@ -381,6 +395,7 @@ function phases() {
       return r;
     };
     const b1 = [build('woodshed'), build('smoke'), build('balok')];
+    L('стройки заложены: ' + b1.map(b => b && `${b.type}#${b.id}@${b.x | 0},${b.y | 0}`).join(' ') + ' · ' + G.col.units.filter(u => !u.pet).map(u => `${u.task.k}${u.task.b || ''}@${u.x | 0},${u.y | 0}`).join(' ') + ' · лабаз дров ' + G.chest.wood);
     ok(finish(b1, 240), `🏗 дровяник, коптильня, балок построены бичами (${hourOf().toFixed(1)} ч)`);
     S.tp(at, ay); S.tick(); S.panel('epoch', '[data-epoch]');
     ok(G.col.epT > 0, '⏫ эпоха II «Заимка» — переход начат');

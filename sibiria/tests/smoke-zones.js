@@ -89,13 +89,14 @@ function scene() {
   ok(B.fixed === 1, '«Буран» починен');
   Inv.add('kero', 1); Actions.interact(false); ok(B.fuel >= TUNE.tr.buranPx, '«Буран» заправлен: ' + B.fuel);
   p.cd = 0; const cm = Actions.context(); ok(cm && cm.k === 'veh', 'сесть на «Буран»'); Actions.interact(false);
+  run(2.5, () => {});   // посадка — процесс: подойти сбоку, опуститься на сиденье (0,7 с)
   ok(p.ride === 'buran', 'верхом на «Буране»');
   out.buranSp = Math.round(Hero.speed()); ok(out.buranSp > 400, '«Буран» быстрый: ' + out.buranSp);
   const f0 = B.fuel, bx = p.x; run(2, () => { input.mx = 1; input.my = 0; }); input.mx = 0;
   out.buranPx = Math.round(p.x - bx); ok(out.buranPx > 600 && B.fuel < f0 - 500, `«Буран» проехал ${out.buranPx} px, бензин ${f0}→${Math.round(B.fuel)}`);
   const kz = Z('kurum'); const ox = p.x, oy = p.y; p.x = kz.x; p.y = kz.y; Transport.moved(ox, oy);
   ok(!p.ride && Math.hypot(B.x - ox, B.y - oy) < 40, '«Буран» в курумник не въехал — остался на краю');
-  go(B.x + 20, B.y); p.cd = 0; G.hares = []; const c2 = Actions.context(); Actions.interact(false); ok(p.ride === 'buran', 'снова сел: ' + JSON.stringify(c2 && c2.k) + ' ' + JSON.stringify(B)); B.fuel = 5; run(0.5, () => { input.mx = 1; }); input.mx = 0;
+  run(1, () => {}); go(B.x + 20, B.y); p.cd = 0; G.hares = []; const c2 = Actions.context(); Actions.interact(false); run(2.5, () => {}); ok(p.ride === 'buran', 'снова сел: ' + JSON.stringify(c2 && c2.k) + ' ' + JSON.stringify(B)); B.fuel = 5; run(0.5, () => { input.mx = 1; }); input.mx = 0;
   ok(!p.ride && B.fuel === 0, 'бензин кончился — слез');
   // метеостанция: прогноз
   const jr = Zones.obj('journal'); go(jr.x, jr.y + 40); G.storm = { a: tAt(G.day + 1, 11), b: tAt(G.day + 1, 13), omen: 0 };
@@ -107,9 +108,12 @@ function scene() {
   out.trail = +(spTrail / spTaiga).toFixed(2); ok(spTrail > spTaiga * 1.3, 'зимник быстрее целины ×' + out.trail);
   // стойбище: упряжка в аренду, олени быстрые, в гарь не идут, аренда кончается
   const pole = Zones.obj('pole'); go(pole.x, pole.y + 40); Inv.add('meat', 3);
-  const cr = Actions.context(); ok(cr && cr.k === 'rent', 'шест стойбища: «Упряжка»'); Actions.interact(false);
-  ok(G.veh.deer && Inv.cnt('meat', false) === 0, 'упряжка взята за :meat:3');
-  const D = G.veh.deer; go(D.x + 20, D.y); p.cd = 0; Actions.interact(false); ok(p.ride === 'deer', 'в нартах');
+  const cr = Actions.context(); ok(cr && cr.k === 'rent', 'шест стойбища: «Упряжка»'); p.cd = 0; Actions.interact(false);
+  // аренда — процесс: плата из рук в касание (жест «положить»), упряжка подъезжает из-за края кадра
+  const a0 = p.action && p.action.k; run(1.4); ok(G.veh.deer && Inv.cnt('meat', false) === 0, 'упряжка взята за :meat:3 · ' + JSON.stringify({ a0, a: p.action && p.action.k, meat: Inv.cnt('meat', false), deer: G.veh.deer, day: G.day, h: +hourOf().toFixed(2) }));
+  for (let i = 0; i < 1200 && G.veh.deer && G.veh.deer.to; i++) { update(0.05); if (G.s.hp < 30) heal(); }
+  ok(G.veh.deer && !G.veh.deer.to, 'упряжка подъехала');
+  const D = G.veh.deer || { x: p.x, y: p.y }; go(D.x + 20, D.y); p.cd = 0; Actions.interact(false); run(2, () => {}); ok(p.ride === 'deer', 'в нартах');
   out.deerSp = Math.round(Hero.speed()); ok(out.deerSp >= 280, 'упряжка: ' + out.deerSp + ' px/с');
   // сам якорь зоны — теперь «натоптано» (camp: 200 у сгоревшего балка рядом, A6); берём точку в стороне, где terrainKey точно 'gar'
   const gz = Z('gar'); const dx0 = p.x, dy0 = p.y; p.x = gz.x - 300; p.y = gz.y - 300; Transport.moved(dx0, dy0); ok(!p.ride, 'олени в гарь не идут');

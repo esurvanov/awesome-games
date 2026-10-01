@@ -24,18 +24,29 @@ const Actions = (() => {
   // cx — жест, который E/движение прерывают без потерь (эффект уже применён): взять в руки, поесть, осмотр, чтение
   const CRAFT_T = { shovel: 4, torch: 1.2, tea: 2.5, stew: 4, snare: 3, lure: 3, trap: 4.5, hat: 5, dokha: 7, sled: 8, antenna: 5, radio: 8 };
   const EAT_ITEM = { stew: 'bowl', can: 'can', dried: 'dried', meat: 'meat', fish: 'fish', honey: 'jar' };
-  // взять вещь: наклон → в руке ≈1 с → в сумку (поза takeItem); tg — где лежит, th — высота
-  function take(item, tg, th) {
-    const p = G.p; if (p.ride || p.sleeping) return;
-    if (p.action && p.action.cx) p.action = null;
-    if (p.action) return;
-    faceTo(tg); p.action = { k: 'take', t: 0, dur: D().takeItem || 2.2, pose: 'takeItem', item, tg: { x: tg.x, y: tg.y }, th: th || 0, o: tg, cx: 1, fb: 'pickUp' };
-  }
   // вещь ещё лежит, пока рука до неё не дотянулась (для рисования: лампа, сэвэки, записка на земле)
   function grabbing(o) {
     const a = G.p.action; if (!a || a.o !== o) return false;
-    if (a.k === 'take') return a.t / a.dur < (a.grab || 0.21);
+    if (a.k === 'job' && a.j === 'carry' && a.s === 'pick') return !a.got;
     return false;
+  }
+  // дрова на сжигание: руки → (wc: поленница) → рюкзак; {kg, l} | null — масса уходит в огонь как есть
+  function useWood(wc) {
+    const h = Carry.takeWood(); if (h) return h;
+    for (const c of wc ? [G.chest, G.inv] : [G.inv]) { const r = Inv.pull(c, 'wood', 1); if (r.n) return r; }
+    return null;
+  }
+  const woodHave = wc => Carry.woodN() + (G.inv.wood || 0) + (wc ? G.chest.wood || 0 : 0);
+  // хлыст можно тащить: обрублен, вершина отрезана, не тяжелее ~2,5 «охапок» на волокуше (≤ 160 кг)
+  const dragOk = L => L && !L.f && L.n > 0 && logCut(L) >= 1 && (L.top || L.zt == null) && typeof Tree !== 'undefined' && L.sk != null && Carry.logKg(L) <= 160;
+  // руки заняты ношей: работа (рубка, лунка, рыбалка) — сначала положить
+  function handsBusy(silent) { if (!Carry.busy()) return false; if (!silent) Fx.toast(':hand: Руки заняты · X — положить, E — убрать'); G.p.cd = 0.4; return true; }
+  // удар (волк, шатун): замах — касание в 0.7 (≥ 0,3 с) — удар; с ношей — сперва бросить её к ногам
+  function strike(o, kind) {
+    const p = G.p; if (p.action && p.action.cx) p.action = null; if (p.action) return false;
+    if (Carry.busy()) return Carry.dropAll([{ k: 'strike', o, kind }]);
+    faceTo(o); p.action = { k: 'strike', t: 0, dur: 0.45, pose: 'swing', o, kind, tg: { x: o.x, y: o.y }, th: -16, marks: [0.7], fb: 'swing' }; p.cd = 0.4;
+    return true;
   }
   const notePos = (id, out) => typeof Live !== 'undefined' && Live.notePos ? Live.notePos(id, out) : NOTES[id];
   function noteInHand(id) {
@@ -254,12 +265,13 @@ const Actions = (() => {
     if (G.bear && G.bear.st !== 'gone' && dist2(G.bear, p) < A.bearR * A.bearR) return { k: 'bear', label: p.torch > 0 ? 'Ткнуть факелом' : 'Ударить', o: G.bear };
     const w = nearest(G.wolves, A.wolfR); if (w) return { k: 'wolf', label: 'Ударить', o: w };
     // заяц (замер рядом) не перехватывает разговор: человек ближе зайца — сначала человек
-    const h = nearest(Space.hares, A.hareR, liveHare);
+    const h = !Carry.busy() && nearest(Space.hares, A.hareR, liveHare);   // руки заняты ношей — зайца не схватить
     if (h) { const nc = !p.ride && Npc.context(p); if (!(nc && nc.o && nc.o.x != null && dist2(nc.o, p) < dist2(h, p))) return { k: 'hare', label: 'Поймать', o: h }; }
     const tc = Transport.context(p); if (tc) return tc;
     if (p.ride) return null; // верхом — только «слезть»
+    const cc = Carry.context(p); if (cc) return cc;   // с ношей у нарт/поленницы — уложить; с пустыми руками у поленницы — взять
     // из избы палку не бросить (стены) — и «Бросить палку» не перехватывает у лежанки «Спать», пока волки кружат у избы
-    const wf = !p.inside && nearest(G.wolves, A.throwR, w => w.st !== 'retreat'); if (wf) return { k: 'throw', label: 'Бросить палку', o: wf };
+    const wf = !p.inside && !Carry.busy() && nearest(G.wolves, A.throwR, w => w.st !== 'retreat'); if (wf) return { k: 'throw', label: 'Бросить палку', o: wf };
     const npc = Npc.context(p); if (npc) return npc;
     const zc = Zones.context(p) || Transport.urkContext(p); if (zc) return zc;
     if (!G.labaz && dist2(POI.labaz, p) < 70 * 70) return { k: 'labaz', label: 'Лабаз · :meat:2' };
@@ -295,11 +307,18 @@ const Actions = (() => {
     if (!G.flags.tube && dist2(TUBE_POS, p) < 44 * 44) return { k: 'tube', label: 'Взять :tube:' };
     // работа с деревом (чурки, ствол) — раньше следов и сугробов: удержание E не упирается в «мягкий» жест
     if (!p.inside) {
-      const ch = nearChunks(46); if (ch.length) { const q = ch.length === 1 ? ch[0] : null, nm = q && q.kind === 'butt' ? 'комель' : q && q.kind === 'top' ? 'вершину' : ch.length > 1 ? 'чурки' : 'чурку';
-        return { k: 'chunks', label: `Взять ${nm} · ${ch.length > 1 ? ch.length + ' шт' : Math.round(q.mass || Tree.KG) + ' кг'}`, o: ch }; }
+      // удержание E на разделке — разделка до конца (чурки соберёт следующее нажатие)
+      if (input.act && HOLD.last === 'log' && !Carry.busy()) { const lg = nearLog(44); if (lg) return { k: 'log', label: logCut(lg) < 1 ? 'Обрубить сучья' : lg.zt != null && !lg.top ? 'Отрубить вершину' : `Разделать · ${lg.n}`, rep: 1, o: lg }; }
+      // пустые руки у ствола — сперва разделка (чурки соберёт, когда ствол разделан или руки уже набирают охапку)
+      const lg0 = !Carry.busy() && nearLog(44); if (lg0) return { k: 'log', label: logCut(lg0) < 1 ? 'Обрубить сучья' : lg0.zt != null && !lg0.top ? 'Отрубить вершину' : `Разделать · ${lg0.n}`, alt: dragOk(lg0) ? `Волоком · ${Math.round(Carry.logKg(lg0))} кг` : null, rep: 1, o: lg0 };
+      const ch = nearChunks(46).filter(q => !Carry.cantTake(q)); if (ch.length) { const q = ch.slice().sort((a, b) => dist2(a, p) - dist2(b, p))[0], nm = q.kind === 'butt' ? 'комель' : q.kind === 'top' ? 'вершину' : 'чурку';
+        return { k: 'chunks', label: `Взять ${nm} · ${(q.mass || Tree.KG).toFixed(1).replace('.', ',')} кг` + (Carry.busy() ? ` · :hand:${Carry.count() + 1}` : ''), o: ch }; }
       const lg = nearLog(44); if (lg) return { k: 'log', label: logCut(lg) < 1 ? 'Обрубить сучья' : lg.zt != null && !lg.top ? 'Отрубить вершину' : `Разделать · ${lg.n}`, rep: 1, o: lg };
-      const sk = (G.litter || []).find(q => q.k === 'stick' && !q.vx && dist2(q, p) < 26 * 26); if (sk) return { k: 'litter', label: 'Подобрать палку', o: sk, soft: 1 }; // палка под ногами — раньше сугроба
+      const sk = !Carry.busy() && (G.litter || []).find(q => q.k === 'stick' && !q.vx && !q.fl && dist2(q, p) < 26 * 26); if (sk) return { k: 'litter', label: 'Подобрать палку', o: sk, soft: 1 }; // палка под ногами — раньше сугроба
+      const lc = Carry.nearCtx(p); if (lc) return lc;   // вещи на снегу, туши (палка под ногами — раньше)
+      const sc = Carry.stowCtx(p); if (sc) return sc;   // с ношей — убрать в рюкзак (что влезет) или «руки полны»
     }
+    if (p.inside && Carry.busy() && !(dist2(SPOT.stove, p) < 50 * 50 && Carry.woodN())) { const sc = Carry.stowCtx(p); if (sc) return sc; }
     if (!G.gear.shovel && !G.flags.shovel && !p.inside && typeof Trail !== 'undefined' && dist2(Trail.SHOVEL, p) < 40 * 40) return { k: 'shovel', label: 'Взять лопату :shovel:' };
     if (!p.inside && !onIce(p.x, p.y)) {
       // сугроб под ногами не перехватывает «Рубить»: дерево рядом, герой к нему лицом или оно ближе середины сугроба — дерево (ниже)
@@ -315,9 +334,10 @@ const Actions = (() => {
       for (let i = G.prints.length - 1, n = 0; i >= 0 && n < 160; i--, n++) { const f = G.prints[i]; if (f.k !== 'p' && f.life > 3 && !READ.has(f)) { const q = dist2(f, p); if (q < pd) { pd = q; pr = f; } } }
       if (pr) return { k: 'tracks', label: 'Читать след', o: pr, soft: 1 };
     }
-    if (!p.inside) {
-      const lt = (G.litter || []).find(q => dist2(q, p) < 34 * 34); if (lt) return { k: 'litter', label: lt.k === 'stick' ? 'Подобрать палку' : 'Подобрать банку', o: lt, soft: 1 };
+    if (!p.inside && !Carry.busy()) {
+      const lt = (G.litter || []).find(q => !q.fl && dist2(q, p) < 34 * 34); if (lt) return { k: 'litter', label: lt.k === 'stick' ? 'Подобрать палку' : 'Подобрать банку', o: lt, soft: 1 };
     }
+    { const sc = Carry.sledCtx(p); if (sc) return sc; }   // лицом к своим нартам — взять с них
     const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall); if (t) return { k: 'tree', label: 'Рубить', alt: 'Трясти', rep: 1, o: t };
     const sp = !p.inside && nearest(Space.trees, 40, t => t.wood <= 0 && !t.wall && t.stage !== 1); if (sp) return { k: 'rest', label: 'Присесть', o: sp, soft: 1 };
     if (onIce(p.x, p.y)) {
@@ -346,7 +366,7 @@ const Actions = (() => {
     if (!c) { if (!silent) Fx.toast(':close: Здесь нечего делать'); p.cd = 0.3; return; }
     if (c.npc) { if (!silent) { faceTo(c.o); UI.dialog(Npc.talk(c.k)); } return; }
     if (silent && c.soft) return; // удержание E повторяет только работу, не жесты
-    primary(c, silent);
+    primary(c, silent); HOLD.last = c.k;
     if (!silent) { HOLD.c = c; HOLD.a = p.action; HOLD.t = 0; HOLD.done = false; }
   }
   function primary(c, silent) {
@@ -365,21 +385,16 @@ const Actions = (() => {
       case 'rest': { const o = c.o, sd = Math.sign(p.x - o.x) || -p.face, q = { x: o.x + sd * 12, y: o.y + 3 };
         const sit = () => { const P = G.p; P.face = -sd; P.action = { k: 'rest', t: 0, dur: 1e6, pose: 'rest', loop: 1, o, fb: 'sit', x0: P.x, y0: P.y, sx: o.x + P.face * 2, sy: o.y + 3 }; };
         jobAt(q.x, q.y, sit, 2); } break;
-      case 'wolf': Wolves.hit(c.o); break;
-      case 'bear': Bear.hit(c.o); break;
-      case 'hare': {
-        const h = c.o; G.hares.splice(G.hares.indexOf(h), 1);
-        Inv.add('meat'); Inv.add('hare'); G.stats.hares++; Hero.xp('hunt'); p.cd = 0.4; take('hare', h, -2); // поднял за уши, рассмотрел — в сумку
-        Fx.floatText(h.x, h.y - 20, '+:meat: +:hare:'); Fx.burst(h.x, h.y - 6, 10, '#ffffff'); Sound.pick();
-        break;
-      }
+      case 'wolf': strike(c.o, 'wolf'); break;
+      case 'bear': strike(c.o, 'bear'); break;
+      // заяц: схватил (уходит из мира в касание) → тушка в руке → на снег → разделать (шкурка, мясо) → куски в рюкзак
+      case 'hare': if (handsBusy(silent)) break; c.o.t = Math.max(c.o.t || 0, 1.2); Carry.pick('hare', c.o, [{ k: 'lay' }]); p.cd = 0.4; break;
+      case 'carry': Carry.primary(c, silent); break;
       case 'note': if (!silent) startNote(c.o); break;
-      case 'labaz': { faceTo(POI.labaz); G.labaz = 1; Inv.add('meat', 2); G.notes.labaz = 1; Sound.pick(); take('meat', { x: POI.labaz.x - 8, y: POI.labaz.y }, -30);
+      case 'labaz': { if (handsBusy(silent)) break; Carry.pick('labaz', null, [{ k: 'stow' }]);
         const n = NOTES.labaz; plate(n.t, n.i, { x: POI.labaz.x, y: POI.labaz.y - 78 }, { life: 7, obj: 1 }); } break;
       case 'stash': if (c.o.dg < 1) { stashDig(c.o); break; } if (!silent) { faceTo(c.o); Hero.play('open', { react: 1, tg: c.o }); Interact.emit('open', { who: 'p', obj: 'stash', target: c.o, x: c.o.x, y: c.o.y }); UI.openStash(c.o); } break;
-      case 'amulet': take('amulet', c.o, -2); c.o.got = 1; G.amulets++; Fx.toast(`:sevek: Сэвэки ${G.amulets}/12`); Sound.ok2(); Fx.burst(c.o.x, c.o.y - 10, 14, '#ffd27a');
-        Quests.check('amulets');
-        break;
+      case 'amulet': if (handsBusy(silent)) break; Carry.pick('amulet', c.o, [{ k: 'stow' }]); Fx.burst(c.o.x, c.o.y - 10, 8, '#ffd27a'); break;
       case 'site': faceTo(c.o); p.buildT = 0.35; p.buildB = c.o.id; p.cd = 0.25; Hero.play('swing', { react: 1, tg: c.o, ik: 0 }); Interact.emit('work', { who: 'p', what: 'build', x: c.o.x, y: c.o.y }); break;
       case 'bld': if (!silent) { faceTo(c.o); UI.openCraft(c.o.type === 'market' ? 'market' : 'epoch'); } break;
       case 'inspect': if (!silent) { faceTo(c.o); p.action = { k: 'inspect', t: 0, dur: clamp(2 + c.o.t.length * 0.045, 3, 7), pose: 'inspect', loop: 1, tg: { x: c.o.x, y: c.o.y }, th: -12, o: c.o, cx: 1, fb: 'crouch' };
@@ -393,11 +408,12 @@ const Actions = (() => {
       case 'bench': if (!silent) { faceTo(SPOT.bench); UI.openCraft(G.hut.bench ? 'craft' : 'hut'); } break;
       case 'chest': if (!silent) { faceTo(SPOT.chest); Hero.play('open', { react: 1, tg: SPOT.chest }); UI.openChest(); } break;
       case 'bed': if (!silent) trySleep(); break;
-      // чурки — по одной за жест: с земли уходит в момент касания рукой (contacts), удержание E собирает кучу
-      case 'chunks': { const q = c.o.slice().sort((a, b) => dist2(a, p) - dist2(b, p))[0]; faceTo(q);
-        p.action = { k: 'take', t: 0, dur: D().takeChunk || 1, pose: 'takeChunk', item: 'chunk', tg: { x: q.x, y: q.y }, th: -2, o: q, grab: 0.34, chunk: 1, fb: 'pickUp' }; p.cd = 0.1; } break;
-      case 'litter': G.litter.splice(G.litter.indexOf(c.o), 1); if (c.o.k === 'stick') { faceTo(c.o); Hero.play('pickUp', { react: 1, tg: c.o }); Sound.pick(); break; } take('canE', c.o, -1); Sound.tone && Sound.tone('triangle', 1300, 900, 0.08, 0.03); break;
+      // чурки — по одной за жест: с земли в руку в момент касания, к груди — в охапку; удержание E собирает охапку (до armsN/armsKg)
+      case 'chunks': { const q = c.o.filter(q => !Carry.cantTake(q)).sort((a, b) => dist2(a, p) - dist2(b, p))[0]; if (!q) { if (!silent) Fx.toast(Carry.FULL[Carry.cantTake(c.o[0])] || ':hand: Руки полны'); break; }
+        Carry.pick('part', q, []); p.cd = 0.1; } break;
+      case 'litter': if (handsBusy(silent)) break; Carry.pick('litter', c.o, [{ k: 'stow' }]); break;
       case 'log': {
+        if (handsBusy(silent)) break;
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
         // сам подходит сбоку к месту работы (край кроны / конец ствола) и рубит туда
         const L = c.o, q = workSpot(L, workPt(L));
@@ -407,12 +423,10 @@ const Actions = (() => {
       case 'trap': {
         const t = c.o; p.cd = 0.4; faceTo(t);
         // пустую: сложить (пружину спустить/петлю снять) → в руку → в рюкзак; недонастороженную — настораживать дальше
+        if (handsBusy(silent)) break;
         if (!t.catch) { trapStep(t, t.set < 1 ? 'set' : 'unset'); break; }
-        if (t.catch === 'hare') take('hare', t, -2); else Hero.play('pickUp', { react: 1, tg: t });
-        if (t.catch) {
-          if (t.catch === 'hare') { Inv.add('meat'); Inv.add('hare'); Fx.floatText(t.x, t.y - 20, '+:meat: +:hare:'); } else { Inv.add(t.catch); Fx.floatText(t.x, t.y - 20, '+' + ITEMS[t.catch].i); }
-          Hero.xp('hunt'); t.catch = null; t.t = G.time; Sound.pick();
-        } else { G.traps.splice(G.traps.indexOf(t), 1); Inv.add(t.kind); }
+        // улов: из ловушки в руку в касание → заяц — на снег и разделать, соболь — в карман
+        Carry.pick('trapc', t, [{ k: 'stow' }]);
         break;
       }
       case 'stack': {
@@ -423,9 +437,10 @@ const Actions = (() => {
         break;
       }
       // обломки: отжимает листы руками (поза pry, без топора) лицом к корпусу; нет позы — запасная рубка
-      case 'wreck': { const pose = Hero.chopPose(), tg = wreckPt(c.o); faceTo(tg); p.action = { k: 'wreck', t: 0, dur: A.wreckT * (A.chopK[pose] || 1), o: c.o, pose: 'pry', fb: pose, loop: 1, tg, th: -30 }; } break;
-      case 'tube': take('tube', TUBE_POS, -2); G.flags.tube = 1; Inv.add('tube'); Fx.toast(':tube: Радиолампа Гоши'); Sound.ok2(); break;
+      case 'wreck': { if (handsBusy(silent)) break; const pose = Hero.chopPose(), tg = wreckPt(c.o); faceTo(tg); p.action = { k: 'wreck', t: 0, dur: A.wreckT * (A.chopK[pose] || 1), o: c.o, pose: 'pry', fb: pose, loop: 1, tg, th: -30 }; } break;
+      case 'tube': if (handsBusy(silent)) break; Carry.pick('tube', TUBE_POS, [{ k: 'stow' }]); break;
       case 'tree': {
+        if (handsBusy(silent)) break;
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
         // прицел: герой сам подходит к боковой точке у ствола (ближняя свободная сторона) — лезвие в ствол; издалека и из-за дерева не рубит
         const t = c.o, q = chopSpot(t);
@@ -433,9 +448,9 @@ const Actions = (() => {
         if (Math.hypot(q.x - p.x, q.y - p.y) > 4) { autoTo(q.x, q.y, 1.5, () => { if (t.wood > 0 && !G.p.action) startChop(t); }); p.cd = 0.2; break; }
         startChop(t);
       } break;
-      case 'fish': p.action = { k: 'fish', ph: 'wait', t: 0, dur: rnd(1.5, 4) - 0.2 * (Hero.lvl('fish') - 1), o: c.o }; break;
+      case 'fish': if (handsBusy(silent)) break; p.action = { k: 'fish', ph: 'wait', t: 0, dur: rnd(1.5, 4) - 0.2 * (Hero.lvl('fish') - 1), o: c.o }; break;
       // лунка растёт по ударам пешни (h.dg 0..1): начатую — додолбить
-      case 'dig': if (c.o) faceTo(c.o); p.action = { k: 'dig', t: 0, dur: Math.max(1, A.digT * (1 - (c.o ? c.o.dg || 0 : 0))), o: c.o || null, dg0: c.o ? c.o.dg || 0 : 0 }; break;
+      case 'dig': if (handsBusy(silent)) break; if (c.o) faceTo(c.o); p.action = { k: 'dig', t: 0, dur: Math.max(1, A.digT * (1 - (c.o ? c.o.dg || 0 : 0))), o: c.o || null, dg0: c.o ? c.o.dg || 0 : 0 }; break;
     }
   }
 
@@ -495,6 +510,13 @@ const Actions = (() => {
         // клюёт! полоса с зелёной зоной — жми E вовремя
         const w = clamp(0.14 + 0.03 * (Hero.lvl('fish') - 1) + (G.gear.lure ? 0.06 : 0) + (G.col && G.col.techs.nets ? 0.04 : 0), 0.1, 0.4);
         G.p.action = { k: 'fish', ph: 'bite', t: 0, dur: 2.6, o: a.o, z: rnd(0.1, 0.9 - w), w, sp: rnd(1.3, 2.2) }; Sound.tone('sine', 1200, 1500, 0.08, 0.2);
+      } else if (a.ph === 'play') {
+        const h = a.o, p = G.p, sd = Math.sign(p.x - h.x) || -p.face;
+        G.stats.fish++; G.stats.bestKg = Math.max(G.stats.bestKg || 0, a.kg); ArtWorld.fx.splash(G.parts, h.x, h.y);
+        Fx.floatText(h.x, h.y - 30, `:fish: ${a.fn} · ${a.kg.toFixed(2).replace('.', ',')} кг`); Fx.burst(h.x, h.y, 10, '#b9e2ff'); Sound.splash(); Interact.emit('work', { who: 'p', what: 'fish', x: h.x, y: h.y });
+        if (a.big) Fx.toast(`:fish: Таймень! ${a.kg.toFixed(1).replace('.', ',')} кг`);
+        const q = Carry.drop('fish', a.n, h.x - sd * 6, h.y + 16, { kg: a.kg, fx: h.x, fy: h.y });   // на лёд перед лункой — видно, как бьётся
+        Carry.run([{ k: 'wait', o: q, t: 1.1 }, { k: 'pick', src: 'loose', o: q }, { k: 'stow' }]);
       } else Fx.floatText(a.o.x, a.o.y - 30, 'ушла');
     } else if (a.k === 'dig') {
       // последний удар — вода: лунка готова
@@ -502,24 +524,28 @@ const Actions = (() => {
       ArtWorld.fx.splash(G.parts, h.x, h.y); Sound.hit();
       Interact.emit('work', { who: 'p', what: 'dig', x: h.x, y: h.y });
     } else if (a.k === 'wreck') {
+      // отжал лист — находка выпала на снег у корпуса (своим полётом), дальше — поднять и убрать (цепочка)
       const pool = G.wreck[a.o], id = pool.shift(); if (!id) return;
-      if (id === 'saw') { G.gear.saw = 1; Fx.toast(':saw: Пила! Рубка быстрее'); }
+      const at = toward(a.tg || POI[a.o], 20);
+      if (id === 'saw') { G.gear.saw = 1; Fx.toast(':saw: Пила! Рубка быстрее'); Sound.pick(); Hero.play('pickUp', { react: 1, tg: at }); }
       else {
-        Inv.add(id); if (id === 'scrap') G.stats.scrap++;
+        if (id === 'scrap') G.stats.scrap++;
         if (id === 'quartz') { G.flags.quartz = 1; Fx.toast(':quartz: Кварц для рации'); }
         if (id === 'battery') Fx.toast(':battery: Аккумулятор. Тяжёлый. Зарядить у печки');
         if (id === 'cable') Fx.toast(':cable: Кабель — на антенну');
+        const q = Carry.drop(id, 1, at.x + p.face * rnd(-4, 4), at.y + rnd(2, 6), { fx: at.x, fy: at.y - 22 });
+        Carry.run([{ k: 'pick', src: 'loose', o: q }, { k: 'stow' }]);
       }
-      const at = toward(a.tg || POI[a.o], 20);
-      Fx.floatText(p.x, p.y - 50, '+' + (id === 'saw' ? ':saw:' : ITEMS[id].i)); Sound.pick(); Hero.play(Hero.pickPose(id), { react: 1, tg: at });
       Interact.emit('work', { who: 'p', what: 'wreck', x: at.x, y: at.y });
     } else if (a.k === 'loot') {
-      // обыск построек зон: как обломки, пул предметов; буровая — может обвалиться
+      // обыск построек зон: как обломки, пул предметов (выпадает на снег → поднять → убрать); буровая — может обвалиться
       const o = Zones.obj(a.o), pool = G.loot[a.o], id = pool && pool.shift(); if (!id) return;
       if (pool.length === o.loot.length - 1 && o.t) Fx.toast(ZONES[o.zone].ic + ' ' + o.t);
-      Inv.add(id); if (id === 'scrap') G.stats.scrap++;
-      Fx.floatText(p.x, p.y - 50, '+' + ITEMS[id].i); Sound.hit(); Sound.pick(); Hero.play(Hero.pickPose(id), { react: 1, tg: toward(o, 20) });
+      if (id === 'scrap') G.stats.scrap++;
+      const at = toward(o, 20); Sound.hit();
+      const q = Carry.drop(id, 1, at.x + rnd(-4, 4), at.y + rnd(2, 6), { fx: at.x, fy: at.y - 18 });
       if (o.zone === 'drill' && Math.random() < TUNE.zone.collapseP) { G.s.hp -= TUNE.zone.collapseDmg; G.hurt = 0.8; Fx.shake(5); Fx.toast(ZONE_TXT.collapse); }
+      else Carry.run([{ k: 'pick', src: 'loose', o: q }, { k: 'stow' }]);
     } else if (a.k === 'survey') {
       const o = Zones.surveyPoint(a.o); if (!o) return;
       Zones.survey(o.x, o.y); Fx.toast(ZONE_TXT.survey); Sound.ok2();
@@ -569,7 +595,7 @@ const Actions = (() => {
     if (input.act) {
       HOLD.t += dt;
       if (!HOLD.done && HOLD.c && HOLD.c.alt && !HOLD.c.rep && HOLD.t >= A.holdT) { HOLD.done = true; if (p.action && p.action === HOLD.a) p.action = null; p.cd = 0; alt(HOLD.c); }
-    } else { HOLD.c = null; HOLD.done = false; }
+    } else { HOLD.c = null; HOLD.done = false; HOLD.last = null; }
     if (input.act && !p.action && p.cd <= 0 && !HOLD.done) interact(true);
     Hero.tickLife(dt);
   }
@@ -587,6 +613,7 @@ const Actions = (() => {
     }
     if (G.litter) for (let i = G.litter.length - 1; i >= 0; i--) if (G.time - G.litter[i].t > CYCLE * CAN_LIFE) G.litter.splice(i, 1);
     for (const t of G.traps) if (t.pend && !inView(t)) { t.catch = t.pend; delete t.pend; }
+    Carry.tick(dt);
   }
 
   // ---------- жесты: второе действие (X / долгое E), броски, отклики в момент касания ----------
@@ -599,8 +626,10 @@ const Actions = (() => {
     return rv ? { o: rv, kind: 'raven' } : null;
   }
   // подпись второго действия для подсказки: [текст, значок] | null
-  const ALT_I = { tree: 'tree', fire: 'frost', dog: 'dog' };
+  const ALT_I = { tree: 'tree', fire: 'frost', dog: 'dog', log: 'tree' };
   function altLabel(c) {
+    if (Carry.dragL() && !G.p.ride) return ['Отпустить ствол', 'hand'];
+    if (Carry.busy() && !G.p.ride) return ['Положить ношу', 'hand'];
     if (c && c.alt) return [c.alt, ALT_I[c.k] || 'idle'];
     if (c && c.k === 'throw') return null;
     const t = throwTarget(); if (t) return ['Бросить палку', t.kind];
@@ -612,11 +641,14 @@ const Actions = (() => {
     const p = G.p; if (p.sleeping || p.ride || p.cd > 0 || p.ko || AUTO || (typeof Ice !== 'undefined' && Ice.active())) return;
     if (p.action && p.action.cx) { p.action = null; watch(); }
     if (p.action) return;
+    if (Carry.dragL()) { Carry.dragStop(); return; }          // X волоком — отпустить ствол
+    if (Carry.busy()) { Carry.put('ground', []); return; }   // X с ношей — положить на снег по одной (тем же объектом)
     c = c || context();
     if (c && c.alt) switch (c.k) {
       case 'tree': faceTo(c.o); p.action = { k: 'shake', t: 0, dur: D().shakeTree || A.shakeT, pose: 'shakeTree', tg: c.o, th: -10, o: c.o, marks: [0.22, 0.5, 0.78] }; return;
       case 'fire': faceTo(c.o); fireStep(c.o, 'bury'); return;   // три горсти снега — огонь садится по броскам
       case 'dog': callDog(c.o); return;
+      case 'log': Carry.dragStart(c.o); return;   // взяться за комель и тащить
     }
     const t = throwTarget(); if (t) return throwAt(t.o, t.kind);
     const d = petDog(); if (d && d.task.k === 'stay') return callDog(d);
@@ -641,20 +673,24 @@ const Actions = (() => {
     if (!best) return null;
     const k = Math.max(0, bu - (World.trunkR(best) + 5) / L); return { t: best, x: x0 + vx * k, y: y0 + vy * k };
   }
+  // бросок: палка — вещь мира с полёта (q.fl: откуда, куда, T; рисуется летящей), бросок длится, пока она в воздухе (a.pd — поза)
   function launch(a) {
     const p = G.p, o = a.o, x0 = p.x + p.face * 10, y0 = p.y - 44, hit = stickPath(p.x, p.y, o.x, o.y);
     const gx = hit ? hit.x : o.x, gy = hit ? hit.y : o.y, x1 = gx, y1 = hit ? gy - 26 : o.y - (o.z || 0) - 8;
     const T = clamp(Math.hypot(x1 - x0, y1 - y0) / A.throwV, 0.25, 0.9);
-    G.parts.push({ type: 'dot', x: x0, y: y0, vx: (x1 - x0) / T, vy: (y1 - y0) / T - 0.5 * GR * T, g: GR, life: T, max: T, color: '#5a3d22' });
-    FLY.push({ t: T, o, kind: a.kind, x: gx, y: gy, tree: hit ? hit.t : null, dx: Math.sign(gx - p.x) || p.face }); p.cd = A.throwCd; Sound.whoosh && Sound.whoosh();
+    const q = dropStick(x0, p.y, 0, 0, 1); if (q) q.fl = { x0: Math.round(x0), y0: Math.round(p.y), h0: 44, x1: Math.round(gx), y1: Math.round(gy), h1: Math.round(gy - y1), T: +T.toFixed(3), t: 0 };
+    FLY.push({ t: T, o, kind: a.kind, x: gx, y: gy, tree: hit ? hit.t : null, dx: Math.sign(gx - p.x) || p.face, q }); p.cd = A.throwCd; Sound.whoosh && Sound.whoosh();
+    a.pd = a.pd || a.dur; a.dur = Math.max(a.dur, a.t + T + 0.05);
   }
+  // палка в полёте: позиция по дуге (рисование и перепись — q.x/q.y на земле под ней, высота — stickH)
   function tickFly(dt) {
+    if (G.litter) for (const q of G.litter) if (q.fl) { const f = q.fl; f.t = Math.min(f.T, f.t + dt); const e = f.t / f.T; q.x = Math.round(f.x0 + (f.x1 - f.x0) * e); q.y = Math.round(f.y0 + (f.y1 - f.y0) * e); }
     for (let i = FLY.length - 1; i >= 0; i--) { const f = FLY[i]; if ((f.t -= dt) > 0) continue; FLY.splice(i, 1); land(f); }
     if (G.litter) for (let i = G.litter.length - 1; i >= 0; i--) { const q = G.litter[i]; if (q.vx) slide(q, dt, i); }
   }
   // палка остаётся лежать (G.litter, k 'stick': подобрать — E; заметает за полсуток, как банку); в воде — тонет/уплывает
-  function dropStick(x, y, vx = 0, vy = 0) {
-    if (Ice.water(x, y)) return null;
+  function dropStick(x, y, vx = 0, vy = 0, air) {
+    if (!air && Ice.water(x, y)) return null;
     G.litter = G.litter || []; if (G.litter.length >= 12) G.litter.shift();
     const q = { x: Math.round(x), y: Math.round(y), k: 'stick', t: G.time, a: +(((x * 7.3 + y * 3.1) % 6.28 + 6.28) % 6.28).toFixed(2) };
     if (vx || vy) { q.vx = vx; q.vy = vy; }
@@ -669,23 +705,27 @@ const Actions = (() => {
   }
   function land(f) {
     const o = f.o, p = G.p;
+    // палка долетела: дальше лежит (или скользит/тонет) — тот же объект
+    const q = f.q && G.litter && G.litter.includes(f.q) ? f.q : null, rest = (x, y, vx) => { if (!q) return; delete q.fl; q.x = Math.round(x); q.y = Math.round(y); if (vx) { q.vx = vx; q.vy = 0; } };
     if (f.tree) { // о ствол: глухой удар, ветки вздрогнули — палка падает у комля, к бросавшему
       Interact.emit('throw', { who: 'p', obj: 'tree', target: f.tree, x: f.x, y: f.y });
-      dropStick(f.x - f.dx * 6, f.y + 3); return;
+      rest(f.x - f.dx * 6, f.y + 3); return;
     }
     const near = dist2(o, f) < 44 * 44;
     if (f.kind === 'wolf' && near && G.wolves.includes(o) && Math.random() < A.throwHit) {
       o.st = 'flee'; o.t = 0.8; Sound.hit(); Fx.floatText(o.x, o.y - 40, 'Пошёл!'); Fx.burst(o.x, o.y - 14, 5, '#dde6ee');
     } else if (f.kind === 'hare' && near && liveHare(o)) {
       if (Math.random() < A.throwHare + 0.05 * (Hero.lvl('hunt') - 1)) {
-        G.hares.splice(G.hares.indexOf(o), 1); Inv.add('meat'); Inv.add('hare'); G.stats.hares++; Hero.xp('hunt');
-        Fx.floatText(o.x, o.y - 20, '+:meat: +:hare:'); Fx.burst(o.x, o.y - 6, 10, '#ffffff'); Sound.pick();
+        // заяц убит: тушка падает на снег (своей анимацией) — разделать на месте
+        G.hares.splice(G.hares.indexOf(o), 1); G.stats.hares++; Hero.xp('hunt');
+        Carry.carcass('hare', o.x, o.y, f.dx * 60, 0); Fx.burst(o.x, o.y - 6, 10, '#ffffff'); Sound.pick();
       } else { const a = Math.atan2(o.y - p.y, o.x - p.x); o.vx = Math.cos(a) * 170; o.vy = Math.sin(a) * 170; o.t = 0.7; }
     }
     // поверхность под палкой: вода — всплеск, голый лёд — стук и скольжение, снег — облачко, палка торчит
     const wet = Ice.water(f.x, f.y), bare = !wet && Depth.bareIce(f.x, f.y);
     Interact.emit('throw', { who: 'p', obj: wet ? 'water' : bare ? 'ice' : 'snow', target: o, x: f.x, y: f.y });
-    if (!wet) dropStick(f.x + f.dx * 4, f.y + 2, bare ? f.dx * 120 : 0, 0);
+    if (wet) { if (q) { G.litter.splice(G.litter.indexOf(q), 1); Ice.splash(f.x, f.y); } }
+    else rest(f.x + f.dx * 4, f.y + 2, bare ? f.dx * 120 : 0);
     // лайка бежит за палкой (кроме «сидеть») и сама возвращается к герою
     const d = petDog();
     if (d && d.task.k !== 'stay' && dist2(d, p) < A.dogR * A.dogR) { d.task = { k: 'move', x: f.x, y: f.y }; d.wag = now + 3; }
@@ -693,14 +733,6 @@ const Actions = (() => {
   // касание в нужный момент позы: удары рубки, толчки дерева, пинок, горсти снега, бросок, свист
   function contacts(a, t0) {
     const p = G.p;
-    // чурка: с земли — в руку в момент касания (до него лежит; шаг/отмена до касания — чурка остаётся)
-    if (a.chunk && !a.got && a.t >= a.grab * a.dur) {
-      a.got = 1; const i = G.chunks ? G.chunks.indexOf(a.o) : -1;
-      if (i >= 0) { G.chunks.splice(i, 1);
-        // дрова по массе: 1 «дрова» = Tree.KG кг (≈ средняя чурка), остаток копится (G.woodKg) — масса не теряется
-        const r = typeof Tree !== 'undefined' && a.o.mass != null ? Tree.take(a.o) : { wood: 1, kg: null };
-        if (r.wood) Inv.add('wood', r.wood); G.stats.wood += r.wood; Fx.floatText(p.x, p.y - 50, (r.wood ? '+' + r.wood + ' :wood:' : '+') + (r.kg != null ? ' · ' + (Math.round(r.kg * 10) / 10) + ' кг' : '')); Sound.pick(); } else a.item = null;
-    }
     if (a.k === 'dig') {
       // удар пешни: выемка растёт, крошка льда; первый удар — начало лунки
       const per = D().dig || 1, i0 = Math.floor(t0 / per - 0.55), i1 = Math.floor(a.t / per - 0.55);
@@ -734,6 +766,8 @@ const Actions = (() => {
       } else if (a.k === 'kick') Interact.emit('kick', { who: 'p', obj: 'snow', target: o, x: p.x + p.face * 16, y: p.y + 2, drift: 1 });
       else if (a.k === 'bury') Interact.emit('bury', { who: 'p', obj: 'fire', target: o, x: o.x, y: o.y });
       else if (a.k === 'throw') launch(a);
+      else if (a.k === 'eat' && !a.ate) { a.ate = 1; ate(a.o); }
+      else if (a.k === 'strike') { const r = (a.kind === 'bear' ? A.bearR : A.wolfR) + 40; if (a.kind === 'bear' ? G.bear === o && dist2(o, p) < r * r : G.wolves.includes(o) && dist2(o, p) < r * r) (a.kind === 'bear' ? Bear : Wolves).hit(o); else Fx.floatText(p.x + p.face * 20, p.y - 40, 'мимо'); }
       else if (a.k === 'call') Sound.whistle && Sound.whistle();
     }
   }
@@ -778,7 +812,7 @@ const Actions = (() => {
     notePut() {},
     take() {},
     inspect(a) { if (PLATE && PLATE.a === a) PLATE = null; },
-    eat(a) { if (a.o === 'can') litter('can'); },
+    eat(a) { if (!a.ate) ate(a.o); if (a.o === 'can') litter('can'); },
     craft(a) { if (a.units) { while (a.got < a.units.length) { if (!Inv.take(a.units[a.got], 1, !!a.wc)) return; a.got++; } } craftDone(a.r); },
     lie() { const p = G.p; p.sleeping = true; p.x = SPOT.bed.x; p.y = SPOT.bed.y + 4; Hero.snap(); },
     getUp() {},
@@ -789,13 +823,14 @@ const Actions = (() => {
   const CANCEL = {
     job(a) { const J = JOB[a.j]; if (J && J.cancel) J.cancel(a); },
     mount() { G.p.board = null; }, unmount() { G.p.board = null; },
-    eat(a) { if (a.o === 'can') litter('can'); },
     craft(a) {
       if (!a.units) { for (const [k, v] of Object.entries(a.r.in)) Inv.add(k, v); Fx.toast(':close: ' + a.r.n + ' — брошено, материалы целы'); return; }   // старый сейв: всё было взято сразу
       for (let i = 0; i < a.got; i++) Inv.add(a.units[i]);
       Fx.toast(':close: ' + a.r.n + ' — брошено, материалы целы');
     },
     noteRead() { if (PLATE && PLATE.note) PLATE = null; },
+    eat(a) { if (a.ate && a.o === 'can') litter('can'); },   // бросил есть после первой ложки — банка на снегу
+    fish(a) { if (a.ph === 'play') { Fx.floatText(a.o.x, a.o.y - 30, 'Сошла'); Sound.tone('triangle', 400, 200, 0.2, 0.15); } },
     inspect(a) { if (PLATE && PLATE.a === a) PLATE = null; },
   };
   const HOURS = ['Свежий — только прошёл.', 'Недавний.', 'Старый, заметает.'];
@@ -814,16 +849,14 @@ const Actions = (() => {
       const d = a.o, p = G.p; KICKED.add(d);
       if (Math.random() >= A.kickP) return;
       let r = Math.random(), id = KICK_FIND[0][0]; for (const [k, w] of KICK_FIND) if ((r -= w) <= 0) { id = k; break; }
-      Inv.add(id); if (id === 'scrap') G.stats.scrap++;
-      const x = p.x + p.face * 18; Fx.floatText(x, p.y - 30, '+' + ITEMS[id].i); Fx.burst(x, p.y - 4, 8, '#dde6ee', 110); Sound.pick();
-      Hero.play(Hero.pickPose(id), { react: 1, tg: { x, y: p.y } });
+      if (id === 'scrap') G.stats.scrap++;
+      // находка вылетает из сугроба на снег (сушняк — чурка, своя масса); поднять — E
+      const x = p.x + p.face * 18; Fx.burst(x, p.y - 4, 8, '#dde6ee', 110); Sound.pick();
+      if (id === 'wood') { const m = +rnd(1.5, 3.5).toFixed(2); (G.chunks = G.chunks || []).push({ id: (G.partN = (G.partN || 0) + 1), kind: 'chunk', tk: 3, len: 0.45, diam: 0.1, vol: +(m / 450).toFixed(5), mass: m, x: Math.round(x + p.face * 6), y: Math.round(p.y + 4), ang: +rnd(-0.6, 0.6).toFixed(2), t: G.time, fx: Math.round(p.x + p.face * 14), fy: Math.round(p.y) }); }
+      else Carry.drop(id, 1, x + p.face * 6, p.y + 4, { fx: p.x + p.face * 14, fy: p.y });
       Barks.say(p, id === 'can' ? 'Тушёнка! Кто-то оставил.' : id === 'scrap' ? 'Железка. Пригодится.' : 'Сушняк под снегом.', { h: 60 });
     },
-    bury(a) {
-      const f = a.o, n = Math.min(A.buryMax, Math.floor(f.fuel / TUNE.fire.fuelAdd));
-      f.fuel = 0; if (n) Inv.add('wood', n);
-      Fx.floatText(f.x, f.y - 40, n ? `:fire: погашен · +${n} :wood:` : ':fire: погашен'); Sound.tone('sine', 700, 200, 0.4, 0.04);
-    },
+    bury() {},
     read(a) {
       const f = a.o, p = G.p, age = f.life / TUNE.engine.printLife;
       for (const q of G.prints) if (dist2(q, f) < 60 * 60 && q.k === f.k) READ.add(q);
@@ -853,10 +886,10 @@ const Actions = (() => {
     const pos = (Math.sin(a.t * a.sp * Math.PI) + 1) / 2, h = a.o; G.p.action = null; G.p.cd = 0.5; Hero.xp('fish'); G.s.food = Math.max(0, G.s.food - A.fishFood);
     if (pos >= a.z - 0.02 && pos <= a.z + a.w + 0.02) {
       let r = Math.random(), f = FISHES[0]; for (const q of FISHES) { if ((r -= q.p) <= 0) { f = q; break; } }
+      // подсёк: вываживание (чем тяжелее — дольше), рыба выходит на лёд и бьётся; дальше — поднять и убрать
       const kg = rnd(f.w[0], f.w[1]), n = f.big ? 3 : kg > 2 ? 2 : 1;
-      Inv.add('fish', n); G.stats.fish++; G.stats.bestKg = Math.max(G.stats.bestKg || 0, kg); ArtWorld.fx.splash(G.parts, h.x, h.y);
-      Fx.floatText(h.x, h.y - 30, `:fish: ${f.n} · ${kg.toFixed(2).replace('.', ',')} кг`); Fx.burst(h.x, h.y, 10, '#b9e2ff'); Sound.splash(); Interact.emit('work', { who: 'p', what: 'fish', x: h.x, y: h.y });
-      if (f.big) Fx.toast(`:fish: Таймень! ${kg.toFixed(1).replace('.', ',')} кг`);
+      G.p.action = { k: 'fish', ph: 'play', t: 0, dur: clamp(1.1 + kg * 0.28, 1.2, 4.5), o: h, kg: +kg.toFixed(2), n, fn: f.n, big: f.big ? 1 : 0 };
+      Fx.floatText(h.x, h.y - 30, ':fish: сидит!'); Sound.tone('sine', 900, 1300, 0.08, 0.12);
       if (--h.fish <= 0) Fx.toast(':fish: Лунка пуста');   // лунка остаётся и затягивается льдом (tickHoles)
     } else { Fx.floatText(h.x, h.y - 30, 'Сорвалась'); Sound.tone('triangle', 400, 200, 0.2, 0.15); }
     return true;
@@ -894,6 +927,7 @@ const Actions = (() => {
   function sparks(x, y, n = 6) { for (let i = 0; i < n; i++) G.parts.push({ type: 'spark', x: x + rnd(-3, 3), y: y - 3, vx: rnd(-40, 40), vy: rnd(-90, -30), life: rnd(0.3, 0.6), max: 0.6, g: 60 }); }
   function steam(x, y, n = 5) { for (let i = 0; i < n; i++) G.parts.push({ type: 'smoke', x: x + rnd(-8, 8), y: y - 8, vx: rnd(-10, 10), vy: rnd(-40, -22), life: rnd(1.6, 2.6), max: 2.6 }); }
   const JOB = {};
+  JOB.carry = { hit: (a, i) => Carry.hit(a, i), end: a => Carry.end(a), cancel: a => Carry.cancel(a) };   // ноша: взять, уложить, разделать (js/carry.js)
   // лунка: dg 0..1 — пробита (нет поля — готова: старые сейвы, лунки посёлка); ice 0..1 — затянулась
   const holeOk = h => !(h.dg < 1);
   function digHole(a) { const p = G.p, h = { x: Math.round(p.x + p.face * 24), y: Math.round(p.y + 4), fish: 0, dg: 0 }; a.dg0 = 0; G.holes.push(h); return h; }
@@ -909,7 +943,7 @@ const Actions = (() => {
     kindle: f => ({ dur: 1.6, pose: 'crouch', loop: 1, tg: at0(f), th: -4, fb: 'build' }),
     ignite: f => ({ dur: 1.4, pose: 'crouch', loop: 1, tg: at0(f), th: -4, at: [0.25, 0.5, 0.78], fb: 'build' }),
     bury: f => ({ dur: 3, pose: 'scoop', per: D().scoop || 1, tg: at0(f), th: -4, at: [0.15, 0.48, 0.82], fb: 'dig' }),
-    pull: f => ({ dur: D().takeChunk || 1, pose: 'takeChunk', item: 'log', tg: at0(f), th: -2, at: [0.3401], fb: 'pickUp' }),
+    pull: f => ({ dur: TUNE.load.t.pick, pose: 'pickKeep', tg: at0(f), th: -2, at: [0.3401], fb: 'pickUp' }),
   };
   JOB.fire = {
     hit(a, i) {
@@ -919,17 +953,19 @@ const Actions = (() => {
         if (!a.made) { a.made = 1; f.site = 0.05; G.fires.push(f); }
         puff(f.x + rnd(-6, 6), f.y - 2, 0.4); work(); Sound.ok() && Sound.shovel && Sound.shovel();
       } else if (a.s === 'lay') {
-        // полено из рук — в костёр в момент касания
-        if (!Inv.take('wood', 1, false)) { Fx.toast(':close: Не хватает: :wood:1'); return abort(a); }
+        // полено из рук (охапка, потом рюкзак) — в костёр в момент касания; огонь — от массы полена
+        const w = useWood(false); if (!w) { Fx.toast(':close: Не хватает: :wood:1'); return abort(a); }
         Sound.chop();
-        if (a.feed && f.fuel > 0) { f.fuel = Math.min(f.fuel + F.fuelAdd, F.fuelMax); Fx.floatText(f.x, f.y - 40, ':fire: +' + gameDur(F.fuelAdd)); Fx.burst(f.x, f.y - 10, 10, '#ffb347', 120); FLARE(f); }
-        else f.lay = (f.lay || 0) + 1;
+        if (a.feed && f.fuel > 0) { const s0 = f.fuel; f.fuel = Math.min(f.fuel + w.kg * F.secPerKg, F.fuelMax); Fx.floatText(f.x, f.y - 40, ':fire: +' + gameDur(f.fuel - s0)); Fx.burst(f.x, f.y - 10, 10, '#ffb347', 120); FLARE(f); }
+        else { f.lay = (f.lay || 0) + 1; f.lkg = +((f.lkg || 0) + w.kg).toFixed(3); }
+        G.stats.burnKg = +((G.stats.burnKg || 0) + w.kg).toFixed(3);
       } else if (a.s === 'ignite') {
         // чирк — искры; на третьем занялось: растопка → огонь (дальше разгорается сам, f.fl)
         sparks(f.x, f.y - 2, i < 2 ? 5 : 9); Sound.tone && Sound.tone('square', 1800 + i * 300, 900, 0.05, 0.03);
         if (i === 2) {
-          const extra = Math.max(0, (f.lay || 0) - fireNeed(f));
-          f.fuel = (f.b ? F.buildFuel : F.relightFuel) + extra * F.fuelAdd; f.lay = 0; f.kd = 0; f.sn = 0; f.fl = f.fl || 0; delete f.b;
+          // растопка: часть массы уходит на разгорание (eff), дальше горит от массы
+          const kg = f.lkg != null ? f.lkg : (f.lay || 0) * (typeof Tree !== 'undefined' ? Tree.KG : 6);
+          f.fuel = Math.min(F.fuelMax, kg * F.secPerKg * (f.b ? F.buildEff : F.relightEff)); f.lay = 0; f.lkg = 0; f.kd = 0; f.sn = 0; f.fl = f.fl || 0; delete f.b;
           Fx.toast(a.fresh ? ':fire: Костёр' : ':fire: Огонь горит'); Sound.ok2(); steam(f.x, f.y, 2);
         }
       } else if (a.s === 'bury') {
@@ -937,13 +973,15 @@ const Actions = (() => {
         Interact.emit('bury', { who: 'p', obj: 'fire', target: f, x: f.x, y: f.y }); work();
         f.sn = Math.max(f.sn || 0, (i + 1) / 3); steam(f.x, f.y, 6); puff(f.x, f.y - 4, 0.3); Sound.tone('sine', 700 - i * 150, 200, 0.3, 0.03);
         if (i === 2) {
-          const n = f.fuel > 0 ? Math.min(A.buryMax, Math.floor(f.fuel / F.fuelAdd)) : 0;
-          f.fuel = 0; f.lay = (f.lay || 0) + n; f.sn = 1;
+          // недогоревшее: масса = остаток огня ÷ secPerKg, поленьями по ~прежнему (fuelAdd) — головни лежат в кострище
+          const kg = f.fuel > 0 ? f.fuel / F.secPerKg : 0, n = Math.min(A.buryMax, Math.floor(f.fuel / F.fuelAdd + 1e-6));
+          f.fuel = 0; if (n) { f.lay = (f.lay || 0) + n; f.lkg = +((f.lkg || 0) + kg).toFixed(3); } f.sn = 1;
           Fx.floatText(f.x, f.y - 40, n ? `:fire: погашен · +${n} :wood:` : ':fire: погашен');
         }
       } else if (a.s === 'pull') {
-        // недогоревшее полено — из кострища в руку (дальше через плечо в рюкзак)
-        if ((f.lay || 0) > 0) { f.lay--; Inv.add('wood', 1); Sound.pick(); } else a.item = null;
+        // недогоревшее полено — из кострища в руки (охапка), своя масса
+        if ((f.lay || 0) > 0 && !Carry.cantTake({ kind: 'chunk', mass: 1, len: 0.4, vol: 0.001 })) { const kg = (f.lkg != null ? f.lkg : f.lay * Tree.KG) / f.lay; f.lay--; f.lkg = +Math.max(0, (f.lkg || 0) - kg).toFixed(3);
+          const q = Carry.partOf({ kg, l: kg / TUNE.load.rho * 1000 }); q.burnt = 1; Carry.parts().push(q); Sound.pick(); } else a.miss = 1;
       }
     },
     tick(a) {
@@ -956,7 +994,7 @@ const Actions = (() => {
       if (a.s === 'clear') { f.site = 1; return fireStep(f, 'lay', { fresh: 1 }); }
       if (a.s === 'lay') { if (a.feed) return; return (f.lay || 0) < fireNeed(f) ? fireStep(f, 'lay', { fresh: a.fresh }) : fireStep(f, 'kindle', { fresh: a.fresh }); }
       if (a.s === 'kindle') { f.kd = 1; return fireStep(f, 'ignite', { fresh: a.fresh }); }
-      if ((a.s === 'bury' || a.s === 'pull') && (f.lay || 0) > 0 && !(f.fuel > 0)) return fireStep(f, 'pull');
+      if ((a.s === 'bury' || a.s === 'pull') && !a.miss && (f.lay || 0) > 0 && !(f.fuel > 0) && !Carry.cantTake({ kind: 'chunk', mass: 1, len: 0.4, vol: 0.001 })) return fireStep(f, 'pull');
     },
   };
   const FLARE = f => { f.flare = G.time; };
@@ -967,7 +1005,7 @@ const Actions = (() => {
   function stoveFeed() {
     const p = G.p;
     if (!Stove.room()) return Fx.toast(':stove: Печь полна');
-    if (!Inv.cnt('wood', true)) return Fx.toast(':close: Не хватает: :wood:1 (в руках или в лабазе)');
+    if (!woodHave(true)) return Fx.toast(':close: Не хватает: :wood:1 (в руках или в поленнице)');
     faceTo(SPOT.stove); p.cd = 0.3;
     job('stove', 'open', { dur: D().open || 0.9, pose: 'open', tg: STOVE_TG(), th: -8, fb: 'build' });
   }
@@ -992,7 +1030,7 @@ const Actions = (() => {
   JOB.stack = {
     hit(a, i) {
       const s = a.o;
-      if (a.s === 'lay') { if (s.wood >= 4 || s.lit > 0) return abort(a); if (!Inv.take('wood', 1, false)) { Fx.toast(':close: Не хватает: :wood:1'); return abort(a); } s.wood++; Sound.chop(); }
+      if (a.s === 'lay') { if (s.wood >= 4 || s.lit > 0) return abort(a); const w = useWood(false); if (!w) { Fx.toast(':close: Не хватает: :wood:1'); return abort(a); } s.wood++; s.wkg = +((s.wkg || 0) + w.kg).toFixed(3); Sound.chop(); }
       else if (a.s === 'kero') { if (!Inv.take('kero', 1, false)) return abort(a); a.kero = 1; for (let k = 0; k < 6; k++) G.parts.push({ type: 'dot', x: s.x + rnd(-10, 10), y: s.y - 24, vx: rnd(-20, 20), vy: rnd(0, 30), g: 200, life: 0.5, max: 0.5, color: '#c9b06a' }); }
       else if (a.s === 'light') { sparks(s.x, s.y - 4, i < 2 ? 5 : 10); if (i === 2) Fire.lightStack(s, a.kero ? A.stackKeroT : A.stackLightT); }
     },
@@ -1131,23 +1169,39 @@ const Actions = (() => {
     fireStep(nf, 'clear');
   }
 
-  // еда: сытость — сразу (как раньше), тело — поза еды 1–2 с (банка с ложкой, миска, кусок), пар от горячего; банка остаётся на снегу
+  // еда: достать из рюкзака (в избе — из лабаза) в руку → есть (поза 1–2 с: банка с ложкой, миска, кусок; пар от горячего) → сытость в конце;
+  // уже в руке (рыба, мясо) — есть сразу; банка остаётся на снегу; бросил есть — еда в руке
   function eat() {
     if (state !== 'play' || UI.modal() || G.p.sleeping || G.p.ko) return;
     const p = G.p;
     if (G.s.food >= A.fullAt) return Fx.toast(':food: Не голоден');
+    const t = Carry.thing();
+    if (p.action && p.action.cx) p.action = null;
+    if (p.action || p.ride) return;
+    if (t && ITEMS[t.id] && ITEMS[t.id].food) return eatHand();
+    if (Carry.busy()) return Fx.toast(':hand: Руки заняты · X — положить');
     const wc = p.inside, k = FOOD_ORDER.find(f => Inv.cnt(f, wc) > 0);
     if (!k) return Fx.toast(':close: Нет еды · :hare: :fish:');
-    Inv.take(k, 1, wc);
-    const it = ITEMS[k], fire = !!Fire.near(TUNE.fire.heatR) || (p.inside && G.hut.fuel > 0), cooked = !it.raw || fire;
-    const v = Math.round(it.food * (cooked ? 1 : A.rawFood));
+    if ((G.inv[k] || 0) > 0) return Carry.get(k, 'pack', [{ k: 'eat' }]);
+    // из лабаза: подойти к нему (ближе 40 px — дотянется с места)
+    if (dist2(SPOT.chest, p) < 40 * 40) return Carry.get(k, 'chest', [{ k: 'eat' }]);
+    const q = World.freeNear(SPOT.chest.x - 16, SPOT.chest.y + 6, 10); jobAt(q.x, q.y, () => Carry.get(k, 'chest', [{ k: 'eat' }]), 12);
+  }
+  function eatHand() {
+    const p = G.p, t = Carry.thing(); if (!t || !ITEMS[t.id] || !ITEMS[t.id].food) return false;
+    const k = t.id, it = ITEMS[k], fire = !!Fire.near(TUNE.fire.heatR) || (p.inside && G.hut.fuel > 0);
+    p.action = { k: 'eat', t: 0, dur: (D().eat || 1.8) * (k === 'stew' ? 1.15 : 1), pose: 'eat', item: EAT_ITEM[k] || 'meat', o: k, hot: (it.raw && fire) || !!it.warm, cx: 1, fb: 'idle', marks: [0.4] };   // 0.4 — первый кусок: сытость (бросил дальше — уже съел)
+    return true;
+  }
+  // съел (конец позы): кусок из руки — в сытость
+  function ate(k) {
+    const p = G.p, t = Carry.thing(), it = ITEMS[k]; if (!t || t.id !== k) return;
+    t.n = (t.n || 1) - 1; if (t.kg != null) t.kg = Math.max(0, t.kg - it.kg); if (t.n <= 0) Carry.hand().t = null;
+    const fire = !!Fire.near(TUNE.fire.heatR) || (p.inside && G.hut.fuel > 0), cooked = !it.raw || fire, v = Math.round(it.food * (cooked ? 1 : A.rawFood));
     G.s.food = Math.min(100, G.s.food + v);
     if (it.warm) G.s.warm = Math.min(Hero.maxWarm(), G.s.warm + it.warm);
     if ((it.raw && fire) || it.warm) G.s.tire = Math.max(0, (G.s.tire || 0) - TUNE.tire.food); // горячее — силы
     Fx.floatText(p.x, p.y - 44, (cooked ? it.i + ' +' : ':frost: сырое +') + v);
-    if (p.action && p.action.cx) p.action = null;
-    if (p.action || p.ride) { if (k === 'can') litter('can'); return; } // занят работой — съел на ходу, без позы
-    p.action = { k: 'eat', t: 0, dur: (D().eat || 1.8) * (k === 'stew' ? 1.15 : 1), pose: 'eat', item: EAT_ITEM[k] || 'meat', o: k, hot: (it.raw && fire) || !!it.warm, cx: 1, fb: 'idle' };
   }
 
   function placeKey() {
@@ -1170,7 +1224,7 @@ const Actions = (() => {
     if (p.inside || onIce(p.x, p.y)) { Fx.toast(':close: Здесь не оставить'); return null; }
     const near = World.nearestStash(p, 70);
     if (near) { if (near.dg != null && near.dg < 1) stashDig(near); else UI.openStash(near); return near; }
-    if (!Inv.weight()) { Fx.toast(':close: Нечего оставить'); return null; }
+    if (!Inv.packKg()) { Fx.toast(':close: Нечего оставить'); return null; }
     G.stashes = G.stashes || [];
     if (G.stashes.length >= TUNE.world.stashMax) { Fx.toast(':close: Тайников уже ' + TUNE.world.stashMax + ' — забери что-нибудь'); return null; }
     // яма в снегу: появляется с первой горстью и углубляется (s.dg), готова — окно «положить»
@@ -1347,6 +1401,10 @@ const Actions = (() => {
   function knockout(cause, m) {
     const p = G.p; if (p.ko) return;
     AUTO = null; PLATE = null; p.action = null; p.ride = null; p.doze = 0; p.dozeWarn = 0; p.ko = { t: 0, ph: 0, cause: cause || 'cold' };
+    // упал — ноша из рук валится на снег рядом (своим полётом), ствол волоком остаётся лежать
+    const Lg = Carry.dragL(); if (Lg) { delete Lg.drag; Carry.hand().drag = null; }
+    for (const q of Carry.parts().splice(0)) { const a = Math.random() * 6.28; Object.assign(q, { x: Math.round(p.x + Math.cos(a) * 14), y: Math.round(p.y + 6 + Math.sin(a) * 6), fx: Math.round(p.x), fy: Math.round(p.y - 18), t: G.time, ang: +a.toFixed(2) }); if (!Ice.water(q.x, q.y)) (G.chunks = G.chunks || []).push(q); }
+    { const t = Carry.thing(); if (t) { if (t.id === 'carc') Carry.carcass(t.kind || 'hare', p.x + p.face * 12, p.y + 6); else if (ITEMS[t.id]) Carry.drop(t.id, t.n || 1, p.x + p.face * 12, p.y + 6, Object.assign({ fx: p.x, fy: p.y - 18 }, t.kg != null ? { kg: t.kg } : {})); Carry.hand().t = null; } }
     G.pack = null; for (const w of G.wolves) { w.st = 'retreat'; w.t = 3; }
     Hero.snap();
   }
@@ -1356,7 +1414,7 @@ const Actions = (() => {
       const m = CHAPTERS[G.chapter].softDeath || { hp: 50, warm: 70, food: 35, skip: 0, fuel: 60, woodKeep: 1, card: [':evenk:', '', ''] };
       p.x = SPOT.bed.x; p.y = SPOT.bed.y + 4; p.action = null; Hero.snap(); p.inside = true; p.sleeping = true; p.face = 1;
       G.s.hp = m.hp; G.s.warm = m.warm; G.s.food = Math.max(G.s.food, m.food); G.time += CYCLE * m.skip; G.hut.fuel = Math.max(G.hut.fuel, m.fuel);
-      G.inv.wood = Math.floor((G.inv.wood || 0) * m.woodKeep); G.wolves = []; G.pack = null;
+      Inv.pull(G.inv, 'wood', (G.inv.wood || 0) - Math.floor((G.inv.wood || 0) * m.woodKeep)); G.wolves = []; G.pack = null;
       UI.card(...m.card);
       k.ph = 1; k.t = 0;
     } else if (k.ph === 1 && k.t >= KO_DARK) { p.ko = null; input.auto = 0; wake(false, null); }
@@ -1379,11 +1437,13 @@ const Actions = (() => {
     else UI.dialog({ who: 'radio', t: Math.random() < 0.6 ? lines[(Math.random() * lines.length) | 0] : DIALOG.radio_noise.t, opts: [{ t: 'Выключить' }] });
   }
 
-  return { nearest, liveHare, context, interact, alt, altLabel, finish, tick, fishStrike, sniff, fireKey, eat, placeKey, stashKey,
+  const stickH = q => { const f = q.fl; if (!f) return 0; const e = clamp(f.t / f.T, 0, 1); return f.h0 + (f.h1 - f.h0) * e + 0.5 * GR * f.T * f.T * e * (1 - e); };
+  return { stickH, nearest, liveHare, context, interact, alt, altLabel, finish, tick, fishStrike, sniff, fireKey, eat, placeKey, stashKey,
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession,
     nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
     fell, iceHit, knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, logCut, logSnow, falling, danger, inPath, chopSpot, atTrunk, FELL, get plate() { return PLATE; },
-    hutLeft, HUTO, CAN_LIFE, inView, walkTo: autoTo, get stoveDoor() { return stoveDoor; },
+    hutLeft, HUTO, CAN_LIFE, inView, walkTo: autoTo, get stoveDoor() { return stoveDoor; }, useWood, woodHave, strike, eatHand, dropStick, handsBusy,
+    jobs: { job, JOB, jobAt, abort, faceTo, work },
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),
     reading: () => !!PLATE };
 })();

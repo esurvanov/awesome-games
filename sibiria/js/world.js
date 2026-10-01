@@ -389,7 +389,7 @@ const World = (() => {
     NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, trunkR(t))) touch('tree', t);
     NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushFoot(o, r, rockFoot(q))) touch('rock', q);
     const bk = who === 'p' || who === 'n' ? null : BK[bodyKind(o, who, r)]; // зверь: через лежачий ствол перешагивает/перепрыгивает (ниже своего прыжка)
-    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && !(bk && bk.jump && logH(L, o) < bk.jump) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю
+    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && !(L.drag && who === 'p') && !(bk && bk.jump && logH(L, o) < bk.jump) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю; свой волок — не преграда тащащему
     // открытая вода (перекат, дыры) — ИИ обходит; герой в неё проваливается (thinIce)
     if (who !== 'p' && typeof Ice !== 'undefined' && Ice.pushWater(o, r)) touch('water', null);
     // горящий костёр: тела держатся от огня (keepR), герой — упор и ожог при шаге в огонь; World.blocked (q — не герой) огонь не видит

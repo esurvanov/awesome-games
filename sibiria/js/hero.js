@@ -20,7 +20,8 @@ const Hero = (() => {
     const p = G.p, m = Transport.mode(), ter = Zones.terrainAt(p.x, p.y);
     let s = Transport.speedOn(m, ter) || H.speed * ter.walk;
     if (!p.ride) {
-      if (G.gear.sled) s *= H.sled;
+      if (G.gear.sled) s *= H.sled * Carry.sledMul();   // нарты: пустые ×0.9, гружёные — по весу и глубине снега
+      s *= Carry.speedMul();                            // руки заняты: охапка, вершина на плече, вещь
       if (Inv.weight() > Inv.capKg()) s *= H.over;
       if (G.s.warm < H.coldBelow) s *= H.cold;
       if (p.sprainT > 0) s *= TUNE.zone.sprain;
@@ -140,7 +141,7 @@ const Hero = (() => {
   // перегруз: один раз при переходе через предел
   function tickLoad() {
     const p = G.p, over = Inv.weight() > Inv.capKg();
-    if (over && !p.overW) Fx.toast(`:weight: Перегруз ${Inv.weight()}/${Inv.capKg()} кг — медленно · лабаз или тайник`);
+    if (over && !p.overW) Fx.toast(`:weight: Перегруз ${Inv.weight()}/${Inv.capKg()} кг — медленно · нарты, поленница или тайник`);
     p.overW = over;
   }
   // ---------- «живой» герой: возня стоя, походка по обстановке, реакции, позы работы по состоянию ----------
@@ -210,12 +211,12 @@ const Hero = (() => {
     else if (a.pose) {
       r.anim = POSE[a.pose] ? a.pose : a.fb || 'idle';
       const per = a.k === 'wreck' ? chopCycle(a).cl : a.per || D[r.anim] || 1;
-      r.animT = r.anim === 'swing' || !(a.loop || a.per) ? clamp(a.t / a.dur, 0, 1) : (a.t % per) / per;
+      r.animT = r.anim === 'swing' || !(a.loop || a.per) ? clamp(a.t / (a.pd || a.dur), 0, 1) : (a.t % per) / per;   // pd — длительность позы, если действие длится дольше (бросок ждёт, пока палка летит)
       if (a.k === 'wreck' || a.k === 'loot') r.tool = r.anim.startsWith('chop') ? 'axe' : 'none'; // обломки отжимают руками; запасная рубка — топором
       r.tg = a.tg; r.th = a.th || 0;
     }
     else if (a.k === 'dig') { r.anim = 'dig'; r.animT = (a.t % D.dig) / D.dig; }
-    else if (a.k === 'fish') { r.anim = a.ph === 'bite' ? 'fishBite' : 'fish'; r.animT = clamp(a.t / a.dur, 0, 1); r.tool = 'rod'; r.target = { x: a.o.x, y: a.o.y }; }
+    else if (a.k === 'fish') { r.anim = a.ph === 'bite' || a.ph === 'play' ? 'fishBite' : 'fish'; r.animT = a.ph === 'play' ? (a.t * 1.7) % 1 : clamp(a.t / a.dur, 0, 1); r.tool = 'rod'; r.target = { x: a.o.x, y: a.o.y }; }
     else { r.anim = 'build'; r.animT = (a.t % D.build) / D.build; r.ik = false; r.tg = a.k === 'light' ? a.o : a.k === 'vfix' ? G.veh && G.veh.buran : a.k === 'place' ? { x: p.x + p.face * 20, y: p.y + 6 } : null; }
   }
   // что рисовать сейчас — единственный источник позы героя для GFX: {st, anim, animT, tool, tg, th, ik, target, loco, speed, vy}

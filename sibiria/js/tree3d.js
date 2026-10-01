@@ -16,9 +16,9 @@
 //     z0, z1 (участок ствола, м класса) · w, b (мутовка и ветвь — у лапника) }
 //   Tree.parts(o) — из чего состоит дерево/ствол сейчас (то, что ещё не отделено); Tree.split(L, 'limb'|'buck') — отделить;
 //   Tree.whole(L) — масса и объём всего сваленного дерева; сумма частей = целое (пень — отдельно, остаётся в земле).
-//   Tree.take(part) — подбор: дрова по массе (KG кг = 1 «дрова», остаток копится в G.woodKg).
+//   Tree.take(part) — масса и объём части (кг, л); KG — прежнее «полено» 6 кг (единица печи и прогнозов).
 const Tree = (() => {
-  const M = 23, TAU = Math.PI * 2, CH = 0.45, KG = 6, HC = 0.35;   // KG — кг на 1 «дрова» (≈ средняя чурка ели)
+  const M = 23, TAU = Math.PI * 2, CH = 0.45, KG = 6, HC = 0.35;   // KG — прежнее «полено» 6 кг (единица печи/прогнозов; дрова теперь — чурки со своей массой)
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v, lerp = (a, b, t) => a + (b - a) * t;
   const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const low = () => typeof window !== 'undefined' && window.QUALITY === 'low';
@@ -220,12 +220,9 @@ const Tree = (() => {
     return { fx: Math.round(q.x + x0 * M), fy: Math.round(q.y + 0.6 * y0 * M), fz: +Math.max(0, z0).toFixed(2),
       x: Math.round(q.x + x0 * M + dx / dl * half * M + rnd(-2, 2)), y: Math.round(q.y + 0.6 * (y0 + dy / dl * half) * M + rnd(-1, 1)), ang: +ang.toFixed(3) };
   }
-  // подбор: дрова по массе (KG кг = 1), остаток — в G.woodKg; лапник — не дрова
+  // дрова — чурка, комель, вершина (своя масса и объём; подбор — js/carry.js, руки → рюкзак/нарты/поленница); лапник — не дрова
   const isWood = p => !p.kind || p.kind === 'chunk' || p.kind === 'butt' || p.kind === 'top';
-  function take(p) {
-    const kg = p.mass != null ? p.mass : KG, acc = (G.woodKg || 0) + kg, n = Math.floor(acc / KG + 1e-6);
-    G.woodKg = +(acc - n * KG).toFixed(4); return { wood: n, kg };
-  }
+  const take = p => ({ kg: p.mass != null ? p.mass : KG, l: p.vol != null ? p.vol * 1000 : KG / 0.79 });
   // сколько дров даст дерево (для отчёта/баланса)
   function woodOf(t) { const L = ensure({ x: t.x, y: t.y, s: t.s, kind: t.kind, v: t.v }); return massOf(parts(L).filter(isWood)) / KG; }
 

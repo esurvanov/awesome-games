@@ -26,7 +26,7 @@ var TreeCheck = (() => {
   function base() {
     const p = P(); UI.closePanel(); p.ride = null; p.sleeping = false; p.action = null; p.cd = 0; p.dash = null; p.dashCd = 0; G.hurt = 0; input.act = false; input.auto = 0;
     if (G.col) for (const u of G.col.units) u.hidden = true; G.hares = []; G.deer = [];   // без толкотни (лайка, зайцы): герой стоит, где поставили
-    G.s.hp = G.s.food = G.s.warm = 100; G.logs = []; G.chunks = []; G.lap = []; G.inv.wood = 0; Hero.bodyReset();
+    G.s.hp = G.s.food = G.s.warm = 100; G.logs = []; G.chunks = []; G.lap = []; G.inv.wood = 0; G.hand = { p: [], t: null }; Hero.bodyReset();
   }
   function fellIt(t) {
     const p = P(); t.wood = 1;
@@ -90,8 +90,9 @@ var TreeCheck = (() => {
       base(); { const t = pickTree(3), L = fellIt(t); { let k = 0; while (L.f && k++ < 300) frame(); } frame(10); const p = P();
         const m0 = L.m0, v0 = Tree.whole(L).vol, n0 = L.n0, src = q => q.src === L.id;
         // сумма: что ещё на стволе + что отделено + что подобрано = целое (±1 %)
-        let picked = { m: 0, v: 0, list: [] }; const take0 = Tree.take; Tree.take = q => { if (q.src === L.id) { picked.m += q.mass; picked.v += q.vol; picked.list.push(q); } return take0(q); };   // подобранное — тоже в сумме
-        const sum = () => { const on = G.logs.includes(L) ? Tree.parts(L) : []; let m = picked.m, v = picked.v; for (const q of on) { m += q.mass; v += q.vol; } for (const q of G.chunks) if (src(q)) { m += q.mass; v += q.vol; } return { m, v }; };
+        // подобранное — тоже в сумме: части в руках (ноша, js/carry.js) — те же объекты с src
+        const inHand = () => Carry.parts().filter(src);
+        const sum = () => { const on = G.logs.includes(L) ? Tree.parts(L) : []; let m = 0, v = 0; for (const q of on.concat(inHand())) { m += q.mass; v += q.vol; } for (const q of G.chunks) if (src(q)) { m += q.mass; v += q.vol; } return { m, v }; };
         const keep = (what) => { const s2 = sum(); ok(Math.abs(s2.m - m0) / m0 < 0.01 && Math.abs(s2.v - v0) / v0 < 0.01, `5: ${what}: масса ${s2.m.toFixed(2)} из ${m0.toFixed(2)}, объём ${s2.v.toFixed(4)} из ${v0.toFixed(4)}`); };
         keep('целое сразу после валки');
         info.tree = { m0: +m0.toFixed(1), H: +(Tree.of(L).S.H * L.k).toFixed(2), D: +(Tree.of(L).S.R0 * 2 * L.k).toFixed(3), n0, cl: +(L.cl * L.k).toFixed(3) };
@@ -106,9 +107,9 @@ var TreeCheck = (() => {
         ok(G.chunks.filter(src).length === bo + 1, '7: после загрузки частей другое число: ' + G.chunks.filter(src).length);
         GFX.render(DT, null);
         // раскряжёвка до конца: ствол весь уходит в части (комель — тоже часть), сумма не меняется
-        const Lx = L2; g = 0; const sumX = () => { const on = G.logs.includes(Lx) ? Tree.parts(Lx) : []; let m = picked.m; for (const q of on) m += q.mass; for (const q of G.chunks) if (q.src === Lx.id) m += q.mass; return m; };
+        const Lx = L2; g = 0; const sumX = () => { const on = G.logs.includes(Lx) ? Tree.parts(Lx) : []; let m = 0; for (const q of on.concat(Carry.parts().filter(q => q.src === Lx.id))) m += q.mass; for (const q of G.chunks) if (q.src === Lx.id) m += q.mass; return m; };
         while (G.logs.includes(Lx) && Lx.n > 0 && g++ < 40) { Actions.interact(); let k = 0; while ((G.p.action || input.auto) && k++ < 400) frame(); ok(Math.abs(sumX() - m0) / m0 < 0.01, '6: раскряжёвка ' + g + ': масса ' + sumX().toFixed(2) + ' из ' + m0.toFixed(2)); }
-        Tree.take = take0; G.chunks.push(...picked.list); picked = { m: 0, v: 0, list: [] };   // подобранные по ходу — обратно на снег (дальше проверяем подбор каждой)
+        G.chunks.push(...Carry.parts().splice(0));   // подобранные по ходу — обратно на снег (дальше проверяем подбор каждой)
         const wood = G.chunks.filter(q => q.src === Lx.id && Tree.isWood(q));
         ok(!G.logs.includes(Lx) && Lx.n === 0, '6: после разделки ствол не ушёл в части: n=' + Lx.n);
         ok(wood.length === n0 + 1 && wood.filter(q => q.kind === 'butt').length === 1, `6: частей-дров ${wood.length}, ждали ${n0 + 1} (чурки + комель + вершина)`);
@@ -118,28 +119,29 @@ var TreeCheck = (() => {
         const mW = wood.reduce((a, q) => a + q.mass, 0); G.time += CYCLE * 0.5; frame(); G.time += CYCLE * 0.6; frame(); GFX.render(DT, null);
         const wood2 = G.chunks.filter(q => q.src === Lx.id && Tree.isWood(q)); ok(wood2.length === wood.length && Math.abs(wood2.reduce((a, q) => a + q.mass, 0) - mW) < 1e-6, '6: дрова исчезли со временем: ' + wood2.length);
         // последнюю чурку (и каждую) можно взять: подходим к каждой — подсказка «Взять», жест кладёт дрова по массе
-        G.inv.wood = 0; G.woodKg = 0; let got = 0, miss = [];
+        G.inv.wood = 0; let got = 0, miss = [], gotKg = 0;
         for (const q of wood2.slice().sort((a, b) => a.y - b.y)) {
           if (!G.chunks.includes(q)) { got++; continue; }   // взята раньше — жест берёт ближайшую
           const pp = G.p; pp.action = null; input.auto = 0; pp.x = q.x + 16; pp.y = q.y + 3; World.solid(pp, 10, 'p'); Hero.snap(); frame(2);
           const c = Actions.context(); if (!c || c.k !== 'chunks') { miss.push(q.kind + (c ? ':' + c.k : ':нет') + ' d' + Math.round(Math.hypot(pp.x - q.x, pp.y - q.y))); continue; }
-          let k = 0; while (G.chunks.includes(q) && k++ < 20) { Actions.interact(); let j = 0; while ((pp.action || input.auto) && j++ < 300) frame(); }
+          // охапку — на нарты (вне проверки) после каждого жеста: руки свободны для следующей
+          let k = 0; while (G.chunks.includes(q) && k++ < 20) { Actions.interact(); let j = 0; while ((pp.action || input.auto) && j++ < 300) frame(); for (const h of Carry.parts().splice(0)) gotKg += h.mass; }
           if (!G.chunks.includes(q)) got++;
         }
         ok(!miss.length, '5: нет подсказки «Взять» у частей: ' + miss.join(','));
         ok(got === wood2.length, `5: взято ${got} из ${wood2.length} (последняя не берётся?)`);
-        const exp = Math.floor(mW / Tree.KG + 1e-6); info.woodPerTree = { kg: +mW.toFixed(1), wood: G.inv.wood, rest: G.woodKg };
-        ok(G.inv.wood === exp && Math.abs(G.woodKg - (mW - exp * Tree.KG)) < 0.01, `5: дров ${G.inv.wood}, по массе ${exp} (${mW.toFixed(1)} кг / ${Tree.KG})`);
+        info.woodPerTree = { kg: +mW.toFixed(1), pieces: wood2.length, got: +gotKg.toFixed(2) };
+        ok(Math.abs(gotKg - mW) < 1e-6, `5: в руки пришло ${gotKg.toFixed(2)} кг из ${mW.toFixed(2)} (каждая чурка — своей массой)`);
         // подбор по одной: чурка уходит с земли не раньше касания рукой; удержание E — собирает кучу
-        base(); G.time = tAt(G.day + 1, 13); frame(); const p2 = G.p; G.chunks.length = 0; G.inv.wood = 0; G.woodKg = 0;
+        base(); G.time = tAt(G.day + 1, 13); frame(); const p2 = G.p; G.chunks.length = 0; G.inv.wood = 0; Carry.hand().p = []; Carry.hand().t = null;
         for (let i = 0; i < 3; i++) G.chunks.push({ kind: 'chunk', mass: Tree.KG, vol: 0.006, len: 0.45, diam: 0.15, x: p2.x + 14 + i * 5, y: p2.y + 2, a: 0, t: G.time - 10 });
         Actions.interact(); const A0 = p2.action; let gone = null, k = 0;
         while (p2.action === A0 && A0 && k++ < 200) { const was = G.chunks.length; frame(); if (G.chunks.length < was && gone == null) gone = A0.t / A0.dur; }
-        ok(G.chunks.length === 2 && G.inv.wood === 1, '5: за жест взято не по одной: осталось ' + G.chunks.length + ', дров ' + G.inv.wood);
+        ok(G.chunks.length === 2 && Carry.parts().length === 1, '5: за жест взято не по одной: осталось ' + G.chunks.length + ', в руках ' + Carry.parts().length);
         ok(gone != null && gone >= 0.34 - 1e-6, '5: чурка ушла с земли раньше касания: ' + gone);
         info.grab = gone;
         input.act = true; k = 0; while (G.chunks.length && k++ < 600) { frame(); } input.act = false;
-        ok(!G.chunks.length && G.inv.wood === 3, '5: удержание E не собрало кучу: ' + G.chunks.length);
+        ok(!G.chunks.length && Carry.parts().length === 3, '5: удержание E не собрало охапку: на снегу ' + G.chunks.length + ', в руках ' + Carry.parts().length);
       }
       // ---- 8: дерево × лёд: у переката (тонкий лёд) — пролом, ствол проваливается, герой рядом на льду — в воду; на толстом — цел ----
       { const Pn = POI.polynya;

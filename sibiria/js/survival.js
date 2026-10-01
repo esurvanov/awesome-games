@@ -42,7 +42,7 @@ const Survival = (() => {
       const aw = (s.awake || 0) / HOUR;
       const warmRest = c.rest && s.warm > TI.restWarm;
       let h = TI.awake * (aw > TI.awakeFrom ? 1 + (aw - TI.awakeFrom) / TI.awakeK : 1) * (warmRest && c.rest < 2 ? TI.fireAwake : 1); // у огня стоя — бодрствование медленнее
-      if (c.moving) h += (TI.walk + TI.snow * (c.eff || 0)) * (c.over ? TI.over : 1);
+      if (c.moving) h += (TI.walk + TI.snow * (c.eff || 0)) * (c.over ? TI.over : 1) + (c.sled || 0) * TUNE.load.sledTire * (1 + (c.eff || 0)); // нарты: +4/ч на 100 кг, по целине — больше
       up = (h / HOUR + shiver) * hungry * diff;
     }
     return up - (c.rest >= 2 && s.warm > TI.restWarm ? TI.rest / HOUR : 0); // восстановление — только сидя/в тёплой избе
@@ -84,7 +84,7 @@ const Survival = (() => {
     const cause = body(s, heat, r, dt, Hero.maxWarm()); if (cause) G.cause = cause;
     const sl = p.sleeping || !!p.doze;
     s.tire = clamp(s.tire + tireRate(s, { sleeping: sl, doze: p.doze, fuel: p.inside ? G.hut.fuel : 0, moving: p.moving || !!(p.action && p.action.k === 'clear'),
-      eff: typeof Depth !== 'undefined' ? Depth.effort() : 0, over: Inv.weight() > Inv.capKg(), rest: restLevel(p, heat, G.hut.fuel), tea: p.teaT }) * dt, 0, 100);
+      eff: typeof Depth !== 'undefined' ? Depth.effort() : 0, over: Inv.weight() > Inv.capKg(), sled: Carry.sledKg() / 100, rest: restLevel(p, heat, G.hut.fuel), tea: p.teaT }) * dt, 0, 100);
     awakeStep(s, p.sleeping, dt);
     dozeTick(dt, heat);
     if (s.warm < B.frostBelow) { G.frostAcc += dt; if (G.frostAcc > B.frostT && s.frost < B.frostMax) { G.frostAcc = 0; s.frost++; Fx.toast(':frost: Обморожение · макс. тепло −10'); } } else G.frostAcc = 0;

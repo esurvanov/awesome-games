@@ -109,10 +109,12 @@ const Fire = (() => {
   return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn, toward, keepR, burnHero, treeSnow };
 })();
 
-// Печь: полено даёт secPerLog() игровых секунд огня (1,25–2,25 игр. ч) (щели и заслонка — дольше); ночью горит быстрее.
+// Печь: кг дров даёт secPerKg() игровых секунд огня (щели и заслонка — дольше); ночью горит быстрее. Полено — со своей массой
+// (чурка 2–16 кг); secPerLog() — прежнее «полено» 6 кг (Tree.KG): в нём меряют вместимость и прогнозы.
 const Stove = (() => {
   const S = TUNE.stove;
-  const secPerLog = () => G.hut.damper ? S.secPerLog.damper : G.hut.walls ? S.secPerLog.walls : S.secPerLog.base;
+  const secPerKg = () => G.hut.damper ? S.secPerKg.damper : G.hut.walls ? S.secPerKg.walls : S.secPerKg.base;
+  const secPerLog = () => secPerKg() * (typeof Tree !== 'undefined' ? Tree.KG : 6);
   // Вместимость печи в поленьях. Инвариант (исправление): в утеплённой избе (щели заделаны) полная печь
   // держит самую длинную ночь сна — от TUNE.time.sleepFrom до TUNE.time.wakeAt при ночной тяге,
   // даже если «полна» сработала на пол-полена раньше. Без щелей изба продувается — ночь не держит (так задумано).
@@ -122,12 +124,13 @@ const Stove = (() => {
     return Math.max(S.maxLogs, Math.ceil(night * (1 + S.nightBurn) / secPerLog() + S.fullSlack));
   }
   const max = () => secPerLog() * maxLogs();
-  // подбросить полено: сначала из лабаза, потом из рюкзака (исправление: раньше — из рюкзака)
   const room = () => !(G.hut.fuel > max() - secPerLog() * S.fullSlack);
-  function add() {
+  // подбросить полено: из рук, потом из поленницы, потом из рюкзака (кг — своя масса полена); kg — уже взятое полено
+  function add(kg) {
     if (!room()) { Fx.toast(':stove: Печь полна'); return false; }
-    if (!Inv.takeStock('wood', 1)) { Fx.toast(':close: Не хватает: :wood:1 (в руках или в лабазе)'); return false; }
-    G.hut.fuel += secPerLog(); G.flags.stoveLit = 1; Fx.floatText(SPOT.stove.x, SPOT.stove.y - 30, ':fire: +' + gameDur(secPerLog())); Sound.chop();
+    if (kg == null) { const w = Actions.useWood(true); if (!w) { Fx.toast(':close: Не хватает: :wood:1 (в руках или в поленнице)'); return false; } kg = w.kg; }
+    const s = kg * secPerKg();
+    G.hut.fuel += s; G.flags.stoveLit = 1; G.stats.burnKg = +((G.stats.burnKg || 0) + kg).toFixed(3); Fx.floatText(SPOT.stove.x, SPOT.stove.y - 30, ':fire: +' + gameDur(s) + ' · ' + kg.toFixed(1).replace('.', ',') + ' кг'); Sound.chop();
     return true;
   }
   // расход печи, с/с (тик и прогноз ночи — одна формула)
@@ -146,5 +149,5 @@ const Stove = (() => {
       if (G.charge >= 100) Fx.toast(':battery: Аккумулятор заряжен');
     }
   }
-  return { secPerLog, maxLogs, max, add, room, burn, tick };
+  return { secPerKg, secPerLog, maxLogs, max, add, room, burn, tick };
 })();

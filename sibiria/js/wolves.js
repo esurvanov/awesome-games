@@ -22,13 +22,15 @@ const Wolves = (() => {
   function hit(w) {
     const p = G.p, dmg = (p.torch > 0 ? 2 : 1) + 0.5 * (Hero.lvl('hunt') - 1);
     w.hp -= dmg; p.swing = 0.25; p.cd = 0.4; p.face = Math.sign(w.x - p.x) || p.face;
-    const a = Math.atan2(w.y - p.y, w.x - p.x); w.x += Math.cos(a) * 40; w.y += Math.sin(a) * 40;
+    // отлёт телом: скорость от удара гаснет за ~0,4 с (≈ 32 px), без скачка
+    const a = Math.atan2(w.y - p.y, w.x - p.x); w.kx = Math.cos(a) * 260; w.ky = Math.sin(a) * 260;
     w.st = 'flee'; w.t = 1.2; ArtWorld.fx.blood(G.parts, w.x, w.y, G.decals = G.decals || []); Sound.hit();
     if (G.pack) { if (!w.hurt) { w.hurt = 1; G.pack.hurt++; } if (w.leader) G.pack.leaderHurt += dmg; }
     if (w.leader && G.pack && G.pack.leaderHurt >= WF.leaderBeat && G.urk.wolfQuest) G.flags.leaderDone = 1;
     if (w.hp <= 0) {
-      G.wolves.splice(G.wolves.indexOf(w), 1); G.stats.wolves++; Hero.xp('hunt', 2); Fx.corpse(w.leader ? 'wolfLeader' : 'wolf', w.x, w.y);
-      Inv.add('wpelt'); Inv.add('meat', 2); Fx.floatText(w.x, w.y - 30, '+:wolf: +:meat:2'); Fx.burst(w.x, w.y - 10, 16, '#7d858f', 140);
+      // убит: тело валится и скользит по снегу (туша, js/carry.js) — шкура и мясо только разделкой
+      G.wolves.splice(G.wolves.indexOf(w), 1); G.stats.wolves++; Hero.xp('hunt', 2); Carry.carcass(w.leader ? 'wolfLeader' : 'wolf', w.x, w.y, w.kx * 0.8, w.ky * 0.8);
+      Fx.burst(w.x, w.y - 10, 10, '#7d858f', 100);
       if (G.pack) G.pack.killed++;
       if (w.leader) { G.flags.leaderDone = 1; Fx.toast(':wolf: Вожак убит — стая уходит'); retreatAll(); }
     }
@@ -109,6 +111,7 @@ const Wolves = (() => {
         if (p.torch > 0 && dp < TR && dp > 0.1) { vx += (w.x - p.x) / dp * (TR - dp) * 3; vy += (w.y - p.y) / dp * (TR - dp) * 3; }
         w.vx += (vx - w.vx) * Math.min(1, dt * 5); w.vy += (vy - w.vy) * Math.min(1, dt * 5);
       }
+      if (w.kx || w.ky) { const e = Math.exp(-dt * 8); w.x += w.kx * dt; w.y += w.ky * dt; w.kx *= e; w.ky *= e; if (Math.hypot(w.kx, w.ky) < 6) { w.kx = 0; w.ky = 0; } }   // отлёт от удара
       w.x += w.vx * dt; w.y += w.vy * dt; World.solid(w, 12, 'w');
       if (Math.abs(w.vx) > 5) w.face = Math.sign(w.vx);
       const spd = Math.hypot(w.vx, w.vy); w.step += dt * spd * 0.08;

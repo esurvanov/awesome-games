@@ -153,6 +153,7 @@ var ArtPeople = (function () {
     P.tk = null; P.ta = 1.2; P.tsc = 1; P.two = 0; P.gap = -4; P.tox = null; P.toy = 0; P.plen = 18;
     P.rot = 0; P.pvx = 0; P.pvy = -19.8; P.ox = 0; P.oy = 0;
     P.eyes = 0; P.mouth = 0; P.prop = null; P.hb = 0; P.flash = 0; P.bend = 0; P.sd = 0; P.arrow = 0;
+    P.lo = null; P.lon = 0; P.lsh = 0;   // ноша: охапка у груди [x, y] и сколько частей, вершина на плече
     P.trail = null; P.held = null; P.held2 = null; P.tlat = null; P.belt = 0; P.taT = null; P.staff = 0; P.carry = 0; P.smoke = 0; P.spark = 0; P.zz = 0;
     P.st0 = P.st1 = -1; P.q0 = P.q1 = 0; P.u0 = P.u1 = 0; P.pk = 0;   // опора стоп из походки (−1 — поза без шага); pk — стопы закреплены (planting); u — доля опоры
     P.rx0 = P.rx1 = 0; P.ob = 0; P.roll = 0; P.prot = 0; P.tw = 0;   // шаг: перекат стопы (x щиколотки), наклон таза, крен корпуса, скрут таза/плеч (рад)
@@ -613,6 +614,11 @@ var ArtPeople = (function () {
       g.strokeStyle = C(W); g.lineWidth = 2.2; g.beginPath(); tM(g, -5, 0); tL(g, 16, 0); g.stroke();
       g.fillStyle = C('#919dac'); g.beginPath(); tM(g, 11.5, -2.2); tL(g, 16, -2.2); tL(g, 18.6, 6); tL(g, 10.5, 5.6); tL(g, 12.6, 1.5); g.closePath(); g.fill();
       g.strokeStyle = '#dde6ee'; g.lineWidth = 1; g.beginPath(); tM(g, 18.4, 5.6); tL(g, 10.8, 5.2); g.stroke();
+    } else if (kind === 'stick') {   // палка
+      g.strokeStyle = C('#5a3d22'); g.lineWidth = 1.4; g.beginPath(); tM(g, -6, 0); tL(g, 9, 0); g.stroke();
+    } else if (kind === 'knife') {   // нож: рукоять, клинок
+      g.strokeStyle = C('#3a2618'); g.lineWidth = 1.6; g.beginPath(); tM(g, -1.5, 0); tL(g, 2, 0); g.stroke();
+      g.fillStyle = C('#c2c9d0'); g.beginPath(); tM(g, 2, -0.7); tL(g, 6.8, -0.2); tL(g, 2, 0.8); g.closePath(); g.fill();
     } else if (kind === 'chunk') {   // чурка с разделки: короткий толстый кругляк, светлый торец
       g.lineCap = 'butt'; g.strokeStyle = C('#5b3d27'); g.lineWidth = 5; g.beginPath(); tM(g, -2.6, 0); tL(g, 2.4, 0); g.stroke();
       g.strokeStyle = C('#765436'); g.lineWidth = 2; g.beginPath(); tM(g, -2.6, -1.2); tL(g, 2.4, -1.2); g.stroke(); g.lineCap = 'round';
@@ -1956,6 +1962,15 @@ var ArtPeople = (function () {
     if (P.belt && P.tk === 'axe') beltAxe(); else P.belt = 0;
     if (L.bowBack && P.tk !== 'bow' && !slung && anim !== 'shoot' && anim !== 'aim') slung = 'bow';
     if (!P.tk && !slung && L.weapon && (anim !== 'shoot' && anim !== 'aim')) slung = L.weapon;
+    // ноша героя вне своих поз (js/carry.js): охапка — обе руки у груди; вершина — на плече; вещь — в ближней руке
+    const LDo = o.load;
+    if (LDo && !(POSE[anim] && POSE[anim].own) && anim !== 'sleep' && anim !== 'dead' && anim !== 'sit') {
+      if ((P.tk === 'axe' && !P.belt) || P.tk === 'saw' || P.tk === 'rod' || P.tk === 'torch') P.tk = null;
+      if (LDo.mode === 'arms') { handR(0, 6.9, 6.4); handR(1, 5.5, 7.4); P.hl0 = 3.2; P.hl1 = 2.6; P.carry = 1; if (LDo.n) { P.lo = [P.sx + 7.2, P.sy + 5.4, 0]; P.lon = LDo.n; } else if (LDo.k) P.held = [LDo.k, P.sx + 7.4, P.sy + 4.2, -0.2]; }
+      else if (LDo.mode === 'shoulder') { handR(0, 3.6, -1.2); P.hl0 = 2.4; P.carry = 1; P.lsh = 1; }
+      else if (LDo.mode === 'drag') { P.lean += 0.16; shoulder(); handR(0, -4.6, 10.4); handR(1, -3.4, 10.8); P.hl0 = 5.2; P.hl1 = 4.6; P.carry = 1; }   // волоком: наклон вперёд, обе руки назад-вниз на комле
+      else if (LDo.k) { const hh = LDo.k === 'hare'; P.held = [LDo.k, P.h0x - 0.3, P.h0y + (hh ? 0.4 : -0.4), hh ? PI / 2 - 0.15 : -0.3]; }
+    }
     if (anim === 'carry' || (o.carry && (anim === 'walk' || anim === 'idle'))) {
       if (P.tk === 'torch') P.tk = null;
       handR(0, 6.8, 7.2); handR(1, 5.6, 6.6); P.hl0 = 3.8; P.hl1 = 3.8; P.carry = 1;
@@ -2041,6 +2056,8 @@ var ArtPeople = (function () {
     if (deep ? !f1 && !m1 : front || back) arm(g, L, 1, S > 0.7, 0, bz1);
     if (staff && !sh) staffAt(g, P.h0x, P.h0y, P.hl0);
     if (P.tk && !fT && !mT) drawTool(g, P.tk, tox, toy, P.ta, tlat, o, env);
+    if (P.lo && P.lon > 0 && !f0 && !m0) armful(g, P.lo[0], P.lo[1], P.lon, o.load, P.hl0 - 0.6);   // охапка у груди
+    if (P.lsh && !f0 && !m0) shoulderTop(g, P.h0x, P.h0y, P.hl0 - 0.4);                            // вершина на плече
     if (P.held && !f0 && !m0) drawTool(g, P.held[0], P.held[1], P.held[2], P.held[3], P.hl0, o, env);   // предмет в руках поверх инструмента за спиной: [вид, x, y, угол]
     if (P.held2 && !f0 && !m0) drawTool(g, P.held2[0], P.held2[1], P.held2[2], P.held2[3], -P.hl1, o, env);   // второй предмет (дальняя рука: банка, миска) — вглубь по hl1
     if (P.carry && o.carry && !back) { pr(P.sx + 7.5, P.sy + 5.2, 0); carryIc(g, o.carry, QX, QY, 12); }
@@ -2073,6 +2090,28 @@ var ArtPeople = (function () {
     finish(g, o, L, x, y, env);
     g.restore();
     TA = 0; GT = null;
+  }
+  // охапка: n чурок поперёк груди стопкой (w — толщины), торцы — к взгляду
+  function armful(g, x, y, n, ld, lat) {
+    TX = x; TY = y; TC_ = 1; TS = 0; TL = lat; TQ = 1; g.lineCap = 'butt';
+    const w = ld && ld.w || [];
+    for (let i = 0; i < Math.min(n, 6); i++) {
+      const k = clamp(w[i] || 1, 0.6, 1.6), v = -i * 3.4 * Math.min(1.2, k) + 1.2;   // чурка 0,45 м × 13 см ≈ 12 × 3,6 ед. рига
+      g.strokeStyle = C(i % 2 ? '#5b3d27' : '#6b4c31'); g.lineWidth = 3.6 * k; g.beginPath(); tM(g, -6.2, v); tL(g, 5.8, v); g.stroke();
+      g.strokeStyle = C('#3a2618'); g.lineWidth = 0.5; g.beginPath(); tM(g, -5.6, v + 1.2 * k); tL(g, 5.4, v + 1.2 * k); g.stroke();   // кора снизу темнее
+      tp(5.8, v); ell(g, QX, QY, 1.1 * k, 1.8 * k, C('#e0b47a')); if (k > 0.9) ell(g, QX, QY, 0.45 * k, 0.7 * k, C('#c79a62'));
+    }
+    g.lineCap = 'round';
+  }
+  // вершина ели на плече: толстый конец в руке впереди, тонкий с веточками — за спиной
+  function shoulderTop(g, hx, hy, lat) {
+    TX = hx + 2; TY = hy + 1; const a = Math.atan2(-9, -20); TC_ = Math.cos(a); TS = Math.sin(a); TL = lat; TQ = 1;   // 1 м ≈ 27 ед. рига: от руки впереди — через плечо назад
+    g.lineCap = 'round'; g.strokeStyle = C('#5b3d27'); g.lineWidth = 2.8; g.beginPath(); tM(g, -3, 0); tL(g, 16, 0); g.stroke();
+    g.lineWidth = 1.8; g.beginPath(); tM(g, 16, 0); tL(g, 27, 0); g.stroke();
+    g.strokeStyle = C('#2f5a3a'); g.lineWidth = 1.3; g.beginPath();
+    for (let i = 0; i < 7; i++) { const u = 12 + i * 2.3, l = 4.6 - i * 0.45; tM(g, u, 0); tL(g, u + l, -l * 0.9); tM(g, u, 0); tL(g, u + l, l * 0.9); }
+    g.stroke(); g.strokeStyle = C('#e8eef3'); g.lineWidth = 0.7; g.beginPath(); for (let i = 0; i < 4; i++) { const u = 13 + i * 3.5; tM(g, u, -1.2); tL(g, u + 2.5, -2.4); } g.stroke();   // снег на лапках
+    tp(-3, 0); ell(g, QX, QY, 1.3, 1.4, C('#e0b47a'));
   }
   function staffAt(g, hx, hy, hl) {
     g.strokeStyle = C('#5b3d27'); g.lineWidth = 2.4; g.beginPath(); M(g, hx + 1.2, 0, hl); Ln(g, hx - 0.6, hy - 15, hl); g.stroke();

@@ -68,7 +68,7 @@ function page() {
   {
     fresh(204);
     G.p.x = HUT.x + 900; G.p.y = HUT.y; G.p.inside = false;
-    G.inv.wood = 5; G.inv.meat = 2;
+    G.inv.wood = 2; G.inv.meat = 2;   // дров в рюкзаке — не больше TUNE.load.packWood
     const s = dig();
     ok(!!s && G.stashes.length === 1, `📦 тайник создан у (${s && s.x},${s && s.y})`);
     ok(UI.kind === 'stash', '📦 панель тайника открыта (E/T)');

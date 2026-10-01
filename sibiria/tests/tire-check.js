@@ -81,7 +81,8 @@ function page(K1) {
   G.s.warm = 90; const tea0 = G.s.tire; G.p.teaT = 30; G.p.inside = false; const rt = Survival.tireRate(G.s, { tea: G.p.teaT, moving: true, eff: 1 });
   ok(rt <= 0, `🍵 пока греет чай — не устаёт (${rt.toFixed(3)}/с)`);
   fresh(12); hut(); G.hut.fuel = 1e5; G.p.x = SPOT.stove.x + 20; G.p.y = SPOT.stove.y + 30; G.p.inside = true; G.inv = { stew: 1 }; G.s.food = 40; G.s.tire = 50; Actions.eat();
-  ok(G.s.tire === 45, `🍲 горячая уха: −5 (${G.s.tire})`);
+  for (let i = 0; i < 200 && (G.p.action || Carry.busy()); i++) update(0.05);   // еда — процесс: достать → съесть (≈ 2,9 с)
+  ok(Math.abs(G.s.tire - 45) < 0.3, `🍲 горячая уха: −5 (${f1(G.s.tire)})`);
 
   // ---------- 4. эффекты ----------
   fresh(12); field(); G.s.warm = 90; G.s.tire = 0; const sp0 = Hero.speed(), ch0 = Hero.chopTime(); G.s.tire = 100; const sp1 = Hero.speed(), ch1 = Hero.chopTime();

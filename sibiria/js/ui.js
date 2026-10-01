@@ -423,10 +423,11 @@ const UI = (() => {
     else if (b.dataset.tech) Colony.research(b.dataset.tech);
     else if (b.dataset.sell) Colony.sell(b.dataset.sell);
     else if (b.dataset.buy) Colony.buy(b.dataset.buy);
-    else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { G.inv[k]--; G.chest[k] = (G.chest[k] || 0) + 1; stowGesture(true, k); } }
-    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; Inv.add(k); stowGesture(false, k); } }
-    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { G.inv[k]--; curStash.inv[k] = (curStash.inv[k] || 0) + 1; stowGesture(true, k); } }
-    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { curStash.inv[k]--; Inv.add(k); stowGesture(false, k); } }
+    // перекладывание — по штуке, с массой (дрова: средняя масса места); в рюкзак — только если влезет
+    else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { Inv.move(G.inv, G.chest, k, 1); stowGesture(true, k); } }
+    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { const m = Inv.isW(k) ? Inv.wkg(G.chest) / G.chest.wood : undefined, f = Inv.fits(k, 1, m); if (!f.ok) toast(f.why === 'wood' ? ':pack: Дров в рюкзак — не больше ' + TUNE.load.packWood : ':pack: Не лезет'); else { Inv.move(G.chest, G.inv, k, 1); stowGesture(false, k); } } }
+    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { Inv.move(G.inv, curStash.inv, k, 1); stowGesture(true, k); } }
+    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { const m = Inv.isW(k) ? Inv.wkg(curStash.inv) / curStash.inv.wood : undefined, f = Inv.fits(k, 1, m); if (!f.ok) toast(f.why === 'wood' ? ':pack: Дров в рюкзак — не больше ' + TUNE.load.packWood : ':pack: Не лезет'); else { Inv.move(curStash.inv, G.inv, k, 1); stowGesture(false, k); } } }
     else if (b.dataset.all === 'stashput' && curStash) { for (const k in G.inv) if (G.inv[k] > 0) { curStash.inv[k] = (curStash.inv[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.all) { for (const k in G.inv) if (G.inv[k] > 0) { G.chest[k] = (G.chest[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.close) return closePanel();
@@ -507,14 +508,20 @@ const UI = (() => {
     vg.style.setProperty('--d', (dz * 0.92).toFixed(2)); vg.style.setProperty('--b', (edge * 0.55).toFixed(2)); vg.classList.toggle('on', dz > 0 || edge > 0);
     setHtmlOnce($('frost'), s.frost ? ic('frost', 's').repeat(s.frost) : '');
     // инвентарь
-    const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, G.inv[k], ITEMS[k].n)).join('');
-    const kg = Inv.weight(), cap = Inv.capKg();
-    const invHtml = (inv || '<span class="dim">пусто</span>') + chipI('weight', `${kg}/${cap}`, 'Вес, кг', 'kg' + (kg > cap ? ' over' : ''));
+    // ноша: рюкзак — объём и вес (шкалы), руки, нарты; ниже — что в рюкзаке
+    const LD = TUNE.load, pL = Inv.packL(), kg = Inv.weight(), cap = Inv.capKg();
+    const lb = (id, v, max, txt, title, warn) => `<span class="lb${v > max ? ' over' : warn ? ' warn' : ''}" title="${title}">${ic(id, 's')}<s style="--p:${Math.min(1, v / max).toFixed(2)}"></s>${txt}</span>`;
+    let load = lb('pack', pL, LD.packL, `${pL}/${LD.packL} л`, 'Рюкзак: объём', pL > LD.packL * 0.85) + lb('weight', kg, cap, `${kg}/${cap} кг`, 'На себе: рюкзак + руки', kg > cap * 0.85);
+    const hd = Carry.art();
+    if (hd) { const wn = Carry.woodN(), t = Carry.thing(); load += `<span class="hand" title="В руках">${ic('hand', 's')}${wn ? ic('wood', 's') + wn : ''}${t ? (t.id === 'carc' ? ic('hare', 's') : ITEMS[t.id] ? ic(ITEMS[t.id].i, 's') + (t.n > 1 ? t.n : '') : ic(t.id === 'amulet' ? 'sevek' : 'can', 's')) : ''}<small>${Carry.kg().toFixed(1).replace('.', ',')}</small></span>`; }
+    if (G.gear.sled) { const sk = Math.round(Carry.sledKg()), sw = (G.sled && G.sled.wood) || 0; load += lb('sled', sk, LD.sledKg, `${sw ? ic('wood', 's') + sw + ' · ' : ''}${sk}/${LD.sledKg} кг`, 'Нарты: груз', sk > LD.sledKg * 0.85); }
+    const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, k === 'wood' ? G.inv[k] + `<small>${Inv.wkg(G.inv).toFixed(1).replace('.', ',')}</small>` : G.inv[k], ITEMS[k].n)).join('');
+    const invHtml = `<div class="ld">${load}</div>` + (inv || '<span class="dim">пусто</span>');
     if (invHtml !== invCache || force) { invCache = invHtml; $('inv').innerHTML = invHtml; }
     // посёлок
     const C = G.col, st = k => G.chest[k] || 0;
     const colHtml = `<span title="Эпоха">${ic('epoch', 's')}${ROMAN[C.ep]}${C.epT > 0 ? `<small>${Math.ceil(C.epT)} с</small>` : ''}</span>` + chipI('people', `${Colony.pop()}/${Colony.popCap()}`, 'Люди')
-      + chipI('wood', st('wood'), 'Лабаз: дрова') + chipI('food', Inv.cnt('food', true) - Inv.cnt('food', false), 'Лабаз: еда') + chipI('scrap', st('scrap'), 'Лабаз: железо')
+      + chipI('wood', st('wood'), 'Поленница у избы: дрова') + chipI('food', Inv.cnt('food', true) - Inv.cnt('food', false), 'Лабаз: еда') + chipI('scrap', st('scrap'), 'Лабаз: железо')
       + chipI('coins', C.rub, 'Рубли') + chipI('sevek', `${G.amulets}/12`, 'Сэвэки') + (C.alarm ? `<span class="alarm">${ic('alarm', 's')}</span>` : '');
     if (colHtml !== $('colony').dataset.c) { $('colony').dataset.c = colHtml; $('colony').innerHTML = colHtml; }
     const sel = Colony.selected();
@@ -854,7 +861,7 @@ const UI = (() => {
     start(checkpoint);
     G.s.hp = Math.max(G.s.hp, 60); G.s.warm = Math.max(G.s.warm, 50); G.s.food = Math.max(G.s.food, 40); G.wolves = []; G.pack = null; if (G.bear) G.bear = null;
     if ((deathLog[ch] || 0) >= 2) {
-      G.mercy = 1; G.chest.wood = (G.chest.wood || 0) + 4; G.chest.meat = (G.chest.meat || 0) + 2;
+      G.mercy = 1; Inv.put(G.chest, 'wood', 4); G.chest.meat = (G.chest.meat || 0) + 2;
       toast(':evenk: Уркачан оставил в лабазе :wood:4 :meat:2');
     }
   }

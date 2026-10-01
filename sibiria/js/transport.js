@@ -90,7 +90,9 @@ const Transport = (() => {
     if (p.action) return;
     const sd = Math.sign(p.x - v.x) || -1, q = { x: v.x + sd * BOARD, y: v.y + 3 };
     const sit = () => { const P = G.p; P.board = kind; P.face = -sd; P.action = { k: 'mount', t: 0, dur: BOARD_T, o: kind, pose: 'sit', fb: 'sit', x0: P.x, y0: P.y }; };
-    if (Math.hypot(q.x - p.x, q.y - p.y) > 6 && Math.hypot(v.x - p.x, v.y - p.y) > 6) Actions.walkTo(q.x, q.y, 2, sit); else sit();
+    // рядом (≤ 46 px до сиденья) — садится сразу: тело само переходит на сиденье за 0,7 с (boardStep, ≤ 1,1 px за кадр); дальше — подходит своими ногами
+    // (до 12 px от бока: вплотную не подойти — сам транспорт преграда)
+    if (Math.hypot(v.x - p.x, v.y - p.y) > 46) Actions.walkTo(q.x, q.y, 12, sit); else sit();
   }
   function boarded(a) {
     const p = G.p, v = G.veh[a.o]; p.board = null; if (!v) return;

@@ -78,9 +78,15 @@ const Colony = (() => {
     if (Math.random() < dt * 3 && !u.hidden) Fx.print(u.x, u.y, Math.atan2(dy, dx), u.type === 'laika' ? 'w' : 'p');
     return fin && Math.hypot(x - u.x, y - u.y) <= stop + 0.5;
   }
-  function deposit(u) {
-    for (const k in u.carry) { G.chest[k] = (G.chest[k] || 0) + u.carry[k]; if (k === 'scrap') G.stats.scrap += u.carry[k]; }
-    u.carry = {};
+  // разгрузка у склада — по одной вещи (дрова — в поленницу/дровяник со своей массой номинала), 0,35 с на штуку; true — пусто
+  function deposit(u, dt) {
+    u.working = 'drop'; u.t = (u.t || 0) + dt;
+    if (u.t < 0.35) return false;
+    u.t = 0; const k = Object.keys(u.carry)[0]; if (!k) return true;
+    Inv.put(G.chest, k, 1); if (k === 'scrap') G.stats.scrap++;
+    if (--u.carry[k] <= 0) delete u.carry[k];
+    if (Math.random() < 0.5) Sound.src(u).chop();
+    return !Object.keys(u.carry).length;
   }
   function threats() {
     const out = G.wolves.slice(); if (G.bear) out.push(G.bear); return out;
@@ -135,7 +141,7 @@ const Colony = (() => {
     if (t.ph === 'drop') {
       walked(u, dt);
       const res = Object.keys(u.carry)[0] || 'wood', d = nearestOf(drops(res), u);
-      if (go(u, d.x, d.y, sp, dt, 8)) { deposit(u); t.ph = 'go'; if (t.stop) { u.task = { k: 'idle' }; } }
+      if (go(u, d.x, d.y, sp, dt, 8)) { if (deposit(u, dt)) { u.t = 0; t.ph = 'go'; if (t.stop) { u.task = { k: 'idle' }; } } } else u.t = 0;
       return;
     }
     let src = null, reach = 24, time = 2, yieldFn;
@@ -196,6 +202,7 @@ const Colony = (() => {
     u.t += dt;
     if (workDone(u, C0.chopT / mod('chop'))) { u.t = 0; u.lag = 0; tree.wood--; chopHit(u, tree); u.carry.wood = (u.carry.wood || 0) + 1; if (u.carry.wood >= Math.min(3, 4 - s.wood) || tree.wood <= 0) t.tree = null; }
   }
+  const units = cost => { const out = []; for (const [k, v] of Object.entries(cost)) for (let i = 0; i < v; i++) out.push(k); return out; };
   const nearWoodshed = o => G.col.builds.some(b => b.done && b.type === 'woodshed' && dist2(b, o) < C0.woodshedR * C0.woodshedR);
 
   function uUpdate(u, dt, h, storm) {
@@ -246,7 +253,7 @@ const Colony = (() => {
       case 'build': {
         const b = bById(t.b); if (!b || b.done) { u.task = { k: 'idle' }; break; }
         const R = BUILDS[b.type].w / 2 + 12;
-        if (dist(u, b) > R) go(u, b.x, b.y, sp, dt, R - 4); else { u.working = 'build'; u.face = Math.sign(b.x - u.x) || u.face; if (Math.random() < dt * 2) Sound.src(u).chop(); }
+        if (dist(u, b) > R) { u.t = 0; go(u, b.x, b.y, sp, dt, R - 4); } else { u.working = 'build'; u.t = (u.t || 0) + dt; u.face = Math.sign(b.x - u.x) || u.face; if (Math.random() < dt * 2) Sound.src(u).chop(); }
         break;
       }
       case 'chop': case 'fish': case 'wreck': case 'hunt': gather(u, dt, sp); break;
@@ -285,7 +292,12 @@ const Colony = (() => {
     for (const b of C.builds) if (!b.done) {
       let n = builders.get(b.id) || 0;
       if (p.buildT > 0 && p.buildB === b.id) n++;
-      if (n > 0) { b.prog += 3 * n / (n + 2) / BUILDS[b.type].t * dt; if (b.prog >= 1) finish(b); }
+      // материалы уходят по ходу (поленница худеет по одному полену, пока растёт стройка): нечем — стройка стоит
+      if (n > 0) { const U = units(BUILDS[b.type].cost), paid = b.paid == null ? U.length : b.paid, nx = Math.min(1, b.prog + 3 * n / (n + 2) / BUILDS[b.type].t * dt);
+        while (b.paid != null && b.paid < U.length && b.paid < Math.ceil(nx * U.length - 1e-9)) { if (!Inv.takeStock(U[b.paid], 1)) break; b.paid++; }
+        const cap = b.paid == null || b.paid >= U.length ? 1 : b.paid / U.length;
+        if (cap <= b.prog && b.paid != null && b.paid < U.length) { if (!b.short) { b.short = 1; Fx.toast(`:build: ${BUILDS[b.type].i} стоит · не хватает ${ITEMS[U[b.paid]] ? ITEMS[U[b.paid]].i : ':food:'}`); } }
+        else { b.short = 0; b.prog = Math.min(nx, cap); if (b.prog >= 1) finish(b); } void paid; }
     }
     p.buildT = Math.max(0, (p.buildT || 0) - dt);
     // содержание: раз в минуту каждый ест
@@ -302,7 +314,7 @@ const Colony = (() => {
       if (b.type === 'smoke' && b.t > C0.smokeT) { b.t = 0; const k = (G.chest.meat || 0) > 0 ? 'meat' : (G.chest.fish || 0) > 0 ? 'fish' : null; if (k) { G.chest[k]--; G.chest.dried = (G.chest.dried || 0) + 1; } if (Math.random() < 0.5) G.parts.push({ type: 'smoke', x: b.x + 10, y: b.y - 50, vx: rnd(-5, 5), vy: -25, life: 3, max: 3 }); }
       if (b.type === 'tower') {
         b.fuel = Math.max(0, (b.fuel || 0) - dt);
-        if (b.fuel <= 0 && (G.chest.wood || 0) > 0 && (1 - daylight(h)) > 0.3) { G.chest.wood--; b.fuel = C0.towerFuel; }
+        if (b.fuel <= 0 && (G.chest.wood || 0) > 0 && (1 - daylight(h)) > 0.3) { Inv.pull(G.chest, 'wood', 1); b.fuel = C0.towerFuel; }
         b.cd = Math.max(0, (b.cd || 0) - dt);
         const th = threatNear(b, C0.towerR);
         if (th && b.cd <= 0) { b.cd = C0.towerCd; G.col.proj.push({ x: b.x, y: b.y - 70, tx: th.x, ty: th.y - 14, t: 0 }); if (Math.random() < C0.towerHit) damage(th, 1 + mod('dmg')); }
@@ -364,8 +376,8 @@ const Colony = (() => {
     g.ok = canPlace(g.type, g.x, g.y);
     if (!g.ok) return Fx.toast(':close: Здесь не построить');
     const B = BUILDS[g.type]; if (!Inv.canPay(B.cost, true)) { G.col.ghost = null; return Fx.toast(':close: Не хватает ресурсов'); }
-    Inv.payStock(B.cost);
-    const b = { id: G.col.nextId++, type: g.type, x: Math.round(g.x), y: Math.round(g.y), prog: 0, done: 0, t0: G.time };   // t0: разметка проступает (js/art-world.js construct)
+    // материалы не исчезают при разметке — уходят со склада по ходу стройки (paid — сколько штук уже взято)
+    const b = { id: G.col.nextId++, type: g.type, x: Math.round(g.x), y: Math.round(g.y), prog: 0, done: 0, t0: G.time, paid: 0 };   // t0: разметка проступает (js/art-world.js construct)
     G.col.builds.push(b); G.col.ghost = null; Sound.hit();
     // ближайшие свободные бичи — на стройку
     // идущие наниматься (arrive) — тоже свободны: сразу на стройку
@@ -418,7 +430,7 @@ const Colony = (() => {
   }
   function buy(k) {
     if (!nearMarket() || G.col.rub < buyPrice(k)) return false;
-    G.col.rub -= buyPrice(k); G.chest[k] = (G.chest[k] || 0) + 1; G.col.prices[k] *= C0.buyRise; Sound.pick(); return true;
+    G.col.rub -= buyPrice(k); Inv.put(G.chest, k, 1); G.col.prices[k] *= C0.buyRise; Sound.pick(); return true;
   }
   function newDay() { for (const k in G.col.prices) G.col.prices[k] *= C0.inflation; }
 
