@@ -550,7 +550,7 @@ const Tree = (() => {
     if (wl) g.drawImage(wl, t.x - 45 * k, t.y - 18 * k, 90 * k, 30 * k);
     pose(S, k, { ox: t.x, oy: t.y, snow: 1 }); const hz = HC / k;
     const paint = gg => render(gg, S, { z0: 0, z1: hz, has: () => false, discs: [[hz, 1, snow < 0.5]], dsnow: snow, sc: 1 / Math.max(0.5, dpr), lq: low() });
-    if (SC) { const r = rz(S, 0) * k * M + 3; Style.cast(g, t.x, t.y, hz * k * M, r * 2.2); Style.figure(g, t.x - r - 2, t.y - hz * k * M - r - 2, r * 2 + 4, hz * k * M + r * 2 + 4, paint, { snap: false }); } else paint(g);
+    if (SC) { const r = rz(S, 0) * k * M + 3; Style.cast(g, t.x, t.y, hz * k * M, r * 2.2); Style.figure(g, t.x - r - 2, t.y - hz * k * M - r - 2, r * 2 + 4, hz * k * M + r * 2 + 4, paint, { snap: false, cache: t, every: 1e9, ver: Math.round(snow * 10) }); } else paint(g);
     if (snow < 0.5) { tf(0, 0, hz, hz); const r = rz(S, hz) * k * M; g.strokeStyle = SC ? SP.ochre : '#efd8a8'; g.lineWidth = Math.max(0.5, r * 0.15); g.beginPath(); g.moveTo(SX - r * 0.7, SY - r * 0.1); g.lineTo(SX - r * 0.2, SY - r * 0.5); g.moveTo(SX + r * 0.1, SY - r * 0.05); g.lineTo(SX + r * 0.4, SY - r * 0.55); g.stroke(); }   // недопил — щепа торчит
   }
   // ---------- ствол на земле / в падении ----------

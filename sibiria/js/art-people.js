@@ -1886,15 +1886,18 @@ var ArtPeople = (function () {
   // ---------- главный вход ----------
   const NOENV = { now: 0, night: 0, light() {}, spark() {} };
   // C: рамка фигуры (мир, от опоры): обычная — по росту и замаху, лёжа/у лунки/с оружием — шире
+  const LQ_ = () => typeof window !== 'undefined' && window.QUALITY === 'low';
   const WIDE = { sleep: 1, dead: 1, fish: 1, fishBite: 1, shoot: 1, aim: 1, freezeFall: 1, sit: 1, rest: 1 };
   function draw(g, o, env) {
     if (!SCs() || CFG || Style.depth) return draw0(g, o, env);
     const t = o.t || 0; if (o.blink && Math.floor(t * 20) % 2) return;
     const x = o.x, y = o.y, wide = WIDE[o.anim] || o.ride, hw = wide ? 48 : 32;
     if (o.sel) { g.strokeStyle = Style.P.ochre; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, o.anim === 'sleep' || o.anim === 'dead' ? 24 : 15, 6, 0, 0, PI * 2); g.stroke(); }
-    const halo = !(typeof window !== 'undefined' && window.QUALITY === 'low') || (o.key && typeof G !== 'undefined' && G && G.p === o.key);
-    TRL = null; CFG = true;
-    try { Style.figure(g, x - hw, y - 86, hw * 2, 98, gg => draw0(gg, o, env), { halo }); } finally { CFG = false; }
+    // главные фигуры (герой, Вера, Уркачан, люди зон) — тушь 8 сдвигами и ореол; массовка посёлка — тушь крестом, без ореола (бюджет кадра)
+    const hero = !!(o.key && typeof G !== 'undefined' && G && G.p === o.key), crowd = !!o.crowd && !hero;
+    const halo = hero || (!crowd && !(typeof window !== 'undefined' && window.QUALITY === 'low'));
+    TRL = null; CFG = true;   // массовка — из кэша 30 Гц; слабый пресет: герой 30 Гц, массовка 15 Гц
+    try { Style.figure(g, x - hw, y - 86, hw * 2, 98, gg => draw0(gg, o, env), { halo, few: crowd, cache: crowd || LQ_() ? o.key || null : null, every: LQ_() && !hero ? 4 : 2 }); } finally { CFG = false; }
     if (TRL) { Style.speedPath(g, TRL, [0.86, 1.1]); TRL = null; }
     finish(g, o, look(heroSub(o.look)), x, y, env);
   }

@@ -122,36 +122,48 @@ const Style = (() => {
     const g = c._g; g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, w, h);
     return c;
   }
-  // штамп маски по кольцу радиуса r (px): 12 сдвигов + внутреннее кольцо — без щелей; low — крест
-  function stamp(g, m, w, h, r) {
+  // штамп маски по кольцу радиуса r (px): 8 сдвигов (12 — от 4 px), внутреннее кольцо — от 4.5 px (тонкие детали без щелей); low — крест
+  function stamp(g, m, w, h, r, few) {
     if (r <= 0.05) return;
-    const n = low() ? 4 : r < 1.6 ? 8 : 12;
-    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + (low() ? Math.PI / 4 : 0); g.drawImage(m, 0, 0, w, h, Math.cos(a) * r, Math.sin(a) * r, w, h); }
-    if (r > 2.2 && !low()) for (let i = 0; i < 8; i++) { const a = (i + 0.5) / 8 * Math.PI * 2; g.drawImage(m, 0, 0, w, h, Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, w, h); }
+    const lo = low() || few, n = lo ? 4 : r < 4 ? 8 : 12;
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + (lo ? Math.PI / 4 : 0); g.drawImage(m, 0, 0, w, h, Math.cos(a) * r, Math.sin(a) * r, w, h); }
+    if (r > 4.5 && !lo) for (let i = 0; i < 8; i++) { const a = (i + 0.5) / 8 * Math.PI * 2; g.drawImage(m, 0, 0, w, h, Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, w, h); }
   }
-  // область (w×h px) холста cv: тушь r px снаружи силуэта, ореол halo px снаружи туши; результат — в cv
-  function outlineCanvas(cv, r, halo = 0, w = cv.width, h = cv.height) {
-    if (!on || w < 1 || h < 1) return;
-    const A = tmp(0, w, h), M = tmp(1, w, h), a = A._g, m = M._g;
-    a.drawImage(cv, 0, 0, w, h, 0, 0, w, h);
+  // область (w×h px) холста cv: тушь r px снаружи силуэта, ореол halo px снаружи туши — подкладкой под рисунок (destination-over, без копий).
+  // Ореол — расширение уже расширенной туши (8 сдвигов), а не второй круг от силуэта: ~18 drawImage на фигуру
+  function outlineCanvas(cv, r, halo = 0, w = cv.width, h = cv.height, few = false) {
+    if (!on || w < 1 || h < 1 || r <= 0.05) return;
+    const M = tmp(1, w, h), D = tmp(0, w, h), m = M._g, d = D._g;
     m.drawImage(cv, 0, 0, w, h, 0, 0, w, h); m.globalCompositeOperation = 'source-in'; m.fillStyle = P.ink; m.fillRect(0, 0, w, h); m.globalCompositeOperation = 'source-over';
-    const g = cv.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, w, h);
-    if (halo > 0) { stamp(g, M, w, h, r + halo); g.globalCompositeOperation = 'source-in'; g.fillStyle = P.paper; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
-    stamp(g, M, w, h, r); g.drawImage(A, 0, 0, w, h, 0, 0, w, h); g.restore();
+    stamp(d, M, w, h, r, few);
+    const g = cv.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'destination-over';
+    g.drawImage(D, 0, 0, w, h, 0, 0, w, h);
+    if (halo > 0) { const Hc = tmp(5, w, h), hg = Hc._g; stamp(hg, D, w, h, halo); hg.globalCompositeOperation = 'source-in'; hg.fillStyle = P.paper; hg.fillRect(0, 0, w, h); hg.globalCompositeOperation = 'source-over'; g.drawImage(Hc, 0, 0, w, h, 0, 0, w, h); }
+    g.restore();
   }
   // рисунок paint(gg) на g в рамке мира (x0, y0, w, h) — через временный холст в px устройства: роли, контур, ореол.
   // g — любой контекст без поворота (масштаб + сдвиг); клип и прозрачность g действуют на итог. o: {halo, snap, ink}
-  let DEPTH = 0;
+  // o.cache — ключ (объект фигуры): готовый рисунок с контуром живёт o.every кадров (массовка — 30 Гц), сдвигается за фигурой;
+  // o.ver — версия состояния (пень: снег на торце), другая — перерисовать
+  let DEPTH = 0, FRAME = 0; const FC = new WeakMap();
   function figure(g, x0, y0, w, h, paint, o = {}) {
     if (!on || DEPTH) return paint(g);
     const T = g.getTransform(), s = T.a, pad = Math.ceil((INK + HALO) * V.rdpr) + 2;
     const X = Math.floor(T.a * x0 + T.e) - pad, Y = Math.floor(T.d * y0 + T.f) - pad, Wd = Math.ceil(w * s) + pad * 2, Hd = Math.ceil(h * s) + pad * 2;
     if (Wd < 2 || Hd < 2 || Wd > 2600 || Hd > 2600) return paint(g);
-    const C = tmp(o.snap === false ? 4 : 2, Wd, Hd), c = o.snap === false ? C._g : snapCtx(C._g);
+    let C, e = null;
+    if (o.cache) {
+      e = FC.get(o.cache);
+      if (e && e.s === s && e.w === Wd && e.h === Hd && e.v === o.ver && FRAME - e.f < (o.every || 2) && FRAME >= e.f) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(e.cv, 0, 0, Wd, Hd, X, Y, Wd, Hd); g.restore(); return; }
+      if (!e) { e = { cv: document.createElement('canvas') }; e.cv._g = e.cv.getContext('2d'); FC.set(o.cache, e); }
+      if (e.cv.width < Wd || e.cv.height < Hd) { e.cv.width = Math.max(e.cv.width, Wd); e.cv.height = Math.max(e.cv.height, Hd); }
+      e.s = s; e.w = Wd; e.h = Hd; e.f = FRAME; e.v = o.ver; C = e.cv; const c0 = C._g; c0.setTransform(1, 0, 0, 1, 0, 0); c0.globalCompositeOperation = 'source-over'; c0.globalAlpha = 1; c0.clearRect(0, 0, Wd, Hd);
+    } else C = tmp(o.snap === false ? 4 : 2, Wd, Hd);
+    const c = o.snap === false ? C._g : snapCtx(C._g);
     c.setTransform(s, 0, 0, T.d, T.e - X, T.f - Y);
     DEPTH++; try { paint(c); } finally { DEPTH--; }
     c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
-    outlineCanvas(C, (o.ink != null ? o.ink : INK) * V.rdpr, o.halo ? HALO * V.rdpr : 0, Wd, Hd);
+    outlineCanvas(C, (o.ink != null ? o.ink : INK) * V.rdpr, o.halo ? HALO * V.rdpr : 0, Wd, Hd, !!o.few);
     g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(C, 0, 0, Wd, Hd, X, Y, Wd, Hd); g.restore();
   }
   // paint на холсте g целиком (спрайт): рисунок → временный холст того же размера → контур → поверх g
@@ -197,7 +209,7 @@ const Style = (() => {
   }
   // отбрасываемая тень (одно правило): тело высотой h px в точке опоры (x, y), ширина w — капсула вдоль SHV, тон тени
   function cast(g, x, y, h, w, k = 1) {
-    const ex = x + SHV.x * h * k, ey = y + SHV.y * h * k, hw = w / 2, dx = ex - x, dy = ey - y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, tw = hw * 0.7;
+    const ex = x + SHV.x * h * k, ey = y + SHV.y * h * k, hw = w / 2, dx = ex - x, dy = ey - y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, tw = hw * 0.85;
     g.beginPath(); g.ellipse(x, y, hw, hw * 0.42, 0, 0, Math.PI * 2);
     g.moveTo(x + nx * hw, y + ny * hw * 0.42); g.lineTo(ex + nx * tw, ey + ny * tw * 0.6); g.ellipse(ex, ey, tw, tw * 0.6, Math.atan2(dy, dx), -Math.PI / 2, Math.PI / 2); g.lineTo(x - nx * hw, y - ny * hw * 0.42); g.closePath();
     g.fill();
@@ -208,6 +220,6 @@ const Style = (() => {
   return {
     get on() { return on; }, set on(v) { on = !!v; }, P, ROLES, LZ, MAT, tone, TH, SUN, SHV, LIT2, lit3, lit2, V, INK, HALO, INK_G, inkFor, lw,
     MOOD, MOOD_ROLES, mood, role, ambient, lift, get weights() { return W; },
-    snap, snapCtx, roleName, outlineCanvas, figure, inked, drift, speed, speedPath, rays, cast, table, get depth() { return DEPTH; },
+    tick() { FRAME++; }, snap, snapCtx, roleName, outlineCanvas, figure, inked, drift, speed, speedPath, rays, cast, table, get depth() { return DEPTH; },
   };
 })();

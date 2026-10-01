@@ -421,7 +421,7 @@ const Depth = (() => {
   function backC(g, L) { g.fillStyle = Style.P.shade; g.beginPath(); g.ellipse(L.cx, L.cy - L.ry * 0.1, L.rx * 1.05, L.ry * 1.1, 0, 0, TAU); g.fill(); }
   function frontC(g, L) {
     const x = L.cx, y = L.cy, rx = L.rx + 3, ry = L.ry + 2;
-    g.fillStyle = Style.P.paper; g.beginPath(); g.ellipse(x, y + 1, rx, ry, 0, 0, Math.PI); g.quadraticCurveTo(x, y - ry * 0.55, x + rx, y + 1); g.fill();
+    if (L.px >= 10) { g.fillStyle = Style.P.paper; g.beginPath(); g.ellipse(x, y + 1, rx, ry, 0, 0, Math.PI); g.quadraticCurveTo(x, y - ry * 0.55, x + rx, y + 1); g.fill(); }   // глубоко — валик закрывает тело; мелко — только бровка (тень у ног видна)
     g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(); g.lineCap = 'round'; g.beginPath(); g.moveTo(x - rx, y + 1); g.quadraticCurveTo(x, y - ry * 0.55, x + rx, y + 1); g.stroke();   // бровка — главный разрыв формы
   }
   // задняя часть ямы (до фигуры): синеватая полость в тени и задний валик
@@ -441,7 +441,7 @@ const Depth = (() => {
       g.globalAlpha = 1; return;
     }
     if (L.mode !== 'snow') return;
-    if (STC) { if (L.px >= 2.5) frontC(g, L); return; }
+    if (STC) { if (L.px >= 4) frontC(g, L); return; }
     rim(g, L, 'f', Math.min(1, L.px / 5));
   }
   // печь куска колеи r[a..b] в спрайт (мир → px × S)

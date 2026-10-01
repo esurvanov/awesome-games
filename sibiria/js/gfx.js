@@ -1209,7 +1209,7 @@ const GFX = (() => {
     const sp = clamp(T.sp / 160, 0.2, 1), vy = view(m, anim === 'walk' || anim === 'carry' ? dirY(m) : 0);
     const WP = windPose(u, moved ? m.face : uf, vy, anim, moved); anim = deepWalk(u, WP.anim, moved); if (!ghost) rimLight(u);
     sunk(g, u, 'n', () => ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: moved ? m.face : uf, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: sp, anim, animT, wind: WP.w, gust: WP.g, look: LK[u.type], tool, target,
-      carry: c ? ITEMS[c].i : null, sel: sel && !ghost, hp: !ghost && u.hp < mh ? u.hp / mh : null, seed: u.id }, ENV));
+      carry: c ? ITEMS[c].i : null, sel: sel && !ghost, hp: !ghost && u.hp < mh ? u.hp / mh : null, seed: u.id, crowd: 1 }, ENV));
   }
   function drawAmulet(a) { const s = ArtWorld.amulet(cx, a.x, a.y); EYES.push({ x: s.x, y: s.y, spark: 0.4 + Math.sin(now * 3 + a.x) * 0.4 }); }
   function drawInspect(q) { ArtWorld.inspect(cx, q, ENV); }
@@ -1334,7 +1334,7 @@ const GFX = (() => {
   // ---------- главный рендер ----------
   let lastCam = { x: 0, y: 0 }, CTX = null; // CTX — сводка Ctx.now() на кадр (js/context.js)
   function render(dt, ctxTarget) {
-    frame++; rdt = dt;
+    frame++; rdt = dt; if (SC) Style.tick();
     zoomStep();
     if (state === 'menu') { cam.x = HUT.x - vw / 2 + Math.sin(now * 0.1) * 40; cam.y = HUT.y - vh / 2 + 40; }
     else {
@@ -1530,7 +1530,7 @@ const GFX = (() => {
       cx.globalCompositeOperation = 'multiply'; cx.drawImage(lm, 0, 0, cv.width, cv.height);
       cx.globalCompositeOperation = 'source-over';
     } else lm._ok = false;
-    if (SC) { const b = Style.lift(); if (b[0] + b[1] + b[2] > 1.5) { cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = `rgb(${b[0] | 0},${b[1] | 0},${b[2] | 0})`; cx.fillRect(0, 0, cv.width, cv.height); cx.globalCompositeOperation = 'source-over'; } } // добавка перекраски (дымка пурги)
+    if (SC) { const b = Style.lift(); if (b[0] + b[1] + b[2] > 9) { cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = `rgb(${b[0] | 0},${b[1] | 0},${b[2] | 0})`; cx.fillRect(0, 0, cv.width, cv.height); cx.globalCompositeOperation = 'source-over'; } } // добавка перекраски (дымка пурги)
     if (!SC && !LOW) { // зерно (сдвигается каждый кадр) и мягкая виньетка
       cx.setTransform(1, 0, 0, 1, 0, 0);
       if (!GRAIN) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), im = g.createImageData(128, 128); for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (CR() - 0.5) * 120; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } g.putImageData(im, 0, 0); GRAIN = cx.createPattern(c, 'repeat'); }
