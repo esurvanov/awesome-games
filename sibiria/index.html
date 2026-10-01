@@ -168,7 +168,8 @@
   .chipline .lb { gap: 4px; } .chipline .lb s { display: inline-block; position: relative; width: 30px; height: 6px; border-radius: 2px; background: var(--well-bg); box-shadow: var(--well-sh); overflow: hidden; text-decoration: none; }
   .chipline .lb s::after { content: ''; position: absolute; inset: 0 auto 0 0; width: calc(var(--p, 0) * 100%); background: var(--s-ok); }
   .chipline .lb.warn s::after { background: var(--s-warn); } .chipline .lb.over s::after { background: var(--s-danger); } .chipline .lb.over { color: var(--s-danger); }
-  .chipline .ld { width: 100%; display: flex; flex-wrap: wrap; gap: 4px 10px; } .chipline .hand { color: var(--w-gold); }
+  .chipline .ld { width: 100%; display: flex; flex-wrap: wrap; gap: 4px 10px; } .chipline .lb.off { opacity: .55; }
+  .chipline .slots { gap: 2px; } .chipline .slots i { display: inline-block; width: 5px; height: 9px; border-radius: 1px; background: var(--well-bg); box-shadow: var(--well-sh); } .chipline .slots i.on { background: var(--w-gold); } .chipline .hand { color: var(--w-gold); }
   .chipline .dim { color: var(--c11); font: var(--fs-s) var(--f-body); }
   .chipline small { font: var(--fs-2xs) var(--f-num); color: var(--w-gold); }
   .chipline .alarm { color: var(--s-danger); animation: ds-blink .4s infinite alternate; }

@@ -1304,6 +1304,7 @@ const Actions = (() => {
   function sleepWhy() {
     if (!nightNow()) return ':sleep: Спать — после 19:00';
     if (G.hut.fuel <= 0) return ':close: Сначала растопи печь';
+    if (Carry.busy()) return ':hand: Руки заняты · X — положить';   // не спит с чуркой в руке
     if (G.wolves.some(w => insideHut(w.x, w.y))) return ':wolf: Волк в избе — не до сна!';
     if (!G.hut.door && G.wolves.some(w => w.st !== 'retreat' && dist2(w, HUT) < TUNE.r.hutWolves * TUNE.r.hutWolves)) return ':wolf: Волки у избы — без двери не уснуть';
     if (G.bear && G.bear.st !== 'flee' && dist2(G.bear, HUT) < A.bearSleepR * A.bearSleepR) return ':bear: Шатун рядом — не уснуть';

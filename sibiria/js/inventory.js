@@ -2,7 +2,8 @@
 // Вещи: у каждой — масса и объём (ITEMS[id].kg, .l). Места: рюкзак G.inv, лабаз/поленница G.chest, нарты G.sled, тайники s.inv,
 // руки G.hand (js/carry.js). Место — {id: штук, wkg: масса дров кг, wl: твёрдый объём дров л}: дрова — штуки (≈ чурка) со своей массой
 // (дерево → чурки → руки → рюкзак/нарты/поленница → печь сходятся по кг); взять n поленьев — уходит средняя масса.
-// Рюкзак: ≤ packL л укладки и ≤ packMax кг, дров — не больше packWood коротких; выше packKg — перегруз (медленнее, усталость).
+// Рюкзак: внутри ≤ packL л укладки, всего ≤ packMax кг; дрова внутрь — короткие (≤ packWoodLen) по объёму, снаружи под ремнями —
+// ещё packWood (c.wo — сколько из c.wood приторочено снаружи: место внутри не занимают); выше packKg — перегруз (медленнее, усталость).
 const Inv = (() => {
   const LD = () => TUNE.load, r4 = v => Math.round(v * 1e4) / 1e4;
   const isW = id => id === 'wood';
@@ -20,6 +21,10 @@ const Inv = (() => {
   const wl = c => { sync(c); return (c.wood || 0) > 0 ? (c.wl != null ? c.wl : wkg(c) / LD().rho * 1000) : 0; };
   function put(c, id, n = 1, kg, l) {
     if (!(n > 0)) return;
+    if (isW(id) && c === G.inv) { put0(c, id, n, kg, l); normWo(c); return; }
+    put0(c, id, n, kg, l);
+  }
+  function put0(c, id, n, kg, l) {
     // масса места: пока всё номинальное — не пишем (wkg/wl выводятся из штук); своя масса — пишем
     if (isW(id) && (kg != null || c.wkg != null)) { const m = kg != null ? kg : n * LD().woodKg, v = l != null ? l : m / LD().rho * 1000, m0 = wkg(c), v0 = wl(c); c.wkg = r4(m0 + m); c.wl = r4(v0 + v); c[id] = (c[id] || 0) + n; c.wn = c.wood; check(c, 'put ' + id); return; }
     c[id] = (c[id] || 0) + n; check(c, 'put ' + id);
@@ -31,6 +36,7 @@ const Inv = (() => {
     if (isW(id)) { const m = wkg(c), v = wl(c), N = c.wood; kg = m * h / N; l = v * h / N; if (c.wkg != null) c.wkg = r4(m - kg); if (c.wl != null) c.wl = r4(v - l); }
     else { kg = h * (ITEMS[id] ? ITEMS[id].kg : 0); l = h * (ITEMS[id] ? ITEMS[id].l : 0); }
     c[id] -= h;
+    if (isW(id) && c.wo) c.wo = Math.max(0, Math.min(c.wood, c.wo - h));   // берут сперва притороченные снаружи
     if (isW(id) && c.wkg != null) { c.wn = c.wood; if (!c.wood) { c.wkg = 0; c.wl = 0; } }
     check(c, 'pull ' + id);
     return { n: h, kg, l };
@@ -66,6 +72,17 @@ const Inv = (() => {
   function kgOf(c) { let s = 0; for (const k in c) if (ITEMS[k] && !isW(k)) s += (c[k] || 0) * ITEMS[k].kg; return s + wkg(c); }
   // объём укладки: вещи по ITEMS.l, дрова — твёрдый объём × bulk (зазоры между поленьями)
   function litOf(c) { let s = 0; for (const k in c) if (ITEMS[k] && !isW(k)) s += (c[k] || 0) * ITEMS[k].l; return s + wl(c) * LD().bulk; }
+  // снаружи (притороченные): штук и л укладки; внутри — остальное
+  const outN = c => Math.min(c.wo || 0, c.wood || 0);
+  const outL = c => (outN(c) ? wl(c) / c.wood * outN(c) * LD().bulk : 0);
+  const inL = c => litOf(c) - outL(c);
+  // внутри не влезает (старый сейв, дрова мимо Carry) — лишние штуки считаются притороченными, пока есть ремни
+  function normWo(c) {
+    if (!(c.wood > 0)) { c.wo = 0; return; }
+    const per = wl(c) / c.wood * LD().bulk, over = inL(c) - LD().packL;
+    if (over > 1e-6 && per > 0) c.wo = Math.min(c.wood, Math.max(outN(c), Math.min(LD().packWood, outN(c) + Math.ceil(over / per - 1e-6))));
+    else c.wo = outN(c);
+  }
 
   // ---------- рюкзак и лабаз (прежний интерфейс) ----------
   // wc — «с лабазом»: считать/брать ещё и из G.chest (герой в избе); дрова в руках (охапка) — тоже свои
@@ -105,15 +122,20 @@ const Inv = (() => {
   const handKg = () => (typeof Carry !== 'undefined' ? Carry.kg() : 0);
   function weight() { return Math.round((kgOf(G.inv) + handKg()) * 10) / 10; }
   const capKg = () => LD().packKg;
-  const packKg = () => Math.round(kgOf(G.inv) * 10) / 10, packL = () => Math.round(litOf(G.inv));
-  // влезет ли в рюкзак: n штук id (дрова — с массой kg, объёмом l твёрдого, длиной len м); why — почему нет
+  const packKg = () => Math.round(kgOf(G.inv) * 10) / 10, packL = () => Math.round(inL(G.inv)), packOut = () => outN(G.inv);
+  const fill = () => clamp(inL(G.inv) / LD().packL, 0, 1);   // насколько набит изнутри (рисунок: высота клапана, толщина)
+  // влезет ли в рюкзак: n штук id (дрова — по одной: масса kg, объём l твёрдого, длина len м); {ok, at: 'in'|'out'} или {why}:
+  // why: l — внутри полно (дрова: и снаружи ремни заняты), kg — тяжело, piece — полено тяжелее packWoodKg, len — длинное (не под ремни)
   function fits(id, n = 1, kg, l, len) {
     const L = LD(), it = ITEMS[id] || { kg: 0, l: 0 }, m = isW(id) ? (kg != null ? kg : n * L.woodKg) : n * it.kg;
     const v = isW(id) ? (l != null ? l : m / L.rho * 1000) * L.bulk : n * it.l;
-    if (isW(id) && ((G.inv.wood || 0) + n > L.packWood || (len || 0) > L.packWoodLen || m / n > L.packWoodKg + 1e-6)) return { ok: false, why: 'wood' };
-    if (litOf(G.inv) + v > L.packL + 1e-6) return { ok: false, why: 'l' };
+    if (isW(id) && m / n > L.packWoodKg + 1e-6) return { ok: false, why: 'piece' };
     if (kgOf(G.inv) + m > L.packMax + 1e-6) return { ok: false, why: 'kg' };
-    return { ok: true };
+    const inside = inL(G.inv) + v <= L.packL + 1e-6;
+    if (!isW(id)) return inside ? { ok: true, at: 'in' } : { ok: false, why: 'l' };
+    if (inside && (len || 0) <= L.packWoodLen + 1e-6) return { ok: true, at: 'in' };
+    if (outN(G.inv) + n <= L.packWood && (len || 0) <= L.packOutLen + 1e-6) return { ok: true, at: 'out' };
+    return { ok: false, why: outN(G.inv) + n > L.packWood ? (inside ? 'len' : 'l') : 'len' };
   }
   // миграция старого сейва: «дрова» были числом по 6 кг (Tree.KG) без места — вещи с массой; в рюкзаке — не больше packWood,
   // остальное: в избе — в поленницу, с нартами — на нарты (по ёмкости), иначе — чурками на снег у ног
@@ -137,5 +159,5 @@ const Inv = (() => {
     }
     G.itemsV = 2;
   }
-  return { audit, cnt, has, add, take, takeStock, payStock, canPay, pay, weight, capKg, packKg, packL, fits, migrate, put, pull, move, kgOf, litOf, wkg, wl, isW };
+  return { audit, cnt, has, add, take, takeStock, payStock, canPay, pay, weight, capKg, packKg, packL, fits, migrate, put, pull, move, kgOf, litOf, wkg, wl, isW, packOut, fill, inL, outN, normWo };
 })();
