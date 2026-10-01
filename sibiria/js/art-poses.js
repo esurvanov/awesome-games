@@ -310,6 +310,8 @@
   // o.load = Carry.art(): { mode, n — частей в руках, w — толщины, k — вещь (вид рисунка), kg — масса того, с чем работа, pk — рюкзак, кг };
   // охапка у груди — P.lo/P.lon (рисует ArtPeople); снятый рюкзак — P.pko (ArtPeople drawPackOff: низ x,y, наклон, клапан, слой)
   const CH = () => [P.sx + 7, P.sy + 5.4];
+  // вид части в руке (o.load.ks — виды частей охапки): чурка/комель — чурка, ветка/лапник/вершинка — своим рисунком
+  const partK = (L, i) => { const k = L && L.ks && L.ks[i]; return k === 'bough' || k === 'branch' || k === 'top' ? k : 'chunk'; };
   // масса: dk — глубина приседа (0 — банка … 1 — от 12 кг), hv — тяжесть (спина прямая, пауза-рывок, противовес; с 2 кг, полная к ~14),
   // tw — вторая рука (с ~1,5 кг); усталость (o.tire) усиливает. Непрерывно, без ступенек.
   const KG = o => Math.max(0, (o.load && o.load.kg) || 0), TI = o => clamp(o.tire || 0, 0, 1);
@@ -356,7 +358,7 @@
     P.h0x = x; P.h0y = y; P.hl0 = 3;
     const got = a >= 0.34, n = L ? L.n : 0, moving = got && a < r1 && n > 0;
     if (!hugLoad(moving ? n - 1 : n)) { const two = Math.max(env(a, 0.34, 0.42, 0.6, 0.7), env(a, 0.24, 0.32, r1 - 0.04, r1 + 0.06) * tw) * Math.max(tw, 0.35 * (1 - hv)); handAt(1, lerp(lerp(P.sx + R1[0], P.hx + 5.5, dn), x - 1.6, two), lerp(lerp(P.sy + R1[1], hip() - 1.5, dn), y + 1, two), 1); P.hl1 = lerp(lerp(6.6, 4, dn), 3, two); }
-    if (moving) P.held = ['chunk', x - 0.3, y - 0.2, -0.15];
+    if (moving) P.held = [partK(L, n - 1), x - 0.3, y - 0.2, -0.15];
     else if (got && L && L.k && !n) P.held = [L.k, x - 0.3, y + (L.k === 'hare' ? 0.6 : -0.6), L.k === 'hare' ? PI / 2 - 0.15 : -0.3];
     P.tilt = 0.3 * dn * (1 - 0.4 * hv) - 0.12 * jerk; P.hb = 0.3 * bump(a, 0.34, 0.6) + 0.6 * jerk;
   } });
@@ -374,7 +376,7 @@
     P.h0x = x; P.h0y = y; P.hl0 = 3;
     const n = L ? L.n : 0, moving = before && n > 0;
     if (!hugLoad(moving ? n - 1 : n)) { const tw = twoH(o) * env(a, 0, 0.2, 0.55, 0.7); handAt(1, lerp(lerp(P.sx + R1[0], P.hx + 5.5, dn), x - 1.6, tw), lerp(lerp(P.sy + R1[1], hip() - 1.5, dn), y + 1, tw), 1); P.hl1 = lerp(lerp(6.6, 4, dn), 3, tw); }
-    if (moving) P.held = ['chunk', x - 0.3, y - 0.2, -0.15];
+    if (moving) P.held = [partK(L, n - 1), x - 0.3, y - 0.2, -0.15];
     else if (before && L && L.k) P.held = [L.k, x - 0.3, y + (L.k === 'hare' ? 0.6 : -0.5), L.k === 'hare' ? PI / 2 - 0.15 : -0.3];
     P.tilt = 0.3 * dn; P.hb = 0.3 * bump(a, 0.45, 0.65);
   } });
@@ -558,6 +560,96 @@
     if (!(L && hugLoad(L.n))) { hand(1, 2.2, 5.2 + 3 * pull, w); P.hl1 = lerp(6.6, 3.2, w); }
     P.hb = -0.6 * pull; P.tilt = 0.05 * pull;
   } });
+  // ================= длинное (js/carry.js): поднять на плечо, снять/сбросить; не лезет — жест =================
+  // P.lng — ствол для рига: R [fx, y, lat] — хват (доля u от вершинки), phi — наклон (+ комель ниже), psi — вбок, pins — кисти на стволе
+  // [[рука, доля]], w/wb — концы в мире до касания и доля перехода от них. Длина — o.load.lg.len (м) × 23 ед.
+  const M23 = H.M23 || 23, RB = H.RB || 1.6, TH0 = 0.33;
+  const holdU = Lr => 0.6 + Math.min(0.4 * Lr - 1, 9.5) / Lr;   // доля хвата держащей руки на плече (впереди плеча) — как у рига в ходу
+  const shoulderR = (sd, u, phi, psi) => { const S = [P.sx + 0.3, P.sy - RB, sd * 3.1], c = cos(phi), d = [c * cos(psi), sin(phi), c * sin(psi)], k = (0.6 - u); return [S[0] - d[0] * k, S[1] - d[1] * k, S[2] - d[2] * k, d]; };
+  const lerp3 = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+  // стопы переступают, пока корпус идёт в мире на D (ступени по h): опорная стоит в мире, переносимая — шагом с подъёмом
+  function shuffle(D, Dt) {
+    const n = Math.max(1, Math.round(Dt / 9)), h = Dt / n || 1;
+    for (let i = 0; i < 2; i++) {
+      const off = i ? 0 : h, k = (D + off) / (2 * h), fl = Math.floor(k), fr = k - fl, e = sm((fr - 0.55) / 0.45), W = (fl + e) * 2 * h - off;
+      const x = (i ? -1.6 : 1.6) + W - D, up = bump(fr, 0.55, 1) * 2.4 * (Dt > 0.5 ? 1 : 0);
+      if (i) { P.f1x = x; P.f1y = -2 - up; P.f1a = up * 0.05; } else { P.f0x = x; P.f0y = -2 - up; P.f0a = up * 0.05; }
+    }
+  }
+  R('liftLong', { dur: 3, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load || {}, lg = L.lg || { len: 1.5, kind: 'top' }, lf = L.lf || {}, sd = H.lside ? H.lside() : -1, hold = sd < 0 ? 1 : 0, Lr = Math.max(8, lg.len * M23), c = lf.c || L.c || 0.16;
+    const hv = clamp((lg.kg || 2) / 20, 0, 1), uh = holdU(Lr);
+    if (lf.simple) {
+      // короткое лёгкое: присел к середине → встал, ствол поперёк у пояса → закинул на плечо (поворот к ходу) → рука вперёд
+      const eA = sm(seg(a, 0, c)), eB = sm(seg(a, c, 0.5)), eC = sm(seg(a, 0.5, 0.8)), eD = sm(seg(a, 0.8, 1)), dn = a < c ? eA : 1 - eB;
+      liftBend(Object.assign({}, o, { load: Object.assign({}, L, { kg: 12 }) }), { x: 7.5, y: -2.6 }, 12, dn);   // присел (спина прямая), не наклон
+      const ps0 = sd < 0 ? -PI / 2 : PI / 2, Rg = [7.5, -2.4, 0], Rw = [7, -22, 0];
+      if (a < c) { const T = [8, -2]; handAt(0, lerp(P.sx + R0[0], T[0] + 0.4, eA), lerp(P.sy + R0[1], T[1], eA), 1); handAt(1, lerp(P.sx + R1[0], T[0] - 0.4, eA), lerp(P.sy + R1[1], T[1], eA), 1); P.hl0 = lerp(6.6, 2.6, eA); P.hl1 = lerp(6.6, 2.6, eA); P.tilt = 0.3 * dn; return; }
+      const SR = shoulderR(sd, 0.5, TH0 * eC, ps0 * (1 - eC)), Rm = a < 0.5 ? lerp3(Rg, Rw, eB) : lerp3(Rw, SR, eC);
+      if (a >= 0.5) Rm[1] -= 3 * bump(a, 0.5, 0.8);   // дуга вверх через грудь
+      body(P.lean - 0.06 * bump(a, 0.5, 0.8), P.hy + 1.2 * bump(a, 0.55, 0.75)); P.hb = 0.5 * bump(a, 0.5, 0.8);
+      const free = a > 0.8 ? 1 - hold : -1, pins = [[hold, lerp(0.62, uh, eD)]]; if (a <= 0.86) pins.push([1 - hold, 0.38]);
+      if (free >= 0) { handAt(free, P.sx + (free ? R1 : R0)[0], P.sy + (free ? R1 : R0)[1], 1); if (free) P.hl1 = 6.6; else P.hl0 = 6.6; }
+      P.lng = { lg, R: Rm, phi: TH0 * eC, psi: ps0 * (1 - eC), u: 0.5, pins, w: lf.w, wb: sm(seg(a, c, c + 0.14)) };
+      P.tilt = 0.3 * dn - 0.1 * eC; return;
+    }
+    // длинное: та же геометрия, что у процесса (Carry.liftGeo) — путь корпуса, хват, наклон
+    const Gc = typeof Carry !== 'undefined' && Carry.liftGeo ? Carry.liftGeo(a, lg.len) : null; if (!Gc) return;
+    const sq = Object.assign({}, o, { load: Object.assign({}, L, { kg: Math.max(lg.kg || 0, 12) }) });   // с земли длинное — в присед (спина прямая)
+    const Dn = lf.D != null ? lf.D : Gc.D, Dt = typeof Carry !== 'undefined' ? Carry.liftGeo(0.62, lg.len).D : Gc.D;
+    const eA = sm(seg(a, 0, c)), eB = sm(seg(a, c, 0.36)), eD = sm(seg(a, 0.62, 0.74)), eE = sm(seg(a, 0.74, 0.88)), eF = sm(seg(a, 0.88, 1));
+    if (a < c) {   // присел к вершинке на снегу, обе руки к концу
+      const T = { x: 8, y: -2 }; liftBend(sq, T, 12.6, eA);
+      handAt(0, lerp(P.sx + R0[0], T.x + 0.4, eA), lerp(P.sy + R0[1], T.y, eA), 1); handAt(1, lerp(P.sx + R1[0], T.x - 0.6, eA), lerp(P.sy + R1[1], T.y, eA), 1);
+      P.hl0 = lerp(6.6, 1.6, eA); P.hl1 = lerp(6.6, 1.6, eA); P.tilt = 0.3 * eA; return;
+    }
+    const gx = 7 + (Gc.D - Dn), stand = a < 0.36 ? eB : 1;
+    // корпус: из приседа — встал с наклоном к хвату (тяжёлое — спина прямее, колени), перехваты — шагом, комель оторвал — откинулся,
+    // плечо под ствол — присел и выпрямился
+    const Rg = [gx, Gc.gy, 0], dip = bump(a, 0.74, 0.9);
+    if (a < 0.36) liftBend(sq, { x: gx + 2.5, y: Gc.gy - 1 }, 11.5, 1);   // корпус ровно настолько, чтобы рука была на конце: встаёт вместе с ним
+    if (a >= 0.36) body(lerp(0.2, 0.06, eD) - 0.08 * hv * eD + 0.04 * dip, -17.2 + 0.8 * hv * eD + 2.6 * dip, -0.6 * eD);
+    if (a > c) shuffle(Math.max(0, Dn), Math.max(Dt, 0.01));
+    // ствол: хват у пояса → к плечу (комель вперёд-вниз), лат — к своему плечу
+    const SR = shoulderR(sd, Gc.u, TH0, 0), Rm = a < 0.74 ? Rg : lerp3([7, -24, 0], SR, eE), phi = a < 0.74 ? Gc.phi : lerp(0, TH0, eE);
+    if (a >= 0.74) Rm[1] -= 2.5 * bump(a, 0.74, 0.88);
+    // кисти: по обе стороны хвата, перехватывают по очереди (сдвиг ±); в конце держащая — вперёд, вторая отпускает
+    const sl = 0.025 * sin(3 * PI * Gc.eC), uB = Math.max(0.01, Gc.u - 0.05 + sl), uF = Math.max(uB + 0.08, Gc.u + 0.05 + sl), pins = [[hold, a < 0.88 ? uF : lerp(uF, uh, eF)]];
+    if (a < 0.92) pins.push([1 - hold, uB]); else { const f = 1 - hold; handAt(f, P.sx + (f ? R1 : R0)[0], P.sy + (f ? R1 : R0)[1], 1); if (f) P.hl1 = 6.6; else P.hl0 = 6.6; }
+    P.lng = { lg, R: Rm, phi, psi: 0, u: Gc.u, pins, w: lf.w, wb: sm(seg(a, c, c + 0.12)) };
+    P.tilt = 0.25 * (1 - stand) - 0.08 * eD; P.hb = 0.4 * bump(a, 0.2, 0.36) * (0.5 + hv) + 0.5 * dip;
+  } });
+  // снять с плеча: опустить передний конец → ствол сходит с плеча, обе руки ведут его вниз → лёг рядом (0.62) → выпрямился.
+  // сбросить (fast): повёл плечом — ствол падает сам (0.42 — удар). Где лёг — там его и оставит процесс (концы рига на снегу)
+  R('putLong', { dur: 1.2, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load || {}, lg = L.lg || { len: 1.5 }, lf = L.lf || {}, sd = H.lside ? H.lside() : -1, hold = sd < 0 ? 1 : 0, Lr = Math.max(8, lg.len * M23), uh = holdU(Lr), c = lf.c || 0.62;
+    if (lf.fast) {
+      const e = clamp(a / c, 0, 1), f = e * e, sh = bump(a, 0, 0.3);
+      body(0.04 + 0.06 * sh, -17.2 - 0.6 * sh); P.hb = -0.8 * sh; P.tilt = -0.1 * sh;
+      if (a < c && L.top) { const S0 = shoulderR(sd, 0.6, TH0, 0), G0 = [-2, -1.5, sd * 10]; P.lng = { lg, R: lerp3(S0, G0, f), phi: lerp(TH0, -0.04, f), psi: 0, u: 0.6, pins: a < 0.08 ? [[hold, uh]] : [] }; }
+      return;
+    }
+    const e1 = sm(seg(a, 0, 0.35)), e2 = sm(seg(a, 0.35, c)), up = sm(seg(a, c, 1)), dn = a < c ? sm(seg(a, 0.2, c)) : 1 - up;
+    const Gp = [3, -1.5, sd * 9];   // лёг рядом: точка равновесия у ног сбоку, вершинка — назад, комель — вперёд
+    liftBend(o, { x: 6, y: -4 }, 12.6, dn * 0.85);
+    if (a < c && L.top) {
+      const S0 = shoulderR(sd, 0.6, lerp(TH0, 0.8, e1), 0), R0_ = [S0[0], S0[1], S0[2]], Rm = lerp3(R0_, Gp, e2), phi = lerp(lerp(TH0, 0.8, e1), 0, e2);
+      P.lng = { lg, R: Rm, phi, psi: 0, u: 0.6, pins: a > 0.45 ? [] : a > 0.2 ? [[hold, uh], [1 - hold, 0.45]] : [[hold, uh]] };   // у самого снега — отпустил
+      if (a <= 0.2) { const f = 1 - hold; handAt(f, P.sx + (f ? R1 : R0)[0], P.sy + (f ? R1 : R0)[1], 1); }
+    }
+    P.tilt = 0.25 * dn; P.hb = 0.3 * bump(a, 0.55, 0.7);
+  } });
+  // не лезет: повёл плечами, качнул головой — вещь осталась в руках (ноша рисуется как есть)
+  R('noFit', { dur: 0.7, fn(o, t, a) {
+    H.idle(o, t);
+    const sh = bump(a, 0, 0.45), nod = sin(a * PI * 4) * (1 - a);
+    P.hb = -0.9 * sh; P.tilt = 0.12 * nod; body(P.lean + 0.03 * sh, P.hy - 0.5 * sh);
+  } });
+
   // разделка: на корточках у туши, дальняя рука держит/оттягивает шкуру, ближняя — нож, короткие резы
   R('butcher', { loop: true, dur: 1.0, fn(o, t) {
     const T = tgt(o, 9, -2), s0 = seedOf(o), k = bendK(T, 12.6, 0.6), br = sin(t * 1.6 + s0), u = (t * 1.1 + s0) % 1, cut = sin(u * PI * 2);

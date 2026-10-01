@@ -442,7 +442,8 @@ const UI = (() => {
     const at = kind === 'chest' ? SPOT.chest : curStash; if (!at || typeof Hero === 'undefined') return;
     if (put) { Hero.play('place', { react: 1, tg: at, th: kind === 'chest' ? -14 : -6 }); } else Hero.play('pickUp', { react: 1, tg: at, th: kind === 'chest' ? -14 : -6 });
     if (typeof Interact !== 'undefined') Interact.emit('open', { who: 'p', obj: kind === 'chest' ? 'crate' : 'stash', target: at, x: at.x, y: at.y });
-    Fx.floatText(at.x, at.y - 30, (put ? '→ ' : '+') + (ITEMS[k] ? ITEMS[k].i : ''));
+    // отметка — у блока рюкзака, когда рука донесла (≈0,5 с жеста), не над героем
+    if (ITEMS[k] && Carry.got) Carry.got('ui' + (put ? 'p' : 't') + k, ITEMS[k].i, put ? '→ :labaz:' : '→ :pack:', put ? null : Math.min(1, Inv.packL() / TUNE.load.packL), 1, 0.5);
   }
 
   // ---------- подсказки первых минут: каждая один раз, по одной, можно выключить ----------
@@ -499,6 +500,9 @@ const UI = (() => {
     const cap = el.querySelector('u'); if (cap) cap.style.width = (100 - max) + '%';
     setText(el.querySelector('b'), Math.ceil(v)); el.classList.toggle('low', v < 25);
   }
+  // плавное значение для HUD: догоняет за ~0,4 с (95 %)
+  const EZ = {};
+  function ez(k, v) { const now = performance.now(), e = EZ[k] || (EZ[k] = { v, t: now }); const dt = Math.min(0.25, (now - e.t) / 1000); e.t = now; e.v += (v - e.v) * (1 - Math.exp(-dt / 0.13)); if (Math.abs(v - e.v) < 0.02) e.v = v; return e.v; }
   const chipI = (id, v, title, cls) => `<span${cls ? ` class="${cls}"` : ''} title="${title}">${ic(id, 's')}${v}</span>`;
   function hud(force) {
     const s = G.s;
@@ -511,12 +515,19 @@ const UI = (() => {
     setHtmlOnce($('frost'), s.frost ? ic('frost', 's').repeat(s.frost) : '');
     // инвентарь
     // ноша: рюкзак — объём и вес (шкалы), руки, нарты; ниже — что в рюкзаке
-    const LD = TUNE.load, pL = Inv.packL(), kg = Inv.weight(), cap = Inv.capKg();
+    // шкалы доезжают плавно (~0,4 с), а не перескакивают в кадр касания
+    const LD = TUNE.load, pL = Math.round(ez('pL', Inv.packL())), kg = +ez('kg', Inv.weight()).toFixed(1), cap = Inv.capKg();
     const lb = (id, v, max, txt, title, warn) => `<span class="lb${v > max ? ' over' : warn ? ' warn' : ''}" title="${title}">${ic(id, 's')}<s style="--p:${Math.min(1, v / max).toFixed(2)}"></s>${txt}</span>`;
     // рюкзак: объём внутри, ремни снаружи (притороченные чурки: занято / свободно), вес на себе; снят — тусклый
     const wo = Inv.packOut(), slots = `<span class="lb slots${wo >= LD.packWood ? ' warn' : ''}" title="Дрова снаружи, под ремнями: ${wo}/${LD.packWood}">${ic('wood', 's')}${'<i class="on"></i>'.repeat(wo)}${'<i></i>'.repeat(Math.max(0, LD.packWood - wo))}<small>снаружи ${wo}/${LD.packWood}</small></span>`;
     let load = lb('pack', pL, LD.packL, `${pL}/${LD.packL} л`, Carry.off() ? 'Рюкзак снят' : 'Рюкзак: объём внутри', pL > LD.packL * 0.85).replace('class="lb', Carry.off() ? 'class="lb off' : 'class="lb') + slots + lb('weight', kg, cap, `${kg}/${cap} кг`, 'На себе: рюкзак + руки', kg > cap * 0.85);
-    if (Carry.busy()) { const wn = Carry.woodN(), t = Carry.thing(); load += `<span class="hand" title="В руках">${ic('hand', 's')}${wn ? ic('wood', 's') + wn : ''}${t ? (t.id === 'carc' ? ic('hare', 's') : ITEMS[t.id] ? ic(ITEMS[t.id].i, 's') + (t.n > 1 ? t.n : '') : ic(t.id === 'amulet' ? 'sevek' : 'can', 's')) : ''}<small>${Carry.kg().toFixed(1).replace('.', ',')}</small></span>`; }
+    // в руках — то, что уже дошло (пока рука несёт вещь — прежнее): охапка, на плече, волоком, в кулаке
+    { const hv = Carry.handView(), t = hv.t, s = hv.st;
+      if (s && s !== 'free') load += `<span class="hand" title="В руках">${ic(s === 'shoulder' || s === 'lift' || s === 'drag' ? 'tree' : 'hand', 's')}${s === 'drag' ? ic('hand', 's') : ''}${hv.wn ? ic('wood', 's') + hv.wn : ''}${t ? (t.id === 'carc' ? ic('hare', 's') : ITEMS[t.id] ? ic(ITEMS[t.id].i, 's') + (t.n > 1 ? t.n : '') : ic(t.id === 'amulet' ? 'sevek' : 'can', 's')) : ''}<small>${hv.kg.toFixed(1).replace('.', ',')}</small></span>`; }
+    // отметка «прибыло» (js/carry.js chip): иконка + число/предел, шкала доезжает, повторы ×n, гаснет за 1,5 с
+    { const cp = Carry.chip && Carry.chip(); if (cp) {
+      const k = Math.min(1, cp.age / 0.4), e = k * k * (3 - 2 * k), p = cp.p == null ? null : cp.p0 == null ? cp.p : cp.p0 + (cp.p - cp.p0) * e, fade = cp.age > 1.1 ? Math.max(0, 1 - (cp.age - 1.1) / 0.4) : 1;
+      load += `<span class="lb got" style="opacity:${fade.toFixed(2)}">${icx(cp.ic + ' ' + cp.txt, 's')}${p != null ? `<s style="--p:${p.toFixed(2)}"></s>` : ''}${cp.rep && cp.n > 1 ? `<small>×${cp.n}</small>` : ''}</span>`; } }
     if (G.gear.sled) { const sk = Math.round(Carry.sledKg()), sw = (G.sled && G.sled.wood) || 0; load += lb('sled', sk, LD.sledKg, `${sw ? ic('wood', 's') + sw + ' · ' : ''}${sk}/${LD.sledKg} кг`, 'Нарты: груз', sk > LD.sledKg * 0.85); }
     const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, k === 'wood' ? G.inv[k] + `<small>${Inv.wkg(G.inv).toFixed(1).replace('.', ',')}</small>` : G.inv[k], ITEMS[k].n)).join('');
     const invHtml = `<div class="ld">${load}</div>` + (inv || '<span class="dim">пусто</span>');

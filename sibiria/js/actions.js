@@ -469,14 +469,13 @@ const Actions = (() => {
     if (logCut(L) < 1) {   // треть мутовок от комля: ветви лапником на снег по одной; на последней — отрезана вершина
       const ps = Tree.split(L, 'limb'); Sound.chop(); Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: w.x, y: w.y });
       const e = logEnd(L, logK(L)); ArtWorld.fx.snowPuff(G.parts, w.x, w.y - 4, 0.5);
-      Fx.floatText(w.x, w.y - 20, logCut(L) < 1 ? `:tree: сучья ×${ps.length}` : ':tree: вершина'); void e; return;
+      void e; void ps; return;   // что отделилось — видно на снегу (без надписи)
     }
     let n = 1; if (Hero.lvl('chop') >= 5 && Math.random() < 0.25) n = 2;
     const out = []; for (let i = 0; i < n && L.n > 0; i++) out.push(...Tree.split(L, 'buck'));
     Hero.xp('chop'); G.s.food = Math.max(0, G.s.food - A.chopFood * 0.5);
     const at = out.length ? { x: out[0].fx, y: out[0].fy } : w;
     Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: at.x, y: at.y }); Sound.chop(); ArtWorld.fx.snowPuff(G.parts, at.x, at.y, 0.35);
-    Fx.floatText(at.x, at.y - 20, out.map(p => (p.kind === 'butt' ? 'комель ' : 'чурка ') + Math.round(p.mass) + ' кг').join(' · '));
     if (L.n <= 0) { const i = G.logs.indexOf(L); if (i >= 0) G.logs.splice(i, 1); }   // ствол весь в частях — на снегу лежат они
   }
   // ---------- конец долгого действия ----------
@@ -501,7 +500,7 @@ const Actions = (() => {
         const c1 = c0 + 1 / LIMB_N > 0.99 ? 1 : +(c0 + 1 / LIMB_N).toFixed(3); L.cut = c1; delete L.lim;
         limbFx(L, c0, c1); Sound.chop();
         const w = a.tg || workPt(L); Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: w.x, y: w.y });
-        if (c1 < 1) { Fx.floatText(w.x, w.y - 20, ':tree: сучья'); return; }
+        if (c1 < 1) return;
       }
       const at = logEnd(L, logK(L)), first = L.n === L.n0;
       L.n--;
@@ -512,7 +511,7 @@ const Actions = (() => {
       if (G.chunks.length > 60) G.chunks.splice(0, G.chunks.length - 60);
       Hero.xp('chop'); G.s.food = Math.max(0, G.s.food - A.chopFood * 0.5);
       Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: at.x, y: at.y }); Sound.chop(); ArtWorld.fx.snowPuff(G.parts, at.x, at.y, 0.35);
-      Fx.floatText(at.x, at.y - 20, first ? ':tree: сучья' : `чурка ×${n}`);
+      void first;   // чурка видна на снегу (без надписи)
       if (L.n <= 0) L.done = G.time;   // остаток ствола (комель) не исчезает — заметает за FELL.bury суток
     } else if (a.k === 'fish') {
       if (a.ph === 'wait') {
@@ -1036,7 +1035,7 @@ const Actions = (() => {
   function sparks(x, y, n = 6) { for (let i = 0; i < n; i++) G.parts.push({ type: 'spark', x: x + rnd(-3, 3), y: y - 3, vx: rnd(-40, 40), vy: rnd(-90, -30), life: rnd(0.3, 0.6), max: 0.6, g: 60 }); }
   function steam(x, y, n = 5) { for (let i = 0; i < n; i++) G.parts.push({ type: 'smoke', x: x + rnd(-8, 8), y: y - 8, vx: rnd(-10, 10), vy: rnd(-40, -22), life: rnd(1.6, 2.6), max: 2.6 }); }
   const JOB = {};
-  JOB.carry = { hit: (a, i) => Carry.hit(a, i), end: a => Carry.end(a), cancel: a => Carry.cancel(a) };   // ноша: взять, уложить, разделать (js/carry.js)
+  JOB.carry = { hit: (a, i) => Carry.hit(a, i), tick: (a, dt) => Carry.tickJob(a, dt), end: a => Carry.end(a), cancel: a => Carry.cancel(a) };   // ноша: взять, уложить, разделать (js/carry.js)
   // лунка: dg 0..1 — пробита (нет поля — готова: старые сейвы, лунки посёлка); ice 0..1 — затянулась
   const holeOk = h => !(h.dg < 1);
   function digHole(a) { const p = G.p, h = { x: Math.round(p.x + p.face * 24), y: Math.round(p.y + 4), fish: 0, dg: 0 }; a.dg0 = 0; G.holes.push(h); return h; }

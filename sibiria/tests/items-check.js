@@ -37,7 +37,7 @@ function page() {
     at(t.x + 60, t.y + 40, -1); const L = Actions.fell(t); run(4);
     for (let i = 0; i < 3 && Actions.logCut(L) < 1; i++) Tree.split(L, 'limb');
     while (L.n > 0) Tree.split(L, 'buck');
-    const ps = G.chunks.filter(q => q.src === L.id), M = ps.reduce((s, q) => s + q.mass, 0), W = ps.filter(Tree.isWood), Mw = W.reduce((s, q) => s + q.mass, 0);
+    const ps = G.chunks.filter(q => q.src === L.id), M = ps.reduce((s, q) => s + q.mass, 0), W = ps.filter(q => Tree.isWood(q) && !Carry.long(q)), Mw = W.reduce((s, q) => s + q.mass, 0);
     ok(Math.abs(M - L.m0) < L.m0 * 1e-3, `🌲 части = целое: ${f2(M)} кг из ${f2(L.m0)} (дров ${f2(Mw)} кг · ${W.length} шт, лапник ${f2(M - Mw)} кг)`);
     // каждую — процессом: подойти, взять в охапку; охапка полна — на нарты (нарты за спиной); 2 мелких — в рюкзак; остаток — в поленницу
     let n = 0, guard = 0;
@@ -285,6 +285,21 @@ function page() {
     ok(sc.join() === 'pocket' && G.inv.can === 1, `🥫 банка — в поясной карман, рюкзак не снимает (${sc.join(' → ')})`);
   } catch (e) { ok(false, 'ERR ' + (e.stack || e).toString().split('\n').slice(0, 2).join(' ')); }
 
+  // ---------- 7d. длинное и состояние рук: на плечо — подъёмом, рисунок = данные; рюкзак поверх ноши не надевают ----------
+  try {
+    field(); G.inv = {}; let top = null;
+    for (const t of G.trees.filter(t => !t.wall).slice(0, 120)) { top = Tree.parts(Tree.ensure({ x: t.x, y: t.y, s: t.s, kind: t.kind, v: t.v })).find(q => q.kind === 'top' && q.len > 0.8); if (top) break; }
+    const q = Object.assign({}, top, { id: 7001, x: G.p.x + 40, y: G.p.y + 4, ang: 0, t: G.time - 5 }); G.chunks = [q];
+    Carry.pick('part', q, []); const sts = []; let lsh = 0;
+    for (let i = 0; i < 60 * 8; i++) { const S = frame(), s = Carry.st(); if (sts[sts.length - 1] !== s) sts.push(s); if (S.lsh) lsh++; if (s === 'shoulder' && !G.p.action && lsh > 10) break; }
+    ok(Carry.st() === 'shoulder' && Carry.parts()[0] === q && sts.join() === 'free,lift,shoulder' && lsh > 0, `🌲 вершина ${f1(q.len)} м: ${sts.join(' → ')} (подъём ${f2(Carry.liftDur(q))} с), нарисована на плече ${lsh} кадров`);
+    toasts.length = 0; Carry.stow([]); ok(toasts.length === 1 && /на плече/.test(toasts[0]), `🚫 с плеча в рюкзак — один тост: «${toasts[0] || ''}»`);
+    // рюкзак снят, в руках охапка: «надеть» — положить → надеть → поднять те же
+    field(); G.inv = {}; Carry.hand().p = [chunk(4), chunk(4.5)]; const ids = Carry.parts().map(c => c.id).sort().join();
+    G.hand.off = { x: G.p.x + 13, y: G.p.y + 3, f: 1, open: 0, t: G.time }; Carry.closeDon([]); const sq = film(16);
+    ok(inOrder(sq, ['put', 'don', 'pick']) && !Carry.off() && Carry.parts().map(c => c.id).sort().join() === ids, `🎒 охапка и снятый рюкзак: ${sq.join(' → ')} — рюкзак не надевают поверх охапки`);
+  } catch (e) { ok(false, 'ERR ' + (e.stack || e).toString().split('\n').slice(0, 2).join(' ')); }
+
   // ---------- 8. прерывания: вещь не «зависает» — после любого прерывания она в мире / в рюкзаке / в руках, и рисунок совпадает ----------
   try {
     const kgAll = () => Inv.wkg(G.inv) + Carry.parts().reduce((s, q) => s + q.mass, 0) + (G.chunks || []).reduce((s, q) => s + q.mass, 0);
@@ -303,10 +318,13 @@ function page() {
       fn(); let S = {}; for (let i = 0; i < 90; i++) S = frame();
       const ps = Carry.parts().length, th = Carry.thing(), stuck = G.p.action && G.p.action.j === 'carry' && PACK.includes(G.p.action.s);
       const drawOk = ps ? S.lon === ps : th ? S.held && S.held[0] : !S.held && !S.lon;
-      const okk = !Carry.off() && !S.pko && !stuck && Math.abs(kgAll() - m0) < 1e-6 && drawOk;
+      // с охапкой рюкзак на ходу не надевают — остаётся на снегу (нарисован на снегу); надеть потом: положить → надеть → поднять
+      const packOk = !Carry.off() ? !S.pko : !Carry.donOk() && (!!S.pko || !Carry.packNear(26));
+      let back = true; if (Carry.off()) { const n0 = Carry.parts().length; Carry.closeDon([]); for (let i = 0; i < 60 * 20 && (G.p.action || Carry.off()); i++) frame(); back = !Carry.off() && Carry.parts().length === n0; }
+      const okk = packOk && back && !stuck && Math.abs(kgAll() - m0) < 1e-6 && drawOk;
       n++; if (!okk) fails.push(`${nm}@${st}${fr}: снят ${!!Carry.off()} рисунок ${S.pko ? 'снят' : 'на спине'} шаг ${G.p.action && G.p.action.s} кг ${f2(kgAll())}/${f2(m0)} в руках ${ps} нарисовано ${S.lon || (S.held && S.held[0]) || 0}`);
     }
-    ok(!fails.length, `🧷 прерывания (${Object.keys(BREAK).join(', ')}) × ${AT.length} моментов = ${n}: рюкзак на спине, масса цела, в руках = нарисовано` + (fails.length ? ' · ' + fails.slice(0, 3).join(' · ') : ''));
+    ok(!fails.length, `🧷 прерывания (${Object.keys(BREAK).join(', ')}) × ${AT.length} моментов = ${n}: рюкзак на спине (с охапкой — на снегу, потом «положить → надеть → поднять»), масса цела, в руках = нарисовано` + (fails.length ? ' · ' + fails.slice(0, 3).join(' · ') : ''));
     // сон с охапкой — не ложится (в руках не «висит» во сне)
     field(); Carry.parts().push(chunk(4)); at(SPOT.bed.x + 20, SPOT.bed.y + 6); G.time = tAt(2, 21); G.hut.fuel = 600; toasts.length = 0; Actions.trySleep(); for (let i = 0; i < 120; i++) frame();
     ok(!G.p.sleeping && /Руки заняты/.test(toasts.join(' ')), `🛏 с охапкой не спит: «${toasts[0] || ''}»`);
