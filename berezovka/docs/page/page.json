@@ -1,0 +1,244 @@
+{
+ "slug": "berezovka",
+ "play": "/berezovka/",
+ "repoDir": "berezovka",
+ "name": {
+  "ru": "Березовка",
+  "en": "Berezovka"
+ },
+ "tagline": {
+  "ru": "Заснеженная русская деревня, в которую можно зайти — 3D-игра с открытым миром в браузере",
+  "en": "A snowbound Russian village you can walk into — an open-world 3D game in your browser"
+ },
+ "genre": {
+  "ru": "3D-приключение с открытым миром",
+  "en": "Open-world 3D adventure"
+ },
+ "description": {
+  "ru": "Березовка — 3D-игра в браузере: зимняя русская деревня размером около километра, история в 12 шагов, «Жигули», рыбалка и вьюга. Без установки.",
+  "en": "Berezovka: a browser 3D game set in a snowbound Russian village — about 1 km² open world, a 12-step story, a Zhiguli to drive, ice fishing and blizzards. No install."
+ },
+ "intro": {
+  "ru": [
+   "Вы выходите из старого автобуса в Березовке после пяти лет отсутствия. Бабушке нужны дрова, дедов «Жигули» 1979 года не заводится, у церковного колокола пропала верёвка, а кот продавщицы убежал в лес — мимо медведя. К вечеру вся деревня зависит от вас.",
+   "Мир около одного квадратного километра: деревня, советский посёлок, церковь на холме, замёрзшая река и густой лес. Игра запускается прямо в браузере — без установки."
+  ],
+  "en": [
+   "You step off the old bus into Berezovka after five years away. Grandma needs firewood, grandpa’s 1979 Zhiguli won’t start, the church bell has lost its rope and the shopkeeper’s cat is missing in the woods — past the bear. By evening the whole village depends on you.",
+   "The world is about a square kilometre: the village, a Soviet settlement, a church on a hill, a frozen river and a deep forest. It runs right in the browser — no install."
+  ]
+ },
+ "features": {
+  "ru": [
+   "Открытый мир около 1 км²: деревня, посёлок, церковь, река, лес; 14 обжитых дворов",
+   "История в 12 шагов: пять персонажей, диалоги с выбором, финал",
+   "Можно сесть за руль «Жигулей»: подвески, крен кузова, радио с аккордеоном",
+   "Живая природа: медведь, который бросается, хаски, убегающий кот, стадо оленей",
+   "Подлёдная рыбалка: окунь, щука, плотва, ёрш, налим",
+   "Смена дня и ночи, северное сияние, метель и туман; записанные звуки (скрип снега, настоящий колокол)",
+   "12 спрятанных матрёшек по всей карте"
+  ],
+  "en": [
+   "An open world of about 1 km²: village, settlement, church, river, forest; 14 lived-in yards",
+   "A 12-step story: five characters, dialogue with choices, a finale",
+   "Drive the Zhiguli: suspension, body roll, a car radio with an accordion",
+   "Wildlife: a bear that charges, a husky, a runaway cat, a herd of deer",
+   "Ice fishing: perch, pike, roach, ruffe, burbot",
+   "Day and night, northern lights, blizzards and fog; recorded sound (snow footsteps, a real church bell)",
+   "12 hidden matryoshkas across the map"
+  ]
+ },
+ "controls": {
+  "ru": [
+   [
+    "W A S D + мышь",
+    "идти, смотреть (клик захватывает мышь)"
+   ],
+   [
+    "Shift · C",
+    "бег · переключить шаг/бег"
+   ],
+   [
+    "Пробел",
+    "прыжок · ручник в машине"
+   ],
+   [
+    "E",
+    "поговорить, поднять, ловить рыбу, позвонить в колокол"
+   ],
+   [
+    "F",
+    "сесть в машину / выйти"
+   ],
+   [
+    "R · M · H",
+    "радио (в машине) · большая карта · подсказки"
+   ]
+  ],
+  "en": [
+   [
+    "W A S D + mouse",
+    "walk, look (click to capture the mouse)"
+   ],
+   [
+    "Shift · C",
+    "run · toggle walk/run"
+   ],
+   [
+    "Space",
+    "jump · handbrake in the car"
+   ],
+   [
+    "E",
+    "talk, pick up, fish, ring the bell"
+   ],
+   [
+    "F",
+    "get in / out of the car"
+   ],
+   [
+    "R · M · H",
+    "radio (in the car) · big map · controls"
+   ]
+  ]
+ },
+ "facts": {
+  "ru": [
+   [
+    "Платформа",
+    "настольный браузер с WebGL 2 (Chrome, Edge, Firefox, Safari 16+)"
+   ],
+   [
+    "Первая загрузка",
+    "около 33 МБ"
+   ],
+   [
+    "Управление",
+    "клавиатура и мышь; на сенсорных экранах — джойстик"
+   ],
+   [
+    "Сохранение",
+    "в браузере, без сервера"
+   ],
+   [
+    "Код",
+    "открытый, MIT (three.js)"
+   ]
+  ],
+  "en": [
+   [
+    "Platform",
+    "desktop browser with WebGL 2 (Chrome, Edge, Firefox, Safari 16+)"
+   ],
+   [
+    "First load",
+    "about 33 MB"
+   ],
+   [
+    "Controls",
+    "keyboard and mouse; a joystick on touch screens"
+   ],
+   [
+    "Save",
+    "in the browser, no server"
+   ],
+   [
+    "Code",
+    "open source, MIT (three.js)"
+   ]
+  ]
+ },
+ "faq": {
+  "ru": [
+   [
+    "Нужна ли установка?",
+    "Нет, игра запускается в браузере. Нужен компьютер с поддержкой WebGL 2."
+   ],
+   [
+    "Сколько нужно скачать?",
+    "При первом запуске загружается около 33 МБ."
+   ],
+   [
+    "Работает ли на телефоне?",
+    "Для сенсорных экранов есть экранный джойстик и кнопки, но игра рассчитана прежде всего на компьютер."
+   ],
+   [
+    "Где хранится прогресс?",
+    "В вашем браузере. Если очистить данные сайта, сохранение пропадёт."
+   ],
+   [
+    "Почему игра может быть плоской на слабом компьютере?",
+    "Если кадры идут медленно, игра сама отключает часть затенения по углам, чтобы сохранить плавность."
+   ]
+  ],
+  "en": [
+   [
+    "Do I need to install it?",
+    "No, it runs in the browser. You need a computer with WebGL 2."
+   ],
+   [
+    "How much does it download?",
+    "About 33 MB on first start."
+   ],
+   [
+    "Does it work on a phone?",
+    "Touch screens get an on-screen joystick and buttons, but the game is built mainly for desktop."
+   ],
+   [
+    "Where is my progress stored?",
+    "In your browser. Clearing the site data removes the save."
+   ],
+   [
+    "Why might it look flatter on a weak computer?",
+    "When frames run slowly the game switches part of the corner shading off by itself to stay smooth."
+   ]
+  ]
+ },
+ "shots": [
+  {
+   "file": "docs/screenshots/street.jpg",
+   "w": 1280,
+   "h": 633,
+   "alt": {
+    "ru": "Березовка: деревенская улица зимним днём",
+    "en": "Berezovka: the village street on a winter day"
+   }
+  },
+  {
+   "file": "docs/screenshots/church.jpg",
+   "w": 1280,
+   "h": 633,
+   "alt": {
+    "ru": "Березовка: церковь на холме",
+    "en": "Berezovka: the church on the hill"
+   }
+  },
+  {
+   "file": "docs/screenshots/forest.jpg",
+   "w": 1280,
+   "h": 633,
+   "alt": {
+    "ru": "Березовка: заснеженный лес",
+    "en": "Berezovka: the snowy forest"
+   }
+  }
+ ],
+ "related": [
+  "echo-of-the-rift",
+  "sibiria"
+ ],
+ "keywords": {
+  "ru": [
+   "3D игра в браузере",
+   "русская деревня игра",
+   "зимняя игра с открытым миром",
+   "игра без установки"
+  ],
+  "en": [
+   "3D browser game",
+   "open world snow game",
+   "Russian village game",
+   "play in browser"
+  ]
+ }
+}

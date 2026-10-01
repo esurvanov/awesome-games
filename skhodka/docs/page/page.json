@@ -1,0 +1,208 @@
+{
+ "slug": "skhodka",
+ "play": "/skhodka/",
+ "repoDir": "skhodka",
+ "name": {
+  "ru": "Сходка",
+  "en": "Skhodka"
+ },
+ "tagline": {
+  "ru": "Субботний вечер IT-сообщества в баре в Батуми — 3D-игра про знакомства",
+  "en": "A Saturday evening of an IT community at a bar in Batumi — a 3D game about meeting people"
+ },
+ "genre": {
+  "ru": "Социальная симуляция",
+  "en": "Social simulation"
+ },
+ "description": {
+  "ru": "Сходка — 3D-игра в браузере: субботний вечер IT-сообщества в баре SushiGO в Батуми, 19:00–01:00. Знакомься, находи общие темы и знакомь людей друг с другом.",
+  "en": "Skhodka: a 3D browser game — a Saturday evening of the IT community at the SushiGO bar in Batumi, 19:00–01:00. Meet people, find common topics and introduce them to each other."
+ },
+ "intro": {
+  "ru": [
+   "Субботний вечер в баре SushiGO в Батуми, с 19:00 до 01:00, около 18 минут игрового времени. Вы участник местного IT-чата: знакомьтесь, находите общее и знакомьте друг с другом тех, кому это нужно.",
+   "Все гости бара — собирательные персонажи с придуманными именами. Игра запускается в браузере без сервера и установки (three.js встроен); адрес с ?seed=42 повторяет тот же вечер."
+  ],
+  "en": [
+   "A Saturday evening at the SushiGO bar in Batumi, 19:00 to 01:00, about 18 minutes of play. You are a member of the local IT chat: meet people, find common ground and introduce those who need each other.",
+   "Everyone in the bar is a composite character with an invented name. The game runs in the browser with no server and no install (three.js is bundled); adding ?seed=42 to the address replays the same evening."
+  ]
+ },
+ "features": {
+  "ru": [
+   "Вечер в баре с 19:00 до 01:00: саксофон, караоке, дождь и общее фото в конце",
+   "Подходите к гостям, отвечайте карточками (клавиши 1–4), находите общие темы",
+   "Знакомьте двух людей друг с другом — кнопка «Познакомить»",
+   "Заказ напитков, групповое фото, телефон с чатом",
+   "Камера: перетаскивание, поворот, масштаб; управление мышью и касанием",
+   "Повторяемые вечера по числу в адресе (?seed=…)"
+  ],
+  "en": [
+   "An evening in the bar from 19:00 to 01:00: sax, karaoke, rain and a group photo at the end",
+   "Walk up to guests, reply with cards (keys 1–4), find common topics",
+   "Introduce two people to each other with the “Познакомить” (Introduce) button",
+   "Order drinks, take the group photo, use the phone with the chat",
+   "Camera: drag, rotate, zoom; mouse and touch controls",
+   "Repeatable evenings via a number in the address (?seed=…)"
+  ]
+ },
+ "controls": {
+  "ru": [
+   [
+    "Клик по человеку или бирке",
+    "подойти и поговорить"
+   ],
+   [
+    "Клик по полу · по месту",
+    "идти · сесть"
+   ],
+   [
+    "Карточка · 1–4",
+    "ответить"
+   ],
+   [
+    "«Познакомить»",
+    "представить двух людей"
+   ],
+   [
+    "Esc",
+    "пауза, качество, звук"
+   ]
+  ],
+  "en": [
+   [
+    "Click a person or name tag",
+    "walk up and talk"
+   ],
+   [
+    "Click the floor · a seat",
+    "walk · sit"
+   ],
+   [
+    "Card · 1–4",
+    "reply"
+   ],
+   [
+    "“Познакомить” (Introduce)",
+    "introduce two people"
+   ],
+   [
+    "Esc",
+    "pause, quality, sound"
+   ]
+  ]
+ },
+ "facts": {
+  "ru": [
+   [
+    "Длительность",
+    "около 18 минут"
+   ],
+   [
+    "Язык игры",
+    "русский"
+   ],
+   [
+    "Платформа",
+    "браузер, мышь и касание"
+   ],
+   [
+    "Код",
+    "открытый, MIT; без сервера и сборки"
+   ]
+  ],
+  "en": [
+   [
+    "Length",
+    "about 18 minutes"
+   ],
+   [
+    "Game language",
+    "Russian"
+   ],
+   [
+    "Platform",
+    "browser, mouse and touch"
+   ],
+   [
+    "Code",
+    "open source, MIT; no server and no build"
+   ]
+  ]
+ },
+ "faq": {
+  "ru": [
+   [
+    "Это реальные люди?",
+    "Нет, все гости — собирательные персонажи с придуманными именами."
+   ],
+   [
+    "Нужен ли интернет и установка?",
+    "Установка не нужна; игра работает в браузере."
+   ],
+   [
+    "Можно ли пройти заново так же?",
+    "Да: адрес с ?seed=42 воспроизводит тот же вечер."
+   ]
+  ],
+  "en": [
+   [
+    "Are they real people?",
+    "No, all the guests are composite characters with invented names."
+   ],
+   [
+    "Do I need to install anything?",
+    "No installation; it runs in the browser."
+   ],
+   [
+    "Can I replay the same evening?",
+    "Yes: the address with ?seed=42 replays the same one."
+   ]
+  ]
+ },
+ "shots": [
+  {
+   "file": "docs/screenshots/game-02-profile.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сходка: профиль гостя",
+    "en": "Skhodka: a guest profile"
+   }
+  },
+  {
+   "file": "docs/screenshots/game-05-hall-peak-2130.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сходка: зал бара в разгар вечера",
+    "en": "Skhodka: the bar hall at the peak of the evening"
+   }
+  },
+  {
+   "file": "docs/screenshots/game-06-talk.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сходка: разговор с гостем",
+    "en": "Skhodka: talking to a guest"
+   }
+  }
+ ],
+ "related": [
+  "zhitie",
+  "chronicles-of-kingdoms"
+ ],
+ "keywords": {
+  "ru": [
+   "игра про знакомства",
+   "IT сообщество Батуми игра",
+   "социальная игра в браузере"
+  ],
+  "en": [
+   "social simulation game browser",
+   "networking game",
+   "Batumi IT community"
+  ]
+ }
+}

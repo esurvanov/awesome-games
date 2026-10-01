@@ -1,0 +1,236 @@
+{
+ "slug": "sibiria",
+ "play": "/sibiria/",
+ "repoDir": "sibiria",
+ "name": {
+  "ru": "Сибирь",
+  "en": "Sibiria"
+ },
+ "tagline": {
+  "ru": "Четыре ночи в эвенкийской тайге, 1993 год — выживание и постройка поселения",
+  "en": "Survive four nights in the Evenki taiga, 1993 — then build a settlement around your hut"
+ },
+ "genre": {
+  "ru": "Выживание и строительство поселения (вид сверху)",
+  "en": "Top-down survival and settlement"
+ },
+ "description": {
+  "ru": "Сибирь — 2D-игра на выживание в тайге, 1993 год: холод, волки, медведь, избушка и поселение. Семь глав, пять финалов, играть в браузере без установки.",
+  "en": "Sibiria: a top-down survival game in the Evenki taiga, 1993 — cold, wolves, a rogue bear, your hut and a settlement. Seven chapters, five endings. Play in the browser."
+ },
+ "intro": {
+  "ru": [
+   "Январь 1993-го. Вертолёт Ми-8 борт 24713 упал на излучине реки в Эвенкии. Вы — Лёша, бортрадист. Рация разбита, экипажа нет, до людей несколько дней пути. Найдите старую охотничью избушку, затопите печь, познакомьтесь со старым эвенком Уркачаном и переживите четыре ночи.",
+   "Дальше игра превращается в историю о поселении: нанимайте людей, стройте здания и поднимайтесь через эпохи, торгуйте за рубли — и всё это среди тайги, которая не прощает ошибок. Игра запускается в браузере без установки и сборки, есть версия для телефона."
+  ],
+  "en": [
+   "January 1993. Mi-8 board 24713 went down on a river bend in Evenkia. You are Lyosha, the radio operator. The radio is smashed, the crew is gone, and the nearest people are days away. Find the old hunters’ hut, light its stove, meet the old Evenk Urkachan and get through four nights.",
+   "Then the game turns into a settlement story: hire hands, build and climb through the ages, trade for roubles — all in a taiga that does not forgive mistakes. It runs in the browser with no install or build, and it works on phones."
+  ]
+ },
+ "features": {
+  "ru": [
+   "Семь глав: Обломки, Уркачан, Стая, Сигнал, затем Промысел, Зимовка или Экспедиция; записки и диалоги с сухим юмором",
+   "Настоящий холод: тепло, голод, обморожение, метели — костёр единственное безопасное место",
+   "Стая волков и медведь-шатун, который ломает коптильню и крадёт еду",
+   "Своя избушка и своё поселение: до 8 видов построек, 4 эпохи, найм людей, торговля за рубли",
+   "Управление в духе RTS: рамка выбора, приказы правой кнопкой, группы, сигнал тревоги",
+   "Мир около 11 × 11 км в восьми зонах: наледь, гарь, курумник, голец и другие",
+   "Пять концовок, три слота сохранения и автосохранение; адаптация под телефон"
+  ],
+  "en": [
+   "Seven chapters: Wreckage, Urkachan, The Pack, The Signal, then Trapping, Wintering or the Expedition; found notes and dry-humoured dialogue",
+   "Real cold: warmth, hunger, frostbite, blizzards — a fire is the only safe place",
+   "A hunting pack of wolves and a rogue bear that smashes the smokehouse and steals food",
+   "Your own hut and settlement: up to 8 kinds of buildings, 4 ages, hiring hands, trading for roubles",
+   "RTS-style control: box-select, right-click orders, groups, an alarm bell",
+   "About 11 × 11 km of taiga in eight zones: aufeis, burnt forest, a boulder field, a bald peak and more",
+   "Five endings, three save slots plus autosave; a phone-friendly layout"
+  ]
+ },
+ "controls": {
+  "ru": [
+   [
+    "W A S D",
+    "движение"
+   ],
+   [
+    "E",
+    "действие: рубить, ловить рыбу, читать, говорить"
+   ],
+   [
+    "F · Q · R",
+    "костёр · еда · ловушка"
+   ],
+   [
+    "C · B",
+    "мастерская · строительство"
+   ],
+   [
+    "Рамка · ПКМ",
+    "выбрать людей · отдать приказ"
+   ],
+   [
+    "H · Esc",
+    "тревога/отбой · пауза"
+   ],
+   [
+    "Колесо · 0",
+    "масштаб · вернуться к герою"
+   ]
+  ],
+  "en": [
+   [
+    "W A S D",
+    "move"
+   ],
+   [
+    "E",
+    "act: chop, fish, read, talk"
+   ],
+   [
+    "F · Q · R",
+    "fire · eat · trap"
+   ],
+   [
+    "C · B",
+    "workshop · build"
+   ],
+   [
+    "Drag box · RMB",
+    "select people · give an order"
+   ],
+   [
+    "H · Esc",
+    "alarm / all clear · pause"
+   ],
+   [
+    "Wheel · 0",
+    "zoom · back to the hero"
+   ]
+  ]
+ },
+ "facts": {
+  "ru": [
+   [
+    "Платформа",
+    "браузер на компьютере и на телефоне"
+   ],
+   [
+    "Установка",
+    "не нужна"
+   ],
+   [
+    "Прохождение",
+    "семь глав, пять концовок"
+   ],
+   [
+    "Код",
+    "открытый, MIT; без сборки и библиотек (только шрифты Google Fonts)"
+   ]
+  ],
+  "en": [
+   [
+    "Platform",
+    "browser on desktop and phone"
+   ],
+   [
+    "Install",
+    "none"
+   ],
+   [
+    "Playthrough",
+    "seven chapters, five endings"
+   ],
+   [
+    "Code",
+    "open source, MIT; no build step and no libraries (only Google Fonts)"
+   ]
+  ]
+ },
+ "faq": {
+  "ru": [
+   [
+    "Это реальная история?",
+    "Нет, это вымышленный сюжет в реалиях Эвенкии 1993 года: персонажи и события придуманы."
+   ],
+   [
+    "Можно ли играть на телефоне?",
+    "Да: есть джойстик, режим приказов и масштабирование щипком."
+   ],
+   [
+    "Как сохраняться?",
+    "Спите в избушке — это сохраняет прогресс; есть три слота и автосохранение."
+   ],
+   [
+    "Сколько длится игра?",
+    "Историю можно пройти за несколько вечеров; поселение и разные финалы дают повод вернуться."
+   ]
+  ],
+  "en": [
+   [
+    "Is it a true story?",
+    "No, it is fiction set in the realities of Evenkia in 1993: the characters and events are invented."
+   ],
+   [
+    "Can I play on a phone?",
+    "Yes: there is a joystick, an order mode and pinch zoom."
+   ],
+   [
+    "How do I save?",
+    "Sleep in the hut to save progress; there are three slots plus autosave."
+   ],
+   [
+    "How long is it?",
+    "The story takes a few evenings; the settlement and different endings give reasons to return."
+   ]
+  ]
+ },
+ "shots": [
+  {
+   "file": "docs/screenshots/village-day.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: дневной вид на избушку и поселение",
+    "en": "Sibiria: daytime view of the hut and the settlement"
+   }
+  },
+  {
+   "file": "docs/screenshots/hut-inside.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: внутри избушки",
+    "en": "Sibiria: inside the hut"
+   }
+  },
+  {
+   "file": "docs/screenshots/settlers.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: поселенцы за работой",
+    "en": "Sibiria: settlers at work"
+   }
+  }
+ ],
+ "related": [
+  "berezovka",
+  "chronicles-of-kingdoms"
+ ],
+ "keywords": {
+  "ru": [
+   "игра на выживание в тайге",
+   "выживание 1993 Эвенкия",
+   "игра про поселение",
+   "выживалка в браузере"
+  ],
+  "en": [
+   "survival game browser",
+   "taiga survival game",
+   "settlement builder",
+   "Siberia game 1993"
+  ]
+ }
+}

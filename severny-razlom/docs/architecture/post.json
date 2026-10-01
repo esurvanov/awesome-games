@@ -1,0 +1,72 @@
+{
+ "slug": "northern-rift-architecture",
+ "date": "2026-10-02",
+ "layout": "wide",
+ "mentions": "three.js, WebGL, Web Audio, C4 model, Northern Rift",
+ "ru": {
+  "file": "architecture.ru.md",
+  "title": "Архитектура игры «Северный Разлом»: C4 и критические пути",
+  "description": "Схемы C4 до уровня компонентов и четыре критических пути через sequence: запуск, кадр, ввод и конец заезда.",
+  "tags": "Архитектура, Игры, C4, three.js",
+  "toc": [
+   {
+    "id": "c4",
+    "heading": "C4: контекст и контейнеры",
+    "label": "C4: контекст и контейнеры"
+   },
+   {
+    "id": "c3",
+    "heading": "C4 уровня 3: компоненты контекстов",
+    "label": "Компоненты"
+   },
+   {
+    "id": "paths",
+    "heading": "Четыре критических пути",
+    "label": "Критические пути"
+   },
+   {
+    "id": "rules",
+    "heading": "Правила, на которых всё держится",
+    "label": "Правила"
+   },
+   {
+    "id": "weak",
+    "heading": "Слабые места",
+    "label": "Слабые места"
+   }
+  ]
+ },
+ "en": {
+  "file": "architecture.md",
+  "title": "Architecture of “Northern Rift”: C4 and critical paths",
+  "description": "C4 diagrams down to components and four critical paths as sequences: startup, a frame, input and the end of a run.",
+  "tags": "Architecture, Games, C4, three.js",
+  "toc": [
+   {
+    "id": "c4",
+    "heading": "C4: context and containers",
+    "label": "C4: context and containers"
+   },
+   {
+    "id": "c3",
+    "heading": "C4 level 3: components of each context",
+    "label": "Components"
+   },
+   {
+    "id": "paths",
+    "heading": "Four critical paths",
+    "label": "Critical paths"
+   },
+   {
+    "id": "rules",
+    "heading": "The rules everything rests on",
+    "label": "Rules"
+   },
+   {
+    "id": "weak",
+    "heading": "Weak spots",
+    "label": "Weak spots"
+   }
+  ]
+ }
+}

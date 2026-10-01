@@ -1,0 +1,212 @@
+{
+  "slug": "echo-of-the-rift",
+  "play": "/ekho-razloma/",
+  "repoDir": "ekho-razloma",
+  "name": {
+    "ru": "Эхо Разлома",
+    "en": "Echo of the Rift"
+  },
+  "tagline": {
+    "ru": "Потерпевший крушение пилот, полярный остров и светящийся разлом во льду — 3D-игра с сюжетом в браузере",
+    "en": "A crashed pilot, a polar island and a glowing rift in the ice — a 3D story game in your browser"
+  },
+  "genre": {
+    "ru": "3D-игра с открытым миром и сюжетом",
+    "en": "Open-world 3D story game"
+  },
+  "description": {
+    "ru": "Эхо Разлома — 3D-игра с открытым миром: пилот разбился на полярном острове под северным сиянием. Отшельник, кристаллы, поющий разлом, два финала. В браузере.",
+    "en": "Echo of the Rift: an open-world 3D story game — a pilot crashes on a polar island under the northern lights. A hermit, crystals, a singing rift, two endings. In the browser."
+  },
+  "intro": {
+    "ru": [
+      "Ваш самолёт «Пустельга» падает на безымянный полярный остров под северным сиянием. ИИ станции по имени ИРИС будит вас в обломках. Старый отшельник Орм живёт здесь один уже одиннадцать лет — рядом с разломом во льду, который поёт.",
+      "Остров размером 900 × 900 м: место крушения, полярная станция, замёрзшее озеро, руины, лес, морской лёд и Разлом. Снег помнит каждый шаг, ночь выглядит как ночь, а запускается всё это сразу в браузере — без установки."
+    ],
+    "en": [
+      "Your plane, the “Kestrel”, goes down on a nameless polar island under the northern lights. The station AI IRIS wakes you in the wreck. An old hermit, Orm, has lived here alone for eleven years, next to a rift in the ice that sings.",
+      "The island is 900 × 900 m: the crash site, a polar station, a frozen lake, ruins, forest, sea ice and the Rift. The snow remembers every step, the night looks like night, and it all starts straight in the browser — no install."
+    ]
+  },
+  "features": {
+    "ru": [
+      "Открытый остров 900 × 900 м: крушение, станция, озеро, руины, лес, морской лёд, Разлом",
+      "5 глав и 2 концовки: диалоги с выбором, 8 записей-эхо, 24 кристальных осколка",
+      "Снегоход-«скиммер»: вызывается клавишей T",
+      "Снег, который помнит: каждый ботинок, копыто и лапа оставляют свой след",
+      "Пилот опирается на скалы и стены, упирается в склоны, перепрыгивает низкие препятствия",
+      "Живая природа: олени и другие животные; ночь с северным сиянием, лунными тенями, туманом и снегопадом",
+      "Немного боя: кристальные существа и голем в Разломе"
+    ],
+    "en": [
+      "An open island, 900 × 900 m: crash site, station, lake, ruins, forest, sea ice, the Rift",
+      "5 chapters and 2 endings: dialogue with choices, 8 echo recordings, 24 crystal shards",
+      "A snow-skimmer vehicle: call it with T",
+      "Snow that remembers: every boot, hoof and paw leaves its own print",
+      "The pilot leans on rocks and walls, braces on slopes and vaults low obstacles",
+      "Wildlife: stags and other animals; a night with aurora, moon shadows, fog and falling snow",
+      "A little combat: crystal shardlings and a golem in the Rift"
+    ]
+  },
+  "controls": {
+    "ru": [
+      [
+        "W A S D · Shift · Пробел · C",
+        "ходьба · бег · прыжок · кувырок"
+      ],
+      [
+        "E · ЛКМ · Q · G",
+        "действие · резак · скан · помахать"
+      ],
+      [
+        "T",
+        "вызвать скиммер"
+      ],
+      [
+        "M · J · Esc",
+        "карта · журнал · пауза"
+      ],
+      [
+        "Y",
+        "поговорить с Ормом"
+      ]
+    ],
+    "en": [
+      [
+        "W A S D · Shift · Space · C",
+        "move · run · jump · roll"
+      ],
+      [
+        "E · LMB · Q · G",
+        "interact · cutter · scan · wave"
+      ],
+      [
+        "T",
+        "call the skimmer"
+      ],
+      [
+        "M · J · Esc",
+        "map · journal · pause"
+      ],
+      [
+        "Y",
+        "talk to Orm"
+      ]
+    ]
+  },
+  "facts": {
+    "ru": [
+      [
+        "Платформа",
+        "настольный браузер с WebGL 2"
+      ],
+      [
+        "Качество",
+        "подстраивается под компьютер; на экранах Retina картинка рисуется в 1× и масштабируется"
+      ],
+      [
+        "Движок",
+        "без движка и сборки: three.js, физика Rapier"
+      ],
+      [
+        "Код",
+        "открытый, MIT"
+      ]
+    ],
+    "en": [
+      [
+        "Platform",
+        "desktop browser with WebGL 2"
+      ],
+      [
+        "Quality",
+        "adapts to the machine; on Retina screens the picture is rendered at 1× and scaled"
+      ],
+      [
+        "Engine",
+        "no engine and no build: three.js, Rapier physics"
+      ],
+      [
+        "Code",
+        "open source, MIT"
+      ]
+    ]
+  },
+  "faq": {
+    "ru": [
+      [
+        "Нужна ли установка?",
+        "Нет. Нужен настольный браузер с WebGL 2."
+      ],
+      [
+        "Что делать, если картинка тормозит?",
+        "Игра подбирает качество под компьютер сама; на слабых машинах есть облегчённый режим."
+      ],
+      [
+        "Есть ли связь с «Северным Разломом»?",
+        "Да: «Северный Разлом» — аркада в том же мире, тот же остров, увиденный с воздуха."
+      ]
+    ],
+    "en": [
+      [
+        "Do I need to install it?",
+        "No. A desktop browser with WebGL 2 is enough."
+      ],
+      [
+        "What if it runs slowly?",
+        "The game picks a quality level for your machine; weaker computers get a lighter mode."
+      ],
+      [
+        "Is it connected to Northern Rift?",
+        "Yes: Northern Rift is an arcade in the same world — the same island seen from the air."
+      ]
+    ]
+  },
+  "shots": [
+    {
+      "file": "docs/screenshots/crash-site.jpg",
+      "w": 1280,
+      "h": 720,
+      "alt": {
+        "ru": "Эхо Разлома: пилот у места крушения «Пустельги» в снегу",
+        "en": "Echo of the Rift: the pilot at the Kestrel crash site in the snow"
+      }
+    },
+    {
+      "file": "docs/screenshots/rift-overview.jpg",
+      "w": 1280,
+      "h": 720,
+      "alt": {
+        "ru": "Эхо Разлома: остров сверху — лес, Разлом и северное сияние",
+        "en": "Echo of the Rift: the island from above — forest, the Rift and the aurora"
+      }
+    },
+    {
+      "file": "docs/screenshots/camp-night.jpg",
+      "w": 1280,
+      "h": 720,
+      "alt": {
+        "ru": "Эхо Разлома: ночной лагерь",
+        "en": "Echo of the Rift: the camp at night"
+      }
+    }
+  ],
+  "related": [
+    "northern-rift",
+    "berezovka"
+  ],
+  "keywords": {
+    "ru": [
+      "3D игра с сюжетом в браузере",
+      "игра про полярный остров",
+      "северное сияние игра",
+      "игра без установки"
+    ],
+    "en": [
+      "3D story game browser",
+      "polar island game",
+      "aurora game",
+      "open world three.js game"
+    ]
+  }
+}

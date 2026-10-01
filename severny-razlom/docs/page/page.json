@@ -1,0 +1,66 @@
+{
+ "slug": "northern-rift",
+ "play": "/severny-razlom/",
+ "repoDir": "severny-razlom",
+ "name": {"ru": "Северный Разлом", "en": "Northern Rift"},
+ "tagline": {"ru": "Полёт по бесконечному ледяному каньону под северным сиянием — 3D-аркада в одном файле", "en": "Fly down an endless ice canyon under the northern lights — a one-file 3D arcade"},
+ "genre": {"ru": "3D-аркада", "en": "3D arcade"},
+ "description": {
+  "ru": "Северный Разлом — 3D-аркада в браузере: маленький корабль летит по бесконечному ледяному каньону, собирает осколки и пробивает лёд. Комбо до ×8, три жизни.",
+  "en": "Northern Rift: a 3D browser arcade — a small ship flies down an endless ice canyon, collects shards and bursts through the ice. Combos up to ×8, three hits. Play free."
+ },
+ "intro": {
+  "ru": [
+   "Каньон никогда не кончается. Собирайте кристальные осколки, превращайте их в энергию и пробивайте ледяные стены. Облетайте препятствия сверху, снизу и сбоку, держите комбо и посмотрите, как далеко вы дойдёте до трёх попаданий.",
+   "Это первая игра, сделанная в мире «Эха Разлома»: тот же остров, увиденный с воздуха. Весь мир нарисован кодом, без файлов изображений — игра помещается в один файл."
+  ],
+  "en": [
+   "The canyon never ends. Collect crystal shards, turn them into energy, then burst through the ice walls. Fly around, over and under the obstacles, keep the combo alive and see how far you get before three hits bring you down.",
+   "It is the first game made in the world of Echo of the Rift: the same island, seen from the air. The whole world is drawn in code, with no image files — the game fits in a single file."
+  ]
+ },
+ "features": {
+  "ru": [
+   "Бесконечный каньон: создаётся по мере полёта и никогда не повторяется",
+   "Осколки → энергия → пробить лёд: рывок прямо сквозь стену",
+   "Комбо от ×2 до ×8 за облёт препятствий",
+   "Три попадания — и заезд окончен",
+   "Северное сияние, звёзды, светящиеся кристаллы — всё нарисовано кодом",
+   "Сенсорное управление: на телефоне появляется кнопка рывка"
+  ],
+  "en": [
+   "An endless canyon, generated as you fly and never the same twice",
+   "Shards → energy → break the ice: boost straight through walls",
+   "Combo ×2 … ×8 for weaving around, over and under",
+   "3 hits — then the run is over",
+   "Aurora, stars, glowing crystals — everything drawn in code",
+   "Touch controls: a boost button appears on phones"
+  ]
+ },
+ "controls": {
+  "ru": [["W A S D / стрелки", "управление кораблём"], ["Пробел / Shift", "рывок сквозь лёд"], ["Enter", "старт"]],
+  "en": [["W A S D / arrows", "steer"], ["Space / Shift", "boost through ice"], ["Enter", "start"]]
+ },
+ "facts": {
+  "ru": [["Платформа", "браузер на компьютере и телефоне"], ["Размер", "один файл (three.js и шрифты подгружаются из сети)"], ["Режим", "бесконечный заезд на очки"], ["Код", "открытый, MIT"]],
+  "en": [["Platform", "browser on desktop and phone"], ["Size", "one file (three.js and fonts are loaded from the network)"], ["Mode", "endless score run"], ["Code", "open source, MIT"]]
+ },
+ "faq": {
+  "ru": [
+   ["Сколько длится заезд?", "Пока вас не собьют трижды: он бесконечный, всё решает умение."],
+   ["Работает ли на телефоне?", "Да, на сенсорном экране появляется кнопка рывка."],
+   ["Откуда игра?", "Это первая игра из мира «Эха Разлома»."]
+  ],
+  "en": [
+   ["How long is a run?", "Until you are hit three times: it is endless, skill decides."],
+   ["Does it work on a phone?", "Yes, a boost button appears on touch screens."],
+   ["Where is it from?", "It is the first game from the world of Echo of the Rift."]
+  ]
+ },
+ "shots": [
+  {"file": "docs/screenshots/flight.jpg", "w": 1600, "h": 900, "alt": {"ru": "Северный Разлом: корабль в ледяном каньоне", "en": "Northern Rift: the ship in the ice canyon"}},
+  {"file": "docs/screenshots/menu.jpg", "w": 1600, "h": 900, "alt": {"ru": "Северный Разлом: стартовый экран", "en": "Northern Rift: the start screen"}}
+ ],
+ "related": ["echo-of-the-rift", "berezovka"],
+ "keywords": {"ru": ["аркада в браузере", "бесконечный раннер 3D", "игра на реакцию без установки"], "en": ["3D browser arcade", "endless flyer game", "one file game three.js"]}
+}

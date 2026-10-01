@@ -1,0 +1,319 @@
+{
+  "slug": "chronicles-of-kingdoms",
+  "play": "/age-of-empires/web/",
+  "repoDir": "age-of-empires",
+  "name": {
+    "ru": "Хроники Королевств",
+    "en": "Chronicles of Kingdoms"
+  },
+  "tagline": {
+    "ru": "Стратегия в реальном времени в духе Age of Empires II — прямо в браузере",
+    "en": "A real-time strategy in the spirit of Age of Empires II — right in your browser"
+  },
+  "genre": {
+    "ru": "Стратегия в реальном времени (RTS)",
+    "en": "Real-time strategy (RTS)"
+  },
+  "description": {
+    "ru": "Хроники Королевств — бесплатная RTS в браузере в духе Age of Empires II: 14 цивилизаций, 4 эпохи, 130+ технологий, до 7 ИИ-соперников. Без установки.",
+    "en": "Chronicles of Kingdoms: a free browser RTS in the spirit of Age of Empires II — 14 civilizations, 4 ages, 130+ technologies, up to 7 AI opponents. No install."
+  },
+  "intro": {
+    "ru": [
+      "Постройте деревню в Тёмных веках, обнесите её стеной, возведите замок, дойдите исследованиями до Имперской эпохи и сломите врага требушетами — против до семи ИИ-игроков на шести случайных картах.",
+      "Это оригинальная открытая игра, написанная с нуля: правила и числа следуют классической Age of Empires II (сверка с Definitive Edition описана в документации), но без графики, музыки и названий оригинала. Игра запускается как обычный сайт — без установки и регистрации."
+    ],
+    "en": [
+      "Build a village in the Dark Age, wall it in, raise a castle, research your way to the Imperial Age and break the enemy with trebuchets — against up to seven AI players on six random maps.",
+      "It is an original open-source game written from scratch: the rules and numbers follow classic Age of Empires II (the check against the Definitive Edition is documented), with none of the original art, music or names. It runs like an ordinary website — no install, no sign-up."
+    ]
+  },
+  "features": {
+    "ru": [
+      "14 цивилизаций — свои юниты, технологии и командные бонусы",
+      "4 эпохи (Тёмные века → Феодальная → Замков → Имперская) и дерево из 130+ технологий (F5 в игре)",
+      "Более 75 типов юнитов: пехота, лучники, кавалерия, осадные машины, монахи, корабли",
+      "Экономика: рынок, торговые повозки, реликвии, фермы; стены, ворота, башни, гарнизоны",
+      "Морские бои: доки, рыбалка, транспорты, галеры, брандеры",
+      "6 случайных карт (Аравия, Арена, Чёрный лес, Кочевник, Острова, Средиземноморье), 6 уровней ИИ, до 8 игроков, дипломатия",
+      "Сохранение и загрузка, статистика после матча, 7 языков интерфейса"
+    ],
+    "en": [
+      "14 civilizations — unique units, unique techs and team bonuses",
+      "4 ages (Dark → Feudal → Castle → Imperial) and a tree of 130+ technologies (F5 in game)",
+      "75+ unit types: infantry, archers, cavalry, siege, monks, ships",
+      "Economy: market trade, trade carts, relics, farms; walls, gates, towers, garrisons",
+      "Naval warfare: docks, fishing, transports, galleys, fire ships",
+      "6 random maps (Arabia, Arena, Black Forest, Nomad, Islands, Mediterranean), 6 AI levels, up to 8 players, diplomacy",
+      "Save / load, post-game statistics, 7 interface languages"
+    ]
+  },
+  "controls": {
+    "ru": [
+      [
+        "Левая кнопка мыши",
+        "выбрать юнита или здание; рамкой — выбрать нескольких"
+      ],
+      [
+        "Двойной клик",
+        "выбрать всех юнитов такого же типа на экране"
+      ],
+      [
+        "Правая кнопка мыши",
+        "отдать приказ по месту: идти, добывать, строить, атаковать, войти в здание"
+      ],
+      [
+        "Q · W · E · R · T",
+        "команды выбранного юнита, как кнопки в панели внизу (клавиши идут по сетке 5×3)"
+      ],
+      [
+        "Ctrl + 1…9",
+        "запомнить выбранных юнитов как группу"
+      ],
+      [
+        "1…9",
+        "выбрать запомненную группу; второе нажатие — камера к ней"
+      ],
+      [
+        "H",
+        "камера к городскому центру"
+      ],
+      [
+        ". · ,",
+        "найти свободного селянина · найти свободного воина"
+      ],
+      [
+        "Пробел",
+        "камера к выбранным юнитам"
+      ],
+      [
+        "Колесо мыши · стрелки",
+        "масштаб · прокрутка карты"
+      ],
+      [
+        "F5",
+        "дерево технологий"
+      ],
+      [
+        "F7 · F8",
+        "быстрое сохранение · загрузка"
+      ]
+    ],
+    "en": [
+      [
+        "Left mouse button",
+        "select a unit or building; drag a box to select several"
+      ],
+      [
+        "Double-click",
+        "select every unit of the same type on screen"
+      ],
+      [
+        "Right mouse button",
+        "give an order at that spot: move, gather, build, attack, garrison"
+      ],
+      [
+        "Q · W · E · R · T",
+        "commands of the selected unit, same as the buttons in the bottom panel (keys follow a 5×3 grid)"
+      ],
+      [
+        "Ctrl + 1…9",
+        "save the selected units as a group"
+      ],
+      [
+        "1…9",
+        "select the saved group; press again to jump the camera to it"
+      ],
+      [
+        "H",
+        "camera to the town center"
+      ],
+      [
+        ". · ,",
+        "find an idle villager · find an idle soldier"
+      ],
+      [
+        "Space",
+        "camera to the selected units"
+      ],
+      [
+        "Mouse wheel · arrow keys",
+        "zoom · scroll the map"
+      ],
+      [
+        "F5",
+        "tech tree"
+      ],
+      [
+        "F7 · F8",
+        "quick save · quick load"
+      ]
+    ]
+  },
+  "facts": {
+    "ru": [
+      [
+        "Платформа",
+        "настольный браузер, без установки"
+      ],
+      [
+        "Первая загрузка",
+        "≈ 60 МБ, дальше подгружается по мере игры"
+      ],
+      [
+        "Соперники",
+        "до 7 ИИ, 6 уровней сложности"
+      ],
+      [
+        "Языки интерфейса",
+        "русский, английский, немецкий, французский, испанский, португальский (Бразилия), итальянский"
+      ],
+      [
+        "Код",
+        "открытый, MIT (также версия на Python)"
+      ],
+      [
+        "Графика и звук",
+        "0 A.D. и Millennium A.D., CC BY-SA 3.0"
+      ]
+    ],
+    "en": [
+      [
+        "Platform",
+        "desktop browser, no install"
+      ],
+      [
+        "First load",
+        "≈ 60 MB, then streamed as you play"
+      ],
+      [
+        "Opponents",
+        "up to 7 AI players, 6 difficulty levels"
+      ],
+      [
+        "Interface languages",
+        "English, Russian, German, French, Spanish, Brazilian Portuguese, Italian"
+      ],
+      [
+        "Code",
+        "open source, MIT (a Python version too)"
+      ],
+      [
+        "Art and sound",
+        "0 A.D. and Millennium A.D., CC BY-SA 3.0"
+      ]
+    ]
+  },
+  "faq": {
+    "ru": [
+      [
+        "Это копия Age of Empires II?",
+        "Нет. Это самостоятельная открытая игра: механики и числа сверялись с Age of Empires II, но графика, музыка и названия свои (музыка и голоса — из открытой игры 0 A.D.)."
+      ],
+      [
+        "Нужно ли что-то устанавливать?",
+        "Нет. Игра работает на любой статической странице в браузере. Первый запуск загружает около 60 МБ ресурсов."
+      ],
+      [
+        "Как сохраниться?",
+        "F7 — быстрое сохранение, F8 — загрузка; есть и слоты в меню игры. Сохранения лежат в вашем браузере."
+      ],
+      [
+        "Можно ли получить код?",
+        "Да, весь код открыт под лицензией MIT: github.com/esurvanov/awesome-games."
+      ]
+    ],
+    "en": [
+      [
+        "Is this a copy of Age of Empires II?",
+        "No. It is an independent open-source game: the mechanics and numbers were checked against Age of Empires II, but the art, music and names are its own (music and voices come from the open-source 0 A.D.)."
+      ],
+      [
+        "Do I have to install anything?",
+        "No. The game runs as a plain web page. The first start downloads about 60 MB of assets."
+      ],
+      [
+        "How do I save?",
+        "F7 quick-saves and F8 loads; there are also slots in the game menu. Saves stay in your browser."
+      ],
+      [
+        "Can I get the code?",
+        "Yes, all of it is open under the MIT licence: github.com/esurvanov/awesome-games."
+      ]
+    ]
+  },
+  "shots": [
+    {
+      "file": "docs/screenshots/battle.jpg",
+      "w": 1280,
+      "h": 800,
+      "alt": {
+        "ru": "Хроники Королевств: сражение в открытом поле с осадными машинами",
+        "en": "Chronicles of Kingdoms: an open-field battle with siege engines"
+      }
+    },
+    {
+      "file": "docs/screenshots/town.jpg",
+      "w": 1280,
+      "h": 800,
+      "alt": {
+        "ru": "Хроники Королевств: византийский город",
+        "en": "Chronicles of Kingdoms: a Byzantine town"
+      }
+    },
+    {
+      "file": "docs/screenshots/naval.jpg",
+      "w": 1280,
+      "h": 800,
+      "alt": {
+        "ru": "Хроники Королевств: флот и док на карте «Острова»",
+        "en": "Chronicles of Kingdoms: a fleet and dock on the Islands map"
+      }
+    },
+    {
+      "file": "docs/screenshots/hills.jpg",
+      "w": 1280,
+      "h": 800,
+      "alt": {
+        "ru": "Хроники Королевств: холмы и обрывы",
+        "en": "Chronicles of Kingdoms: hills and cliffs"
+      }
+    },
+    {
+      "file": "docs/screenshots/techtree.jpg",
+      "w": 1280,
+      "h": 800,
+      "alt": {
+        "ru": "Хроники Королевств: дерево технологий",
+        "en": "Chronicles of Kingdoms: the tech tree"
+      }
+    },
+    {
+      "file": "docs/screenshots/lobby.jpg",
+      "w": 1280,
+      "h": 800,
+      "alt": {
+        "ru": "Хроники Королевств: лобби одиночной игры",
+        "en": "Chronicles of Kingdoms: the skirmish lobby"
+      }
+    }
+  ],
+  "related": [
+    "sibiria",
+    "zhitie"
+  ],
+  "keywords": {
+    "ru": [
+      "стратегия в браузере",
+      "игра как Age of Empires",
+      "RTS онлайн без установки",
+      "открытая стратегия"
+    ],
+    "en": [
+      "browser RTS",
+      "game like Age of Empires",
+      "free online strategy game",
+      "open source RTS"
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+ "slug": "sibiria-architecture",
+ "date": "2026-10-02",
+ "layout": "wide",
+ "mentions": "Canvas 2D, JavaScript, C4 model, Web Audio, Sibiria",
+ "ru": {
+  "file": "architecture.ru.md",
+  "title": "Архитектура игры «Сибирь»: C4 и критические пути",
+  "description": "Контексты, схемы C4 до уровня компонентов и четыре критических пути через sequence: кадр, ночная угроза, шаг сюжета и сохранение.",
+  "tags": "Архитектура, Игры, C4, JavaScript",
+  "toc": [
+   {
+    "id": "contexts",
+    "heading": "Контексты игры",
+    "label": "Контексты"
+   },
+   {
+    "id": "c4",
+    "heading": "C4: контекст и контейнеры",
+    "label": "C4: контекст и контейнеры"
+   },
+   {
+    "id": "c3",
+    "heading": "C4 уровня 3: компоненты контекстов",
+    "label": "Компоненты"
+   },
+   {
+    "id": "paths",
+    "heading": "Четыре критических пути",
+    "label": "Критические пути"
+   },
+   {
+    "id": "rules",
+    "heading": "Правила, на которых всё держится",
+    "label": "Правила"
+   },
+   {
+    "id": "weak",
+    "heading": "Слабые места",
+    "label": "Слабые места"
+   }
+  ]
+ },
+ "en": {
+  "file": "architecture.md",
+  "title": "Architecture of “Sibiria”: C4 and critical paths",
+  "description": "The contexts, C4 diagrams down to components and four critical paths as sequences: a frame, a night threat, a story step and saving.",
+  "tags": "Architecture, Games, C4, JavaScript",
+  "toc": [
+   {
+    "id": "contexts",
+    "heading": "The contexts of the game",
+    "label": "Contexts"
+   },
+   {
+    "id": "c4",
+    "heading": "C4: context and containers",
+    "label": "C4: context and containers"
+   },
+   {
+    "id": "c3",
+    "heading": "C4 level 3: components of each context",
+    "label": "Components"
+   },
+   {
+    "id": "paths",
+    "heading": "Four critical paths",
+    "label": "Critical paths"
+   },
+   {
+    "id": "rules",
+    "heading": "The rules everything rests on",
+    "label": "Rules"
+   },
+   {
+    "id": "weak",
+    "heading": "Weak spots",
+    "label": "Weak spots"
+   }
+  ]
+ }
+}

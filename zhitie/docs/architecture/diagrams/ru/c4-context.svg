@@ -1,0 +1,17 @@
+<svg class="ad" viewBox="0 0 1072 324" role="img" aria-label="Контекст системы: игрок, игра, CDN и хранилище браузера" xmlns="http://www.w3.org/2000/svg"><style>
+svg.ad{--a-bg:#ffffff;--a-surface:#ffffff;--a-ink:#17181b;--a-ink2:#4a4d57;--a-ink3:#6b6e78;--a-line:#b9bcc6;--a-accent:#3b50d8}
+@media (prefers-color-scheme:dark){svg.ad{--a-bg:#0d1117;--a-surface:#161b22;--a-ink:#ecedf0;--a-ink2:#a6a9b2;--a-ink3:#8b8e98;--a-line:#454a54;--a-accent:#8b9bff}}
+svg.ad .ad-bx{fill:var(--a-surface);stroke:var(--a-line);stroke-width:1.5}
+svg.ad .ad-c{stroke:var(--a-accent)}
+svg.ad .ad-x{stroke:var(--a-ink3);stroke-dasharray:5 4}
+svg.ad .ad-p{stroke:var(--a-ink)}
+svg.ad .ad-t1{fill:var(--a-ink);font:700 13px system-ui,-apple-system,"Segoe UI",sans-serif}
+svg.ad .ad-t2{fill:var(--a-ink3);font:500 11px ui-monospace,Menlo,monospace}
+svg.ad .ad-ln{stroke:var(--a-ink3);stroke-width:1.5;fill:none}
+svg.ad .ad-ds{stroke-dasharray:5 4}
+svg.ad .ad-ar{fill:var(--a-ink3)}
+svg.ad .ad-lbbg{fill:var(--a-bg)}
+svg.ad .ad-lb,svg.ad .ad-lb2{fill:var(--a-ink2);font:500 11px ui-monospace,Menlo,monospace}
+svg.ad .ad-life{stroke:var(--a-line);stroke-width:1;stroke-dasharray:2 4}
+svg.ad .ad-note{fill:var(--a-surface);stroke:var(--a-line);stroke-width:1}
+</style><defs><marker id="c4-context-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ad-ar"/></marker></defs><line x1="221.0" y1="162.0" x2="315.0" y2="162.0" class="ad-ln" marker-end="url(#c4-context-ah)"/><line x1="489.0" y1="126.9" x2="583.0" y2="89.1" class="ad-ln" marker-end="url(#c4-context-ah)"/><line x1="489.0" y1="197.1" x2="583.0" y2="234.9" class="ad-ln" marker-end="url(#c4-context-ah)"/><rect x="50.0" y="128.0" width="168" height="68" rx="34.0" class="ad-bx ad-p"/><text x="134.0" y="158.0" text-anchor="middle" class="ad-t1">Игрок</text><text x="134.0" y="174.0" text-anchor="middle" class="ad-t2">мышь, клавиатура</text><rect x="318.0" y="128.0" width="168" height="68" rx="6" class="ad-bx ad-c"/><text x="402.0" y="158.0" text-anchor="middle" class="ad-t1">«Житьё»</text><text x="402.0" y="174.0" text-anchor="middle" class="ad-t2">игра в браузере</text><rect x="586.0" y="20.0" width="168" height="68" rx="6" class="ad-bx ad-x"/><text x="670.0" y="50.0" text-anchor="middle" class="ad-t1">CDN jsDelivr</text><text x="670.0" y="66.0" text-anchor="middle" class="ad-t2">three.js 0.169</text><rect x="586.0" y="236.0" width="168" height="68" rx="6" class="ad-bx ad-x"/><text x="670.0" y="266.0" text-anchor="middle" class="ad-t1">localStorage</text><text x="670.0" y="282.0" text-anchor="middle" class="ad-t2">сохранение, настройки</text><rect x="243.8" y="140.0" width="48.4" height="16" rx="3" class="ad-lbbg"/><text x="268.0" y="152.0" text-anchor="middle" class="ad-lb">играет</text><rect x="476.6" y="99.0" width="118.8" height="16" rx="3" class="ad-lbbg"/><text x="536.0" y="111.0" text-anchor="middle" class="ad-lb">грузит библиотеку</text><rect x="486.2" y="207.0" width="99.6" height="16" rx="3" class="ad-lbbg"/><text x="536.0" y="219.0" text-anchor="middle" class="ad-lb">пишет и читает</text></svg>

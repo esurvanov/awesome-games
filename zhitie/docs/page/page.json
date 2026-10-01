@@ -1,0 +1,207 @@
+{
+ "slug": "zhitie",
+ "play": "/zhitie/",
+ "repoDir": "zhitie",
+ "name": {
+  "ru": "Житьё",
+  "en": "Zhitiyo"
+ },
+ "tagline": {
+  "ru": "Симулятор жизни в духе The Sims 1: изометрический low-poly район из десяти семей",
+  "en": "A life simulation in the spirit of The Sims 1: an isometric low-poly neighbourhood of ten households"
+ },
+ "genre": {
+  "ru": "Симулятор жизни",
+  "en": "Life simulation"
+ },
+ "description": {
+  "ru": "Житьё — симулятор жизни в браузере в духе The Sims 1: изометрическое 3D, район из десяти семей, потребности, карьера, отношения, режимы «Покупка» и «Стройка».",
+  "en": "Zhitiyo: a browser life sim in the spirit of The Sims 1 — isometric low-poly 3D, ten households, needs, careers, relationships, Buy and Build modes. No install."
+ },
+ "intro": {
+  "ru": [
+   "Переезжайте в Берёзовую рощу — небольшой район из десяти семей, парка, кафе, магазина, спортзала и библиотеки. Возьмите под управление семью, следите, чтобы все были сыты, выспались и довольны, ходите на работу, заводите дружбу и романы, обставляйте и достраивайте дом.",
+   "Это оригинальная игра, сделанная с нуля по механике жанра: без названий, графики, музыки и интерфейса The Sims или EA — свой визуальный язык и своя тарабарщина вместо речи. Запускается в браузере без установки и сборки."
+  ],
+  "en": [
+   "Move into Berёzovaya Roshcha (Birch Grove), a small neighbourhood of ten households, a park, a café, a shop, a gym and a library. Take control of a family, keep everyone fed, rested and happy, hold down a job, build friendships and romances, furnish and extend the house.",
+   "It is an original mechanics clone, built from scratch: no Sims or EA names, art, music or UI — its own visual language and its own gibberish speech. It runs in the browser with no install and no build."
+  ]
+ },
+ "features": {
+  "ru": [
+   "Живой район: 10 семей, между которыми можно переключаться, и общие места",
+   "Потребности и настроение: голод, энергия, гигиена, туалет, веселье, общение, комфорт",
+   "Отношения: дружба, романы, тайные связи, семейные ссоры; 86 социальных действий",
+   "Режимы «Покупка» и «Стройка»: 38 предметов мебели, стены, полы, окна, несколько этажей и крыши",
+   "Смена дня и ночи, классическая изометрическая камера (4 поворота, 3 уровня масштаба)",
+   "Low-poly 3D, все модели и анимации под лицензией CC0"
+  ],
+  "en": [
+   "A living neighbourhood: 10 households you can switch between, plus shared lots",
+   "Needs and mood: hunger, energy, hygiene, bladder, fun, social, comfort",
+   "Relationships: friendships, romances, secret affairs, family feuds; 86 social interactions",
+   "Buy and Build modes: 38 furniture pieces, walls, floors, windows, several floors and roofs",
+   "Day and night cycle, a classic isometric camera (4 rotations, 3 zoom levels)",
+   "Low-poly 3D, every model and animation under CC0"
+  ]
+ },
+ "controls": {
+  "ru": [
+   [
+    "Клик по человеку или предмету",
+    "радиальное меню действий"
+   ],
+   [
+    "Клик по клетке",
+    "идти туда"
+   ],
+   [
+    "F1 · F2 · F3",
+    "Жизнь · Покупка · Стройка"
+   ],
+   [
+    "P · 0–3",
+    "пауза · скорость игры"
+   ],
+   [
+    "Пробел",
+    "следующий член семьи"
+   ],
+   [
+    "Перетаскивание · колесо",
+    "поворот · масштаб"
+   ]
+  ],
+  "en": [
+   [
+    "Click a sim or an object",
+    "radial action menu"
+   ],
+   [
+    "Click a tile",
+    "walk there"
+   ],
+   [
+    "F1 · F2 · F3",
+    "Live · Buy · Build"
+   ],
+   [
+    "P · 0–3",
+    "pause · game speed"
+   ],
+   [
+    "Space",
+    "next household member"
+   ],
+   [
+    "Drag · wheel",
+    "rotate · zoom"
+   ]
+  ]
+ },
+ "facts": {
+  "ru": [
+   [
+    "Платформа",
+    "современный браузер на компьютере"
+   ],
+   [
+    "Движок",
+    "three.js, модули ES"
+   ],
+   [
+    "Установка",
+    "не нужна"
+   ],
+   [
+    "Код",
+    "открытый, MIT; ресурсы CC0"
+   ]
+  ],
+  "en": [
+   [
+    "Platform",
+    "a modern desktop browser"
+   ],
+   [
+    "Engine",
+    "three.js, ES modules"
+   ],
+   [
+    "Install",
+    "none"
+   ],
+   [
+    "Code",
+    "open source, MIT; assets CC0"
+   ]
+  ]
+ },
+ "faq": {
+  "ru": [
+   [
+    "Это The Sims?",
+    "Нет. Это независимая игра, повторяющая механику жанра, без чужих названий, графики и музыки."
+   ],
+   [
+    "Нужна ли установка?",
+    "Нет, игра работает в браузере."
+   ],
+   [
+    "Можно ли перестраивать дом?",
+    "Да, в режимах «Покупка» и «Стройка»: мебель, стены, полы, окна, этажи и крыши."
+   ]
+  ],
+  "en": [
+   [
+    "Is this The Sims?",
+    "No. It is an independent game that follows the genre’s mechanics, with no one else’s names, art or music."
+   ],
+   [
+    "Do I need to install it?",
+    "No, it runs in the browser."
+   ],
+   [
+    "Can I rebuild the house?",
+    "Yes, in Buy and Build modes: furniture, walls, floors, windows, floors and roofs."
+   ]
+  ]
+ },
+ "shots": [
+  {
+   "file": "docs/screenshots/neighborhood.jpg",
+   "w": 1280,
+   "h": 678,
+   "alt": {
+    "ru": "Житьё: карта района Берёзовая роща",
+    "en": "Zhitiyo: the Birch Grove neighbourhood map"
+   }
+  },
+  {
+   "file": "docs/screenshots/home.jpg",
+   "w": 1280,
+   "h": 678,
+   "alt": {
+    "ru": "Житьё: интерьер дома",
+    "en": "Zhitiyo: a house interior"
+   }
+  }
+ ],
+ "related": [
+  "skhodka",
+  "chronicles-of-kingdoms"
+ ],
+ "keywords": {
+  "ru": [
+   "симулятор жизни в браузере",
+   "игра как The Sims",
+   "изометрическая игра онлайн"
+  ],
+  "en": [
+   "life sim browser",
+   "game like The Sims",
+   "isometric low-poly game"
+  ]
+ }
+}
