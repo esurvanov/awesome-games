@@ -731,7 +731,7 @@ const GFX = (() => {
     if (m.pf === frame) return m.ph; m.pf = frame;
     m.gait = null;
     if (WALKS[anim] || (ArtPeople.POSE[anim] && ArtPeople.POSE[anim].loco)) {
-      const gt = ArtPeople.gaitFor(anim === 'run' || anim === 'limp' || anim === 'trudge' ? anim : anim === 'wade' ? 'trudge' : 'walk', v, vy); // варианты ходьбы — шагом walk (в глубоком снегу — короче)
+      const gt = ArtPeople.gaitFor(anim === 'run' || anim === 'limp' || anim === 'trudge' ? anim : anim === 'wade' ? 'trudge' : 'walk', v, vy, m === HMOT && typeof Carry !== 'undefined' && Carry.gaitLoad ? Carry.gaitLoad() : 0); // варианты ходьбы — шагом walk (в глубоком снегу — короче); груз героя — шаг короче
       m.ph += Math.min(ArtPeople.advance(m.d, gt), 2 * Math.PI * 6 * rdt);            // ≤ 6 Гц — только от рывков
       if (v > 4) m.gait = gt;
     }
@@ -1456,11 +1456,18 @@ const GFX = (() => {
       if (G.col.ghost) L.push([G.col.ghost.y + BUILDS[G.col.ghost.type].h / 2, 28]);
     }
     for (const a of G.amuletsAt || []) if ((!a.got || Actions.grabbing(a)) && vis(a.x, a.y)) L.push([a.y, 25, a]);
-    if (typeof Tree !== 'undefined') { Tree.frame(); for (const q of G.chunks || []) if (vis(q.x, q.y)) L.push([q.y, 39, q]); }   // части дерева на снегу (js/tree3d.js)
+    // части дерева на снегу (js/tree3d.js): длинные (> 0,8 м) — отрезками со своей глубиной (Carry.partSegs), герой между ними — по месту
+    if (typeof Tree !== 'undefined') { Tree.frame(); for (const q of G.chunks || []) if (vis(q.x, q.y)) { if ((q.len || 0) > 0.8 && !(q.fx != null && G.time - q.t < 0.6)) for (const s of Carry.partSegs(q)) L.push([s.y, 45, { q, s }]); else L.push([q.y, 39, q]); } }
     for (const q of G.loose || []) if (vis(q.x, q.y)) L.push([q.y, 40, q]);   // вещи на снегу, туши, поленница у избы (js/carry.js)
     for (const c of G.carcs || []) if (vis(c.x, c.y)) L.push([c.y - 2, 41, c]);
     { const P0 = Carry.PILE(); if (vis(P0.x, P0.y)) L.push([P0.y + 4, 42, P0]); }
-    for (const lg of G.logs || []) if (vis(lg.x, lg.y) || vis(lg.x + Math.cos(lg.a) * lg.len, lg.y + Math.sin(lg.a) * lg.len * 0.6)) L.push([lg.f && !lg.f.hit ? lg.y : fallY(lg), 37, lg]);
+    { const o = Carry.off(); if (o && !Carry.packNear(26) && vis(o.x, o.y)) L.push([o.y, 44, o]); }   // рюкзак на снегу вдали от героя
+    if (Carry.FUR.length) L.push([-1e9, 43, null]);   // борозда от ствола волоком — по снегу, под всем
+    // ствол волоком — отрезками (комель в кисти: ближний к герою кусок — до героя, рука поверх)
+    for (const lg of G.logs || []) if (vis(lg.x, lg.y) || vis(lg.x + Math.cos(lg.a) * lg.len, lg.y + Math.sin(lg.a) * lg.len * 0.6)) {
+      if (lg.drag && !lg.f) { for (const s of Carry.logSegs(lg)) L.push([s.i && (s.xb < p.x - 10 || s.xa > p.x + 10) ? s.y : Math.min(s.y, p.y - 0.01), 46, { lg, s }]); }   // кусок напротив ног — за героем (не ложится на ноги)
+      else L.push([lg.f && !lg.f.hit ? lg.y : fallY(lg), 37, lg]);
+    }
     // зоны: объекты, глыбы, транспорт на стоянке (верхом — рисуется с героем)
     for (const o of Zones.OBJS) if (o.type !== 'steam' && o.x > x0 - 120 && o.x < x1 + 120 && o.y > y0 && o.y < y1 + 120) L.push([o.y, 32, o]);
     for (const q of Space.rocks.near(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 100)) if (vis(q.x, q.y)) L.push([q.y, 33, q]);
@@ -1508,6 +1515,10 @@ const GFX = (() => {
         case 38: drawSinker(o); break;
         case 37: drawLog(o); break;
         case 39: Tree.drawPart(cx, o, G.time); break;
+        case 43: Carry.drawFurrow(cx); break;
+        case 44: Carry.drawPackW(cx, o); break;
+        case 45: Carry.drawSeg(cx, o.s, () => Tree.drawPart(cx, o.q, G.time)); break;
+        case 46: Carry.drawSeg(cx, o.s, () => drawLog(o.lg)); break;
         case 34: if (o === 'buran') ArtZones.buran(cx, G.veh.buran, ENV, false); else ArtZones.deerSled(cx, G.veh.deer, ENV); break;
       }
       if (SNOWK) Snow.after(cx, k, o); // шапка снега поверх вещи (js/snow.js)

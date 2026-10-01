@@ -78,9 +78,8 @@ const Hero = (() => {
         }
         p.lx = p.x; p.ly = p.y;
       }
-      // нарты тянутся следом
-      const sdx = p.x - p.sx, sdy = p.y - p.sy, sd = Math.hypot(sdx, sdy);
-      if (sd > 34) { p.sx = p.x - sdx / sd * 34; p.sy = p.y - sdy / sd * 34; }
+      // нарты тянутся следом: верёвка — пружина (js/carry.js sledTick), здесь — только её предел
+      Carry.sledHard(p);
     } else { p.moving = false; B.glide = false; }
     p.inside = insideHut(p.x, p.y);
     if (typeof Depth !== 'undefined') Depth.tickHero(dt); // провал в снег: плавно, траншея, разлёт снега
