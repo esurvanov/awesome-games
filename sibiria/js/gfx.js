@@ -35,13 +35,14 @@ const GFX = (() => {
   const ZSTEPS = () => (window.QUALITY === 'low' ? [1, 1.6, 2.5] : [1, 1.6, 2.5, 4]);
   function stepFor(z) { const S = ZSTEPS(); for (const s of S) if (z <= s * 1.15) return s; return S[S.length - 1]; }
   let zt = 1, zax = 0, zay = 0, zAt = 0, zc = 1, zOld = 0, zT0 = 0; // цель, якорь (экран), время изменения, зум ступени, ждёт чистки старой ступени
-  // словарь C (js/style.js): SC — включён; zi — «зум туши»: спрайты с контуром пекутся под него (толщина туши постоянна на экране)
-  const SC = typeof Style !== 'undefined' && Style.on;
+  // общий словарь (js/style.js): SC — гибрид (одно солнце для света и всех теней, одна таблица времени суток, мягкая фактура);
+  // SF — плоский режим C (2 тона, тушь, ореол; localStorage 'sibir-style' = 'flat'); zi — «зум туши»: спрайты с контуром пекутся под него
+  const SC = typeof Style !== 'undefined' && Style.on, SF = SC && Style.flat;
   let zi = 1;
   const ZI_TOL = 0.058; // |ln(zoom/zi)| > tol (≈ ±6 %) — перепечь под новый зум (когда зум постоит, как ступень)
-  function applyZoom() { dpr = rdpr * zoom; vw = rw / zoom; vh = rh / zoom; if (SC) Style.V.zoom = zoom; }
+  function applyZoom() { dpr = rdpr * zoom; vw = rw / zoom; vh = rh / zoom; if (SF) Style.V.zoom = zoom; }
   function commitStep() {
-    if (SC && Math.abs(Math.log(zoom / zi)) > 1e-4) { zi = zoom; Style.V.zi = zi; }
+    if (SF && Math.abs(Math.log(zoom / zi)) > 1e-4) { zi = zoom; Style.V.zi = zi; }
     const s = stepFor(zoom); zc = zoom;
     if (s !== zb) { zb = s; zOld = performance.now(); if (typeof ArtWorld !== 'undefined') ArtWorld.setScale(rdpr, zb); }
   }
@@ -53,7 +54,7 @@ const GFX = (() => {
     lm.width = Math.ceil(rw / 2); lm.height = Math.ceil(rh / 2);
     au.width = Math.ceil(rw / 4); au.height = Math.ceil(rh * 0.5 / 4);
     if (nd !== rdpr) { for (const k in SPR) delete SPR[k]; chunks.clear(); bakeQ = []; warm = true; if (window.ArtWorld) ArtWorld.reset(); }
-    rdpr = nd; if (SC) Style.V.rdpr = rdpr; zoom = Math.min(zoom, zmax()); zt = Math.min(zt, zmax()); applyZoom();
+    rdpr = nd; if (SF) Style.V.rdpr = rdpr; zoom = Math.min(zoom, zmax()); zt = Math.min(zt, zmax()); applyZoom();
     if (typeof ArtWorld !== 'undefined') ArtWorld.setScale(rdpr, zb);
     commitStep();
     const r = cv.getBoundingClientRect(); crect = { left: r.left, top: r.top };
@@ -90,7 +91,7 @@ const GFX = (() => {
   function zoomStep() {
     const t = performance.now(), dt = zLast ? Math.min(0.1, (t - zLast) / 1000) : 0; zLast = t;
     if (zt !== zoom) { const z = zt * Math.pow(zoom / zt, Math.exp(-dt * ZOOM_K)); zoomAt(Math.abs(z / zt - 1) < 0.002 ? zt : z, zax, zay); if (zoom === zt) zAt = t; }
-    if (zt === zoom && t - zAt > 160 && (stepFor(zoom) !== zb || (zc < 0.9) !== (zoom < 0.9) || (SC && Math.abs(Math.log(zoom / zi)) > ZI_TOL))) commitStep();
+    if (zt === zoom && t - zAt > 160 && (stepFor(zoom) !== zb || (zc < 0.9) !== (zoom < 0.9) || (SF && Math.abs(Math.log(zoom / zi)) > ZI_TOL))) commitStep();
     // старая ступень держится запасным кэшем 3 с после смены (пока новая допекается), потом — вон
     if (zOld && t - zOld > 3000) {
       zOld = 0; if (typeof ArtWorld !== 'undefined') ArtWorld.purge();
@@ -146,7 +147,7 @@ const GFX = (() => {
   const L_RED = radial(128, [[0, 'rgba(255,90,70,1)'], [1, 'rgba(0,0,0,0)']]);
   // C: свет — зона с краем в две ступени (внутри роли дневные, в кольце — наполовину к дневным/охре), а не мягкое пятно
   const stepL = t => { const z = Style.LZ, rgb = z[t].join(','); return radial(256, [[0, `rgba(${rgb},1)`], [z.core, `rgba(${rgb},1)`], [z.core + 0.015, `rgba(${rgb},${z.ring})`], [z.edge, `rgba(${rgb},${z.ring})`], [z.edge + 0.015, `rgba(${rgb},0)`], [1, `rgba(${rgb},0)`]]); };
-  const LC = SC ? { f: stepL('f'), w: stepL('w'), c: stepL('c'), r: stepL('r') } : null;
+  const LC = SF ? { f: stepL('f'), w: stepL('w'), c: stepL('c'), r: stepL('r') } : null;
   const GLOW = radial(128, [[0, 'rgba(255,140,50,0.7)'], [0.4, 'rgba(255,110,30,0.25)'], [1, 'rgba(0,0,0,0)']]);
   const PUFF = radial(32, [[0, 'rgba(255,255,255,1)'], [0.6, 'rgba(255,255,255,0.4)'], [1, 'rgba(255,255,255,0)']]);
   // мягкий спад без жёсткого края; середина плотная — тень заметная, но без кромки
@@ -160,13 +161,13 @@ const GFX = (() => {
 
   // ---------- деревья: кэш ArtWorld в масштабе rdpr × zb ----------
   // C: спрайт дерева — под «зум туши» zi (контур постоянной экранной толщины), а не под ступень
-  const treeSprite = (t, v = t.v) => ArtWorld.treeSprite(t.kind, t.s, t.dk != null ? t.dk : t.wall, v, rdpr * (SC ? zi : zb)); // стена: dk — тёмный рисунок (второй ряд) или обычный
+  const treeSprite = (t, v = t.v) => ArtWorld.treeSprite(t.kind, t.s, t.dk != null ? t.dk : t.wall, v, rdpr * (SF ? zi : zb)); // стена: dk — тёмный рисунок (второй ряд) или обычный
 
   // ---------- снег кусками (C8): печь полосами, не больше бюджета за кадр; река — отдельным слоем ----------
   // Кусок — CS мировых px в масштабе s. На крупных ступенях кусок мельче (256, 128): canvas ≤ 1280 px — меньше памяти на кадр.
   // CS — размер куска, который печётся сейчас (bakePart ставит свой перед полосой; snowPhoto/bakeStatic берут отсюда).
   // Полоса всегда 64 px мира (кусок 512 — 8 полос, 256 — 4, 128 — 2): сетка рельефа ровно на полосу.
-  const SH = 64, BASE = SC ? Style.P.paper : '#eaeff5';
+  const SH = 64, BASE = SF ? Style.P.paper : '#eaeff5';
   let CS = 512;
   let chunkCap = 24, bakeQ = [], warm = true, chunkBytes = 0;
   // ступени 1 и 1.6 — снег в rdpr (как прежде: рельеф мягкий); с 2.5 — в rdpr × ступень
@@ -250,7 +251,7 @@ const GFX = (() => {
     CS = e.cs;
     const g = e.g, i = e.part, X = e.ix * CS, Y = e.iy * CS, y0 = i * SH;
     g.setTransform(e.s, 0, 0, e.s, 0, 0);
-    if (SC) return bakePartC(e, g, i, X, Y, y0);
+    if (SF) return bakePartC(e, g, i, X, Y, y0);
     g.fillStyle = BASE; g.fillRect(0, y0, CS, SH);
     g.save(); g.beginPath(); g.rect(0, y0, CS, SH); g.clip();
     if (window.QUALITY !== 'low') { snowRelief(g, X, Y + y0, y0); snowPhoto(g, X, Y + y0, y0); }
@@ -601,7 +602,7 @@ const GFX = (() => {
     const bury = Actions.logSnow(L), al = 1 - smooth(0.55, 0.9, bury) * 0.999; if (al <= 0.01) return;
     let P = LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); if (P.ph < 2) o.snowN = 1 - smooth(0.2, 1.2, P.th); }
     cx.globalAlpha = al; Tree.drawLog(cx, o, P); cx.globalAlpha = 1;
-    if (SC && L.f && P.ph === 1) fallSpeed(o, P);
+    if (SF && L.f && P.ph === 1) fallSpeed(o, P);
     fallFx(o, P);
     if (bury > 0) buryMound(o, bury);
   }
@@ -971,7 +972,7 @@ const GFX = (() => {
     for (const h of G.holes) if (near(h.x, h.y, 30)) ArtWorld.hole(cx, h.x, h.y, h.dg == null ? 1 : h.dg, h.ice || 0);
     // пятна и следы
     for (const d of G.decals || []) if (near(d.x, d.y, 60)) ArtWorld.decal(cx, d);
-    if (SC) printsC(G.prints, near); else for (const f of G.prints) if (near(f.x, f.y, 40)) ArtWorld.print(cx, f);
+    if (SF) printsC(G.prints, near); else for (const f of G.prints) if (near(f.x, f.y, 40)) ArtWorld.print(cx, f);
     if (typeof Depth !== 'undefined') Depth.art.trenches(cx, gv); // траншеи в глубоком снегу (заметает ветром)
     for (const q of KICKS) { const a = 1 - (now - q.t0) / 20; if (a > 0 && near(q.x, q.y, 30)) { cx.globalAlpha = 0.35 * a; ell(q.x, q.y + 1, 13, 4.5, '#6f8ea8'); ell(q.x + 2, q.y - 1, 11, 3, '#f6f9fc'); cx.globalAlpha = 1; } }
     for (const c of G.corpses || []) if (near(c.x, c.y, 80, 60)) ArtAnimals.corpse(cx, c.kind, c.x, c.y, G.time - c.t0);
@@ -1055,7 +1056,7 @@ const GFX = (() => {
     const dx = Math.cos(sunA), dy = Math.sin(sunA), kk = Math.min(1, 0.28 * sunL), LOWQ = window.QUALITY === 'low';
     // отсечение по кадру с запасом на длину тени: тень ложится от комля вверх (к северу) и вбок, поэтому дерево выше кадра
     // тени в кадр не бросает, а ниже кадра — бросает на высоту ≤ 170·kk·1.4 (раньше брался круг вдвое больше экрана)
-    const ext = 170 * kk * 1.45, sx0 = cam.x - 80 - ext * Math.abs(dx), sx1 = cam.x + vw + 80 + ext * Math.abs(dx), sy0 = cam.y - 30, sy1 = cam.y + vh + 30 + ext * Math.abs(dy);
+    const ext = 170 * kk * 1.45, sx0 = cam.x - 80 - ext * Math.abs(dx), sx1 = cam.x + vw + 80 + ext * Math.abs(dx), sy0 = cam.y - 30 - ext * Math.max(0, dy), sy1 = cam.y + vh + 30 + ext * Math.abs(dy);
     for (const t of treesNear(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 200)) if (t.wood > 0 && t.x > sx0 && t.x < sx1 && t.y > sy0 && t.y < sy1) {
       if (!LOWQ && t.stage !== 1) { // тень повторяет силуэт: ось «вверх» спрайта ложится вдоль солнца, длина ~ высота × kk
         // одна setTransform вместо save/translate/transform/restore на каждое дерево (матрица = WT × сдвиг × сдвиг-наклон)
@@ -1117,6 +1118,14 @@ const GFX = (() => {
     const w = clamp((12 - h) / 0.5 + 0.5, 0, 1);      // 1 — утро, 0 — вечер
     if (w > 0.01) drawShadows(-Math.PI / 2 - off, sunL, alpha * w);
     if (w < 0.99) drawShadows(-Math.PI / 2 + off, sunL, alpha * (1 - w));
+  }
+  // ---------- гибрид: мягкие тени прежней фактуры, направление — одно солнце словаря (то же, что светит елям и фигурам) ----------
+  // длина — от высоты солнца (утро/вечер длиннее, kL до ×1.6), прозрачность — как прежде (день, сумерки, пурга почти без теней)
+  function sunShadowsOne(h, d, storm) {
+    const up = smooth(5.3, 6.8, h) * (1 - smooth(18.6, 20, h)), alpha = storm ? 0.05 : Math.max(d * 0.3, up * 0.15);
+    if (alpha < 0.02 || h < 5 || h > 20) return;
+    const kL = 1 + 0.6 * clamp(Math.abs(12 - h) / 6, 0, 1), V = Style.SHV, m = Math.hypot(V.x, V.y);
+    drawShadows(Math.atan2(V.y, V.x), m * kL / 0.28, alpha);   // kk = 0.28·sunL — сдвиг тени на 1 px высоты = |SHV|·kL
   }
   // ---------- C: тени по одному правилу словаря (Style.SHV — то же солнце, что светит фигурам и елям) ----------
   // сплошной тон тени (без размытия и просветов), направление всегда вправо-вниз; длина — от высоты солнца (утро/вечер длиннее);
@@ -1292,6 +1301,7 @@ const GFX = (() => {
   const AMB = [[0, [39, 51, 92]], [5.8, [42, 53, 100]], [6.6, [106, 95, 142]], [7.3, [217, 168, 176]], [8.3, [255, 241, 228]], [12, [255, 255, 255]],
     [16.5, [255, 238, 222]], [17.6, [231, 169, 160]], [18.6, [111, 106, 156]], [19.4, [45, 56, 104]], [24, [39, 51, 92]]];
   function ambient(h, storm) {
+    if (SC) return Style.ambientAt(h, storm);   // одна таблица времени суток и погоды — в словаре (общая для всех объектов)
     let i = 0; while (i < AMB.length - 2 && AMB[i + 1][0] <= h) i++;
     const [h0, a] = AMB[i], [h1, b] = AMB[i + 1], t = (h - h0) / (h1 - h0);
     let c = a.map((v, k) => v + (b[k] - v) * t);
@@ -1334,7 +1344,7 @@ const GFX = (() => {
   // ---------- главный рендер ----------
   let lastCam = { x: 0, y: 0 }, CTX = null; // CTX — сводка Ctx.now() на кадр (js/context.js)
   function render(dt, ctxTarget) {
-    frame++; rdt = dt; if (SC) Style.tick();
+    frame++; rdt = dt; if (SF) Style.tick();
     zoomStep();
     if (state === 'menu') { cam.x = HUT.x - vw / 2 + Math.sin(now * 0.1) * 40; cam.y = HUT.y - vh / 2 + 40; }
     else {
@@ -1361,7 +1371,7 @@ const GFX = (() => {
     const LOW = window.QUALITY === 'low';
     GUSTY.length = 0; tickFalls();
     const dusk = Math.max(smooth(6.2, 7.2, h) * (1 - smooth(7.8, 9, h)), smooth(16.2, 17.4, h) * (1 - smooth(18.4, 19.4, h)));
-    if (SC) Style.mood(night, dusk, storm, now);   // перекраска ролей: день/сумерки/ночь/пурга (js/style.js)
+    if (SF) Style.mood(night, dusk, storm, now);   // перекраска ролей: день/сумерки/ночь/пурга (js/style.js)
 
     // состояние контекста — с чистого листа: если прошлый кадр оборвался посреди полупрозрачного рисунка, куски снега
     // рисовались бы полупрозрачными поверх тёмного фона (светлые швы по нахлёсту +1 и серый снег)
@@ -1408,11 +1418,11 @@ const GFX = (() => {
     bakeRun(LOW ? 2 : 3); warm = false;
     trimChunks();
     drawRiver();
-    if (SC) shadowsC(h, d);   // C: тени — до троп и следов (линии туши на земле поверх тени)
+    if (SF) shadowsC(h, d);   // C: тени — до троп и следов (линии туши на земле поверх тени)
     // 2. земля
     drawGround();
     if (typeof Snow !== 'undefined' && !window.SNOW_OFF) Snow.ground(cx, [cam.x, cam.y, cam.x + vw, cam.y + vh], ENV); // наддувы и позёмка (js/snow.js)
-    if (!SC) sunShadows(h, d, storm);
+    if (!SF) (SC ? sunShadowsOne : sunShadows)(h, d, storm);   // гибрид: мягкие тени, но одно солнце (Style.SHV)
     // 3. объекты по опорной линии (южный край площади объекта)
     const x0 = cam.x - 120, x1 = cam.x + vw + 120, y0 = cam.y - 40, y1 = cam.y + vh + 180;
     const L = [];
@@ -1503,13 +1513,13 @@ const GFX = (() => {
     drawHeli();
 
     // 5. ночь: насыщенность −40 % до карты света (сдвиг к синему даёт сам ambient), вместо заливки soft-light
-    if (!SC && !LOW && night > 0.3) {
+    if (!SF && !LOW && night > 0.3) {
       cx.setTransform(1, 0, 0, 1, 0, 0);
       cx.globalCompositeOperation = 'saturation'; cx.globalAlpha = 0.4 * smooth(0.3, 0.9, night); cx.fillStyle = '#808080'; cx.fillRect(0, 0, cv.width, cv.height);
       cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
     }
     // 5б. «плёнка»: приглушённые цвета, холодная тень, дымка вдали (верх кадра) — только high; зерно и виньетка после света
-    if (!SC && !LOW) {
+    if (!SF && !LOW) {
       cx.setTransform(1, 0, 0, 1, 0, 0);
       cx.globalCompositeOperation = 'saturation'; cx.globalAlpha = 0.22; cx.fillStyle = '#808080'; cx.fillRect(0, 0, cv.width, cv.height);
       cx.globalCompositeOperation = 'multiply'; cx.globalAlpha = 0.5; cx.fillStyle = '#e4ecf8'; cx.fillRect(0, 0, cv.width, cv.height);
@@ -1518,9 +1528,9 @@ const GFX = (() => {
       cx.fillStyle = hz; cx.fillRect(0, 0, cv.width, cv.height * 0.5);
     }
     // 6. карта освещения
-    const amb = SC ? Style.ambient() : ambient(h, storm);   // C: множитель перекраски ролей (луна и пурга — в таблице словаря)
+    const amb = SF ? Style.ambient() : ambient(h, storm);   // C: множитель перекраски ролей (луна и пурга — в таблице словаря)
     // луна: слабый общий холодный свет в ясную ночь (вместо светлого круга вокруг героя)
-    if (!SC && !storm && night > 0.5) { const mk = smooth(0.5, 0.95, night) * (LOW ? 1 : 0.85); amb[0] += 10 * mk; amb[1] += 13 * mk; amb[2] += 20 * mk; }
+    if (!SF && !storm && night > 0.5) { const mk = smooth(0.5, 0.95, night) * (LOW ? 1 : 0.85); amb[0] += 10 * mk; amb[1] += 13 * mk; amb[2] += 20 * mk; }
     const dark = (amb[0] + amb[1] + amb[2]) / 765;
     const auroraK = LOW ? 0 : state === 'menu' ? 0.8 : night > 0.5 && !storm ? (G.aurora || 0) * smooth(0.5, 0.9, night) : 0;
     if (auroraK > 0 && frame % 2 === 0) aurora(auroraK);
@@ -1530,8 +1540,8 @@ const GFX = (() => {
       cx.globalCompositeOperation = 'multiply'; cx.drawImage(lm, 0, 0, cv.width, cv.height);
       cx.globalCompositeOperation = 'source-over';
     } else lm._ok = false;
-    if (SC) { const b = Style.lift(); if (b[0] + b[1] + b[2] > 9) { cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = `rgb(${b[0] | 0},${b[1] | 0},${b[2] | 0})`; cx.fillRect(0, 0, cv.width, cv.height); cx.globalCompositeOperation = 'source-over'; } } // добавка перекраски (дымка пурги)
-    if (!SC && !LOW) { // зерно (сдвигается каждый кадр) и мягкая виньетка
+    if (SF) { const b = Style.lift(); if (b[0] + b[1] + b[2] > 9) { cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = `rgb(${b[0] | 0},${b[1] | 0},${b[2] | 0})`; cx.fillRect(0, 0, cv.width, cv.height); cx.globalCompositeOperation = 'source-over'; } } // добавка перекраски (дымка пурги)
+    if (!SF && !LOW) { // зерно (сдвигается каждый кадр) и мягкая виньетка
       cx.setTransform(1, 0, 0, 1, 0, 0);
       if (!GRAIN) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), im = g.createImageData(128, 128); for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (CR() - 0.5) * 120; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } g.putImageData(im, 0, 0); GRAIN = cx.createPattern(c, 'repeat'); }
       cx.save(); cx.translate((CR() * 128) | 0, (CR() * 128) | 0); cx.globalCompositeOperation = 'soft-light'; cx.globalAlpha = 0.28; cx.fillStyle = GRAIN; cx.fillRect(-128, -128, cv.width + 256, cv.height + 256); cx.restore();
@@ -1545,7 +1555,7 @@ const GFX = (() => {
     const glowK = 0.25 + night * 0.75;
     for (const e of EYES) {
       const sx = e.x - cam.x + shx, sy = e.y - cam.y + shy;
-      if (e.glow) { if (SC) continue; const r = 50 * e.glow; cx.globalAlpha = 0.3 * glowK; cx.drawImage(GLOW, sx - r, sy - r, r * 2, r * 2); }
+      if (e.glow) { if (SF) continue; const r = 50 * e.glow; cx.globalAlpha = 0.3 * glowK; cx.drawImage(GLOW, sx - r, sy - r, r * 2, r * 2); }
       else if (e.lamp) { cx.globalAlpha = e.lamp; cx.fillStyle = '#ff6a1a'; cx.beginPath(); cx.arc(sx, sy, 1.5, 0, Math.PI * 2); cx.fill(); cx.globalAlpha = e.lamp * (0.3 + night * 0.5); cx.drawImage(PUFF, sx - 7, sy - 7, 14, 14); }
       else if (e.spark !== undefined) { cx.globalAlpha = e.spark * 0.8; cx.drawImage(PUFF, sx - 5, sy - 5, 10, 10); }
       else if (night > 0.3) {
@@ -1564,7 +1574,7 @@ const GFX = (() => {
     WT(); cx.globalCompositeOperation = 'lighter';
     FX.draw(cx, G.parts, 'glow', ENV, view);
     cx.globalCompositeOperation = 'source-over';
-    if (SC) for (const Lt of LIGHTS) if (Lt.t === 'f' && Lt.r > 150 && !Lt.clip) { const k = Math.sqrt(Lt.r / 300); Style.rays(cx, Lt.x, Lt.y + 10, 30 * k, 42 * k, 12, Math.min(1, Lt.a * 1.4), now * 0.15); } // свет огня — лучи охрой (вне перекраски)
+    if (SF) for (const Lt of LIGHTS) if (Lt.t === 'f' && Lt.r > 150 && !Lt.clip) { const k = Math.sqrt(Lt.r / 300); Style.rays(cx, Lt.x, Lt.y + 10, 30 * k, 42 * k, 12, Math.min(1, Lt.a * 1.4), now * 0.15); } // свет огня — лучи охрой (вне перекраски)
     // (сияние — только отсветом в карте света: экранный слой лежал на деревьях и ехал с камерой, L8)
 
     // 8. снег, позёмка, пурга — цвет × ambient: ночью не светятся (L1, L7)
@@ -1572,10 +1582,10 @@ const GFX = (() => {
     // внутри избы (крыша снята — видна комната) снег не идёт: комната вырезана из слоя погоды (Ctx: герой в избе)
     const roomCut = roofA < 0.7;
     if (roomCut) { const R = ROOM(); cx.save(); cx.beginPath(); cx.rect(0, 0, vw, vh); cx.rect(R.x0 - WALL - cam.x + shx, R.y0 - cam.y + shy, R.x1 - R.x0 + WALL * 2, R.y1 - R.y0); cx.clip('evenodd'); }
-    FX.weather.draw(cx, dt, { vw, vh, camDX, camDY, storm, amb, dark, px: p.x - cam.x, py: p.y - cam.y - 16, z: zoom, dpr, C: SC ? Style.role('paper') : null });
+    FX.weather.draw(cx, dt, { vw, vh, camDX, camDY, storm, amb, dark, px: p.x - cam.x, py: p.y - cam.y - 16, z: zoom, dpr, C: SF ? Style.role('paper') : null });
     if (roomCut) cx.restore();
     // 9. сумерки: тёплый тон (C — в перекраске ролей)
-    if (!SC && dusk > 0.02) { cx.globalCompositeOperation = 'soft-light'; cx.globalAlpha = dusk * 0.35; cx.fillStyle = '#ff8e31'; cx.fillRect(0, 0, vw, vh); } // mix(№18, №23)
+    if (!SF && dusk > 0.02) { cx.globalCompositeOperation = 'soft-light'; cx.globalAlpha = dusk * 0.35; cx.fillStyle = '#ff8e31'; cx.fillRect(0, 0, vw, vh); } // mix(№18, №23)
     cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
     if (state === 'menu') return;
 
@@ -1663,7 +1673,7 @@ const GFX = (() => {
     const k = clamp((1 - dark) * 1.3, 0, 1);
     // отсвет сияния на снегу — под светом, тем же 'screen': у костров он сам гаснет, колец нет
     if (auroraK > 0) { lx.globalAlpha = 0.4 * auroraK; lx.drawImage(au, 0, 0, lm.width, lm.height); }
-    const S = zoom / 2, toX = x => (x - cam.x + shx) * S, toY = y => (y - cam.y + shy) * S, EY = SC ? 0.66 : 1; // C: зона света на земле — эллипс ¾
+    const S = zoom / 2, toX = x => (x - cam.x + shx) * S, toY = y => (y - cam.y + shy) * S, EY = SF ? 0.66 : 1; // C: зона света на земле — эллипс ¾
     const hutOn = roofA > 0.3 && Math.abs(HUT.x - (cam.x + vw / 2)) < vw + 400 && Math.abs(HUT.y - (cam.y + vh / 2)) < vh + 400;
     const occ = hutOn ? [toX(HUT_IN.x0 - WALL - 18), toY(HUT_IN.y0 - 160), toX(HUT_IN.x1 + WALL + 18), toY(HUT_IN.y1 + WALL - 2)] : null;
     for (const Lt of LIGHTS) {

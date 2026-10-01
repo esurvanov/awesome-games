@@ -171,7 +171,7 @@ const Trail = (() => {
   function over(cr, cg, cb, a) { if (a <= 0.004) return; const A = PX[3], k = A * (1 - a), na = a + k; PX[0] = (cr * a + PX[0] * k) / na; PX[1] = (cg * a + PX[1] * k) / na; PX[2] = (cb * a + PX[2] * k) / na; PX[3] = na; }
   // словарь C (js/style.js): тропа — тон тени с кромкой тушью; контур по полю (marching squares) в мировых координатах —
   // Path2D, рисуется живьём: линия постоянной экранной толщины на любом зуме, перепечки при зуме нет
-  const SC = typeof Style !== 'undefined' && Style.on, TT = 0.62;   // порог «тропа читается» — с 3-го прохода (p ≥ 0.6)
+  const SC = typeof Style !== 'undefined' && Style.flat, TT = 0.62;   // порог «тропа читается» — с 3-го прохода (p ≥ 0.6)
   function bakeC(bi, bj, lo, t0) {
     const N = BS + 2, F = new Float32Array(N * N), i0 = bi * BS - 1, j0 = bj * BS - 1;
     let any = 0; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const v = QV(val(i0 + i, j0 + j)); F[j * N + i] = v; if (v >= TT) any = 1; }

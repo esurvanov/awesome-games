@@ -417,7 +417,7 @@ const Depth = (() => {
     g.globalAlpha = k; g.drawImage(e.c, L.cx + e.bx, L.cy + e.by, e.bw, e.bh); g.globalAlpha = 1;
   }
   // словарь C (js/style.js): яма — полость тоном тени, бровка — линия туши, валик — бумага; колея — тень с кромками тушью
-  const STC = typeof Style !== 'undefined' && Style.on;
+  const STC = typeof Style !== 'undefined' && Style.flat;
   function backC(g, L) { g.fillStyle = Style.P.shade; g.beginPath(); g.ellipse(L.cx, L.cy - L.ry * 0.1, L.rx * 1.05, L.ry * 1.1, 0, 0, TAU); g.fill(); }
   function frontC(g, L) {
     const x = L.cx, y = L.cy, rx = L.rx + 3, ry = L.ry + 2;

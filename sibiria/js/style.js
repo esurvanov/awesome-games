@@ -10,8 +10,10 @@
 //   ⚡ QUALITY=low: контур 4 сдвигами вместо 12, ореол только у героя, лучей 8, штрихов наносов вдвое меньше.
 // Включено по умолчанию; window.STYLE = 'old' или localStorage 'sibir-style' = 'old' — прежний рисунок (для сравнения).
 const Style = (() => {
-  let on = true;
-  try { const v = (typeof window !== 'undefined' && window.STYLE) || localStorage.getItem('sibir-style'); if (v === 'old') on = false; } catch (e) { /* без хранилища — C */ }
+  // режимы: гибрид (по умолчанию) — мягкая фактура прежней игры + одно солнце и одна таблица времени суток для всех объектов;
+  // 'flat' — плоский C (2 тона, тушь, ореол, бумажный снег) — оставлен для сравнения; 'old' — словарь выключен совсем
+  let on = true, flat = false;
+  try { const v = (typeof window !== 'undefined' && window.STYLE) || localStorage.getItem('sibir-style'); if (v === 'old') on = false; if (v === 'flat') flat = true; } catch (e) { /* без хранилища — гибрид */ }
   // ---------- роли ----------
   const P = { ink: '#1d2633', paper: '#f1efe8', shade: '#a9b9c9', red: '#c2412d', ochre: '#e3a33b', pine: '#2f4f45', wood: '#7a5236' };
   const ROLES = Object.keys(P);
@@ -132,7 +134,7 @@ const Style = (() => {
   // область (w×h px) холста cv: тушь r px снаружи силуэта, ореол halo px снаружи туши — подкладкой под рисунок (destination-over, без копий).
   // Ореол — расширение уже расширенной туши (8 сдвигов), а не второй круг от силуэта: ~18 drawImage на фигуру
   function outlineCanvas(cv, r, halo = 0, w = cv.width, h = cv.height, few = false) {
-    if (!on || w < 1 || h < 1 || r <= 0.05) return;
+    if (!(on && flat) || w < 1 || h < 1 || r <= 0.05) return;
     const M = tmp(1, w, h), D = tmp(0, w, h), m = M._g, d = D._g;
     m.drawImage(cv, 0, 0, w, h, 0, 0, w, h); m.globalCompositeOperation = 'source-in'; m.fillStyle = P.ink; m.fillRect(0, 0, w, h); m.globalCompositeOperation = 'source-over';
     stamp(d, M, w, h, r, few);
@@ -147,7 +149,7 @@ const Style = (() => {
   // o.ver — версия состояния (пень: снег на торце), другая — перерисовать
   let DEPTH = 0, FRAME = 0; const FC = new WeakMap();
   function figure(g, x0, y0, w, h, paint, o = {}) {
-    if (!on || DEPTH) return paint(g);
+    if (!(on && flat) || DEPTH) return paint(g);
     const T = g.getTransform(), s = T.a, pad = Math.ceil((INK + HALO) * V.rdpr) + 2;
     const X = Math.floor(T.a * x0 + T.e) - pad, Y = Math.floor(T.d * y0 + T.f) - pad, Wd = Math.ceil(w * s) + pad * 2, Hd = Math.ceil(h * s) + pad * 2;
     if (Wd < 2 || Hd < 2 || Wd > 2600 || Hd > 2600) return paint(g);
@@ -168,7 +170,7 @@ const Style = (() => {
   }
   // paint на холсте g целиком (спрайт): рисунок → временный холст того же размера → контур → поверх g
   function inked(g, paint, r) {
-    if (!on) return paint(g);
+    if (!(on && flat)) return paint(g);
     const cv = g.canvas, w = cv.width, h = cv.height, C = tmp(3, w, h), c = C._g;
     c.setTransform(g.getTransform()); DEPTH++; try { paint(c); } finally { DEPTH--; }
     outlineCanvas(C, r, 0, w, h);
@@ -215,10 +217,21 @@ const Style = (() => {
     g.fill();
   }
 
+  // ---------- одна таблица времени суток для всей сцены (гибрид): множитель карты света по часу, пурга — к серому ----------
+  // (та же, что была в GFX: весь кадр — изба, вертолёт, ели, люди — умножается на неё одной; огонь и окна — зоны мягкого тёплого света)
+  const AMB = [[0, [39, 51, 92]], [5.8, [42, 53, 100]], [6.6, [106, 95, 142]], [7.3, [217, 168, 176]], [8.3, [255, 241, 228]], [12, [255, 255, 255]],
+    [16.5, [255, 238, 222]], [17.6, [231, 169, 160]], [18.6, [111, 106, 156]], [19.4, [45, 56, 104]], [24, [39, 51, 92]]];
+  function ambientAt(h, storm) {
+    let i = 0; while (i < AMB.length - 2 && AMB[i + 1][0] <= h) i++;
+    const [h0, a] = AMB[i], [h1, b] = AMB[i + 1], t = (h - h0) / (h1 - h0);
+    let c = a.map((v, k) => v + (b[k] - v) * t);
+    if (storm) { const m = c[0] > 150 ? [190, 200, 212] : [70, 80, 100]; c = c.map((v, k) => v + (m[k] - v) * 0.55); }
+    return c;
+  }
   // для отчёта и тестов
-  function table() { return { roles: P, mood: MOOD_ROLES, sun: SUN, shadow: SHV, light2: LIT2, ink: INK, halo: HALO }; }
+  function table() { return { flat, amb: AMB, roles: P, mood: MOOD_ROLES, sun: SUN, shadow: SHV, light2: LIT2, ink: INK, halo: HALO }; }
   return {
-    get on() { return on; }, set on(v) { on = !!v; }, P, ROLES, LZ, MAT, tone, TH, SUN, SHV, LIT2, lit3, lit2, V, INK, HALO, INK_G, inkFor, lw,
+    get on() { return on; }, set on(v) { on = !!v; }, get flat() { return on && flat; }, ambientAt, AMB, P, ROLES, LZ, MAT, tone, TH, SUN, SHV, LIT2, lit3, lit2, V, INK, HALO, INK_G, inkFor, lw,
     MOOD, MOOD_ROLES, mood, role, ambient, lift, get weights() { return W; },
     tick() { FRAME++; }, snap, snapCtx, roleName, outlineCanvas, figure, inked, drift, speed, speedPath, rays, cast, table, get depth() { return DEPTH; },
   };

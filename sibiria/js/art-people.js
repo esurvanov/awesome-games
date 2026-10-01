@@ -573,7 +573,7 @@ var ArtPeople = (function () {
   const isSag = a => SAG[a] || (POSE[a] && POSE[a].sag);
 
   // словарь C (js/style.js): фигура рисуется через Style.figure — роли, контур силуэта, ореол; тень — по правилу в GFX (shadowsC)
-  const SCs = () => typeof Style !== 'undefined' && Style.on;
+  const SCs = () => typeof Style !== 'undefined' && Style.flat;   // плоский C — только в режиме 'flat'
   let CFG = false, TRL = null;   // CFG — идёт рисунок фигуры C; TRL — дуга маха (линии скорости кладутся поверх, вне контура)
   // контактная тень стопы: кэшированное радиальное пятно
   let CONT = null;

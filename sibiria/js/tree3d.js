@@ -231,8 +231,9 @@ const Tree = (() => {
 
   // ================= ПРОЕКЦИЯ И ПОЗА =================
   // словарь C (js/style.js): одно солнце на всю игру; 2 тона, тушь — контуром силуэта (Style.inked/figure), без градиентов и бликов
-  const SC = typeof Style !== 'undefined' && Style.on, SP = SC ? Style.P : null;
-  const LD = SC ? Style.SUN : (() => { const v = [-0.6, -0.38, 0.7], l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
+  // гибрид — только одно солнце словаря (LD); плоский C (Style.flat) — 2 тона и тушь
+  const SC = typeof Style !== 'undefined' && Style.flat, SP = SC ? Style.P : null;
+  const LD = typeof Style !== 'undefined' && Style.on ? Style.SUN : (() => { const v = [-0.6, -0.38, 0.7], l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
   const VW = [0, 0.8, 0.6];
   let R = [1, 0, 0, 0, 1, 0, 0, 0, 1], PZ = 0, PW = 0, KS = 1, OX = 0, OY = 0, BX = 0, BY = 0, BH = 1, GRD = 0, LIFT = 0, LZ0 = 0, LZ1 = 1, LH = 1;
   let AOK = 0.62, AOZ = 0, SK0 = 1e9, SK1 = -1e9, SKD = 0, ZADD = 0, VIB = 0, VT = 0, SNOW = 1, ALPHA = 1, GS = 0, GT = 0, FLAT = 0;   // FLAT — лапы ложатся плашмя (лежит: побеги поворачиваются под своим весом); GS — провис под своим весом в мировой вертикали (лежит), GT — расстояние по ветви
@@ -697,6 +698,6 @@ const Tree = (() => {
   return {
     M, KG, CH, HC, KP, TS, workZ, spec, of, size, ensure, whole, parts, split, take, isWood, woodOf, massOf, rz, stemV,
     paintSprite, drawStanding, drawStump, drawLog, drawPart, live, shook, snowOf, frame, iceImpact, varOf, jit, MODEL,
-    get stats() { return { specs: SPECS.size }; },
+    get stats() { return { specs: SPECS.size }; }, LD,   // свет модели — то же солнце, что у теней (Style.SUN)
   };
 })();
