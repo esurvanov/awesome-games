@@ -239,7 +239,7 @@ var FX = (() => {
         for (const q of parts) {
           const a = Math.max(0, Math.min(1, q.life / q.max));
           g.globalAlpha = a * (q.a || 1); g.fillStyle = color(q);
-          g.beginPath(); g.arc(q.x, q.y, q.r, 0, TAU); g.fill();
+          g.beginPath(); g.arc(q.x, q.y, Math.max(0, q.r), 0, TAU); g.fill(); // grow < 0 (тающий дым) не уводит радиус в минус
         }
         g.globalAlpha = 1;
       },

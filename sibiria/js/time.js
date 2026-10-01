@@ -4,6 +4,11 @@
 const hourOf = (t = G.time) => ((TUNE.time.startH / 24 + t / CYCLE) % 1) * 24;
 const dayOf = (t = G.time) => 1 + Math.floor(TUNE.time.startH / 24 + t / CYCLE);
 const tAt = (day, hour) => ((day - 1) + hour / 24 - TUNE.time.startH / 24) * CYCLE;
+// игровая длительность словами: 105 → «1 ч 45 мин», 60 → «1 ч», 30 → «30 мин» (игровые с → часы и минуты)
+function gameDur(sec) {
+  const m = Math.round(sec / HOUR * 60), h = Math.floor(m / 60), mm = m % 60;
+  return h ? (mm ? `${h} ч ${mm} мин` : `${h} ч`) : `${mm} мин`;
+}
 function daylight(h = hourOf()) { return smooth(6.4, 8, h) * (1 - smooth(17.6, 19.3, h)); }
 const stormOn = (t = G.time) => !!(G.storm && t >= G.storm.a && t < G.storm.b);
 function temperature(t = G.time) {

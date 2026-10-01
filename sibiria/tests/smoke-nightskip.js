@@ -4,8 +4,8 @@
 //   1. сыт, печь полна → утро, жив, «Утро · сохранено», рассвет (улов, цель «Пережить ночь»)
 //   2. без еды → смерть от голода (глава II) / мягкая смерть (глава I)
 //   3. холод: на улице без огня, в холодной избе, у догоревшего костра → смерть; полупустая печь → будит
-//   4. промотка ≈ обычная ночь (×4 при 60 к/с; стоя на улице): тепло, еда, здоровье, печь, час — расхождение малое;
-//      прогноз окна ≈ факт; волк рядом прерывает
+//   4. промотка ≈ обычная ночь (×sleepX при 60 к/с; стоя на улице): тепло, еда, силы, здоровье, печь, час — расхождение малое;
+//      прогноз окна ≈ факт (и по силам, ≤ 1.5); волк рядом прерывает
 //   5. по-настоящему: Z → окно прогноза → Z → утро (главный цикл, реальное время)
 // Директор угроз выключен в 1–4: сравниваем тело, а не случайных волков (в избе с дверью во сне он и так молчит).
 const { chromium } = require('playwright');
@@ -29,7 +29,7 @@ function page() {
     if (fill) for (let i = 0; i < 40; i++) { const f = G.hut.fuel; Stove.add(); if (G.hut.fuel <= f) break; }
   };
   const field = () => { const p = G.p; p.x = HUT.x + 1400; p.y = HUT.y + 600; p.lx = p.x; p.ly = p.y; input.mx = input.my = 0; update(0.05); };
-  const snap = () => ({ warm: G.s.warm, food: G.s.food, hp: G.s.hp, fuel: G.hut.fuel, h: hourOf(), state, ko: !!G.p.ko, cause: G.cause });
+  const snap = () => ({ warm: G.s.warm, food: G.s.food, hp: G.s.hp, tire: G.s.tire, fuel: G.hut.fuel, h: hourOf(), state, ko: !!G.p.ko, cause: G.cause });
   // промотка как в главном цикле: пачки update(skipDt), пока «до утра»; до лежанки — обычным шагом
   // (без сознания — мягкая смерть — главный цикл идёт обычным шагом: карточка «кто донёс», потом встаёт)
   function skip(max = 20000) {
@@ -37,19 +37,20 @@ function page() {
     for (; n < max && state === 'play' && Actions.skipping(); n++) { if (G.p.ko) skip.ko = true; update(Actions.skipFast() ? TUNE.time.skipDt : 0.05); }
     return n;
   }
-  // обычная ночь: 60 к/с, во сне ×4 (как loop в js/ui.js); stop — когда кончилась
+  // обычная ночь: шаг 1/60 с (во сне главный цикл крутит ×sleepX таких шагов за кадр); stop — когда кончилась
   function manual(stop, max = 200000) { for (let n = 0; n < max && state === 'play' && !stop(); n++) update(1 / 60); }
   const near = (a, b, d) => Math.abs(a - b) <= d;
   const fmt = o => `т${o.warm.toFixed(1)} е${o.food.toFixed(1)} hp${o.hp.toFixed(1)} печь${o.fuel | 0} ${o.h.toFixed(2)}ч`;
 
   // ---------- 1. сыт, печь полна → утро ----------
-  fresh(11, 1); hut();
+  fresh(11, 1); hut(); G.s.tire = 70; G.s.awake = 14 * HOUR;
   let fc = Survival.forecast(true), t0 = performance.now(), n = skip(), r = snap(), ms = performance.now() - t0;
   ok(Actions.skipMode && r.state === 'play' && r.h >= 7 && r.h < 7.2 && r.hp > 0 && G.flags.slept, `☀️ сыт + печь: утро ${r.h.toFixed(2)} ч, жив (${fmt(r)}) · ${n} шагов за ${ms | 0} мс`);
   ok(TS.some(t => /Утро · сохранено/.test(t)) && G.lastDawn === G.day, `💾 «Утро · сохранено», рассвет отработал (день ${G.day})`);
   ok(CHAPTERS[1].goals.length >= 0 && CHAPTERS[0].goals.find(g => g.ic === ':sleep:').ok(G), '🌙 цель «Пережить ночь» закрыта');
   ok(fc.deadAt == null && fc.wakeAt == null && near(fc.food, r.food, 1.5) && near(fc.warm, r.warm, 1.5), `🔮 прогноз: доживёшь, е${fc.food.toFixed(1)} т${fc.warm.toFixed(1)} ≈ факт`);
-  ok(r.food < 100 - 240 * TUNE.body.hungerSleep * 0.9 && r.food > 100 - 240 * TUNE.body.hunger, `🍖 во сне голод слабее: −${(100 - r.food).toFixed(1)} за ночь (бодрствуя было бы ≈ −${(240 * TUNE.body.hunger).toFixed(0)})`);
+  ok(near(fc.tire, G.s.tire, 1.5) && G.s.tire < 70 - 50, `⚡ сон у печи: силы ${30} → ${(100 - G.s.tire).toFixed(1)} (прогноз ${(100 - fc.tire).toFixed(1)})`);
+  ok(r.food < 100 - 12 * HOUR * TUNE.body.hungerSleep * 0.9 && r.food > 100 - 12 * HOUR * TUNE.body.hunger, `🍖 во сне голод слабее: −${(100 - r.food).toFixed(1)} за ночь (бодрствуя было бы ≈ −${(12 * HOUR * TUNE.body.hunger).toFixed(0)})`);
 
   // ---------- 2. без еды ----------
   fresh(12, 1); hut(); G.s.food = 5; fc = Survival.forecast(true); skip(); r = snap();
@@ -74,18 +75,22 @@ function page() {
   ok(f && r.state === 'over' && r.cause === 'cold' && fc.fuelAt != null, `🔥 костёр догорел (${fc.fuelAt != null ? hh(fc.fuelAt) : '—'}) → смерть от холода в ${r.h.toFixed(2)} ч (прогноз ${fc.deadAt != null ? hh(fc.deadAt) : '—'})`);
 
   // ---------- 4. промотка ≈ обычная ночь ----------
-  // (а) сон в избе: ×4 при 60 к/с против промотки
+  // (а) сон в избе: ×sleepX при 60 к/с против промотки
   fresh(21, 1); hut(); Actions.trySleep(); manual(() => G.p.sleeping); manual(() => !G.p.sleeping); const A = snap();
   fresh(21, 1); hut(); const Bs = (skip(), snap());
   ok(near(A.warm, Bs.warm, 1) && near(A.food, Bs.food, 1) && near(A.hp, Bs.hp, 1) && near(A.fuel, Bs.fuel, 3) && near(A.h, Bs.h, 0.05),
     `⚖️ сон: обычная ночь ${fmt(A)} · промотка ${fmt(Bs)}`);
   // (б) стоя на улице у вечного огня
   const camp = () => { field(); G.fires.push({ x: G.p.x + 40, y: G.p.y, fuel: 1e5 }); };
-  fresh(22, 1); camp(); manual(() => { const h = hourOf(); return h >= 7 && h < 12; }); const C = snap();
-  fresh(22, 1); camp(); fc = Survival.forecast(false); skip(); const D = snap();
+  fresh(22, 1); camp(); G.s.tire = 40; manual(() => { const h = hourOf(); return h >= 7 && h < 12; }); const C = snap();
+  fresh(22, 1); camp(); G.s.tire = 40; fc = Survival.forecast(false); skip(); const D = snap();
   ok(C.state === 'play' && D.state === 'play' && near(C.warm, D.warm, 1) && near(C.food, D.food, 1) && near(C.hp, D.hp, 1) && near(C.h, D.h, 0.05),
     `⚖️ у костра: обычная ночь ${fmt(C)} · промотка ${fmt(D)}`);
   ok(TS.some(t => /Утро · сохранено/.test(t)) && near(fc.food, D.food, 1) && near(fc.warm, D.warm, 1), `🔮 прогноз у костра е${fc.food.toFixed(1)} т${fc.warm.toFixed(1)} ≈ факт; утро сохранено`);
+  ok(near(C.tire, D.tire, 1.5) && near(fc.tire, D.tire, 1.5), `⚡ у костра без сна: силы обычная ночь ${(100 - C.tire).toFixed(1)} · промотка ${(100 - D.tire).toFixed(1)} · прогноз ${(100 - fc.tire).toFixed(1)}`);
+  // (б2) стоя на морозе без огня: дрожь выматывает — прогноз ≈ факт и по силам
+  fresh(26, 1); field(); G.s.tire = 20; fc = Survival.forecast(false); skip(); const D2 = snap();
+  ok(fc.deadAt != null && near(fc.tire, D2.tire, 1.5), `⚡ на морозе: силы к смерти факт ${(100 - D2.tire).toFixed(1)} · прогноз ${(100 - fc.tire).toFixed(1)}`);
   // (в) смерть на морозе — в тот же час
   fresh(23, 1); field(); manual(() => false); const E = snap();
   fresh(23, 1); field(); skip(); const F = snap();

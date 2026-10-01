@@ -603,7 +603,7 @@ const Actions = (() => {
     if (f) {
       if (f.fuel > 0) {
         if (!Inv.take('wood', 1, false)) return Fx.toast(':close: Не хватает: :wood:1');
-        f.fuel = Math.min(f.fuel + F.fuelAdd, F.fuelMax); feed(f, 0, 1); Fx.floatText(f.x, f.y - 40, ':fire: +25 с'); Fx.burst(f.x, f.y - 10, 10, '#ffb347', 120);
+        f.fuel = Math.min(f.fuel + F.fuelAdd, F.fuelMax); feed(f, 0, 1); Fx.floatText(f.x, f.y - 40, ':fire: +' + gameDur(F.fuelAdd)); Fx.burst(f.x, f.y - 10, 10, '#ffb347', 120);
       } else {
         if (Inv.cnt('wood', false) < F.relightCost) return Fx.toast(':close: Разжечь: :wood:2');
         Inv.take('wood', F.relightCost, false); f.fuel = F.relightFuel; Fx.toast(':fire: Огонь горит');
@@ -631,6 +631,7 @@ const Actions = (() => {
     const v = Math.round(it.food * (cooked ? 1 : A.rawFood));
     G.s.food = Math.min(100, G.s.food + v);
     if (it.warm) G.s.warm = Math.min(Hero.maxWarm(), G.s.warm + it.warm);
+    if ((it.raw && fire) || it.warm) G.s.tire = Math.max(0, (G.s.tire || 0) - TUNE.tire.food); // горячее — силы
     Fx.floatText(p.x, p.y - 44, (cooked ? it.i + ' +' : ':frost: сырое +') + v);
     if (p.action && p.action.cx) p.action = null;
     if (p.action || p.ride) { if (k === 'can') litter('can'); return; } // занят работой — съел на ходу, без позы
@@ -702,8 +703,8 @@ const Actions = (() => {
   function craftDone(r) {
     if (r.out) for (const [k, v] of Object.entries(r.out)) Inv.add(k, v);
     if (r.gear) G.gear[r.gear] = 1;
-    if (r.id === 'torch') { G.p.torch = TUNE.fire.torchT; Fx.toast(':fire: Факел · 60 с'); }
-    if (r.id === 'tea') { G.s.warm = Math.min(Hero.maxWarm(), G.s.warm + A.teaWarm); G.p.teaT = A.teaT; Fx.toast(':tea: Тепло разливается'); }
+    if (r.id === 'torch') { G.p.torch = TUNE.fire.torchT; Fx.toast(':fire: Факел · ' + gameDur(TUNE.fire.torchT)); }
+    if (r.id === 'tea') { G.s.warm = Math.min(Hero.maxWarm(), G.s.warm + A.teaWarm); G.p.teaT = A.teaT; G.s.tire = Math.max(0, (G.s.tire || 0) - TUNE.tire.tea); Fx.toast(':tea: Тепло разливается'); }
     if (r.radio) { G.flags.radioBuilt = 1; Fx.toast(':radio: Рация собрана!'); }
     else if (r.gear) Fx.toast(`${r.i} ${r.n}`);
     Sound.ok2();
@@ -779,7 +780,7 @@ const Actions = (() => {
   function skipWhy() {
     const p = G.p;
     if (!nightNow()) return ':sleep: До утра — после 19:00';
-    if (p.ko || p.ride || (typeof Ice !== 'undefined' && Ice.active())) return ':close: Не сейчас';
+    if (p.ko || p.ride || p.doze || (typeof Ice !== 'undefined' && Ice.active())) return ':close: Не сейчас';
     if (p.sleeping) return null;
     return skipMode() === 'sleep' ? sleepWhy() : threatNear();
   }
@@ -796,7 +797,7 @@ const Actions = (() => {
     if (mode === 'sleep') { if (!p.sleeping) trySleep(); }   // к лежанке и лечь; мотать начнёт, когда уснёт
     else { p.action = null; AUTO = null; input.auto = 0; }
   }
-  // стоп по Z: сон продолжается как обычно (×4), «переждать» — просто встал
+  // стоп по Z: сон продолжается как обычно (×sleepX), «переждать» — просто встал
   function skipStop() { SKIP = null; Fx.toast(':timer: Стоп'); }
   // каждый шаг промотки (из tickSleep): утро, угрозы, ввод
   function skipTick(h) {
@@ -824,10 +825,10 @@ const Actions = (() => {
     input.mx = dx / l * k; input.my = dy / l * k;
   }
   // ---------- «мягкая» смерть (глава I): упал / замерзает → затемнение → очнулся в избе (кто и как донёс — карточка) → встаёт ----------
-  const KO_FALL = 2.6, KO_DARK = 8; // с; тёмная часть — во сне (время ×sleepX)
+  const KO_FALL = 2.6, KO_DARK = 24; // с; тёмная часть — во сне (время ×sleepX: ≈2 с реальных, 0,4 игр. ч)
   function knockout(cause, m) {
     const p = G.p; if (p.ko) return;
-    AUTO = null; PLATE = null; p.action = null; p.ride = null; p.ko = { t: 0, ph: 0, cause: cause || 'cold' };
+    AUTO = null; PLATE = null; p.action = null; p.ride = null; p.doze = 0; p.dozeWarn = 0; p.ko = { t: 0, ph: 0, cause: cause || 'cold' };
     G.pack = null; for (const w of G.wolves) { w.st = 'retreat'; w.t = 3; }
     Hero.snap();
   }

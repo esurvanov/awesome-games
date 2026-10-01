@@ -32,7 +32,7 @@ const SaveGame = (() => {
   function snapshot() {
     const refs = new Map(), TREE_I = World.TREE_I;
     for (const k of REF_LISTS) (G[k] || []).forEach((o, i) => refs.set(o, [k, i, G[k]]));
-    const o = { _v: V, gen: World.GEN_V, W, H };
+    const o = { _v: V, gen: World.GEN_V, W, H, cyc: CYCLE };
     for (const k of Object.keys(G).sort()) if (!SKIP.has(k)) o[k] = G[k];
     // treeD: [индекс, дрова, дрожь?, стадия отрастания?, время рубки (G.time)?] — хвост опускается, если по
     // умолчанию (0); молодое деревце и пень уже отличаются по drова от wood0, поэтому попадают сюда сами
@@ -74,8 +74,12 @@ const SaveGame = (() => {
   function load(json) {
     const g = typeof json === 'string' ? JSON.parse(json) : json;
     const bad = problem(g); if (bad) throw new Error(bad);
-    const { _v, gen, W: _w, H: _h, treeD, fogB, live, amGot, ...rest } = g;
+    const { _v, gen, W: _w, H: _h, cyc, treeD, fogB, live, amGot, ...rest } = g;
     G = Object.assign(rest, { trees: [], drifts: [], cracks: [], tussocks: [], prints: [], parts: [] });
+    // темп времени: сейв со старыми сутками (cyc нет — 480) → те же день и час при нынешнем CYCLE
+    const kT = CYCLE / (cyc || 480);
+    if (kT !== 1) retime(G, kT);
+    G.s.tire = G.s.tire || 0; G.s.awake = G.s.awake || 0; // усталость: старый сейв — свежие силы
     const r = mulberry(G.seed);
     World.gen(r); World.genLiving(r);
     // миграция старых сейвов (до отрастания леса): срубленное дерево без времени рубки — «пень со
@@ -83,7 +87,7 @@ const SaveGame = (() => {
     for (const [i, w, sh, stage, cutAt] of treeD || []) {
       const t = G.trees[i]; if (!t) continue;
       t.wood = w; if (sh) t.shake = sh;
-      if (cutAt != null) { t.stage = stage || 0; t.cutAt = cutAt; }
+      if (cutAt != null) { t.stage = stage || 0; t.cutAt = cutAt * kT; }
       else if (w <= 0) { t.stage = 0; t.cutAt = G.time - TUNE.world.regrowStumpDays * CYCLE * 0.7; }
     }
     G.stashes = G.stashes || [];
@@ -105,6 +109,17 @@ const SaveGame = (() => {
     G.col.ghost = null;
     Npc.ensure(); // персонажи, которых не было в этом сейве
     Zones.initState(); Transport.initState();
+  }
+  // пересчёт сейва на другой темп (k = новые сутки / старые): метки времени и календарное топливо ×k
+  function retime(g, k) {
+    const mul = (o, f) => { if (o && typeof o[f] === 'number') o[f] *= k; };
+    mul(g, 'time'); if (g.storm) { mul(g.storm, 'a'); mul(g.storm, 'b'); }
+    mul(g.flags, 'contactT'); mul(g.hut, 'fuel');
+    for (const f of g.fires || []) { mul(f, 'fuel'); mul(f, 't0'); mul(f, 't1'); }
+    for (const t of g.traps || []) mul(t, 't');
+    for (const L of [g.litter, g.chunks]) for (const q of L || []) mul(q, 't');
+    for (const L of [g.logs, g.iceHoles, g.corpses]) for (const q of L || []) mul(q, 't0');
+    if (g.col) { mul(g.col, 'eatT'); for (const b of g.col.builds || []) { mul(b, 't'); if (b.type === 'tower') mul(b, 'fuel'); } }
   }
   return { V, snapshot, checkpoint: saveCheckpoint, problem, load, packFog, unpackFog };
 })();

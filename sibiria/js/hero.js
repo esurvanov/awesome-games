@@ -9,7 +9,9 @@ const Hero = (() => {
     const b = lvl(k); G.skills[k] += n; const a = lvl(k);
     if (a > b) { Fx.toast(`${SKILLS[k].i} ${SKILLS[k].n} · ур. ${a}`); Sound.ok2(); Fx.floatText(G.p.x, G.p.y - 60, `${SKILLS[k].i} ${a}`); }
   }
-  const chopTime = () => (G.gear.saw ? H.chopSaw : H.chop) * (1 - H.chopSkill * (lvl('chop') - 1));
+  // усталость 0..1 выше порога (TUNE.tire): скорость, рубка, позы
+  const TI = TUNE.tire, tire = () => (G && G.s && G.s.tire) || 0;
+  const chopTime = () => (G.gear.saw ? H.chopSaw : H.chop) * (1 - H.chopSkill * (lvl('chop') - 1)) * (1 + TI.chop * smooth(TI.chopFrom, 100, tire())); // вымотан — рубит дольше
   const clothMul = () => G.gear.kukhl ? TUNE.cloth.kukhl : G.gear.dokha ? TUNE.cloth.dokha : G.gear.hat ? TUNE.cloth.hat : 1;
   const maxWarm = () => 100 - TUNE.body.frostWarm * G.s.frost;
   // скорость: способ (пешком / лыжи / упряжка / «Буран») × местность (TERRAIN, A7) × волокуша × перегруз × пурга × озноб × вывих
@@ -26,13 +28,14 @@ const Hero = (() => {
       if (p.creaked && World.onThinIce(p)) s *= 0.5; // лёд трещит — ступает осторожно
     }
     if (stormOn() && !p.inside) s *= H.storm;
+    s *= 1 - TI.speed * smooth(TI.speedFrom, 100, tire()); // нет сил — плетётся
     return s;
   }
   // шаг движения: разгон/скольжение по льду, снос пургой, следы, нарты следом; перегруз — сообщение
   function move(dt, storm) {
     const p = G.p;
     if (typeof Ice !== 'undefined' && Ice.active()) { p.moving = false; B.glide = false; p.inside = false; return; } // в полынье: телом правит Ice (js/ice.js)
-    if (!p.sleeping) {
+    if (!p.sleeping && !p.doze) { // уснул в снегу — не идёт (будит Survival)
       let mx = input.mx, my = input.my, want = 0;
       const ox = p.x, oy = p.y;
       const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
@@ -132,7 +135,7 @@ const Hero = (() => {
   const vface = () => { const p = G.p; return (p.moving || B.glide) && !p.ride ? B.vf : p.face; };
   const intent = () => { const p = G.p; return !!p.moving && !p.sleeping && !p.ride && !UI.kind; };
   const ORDER = [
-    ['sleep', p => p.sleeping], ['ice', () => typeof Ice !== 'undefined' && Ice.active()], ['ride', p => p.ride], ['act', p => p.action], ['one', () => B.one],
+    ['sleep', p => p.sleeping || p.doze], ['ice', () => typeof Ice !== 'undefined' && Ice.active()], ['ride', p => p.ride], ['act', p => p.action], ['one', () => B.one],
     ['walk', () => intent()], ['glide', () => B.glide], ['panel', p => (B.pp = UI.kind ? panelPose(p) : null)], ['idle', () => true],
   ];
   const STATES = ['sleep', 'ice', 'ride', 'act', 'hurt', 'react', 'gesture', 'walk', 'glide', 'panel', 'idle'];
@@ -194,7 +197,7 @@ const Hero = (() => {
     else { r.anim = idlePose(); if (r.anim !== 'idle') { const f = heat(); r.animT = (now % 1.6) / 1.6; if (f) { r.tg = f; r.th = -8; } } }
     if (p.torch > 0 && s !== 'act' && r.anim !== 'swing' && r.anim !== 'sleep') r.tool = 'torch';
     // усталость/холод 0..1 — только для рисования (походка ниже, мах рук короче, дыхание чаще); до порогов поз tired/cold — плавно
-    r.tire = clamp(Math.max((38 - G.s.warm) / 20, (38 - G.s.food) / 20, (50 - G.s.hp) / 22, typeof Depth !== 'undefined' ? Depth.effort() * 0.8 : 0), 0, 1);
+    r.tire = clamp(Math.max((38 - G.s.warm) / 20, (38 - G.s.food) / 20, (50 - G.s.hp) / 22, typeof Depth !== 'undefined' ? Depth.effort() * 0.8 : 0, (tire() - 50) / 40), 0, 1);
     return r;
   }
   // герой в открытой панели/диалоге (игра стоит, он «занят»): поза-петля и к чему обращён; null — обычный idle
@@ -222,7 +225,7 @@ const Hero = (() => {
   function snap() { const p = G.p; p.vx = p.vy = 0; p.lx = p.x; p.ly = p.y; B.glide = false; B.vf = p.face; }
   // для проверок (tests/body-check.js): сбросить память автомата под текущее G
   function bodyReset() { B.one = null; B.act = G.p.action; B.sw = G.p.swing || 0; B.hurt = G.hurt || 0; B.glide = false; B.vf = G.p.face; B.s = 'idle'; B.since = now; }
-  const cold = () => G.s.warm < 30, freezing = () => G.s.warm < 20, tired = () => G.s.food < 20 || G.s.hp < 30;
+  const cold = () => G.s.warm < 30, freezing = () => G.s.warm < 20, tired = () => G.s.food < 20 || G.s.hp < 30 || tire() > TI.tired;
   const outStorm = () => stormOn() && !G.p.inside;
   // рубка по состоянию: устал/голоден → тяжело, мёрзнет → зябко, пурга → пригнувшись (длительность — TUNE.act.chopK)
   function chopPose() {
@@ -273,7 +276,7 @@ const Hero = (() => {
     if (!LF.sub && typeof Interact !== 'undefined') {
       LF.sub = true;
       // отшатнуться — только от сильного удара и не чаще раза в staggerCd: обходя ствол, не «бьётся головой»
-      let stagT = -9; Interact.on('bump', e => { if (e.who === 'p' && e.power > TUNE.pose.staggerP && now - stagT > TUNE.pose.staggerCd) { stagT = now; play('stagger', { react: 1 }); } });
+      let stagT = -9; Interact.on('bump', e => { if (e.who === 'p' && e.power > TUNE.pose.staggerP / (1 + tire() / 50) && now - stagT > TUNE.pose.staggerCd) { stagT = now; play('stagger', { react: 1 }); } });
       Interact.on('howl', () => { if (!G.p.sleeping) play('flinch', { react: 1 }); });
     }
     LF.slipCd -= dt;
@@ -282,7 +285,7 @@ const Hero = (() => {
     if (len > 0.3) {
       const d = Math.atan2(input.my, input.mx), v = Math.hypot(p.vx || 0, p.vy || 0);
       if (LF.dir !== null && LF.slipCd <= 0 && v > LT.slipV && onIce(p.x, p.y) && !p.ride && Math.abs(Math.atan2(Math.sin(d - LF.dir), Math.cos(d - LF.dir))) > 1.2) {
-        LF.slipCd = LT.slipCd; if (LR() < LT.slipP && play('slip', { react: 1 })) { Sound.tone('triangle', 900, 400, 0.12, 0.05); ArtWorld.fx.snowPuff(G.parts, p.x, p.y, 0.3); }
+        LF.slipCd = LT.slipCd; if (LR() < LT.slipP * (1 + tire() / 50) && play('slip', { react: 1 })) { Sound.tone('triangle', 900, 400, 0.12, 0.05); ArtWorld.fx.snowPuff(G.parts, p.x, p.y, 0.3); }
       }
       LF.dir = d;
     } else LF.dir = null;

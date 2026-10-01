@@ -323,7 +323,7 @@ const UI = (() => {
         }
       } else if (panelTab === 'people') {
         const q = G.col.queue;
-        html += `<p class="hint">${ic('people', 's')}${Colony.pop()}/${Colony.popCap()} · ${ic('food', 's')}1 в минуту на каждого · найм у избы</p>`;
+        html += `<p class="hint">${ic('people', 's')}${Colony.pop()}/${Colony.popCap()} · ${ic('food', 's')}1 за ${gameDur(TUNE.colony.eatEvery)} на каждого · найм у избы</p>`;
         if (q.length) html += `<div class="chain">${q.map((x, i) => `<span class="on" title="${UNITS[x.type].n}">${ic(UNITS[x.type].i)}${i === 0 ? `<span class="badge">${Math.ceil(x.t)} с</span>` : ''}</span>`).join('')}</div>`;
         for (const [id, U] of Object.entries(UNITS)) {
           const st = Colony.unitState(id), n = G.col.units.filter(u => u.type === id && !u.pet).length;
@@ -394,6 +394,7 @@ const UI = (() => {
         + row('', 'warm', 'Тепло', '', ar(G.s.warm, f.warm, f.coldAt != null, f.coldAt), '')
         + row('', fuelN[0], fuelN[1], '', fuelB, '')
         + row('', 'hp', 'Здоровье', '', ar(G.s.hp, f.hp, f.hp < G.s.hp - 0.5 || f.deadAt != null), '')
+        + row('', 'tire', 'Силы', '', ar(100 - (G.s.tire || 0), 100 - f.tire, 100 - f.tire < TUNE.tire.low), '')
         + verdict
         + `<div class="hint"><button class="btn pri" data-skip="go">${ic('timer', 's')}До утра${isTouch ? '' : '<kbd>Z</kbd>'}</button><button class="btn sec" data-close="1">${ic('close', 's')}Отмена</button></div>`);
     } else if (kind === 'trade') {
@@ -449,6 +450,7 @@ const UI = (() => {
       ['act', 'axe', T ? ':axe: — действие: рубить, брать, говорить' : 'E — действие рядом: рубить, брать, говорить', () => !!ctxCache && ctxCache.k !== 'inspect'],
       ['fire', 'fire', T ? ':fire: — костёр из :wood:3, греет' : 'F — костёр из :wood:3, греет', () => !G.p.inside && G.s.warm < 70 && Inv.cnt('wood', false) >= 3],
       ['cold', 'frost', 'Мёрзнешь — в избу или к огню', () => G.s.warm < 45 && !G.p.inside && !Fire.near(200)],
+      ['tired', 'tire', ':sleep: Устал — к огню или спать', () => (G.s.tire || 0) > TUNE.tire.tired && !G.p.sleeping],
       ['eat', 'food', T ? ':food: — поесть · у огня сытнее' : 'Q — поесть · у огня сытнее', () => G.s.food < 55 && FOOD_ORDER.some(k => Inv.cnt(k, G.p.inside) > 0)],
       ['stove', 'stove', 'Печь: E у печи · :wood: из рук или лабаза', () => G.p.inside && G.hut.fuel <= 0],
       ['night', 'night', 'После 19:00 — спать у печи (E у кровати)', () => { const h = hourOf(); return h >= 17.5 && h < 19.5; }],
@@ -488,7 +490,7 @@ const UI = (() => {
   })();
 
   // ---------- HUD ----------
-  const els = { warm: $('b-warm'), food: $('b-food'), hp: $('b-hp') };
+  const els = { warm: $('b-warm'), food: $('b-food'), hp: $('b-hp'), tire: $('b-tire') };
   function bar(el, v, max = 100) {
     el.querySelector('i').style.width = v + '%';
     const cap = el.querySelector('u'); if (cap) cap.style.width = (100 - max) + '%';
@@ -498,6 +500,11 @@ const UI = (() => {
   function hud(force) {
     const s = G.s;
     bar(els.warm, s.warm, Hero.maxWarm()); bar(els.food, s.food); bar(els.hp, Math.max(0, s.hp));
+    // силы = 100 − усталость: пульс ниже TUNE.tire.low, синие края ниже edge; края темнеют, когда клонит в сон на морозе
+    const TI = TUNE.tire, pw = 100 - (s.tire || 0), dz = Survival.dozeFx(), vg = $('vig');
+    bar(els.tire, pw); els.tire.classList.toggle('pulse', pw < TI.low);
+    const edge = pw < TI.edge && !G.p.inside && !G.p.sleeping ? (TI.edge - pw) / TI.edge : 0;
+    vg.style.setProperty('--d', (dz * 0.92).toFixed(2)); vg.style.setProperty('--b', (edge * 0.55).toFixed(2)); vg.classList.toggle('on', dz > 0 || edge > 0);
     setHtmlOnce($('frost'), s.frost ? ic('frost', 's').repeat(s.frost) : '');
     // инвентарь
     const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, G.inv[k], ITEMS[k].n)).join('');
@@ -853,6 +860,8 @@ const UI = (() => {
   }
   // журнал: прочитанные записки (текст сохраняется, перечитать — в паузе, раздел «Записки»)
   function journal() {
+    const pt = $('p-tire'), s = G.s; if (pt) { const pw = Math.round(100 - (s.tire || 0)), aw = Math.floor((s.awake || 0) / HOUR);
+      pt.innerHTML = `<span class="ri">${ic('tire')}</span><span>Силы</span><span class="badges">${bdg(pw < TUNE.tire.low ? 'miss' : 'ok', ic('tire', 's') + pw)}${bdg(aw >= TUNE.tire.awakeFrom ? 'miss' : '', ic('sleep', 's') + aw + ' ч')}</span>`; }
     const ids = Object.keys(NOTES).filter(id => G.notes[id]), el = $('p-notes'); if (!el) return;
     $('p-notes-n').textContent = `${ids.length}/${Object.keys(NOTES).length}`;
     el.innerHTML = ids.length ? ids.map(id => `<div class="jn">${ic(NOTES[id].i || 'log', 's')}<span>${esc(NOTES[id].t)}</span></div>`).join('') : '<p class="hint">Пока пусто</p>';
@@ -1083,8 +1092,9 @@ const UI = (() => {
       const T = TUNE.time;
       for (let i = 0; i < 4000 && state === 'play' && !kind && Actions.skipFast() && performance.now() - w0 < T.skipMs; i++) update(T.skipDt);
     } else if (state === 'play' && !kind) {
-      const steps = G.p.sleeping ? TUNE.time.sleepX : 1;
-      for (let i = 0; i < steps && state === 'play'; i++) update(dt);
+      // сон ×sleepX: пачка шагов dt, пока хватает кадра (skipMs) — слабая машина спит чуть медленнее, но не тормозит
+      const T = TUNE.time, steps = G.p.sleeping ? T.sleepX : 1;
+      for (let i = 0; i < steps && state === 'play' && (i === 0 || (G.p.sleeping && performance.now() - w0 < T.skipMs)); i++) update(dt);
     }
     if (state === 'menu') {
       for (const f of G.fires) if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });

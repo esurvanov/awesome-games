@@ -19,7 +19,7 @@ const Snow = (() => {
   const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const cl = (v, a, b) => (v < a ? a : v > b ? b : v);
   const R = ArtWorld.rng(0x5A0F), rr = (a, b) => a + R() * (b - a);
-  const UT = 7.7, UD = 4, UP = 5, DAY = 480, STRIP = 10, STEP = 0.5, SPMAX = 30, BUILD_GAP = 0.25;
+  const UT = 7.7, UD = 4, UP = 5, DAY = typeof CYCLE === 'number' ? CYCLE : 480, STRIP = 10, STEP = 0.5, SPMAX = 30, BUILD_GAP = 0.25;
   const HI = '#f6f9fc', MID = '#dde6ee';
   const emit = (k, e) => { if (typeof Interact !== 'undefined') Interact.emit(k, e); };
   const F = { fall: null };

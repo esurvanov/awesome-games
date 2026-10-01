@@ -48,7 +48,7 @@ const Fire = (() => {
   return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn };
 })();
 
-// Печь: полено даёт secPerLog() секунд огня (щели и заслонка — дольше); ночью горит быстрее.
+// Печь: полено даёт secPerLog() игровых секунд огня (1,25–2,25 игр. ч) (щели и заслонка — дольше); ночью горит быстрее.
 const Stove = (() => {
   const S = TUNE.stove;
   const secPerLog = () => G.hut.damper ? S.secPerLog.damper : G.hut.walls ? S.secPerLog.walls : S.secPerLog.base;
@@ -65,7 +65,7 @@ const Stove = (() => {
   function add() {
     if (G.hut.fuel > max() - secPerLog() * S.fullSlack) return Fx.toast(':stove: Печь полна');
     if (!Inv.takeStock('wood', 1)) return Fx.toast(':close: Не хватает: :wood:1 (в руках или в лабазе)');
-    G.hut.fuel += secPerLog(); G.flags.stoveLit = 1; Fx.floatText(SPOT.stove.x, SPOT.stove.y - 30, `:fire: +${secPerLog()} с`); Sound.chop();
+    G.hut.fuel += secPerLog(); G.flags.stoveLit = 1; Fx.floatText(SPOT.stove.x, SPOT.stove.y - 30, ':fire: +' + gameDur(secPerLog())); Sound.chop();
   }
   // расход печи, с/с (тик и прогноз ночи — одна формула)
   const burn = (night, storm) => (storm && !G.hut.walls ? S.stormDraft : 1) * (1 + S.nightBurn * night);
