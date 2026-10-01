@@ -1,0 +1,17 @@
+<svg class="ad" viewBox="0 0 660 282" role="img" aria-label="Quality tuning sequence" xmlns="http://www.w3.org/2000/svg"><style>
+svg.ad{--a-bg:#ffffff;--a-surface:#ffffff;--a-ink:#17181b;--a-ink2:#4a4d57;--a-ink3:#6b6e78;--a-line:#b9bcc6;--a-accent:#3b50d8}
+@media (prefers-color-scheme:dark){svg.ad{--a-bg:#0d1117;--a-surface:#161b22;--a-ink:#ecedf0;--a-ink2:#a6a9b2;--a-ink3:#8b8e98;--a-line:#454a54;--a-accent:#8b9bff}}
+svg.ad .ad-bx{fill:var(--a-surface);stroke:var(--a-line);stroke-width:1.5}
+svg.ad .ad-c{stroke:var(--a-accent)}
+svg.ad .ad-x{stroke:var(--a-ink3);stroke-dasharray:5 4}
+svg.ad .ad-p{stroke:var(--a-ink)}
+svg.ad .ad-t1{fill:var(--a-ink);font:700 13px system-ui,-apple-system,"Segoe UI",sans-serif}
+svg.ad .ad-t2{fill:var(--a-ink3);font:500 11px ui-monospace,Menlo,monospace}
+svg.ad .ad-ln{stroke:var(--a-ink3);stroke-width:1.5;fill:none}
+svg.ad .ad-ds{stroke-dasharray:5 4}
+svg.ad .ad-ar{fill:var(--a-ink3)}
+svg.ad .ad-lbbg{fill:var(--a-bg)}
+svg.ad .ad-lb,svg.ad .ad-lb2{fill:var(--a-ink2);font:500 11px ui-monospace,Menlo,monospace}
+svg.ad .ad-life{stroke:var(--a-line);stroke-width:1;stroke-dasharray:2 4}
+svg.ad .ad-note{fill:var(--a-surface);stroke:var(--a-line);stroke-width:1}
+</style><defs><marker id="seq-quality-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ad-ar"/></marker></defs><rect x="6.0" y="6" width="120" height="30" rx="6" class="ad-bx ad-c"/><text x="66.0" y="26" text-anchor="middle" class="ad-t1">Page</text><line x1="66.0" y1="38" x2="66.0" y2="274" class="ad-life"/><rect x="138.0" y="6" width="120" height="30" rx="6" class="ad-bx ad-c"/><text x="198.0" y="26" text-anchor="middle" class="ad-t1">Picker</text><line x1="198.0" y1="38" x2="198.0" y2="274" class="ad-life"/><rect x="270.0" y="6" width="120" height="30" rx="6" class="ad-bx ad-c"/><text x="330.0" y="26" text-anchor="middle" class="ad-t1">Governor</text><line x1="330.0" y1="38" x2="330.0" y2="274" class="ad-life"/><rect x="402.0" y="6" width="120" height="30" rx="6" class="ad-bx ad-c"/><text x="462.0" y="26" text-anchor="middle" class="ad-t1">World</text><line x1="462.0" y1="38" x2="462.0" y2="274" class="ad-life"/><rect x="534.0" y="6" width="120" height="30" rx="6" class="ad-bx ad-c"/><text x="594.0" y="26" text-anchor="middle" class="ad-t1">Render</text><line x1="594.0" y1="38" x2="594.0" y2="274" class="ad-life"/><line x1="66.0" y1="64.0" x2="196.0" y2="64.0" class="ad-ln" marker-end="url(#seq-quality-ah2)"/><text x="132.0" y="59.0" text-anchor="middle" class="ad-lb2">which GPU?</text><line x1="198.0" y1="98.0" x2="68.0" y2="98.0" class="ad-ln ad-ds" marker-end="url(#seq-quality-ah2)"/><text x="132.0" y="93.0" text-anchor="middle" class="ad-lb2">preset</text><line x1="66.0" y1="132.0" x2="460.0" y2="132.0" class="ad-ln" marker-end="url(#seq-quality-ah2)"/><text x="264.0" y="127.0" text-anchor="middle" class="ad-lb2">range, shadows</text><line x1="594.0" y1="166.0" x2="332.0" y2="166.0" class="ad-ln" marker-end="url(#seq-quality-ah2)"/><text x="462.0" y="161.0" text-anchor="middle" class="ad-lb2">frame time</text><line x1="330.0" y1="200.0" x2="592.0" y2="200.0" class="ad-ln ad-ds" marker-end="url(#seq-quality-ah2)"/><text x="462.0" y="195.0" text-anchor="middle" class="ad-lb2">render scale</text><line x1="330.0" y1="234.0" x2="460.0" y2="234.0" class="ad-ln" marker-end="url(#seq-quality-ah2)"/><text x="396.0" y="229.0" text-anchor="middle" class="ad-lb2">tree range</text></svg>
