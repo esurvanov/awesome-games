@@ -21,8 +21,8 @@ const Inv = (() => {
   function put(c, id, n = 1, kg, l) {
     if (!(n > 0)) return;
     // масса места: пока всё номинальное — не пишем (wkg/wl выводятся из штук); своя масса — пишем
-    if (isW(id) && (kg != null || c.wkg != null)) { const m = kg != null ? kg : n * LD().woodKg, v = l != null ? l : m / LD().rho * 1000, m0 = wkg(c), v0 = wl(c); c.wkg = r4(m0 + m); c.wl = r4(v0 + v); c[id] = (c[id] || 0) + n; c.wn = c.wood; return; }
-    c[id] = (c[id] || 0) + n;
+    if (isW(id) && (kg != null || c.wkg != null)) { const m = kg != null ? kg : n * LD().woodKg, v = l != null ? l : m / LD().rho * 1000, m0 = wkg(c), v0 = wl(c); c.wkg = r4(m0 + m); c.wl = r4(v0 + v); c[id] = (c[id] || 0) + n; c.wn = c.wood; check(c, 'put ' + id); return; }
+    c[id] = (c[id] || 0) + n; check(c, 'put ' + id);
   }
   // забрать n (сколько есть): {n, kg, l}; дрова — средняя масса места
   function pull(c, id, n = 1) {
@@ -32,8 +32,36 @@ const Inv = (() => {
     else { kg = h * (ITEMS[id] ? ITEMS[id].kg : 0); l = h * (ITEMS[id] ? ITEMS[id].l : 0); }
     c[id] -= h;
     if (isW(id) && c.wkg != null) { c.wn = c.wood; if (!c.wood) { c.wkg = 0; c.wl = 0; } }
+    check(c, 'pull ' + id);
     return { n: h, kg, l };
   }
+  // инвариант мест: счётчик вещи ≥ 0 и конечен, масса дров ≥ 0 и есть только при дровах; нарушение — ошибка в консоль
+  // (в тестах — navigator.webdriver: playwright ловит console.error как провал). Возвращает список нарушений.
+  const TEST = typeof navigator !== 'undefined' && !!navigator.webdriver;
+  function bad(c, tag) {
+    const out = [];
+    if (!c) return out;
+    if (c.wkg != null) sync(c);   // число дров меняли мимо Inv — сперва свести массу
+    for (const k in c) { const v = c[k]; if (typeof v === 'number' && (!(v >= 0) || !isFinite(v))) out.push(`${tag}.${k}=${v}`); }
+    if ((c.wood || 0) === 0 && (c.wkg || 0) > 1e-3) out.push(`${tag}.wkg=${c.wkg} без дров`);
+    return out;
+  }
+  function places() {
+    if (typeof G === 'undefined' || !G) return [];
+    const o = [[G.inv, 'inv'], [G.chest, 'chest'], [G.sled, 'sled']];
+    (G.stashes || []).forEach((s, i) => o.push([s.inv, 'stash' + i]));
+    return o;
+  }
+  function audit(where) {
+    const out = [];
+    for (const [c, tag] of places()) out.push(...bad(c, tag));
+    const t = G && G.hand && G.hand.t; if (t && (!(t.n > 0) || (t.kg != null && !(t.kg >= 0)))) out.push(`hand.${t.id} n=${t.n} kg=${t.kg}`);
+    for (const q of (G && G.loose) || []) if (!(q.n > 0)) out.push(`loose.${q.it} n=${q.n}`);
+    if (out.length && TEST) console.error('Inv: ' + (where || 'audit') + ' — ' + out.join(', '));
+    return out;
+  }
+  // после записи в место: проверить именно его (дёшево); полный обход — audit()
+  const check = (c, where) => { if (TEST) { const b = bad(c, where); if (b.length) console.error('Inv: ' + b.join(', ') + '\n' + (new Error().stack || '').split('\n').slice(2, 6).join(' | ')); } };
   const move = (a, b, id, n = 1) => { const r = pull(a, id, n); if (r.n) put(b, id, r.n, isW(id) ? r.kg : undefined, isW(id) ? r.l : undefined); return r.n; };
   function kgOf(c) { let s = 0; for (const k in c) if (ITEMS[k] && !isW(k)) s += (c[k] || 0) * ITEMS[k].kg; return s + wkg(c); }
   // объём укладки: вещи по ITEMS.l, дрова — твёрдый объём × bulk (зазоры между поленьями)
@@ -109,5 +137,5 @@ const Inv = (() => {
     }
     G.itemsV = 2;
   }
-  return { cnt, has, add, take, takeStock, payStock, canPay, pay, weight, capKg, packKg, packL, fits, migrate, put, pull, move, kgOf, litOf, wkg, wl, isW };
+  return { audit, cnt, has, add, take, takeStock, payStock, canPay, pay, weight, capKg, packKg, packL, fits, migrate, put, pull, move, kgOf, litOf, wkg, wl, isW };
 })();
