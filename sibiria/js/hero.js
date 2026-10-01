@@ -87,14 +87,17 @@ const Hero = (() => {
   // ---------- отскок (Shift / кнопка): рывок DASH.d px за DASH.t с; по вводу, без ввода — от угрозы (падающий ствол, волк) или назад ----------
   // Работу прерывает; поза dodge (разовая, react); сквозь стволы/стены не проходит (World.solid); рантайм, в сейве безвреден.
   const DASH = { d: 40, t: 0.22, cd: 0.6 };
+  // куда отскочить: ввод → угроза (падающий ствол, волк) → null (ни ввода, ни угрозы: «назад» решает вызывающий)
+  function dodgeAim(dx, dy) {
+    const p = G.p, mx = dx != null ? dx : input.mx, my = dy != null ? dy : input.my;
+    if (Math.hypot(mx, my) >= 0.15) return { x: mx, y: my };
+    const d = Actions.danger && Actions.danger(p), w = Space.nearest(G.wolves, p.x, p.y, 140, w => w.st !== 'retreat');
+    return d ? { x: d.x, y: d.y } : w ? { x: p.x - w.x, y: p.y - w.y } : null;
+  }
   function dodge(dx, dy) {
     const p = G.p;
     if (state !== 'play' || p.sleeping || p.doze || p.ride || p.ko || p.dash || p.dashCd > 0 || (typeof Ice !== 'undefined' && Ice.active())) return false;
-    let mx = dx != null ? dx : input.mx, my = dy != null ? dy : input.my;
-    if (Math.hypot(mx, my) < 0.15) {
-      const d = Actions.danger && Actions.danger(p), w = Space.nearest(G.wolves, p.x, p.y, 140, w => w.st !== 'retreat');
-      if (d) { mx = d.x; my = d.y; } else if (w) { mx = p.x - w.x; my = p.y - w.y; } else { mx = -p.face; my = 0; }
-    }
+    const q = dodgeAim(dx, dy), mx = q ? q.x : -p.face, my = q ? q.y : 0;
     const l = Math.hypot(mx, my) || 1;
     p.action = null; input.auto = 0;
     p.dash = { t: 0, x: mx / l, y: my / l }; p.dashCd = DASH.cd; p.vx = p.vy = 0;
@@ -341,5 +344,5 @@ const Hero = (() => {
     if (LF.still > LF.next) { LF.still = 0; LF.next = lr(LT.again[0], LT.again[1]); const k = pickFidget(); if (k) play(k); }
   }
   return { lvl, xp, chopTime, clothMul, maxWarm, speed, move, tickLoad, play, has, chopPose, chopCycle, pickPose, walkPose, idlePose, heat, tickLife,
-    sync, pose, snap, bodyReset, STATES, PRI, vface, footStep, dodge, DASH, odo: () => B.odo, get body() { return B; } };
+    sync, pose, snap, bodyReset, STATES, PRI, vface, footStep, dodge, dodgeAim, DASH, odo: () => B.odo, get body() { return B; } };
 })();
