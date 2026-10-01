@@ -9,6 +9,27 @@
  *            metres at the game scale (the pilot is fitted to 1.90 m by prepModel). debugDraw() / debugHide() show the
  *            measured volumes over the pilot (semi-transparent), following the bones every frame.
  *
+ *  BODYCONTACT  window.BODYCONTACT (frozen) — the ONE truth measurer of pilot x rock (inside / gap). Signed surface distance of
+ *            the REAL drawn skinned suit (skinned vertices, current pose) to the rocks' drawn triangles (three-mesh-bvh
+ *            closestPointToPoint, sign by upward ray parity, same as INTERACT/the gallery). NO shrink coefficients.
+ *            Everything that says "clean", "inside" or "gap" (gallery judge, solver checks, rock-brain) should call this.
+ *      BODYCONTACT.measure(rocks, opts?) -> { ms, n, parts, kinds, worst, margin } | null (rig not ready / no rocks)
+ *          rocks  [{ e?, g }]  g = INTERACT.bvhGeo(e) (needs g.boundsTree); e.box {min:[x,y,z],max:[x,y,z]} or g.boundingBox is the
+ *                 early-out box (a vertex farther than opts.margin from every box is skipped)
+ *          opts   { root (default AV.player mixer root), margin (m, default 0.6), ground: (x,z)=>y (also fills parts[k].groundCm) }
+ *          parts  per side-specific part, key: helmet neck chest pelvis shoulder_l/r upperarm_l/r forearm_l/r palm_l/r
+ *                 handback_l/r fingers_l/r (fingers+thumb) thigh_l/r shin_l/r boot_l/r
+ *                 -> { minSignedCm (negative = inside; null = farther than margin), point:[x,y,z] (the nearest rock point to the
+ *                 closest vertex), vertex:[x,y,z], nInside (sampled vertices inside), n (sampled), groundCm|undefined }
+ *          kinds  same, the two sides merged under the name without _l/_r (palm, forearm, boot ...), keyed e.g. kinds.palm
+ *          worst  { part, cm (>0 = depth), point, vertex } of the deepest vertex of any part (null if nothing is inside)
+ *      BODYCONTACT.worst(res, { skip: ['boot'] })  deepest penetration, optionally skipping parts / kinds -> { part, cm, point } (cm 0 = none)
+ *      BODYCONTACT.gap(res, ['palm','fingers'])    smallest signed distance (cm) among the listed parts or kinds -> { part, cm, point } | null
+ *      BODYCONTACT.PARTS                           the part names; BODYCONTACT.sampleCount() vertices tested per call
+ *      Classification is done once per rig from the dominant skin bone + geometry (glove = forearm vertices past the wrist, palm
+ *      side by BODYSPEC.palm_* normal in the hand frame, fingers = beyond the knuckles or thumb-weighted); ~1500 vertices,
+ *      fine to run every 3rd frame (early-out by rock box, ray parity only for vertices that can beat the current best).
+ *
  * Reads only: ctx.AV.player (mixer root), bone world matrices, vertex positions. Writes nothing to the scene except
  * the debug overlay while it is on.
  */
@@ -286,6 +307,122 @@
     }));
     window.BODYSPEC = SPEC; resolveReady(SPEC);
   }
+
+  /* ---------------------------------------------------------------- BODYCONTACT: signed distance of the drawn suit to the rocks */
+  const BC = { root: null, S: null, t: {}, ray: null, parts: [] };
+  const BC_CAP = { helmet: 160, neck: 40, chest: 220, pelvis: 160, shoulder: 70, upperarm: 90, forearm: 120, palm: 120, handback: 60, fingers: 110, thigh: 100, shin: 100, boot: 110 };
+  const bcKind = (k) => k.replace(/_[lr]$/, '');
+  function bcBuild(root) {
+    const V = T3.Vector3, Q = T3.Quaternion; root.updateMatrixWorld(true);
+    const bones = {}; root.traverse((o) => { if (o.isBone) bones[o.name.toLowerCase()] = o; });
+    const bp = {}, bqi = {}; for (const n in bones) { const p = new V(), q = new Q(), sc = new V(); bones[n].matrixWorld.decompose(p, q, sc); bp[n] = p; bqi[n] = q.invert(); }
+    const spec = window.BODYSPEC && window.BODYSPEC.ready ? window.BODYSPEC : null;
+    const hand = {};   // per side: palm normal / finger axis in the hand frame
+    for (const s of ['l', 'r']) {
+      const pc = spec && (spec['palm_' + s] || (spec.palm && spec.palm[s])), pn = pc && pc.normal ? new V(...pc.normal).normalize() : null;
+      const fa = spec && spec.palm && spec.palm[s] && spec.palm[s].fingerAxis ? new V(...spec.palm[s].fingerAxis).normalize() : null;
+      hand[s] = { n: pn, f: fa, knuckle: Math.max(0.05, (spec && spec.arm && spec.arm.hand ? spec.arm.hand : 0.08) * 0.85) };
+    }
+    const groups = {}, v = new V();
+    const add = (part, mesh, i, kind) => { (groups[part] = groups[part] || []).push({ m: mesh, i }); };
+    const glove = {};   // glove vertices per side with hand-frame coordinates, split palm/back/fingers afterwards
+    root.traverse((m) => {
+      if (!m.isMesh || !m.geometry || !m.geometry.attributes.position || m.visible === false) return;
+      const N = m.geometry.attributes.position.count;
+      if (m.isSkinnedMesh && m.skeleton && m.geometry.attributes.skinIndex) {
+        const si = m.geometry.attributes.skinIndex, sw = m.geometry.attributes.skinWeight, sb = m.skeleton.bones;
+        for (let i = 0; i < N; i++) {
+          let bw = -1, bi = 0; for (let c = 0; c < 4; c++) { const w = sw.getComponent(i, c); if (w > bw) { bw = w; bi = si.getComponent(i, c); } }
+          const bn = sb[bi] && sb[bi].name.toLowerCase(); if (!bn) continue; const sd = /_([lr])$/.exec(bn);
+          if (bn === 'head') add('helmet', m, i);
+          else if (bn === 'neck_01') add('neck', m, i);
+          else if (bn === 'spine_02' || bn === 'spine_03') add('chest', m, i);
+          else if (bn === 'pelvis' || bn === 'spine_01') add('pelvis', m, i);
+          else if (/^clavicle_/.test(bn)) add('shoulder_' + sd[1], m, i);
+          else if (/^upperarm_/.test(bn)) add('upperarm_' + sd[1], m, i);
+          else if (/^thigh_/.test(bn)) add('thigh_' + sd[1], m, i);
+          else if (/^calf_/.test(bn)) add('shin_' + sd[1], m, i);
+          else if (/^(foot|ball)_/.test(bn)) add('boot_' + sd[1], m, i);
+          else if (sd && /^(thumb|index|middle|ring|pinky)/.test(bn)) add('fingers_' + sd[1], m, i);
+          else if (/^(lowerarm|hand)_/.test(bn)) {
+            const s = sd[1], la = bp['lowerarm_' + s], hp = bp['hand_' + s]; if (!la || !hp) { add('forearm_' + s, m, i); continue; }
+            m.getVertexPosition(i, v); v.applyMatrix4(m.matrixWorld);
+            const fu = hp.clone().sub(la), fl = fu.length(); fu.divideScalar(fl || 1);
+            if (v.clone().sub(la).dot(fu) > fl - 0.05 && v.distanceTo(hp) < 0.16) (glove[s] = glove[s] || []).push({ m, i, p: v.clone().sub(hp).applyQuaternion(bqi['hand_' + s]) });
+            else add('forearm_' + s, m, i);
+          }
+        }
+      } else {   // a rigid mesh under a bone (helmet, gear)
+        let p = m.parent; while (p && !p.isBone) p = p.parent; const pn = p && p.name.toLowerCase(); if (!pn) return;
+        if (pn === 'head') for (let i = 0; i < N; i++) add('helmet', m, i);
+      }
+    });
+    for (const s of ['l', 'r']) {
+      const G = glove[s]; if (!G) continue; const H = hand[s];
+      const body = G.filter((g) => !(H.f && g.p.dot(H.f) > H.knuckle));
+      let mean = 0; if (H.n) { for (const g of body) mean += g.p.dot(H.n); mean /= body.length || 1; }
+      for (const g of G) {
+        if (H.f && g.p.dot(H.f) > H.knuckle) add('fingers_' + s, g.m, g.i);
+        else if (!H.n || g.p.dot(H.n) > mean) add('palm_' + s, g.m, g.i);
+        else add('handback_' + s, g.m, g.i);
+      }
+    }
+    const SS = {}; let tot = 0;
+    for (const k in groups) { const A = groups[k], cap = BC_CAP[bcKind(k)] || 80, step = Math.max(1, Math.ceil(A.length / cap)); SS[k] = A.filter((_, j) => j % step === 0); tot += SS[k].length; }
+    BC.root = root; BC.S = SS; BC.parts = Object.keys(SS); BC.total = tot;
+    return SS;
+  }
+  function bcBox(r) {
+    if (r._bb) return r._bb;
+    let b = r.e && r.e.box; if (b && b.min && b.max) return (r._bb = { x0: b.min[0], y0: b.min[1], z0: b.min[2], x1: b.max[0], y1: b.max[1], z1: b.max[2] });
+    const g = r.g; if (g && !g.boundingBox && g.computeBoundingBox) g.computeBoundingBox(); b = g && g.boundingBox;
+    return (r._bb = b ? { x0: b.min.x, y0: b.min.y, z0: b.min.z, x1: b.max.x, y1: b.max.y, z1: b.max.z } : null);
+  }
+  function bcMeasure(rocks, opts) {
+    opts = opts || {}; if (!C || !T3) return null;
+    let root = opts.root || (C.AV && C.AV.player && C.AV.player.mixer && C.AV.player.mixer.getRoot()); if (!root) return null;
+    const list = (rocks || []).filter((r) => r && r.g && r.g.boundsTree); if (!list.length) return null;
+    const t0 = performance.now(), M = opts.margin == null ? 0.6 : opts.margin, SS = BC.root === root && BC.S ? BC.S : bcBuild(root);
+    if (!BC.ray) BC.ray = new T3.Ray();
+    const v = new T3.Vector3(), hit = {}, ray = BC.ray, DS = T3.DoubleSide, boxes = list.map(bcBox);
+    const parts = {}; let n = 0, worst = null;
+    for (const k in SS) {
+      const P = parts[k] = { minSignedCm: null, point: null, vertex: null, nInside: 0, n: SS[k].length }; let best = Infinity, bp = null, bv = null;
+      for (const { m, i } of SS[k]) {
+        m.getVertexPosition(i, v); v.applyMatrix4(m.matrixWorld); n++;
+        if (opts.ground) { const gc = (v.y - opts.ground(v.x, v.z)) * 100; if (P.groundCm === undefined || gc < P.groundCm) P.groundCm = +gc.toFixed(1); }
+        let d = Infinity, inside = false, pt = null;
+        for (let q = 0; q < list.length; q++) {
+          const b = boxes[q]; if (b && (v.x < b.x0 - M || v.x > b.x1 + M || v.z < b.z0 - M || v.z > b.z1 + M || v.y < b.y0 - M || v.y > b.y1 + M)) continue;
+          const tree = list[q].g.boundsTree, r = tree.closestPointToPoint(v, hit); if (!r || r.distance >= Math.abs(d)) continue;
+          ray.origin.copy(v); ray.direction.set(0, 1, 0);
+          let hs = []; try { hs = tree.raycast(ray, DS) || []; } catch (err) { hs = []; }
+          inside = hs.length % 2 === 1; d = inside ? -r.distance : r.distance; pt = [r.point.x, r.point.y, r.point.z];
+        }
+        if (d < 0) P.nInside++;
+        if (d < best) { best = d; bp = pt; bv = [v.x, v.y, v.z]; }
+      }
+      if (isFinite(best)) { P.minSignedCm = +(best * 100).toFixed(1); P.point = bp; P.vertex = bv; if (best < 0 && (!worst || -best * 100 > worst.cm)) worst = { part: k, cm: +(-best * 100).toFixed(1), point: bp, vertex: bv }; }
+    }
+    const kinds = {};
+    for (const k in parts) { const kk = bcKind(k), P = parts[k], K = kinds[kk];
+      if (!K) kinds[kk] = Object.assign({}, P, { part: k }); else { K.nInside += P.nInside; K.n += P.n;
+        if (P.minSignedCm != null && (K.minSignedCm == null || P.minSignedCm < K.minSignedCm)) { K.minSignedCm = P.minSignedCm; K.point = P.point; K.vertex = P.vertex; K.part = k; }
+        if (P.groundCm !== undefined && (K.groundCm === undefined || P.groundCm < K.groundCm)) K.groundCm = P.groundCm; } }
+    return { ms: +(performance.now() - t0).toFixed(2), n, parts, kinds, worst, margin: M };
+  }
+  const bcMatch = (key, list) => !list || list.some((x) => x === key || x === bcKind(key));
+  const BODYCONTACT = Object.freeze({
+    version: 1, measure: bcMeasure,
+    worst(res, o) { const skip = o && o.skip; let w = { part: null, cm: 0, point: null };
+      if (res) for (const k in res.parts) { if (skip && bcMatch(k, skip)) continue; const m = res.parts[k].minSignedCm; if (m != null && m < 0 && -m > w.cm) w = { part: k, cm: -m, point: res.parts[k].point }; }
+      return w; },
+    gap(res, names) { let w = null; if (!res) return w;
+      for (const k in res.parts) { if (!bcMatch(k, names)) continue; const m = res.parts[k].minSignedCm; if (m != null && (!w || m < w.cm)) w = { part: k, cm: m, point: res.parts[k].point }; }
+      return w; },
+    get PARTS() { return BC.parts.slice(); }, sampleCount() { return BC.total || 0; }, reset() { BC.root = null; BC.S = null; },
+  });
+  window.BODYCONTACT = BODYCONTACT;
 
   (window.GameModules = window.GameModules || []).push({
     name: 'body-spec', order: 40,

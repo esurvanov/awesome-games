@@ -14,6 +14,8 @@
  *   jerks         the drawn root: a step not explained by its own speed (teleport > 0.2 m), accelerations > 45 m/s²;
  *                 the head vs the root: a jump > 0.1 m in one sample (a pose snap)
  *   clips         changes of the playing clip per second
+ *   truth         (new) BODYCONTACT numbers per card: worstInsideCm + part, palm / fingers / forearm gap of the hands the action
+ *                 puts on the rock, torso gap by action (expect touch / avoid) — judge.* keeps the old coarse fields
  *   contact       any skin vertex within 3 cm of a rock for ≥ 0.3 s (the judge's own, not the module's state)
  * The decision (ROCKBRAIN / INTERACTION.CT) is read ONLY to caption the frames (action names), never for a verdict.
  * Frames: fixed side cameras (lab) + one frame from the game camera the player sees.
@@ -149,19 +151,24 @@
     const step = Math.max(1, Math.floor(all.length / 1400)); BODYV = all.filter((_, k) => k % step === 0);
     return BODYV;
   }
-  // the body against the near rocks: deepest inside per part, and the smallest outside distance per part
+  // the body against the near rocks — ONE truth: BODYCONTACT (modules/body-spec.js), signed distance of the DRAWN skinned suit
+  // (no shrink coefficients) to the rocks' drawn triangles. Returns the new per-part result (res) and the old coarse shape
+  // ({deep, gap} by head / torso / arm / hand / leg / foot, metres) so report.mjs / summ.mjs keep working.
+  const OLDPART = { helmet: 'head', neck: 'head', chest: 'torso', pelvis: 'torso', shoulder: 'torso', upperarm: 'arm', forearm: 'arm', palm: 'hand', handback: 'hand', fingers: 'hand', thigh: 'leg', shin: 'leg', boot: 'foot' };
   function bodyScan() {
-    const THREE = T(), v = new THREE.Vector3(), out = { deep: {}, gap: {} };
-    for (const [m, i, part] of bodyVerts()) {
-      m.getVertexPosition(i, v); v.applyMatrix4(m.matrixWorld);
-      let near = false; for (const n of NEAR) { const b = n.e.box; if (v.x > b.min[0] - 0.45 && v.x < b.max[0] + 0.45 && v.z > b.min[2] - 0.45 && v.z < b.max[2] + 0.45 && v.y < b.max[1] + 0.45 && v.y > b.min[1] - 0.2) { near = true; break; } }
-      if (!near) continue;
-      const d = sdist(v); if (!isFinite(d)) continue;
-      if (d < 0) { if (-d > (out.deep[part] || 0)) out.deep[part] = -d; }
-      else if (out.gap[part] === undefined || d < out.gap[part]) out.gap[part] = d;
+    const out = { deep: {}, gap: {}, res: null };
+    if (!window.BODYCONTACT) { out.err = 'no BODYCONTACT'; return out; }
+    const res = BODYCONTACT.measure(NEAR, { root: INTERACTION.B.root, margin: 0.6 }); if (!res) return out; out.res = res;
+    for (const k in res.parts) {
+      const m = res.parts[k].minSignedCm; if (m == null) continue; const part = OLDPART[k.replace(/_[lr]$/, '')] || 'torso';
+      if (m < 0) { if (-m / 100 > (out.deep[part] || 0)) out.deep[part] = -m / 100; }
+      else if (out.gap[part] === undefined || m / 100 < out.gap[part]) out.gap[part] = m / 100;
     }
     return out;
   }
+  // what the torso should do for an action: touch (back / shoulder / seat / squeeze) · avoid (hands carry the contact) · null
+  const TORSO_TOUCH = /lean_back|lean_shoulder|sit_rock|squeeze_side|seat/, TORSO_AVOID = /hand_wall|lean_hands|touch_walk|brace_slope/;
+  const med = (a) => { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); return b[Math.floor((b.length - 1) / 2)]; };
   // one glove: distance to the drawn rock only (the ground does not count here), and whether it is raised / forward
   function gloveState(eff) {
     const THREE = T(), v = new THREE.Vector3(), root = INTERACTION.B.root, P = DBG.player; let min = Infinity, cx = 0, cy = 0, cz = 0, n = 0;
@@ -289,7 +296,7 @@
   }
   function labClose(n, ang) {
     const P = DBG.player, nh = hz(n, ang), t = { x: nh.z, z: -nh.x }, chest = { x: P.x, y: P.y + 1.0, z: P.z };
-    for (const out of [0.3, 0.8, 1.3]) for (const sg of [1, -1]) { const x = P.x + t.x * sg * 2.6 + nh.x * out, z = P.z + t.z * sg * 2.6 + nh.z * out, cam = { x, y: Math.max(P.y + 1.3, DBG.getH(x, z) + 1.0), z };
+    for (const out of [0.3, 0.8, 1.3]) for (const sg of [1, -1]) { const x = P.x + t.x * sg * (window.RG_CLOSE || 2.6) + nh.x * out, z = P.z + t.z * sg * (window.RG_CLOSE || 2.6) + nh.z * out, cam = { x, y: Math.max(P.y + (window.RG_CLOSE ? 1.1 : 1.3), DBG.getH(x, z) + 1.0), z };
       if (freeCam(cam, [chest])) return { cam, look: chest }; }
     return null;
   }
@@ -327,6 +334,35 @@
     return SPOTS.filter((s) => s.e).map((s) => { nearRocks(s.x, s.z, s.r + 2); const b = s.e.box, m = new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
       return { id: s.id, rocks: NEAR.length, midCm: Math.round(sdist(m) * 100), aboveCm: Math.round(sdist(m.clone().setY(b.max[1] + 1)) * 100) }; });
   };
+  // per-card truth numbers from BODYCONTACT (see body-spec.js): everything in cm, negative = inside the rock
+  function truthOf(J) {
+    const r1 = (x) => x == null ? null : +x.toFixed(1), min = (a) => a.length ? Math.min(...a) : null;
+    const deepest = (skip) => { let w = { part: null, cm: 0 }; for (const k in J.allDeep) { if (skip(k)) continue; if (J.allDeep[k] > w.cm) w = { part: k, cm: J.allDeep[k] }; } return w; };
+    const body = deepest((k) => /^boot/.test(k)), boot = deepest((k) => !/^boot/.test(k));
+    const acts = {}, all = { palm: [], fingers: [], fore: [], torso: [] };
+    for (const [name, A] of Object.entries(J.acts)) {
+      const expect = TORSO_TOUCH.test(name) ? 'touch' : TORSO_AVOID.test(name) ? 'avoid' : null;
+      acts[name] = { n: A.n, expect, palmMed: r1(med(A.palm)), palmMin: r1(min(A.palm)), fingersMed: r1(med(A.fingers)), fingersMin: r1(min(A.fingers)),
+        foreMed: r1(med(A.fore)), foreMin: r1(min(A.fore)), torsoMed: r1(med(A.torso)), torsoMin: r1(min(A.torso)), torsoMax: r1(A.torso.length ? Math.max(...A.torso) : null) };
+      for (const k of Object.keys(all)) all[k].push(...A[k]);
+    }
+    return { worstInsideCm: r1(body.cm), worstInsidePart: body.part, bootInsideCm: r1(boot.cm), bootInsidePart: boot.part,
+      insideOver1: body.cm > 1, anyInsideOver1: Math.max(body.cm, boot.cm) > 1,
+      palmGapMedCm: r1(med(all.palm)), palmGapMinCm: r1(min(all.palm)), fingersGapMedCm: r1(med(all.fingers)), fingersGapMinCm: r1(min(all.fingers)),
+      forearmGapMedCm: r1(med(all.fore)), forearmGapMinCm: r1(min(all.fore)), torsoGapMedCm: r1(med(all.torso)), torsoGapMinCm: r1(min(all.torso)),
+      measureMs: J.bcN ? { mean: +(J.bcMs / J.bcN).toFixed(2), max: +J.bcMax.toFixed(2), n: J.bcN } : null,
+      byPart: Object.fromEntries(Object.entries(J.allDeep).map(([k, d]) => [k, r1(d)])), byAction: acts, samples: Object.values(J.acts).reduce((a, A) => a + A.n, 0) };
+  }
+  // one BODYCONTACT sample while an action is in its contact phase: per action, palm / fingers / forearm gaps of the hands the
+  // decision puts on the rock (cm, negative = inside) and the torso gap (chest / pelvis / shoulder) when the action cares
+  function bcSample(J, res, d) {
+    const A = J.acts[d.action] = J.acts[d.action] || { n: 0, palm: [], fingers: [], fore: [], torso: [], upper: [] };
+    A.n++;
+    for (const h of d.hands) { const s = /_([lr])$/.exec(h); if (!s) continue; const P = res.parts['palm_' + s[1]], F = res.parts['fingers_' + s[1]], R = res.parts['forearm_' + s[1]];
+      if (P && P.minSignedCm != null) A.palm.push(P.minSignedCm); if (F && F.minSignedCm != null) A.fingers.push(F.minSignedCm); if (R && R.minSignedCm != null) A.fore.push(R.minSignedCm); }
+    const t = BODYCONTACT.gap(res, ['chest', 'pelvis', 'shoulder']); if (t) A.torso.push(t.cm);
+  }
+
   RG.card = async function (spotId, side, scen, shotPrefix) {
     RG.spots(); const S = SPOTS.find((s) => s.id === spotId); if (!S || S.missing) return { error: 'no spot ' + spotId };
     const sc = SCEN[scen]; if (!sc) return { error: 'no scenario ' + scen };
@@ -361,7 +397,7 @@
     DBG.camOv = { pos: [cam.cam.x, cam.cam.y, cam.cam.z], look: [cam.look.x, cam.look.y, cam.look.z] };
     await wait(250);
 
-    const J = { n: 0, touchT: 0, airT: 0, hangT: 0, contactT: 0, contRun: 0, insideT: 0, deep: {}, idleRun: 0, idleMax: 0, teleports: 0, tlog: [], jerks: 0, snaps: 0, prev: null, pv: null, gameDone: false };
+    const J = { n: 0, touchT: 0, airT: 0, hangT: 0, contactT: 0, contRun: 0, insideT: 0, deep: {}, allDeep: {}, acts: {}, idleRun: 0, idleMax: 0, teleports: 0, tlog: [], jerks: 0, snaps: 0, prev: null, pv: null, gameDone: false };
     const rec = { spot: spotId, side, scen, ang: +ang.toFixed(2), shots: [], samples: 0, sigChanges: 0, clipChanges: 0, flips: 0, actions: {}, handT: 0, handAirT: 0, handGaps: [], insideMax: 0, insidePart: null, footInside: 0, reachedContact: false, climbed: false, minDist: Infinity, src: '' };
     const t0 = performance.now(); let lastSig = null, lastClip = null, hist = [], shotI = 0, alongPh = 0, jumped = false, lastJ = 0;
     while (true) {
@@ -416,7 +452,10 @@
         for (const eff of ['hand_l', 'hand_r']) { const g = gloveState(eff); if (!g || !isFinite(g.gap) || g.gap > 0.4) continue;
           if (g.gap <= 0.03) { J.touchT += dtj; touching = true; } else if (g.raised) J.airT += dtj; else J.hangT += dtj; }
         if (J.n % 3 === 0) {
-          const bs = bodyScan(); J.last = bs;
+          const bs = bodyScan(); J.last = bs; if (bs.err) J.err = bs.err;
+          if (bs.res) { J.bcN = (J.bcN || 0) + 1; J.bcMs = (J.bcMs || 0) + bs.res.ms; J.bcMax = Math.max(J.bcMax || 0, bs.res.ms); }
+          if (bs.res && /play|hold|touch|lean|rest|brace|climb/.test(d.state) && d.action) bcSample(J, bs.res, d);
+          if (bs.res) for (const k in bs.res.parts) { const m = bs.res.parts[k].minSignedCm; if (m != null && m < 0 && -m > (J.allDeep[k] || 0)) J.allDeep[k] = -m; }
           let inNow = false; for (const [part, d] of Object.entries(bs.deep)) { if (d > (J.deep[part] || 0)) J.deep[part] = d; if (part !== 'foot' && d > 0.02) inNow = true; }
           if (inNow) J.insideT += dtj * 3;
           J.anyTouch = Object.values(bs.gap).some((g) => g <= 0.03) || Object.entries(bs.deep).some(([pt, d]) => pt !== 'foot' && d > 0);
@@ -456,6 +495,7 @@
       handAirPct: rec.handT ? Math.round(rec.handAirT / rec.handT * 100) : null, handGapMedCm: gs.length ? gs[Math.floor(gs.length / 2)] : null,
       insideCm: +(rec.insideMax * 100).toFixed(1), insidePart: rec.insidePart, footInside: rec.footInside, minDistCm: isFinite(rec.minDist) ? +(rec.minDist * 100).toFixed(0) : null,
       cam: DBG.camOv, pcHit: rec0.pc, view: rec0.view,
+      truth: truthOf(J),
       // JUDGE (drawn body vs drawn rock) — the verdict numbers
       judge: {
         contact: J.contactT >= 0.3, contactS: +J.contactT.toFixed(2),
@@ -464,6 +504,7 @@
         penByPart: Object.fromEntries(Object.entries(J.deep).map(([pt, d]) => [pt, +(d * 100).toFixed(1)])),
         footPenCm: +((J.deep.foot || 0) * 100).toFixed(1), insideS: +J.insideT.toFixed(2),
         touchS: +J.touchT.toFixed(2), airS: +J.airT.toFixed(2), hangS: +J.hangT.toFixed(2), idleNearS: +J.idleMax.toFixed(2),
+        bodyContactErr: J.err || null,
         teleports: J.teleports, teleLog: J.tlog, jerks: J.jerks, snaps: J.snaps, clipsPerS: +(rec.clipChanges / secs).toFixed(2),
       },
     };

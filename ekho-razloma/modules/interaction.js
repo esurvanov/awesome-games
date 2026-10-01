@@ -591,7 +591,7 @@
   K.passport = true; K.passportOnly = true; K.steerSpeed = 1.4; K.steerTurn = 4.5; K.steerMax = 2.2;
   // ROCKS (Passport names rock*, st_rock*, boulder*) belong to modules/rock-brain.js: while it is on, this generic
   // contact path never acts on a rock (contactDecide / contactStep / contactUpdate below) — one owner, no competing rules.
-  const ROCK_RE = /^(st_)?(rock|boulder)/i;
+  const ROCK_RE = window.CORE ? window.CORE.surfaceRe : /^(st_)?(rock|boulder)/i;   // the family list lives in modules/contact-core.js
   const rockOwner = () => !!(window.ROCKBRAIN && window.ROCKBRAIN.K.on);
   // the physics tag of some scans carries only the Passport id, not the name: resolve the entry's own name
   const rockTag = (h) => {

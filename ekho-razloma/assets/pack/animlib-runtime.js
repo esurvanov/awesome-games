@@ -94,7 +94,14 @@
       rotateTo(b, pc.clone().sub(pb), pa.clone().add(dir.multiplyScalar(d)).sub(pb));
       // keep the end rotation (or press the palm onto the surface)
       let want = endWorldQ;
-      if (spec && spec.center) want = endWorldQ;   // measured palm: the clip's own hand rotation stays
+      // measured palm: the glove is rigid with the forearm and the finger bones hang on the hand bone — re-setting the hand's WORLD
+      // rotation to the pre-IK one while the forearm turned stretched the finger / glove triangles into a thin spike ("tail").
+      // The hand now keeps its rotation RELATIVE to the forearm (nothing is written to it), and the wrist is re-solved against
+      // the hand's new rotation (2 more passes) so the palm centre still lands on the surface point.
+      if (spec && spec.center) {
+        if (!this._it && weight >= 0.999) { this._it = 1; try { this.solve(target, weight, palmNormal, surf, inHand); this.solve(target, weight, palmNormal, surf, inHand); } finally { this._it = 0; } }
+        return;
+      }
       else if (palmNormal && this.isHand) {
         // UAL hand bones: the palm faces local +X (hand_l) / -X (hand_r) (measured from the T-pose bind)
         const pa = (!window.INTERACT_OFF && A.PALM[this.side]) || [this.side === '_l' ? 1 : -1, 0, 0];   // INTERACT_OFF: the pre-INTERACT axis (A/B)

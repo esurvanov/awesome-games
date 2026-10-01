@@ -566,6 +566,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="ai-content.js"></script>
 <script src="ai.js"></script>
 <script src="assets/pack/animlib-runtime.js"></script>
+<script src="modules/contact-core.js"></script>   <!-- CORE: one vocabulary of object families / affordances / body↔surface pairs (ARCH-CORE.md) -->
 <script src="modules/terrain.js"></script>
 <script src="modules/vegetation.js"></script>
 <script src="modules/atmosphere.js"></script>
@@ -3503,12 +3504,13 @@ function camCover(c, look) {
   }
   return Math.max(n1 / 15 / 0.2, n3 / 15 / 0.3);
 }
-function pilotRay(o, d, len) {   // the pilot's own body (vertical capsule r 0.35, 1.9 m) along a view ray
+function pilotRay(o, d, len) {   // the pilot's own body (vertical capsule, shoulder half-width × height from BodySpec; 0.35 × 1.9 until measured) along a view ray
   if (G.riding) return len;
   const px = player.x - o.x, pz = player.z - o.z, hl = d.x * d.x + d.z * d.z; if (hl < 1e-6) return len;
   const t = (px * d.x + pz * d.z) / hl; if (t < 0 || t > len) return len;
   const cx = px - d.x * t, cz = pz - d.z * t, y = o.y + d.y * t - player.y;
-  return cx * cx + cz * cz < 0.35 * 0.35 && y > 0 && y < 1.9 ? t : len;
+  const bs = window.BODYSPEC && BODYSPEC.ready ? BODYSPEC : null, br = bs && bs.shoulderHalf > 0.1 ? bs.shoulderHalf : 0.35, bh = bs && bs.capsule ? bs.capsule.height : 1.9;
+  return cx * cx + cz * cz < br * br && y > 0 && y < bh ? t : len;
 }
 function camAt(yaw, pitch, side, dist, out) {   // un-smoothed camera for a framing (look point = the damped one, shoulder moved)
   const cp = Math.cos(pitch), bx = Math.sin(yaw) * cp, by = Math.sin(pitch), bz = Math.cos(yaw) * cp, sh = 0.75 * side;
@@ -3680,10 +3682,31 @@ if (window.PhysReady) {
     Phys.init({ H, VN, CELL, W, seaLevel: 0, gravity: 22 });
     PH.P = Phys; PH.ok = true;
     Passport.attach(Phys);   // exact colliders for everything registered so far; later registrations attach immediately
-    // slim: next to a rock the body capsule narrows 0.4 → 0.26 m (a 1.9 m pilot's shoulder half-width): the chest meets the
-    // drawn face and a 0.6 m gap between two rocks is passable (physics.js createCharacter)
+    // slim: next to a rock the body capsule narrows 0.4 → ≤0.26 m so the chest meets the drawn face and a 0.6 m gap between two
+    // rocks is passable (physics.js createCharacter). The narrow radius is not one number: BodySpec gives the drawn chest front /
+    // back / shoulder distance from the capsule axis, physics takes the ellipse support toward the wall the rays find (frontal
+    // wall → chest depth, sideways wall → shoulders). Until BodySpec is ready (or if it fails) the literal 0.26 circle stays.
+    const SLIM = { r: 0.26, reach: 0.18, shape: null, facing: null, test: (t) => t.kind === 'solid' && (window.CORE ? window.CORE.isSurface(t) : /^(rock|boulder|st_rock)/i.test(String(t.name || ''))) };
     PH.ch = Phys.createCharacter({ x: player.x, y: player.y + 0.1, z: player.z, gravity: 28, jumpHeight: 1.97, unstickEvery: Q.unstickEvery ?? 1,
-      slim: /[?&]noslim\b/.test(location.search) ? null : { r: 0.26, test: (t) => t.kind === 'solid' && /^(rock|boulder|st_rock)/i.test(String(t.name || '')) } });
+      slim: /[?&]noslim\b/.test(location.search) ? null : SLIM });
+    if (window.BODYSPEC && BODYSPEC.whenReady && !/[?&]slimcircle\b/.test(location.search)) BODYSPEC.whenReady.then((B) => {
+      try {
+        const root = AV.player && AV.player.mixer && AV.player.mixer.getRoot(); let spine = null;
+        if (root) root.traverse((o) => { if (o.isBone && o.name.toLowerCase() === 'spine_02') spine = o; });
+        if (!B || !B.ready || !B.chest || !spine) return;
+        const q = new THREE.Quaternion(), f = new THREE.Vector3(), w = new THREE.Vector3();
+        const fwd = () => { root.getWorldQuaternion(q); return f.set(0, 0, 1).applyQuaternion(q); };   // character frame: +Z is forward (ANIMLIB)
+        root.updateMatrixWorld(true); spine.getWorldPosition(w); const fz = fwd();
+        const dz = (w.x - player.x) * fz.x + (w.z - player.z) * fz.z;                                     // spine axis ahead of the capsule axis (m)
+        const front = dz + (B.chest.zCenter || 0) + B.chest.halfD + 0.02, back = -(dz + (B.chest.zCenter || 0) - B.chest.halfD);
+        const side = (B.chest.halfW + (B.shoulderHalf || B.chest.halfW)) / 2;                              // between the torso side and the shoulder tip: the soft body passes a 0.6 m gap
+        if (!(front > 0.05 && back > 0.05 && side > 0.1)) return;
+        SLIM.shape = { front, back, side };
+        SLIM.reach = (B.arm && B.arm.upperR) || SLIM.reach;
+        SLIM.r = Math.max(0.2, Math.min(0.3, Math.max(front, back, side) + 0.02));                       // cap / fallback circle (was the literal 0.26)
+        SLIM.facing = () => { const d = fwd(); return [d.x, d.z]; };
+      } catch (e) { console.warn('slim from BodySpec failed, circle kept:', e && e.message); }
+    });
     PH.vh = Phys.createHoverVehicle({ x: sk.x, z: sk.z, yaw: sk.yaw, hoverHeight: 1.06 }); PH.vh.setEnabled(G.riding);
     if (G.riding) PH.ch.setEnabled(false);
     MANAGER.itemEnd('physics');

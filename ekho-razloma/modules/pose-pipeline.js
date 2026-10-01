@@ -29,7 +29,7 @@
  */
 (function () {
   let C = null;
-  const K = { on: !/[?&]nopose\b/.test(location.search) && !window.POSE_OFF, legs: true, lean: true, look: true, arms: true, springs: true, hands: true, palmSpec: true, audit: true, solve: true, fix: true, palmFix: true, armK: 0.4, legK: 0.45, torsoK: 0.9 };
+  const K = { on: !/[?&]nopose\b/.test(location.search) && !window.POSE_OFF, legs: true, lean: true, look: true, arms: true, springs: true, hands: true, palmSpec: true, audit: true, solve: true, fix: true, palmFix: true, bcEvery: 2, pull: true };
   if (window.POSE_K) Object.assign(K, window.POSE_K);   // tools: window.POSE_K = { fix: false, palmSpec: false … } before load (A/B runs)
   const SLOTS = ['pelvis', 'legs', 'spine', 'look', 'arms', 'springs', 'contact', 'hands'];
   const RANK = Object.fromEntries(SLOTS.map((s, i) => [s, i]));
@@ -37,7 +37,7 @@
   let Q = [], AFTER = [], failed = false, A = null, bones = null, snap = null, T3 = null;
   // the corrections the solver asks the writers for (they read it while they build the next frame's pose)
   const MOD = { back: { x: 0, z: 0 }, lean: 1, handUp: 0, palm: { l: 0, r: 0 } };
-  const TOL = 0.02, BACK_MAX = 0.09, LEAN_MIN = 0.25, HANDUP_MAX = 0.08, REJECT_S = 0.6;
+  const TOL = 0.01, BACK_MAX = 0.14, PULL_MAX = 0.22, PULL_GAP = 0.05, LEAN_MIN = 0.25, HANDUP_MAX = 0.08, REJECT_S = 0.6;
   const SOL = { on: false, n: 0, ms: 0, msMax: 0, depth: 0, part: null, gap: 9, dir: null, lvl: 0, rejT: 0, rejected: 0, adjusted: 0, byPart: {}, worst: {}, worstOwn: {}, palm: { l: null, r: null }, last: null, near: 0 };
   const HANDLERS = {};
   const emit = (name, data) => { for (const fn of HANDLERS[name] || []) { try { fn(data); } catch (e) { console.warn('[pose-pipeline] ' + name + ' handler', e); } } };
@@ -82,7 +82,7 @@
     // the measured limb radii include the puffy suit and the neighbouring torso vertices the fit hands to the nearest segment
     // (arm 0.17 / 0.15 m, thigh / shin 0.18 m): as volumes they sit 2-3x over the drawn limb. K.limbK scales them down to the
     // depth the drawn vertices reach (calibrated against tools/rockgallery's vertex test on the frozen lab)
-    const out = [], cap = (part, f, t, r) => { const k = part === 'arm' ? K.armK : part === 'leg' ? K.legK : K.torsoK; if (by[f] && by[t] && r > 0.01) out.push({ part, a: by[f], b: by[t], r: r * k }); };
+    const out = [], cap = (part, f, t, r) => { const k = 1; if (by[f] && by[t] && r > 0.01) out.push({ part, a: by[f], b: by[t], r: r * k }); };
     if (by.head && S.helmet) out.push({ part: 'head', a: by.head, off: new T3.Vector3(S.helmet.center[0], S.helmet.center[1], S.helmet.center[2]), r: S.helmet.r });
     if (S.chest) cap('torso', 'spine_02', 'neck_01', S.chest.r);
     if (S.pelvis) cap('torso', 'pelvis', 'spine_02', S.pelvis.r);
@@ -130,24 +130,26 @@
     SOL.near = rocks ? rocks.length : 0;
     if (!rocks) { SOL.depth = 0; SOL.gap = 9; SOL.part = null; SOL.byPart = {}; SOL.rejT = 0; SOL.lvl = 0; relaxMod(dt, 4); return; }
     _root = _root || A.mixer.getRoot(); _root.updateMatrixWorld(true);
-    const pa = _pa, pb = _pb, q = _pq, p = _pp, byPart = {};
-    let depth = 0, dpart = null, gap = 9, dx = 0, dz = 0;
-    for (const v of VOL) {
-      v.a.getWorldPosition(pa);
-      let n = 1;
-      if (v.b) { v.b.getWorldPosition(pb); n = Math.max(2, Math.ceil(pa.distanceTo(pb) / Math.max(v.r, 0.08)) + 1); }
-      else { v.a.getWorldQuaternion(q); pa.add(p.copy(v.off).applyQuaternion(q)); }
-      for (let i = 0; i < n; i++) {
-        if (v.b) p.copy(pa).lerp(pb, n > 1 ? i / (n - 1) : 0); else p.copy(pa);
-        const o = sdist(p, rocks); if (o.d > 0.9) continue;
-        const dep = o.inside ? v.r + o.d : v.r - o.d;   // > 0: the volume is inside
-        // the push-out direction (from the sample toward the way out of the rock); a mostly vertical one is a stance on a top / a seat: not counted
-        let ux = o.inside ? o.px - p.x : p.x - o.px, uy = o.inside ? o.py - p.y : p.y - o.py, uz = o.inside ? o.pz - p.z : p.z - o.pz;
-        const ul = Math.hypot(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
-        if (dep < -0.0 && !o.inside) { const gp = o.d - v.r; if (gp < gap) gap = gp; }
-        if (Math.abs(uy) > 0.7 && !o.inside) continue;
-        if (dep > (byPart[v.part] || 0)) byPart[v.part] = dep;
-        if (dep > depth) { depth = dep; dpart = v.part; const hl = Math.hypot(ux, uz) || 1; dx = ux / hl; dz = uz / hl; }
+    const pa = _pa, q = _pq, p = _pp;
+    let depth = 0, dpart = null, gap = 9, dx = 0, dz = 0, byPart = {}, cgap = 9, cx = 0, cz = 0;
+    // the REAL drawn suit against the drawn rock (BODYCONTACT: no shrunk volumes); every K.bcEvery-th frame, held in between
+    const BCm = window.BODYCONTACT;
+    if (own && BCm) {
+      if ((SOL.bcN = (SOL.bcN || 0) + 1) % K.bcEvery === 0 || !SOL.bc) SOL.bc = BCm.measure(rocks, { margin: 0.5 });
+      const R = SOL.bc, CO = window.CORE, plan = RB && RB.plan, pn = CO && plan ? CO.pairOf(plan.name) : null, PR = pn ? CO.PAIRS[pn] : null;
+      SOL.pair = pn;
+      if (R) {
+        // violations = how far a part sits inside the surface BEYOND what its pair allows (CORE.PAIRS clear / touch tolerances, cm)
+        for (const k in R.parts) {
+          const P = R.parts[k], kind = k.replace(/_[lr]$/, ''); if (P.minSignedCm == null || kind === 'boot') continue;
+          const allow = PR ? (PR.clear[kind] != null ? PR.clear[kind] : PR.touch[kind] != null ? PR.touch[kind] + 1 : 1.5) : 1;
+          const dep = (-P.minSignedCm - allow) / 100; if (dep > (byPart[kind] || 0)) byPart[kind] = dep;
+          if (dep > depth && P.vertex && P.point) { depth = dep; dpart = k; const ux = P.vertex[0] - P.point[0], uz = P.vertex[2] - P.point[2], hl = Math.hypot(ux, uz) || 1; dx = ux / hl; dz = uz / hl; }
+        }
+        // the part the pair draws toward the surface: its gap (cm → m) and the way out of the surface (horizontal)
+        const pt = PR && PR.pull ? R.kinds[PR.pull.part] : null;
+        if (pt && pt.minSignedCm != null && pt.vertex && pt.point) { cgap = pt.minSignedCm / 100 - PR.pull.gapCm / 100 + PULL_GAP; const ux = pt.vertex[0] - pt.point[0], uz = pt.vertex[2] - pt.point[2], hl = Math.hypot(ux, uz) || 1; cx = ux / hl; cz = uz / hl; }
+        gap = cgap;
       }
     }
     SOL.n++; SOL.depth = depth; SOL.part = dpart; SOL.gap = gap; SOL.byPart = byPart;
@@ -160,23 +162,29 @@
       const o = sdist(pa, rocks), d = o.d > 0.9 ? 9 : o.inside ? -o.d : o.d;
       SOL.palm[sd] = d;
       if (K.fix && K.palmFix && hands.includes('hand_' + (sd === 'l' ? 'l' : 'r'))) {
-        if (d > 0.02) MOD.palm[sd] = Math.max(-0.02, MOD.palm[sd] - Math.min(d - 0.01, 0.01));
-        else if (d < -0.01) MOD.palm[sd] = Math.min(0.08, MOD.palm[sd] + Math.min(-d, 0.02));
+        if (d > 0.01) MOD.palm[sd] = Math.max(-0.02, MOD.palm[sd] - Math.min(d - 0.005, 0.01));
+        else if (d < -0.005) MOD.palm[sd] = Math.min(0.08, MOD.palm[sd] + Math.min(-d, 0.02));
       }
     }
     // the compromise chain (only while rock-brain acts: a stride past a rock / a step-up / a climb are not reposed)
     let lvl = 0;
     if (!K.fix) { lvl = 0; } else if (own && depth > TOL) {
-      const ex = depth - TOL, bl = Math.hypot(MOD.back.x, MOD.back.z);
-      if (bl < BACK_MAX - 1e-3 && (dx || dz)) {
-        const add = Math.min(ex + 0.004, 0.04); let nx = MOD.back.x + dx * add, nz = MOD.back.z + dz * add; const nl = Math.hypot(nx, nz);
-        if (nl > BACK_MAX) { nx *= BACK_MAX / nl; nz *= BACK_MAX / nl; }
+      // the push-out room is measured ALONG the way out (a body that was drawn toward the surface has all the room to move back)
+      const ex = depth - TOL, along = MOD.back.x * dx + MOD.back.z * dz;
+      if (along < BACK_MAX - 1e-3 && (dx || dz)) {
+        const add = Math.min(ex + 0.004, 0.04, BACK_MAX - along); let nx = MOD.back.x + dx * add, nz = MOD.back.z + dz * add; const nl = Math.hypot(nx, nz);
+        if (nl > PULL_MAX) { nx *= PULL_MAX / nl; nz *= PULL_MAX / nl; }
         MOD.back.x = nx; MOD.back.z = nz; lvl = 1;
       } else if (MOD.lean > LEAN_MIN + 1e-3) { MOD.lean = Math.max(LEAN_MIN, MOD.lean - 0.12); lvl = 2; }
       else if (MOD.handUp < HANDUP_MAX - 1e-3) { MOD.handUp = Math.min(HANDUP_MAX, MOD.handUp + 0.012); lvl = 3; }
       else lvl = 4;
       SOL.adjusted++;
-    } else if (own && depth < 0.01 && gap > 0.03) relaxMod(dt, 0.8);
+    } else if (own && K.pull && depth <= TOL && cgap > PULL_GAP && cgap < 0.5 && (cx || cz)) {
+      // nothing inside and the chest hangs off the rock: slide the drawn body toward it (the missing direction of the chain)
+      const add = Math.min(cgap - PULL_GAP + 0.004, 0.006); let nx = MOD.back.x - cx * add, nz = MOD.back.z - cz * add; const nl = Math.hypot(nx, nz);
+      if (nl > PULL_MAX) { nx *= PULL_MAX / nl; nz *= PULL_MAX / nl; }
+      MOD.back.x = nx; MOD.back.z = nz; lvl = -1; SOL.pulled = (SOL.pulled || 0) + 1;
+    } else if (own && depth < 0.01 && gap > 0.03 && !K.pull) relaxMod(dt, 0.8);
     else if (!own) relaxMod(dt, 4);
     SOL.lvl = lvl;
     if (!K.fix) SOL.rejT = 0; else if (lvl === 4) SOL.rejT += dt; else if (depth <= TOL) SOL.rejT = 0;
@@ -188,7 +196,7 @@
   }
   // pelvis back: the drawn body slides horizontally on the feet (the wrap sits under the character group)
   function applyBack() {
-    const B = C.INTERACTION && C.INTERACTION.B; if (!B || !B.wrap || !B.wrap.parent) return;
+    const B = (C.interaction || window.INTERACTION) && (C.interaction || window.INTERACTION).B; if (!B || !B.wrap || !B.wrap.parent) return;
     if (!MOD.back.x && !MOD.back.z) return;
     B.wrap.parent.getWorldQuaternion(_pq).invert(); _pp.set(MOD.back.x, 0, MOD.back.z).applyQuaternion(_pq);
     const sc = B.wrap.parent.getWorldScale(_pa).x || 1;

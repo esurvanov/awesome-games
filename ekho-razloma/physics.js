@@ -342,20 +342,45 @@
       world.intersectionsWithShape(c, qId, new R.Capsule(Math.max(0.01, P.height / 2 - r), r), (other) => { const t = tags.get(other.handle); if (!t || (t.kind !== 'terrain' && t.kind !== 'ice')) { hit = true; return false; } return true; }, undefined, groups(G_ALL, G_STATIC | G_TRUNK | G_PROP), col);
       return hit;
     }
-    // a slim-able solid within reach of the base-radius body (chest / knee height, + 0.18 m)?
-    const slimProbe = slim ? new R.Ball(P.radiusBase + 0.18) : null;
+    // a slim-able solid within reach of the base-radius body (chest / knee height, + slim.reach, default 0.18 m)?
+    let slimProbe = slim ? new R.Ball(P.radiusBase + (slim.reach > 0 ? slim.reach : 0.18)) : null, slimReach = slim && slim.reach > 0 ? slim.reach : 0.18;
     function nearSlimSolid() {
       const c = col.translation(); let near = false;
+      if (slim.reach > 0 && Math.abs(slim.reach - slimReach) > 1e-4) { slimReach = slim.reach; slimProbe = new R.Ball(P.radiusBase + slimReach); }   // the caller set it from BodySpec after creation
       for (const dy of [-0.35, 0.35]) {
         world.intersectionsWithShape(v3(c.x, c.y + dy, c.z), qId, slimProbe, (other) => { const t = tags.get(other.handle); if (t && slim.test(t)) { near = true; return false; } return true; }, undefined, groups(G_ALL, G_STATIC), col);
         if (near) break;
       }
       return near;
     }
+    // the slim radius for the wall the body is next to. A circle cannot be flush with a wall in front (chest half-depth, ~0.1 m)
+    // AND with one at the side (shoulder half-width, ~0.27 m): with slim.shape = { front, back, side } (metres from the capsule
+    // axis to the drawn chest front / back / shoulder, BodySpec) and slim.facing() = [fx, fz] (where the drawn chest looks), the
+    // body is an ellipse and the radius is its support distance toward the nearest wall (ray fan at pelvis + chest height; the
+    // wall direction = minus the hit normal). Radius = support - skin, so the drawn chest/back/shoulder just meets the face.
+    // No wall found by the rays, or no shape/facing yet: slim.r (the conservative circle).
+    const SLIM_DIRS = []; for (let i = 0; i < 12; i++) SLIM_DIRS.push([Math.cos(i * Math.PI / 6), Math.sin(i * Math.PI / 6)]);
+    function slimRadius() {
+      const sh = slim.shape, fc = slim.facing && slim.facing();
+      if (!sh || !fc) return slim.r;
+      const c = col.translation(), len = P.radiusBase + (slim.reach > 0 ? slim.reach : 0.18) + 0.1;
+      let best = 1e9, nx = 0, nz = 0;
+      for (const dy of [0.0, 0.35]) for (const d of SLIM_DIRS) {
+        const hit = world.castRayAndGetNormal(new R.Ray(v3(c.x, c.y + dy, c.z), v3(d[0], 0, d[1])), len, true, undefined, groups(G_ALL, G_STATIC), col);
+        if (!hit || hit.timeOfImpact >= best) continue;
+        const t = tags.get(hit.collider.handle); if (!t || !slim.test(t)) continue;
+        const hl = Math.hypot(hit.normal.x, hit.normal.z); if (hl < 0.35) continue;   // floor / roof of a rock: not a wall
+        best = hit.timeOfImpact; nx = -hit.normal.x / hl; nz = -hit.normal.z / hl;    // body → wall
+      }
+      if (best > 1e8) return slim.r;
+      const fl = Math.hypot(fc[0], fc[1]) || 1, al = (nx * fc[0] + nz * fc[1]) / fl, la = (nx * -fc[1] + nz * fc[0]) / fl;   // along the facing / across it
+      const e = al >= 0 ? sh.front : sh.back, h = Math.hypot(e * al, sh.side * la);
+      return Math.max(0.06, Math.min(slim.r, h - P.skin));   // never wider than slim.r (the old circle: the shoulder-ish cap)
+    }
     function slimStep() {
       if (!slim || !s.enabled) return;
-      if ((s.slimN = ((s.slimN || 0) + 1) % 3) === 0) s.slimNear = nearSlimSolid();   // 3 frames ≈ 50 ms: cheap, still ahead of a run (0.6 m)
-      const want = s.slimNear ? slim.r : P.radiusBase;
+      if ((s.slimN = ((s.slimN || 0) + 1) % 3) === 0) { s.slimNear = nearSlimSolid(); s.slimWant = s.slimNear ? slimRadius() : P.radiusBase; }   // 3 frames ≈ 50 ms: cheap, still ahead of a run (0.6 m)
+      const want = s.slimNear ? (s.slimWant || slim.r) : P.radiusBase;
       if (want < P.radius - 1e-3) { applyRadius(want); out.slim = true; }        // narrowing never creates an overlap: at once
       else if (want > P.radius + 1e-3) {                                          // widening: 1.5 cm a frame, only into free space
         const r = Math.min(want, P.radius + 0.015);

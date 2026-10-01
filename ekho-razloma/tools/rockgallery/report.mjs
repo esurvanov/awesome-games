@@ -58,6 +58,10 @@ const lvl=(v,[g,a],inv)=>v==null?'n':v<=g?'g':v<=a?'a':'r';
 function checks(c){if(c.error)return[['r','⚠ '+c.error.slice(0,40)]];const o=[],j=c.judge;
  if(j){o.push([j.contact?'g':'a',j.contact?'🤝 '+j.contactS+'с':'🤝 нет']);
   o.push([lvl(j.penCm,TH.pen),'🧱 '+j.penCm+' см'+(j.penPart&&j.penCm>2?' '+({head:'шлем',torso:'корпус',arm:'рука',hand:'кисть',leg:'нога'}[j.penPart]||j.penPart):'')]);
+  const t=c.truth;if(t){o.push([lvl(Math.max(t.worstInsideCm||0,0),[1,3]),'📏 внутри '+t.worstInsideCm+' см'+(t.worstInsidePart&&t.worstInsideCm>1?' '+t.worstInsidePart:'')]);
+   if(t.palmGapMedCm!=null)o.push([t.palmGapMinCm<-1?'r':t.palmGapMedCm>3?'a':'g','🖐 ладонь '+t.palmGapMedCm+' см (мин '+t.palmGapMinCm+')']);
+   if(t.forearmGapMinCm!=null&&t.forearmGapMinCm<-1)o.push(['r','💪 предплечье '+t.forearmGapMinCm+' см']);
+   if(t.torsoGapMedCm!=null)o.push(['n','🫁 корпус '+t.torsoGapMedCm+' см'])}
   o.push([lvl(j.airS,TH.airS),'✋ в воздухе '+j.airS+'с']);
   o.push([lvl(j.idleNearS,TH.idle),'🧍 без контакта '+j.idleNearS+'с']);
   o.push([lvl(j.teleports+j.snaps,TH.jolts),'⚡ рывки '+(j.teleports+j.snaps)]);

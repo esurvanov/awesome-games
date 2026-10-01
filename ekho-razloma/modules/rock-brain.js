@@ -23,14 +23,15 @@
 (function () {
   let C = null, T3 = null;
   const K = {
-    on: true, radius: 4.2, restDelay: 0.9, hyst: 0.6, brakeRange: 3.4, touchSpeed: 2.4, steerSpeed: 1.5, steerTurn: 5, steerMax: 1.6,
-    maxMove: 1.0, maxTurn: 3.2, reachTol: 0.16, pitchMax: 0.3, walkTouch: true, climb: true, debug: false,
-    armFar: 0.7, pushClimb: 0.8, stepUp: 0.5, sitStill: 1.0, sitTurn: 1.75, walkTouchCool: 0.8, lookHold: 0.3,
+    on: true, radius: 4.2, restDelay: 0.9, hyst: 1.2, stick: 8, brakeRange: 3.4, touchSpeed: 2.4, steerSpeed: 1.5, steerTurn: 5, steerMax: 1.6,
+    maxMove: 1.0, maxTurn: 3.2, walkTouch: true, climb: true, debug: false,
+    pushClimb: 0.8, stepUp: 0.5, sitStill: 1.0, sitTurn: 1.75, walkTouchCool: 0.8, lookHold: 0.3,   // (reach / tolerances / clearances are NOT here: they come from the clip meta + BODYSPEC, see need())
+   
     physMove: !/[?&]nophysmove\b/.test(location.search), holdSpeed: 1.2, poseBan: 5,   // physMove: the stand spot is a GOAL for the controller (physics.js setGoal), never a position write (except the squeeze / step-up, whose controller is off)
   };
   const STATS = { frames: 0, scans: 0, reads: 0, rays: 0, fits: 0, choices: 0, starts: 0, switchRate: 0, holdFrames: 0, airFrames: 0, insideFrames: 0,
-    handGapCm: null, rejected: {}, acts: {}, climbs: 0, brakes: 0, walkTouchFrames: 0, ms: 0, msMax: 0, err: null };
-  const ROCK_RE = /^(st_)?(rock|boulder)/i;
+    handGapCm: null, derived: 0, audit: [], standOut: 0, rejected: {}, acts: {}, climbs: 0, brakes: 0, walkTouchFrames: 0, ms: 0, msMax: 0, err: null };
+  const ROCK_RE = window.CORE ? window.CORE.surfaceRe : /^(st_)?(rock|boulder)/i;   // the family list lives in modules/contact-core.js
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const wrapA = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
   const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
@@ -161,7 +162,7 @@
     for (let k = 0; k < DIRS; k++) {
       const a = k / DIRS * Math.PI * 2, dx = Math.sin(a), dz = Math.cos(a);
       if (sector && dx * sector.x + dz * sector.z < sector.cos) continue;
-      for (const hy of [1.15, 0.45, 0.22]) {   // 0.22: a knee-high seat / step is under the 0.45 ray
+      for (const hy of (bodyK() || LEGACY._body).scanHy) {   // chest.y0 / hip/2 / hip/4: a knee-high seat / step is under the middle ray
         const h = cast(P.x, P.y + hy, P.z, dx, 0, dz, reach); if (!h) continue;
         const nl = Math.hypot(h.normal.x, h.normal.z); if (nl < 0.4) continue;
         const nx = h.normal.x / nl, nz = h.normal.z / nl;
@@ -174,27 +175,155 @@
   }
 
   /* ---------------------------------------------------------------- vocabulary */
-  // needs, in the reading's own words:  face: contact height must be on the face · minW / maxRound: facade · tilt: [lo, hi]
-  // top: [lo, hi] top height above the ground · flat / deep: the top · body: clearance (m) the body needs from the face at
-  // the heights listed, measured from the stand spot along the face normal
+  // ACTS keeps only what the clip metadata cannot say: kind, intent preferences / costs, how the spine follows the face (pitchK /
+  // roll), flags (relax / trace / hands / narrowBonus), maxRound, deep, enterSpeed. Every NEED (facade width, tilt range, contact
+  // height / top range, body clearance at each height, seat height, gap, stand-spot tolerance, reach) is derived from the clip's
+  // meta (req, heightRange, approach.distance, surface) + BODYSPEC by need() at load time — one source of truth.
   const ACTS = {
-    lean_back:       { kind: 'wall', intents: { rest: 0.0 }, minW: 0.45, maxRound: 0.14, tilt: [-0.12, 0.45], topMin: 1.45, body: [[0.4, 0.06], [0.95, 0.07]], pitchK: 0.7, roll: 0 },
-    lean_shoulder_r: { kind: 'wall', intents: { rest: 0.18, touch: 0.25 }, minW: 0.25, maxRound: 9, tilt: [-0.2, 0.4], topMin: 1.55, body: [[0.4, 0.28], [0.95, 0.3]], pitchK: 0, roll: 0.08, narrowBonus: 0.2 , relax: true },
-    lean_shoulder_l: { kind: 'wall', intents: { rest: 0.18, touch: 0.25 }, minW: 0.25, maxRound: 9, tilt: [-0.2, 0.4], topMin: 1.55, body: [[0.4, 0.28], [0.95, 0.3]], pitchK: 0, roll: -0.08, narrowBonus: 0.2 , relax: true },
-    hand_wall_both:  { kind: 'wall', intents: { touch: 0.0, rest: 0.35 }, minW: 0.55, maxRound: 0.1, tilt: [-0.25, 0.8], topMin: 1.45, body: [[0.35, 0.2], [0.9, 0.16], [1.2, 0.2]], pitchK: -0.45, trace: true, hands: true },
-    hand_wall_r:     { kind: 'wall', intents: { touch: 0.12, rest: 0.45 }, minW: 0.15, maxRound: 9, tilt: [-0.25, 0.9], topMin: 1.45, body: [[0.35, 0.2], [0.9, 0.16], [1.2, 0.2]], pitchK: -0.4, trace: true, hands: true, narrowBonus: 0.12 , relax: true },
-    hand_wall_l:     { kind: 'wall', intents: { touch: 0.12, rest: 0.45 }, minW: 0.15, maxRound: 9, tilt: [-0.25, 0.9], topMin: 1.45, body: [[0.35, 0.2], [0.9, 0.16], [1.2, 0.2]], pitchK: -0.4, trace: true, hands: true, narrowBonus: 0.12 , relax: true },
-    lean_hands_ledge:{ kind: 'ledge', intents: { rest: 0.05, touch: 0.05 }, top: [0.6, 1.1], flat: true, deep: false, body: [[0.2, 0.18]], hands: true },
-    // a face that leans back like a ramp (tilt > ~25°): one palm braced on it, the lead foot up against its foot
-    brace_slope_r:   { kind: 'wall', intents: { touch: 0.15, rest: 0.3 }, minW: 0.2, maxRound: 9, tilt: [0.4, 1.25], topMin: 0.9, body: [[0.35, 0.02], [0.9, 0.1]], pitchK: 0, hands: true },
-    brace_slope_l:   { kind: 'wall', intents: { touch: 0.15, rest: 0.3 }, minW: 0.2, maxRound: 9, tilt: [0.4, 1.25], topMin: 0.9, body: [[0.35, 0.02], [0.9, 0.1]], pitchK: 0, hands: true },
-    // seats: the clip's own seat height ± what the pelvis offset (RK.dip, ≤ 6 cm) can make up; a top higher than the
-    // seat would put the pelvis inside the rock, so the band sits mostly below the seat height
-    sit_rock:        { kind: 'seat', intents: { rest: -0.05 }, top: [0.32, 0.49], seatH: 0.431, flat: true, deep: true, enterSpeed: 1.6 },
-    sit_rock_high:   { kind: 'seat', intents: { rest: -0.05 }, top: [0.51, 0.66], seatH: 0.601, flat: true, deep: true, enterSpeed: 1.6 },
-    squeeze_side:    { kind: 'gap', intents: { pass: 0 }, gap: [0.55, 1.0] },
+    lean_back:       { kind: 'wall', intents: { rest: 0.0 }, maxRound: 0.14, pitchK: 0.7, roll: 0 },
+    lean_shoulder_r: { kind: 'wall', intents: { rest: 0.18, touch: 0.25 }, maxRound: 9, pitchK: 0, roll: 0.08, narrowBonus: 0.2 , relax: true },
+    lean_shoulder_l: { kind: 'wall', intents: { rest: 0.18, touch: 0.25 }, maxRound: 9, pitchK: 0, roll: -0.08, narrowBonus: 0.2 , relax: true },
+    hand_wall_both:  { kind: 'wall', intents: { touch: 0.0, rest: 0.35 }, maxRound: 0.1, pitchK: -0.45, trace: true, hands: true },
+    hand_wall_r:     { kind: 'wall', intents: { touch: 0.12, rest: 0.45 }, maxRound: 9, pitchK: -0.4, trace: true, hands: true, narrowBonus: 0.12 , relax: true },
+    hand_wall_l:     { kind: 'wall', intents: { touch: 0.12, rest: 0.45 }, maxRound: 9, pitchK: -0.4, trace: true, hands: true, narrowBonus: 0.12 , relax: true },
+    lean_hands_ledge:{ kind: 'ledge', intents: { rest: 0.05, touch: 0.05 }, deep: false, hands: true },
+    // a face that leans back like a ramp: one palm braced on it, the lead foot up against its foot
+    brace_slope_r:   { kind: 'wall', intents: { touch: 0.15, rest: 0.3 }, maxRound: 9, pitchK: 0, hands: true },
+    brace_slope_l:   { kind: 'wall', intents: { touch: 0.15, rest: 0.3 }, maxRound: 9, pitchK: 0, hands: true },
+    sit_rock:        { kind: 'seat', intents: { rest: -0.05 }, deep: true, enterSpeed: 1.6 },
+    sit_rock_high:   { kind: 'seat', intents: { rest: -0.05 }, deep: true, enterSpeed: 1.6 },
+    squeeze_side:    { kind: 'gap', intents: { pass: 0 } },
     climb:           { kind: 'climb', intents: { climb: 0 }, top: [0.3, 2.1], flat: true, deep: true },
   };
+  // the hand-typed numbers of the previous wave: NOT read by the logic, only compared against the derived values (STATS.audit)
+  const LEGACY = {
+    lean_back:       { minW: 0.45, tilt: [-0.12, 0.45], topMin: 1.45, body: [[0.4, 0.06], [0.95, 0.07]] },
+    lean_shoulder_r: { minW: 0.25, tilt: [-0.2, 0.4], topMin: 1.55, body: [[0.4, 0.28], [0.95, 0.3]] },
+    lean_shoulder_l: { minW: 0.25, tilt: [-0.2, 0.4], topMin: 1.55, body: [[0.4, 0.28], [0.95, 0.3]] },
+    hand_wall_both:  { minW: 0.55, tilt: [-0.25, 0.8], topMin: 1.45, body: [[0.35, 0.2], [0.9, 0.16], [1.2, 0.2]], armFar: 0.7, reachTol: 0.16 },
+    hand_wall_r:     { minW: 0.15, tilt: [-0.25, 0.9], topMin: 1.45, body: [[0.35, 0.2], [0.9, 0.16], [1.2, 0.2]], armFar: 0.7, reachTol: 0.16 },
+    hand_wall_l:     { minW: 0.15, tilt: [-0.25, 0.9], topMin: 1.45, body: [[0.35, 0.2], [0.9, 0.16], [1.2, 0.2]], armFar: 0.7, reachTol: 0.16 },
+    lean_hands_ledge:{ top: [0.6, 1.1], body: [[0.2, 0.18]], armFar: 0.7, reachTol: 0.16 },
+    brace_slope_r:   { minW: 0.2, tilt: [0.4, 1.25], topMin: 0.9, body: [[0.35, 0.02], [0.9, 0.1]], armFar: 0.7, reachTol: 0.16 },
+    brace_slope_l:   { minW: 0.2, tilt: [0.4, 1.25], topMin: 0.9, body: [[0.35, 0.02], [0.9, 0.1]], armFar: 0.7, reachTol: 0.16 },
+    sit_rock:        { top: [0.32, 0.49], seatH: 0.431, dip: [-0.05, 0.11] },
+    sit_rock_high:   { top: [0.51, 0.66], seatH: 0.601, dip: [-0.05, 0.11] },
+    squeeze_side:    { gap: [0.55, 0.95] },
+    _body:           { standR: [0.22, 0.16], standHy: [0.5, 1.25], scanHy: [1.15, 0.45, 0.22], shoulderFallback: [0.19, 1.43], pathMargin: 0.3 },
+  };
+  const RIM = 0.1;   // a palm sits this far under the rim of a chest-high rock (hands on the top edge)
+
+  /* ---------------------------------------------------------------- needs: derived from the clip meta + BODYSPEC */
+  const BS = () => { const b = window.BODYSPEC; return b && b.ready ? b : null; };
+  const audit = (act, field, old, now) => {
+    const f = (v) => JSON.stringify(v, (k, x) => (typeof x === 'number' ? +x.toFixed(3) : x));
+    const a = f(old), b2 = f(now); if (a === b2) return;
+    let same = false; try { same = Array.isArray(old) ? old.length === now.length && old.every((v, i) => Array.isArray(v) ? v.every((w, j) => Math.abs(w - now[i][j]) < 0.0015) : Math.abs(v - now[i]) < 0.0015) : Math.abs(old - now) < 0.0015; } catch (e) { same = false; }
+    if (!same) { STATS.audit.push(act + '.' + field + ': ' + a + ' -> ' + b2); if (K.debug) console.log('rock-brain audit', act, field, a, '->', b2); }
+  };
+  // the support function of a body part along the horizontal direction u (character frame): an ellipse halfW x halfD, or a sphere
+  const supp = (hw, hd, ux, uz) => Math.hypot(hw * ux, hd * uz);
+  // where the clip puts a bone (character space, the clip's middle frame), sampled once on a copy of the rig
+  const BONE = {};
+  function boneOf(clip, bone) {
+    const key = clip + ':' + bone; if (BONE[key] !== undefined) return BONE[key];
+    BONE[key] = null;
+    try {
+      const A = AV(), root = A && A.contact && A.contact.root, act = A && A.acts[clip], SU = T3.SkeletonUtils; if (!root || !act || !SU) return null;
+      const c2 = SU.clone(root), m2 = new T3.AnimationMixer(c2), a2 = m2.clipAction(act.getClip()); a2.play(); m2.setTime(act.getClip().duration * 0.5);
+      c2.position.set(0, 0, 0); c2.rotation.set(0, 0, 0); c2.scale.set(1, 1, 1); c2.updateMatrixWorld(true);
+      const b = c2.getObjectByName(bone); if (b) { const v = b.getWorldPosition(new T3.Vector3()); BONE[key] = { p: [v.x, v.y, v.z], q: b.getWorldQuaternion(new T3.Quaternion()) }; }
+      m2.stopAllAction();
+    } catch (e) { BONE[key] = null; }
+    return BONE[key];
+  }
+  const NEED = {};   // action name -> derived needs (null: cannot be derived yet — no meta / BODYSPEC not measured)
+  // body volumes along the direction of the rock, as the clip holds them: [[height, clearance]] — the face must be at least
+  // `clearance` away from the stand spot (along the face normal) at that height, or the volume is inside the rock
+  function bodyNeeds(clip, face, bs) {
+    const fl = Math.hypot(face[0], face[1]) || 1, u = [face[0] / fl, face[1] / fl], parts = [], out = [];
+    if (bs.pelvis) parts.push({ bone: 'pelvis', hw: bs.pelvis.halfW, hd: bs.pelvis.halfD, zc: 0 });
+    if (bs.chest) { parts.push({ bone: 'spine_02', hw: bs.chest.halfW, hd: bs.chest.halfD, zc: bs.chest.zCenter || 0 }); parts.push({ bone: 'spine_03', hw: bs.chest.halfW, hd: bs.chest.halfD, zc: bs.chest.zCenter || 0 }); }
+    if (bs.helmet) parts.push({ bone: 'head', sphere: bs.helmet.r, c: bs.helmet.center });
+    parts.push({ bone: 'calf_l', hw: bs.leg.thighR, hd: bs.leg.thighR, zc: 0 }); parts.push({ bone: 'calf_r', hw: bs.leg.thighR, hd: bs.leg.thighR, zc: 0 });   // the knees
+    for (const pt of parts) {
+      const b = boneOf(clip, pt.bone); if (!b) continue;
+      let px = b.p[0], pz = b.p[2], ext;
+      if (pt.sphere) { const c = new T3.Vector3(pt.c[0], pt.c[1], pt.c[2]).applyQuaternion(b.q); px += c.x; pz += c.z; ext = px * u[0] + pz * u[1] + pt.sphere; out.push([b.p[1] + c.y, ext]); continue; }
+      pz += pt.zc; ext = px * u[0] + pz * u[1] + supp(pt.hw, pt.hd, u[0], u[1]); out.push([b.p[1], ext]);
+    }
+    return out.map(([h, e]) => [+h.toFixed(3), +Math.max(0, e).toFixed(3)]);
+  }
+  // the width of the glove across the fingers (BODYSPEC palm: glove box in the hand frame, across = fingerAxis x normal)
+  function palmWidth(bs, side) {
+    const p = bs.palm && bs.palm[side]; if (!p || !p.gloveBox || !p.fingerAxis || !p.normal) return 2 * bs.arm.foreR;
+    const f = p.fingerAxis, n = p.normal, cr = [f[1] * n[2] - f[2] * n[1], f[2] * n[0] - f[0] * n[2], f[0] * n[1] - f[1] * n[0]];
+    let i = 0; for (let k = 1; k < 3; k++) if (Math.abs(cr[k]) > Math.abs(cr[i])) i = k;
+    return p.gloveBox[1][i] - p.gloveBox[0][i];
+  }
+  // one action's needs, all from the clip meta (req / heightRange / approach.distance / surface) and BODYSPEC
+  function need(name) {
+    if (NEED[name] !== undefined) return NEED[name];
+    const A = ACTS[name], sp = A && spec(name), bs = BS(), meta = C.AV && C.AV.player && C.AV.player.contactMeta;
+    if (!A || !sp || !bs || !meta) return null;   // not cached: tried again once the meta / BODYSPEC are there
+    const m = meta.clips[sp.clip], rq = m.req || {}, st = rq.stretch || {}, N = { name, h: rq.h || null, contactTol: st.contact !== undefined ? st.contact : 0.15, spineTol: st.spine !== undefined ? st.spine : 0.2 };
+    const hc = sp.contacts.filter((c) => /^hand/.test(c.bone) && c.hold !== false), pc = sp.contacts[0];
+    // stand spot tolerance: the arm / the pose absorbs only what the clip's own approach range allows (near: closer than the ideal, far: further)
+    const ap = sp.contacts.filter((c) => c.approach && c.approach.distance && /^hand|^upperarm|^spine|^pelvis/.test(c.bone)).map((c) => c.approach.distance);
+    N.near = ap.length ? Math.min(...ap.map((d) => d[1] - d[0])) : 0.05; N.far = ap.length ? Math.min(...ap.map((d) => d[2] - d[1])) : 0.05;
+    N.lat = N.contactTol;
+    if (A.kind === 'wall') {
+      const tl = rq.tilt || [-0.15, 0.3];
+      // the face tilt the clip covers, plus what the spine may tilt on top (stretch.spine): the spine follows the face by pitchK, so a
+      // spine tilt of spineTol absorbs spineTol / |pitchK| of extra face tilt (no spine follow → no widening)
+      const ex = A.pitchK ? N.spineTol / Math.abs(A.pitchK) : 0; N.tilt = [tl[0] - ex, tl[1] + ex];
+      // facade width the contact needs: the clip's own (req.width), else the body part that leans / touches (BODYSPEC)
+      N.minW = rq.width !== undefined ? rq.width : /^hand/.test(pc.bone) ? palmWidth(bs, pc.bone === 'hand_l' ? 'l' : 'r') : /^upperarm/.test(pc.bone) ? 2 * bs.arm.upperR : 2 * (bs.chest ? bs.chest.halfW : 0.2);
+      // contact height range over the stand ground (req.h) and the lowest top that still holds the contact patch
+      const ch = sp.h; N.topMin = A.hands ? (rq.h ? rq.h[0] : ch) + RIM : ch + (/^upperarm/.test(pc.bone) ? bs.arm.upperR : (bs.chest ? bs.chest.halfW : 0.15));
+    } else if (A.kind === 'ledge' || A.kind === 'seat') {
+      N.top = rq.h ? rq.h.slice() : null; N.flat = !!rq.flat;
+      if (A.kind === 'seat') { N.seatH = sp.h; N.dip = N.top ? [sp.h - N.top[1], sp.h - N.top[0]] : [-0.05, 0.06]; }   // dip > 0: the top is lower than the clip's seat → lower the body
+    } else if (A.kind === 'gap') {
+      N.gap = rq.gap ? rq.gap.slice() : [0.6, 1.0];
+    }
+    // body: clearance along the rock direction at the height of each body volume, as the clip holds it
+    if (A.kind === 'wall' || A.kind === 'ledge') { const fc = pc.approach && pc.approach.facing ? [pc.approach.facing[0], pc.approach.facing[2]] : [-sp.nL[0], -sp.nL[1]]; N.body = bodyNeeds(sp.clip, fc, bs); }   // facing = the direction of the rock in the clip's frame
+    // arm reach: what the clip itself reaches from its shoulder, plus the stretch the clip allows, never beyond the measured arm
+    N.reach = {};
+    for (const c of hc) {
+      const so = shoulderOf(sp.clip, c.bone === 'hand_l' ? 'upperarm_l' : 'upperarm_r'), p = c.surface.point, pl = bs.palm && bs.palm[c.bone === 'hand_l' ? 'l' : 'r'];
+      const anat = bs.arm.reach + (pl ? pl.wristToPalm : bs.arm.hand * 0.6);
+      const own = so ? Math.hypot(p[0] - so[0], p[1] - so[1], p[2] - so[2]) : 0;
+      N.reach[c.bone] = so ? Math.min(own + N.contactTol, anat) : anat;
+      N.reach[c.bone + ':own'] = own; N.reach[c.bone + ':anat'] = anat;
+    }
+    NEED[name] = N; STATS.derived++;
+    const L = LEGACY[name] || LEGACY[name.replace(/_[lr]$/, '')];
+    if (L) {
+      for (const k of ['minW', 'tilt', 'topMin', 'top', 'seatH', 'gap']) if (L[k] !== undefined && N[k] !== undefined && N[k] !== null) audit(name, k, L[k], N[k]);
+      if (L.body && N.body) audit(name, 'body', L.body, N.body);
+      if (L.dip && N.dip) audit(name, 'dip', L.dip, N.dip);
+      if (L.armFar !== undefined) for (const b in N.reach) if (!b.includes(':')) audit(name, 'armFar[' + b + ']', L.armFar, N.reach[b]);
+      if (L.reachTol !== undefined && hc.length) audit(name, 'reachTol', L.reachTol, N.contactTol);
+    }
+    audit(name, 'standTol(near,far,lat)', [0.3, 0.3, 0.3], [N.near, N.far, N.lat]);   // the old acceptance: anywhere within 0.3 m (settleHere) of the plan
+    return N;
+  }
+  // body-wide numbers (stand-spot free radius, probe heights): BODYSPEC, with the old literal only while it is not measured
+  function bodyK() {
+    const bs = BS(); if (!bs) return null;
+    if (K._body && K._bodyFor === bs) return K._body;
+    const hip = bs.leg.hipHeight, chestMid = bs.chest ? (bs.chest.y0 + bs.chest.y1) / 2 : 1.25;
+    const B = { standR: bs.capsule.radius, standHy: [hip * 0.5, chestMid], scanHy: [bs.chest ? bs.chest.y0 : 1.15, hip * 0.5, hip * 0.25], pathMargin: bs.capsule.radius,
+      shoulder: [bs.shoulderHalf - bs.arm.upperR, bs.chest ? bs.chest.y1 : 1.43] };   // the shoulder JOINT: outer half-width minus the arm radius
+    K._body = B; K._bodyFor = bs;
+    audit('body', 'standR(lean_back,other)', LEGACY._body.standR, [B.standR, B.standR]); audit('body', 'standHy', LEGACY._body.standHy, B.standHy); audit('body', 'scanHy', LEGACY._body.scanHy, B.scanHy);
+    audit('body', 'pathMargin', LEGACY._body.pathMargin, B.pathMargin); audit('body', 'shoulderFallback', LEGACY._body.shoulderFallback, B.shoulder);
+    return B;
+  }
+  // BODYSPEC may still be measuring: the derived needs are dropped and re-derived when it is there
+  const bsWait = () => { const b = window.BODYSPEC; if (b && b.whenReady && !b.ready && !K._bsHook) { K._bsHook = true; b.whenReady.then(() => { for (const k in NEED) delete NEED[k]; for (const k in BONE) delete BONE[k]; K._body = null; RC.clear(); }); } };
   // clip facts from the contact metadata (character space: +Z forward, +X left; point = the contact, averaged over hands)
   const SPEC = {};
   function spec(name) {
@@ -216,7 +345,8 @@
   /* ---------------------------------------------------------------- fitting (the whole body) */
   // is the spot free for the body: nothing within `clr` at knee / chest height except the face the action uses
   function standFree(x, y, z, nx, nz, e, clr) {
-    for (const hy of [0.5, 1.25]) for (let k = 0; k < 8; k++) {
+    const BK = bodyK() || LEGACY._body; if (clr === undefined) clr = BK.standR;
+    for (const hy of BK.standHy) for (let k = 0; k < 8; k++) {
       const a = k * Math.PI / 4, dx = Math.sin(a), dz = Math.cos(a);
       if (-(dx * nx + dz * nz) > 0.55) continue;   // toward the face in use
       const h = cast(x, y + hy, z, dx, 0, dz, clr); if (h) return false;
@@ -230,7 +360,7 @@
   function pathFree(P, x, z, e) {
     const dx = x - P.x, dz = z - P.z, d = Math.hypot(dx, dz); if (d < 0.06) return true;
     const h = cast(P.x, P.y + 0.6, P.z, dx / d, 0, dz / d, d);
-    return !h || h.distance > d - 0.3;
+    return !h || h.distance > d - (bodyK() || LEGACY._body).pathMargin;
   }
   const yawFor = (nx, nz, nL) => wrapA(Math.atan2(nx, nz) - Math.atan2(-nL[0], -nL[1]));
   const axes = (yaw) => ({ fx: -Math.sin(yaw), fz: -Math.cos(yaw), lx: -Math.cos(yaw), lz: Math.sin(yaw) });
@@ -240,11 +370,12 @@
     const A = ACTS[name], sp = name === 'climb' ? null : spec(name); if (!A || (name !== 'climb' && !sp)) return null;
     STATS.fits++;
     const pref = A.intents[intent]; if (pref === undefined) return null;
+    bsWait(); const N = A.kind === 'climb' ? null : need(name); if (A.kind !== 'climb' && !N) return rej(name + ':wait');   // BODYSPEC / meta not there yet
     // the pose solver rejected this action on this rock a moment ago (the body would sit inside it): not the same one again here
     if (S.ban && C.T < S.ban.until && S.ban.name === name && S.ban.e === r.e && Math.hypot(P.x - S.ban.x, P.z - S.ban.z) < 0.9) return rej(name + ':poseBan');
     const narrow = r.width < 0.45 || r.round > 0.12, RX = RELAX && A.relax;   // RELAX: the second pass for a pilot standing at a face that no strict fit served
     if (A.kind === 'wall') {
-      if (!RX && r.width < A.minW) return rej(name + ':narrow'); if (!RX && r.round > A.maxRound) return rej(name + ':round');
+      if (!RX && r.width < N.minW) return rej(name + ':narrow'); if (!RX && r.round > A.maxRound) return rej(name + ':round');
       const yaw = yawFor(r.nx, r.nz, sp.nL), X = axes(yaw);
       let hdy = 0;
       if (A.hands && r.topPt && r.topH > 0.85 && sp.h > r.topH - 0.1 && sp.h - (r.topH - 0.1) <= 0.3) hdy = (r.topH - 0.1) - sp.h;
@@ -255,43 +386,47 @@
       if (g.ny < 0.8) return rej(name + ':steep'); if (g.on === r.e) return rej(name + ':onRock'); if (Math.abs(g.y - P.y) > 0.5) return rej(name + ':level');
       // the face at the contact itself: it goes on above it (not a crest) and leans the way the action allows
       const ch = sp.h + hdy + (g.y - r.g), above = fdAt(r, ch + 0.2), below = fdAt(r, ch - 0.2);
+      // the contact height must stay inside what the clip covers (req.h over the stand ground); a top too low for the contact patch is not a wall
+      if (!RX && N.h && (ch - (g.y - r.g) < N.h[0] - 1e-3 || ch - (g.y - r.g) > N.h[1] + 1e-3)) return rej(name + ':height');
+      if (!RX && !r.tall && r.topH - (g.y - r.g) < N.topMin) return rej(name + ':topLow');
       // palms may sit just under the rim of a chest-high rock (the top is right above them); a back / shoulder needs the face to go on
       const underRim = A.hands && r.topPt && r.topH >= ch + 0.05 && r.topH - ch <= 0.3;
       if (!underRim && (above === null || above - q.d > (A.hands ? (RX ? 0.9 : 0.5) : (RX ? 0.45 : 0.3)))) return rej(name + ':crest');   // palms press onto a dome's side; a back / shoulder needs the face to go on
       const tl = above === null ? (below !== null ? Math.atan2(q.d - below, 0.2) : 0) : below !== null ? Math.atan2(above - below, 0.4) : Math.atan2(above - q.d, 0.2);
-      if (tl < A.tilt[0] - (RX ? 0.3 : 0) || tl > A.tilt[1] + (RX ? 0.3 : 0)) return rej(name + ':tilt');
+      if (tl < N.tilt[0] - (RX ? 0.3 : 0) || tl > N.tilt[1] + (RX ? 0.3 : 0)) return rej(name + ':tilt');
       // the body at every height: the face there must leave the room the body needs (stand → face along the normal)
       const D = (sx - q.x) * r.nx + (sz - q.z) * r.nz, dh = g.y - r.g;
-      for (const [h, need] of A.body) { const f = fdAt(r, h + dh); if (f !== null && D + (f - q.d) < need * (RX ? 0.7 : 1)) return rej(name + ':body'); }
+      for (const [h, need] of N.body) { const f = fdAt(r, h + dh); if (f !== null && D + (f - q.d) < need * (RX ? 0.7 : 1)) return rej(name + ':body'); }
       // placement contacts (back / shoulder: no IK) need the face right there, not falling away just above / below
       if (!A.hands) for (const h of [sp.h - 0.25, sp.h + 0.2]) { const f = fdAt(r, h + dh); if (f === null || f - q.d > (RX ? 0.2 : 0.12)) return rej(name + ':falls'); }
-      const pitch = clamp(tl * (A.pitchK || 0), -K.pitchMax, K.pitchMax); if (Math.abs(tl * (A.pitchK || 0)) > K.pitchMax + 0.15) return rej(name + ':pitch');
-      const pl = { name, intent, e: r.e, r, yaw, sx, sy: g.y, sz, n: { x: r.nx, z: r.nz }, pitch: clamp(pitch + hdy * 0.25, -K.pitchMax, K.pitchMax), roll: A.roll || 0, dip: 0, sp, hdy, point: { x: q.x, y: q.y, z: q.z } };
+      const pitch = clamp(tl * (A.pitchK || 0), -N.spineTol, N.spineTol); if (Math.abs(tl * (A.pitchK || 0)) > N.spineTol + 1e-6) return rej(name + ':pitch');   // the spine follows the face by at most req.stretch.spine
+      const pl = { name, intent, e: r.e, r, yaw, sx, sy: g.y, sz, n: { x: r.nx, z: r.nz }, pitch: clamp(pitch + hdy * 0.25, -N.spineTol, N.spineTol), roll: A.roll || 0, dip: 0, sp, N, hdy, point: { x: q.x, y: q.y, z: q.z } };
+      pl.s0 = { x: sx, z: sz };
       if (A.hands) { pl.targets = handTargets(pl, sp, r); if (!pl.targets) return rej(name + ':reach'); } else pl.targets = {};
       return score(pl, P, pref - (narrow && A.narrowBonus ? A.narrowBonus : 0), intent);
     }
     if (A.kind === 'ledge') {
-      if (!r.topPt || !r.topFlat || r.topH < A.top[0] || r.topH > A.top[1]) return rej(name + ':top');
+      if (!r.topPt || (N.flat && !r.topFlat) || r.topH < N.top[0] || r.topH > N.top[1]) return rej(name + ':top');
       const yaw = Math.atan2(r.nx, r.nz), X = axes(yaw), rim = faceAt(r, Math.max(0.15, r.topH - 0.12)) || faceAt(r, 0.15); if (!rim) return rej(name + ':rim');
       const back = sp.fwd - 0.12, sx = rim.x + r.nx * back - X.lx * sp.lat, sz = rim.z + r.nz * back - X.lz * sp.lat, g = ground(sx, sz, P.y);
       if (g.ny < 0.8 || g.on === r.e || Math.abs(g.y - P.y) > 0.45) return rej(name + ':ground');
-      const D = (sx - rim.x) * r.nx + (sz - rim.z) * r.nz; for (const [h, need] of A.body) { const f = fdAt(r, h); if (f !== null && D + (f - rim.d) < need) return rej(name + ':body'); }
-      const pl = { name, intent, e: r.e, r, yaw, sx, sy: g.y, sz, n: { x: r.nx, z: r.nz }, pitch: 0, roll: 0, dip: clamp((0.62 - (r.topY - g.y)) * 0.5, 0, 0.1), sp, point: { x: rim.x, y: r.topY, z: rim.z } };
+      const D = (sx - rim.x) * r.nx + (sz - rim.z) * r.nz; for (const [h, need] of N.body) { const f = fdAt(r, h); if (f !== null && D + (f - rim.d) < need) return rej(name + ':body'); }
+      const pl = { name, intent, e: r.e, r, yaw, sx, sy: g.y, sz, n: { x: r.nx, z: r.nz }, pitch: 0, roll: 0, dip: clamp((0.62 - (r.topY - g.y)) * 0.5, 0, 0.1), sp, N, s0: { x: sx, z: sz }, point: { x: rim.x, y: r.topY, z: rim.z } };
       pl.targets = handTargets(pl, sp, r); if (!pl.targets) return rej(name + ':reach');
       return score(pl, P, pref, intent);
     }
     if (A.kind === 'seat') {
-      if (!r.topPt || !r.topSeat || r.topH < A.top[0] || r.topH > A.top[1]) return rej(name + ':top');
+      if (!r.topPt || !r.topSeat || r.topH < N.top[0] || r.topH > N.top[1]) return rej(name + ':top');
       const yaw = Math.atan2(-r.nx, -r.nz), rim = faceAt(r, Math.max(0.15, r.topH - 0.1)); if (!rim) return rej(name + ':rim');
       // the feet stand the clip's own approach distance in front of the seat's front edge (the rim), facing away
       const c0 = sp.contacts[0], off = c0 && c0.approach && c0.approach.distance ? c0.approach.distance[1] : 0.07;
       const sx = rim.x + r.nx * off, sz = rim.z + r.nz * off, g = ground(sx, sz, P.y);
       if (g.ny < 0.8 || g.on === r.e || Math.abs(g.y - P.y) > 0.45) return rej(name + ':ground');
-      const topRel = r.topY - g.y, dip = A.seatH - topRel;   // > 0: the top is lower than the clip's seat → lower the body
-      if (dip < -0.05 || dip > 0.11) return rej(name + ':seatH');   // lower: the boots sink into the snow skin (≤ 11 cm)
+      const topRel = r.topY - g.y, dip = N.seatH - topRel;   // > 0: the top is lower than the clip's seat → lower the body
+      if (dip < N.dip[0] || dip > N.dip[1]) return rej(name + ':seatH');   // the seat height the clip covers (req.h) is all the pelvis offset may make up
       // only when the pilot already stands with its back or side to the rock (sitting down is not a U-turn)
       if (Math.abs(wrapA(yaw - P.face)) > K.sitTurn) return rej(name + ':facing');
-      const pl = { name, intent, e: r.e, r, yaw, sx, sy: g.y, sz, n: { x: r.nx, z: r.nz }, pitch: 0, roll: 0, dip: Math.max(0, dip), sp, targets: {}, point: { x: rim.x, y: r.topY, z: rim.z } };
+      const pl = { name, intent, e: r.e, r, yaw, sx, sy: g.y, sz, n: { x: r.nx, z: r.nz }, pitch: 0, roll: 0, dip: Math.max(0, dip), sp, N, s0: { x: sx, z: sz }, targets: {}, point: { x: rim.x, y: r.topY, z: rim.z } };
       return score(pl, P, pref, intent);
     }
     if (A.kind === 'climb') return fitClimb(r, P, P.y);
@@ -312,7 +447,7 @@
     return SHO[key];
   }
   function handTargets(pl, sp, r) {
-    const out = {}, X = axes(pl.yaw);
+    const out = {}, X = axes(pl.yaw), N = pl.N || need(pl.name); if (!N) return null;
     for (const c of sp.contacts) {
       if (!/^hand/.test(c.bone) || c.hold === false) continue;
       const p = c.surface.point, wx = pl.sx + X.lx * p[0] + X.fx * p[2], wz = pl.sz + X.lz * p[0] + X.fz * p[2], wy = pl.sy + p[1] + (pl.hdy || 0);
@@ -322,23 +457,28 @@
         if (!h || h.normal.y < 0.6 || Math.abs(h.point.y - wy) > 0.2) return null;
       } else {
         h = cast(wx + r.nx * 0.35, wy, wz + r.nz * 0.35, -r.nx, 0, -r.nz, 0.35 + 0.6, r.e);
-        if (!h || Math.abs(h.distance - 0.35) > K.reachTol || Math.abs(h.normal.y) > 0.8) return null;
+        if (!h || Math.abs(h.distance - 0.35) > N.contactTol || Math.abs(h.normal.y) > 0.8) return null;   // the face at the palm may differ from the clip's plane only by what the clip's contact may stretch (req.stretch.contact)
       }
-      // the arm must reach it from where the shoulder will be (measured on the rig: ≤ 0.58 m the IK lands it, 0.64 m leaves
-      // 5 cm, 0.7 m 9 cm): up to K.armFar the hold steps the body in (reachClose), beyond it the action is not taken
-      const so = shoulderOf(sp.clip, c.bone === 'hand_l' ? 'upperarm_l' : 'upperarm_r'), sl = so ? so[0] : (c.bone === 'hand_l' ? 0.19 : -0.19), sy = so ? so[1] : 1.43, sf = so ? so[2] : 0.04;
+      // the arm must reach it from where the shoulder will be: at most what the clip itself reaches from its shoulder plus the
+      // contact stretch the clip allows, and never more than the measured arm (BODYSPEC arm.reach + palm) — beyond it the
+      // action is not taken (measured on the rig: ≤ 0.58 m the IK lands the palm, 0.64 m leaves 5 cm, 0.7 m 9 cm)
+      const BK = bodyK() || LEGACY._body, shF = BK.shoulder || BK.shoulderFallback || LEGACY._body.shoulderFallback;
+      const so = shoulderOf(sp.clip, c.bone === 'hand_l' ? 'upperarm_l' : 'upperarm_r'), sl = so ? so[0] : (c.bone === 'hand_l' ? shF[0] : -shF[0]), sy = so ? so[1] : shF[1], sf = so ? so[2] : 0.04;
       const shx = pl.sx + X.lx * sl + X.fx * sf, shz = pl.sz + X.lz * sl + X.fz * sf, shy = pl.sy + sy - (pl.dip || 0) + (pl.hdy || 0) * 0.5;
-      const reach = Math.hypot(h.point.x - shx, h.point.y - shy, h.point.z - shz); if (reach > K.armFar) { rej('arm:far'); return null; }
+      const reach = Math.hypot(h.point.x - shx, h.point.y - shy, h.point.z - shz); if (reach > N.reach[c.bone]) { rej('arm:far'); return null; }
       out[c.bone] = { point: h.point.clone(), normal: h.normal.clone().normalize() };
     }
     return out;
   }
   function score(pl, P, pref, intent) {
-    if (!standFree(pl.sx, pl.sy, pl.sz, pl.n.x, pl.n.z, pl.e, pl.name === 'lean_back' ? 0.16 : 0.22)) return rej(pl.name + ':cramped');
+    if (!standFree(pl.sx, pl.sy, pl.sz, pl.n.x, pl.n.z, pl.e)) return rej(pl.name + ':cramped');
     if (!pathFree(P, pl.sx, pl.sz, pl.e)) return rej(pl.name + ':path');
     pl.move = Math.hypot(pl.sx - P.x, pl.sz - P.z); pl.turn = Math.abs(wrapA(pl.yaw - P.face));
     if (pl.move > K.maxMove) return rej(pl.name + ':far'); if (pl.turn > K.maxTurn) return rej(pl.name + ':turn');
     pl.cost = pl.move * 1.2 + pl.turn * (intent === 'rest' ? 0.1 : 0.35) + pref + Math.abs(pl.pitch) * 0.8;
+    // one rock face = one continuing action: right after an action ended here, the same action stays cheaper and a different one costs
+    // more for K.stick s (hand_wall_r → both → l → shoulder on the same wall in 4 s read as jumping about)
+    const LA = S.lastAct; if (LA && C.T < LA.until && LA.e === pl.e && Math.hypot(pl.sx - LA.x, pl.sz - LA.z) < 1.3) pl.cost += pl.name === LA.name ? -0.6 : (ACTS[pl.name] && ACTS[LA.name] && ACTS[pl.name].kind === ACTS[LA.name].kind && ACTS[pl.name].hands === ACTS[LA.name].hands ? 0.8 : 1.6);
     return pl;
   }
   // a climb: a flat, deep, open top 0.45–2.1 m above the feet, straight in along the face
@@ -436,6 +576,7 @@
       if (push && !i.on && C.PH && C.PH.ok && pl.n) C.PH.ch.setVelocity(pl.n.x * 1.1, 0, pl.n.z * 1.1);   // push off the face
       const A = AV(); if (A) { A.lock = 0; if (pl.sp && pl.sp.exit) play(pl.sp.exit, true, 0.15); }
     }
+    if (S.plan && S.plan.e) S.lastAct = { name: S.plan.name, e: S.plan.e, x: S.plan.sx, z: S.plan.sz, until: C.T + K.stick };
     S.state = S.plan ? 'release' : 'free'; S.t = 0; S.plan = null; S.phase = null; S.lastEnd = C.T; S.intoT = 0; S.awayT = 0;
     void P;
   }
@@ -549,10 +690,11 @@
     if (S.t > K.steerMax) { end(false); return; }
     const dx = pl.sx - P.x, dz = pl.sz - P.z, d = Math.hypot(dx, dz), dy = wrapA(pl.yaw - P.face);
     if (d > 1.8) { end(false); return; }
-    // the body cannot get closer (the collider holds the capsule off the drawn face): act from here if the hands still reach
+    // the body cannot get closer (the collider holds the capsule off the drawn face): act from here ONLY if the spot is within
+    // what the clip's own approach range absorbs (need().near / far / lat); otherwise the action is not taken (no stretched pose)
     if (S.steerBest === undefined || d < S.steerBest - 0.01) { S.steerBest = d; S.steerStuck = 0; } else S.steerStuck += dt;
     if (S.steerStuck > 0.2 && d < 0.3 && Math.abs(dy) < 0.08) {
-      if (!settleHere(pl, P)) { rej(pl.name + ':blocked'); end(false); return; }
+      if (!settleHere(pl, P)) { S.restMiss = { x: P.x, z: P.z }; S.missUntil = C.T + 3; end(false); return; }
       seat(P, P.x, P.z, pl.yaw); S.steerBest = undefined; enterAct(); return;
     }
     if (d > 0.012 || Math.abs(dy) > 0.03) {
@@ -563,8 +705,16 @@
     }
     seat(P, pl.sx, pl.sz, pl.yaw); S.steerBest = undefined; enterAct();
   }
-  // the stand spot becomes where the pilot really is; the hands are re-snapped from there (null: out of reach → no action)
+  // how far the pilot stands from the planned spot, along the face normal (+ = further from the face) and across it, against what the
+  // clip absorbs: closer by (ideal − min), further by (max − ideal) of its approach.distance, across by req.stretch.contact
+  function standDev(pl, P) {
+    const N = pl.N, s0 = pl.s0 || { x: pl.sx, z: pl.sz }, dx = P.x - s0.x, dz = P.z - s0.z, dn = dx * pl.n.x + dz * pl.n.z, lat = Math.abs(-dx * pl.n.z + dz * pl.n.x);
+    return { dn, lat, ok: !N || (dn >= -N.near - 0.005 && dn <= N.far + 0.005 && lat <= N.lat + 0.005) };
+  }
+  // the stand spot becomes where the pilot really is — only within the clip's tolerance; the hands are re-snapped from there
+  // (null: out of tolerance or out of reach → no action)
   function settleHere(pl, P) {
+    const dv = standDev(pl, P); if (!dv.ok) { rej(pl.name + ':standOff'); STATS.standOut++; return false; }
     pl.sx = P.x; pl.sz = P.z; pl.sy = P.y;
     if (!ACTS[pl.name].hands) return true;
     const tg = handTargets(pl, pl.sp, pl.r); if (!tg) return false;
@@ -593,7 +743,7 @@
     if (i.on && away < -0.6 && ACTS[pl.name].hands) { S.intoT += dt; if (S.intoT > K.pushClimb) { S.intoT = 0; const r = readFace(pl.e, pl.point, n.x, n.z), c = fitClimb(r, P, P.y); if (c) { end(false); doClimb(c); return; } } } else S.intoT = 0;
     if (!moving) {
       const off = Math.hypot(P.x - pl.sx, P.z - pl.sz);
-      if (off > 0.35) { end(false); return; }                       // knocked off the spot
+      if (!standDev(pl, P).ok) { rej(pl.name + ':standOff'); STATS.standOut++; end(false); return; }   // knocked off the spot further than the clip absorbs
       if (off > 0.02) { if ((P.x - pl.sx) * pl.n.x + (P.z - pl.sz) * pl.n.z > 0.015) pl.pullBlocked = true; pl.sx = damp(pl.sx, P.x, 6, dt); pl.sz = damp(pl.sz, P.z, 6, dt); }   // the collider nudged it: follow, no tug of war
       seat(P, pl.sx, pl.sz, pl.yaw);
     }
@@ -620,7 +770,7 @@
   // action lets go (never a palm hanging in the air)
   const _w1 = { x: 0, y: 0, z: 0 };
   function bodyRoom(x, y, z, pl) {
-    for (const h of [0.35, 0.9, 1.3]) { const hit = cast(x, y + h, z, -pl.n.x, 0, -pl.n.z, 0.6); if (hit && hit.distance < 0.25) return false; }
+    for (const [h, need] of (pl.N && pl.N.body) || []) { const hit = cast(x, y + h, z, -pl.n.x, 0, -pl.n.z, need + 0.4); if (hit && hit.distance < need) return false; }   // each body volume keeps its derived clearance
     return true;
   }
   // reach error of the palms on the pose as drawn: measured (reachMeasure) then acted on (reachAct); reachClose = both at once
@@ -650,8 +800,8 @@
     if (S.phase !== 'main' || !ACTS[pl.name].hands || pl.reachErr === undefined) { S.reachT = 0; return false; }
     const worst = pl.reachErr, down = pl.reachDown;
     if (worst > 0.015) {
-      if (!pl.pullBlocked && (pl.pull || 0) < 0.3) {
-        const step = Math.min(worst, 0.35 * dt), nx = pl.sx - pl.n.x * step, nz = pl.sz - pl.n.z * step;
+      if (!pl.pullBlocked && (pl.pull || 0) < pl.N.near) {   // stepping in is bounded by what the clip's approach range allows
+        const step = Math.min(worst, 0.35 * dt, pl.N.near - (pl.pull || 0)), nx = pl.sx - pl.n.x * step, nz = pl.sz - pl.n.z * step;
         if (bodyRoom(nx, pl.sy, nz, pl)) { pl.sx = nx; pl.sz = nz; pl.pull = (pl.pull || 0) + step; seat(P, nx, nz, pl.yaw, 0.6); } else pl.pullBlocked = true;
       } else if (down < -0.03 && (pl.pitchAdd || 0) > -0.28) pl.pitchAdd = (pl.pitchAdd || 0) - 0.5 * dt;
     }
@@ -665,13 +815,13 @@
     const nx = pl.sx + t.x * step, nz = pl.sz + t.z * step, sp = pl.sp, X = axes(pl.yaw);
     const cx = nx + X.lx * sp.lat + X.fx * sp.fwd, cz = nz + X.lz * sp.lat + X.fz * sp.fwd;   // where the contact now falls
     const h = cast(cx + pl.n.x * 0.4, pl.sy + sp.h, cz + pl.n.z * 0.4, -pl.n.x, 0, -pl.n.z, 1.0, pl.e);
-    if (!h || Math.abs(h.distance - 0.4) > 0.25 || Math.abs(h.normal.y) > 0.6) { end(false); return false; }
+    if (!h || Math.abs(h.distance - 0.4) > pl.N.contactTol || Math.abs(h.normal.y) > 0.6) { end(false); return false; }
     const nl = Math.hypot(h.normal.x, h.normal.z), n2 = { x: h.normal.x / nl, z: h.normal.z / nl };
     pl.n.x = damp(pl.n.x, n2.x, 10, dt); pl.n.z = damp(pl.n.z, n2.z, 10, dt); const l = Math.hypot(pl.n.x, pl.n.z); pl.n.x /= l; pl.n.z /= l;
     pl.yaw = yawFor(pl.n.x, pl.n.z, sp.nL); const Y = axes(pl.yaw);
     const sx = h.point.x - Y.lx * sp.lat - Y.fx * sp.fwd, sz = h.point.z - Y.lz * sp.lat - Y.fz * sp.fwd, g = ground(sx, sz, P.y);
-    if (g.ny < 0.78 || g.on === pl.e || Math.abs(g.y - P.y) > 0.3 || !standFree(sx, g.y, sz, pl.n.x, pl.n.z, pl.e, 0.2)) { end(false); return false; }
-    pl.sx = sx; pl.sz = sz; pl.sy = g.y; pl.point = { x: h.point.x, y: h.point.y, z: h.point.z };
+    if (g.ny < 0.78 || g.on === pl.e || Math.abs(g.y - P.y) > 0.3 || !standFree(sx, g.y, sz, pl.n.x, pl.n.z, pl.e)) { end(false); return false; }
+    pl.sx = sx; pl.sz = sz; pl.s0 = { x: sx, z: sz }; pl.sy = g.y; pl.point = { x: h.point.x, y: h.point.y, z: h.point.z };
     const tg = handTargets(pl, sp, pl.r.e === pl.e ? Object.assign({}, pl.r, { nx: pl.n.x, nz: pl.n.z }) : pl.r);
     if (tg) pl.targets = tg;
     seat(P, sx, sz, pl.yaw, 1.2);
@@ -682,7 +832,13 @@
   // two faces facing each other across the way, 0.55–0.95 m apart at hip / chest height: the pilot turns chest to one of
   // them and side-steps through (squeeze_side_r / _l: lead palm on the front face, the other on the face behind), kept on
   // the gap's midline; the clip pauses when the input stops, runs backwards when it reverses; out of the gap → walk on
-  const GAP = { lo: 0.55, hi: 0.95 };
+  // the gap the squeeze clips cover: req.gap of squeeze_side_r_loop (old literal 0.55 / 0.95, STATS.audit)
+  const GAP = { lo: 0.55, hi: 0.95, from: 'legacy' };
+  function gapDerive() {
+    if (GAP.from === 'meta') return;
+    const meta = C.AV && C.AV.player && C.AV.player.contactMeta, m = meta && meta.clips && meta.clips.squeeze_side_r_loop, g = m && m.req && m.req.gap; if (!g) return;
+    audit('squeeze_side', 'gap', LEGACY.squeeze_side.gap, g); GAP.lo = g[0]; GAP.hi = g[1]; GAP.from = 'meta';
+  }
   function sides(x, y, z, px, pz, far) {
     const a = cast(x, y, z, px, 0, pz, far), b = cast(x, y, z, -px, 0, -pz, far);
     if (!a || !b) { if (a || b) rej('gap:ray1'); else rej('gap:ray0'); return null; }
@@ -691,6 +847,7 @@
   }
   function gapAhead(P, D, hs) {
     if (!avail('squeeze_side_r') || !avail('squeeze_side_l')) { rej('gap:noClip'); return false; }
+    gapDerive();
     STATS.gapTries = (STATS.gapTries || 0) + 1;
     if (S.gapMiss && C.T < S.gapMiss.until && Math.hypot(P.x - S.gapMiss.x, P.z - S.gapMiss.z) < 0.6) return false;
     const px = -D.z, pz = D.x;
@@ -889,7 +1046,7 @@
   }
 
   window.ROCKBRAIN = {
-    K, STATS, ACTS, feel, owns, ownsAnim,
+    K, STATS, ACTS, LEGACY, feel, owns, ownsAnim, need: (n) => need(n), bodyK: () => bodyK(),
     get state() { return S.state; }, get plan() { return S.plan; }, get lastChoice() { return S.lastChoice || null; },
     // the hand bones this module has on the rock this frame: a hold's IK'd palms (main clip), a walk-touch's trailing hand
     hands() {

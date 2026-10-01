@@ -284,9 +284,20 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
           { vec3 nw = normalize((vec4(normal, 0.) * viewMatrix).xyz);
             vec3 fw = cross(dFdx(vVW), dFdy(vVW)); float fl = abs(fw.y) / max(length(fw), 1e-6);   // 1 = horizontal card
             float nz = vsN(vVW * 1.9);   // one octave: this runs under ×4–8 needle overdraw
-            float m = smoothstep(-.25, .55, nw.y + (nz - .5) * 1.1) * mix(.25, 1., smoothstep(.3, .8, fl)) * smoothstep(.34, .6, nz + fl * .2) * uVSnowK;
+            // SNOW ON NEEDLES (not a flat white fill): lies on upward cards, thins into the crown (the baked crown AO) and toward the
+            // twig tips, the needle / frond structure of the card shows THROUGH it (its luminance modulates the snow), the green stays
+            // in the gaps and on the undersides — the old saturating fill (m × 1.25 → 0.96) painted every card one flat white
+            float vAoS = 1.;
+            #if defined(USE_COLOR_ALPHA) || defined(USE_COLOR)
+              vAoS = clamp(vColor.r, 0., 1.);
+            #endif
+            float nz2 = vsN(vVW * 4.3 + 3.1);   // fine breakup: clumps with ragged edges
+            float edge = smoothstep(.30, .62, nz + fl * .2 + (nz2 - .5) * .35);
+            float m = smoothstep(-.25, .55, nw.y + (nz - .5) * 1.1) * mix(.2, 1., smoothstep(.3, .8, fl)) * edge * mix(.35, 1., smoothstep(.42, .92, vAoS)) * uVSnowK;
             vec3 alb0 = diffuseColor.rgb;
-            diffuseColor.rgb = mix(alb0, uVSnowC * (.85 + .25 * nz), clamp(m * 1.25, 0., .96));
+            float lum0 = dot(alb0, vec3(.3, .59, .11));
+            vec3 snowA = uVSnowC * (.72 + .5 * clamp(lum0 * 2.6, 0., 1.)) * (.88 + .24 * nz2);   // the card's own structure reads through the snow
+            diffuseColor.rgb = mix(alb0, snowA, clamp(m * 1.05, 0., .88));
             vec3 Vv = normalize(cameraPosition - vVW); float bk = pow(max(dot(-Vv, uVMoonDir), 0.), 3.);
             totalEmissiveRadiance += alb0 * (1. - clamp(m, 0., 1.)) * (uVMoonCol * bk * .45 + uVHemiS * .06); }`);
       }
@@ -796,7 +807,7 @@ vec3 impNW;`)
     for (let s = 3; s < NSP; s++) {
       const P = PACK[SP[s].name]; if (!P) { console.warn('[veg] missing', SP[s].name); continue; }
       for (const p of P.parts) {
-        if (p.name === 'needles') { if (!p.geo.attributes.color) continue; gN.push({ sp: s, geo: p.geo }); }
+        if (p.name === 'needles') { if (!p.geo.attributes.color) continue; if (s >= 3 && s <= 6 && !p.geo.__crownN) { sphereNormals(p.geo, 0.7); p.geo.__crownN = true; } gN.push({ sp: s, geo: p.geo }); }   // crown-volume normals for the pass-2 spruces / fir too (only pass-1 had them)
         else (s === 9 ? gD : gP).push({ sp: s, geo: p.geo });
       }
       // trunk colliders: cylinder fitted to the bark base ring, one per tree (same Passport path as the pass-1 trees)
