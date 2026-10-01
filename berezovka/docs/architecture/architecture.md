@@ -2,16 +2,6 @@
 
 Berezovka is a snowbound village in the browser: an open world about a kilometre across, a story, a Zhiguli, ice fishing. No server and no build step: one page and five modules. Below: the surroundings, C4 diagrams down to components and the four paths everything rests on.
 
-## Who surrounds the game
-
-| Who | What it gives or takes |
-|---|---|
-| **Player** | keyboard, mouse or touch; gets picture and sound |
-| **Static host** | serves the page, modules, model packs, textures and sounds |
-| **jsDelivr CDN** | the three.js r158 library |
-| **Google Fonts** | two interface fonts; without them the game uses a fallback |
-| **Browser** | WebGL 2, audio, localStorage for the save |
-
 ## C4: context and containers
 
 ### Level 1. The system and its surroundings

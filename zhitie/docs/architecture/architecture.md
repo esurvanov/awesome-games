@@ -2,18 +2,6 @@
 
 Zhitiyo is a browser life sim: a neighbourhood of ten households, needs, careers, relationships, Buy and Build modes. No build step and no server: a page, a set of ES modules and three.js from a CDN. Below: C4 diagrams down to components and the four paths everything rests on.
 
-## Contexts
-
-| Context | Folder | Owns |
-|---|---|---|
-| **Core** | `js/core` | event bus, state, balance numbers |
-| **Brain** | `js/sim` | needs, action choice, careers, family, incidents |
-| **World** | `js/world` | lot, walls, pathfinding, rooms, neighbourhood |
-| **Render** | `js/render` | three.js: scene, camera, models, animations |
-| **UI** | `js/ui` | panel, pie menu, buy, build, input |
-| **Audio** | `js/audio` | effects, voices, music per mode |
-| **Data** | `data/, assets/` | item catalogue, interactions, neighbourhood, texts, glb models |
-
 ## C4: context and containers
 
 ### Level 1. The system and its surroundings

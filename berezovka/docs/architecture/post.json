@@ -1,82 +1,72 @@
 {
- "slug": "berezovka-architecture",
- "date": "2026-10-02",
- "layout": "wide",
- "mentions": "three.js, C4 model, WebGL, Berezovka",
- "ru": {
-  "file": "architecture.ru.md",
-  "title": "Архитектура игры «Березовка»: C4 и критические пути",
-  "description": "Окружение, схемы C4 до компонентов и четыре критических пути: запуск, кадр, шаг сюжета и подстройка под слабую машину.",
-  "tags": "Архитектура, Игры, C4, three.js",
-  "toc": [
-   {
-    "id": "ctx",
-    "heading": "Кто вокруг игры",
-    "label": "Кто вокруг"
-   },
-   {
-    "id": "c4",
-    "heading": "C4: контекст и контейнеры",
-    "label": "C4: контекст и контейнеры"
-   },
-   {
-    "id": "c3",
-    "heading": "C4 уровня 3: компоненты",
-    "label": "Компоненты"
-   },
-   {
-    "id": "paths",
-    "heading": "Четыре критических пути",
-    "label": "Критические пути"
-   },
-   {
-    "id": "rules",
-    "heading": "Правила, на которых всё держится",
-    "label": "Правила"
-   },
-   {
-    "id": "weak",
-    "heading": "Слабые места",
-    "label": "Слабые места"
-   }
-  ]
- },
- "en": {
-  "file": "architecture.md",
-  "title": "Architecture of “Berezovka”: C4 and critical paths",
-  "description": "The surroundings, C4 diagrams down to components and four critical paths: startup, a frame, a story step and adapting to a weak machine.",
-  "tags": "Architecture, Games, C4, three.js",
-  "toc": [
-   {
-    "id": "ctx",
-    "heading": "Who surrounds the game",
-    "label": "Surroundings"
-   },
-   {
-    "id": "c4",
-    "heading": "C4: context and containers",
-    "label": "C4: context and containers"
-   },
-   {
-    "id": "c3",
-    "heading": "C4 level 3: components",
-    "label": "Components"
-   },
-   {
-    "id": "paths",
-    "heading": "Four critical paths",
-    "label": "Critical paths"
-   },
-   {
-    "id": "rules",
-    "heading": "The rules everything rests on",
-    "label": "Rules"
-   },
-   {
-    "id": "weak",
-    "heading": "Weak spots",
-    "label": "Weak spots"
-   }
-  ]
- }
+  "slug": "berezovka-architecture",
+  "date": "2026-10-02",
+  "layout": "wide",
+  "mentions": "three.js, C4 model, WebGL, Berezovka",
+  "ru": {
+    "file": "architecture.ru.md",
+    "title": "Архитектура игры «Березовка»: C4 и критические пути",
+    "description": "Окружение, схемы C4 до компонентов и четыре критических пути: запуск, кадр, шаг сюжета и подстройка под слабую машину.",
+    "tags": "Архитектура, Игры, C4, three.js",
+    "toc": [
+      {
+        "id": "c4",
+        "heading": "C4: контекст и контейнеры",
+        "label": "C4: контекст и контейнеры"
+      },
+      {
+        "id": "c3",
+        "heading": "C4 уровня 3: компоненты",
+        "label": "Компоненты"
+      },
+      {
+        "id": "paths",
+        "heading": "Четыре критических пути",
+        "label": "Критические пути"
+      },
+      {
+        "id": "rules",
+        "heading": "Правила, на которых всё держится",
+        "label": "Правила"
+      },
+      {
+        "id": "weak",
+        "heading": "Слабые места",
+        "label": "Слабые места"
+      }
+    ]
+  },
+  "en": {
+    "file": "architecture.md",
+    "title": "Architecture of “Berezovka”: C4 and critical paths",
+    "description": "The surroundings, C4 diagrams down to components and four critical paths: startup, a frame, a story step and adapting to a weak machine.",
+    "tags": "Architecture, Games, C4, three.js",
+    "toc": [
+      {
+        "id": "c4",
+        "heading": "C4: context and containers",
+        "label": "C4: context and containers"
+      },
+      {
+        "id": "c3",
+        "heading": "C4 level 3: components",
+        "label": "Components"
+      },
+      {
+        "id": "paths",
+        "heading": "Four critical paths",
+        "label": "Critical paths"
+      },
+      {
+        "id": "rules",
+        "heading": "The rules everything rests on",
+        "label": "Rules"
+      },
+      {
+        "id": "weak",
+        "heading": "Weak spots",
+        "label": "Weak spots"
+      }
+    ]
+  }
 }

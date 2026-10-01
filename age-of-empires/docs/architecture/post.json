@@ -1,82 +1,72 @@
 {
- "slug": "chronicles-of-kingdoms-architecture",
- "date": "2026-10-02",
- "layout": "wide",
- "mentions": "Canvas 2D, Web Audio, IndexedDB, C4 model, pygame, Age of Empires II, Chronicles of Kingdoms",
- "ru": {
-  "file": "architecture.ru.md",
-  "title": "Архитектура игры «Хроники Королевств»: C4 и критические пути",
-  "description": "Контексты, схемы C4 до уровня компонентов и четыре критических пути через sequence: начало партии, кадр, приказ и сохранение.",
-  "tags": "Архитектура, Игры, C4, Стратегия",
-  "toc": [
-   {
-    "id": "ctx",
-    "heading": "Контексты: что окружает игру",
-    "label": "Контексты"
-   },
-   {
-    "id": "c4",
-    "heading": "C4: контекст и контейнеры",
-    "label": "C4: контекст и контейнеры"
-   },
-   {
-    "id": "c3",
-    "heading": "C4 уровня 3: компоненты",
-    "label": "Компоненты"
-   },
-   {
-    "id": "paths",
-    "heading": "Четыре критических пути",
-    "label": "Критические пути"
-   },
-   {
-    "id": "rules",
-    "heading": "Правила, на которых всё держится",
-    "label": "Правила"
-   },
-   {
-    "id": "weak",
-    "heading": "Слабые места",
-    "label": "Слабые места"
-   }
-  ]
- },
- "en": {
-  "file": "architecture.md",
-  "title": "Architecture of “Chronicles of Kingdoms”: C4 and critical paths",
-  "description": "Contexts, C4 diagrams down to components and four critical paths as sequences: starting a match, a frame, an order and save/load.",
-  "tags": "Architecture, Games, C4, Strategy",
-  "toc": [
-   {
-    "id": "ctx",
-    "heading": "Contexts: what surrounds the game",
-    "label": "Contexts"
-   },
-   {
-    "id": "c4",
-    "heading": "C4: context and containers",
-    "label": "C4: context and containers"
-   },
-   {
-    "id": "c3",
-    "heading": "C4 level 3: components",
-    "label": "Components"
-   },
-   {
-    "id": "paths",
-    "heading": "Four critical paths",
-    "label": "Critical paths"
-   },
-   {
-    "id": "rules",
-    "heading": "The rules everything rests on",
-    "label": "Rules"
-   },
-   {
-    "id": "weak",
-    "heading": "Weak spots",
-    "label": "Weak spots"
-   }
-  ]
- }
+  "slug": "chronicles-of-kingdoms-architecture",
+  "date": "2026-10-02",
+  "layout": "wide",
+  "mentions": "Canvas 2D, Web Audio, IndexedDB, C4 model, pygame, Age of Empires II, Chronicles of Kingdoms",
+  "ru": {
+    "file": "architecture.ru.md",
+    "title": "Архитектура игры «Хроники Королевств»: C4 и критические пути",
+    "description": "Схемы C4 до уровня компонентов и четыре критических пути через sequence: начало партии, кадр, приказ и сохранение.",
+    "tags": "Архитектура, Игры, C4, Стратегия",
+    "toc": [
+      {
+        "id": "c4",
+        "heading": "C4: контекст и контейнеры",
+        "label": "C4: контекст и контейнеры"
+      },
+      {
+        "id": "c3",
+        "heading": "C4 уровня 3: компоненты",
+        "label": "Компоненты"
+      },
+      {
+        "id": "paths",
+        "heading": "Четыре критических пути",
+        "label": "Критические пути"
+      },
+      {
+        "id": "rules",
+        "heading": "Правила, на которых всё держится",
+        "label": "Правила"
+      },
+      {
+        "id": "weak",
+        "heading": "Слабые места",
+        "label": "Слабые места"
+      }
+    ]
+  },
+  "en": {
+    "file": "architecture.md",
+    "title": "Architecture of “Chronicles of Kingdoms”: C4 and critical paths",
+    "description": "C4 diagrams down to components and four critical paths as sequences: starting a match, a frame, an order and save/load.",
+    "tags": "Architecture, Games, C4, Strategy",
+    "toc": [
+      {
+        "id": "c4",
+        "heading": "C4: context and containers",
+        "label": "C4: context and containers"
+      },
+      {
+        "id": "c3",
+        "heading": "C4 level 3: components",
+        "label": "Components"
+      },
+      {
+        "id": "paths",
+        "heading": "Four critical paths",
+        "label": "Critical paths"
+      },
+      {
+        "id": "rules",
+        "heading": "The rules everything rests on",
+        "label": "Rules"
+      },
+      {
+        "id": "weak",
+        "heading": "Weak spots",
+        "label": "Weak spots"
+      }
+    ]
+  }
 }

@@ -2,16 +2,6 @@
 
 “Chronicles of Kingdoms” is a real-time strategy in the spirit of Age of Empires II that runs as an ordinary website: no server and no build step, about 80 JavaScript modules and one canvas filling the page. It was ported line by line from the Python version, so the rules and numbers match the original. Below: C4 diagrams down to components and the four paths everything rests on.
 
-## Contexts: what surrounds the game
-
-| Who / what | What it gives the game |
-|---|---|
-| Player | mouse and keyboard; sees a 1280 × 800 canvas |
-| Static host | serves the `web/` and `assets/` files; the game has no server of its own |
-| Browser APIs | Canvas 2D for the picture, Web Audio for sound, IndexedDB for saves |
-| Asset pipeline | Python scripts in `tools/` turn 0 A.D. 3D models into isometric sprites once; the result lives in `assets/` |
-| Python version | the source of the port and its reference: tests compare the browser code with real CPython |
-
 ## C4: context and containers
 
 ### Level 1. The system and its surroundings

@@ -1,21 +1,6 @@
 # Architecture of “Sibiria”: C4 and critical paths
 
-“Sibiria” is a top-down taiga survival game in the browser: no engine, no build step, about fifty scripts drawing on a 2D canvas. This is how it is put together: the contexts, C4 diagrams down to the component level and the four paths everything rests on.
-
-## The contexts of the game
-
-| Context | Files in js/ | What it owns |
-|---|---|---|
-| World | `world, zones, depth, ice, wind, snow, live` | forest, zones, snow depth, ice, wind, living things |
-| Hero and survival | `hero, survival, fire, actions, time` | warmth, hunger, fire, actions, day cycle, weather |
-| Threats | `director, wolves, bear, fauna` | threat director, wolves, bear, hares and deer |
-| Settlement and people | `colony, npc, talk, barks` | workers, building, ages, characters, conversations |
-| Story | `story, quests, content/*, finale` | events, chapters, quests, the helicopter, endings |
-| Picture and sound | `gfx, art-*, particles, audio` | renderer, sprites, particles, synthesised sound |
-| Input and interface | `input, ui, map, icons` | mouse and touch, HUD, panels, map, the frame loop |
-| Saving | `savegame, Saves, Settings` | game snapshot, slots, settings |
-
-Contexts talk through one shared state `G` and a few global module objects. `Ctx` gives the “what is around the hero” summary.
+“Sibiria” is a top-down taiga survival game in the browser: no engine, no build step, about fifty scripts drawing on a 2D canvas. This is how it is put together: C4 diagrams down to the component level and the four paths everything rests on.
 
 ## C4: context and containers
 

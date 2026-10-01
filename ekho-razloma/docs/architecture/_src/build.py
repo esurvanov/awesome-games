@@ -49,7 +49,7 @@ def build(L):
     def c3(title, svg, cap, bullets):
         P.append(H3(title)); P.append(fig(svg, cap))
         P.append('\n'.join('- ' + b for b in bullets))
-    c3(t('🌍 Мир', '🌍 World'), flow({
+    c3(t('Мир', 'World'), flow({
         'te': (0, 1, [t('Рельеф и снег', 'Terrain and snow'), 'terrain.js'], 'c'),
         'gb': (1, 0, [t('Контакт со снегом', 'Snow contact'), 'groundblend.js'], 'c'),
         'at': (1, 2, [t('Атмосфера', 'Atmosphere'), t('небо, сияние, туман', 'sky, aurora, fog')], 'c'),
@@ -62,7 +62,7 @@ def build(L):
         t('Всё, что твёрдое, регистрируется в Passport и становится столкновением.', 'Everything solid registers in Passport and becomes a collision.'),
         [t('Деревья рисуются пакетами по материалам: один вызов отрисовки на материал.', 'Trees are drawn in batches per material: one draw call per material.'),
          t('Дальние деревья заменены картинками с восьми сторон.', 'Far trees are replaced by images from eight sides.')])
-    c3(t('🧍 Тело и контакт', '🧍 Body and contact'), flow({
+    c3(t('Тело и контакт', 'Body and contact'), flow({
         'co': (0, 1, [t('Реестр CORE', 'CORE registry'), t('что это за объект', 'what the object is')], 'c'),
         'rb': (1, 0, [t('Мозг скал', 'Rock brain'), t('решает действие', 'decides the action')], 'c'),
         'ix': (1, 2, [t('Общее движение', 'General motion'), t('ноги, наклон, взгляд', 'legs, lean, look')], 'c'),
@@ -75,7 +75,7 @@ def build(L):
         t('Четыре модуля просят, один пишет: сборщик позы — единственный, кто двигает кости.', 'Four modules ask, one writes: the pose pipeline is the only one that moves the bones.'),
         [t('Мозг скал читает форму камня и выбирает одно из действий: ладонь, спина, плечо, уступ, сесть, залезть.', 'The rock brain reads a rock’s shape and picks one action: palm, back, shoulder, ledge, sit, climb.'),
          t('Замер тела измеряет настоящую нарисованную форму, его же использует судья в тестах.', 'The body measure reads the real drawn shape; the judge in the tests uses the same one.')])
-    c3(t('⚙️ Физика', '⚙️ Physics'), flow({
+    c3(t('Физика', 'Physics'), flow({
         'pa': (0, 1, [t('Реестр Passport', 'Passport registry'), t('объекты и роли', 'objects and roles')], 'c'),
         'cl': (1, 0, [t('Коллайдеры', 'Colliders'), t('оболочка и точная форма', 'hull and exact shape')], 'c'),
         'ch': (1, 2, [t('Контроллер пилота', 'Pilot controller'), t('капсула, эллипс у скал', 'capsule, ellipse at rocks')], 'c'),
@@ -86,7 +86,7 @@ def build(L):
         t('Физика — единственная, кто двигает пилота; остальные дают ей цель через setGoal.', 'Physics is the only mover of the pilot; everyone else gives it a goal through setGoal.'),
         [t('Рядом с пилотом камень получает точную форму, вдали остаётся упрощённая оболочка.', 'Near the pilot a rock gets its exact shape; far away it stays a simplified hull.'),
          t('У скал капсула пилота превращается в эллипс по размерам тела.', 'At rocks the pilot’s capsule becomes an ellipse sized from the body.')])
-    c3(t('📖 Сюжет и интерфейс', '📖 Story and interface'), flow({
+    c3(t('Сюжет и интерфейс', 'Story and interface'), flow({
         'sg': (0, 1, [t('Главы и зоны', 'Chapters and zones'), 'STAGES, ZONES'], 'c'),
         'dl': (1, 0, [t('Диалоги', 'Dialogue'), t('выбор ответов', 'choices')], 'c'),
         'bt': (1, 2, [t('Бой', 'Combat'), t('кристаллы, голем', 'crystals, golem')], 'c'),
@@ -97,7 +97,7 @@ def build(L):
         t('Этот контекст пока живёт внутри страницы и не вынесен в модули.', 'This context still lives inside the page and has not been split into modules.'),
         [t('Пять глав и два финала, 24 осколка и 8 записей-эхо.', 'Five chapters, two endings, 24 shards and 8 echo recordings.'),
          t('Прогресс хранится в браузере, без сервера.', 'Progress is stored in the browser, no server.')])
-    c3(t('🎛 Качество', '🎛 Quality'), flow({
+    c3(t('Качество', 'Quality'), flow({
         'lo': (0, 1, [t('Выбор пресета', 'Preset picker'), 'LowEnd.pick'], 'c'),
         'qp': (1, 0, [t('Пресеты', 'Presets'), 'air … ultra'], 'c'),
         'gv': (1, 2, [t('Регулятор', 'Governor'), t('масштаб рендера по кадру', 'render scale by frame time')], 'c'),
@@ -109,7 +109,7 @@ def build(L):
         t('Пресет задаёт всё сразу: сначала подбирается по видеокарте, потом подстраивается по времени кадра.', 'A preset sets everything at once: picked by the GPU first, then tuned by frame time.'),
         [t('Луна не движется, поэтому тени от неподвижных предметов считаются один раз и лежат в кэше.', 'The moon never moves, so shadows of static objects are rendered once and cached.'),
          t('В меню, на паузе и в скрытой вкладке цикл полностью останавливается.', 'In the menu, on pause and in a hidden tab the loop stops completely.')])
-    c3(t('📦 Ассеты', '📦 Assets'), flow({
+    c3(t('Ассеты', 'Assets'), flow({
         'ld': (0, 1, [t('Загрузчик', 'Loader'), 'loadPacked'], 'c'),
         'pk': (1, 0, [t('Пакеты', 'Packs'), t('GLB в base64', 'GLB in base64')], 'c'),
         'tx': (1, 2, [t('Текстуры', 'Textures'), 'assets/veg'], 'c'),

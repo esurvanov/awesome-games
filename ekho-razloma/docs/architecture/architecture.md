@@ -16,42 +16,42 @@
 
 Contexts talk through a shared `ctx` object and a few globals. Every fact has one owner: physics moves the pilot, the pose pipeline writes the bones, the registry knows the world’s objects.
 
-### 🌍 World
+### World
 
 ![Components of the World context](diagrams/en/c3-world.svg "Everything solid registers in Passport and becomes a collision.")
 
 - Trees are drawn in batches per material: one draw call per material.
 - Far trees are replaced by images from eight sides.
 
-### 🧍 Body and contact
+### Body and contact
 
 ![Components of the Body and contact context](diagrams/en/c3-body.svg "Four modules ask, one writes: the pose pipeline is the only one that moves the bones.")
 
 - The rock brain reads a rock’s shape and picks one action: palm, back, shoulder, ledge, sit, climb.
 - The body measure reads the real drawn shape; the judge in the tests uses the same one.
 
-### ⚙️ Physics
+### Physics
 
 ![Components of the Physics context](diagrams/en/c3-physics.svg "Physics is the only mover of the pilot; everyone else gives it a goal through setGoal.")
 
 - Near the pilot a rock gets its exact shape; far away it stays a simplified hull.
 - At rocks the pilot’s capsule becomes an ellipse sized from the body.
 
-### 📖 Story and interface
+### Story and interface
 
 ![Components of the Story and interface context](diagrams/en/c3-story.svg "This context still lives inside the page and has not been split into modules.")
 
 - Five chapters, two endings, 24 shards and 8 echo recordings.
 - Progress is stored in the browser, no server.
 
-### 🎛 Quality
+### Quality
 
 ![Components of the Quality context](diagrams/en/c3-quality.svg "A preset sets everything at once: picked by the GPU first, then tuned by frame time.")
 
 - The moon never moves, so shadows of static objects are rendered once and cached.
 - In the menu, on pause and in a hidden tab the loop stops completely.
 
-### 📦 Assets
+### Assets
 
 ![Components of the Assets context](diagrams/en/c3-assets.svg "Models sit in .js files as text, so the game loads from any static host.")
 
