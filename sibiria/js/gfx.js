@@ -827,10 +827,12 @@ const GFX = (() => {
     return y > -1e9 ? y : base;
   }
   // область ниже кромки (ye — низ окна) или выше (ye — верх окна: клип low); x — шагом 0.5 мира
-  function cutPath(x0, x1, ye, base, C) {
-    const p = new Path2D(); p.moveTo(x0, cutY(x0, base, C));
-    for (let x = x0 + 0.5; x < x1; x += 0.5) p.lineTo(x, cutY(x, base, C));
-    p.lineTo(x1, cutY(x1, base, C)); p.lineTo(x1, ye); p.lineTo(x0, ye); p.closePath(); return p;
+  function cutPath(x0, x1, ye, base, C) {   // вне чаш — прямая линия тела, в чашах — шагом 0.4 (≤ ~30 точек на ногу)
+    const p = new Path2D(), R = [];
+    for (let i = 0; i < C.length; i += 5) R.push([C[i] - C[i + 2], C[i] + C[i + 2]]);
+    R.sort((a, b) => a[0] - b[0]); p.moveTo(x0, base); let x = x0;
+    for (const [a, b] of R) { if (b <= x) continue; const s = Math.max(a, x); if (s > x) p.lineTo(s, base); for (let u = s; u < b; u += 0.4) p.lineTo(u, cutY(u, base, C)); x = b; p.lineTo(x, cutY(x, base, C)); }
+    p.lineTo(x1, base); p.lineTo(x1, ye); p.lineTo(x0, ye); p.closePath(); return p;
   }
   // налипший снег (Depth.heroSnow 0..1): 2–3 комка на голени над кромкой; стопа вытащена — комок на носке
   function snowCoat(g, C, px, base) {
@@ -1421,26 +1423,43 @@ const GFX = (() => {
   const sv2 = document.createElement('canvas'), sx2 = sv2.getContext('2d');
   const DBGS = { cov: 0, on: 0, a: 0, n: 0 };   // для проверок (tests/snow-legs.js): доля закрытого, силуэт, альфа, сколько раз нарисован
   function occMask(w) {
-    if (!OCC.cv) { OCC.cv = document.createElement('canvas'); OCC.cv.width = OCW; OCC.cv.height = OCH; OCC.g = OCC.cv.getContext('2d', { willReadFrequently: true }); }
+    if (!OCC.cv) { OCC.cv = document.createElement('canvas'); OCC.cv.width = OCW; OCC.cv.height = OCH; OCC.g = OCC.cv.getContext('2d'); }
     const m = OCC.g, o = w.o, bx = o.x - FBW / 2, by = o.y - FBY;
     m.setTransform(1, 0, 0, 1, 0, 0); m.clearRect(0, 0, OCW, OCH); m.fillStyle = '#000';
     for (let i = 0; i < w.occ.length; i += 2) {
       const k = w.occ[i], q = w.occ[i + 1];
-      if (k === 0 && q.stage !== 1 && q.wood > 0) {
-        const S = treeSprite(q, treeV(q)), tw = ArtWorld.treeW(q.kind), kk = q.s / ArtWorld.treeK(q.s) * tjit(q) * (q.gAt != null ? World.adultK(q) : 1);
+      if (isTreeOcc(k, q)) {
+        const S = treeSprite(q, treeV(q)), tw = ArtWorld.treeW(q.kind), kk = treeK(q);
         m.setTransform(OCQ * kk, 0, 0, OCQ * kk, OCQ * (q.x - bx), OCQ * (q.y - by)); m.drawImage(S, -tw / 2, -160, tw, 170);
       } else { const r = occRect(k, q); if (r) { m.setTransform(OCQ, 0, 0, OCQ, -OCQ * bx, -OCQ * by); m.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]); } }
     }
     m.setTransform(1, 0, 0, 1, 0, 0);
-    return m.getImageData(0, 0, OCW, OCH).data;
   }
-  // доля точек тела (над снегом) под маской
-  function covered(w, rec, D) {
-    const o = w.o, bx = o.x - FBW / 2, by = o.y - FBY, T = rec.pts; let n = 0, c = 0;
+  // проверка без чтения холста: ель — по альфе её спрайта (уменьшенная копия читается один раз на спрайт), прочее — прямоугольник
+  const isTreeOcc = (k, q) => k === 0 && q.stage !== 1 && q.wood > 0;
+  const treeK = q => q.s / ArtWorld.treeK(q.s) * tjit(q) * (q.gAt != null ? World.adultK(q) : 1);
+  const SPA = new WeakMap();
+  function spriteAlpha(S) {
+    let m = SPA.get(S); if (m) return m;
+    const w = 48, h = Math.max(1, Math.round(w * S.height / S.width)), c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(S, 0, 0, w, h); const D = g.getImageData(0, 0, w, h).data, a = new Uint8Array(w * h);
+    for (let i = 0; i < a.length; i++) a[i] = D[i * 4 + 3];
+    m = { w, h, a }; SPA.set(S, m); return m;
+  }
+  function occAt(k, q, x, y) {
+    if (isTreeOcc(k, q)) {
+      const tw = ArtWorld.treeW(q.kind), kk = treeK(q), u = ((x - q.x) / kk + tw / 2) / tw, v = ((y - q.y) / kk + 160) / 170;
+      if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
+      const m = spriteAlpha(treeSprite(q, treeV(q))); return m.a[Math.floor(v * m.h) * m.w + Math.floor(u * m.w)] > 140;
+    }
+    const r = occRect(k, q); return !!r && x > r[0] && x < r[2] && y > r[1] && y < r[3];
+  }
+  // доля точек тела (над снегом), закрытых вещами впереди
+  function covered(w, rec) {
+    const o = w.o, T = rec.pts; let n = 0, c = 0;
     for (let i = 0; i < 20; i += 2) {
       const x = T[i], y = T[i + 1]; if (y > o.y + 0.5) continue;   // под снегом — не в счёт
-      const u = Math.floor((x - bx) * OCQ), v = Math.floor((y - by) * OCQ); n++;
-      if (u >= 0 && v >= 0 && u < OCW && v < OCH && D[(v * OCW + u) * 4 + 3] > 140) c++;
+      n++; for (let j = 0; j < w.occ.length; j += 2) if (occAt(w.occ[j], w.occ[j + 1], x, y)) { c++; break; }
     }
     return n ? c / n : 0;
   }
@@ -1448,12 +1467,12 @@ const GFX = (() => {
     const rec = FREC.get(w.o), low = window.QUALITY === 'low';
     let st = SILS.get(w.o); if (!st) { st = { on: false, a: 0 }; SILS.set(w.o, st); }
     if (!rec || rec.f !== frame || !w.occ) { st.on = false; st.a = 0; if (w.o === G.p) { DBGS.cov = 0; DBGS.on = 0; DBGS.a = 0; } return; }
-    const D = occMask(w), cov = covered(w, rec, D);
+    const cov = covered(w, rec);
     st.on = cov >= 0.3 || (st.on && cov >= 0.2);
     if (w.o === G.p) { DBGS.cov = cov; DBGS.on = st.on ? 1 : 0; }
     if (!st.on) { st.a = 0; return; }
     if (low || !rec.cv) { for (let i = 0; i < w.occ.length; i += 2) HIDE2.add(occKey(w.occ[i], w.occ[i + 1])); return; }
-    st.a = Math.min(1, st.a + rdt / 0.15);
+    st.a = Math.min(1, st.a + rdt / 0.15); occMask(w);
     const pw = rec.pw, ph = rec.ph, s = rec.s;
     for (const c of [sv, sv2]) if (c.width < pw || c.height < ph) { c.width = Math.max(c.width, pw); c.height = Math.max(c.height, ph); }
     // один цвет по форме фигуры
