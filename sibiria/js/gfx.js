@@ -372,7 +372,7 @@ const GFX = (() => {
   // костёр вспыхивает от рук, тайник приподнимает крышку, пнутый сугроб оставляет ямку
   const CUT = new WeakMap(), FLARE = new WeakMap(), OPEN = new WeakMap(), KICKS = [];
   if (typeof Interact !== 'undefined') {
-    Interact.on('hit', e => { const t = e.target; if (!t) return; const c = CUT.get(t) || { n: 0, side: Math.sign((e.who === 'p' ? G.p.x : e.who.x) - t.x) || 1 }; c.n++; CUT.set(t, c); });
+    Interact.on('hit', e => { const t = e.target; if (!t) return; const c = CUT.get(t) || { n: 0, side: Math.sign((e.who === 'p' ? G.p.x : e.who.x) - t.x) || 1 }; c.n++; CUT.set(t, c); if (typeof Tree !== 'undefined') Tree.shook(t, e.power || 1); });
     Interact.on('warm', e => { if (e.target) FLARE.set(e.target, now); });
     Interact.on('open', e => { if (e.target) OPEN.set(e.target, now); });
     Interact.on('kick', e => { KICKS.push({ x: e.x, y: e.y, t0: now }); if (KICKS.length > 8) KICKS.shift(); });
@@ -384,9 +384,15 @@ const GFX = (() => {
     cx.fillStyle = '#c79a62'; cx.beginPath(); cx.moveTo(x, y - h); cx.lineTo(x - sd * d, y); cx.lineTo(x, y); cx.closePath(); cx.fill(); // верхняя грань темнее
     cx.fillStyle = '#d9bd8a'; for (let i = 0; i < Math.min(n, 5); i++) cx.fillRect(x + sd * (4 + i * 3.3), t.y + 2 + (i % 2) * 2, 2.2, 1.2); // щепа у комля
   }
+  // объёмная модель (js/tree3d.js): стоящие в покое — спрайт модели, в движении/рубке — живая модель; пень — тоже модель
+  const M3 = t => typeof Tree !== 'undefined' && !t.wall && Tree.MODEL[t.kind];
+  // глубина зарубки: доля диаметра — от ударов и срубленной доли
+  const notchOf = t => { const c = CUT.get(t); return c ? { q: Math.min(0.72, 0.05 * c.n + 0.5 * (1 - t.wood / World.wood0(t))), sd: c.side } : null; };
   function drawTree(t, wind) {
-    if (t.wood <= 0) { CUT.delete(t); return ArtWorld.stump(cx, t.x, t.y, t.s, t.cutAt != null && G.time - t.cutAt < CYCLE * 0.6 ? clamp((G.time - t.cutAt) / (CYCLE * 0.6), 0, 1) : 1); } // свежий срез без снега, снег нарастает за ~0.6 суток
+    if (t.wood <= 0) { CUT.delete(t); const sn = t.cutAt != null && G.time - t.cutAt < CYCLE * 0.6 ? clamp((G.time - t.cutAt) / (CYCLE * 0.6), 0, 1) : 1; return M3(t) ? Tree.drawStump(cx, t, sn) : ArtWorld.stump(cx, t.x, t.y, t.s, sn); } // свежий срез без снега, снег нарастает за ~0.6 суток
     if (t.stage === 1) return ArtWorld.sapling(cx, t.x, t.y, t.s, t.v);
+    if (M3(t)) { const nt = notchOf(t); if (Tree.live(t, nt)) { const g = gustAt(t.x, t.y), ph = t.x * 0.013 + t.y * 0.007, Hp = 112 * t.s;
+      const sw = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) * ENV.wx; Tree.drawStanding(cx, t, { bend: sw * Hp * Hp / 160, notch: nt }); return; } }
     const g = gustAt(t.x, t.y), ph = t.x * 0.013 + t.y * 0.007;
     const sway = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) * ENV.wx + (t.shake > 0 ? Math.sin(now * 60) * t.shake * 0.25 : 0); // гнутся по ветру (ENV.wx — знак и доля x)
     const fl = wind * (0.3 + g) * 0.9 * Math.sin(now * 7.3 + ph * 5); // дрожь верхушки, px
@@ -534,11 +540,36 @@ const GFX = (() => {
   // ствол героя: всё состояние — в L (сейв), рендер один и тот же
   const LOGV = new WeakMap();
   function drawLog(L) {
+    if (typeof Tree !== 'undefined' && Tree.MODEL[L.kind]) return drawLog3(L);
     let o = LOGV.get(L); if (!o) { o = { x: L.x, y: L.y, kind: L.kind, s: L.s, v: treeV({ kind: L.kind, wall: false, v: L.v || 0, x: L.x, y: L.y }) }; LOGV.set(L, o); }
     o.a = L.a; o.len = L.len; o.cut = Actions.logCut(L); o.kl = L.n0 && L.n < L.n0 ? Actions.logK(L) : null;
     o.snow = clamp((G.time - (L.t0 || 0)) / (CYCLE * 1.5), 0, 0.7); o.bury = Actions.logSnow(L); o.al = 1 - smooth(0.55, 0.9, o.bury) * 0.999;
     let P = LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); }
     drawFelled(o, P);
+  }
+  // ствол героя — объёмной моделью: поза валки та же (fallPose), снег на ветвях стряхнут падением и нарастает, заметание — поверх
+  function drawLog3(L) {
+    Tree.ensure(L); let o = LOGV.get(L); if (!o) { o = {}; LOGV.set(L, o); }
+    for (const k of ['x', 'y', 'a', 'sk', 'k', 'hc', 'zt', 'cl', 'zTop', 'top', 'cut', 'sink', 'kind', 'len']) o[k] = L[k];
+    const age = G.time - (L.t0 || 0); o.snowN = +clamp(0.12 + age / (CYCLE * 1.2), 0, 0.85).toFixed(1); o.dsnow = +clamp(age / (CYCLE * 0.8), 0, 0.8).toFixed(1);
+    const bury = Actions.logSnow(L), al = 1 - smooth(0.55, 0.9, bury) * 0.999; if (al <= 0.01) return;
+    let P = LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); if (P.ph < 2) o.snowN = 1 - smooth(0.2, 1.2, P.th); }
+    cx.globalAlpha = al; Tree.drawLog(cx, o, P); cx.globalAlpha = 1;
+    fallFx(o, P);
+    if (bury > 0) buryMound(o, bury);
+  }
+  // в падении — снег с кроны хлопьями
+  function fallFx(o, P) {
+    if (!(P.ph === 1 && state === 'play' && P.th > 0.25 && o.kind !== 3)) return;
+    const st = Math.sin(P.th), ct = Math.cos(P.th), cd = Math.cos(o.a), sd = Math.sin(o.a), kk = o.len / 150;
+    FX.emit('fall' + o.x + ',' + o.y, LOWQ() ? 8 : 26, (parts, r) => { const h = 40 + r() * 110, z = h * ct * kk, gx = o.x + cd * st * h * kk, gy = o.y + 0.6 * sd * st * h * kk, w = crownR(o.kind, h) * kk;
+      parts.push({ type: 'bit', kind: 'snow', c: r() < 0.6 ? '#f6f9fc' : '#dde6ee', x: gx + (r() - 0.5) * w, y: gy + (r() - 0.5) * 4, vx: 0, vy: 0, ux: (r() - 0.5) * 30, uy: (r() - 0.5) * 8, uz: r() * 10, gz: 200, z0: Math.max(4, z), sz: 1.2 + r() * 1.3, rot: 0, spin: 0, life: 2.2, max: 2.2 }); });
+  }
+  // заметает: холмик растёт поверх ствола, к концу сам сливается со снегом
+  function buryMound(o, bu) {
+    const b = smooth(0, 0.7, bu), fade = 1 - smooth(0.82, 1, bu), cd = Math.cos(o.a), sd = Math.sin(o.a), n = Math.max(2, Math.round(o.len / 10));
+    for (let i = 0; i <= n; i++) { const d = o.len * i / n, w = (14 * (1 - i / n) + 5) * (0.7 + 0.5 * b); cx.globalAlpha = b * fade * 0.95; cx.fillStyle = i % 2 ? '#eef3f8' : '#f6f9fc'; cx.beginPath(); cx.ellipse(o.x + cd * d, o.y + 0.6 * sd * d - 2, w, w * 0.42 + 2, o.a * 0.5, 0, Math.PI * 2); cx.fill(); }
+    cx.globalAlpha = 1;
   }
   // деревья людей посёлка: падают от рубщика, лежат FALL_LIE с и уходят (ствол унесли), лапник остаётся на снегу (G.lap)
   const FALL = [], FALL_LIE = 22;
@@ -547,13 +578,16 @@ const GFX = (() => {
     const w = ev.who, d = (ev.dir != null ? ev.dir : w ? Math.atan2(t.y - w.y, t.x - w.x) : 0) + (Math.random() - 0.5) * 0.5;
     if (FALL.length >= 6) FALL.shift();
     const len = 150 * t.s / ArtWorld.treeK(t.s) * tjit(t);
-    FALL.push({ x: t.x, y: t.y, kind: t.kind, s: t.s, v: treeV(t), a: d, len, t0: now, w: 0.3, T: 0.9 + Math.random() * 0.4, r: 0.05 });
-    G.lap = G.lap || [];
-    for (const k of [0.45, 0.7]) for (const sg of [1, -1]) { const c = Math.cos(d), sn = Math.sin(d) * 0.6; if (G.lap.length < 48) G.lap.push({ x: Math.round(t.x + c * len * k - sn * sg * 9), y: Math.round(t.y + sn * len * k + c * sg * 6), a: +(d + sg * 0.5).toFixed(2), s: t.s, t: G.time }); }
+    const f = { x: t.x, y: t.y, kind: t.kind, s: t.s, v: treeV(t), a: d, len, t0: now, w: 0.3, T: 0.9 + Math.random() * 0.4, r: 0.05 };
+    if (typeof Tree !== 'undefined' && Tree.MODEL[t.kind]) { const q = Tree.of(t); f.sk = q.S.key; f.k = q.k; f.len = Math.round((q.S.H * q.k - Tree.HC) * Tree.M); }
+    FALL.push(f);
+    if (!f.sk) { G.lap = G.lap || [];
+      for (const k of [0.45, 0.7]) for (const sg of [1, -1]) { const c = Math.cos(d), sn = Math.sin(d) * 0.6; if (G.lap.length < 48) G.lap.push({ x: Math.round(t.x + c * len * k - sn * sg * 9), y: Math.round(t.y + sn * len * k + c * sg * 6), a: +(d + sg * 0.5).toFixed(2), s: t.s, t: G.time }); } }
   });
   function drawFall(f) {
     const el = now - f.t0, P = fallPose(f, el); if (P.ph >= 2) fallImpact(f, false);
     f.al = clamp((f.w + f.T + FALL_LIE - el) / 3, 0, 1); f.snow = 0; f.cut = 0; f.kl = null; f.bury = 0;
+    if (f.sk) { if (f.al <= 0.01) return; f.snowN = P.ph < 2 ? 1 - smooth(0.2, 1.2, P.th) : 0.12; cx.globalAlpha = f.al; Tree.drawLog(cx, f, P.ph >= 2 && el > f.w + f.T + 1.5 ? LIE : P); cx.globalAlpha = 1; fallFx(f, P); return; }
     drawFelled(f, P);
   }
   function tickFalls() {
@@ -878,7 +912,7 @@ const GFX = (() => {
     // от работы: сучья у разделанных стволов, чурки на снегу, пустые банки (исчезают через полсуток)
     for (const q of G.lap || []) if (near(q.x, q.y, 40)) ArtWorld.lapnik(cx, q, (G.time - q.t) / (CYCLE * Actions.FELL.bury));
     // чурка отваливается от ствола и откатывается (fx,fy — где отрезана, 0.45 с)
-    for (const c of G.chunks || []) if (near(c.x, c.y, 30)) { const e = c.fx != null ? clamp((G.time - c.t) / 0.45, 0, 1) : 1, k = 1 - (1 - e) * (1 - e);
+    if (typeof Tree === 'undefined') for (const c of G.chunks || []) if (near(c.x, c.y, 30)) { const e = c.fx != null ? clamp((G.time - c.t) / 0.45, 0, 1) : 1, k = 1 - (1 - e) * (1 - e);
       if (e >= 1) ArtWorld.chunk(cx, c.x, c.y, c.a); else ArtWorld.chunk(cx, c.fx + (c.x - c.fx) * k, c.fy + (c.y - c.fy) * k - 4 * Math.sin(Math.PI * Math.min(1, e * 1.6)) * (1 - e), c.a + (1 - k) * 3 * Math.sign(c.x - c.fx || 1)); }
     if (G.litter) { for (let i = G.litter.length - 1; i >= 0; i--) if (G.time - G.litter[i].t > CYCLE * 0.5) G.litter.splice(i, 1); for (const q of G.litter) if (near(q.x, q.y, 20)) ArtWorld.emptyCan(cx, q.x, q.y, q.a); }
   }
@@ -1280,6 +1314,7 @@ const GFX = (() => {
       if (G.col.ghost) L.push([G.col.ghost.y + BUILDS[G.col.ghost.type].h / 2, 28]);
     }
     for (const a of G.amuletsAt || []) if ((!a.got || Actions.grabbing(a)) && vis(a.x, a.y)) L.push([a.y, 25, a]);
+    if (typeof Tree !== 'undefined') { Tree.frame(); for (const q of G.chunks || []) if (vis(q.x, q.y)) L.push([q.y, 39, q]); }   // части дерева на снегу (js/tree3d.js)
     for (const lg of G.logs || []) if (vis(lg.x, lg.y) || vis(lg.x + Math.cos(lg.a) * lg.len, lg.y + Math.sin(lg.a) * lg.len * 0.6)) L.push([lg.f && !lg.f.hit ? lg.y : fallY(lg), 37, lg]);
     // зоны: объекты, глыбы, транспорт на стоянке (верхом — рисуется с героем)
     for (const o of Zones.OBJS) if (o.type !== 'steam' && o.x > x0 - 120 && o.x < x1 + 120 && o.y > y0 && o.y < y1 + 120) L.push([o.y, 32, o]);
@@ -1324,6 +1359,7 @@ const GFX = (() => {
         case 36: drawFall(o); break;
         case 38: drawSinker(o); break;
         case 37: drawLog(o); break;
+        case 39: Tree.drawPart(cx, o, G.time); break;
         case 34: if (o === 'buran') ArtZones.buran(cx, G.veh.buran, ENV, false); else ArtZones.deerSled(cx, G.veh.deer, ENV); break;
       }
       if (SNOWK) Snow.after(cx, k, o); // шапка снега поверх вещи (js/snow.js)

@@ -496,7 +496,8 @@ const ArtWorld = (() => {
     const key = `tree${kind}${wall | 0}${si}${v | 0}`, tw = treeW(kind);
     return sprite(key, tw, 170, g => {
       g.translate(tw / 2, 160); const sc = TS[si];
-      if (kind === 1) paintBirch(g, sc, v); else if (kind === 2) paintCedar(g, sc, v); else if (kind === 3 && typeof ArtZones !== 'undefined') ArtZones.paintBurnt(g, sc, v); else paintSpruce(g, sc, wall, v);
+      if (!wall && typeof Tree !== 'undefined' && Tree.MODEL[kind]) Tree.paintSprite(g, kind, si, v);   // объёмная модель (js/tree3d.js)
+      else if (kind === 1) paintBirch(g, sc, v); else if (kind === 2) paintCedar(g, sc, v); else if (kind === 3 && typeof ArtZones !== 'undefined') ArtZones.paintBurnt(g, sc, v); else paintSpruce(g, sc, wall, v);
     }, sc);
   }
 
@@ -1319,7 +1320,7 @@ const ArtWorld = (() => {
     },
     chips(parts, x, y) {
       const C = ['#eacd9a', '#c79a62', '#8a6a45', '#e3d5b6'];
-      for (let i = 0; i < 9; i++) bit(parts, x, y - 10, 'chip', C[i % 4], 110, 150, rnd(1.6, 2.6), rnd(1.6, 3.4));
+      for (let i = 0; i < 7; i++) bit(parts, x, y - 10, 'chip', C[i % 4], 110, 150, rnd(1.6, 2.6), rnd(0.55, 1.2));   // щепа в настоящий размер: 3–6 см (23 px = 1 м)
       for (let i = 0; i < 4; i++) bit(parts, x, y - 4, 'snow', '#f6f9fc', 50, 70, rnd(0.5, 0.8), rnd(1.2, 2));
       parts.push({ type: 'puff', x, y, vx: 0, vy: -6, r0: 3, r1: 10, life: 0.5, max: 0.5 });
     },
@@ -1413,7 +1414,7 @@ const ArtWorld = (() => {
         if (q.kind === 'chip') {
           if (!landed) { g.globalAlpha = fade * 0.25; el(g, px, py, s, s * 0.4, '#27394a'); g.globalAlpha = fade; }
           g.save(); g.translate(px, py - z); g.rotate(landed ? q.rot + q.spin * T : q.rot + q.spin * tt);
-          g.fillStyle = q.c; g.fillRect(-s, -s * 0.35, s * 2, s * 0.7); g.fillStyle = 'rgba(58,38,24,0.5)'; g.fillRect(-s, s * 0.1, s * 2, s * 0.25);
+          g.fillStyle = q.c; g.beginPath(); g.moveTo(-s, 0); g.lineTo(-s * 0.2, -s * 0.32); g.lineTo(s, -s * 0.05); g.lineTo(s * 0.3, s * 0.28); g.closePath(); g.fill();   // щепка — клиновидная, не брусок
           g.restore();
         } else if (q.kind === 'blood') {
           if (landed) { el(g, px, py, s * 1.6, s * 0.8, q.c, q.rot); }

@@ -186,6 +186,28 @@ const Ice = (() => {
   function sinkers() { if (SINK.length) tickSink(); return SINK; }
   const sinkPx = s => { const a = G.time - s.t0; return a < 0.4 ? 24 * sm(0, 0.4, a) : 24 + 30 * sm(0.8, 3, a); };
 
+  // ---------- толщина льда (м): река ~0.4 м; у переката (течение) — тонкий до ~3 см у открытой воды; свежая дыра — молодой лёд ----------
+  function thick(x, y) {
+    if (typeof onIce !== 'function' || !onIce(x, y)) return null;
+    const P = POI.polynya, d = Math.hypot(x - P.x - 10, (y - P.y - 4.5) * 1.6);
+    let h = 0.38 + 0.05 * Math.sin(y * 0.011 + x * 0.003);
+    h = Math.min(h, 0.03 + 0.37 * sm(28, 230, d));
+    for (const q of G && G.iceHoles || []) { const dd = Math.hypot(x - q.x, (y - q.y) * 1.6); if (dd < q.r + 6) h = Math.min(h, 0.005 + 0.12 * frozen(q)); }
+    return h;
+  }
+  // пролом от удара (дерево упало на лёд): дыра, плиты кренятся, брызги, шуга, пар — та же дыра, что у провала героя
+  function breakAt(x, y, r, a) {
+    const h = { x: Math.round(x), y: Math.round(y), r: Math.round(r), t0: G.time, sd: (R() * 1e6) | 0, br: [], nb: 0, slabs: [], bits: [], tree: 1 };
+    const n = Math.max(6, Math.round(r / 3)); for (let i = 0; i < n; i++) h.slabs.push({ a: i / n * TAU + rr(-0.3, 0.3), w: rr(0.5, 0.9), r: rr(r * 0.6, r * 0.95), tilt: rr(0.6, 1), dir: R() < 0.5 ? -1 : 1 });
+    for (let i = 0; i < Math.round(r / 2.5); i++) h.bits.push({ a: rr(0, TAU), d: rr(0.2, 0.85), s: rr(2, 4.5), ph: rr(0, TAU) });
+    holes().push(h); if (holes().length > 8) holes().shift();
+    for (let i = -1; i <= 1; i++) splashAt(x + Math.cos(a || 0) * r * 0.6 * i, y + Math.sin(a || 0) * r * 0.36 * i, 2);
+    steam(x, y, 8);
+    if (typeof Sound !== 'undefined') { Sound.creak && Sound.creak(); Sound.splash && Sound.splash(); }
+    if (typeof Fx !== 'undefined') Fx.shake(6);
+    log.push({ ph: 'treeBreak', t: G.time, x, y });
+    return h;
+  }
   // ---------- рисунок: трещины перед провалом, дыры (вода, обломанная кромка, обломки, рябь, затягивается), мокрый след ----------
   function drawCracks(g) {
     const p = G.p; if (active() || !(p.iceT > 0.5) || !World.onThinIce(p)) return;
@@ -246,5 +268,5 @@ const Ice = (() => {
     if (G.iceHoles) for (const h of G.iceHoles) if (h.x > x0 - 40 && h.x < x1 + 40 && h.y > y0 - 30 && h.y < y1 + 30) drawHole(g, h);
     drawCracks(g);
   }
-  return { start, tick, inWater, active, pose, look, keepOut, rime, animal, sinkers, sinkPx, drawHoles, get phase() { return F ? F.ph : null; }, get log() { return log; }, get ep() { return F; }, DUR, PH, reset() { F = null; SINK.length = 0; WET.length = 0; } };
+  return { thick, breakAt, start, tick, inWater, active, pose, look, keepOut, rime, animal, sinkers, sinkPx, drawHoles, get phase() { return F ? F.ph : null; }, get log() { return log; }, get ep() { return F; }, DUR, PH, reset() { F = null; SINK.length = 0; WET.length = 0; } };
 })();

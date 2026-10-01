@@ -1,5 +1,7 @@
 // Частота кадров на «телефоне»: iPhone 13 / Pixel 7, CPU ×4 (CDP), ночной посёлок.
 // node perf-mobile.js [throttle=4] [seconds=6]
+// SCENE=forest — лес (js/tree3d.js): густой ельник в кадре, 3 ели всё время трясут (живая модель), 2 сваленных ствола,
+//   один обрублен и раскряжёван (лапник и чурки на снегу); Q=low|high — качество принудительно; DEV=iPhone — одно устройство
 const { chromium, devices } = require('playwright');
 const path = require('path');
 const URL = process.env.SIBIR_URL || 'file://' + path.resolve(__dirname, '../index.html');
@@ -17,6 +19,18 @@ const SCENE = () => {
   G.hut.fuel = 900; Object.assign(G.hut, { walls: 1, door: 1 });
   for (let i = 0; i < 5; i++) update(0.05);
 };
+const FOREST = () => {
+  G.s.hp = 1e9; G.time = tAt(1, 12); G.wolves = []; G.bear = null;
+  // самое густое место леса (вне стены): больше всего деревьев в кадре
+  const ok = t => t.wood > 0 && !t.wall && t.kind === 0 && Math.hypot(t.x - HUT.x, t.y - HUT.y) > 500;
+  let best = null, bn = 0; for (const t of G.trees) { if (!ok(t) || Math.random() > 0.08) continue; const n = G.trees.filter(q => q.wood > 0 && Math.abs(q.x - t.x) < 260 && Math.abs(q.y - t.y) < 180).length; if (n > bn) { bn = n; best = t; } }
+  G.p.x = best.x + 30; G.p.y = best.y + 40; if (typeof Hero !== 'undefined') Hero.snap();
+  const near = G.trees.filter(q => ok(q) && Math.hypot(q.x - best.x, q.y - best.y) < 260).sort((a, b) => Math.hypot(a.x - best.x, a.y - best.y) - Math.hypot(b.x - best.x, b.y - best.y));
+  window.__shake = near.slice(0, 3); window.__perfN = G.trees.filter(q => q.wood > 0 && Math.abs(q.x - G.p.x) < 300 && Math.abs(q.y - G.p.y) < 220).length;
+  setInterval(() => { for (const t of window.__shake) World.shakeTree(t, 0.35); }, 300);
+  for (const t of near.slice(3, 5)) { t.wood = 0; World.felled(t); const L = Actions.fell(t); delete L.f; if (L.sk && t === near[4]) { for (let i = 0; i < 3; i++) Tree.split(L, 'limb'); while (L.n > 0) Tree.split(L, 'buck'); G.logs.splice(G.logs.indexOf(L), 1); } }
+  for (let i = 0; i < 5; i++) update(0.05);
+};
 
 async function measure(dev, landscape) {
   const b = await chromium.launch({ channel: 'chrome', headless: true, args: ['--disable-gpu-vsync', '--disable-frame-rate-limit'] });
@@ -30,7 +44,9 @@ async function measure(dev, landscape) {
   await pg.goto(URL); await pg.waitForTimeout(600);
   await pg.evaluate(() => { try { localStorage.clear(); localStorage.setItem('sibir-tips', '{"move":1,"act":1,"fire":1,"cold":1,"eat":1,"stove":1,"night":1,"craft":1,"build":1,"select":1,"zoom":1}'); } catch (e) {} });
   await pg.tap('#start'); await pg.waitForTimeout(3800);
-  await pg.evaluate(SCENE);
+  if (process.env.Q) await pg.evaluate(q => Quality.set(q), process.env.Q);
+  await pg.evaluate(process.env.SCENE === 'forest' ? FOREST : SCENE);
+  const nTrees = await pg.evaluate(() => window.__perfN || 0);
   const cdp = await ctx.newCDPSession(pg);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: THR });
   // headless-Chrome держит rAF на 30 Гц, поэтому меряем работу кадра: время внутри колбэка rAF
@@ -54,13 +70,13 @@ async function measure(dev, landscape) {
   if (process.env.SHOT) await pg.screenshot({ path: __dirname + '/shots/perf-' + dev.replace(/ /g, '') + (landscape ? '-l' : '-p') + '.png' });
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   await b.close();
-  return { dev: dev + (landscape ? ' ⟷' : ' ↕'), first, settled, errs: errs.length };
+  return { dev: dev + (landscape ? ' ⟷' : ' ↕'), first, settled, errs: errs.length, nTrees };
 }
 
 (async () => {
   for (const [dev, land] of [['iPhone 13', false], ['iPhone 13', true], ['Pixel 7', false], ['Pixel 7', true]]) {
     if (process.env.DEV && !dev.includes(process.env.DEV)) continue;
     const r = await measure(dev, land);
-    console.log(`${r.dev.padEnd(14)} ×${THR}  first ${r.first.fps} fps (${r.first.q}, ${r.first.ms} ms/кадр, p95 ${r.first.p95})  → settled ${r.settled.fps} fps (${r.settled.q}, ${r.settled.ms} ms/кадр, p95 ${r.settled.p95})  errors ${r.errs}`);
+    console.log(`${r.dev.padEnd(14)} ×${THR}  first ${r.first.fps} fps (${r.first.q}, ${r.first.ms} ms/кадр, p95 ${r.first.p95})  → settled ${r.settled.fps} fps (${r.settled.q}, ${r.settled.ms} ms/кадр, p95 ${r.settled.p95})  errors ${r.errs}${r.nTrees ? ' · деревьев у героя ' + r.nTrees : ''}`);
   }
 })();
