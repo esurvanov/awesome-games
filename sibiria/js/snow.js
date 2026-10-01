@@ -366,7 +366,7 @@ const Snow = (() => {
   function after(g, k, o) {
     if (!HOLD) return;
     switch (k) {
-      case 0: if (o && o.wood <= 0) drawInst(g, 'stump', o, 0); break;
+      case 0: if (o && o.wood <= 0 && !(typeof Tree !== 'undefined' && !o.wall && Tree.MODEL[o.kind])) drawInst(g, 'stump', o, 0); break;   // пень модели — свой снег на торце
       case 4: if (o && o.wood > 0 && !(o.lit > 0)) drawInst(g, 'stack', o, Math.min(4, o.wood | 0)); break;
       case 33: if (o) drawInst(g, 'rock', o, (o.v || 0) % 3); break;
       case 10: drawCap(g, BY.tail); break;

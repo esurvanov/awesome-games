@@ -496,7 +496,8 @@ const ArtWorld = (() => {
     const key = `tree${kind}${wall | 0}${si}${v | 0}`, tw = treeW(kind);
     return sprite(key, tw, 170, g => {
       g.translate(tw / 2, 160); const sc = TS[si];
-      if (kind === 1) paintBirch(g, sc, v); else if (kind === 2) paintCedar(g, sc, v); else if (kind === 3 && typeof ArtZones !== 'undefined') ArtZones.paintBurnt(g, sc, v); else paintSpruce(g, sc, wall, v);
+      if (!wall && typeof Tree !== 'undefined' && Tree.MODEL[kind]) Tree.paintSprite(g, kind, si, v);   // объёмная модель (js/tree3d.js)
+      else if (kind === 1) paintBirch(g, sc, v); else if (kind === 2) paintCedar(g, sc, v); else if (kind === 3 && typeof ArtZones !== 'undefined') ArtZones.paintBurnt(g, sc, v); else paintSpruce(g, sc, wall, v);
     }, sc);
   }
 
