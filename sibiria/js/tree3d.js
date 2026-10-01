@@ -230,7 +230,9 @@ const Tree = (() => {
   function woodOf(t) { const L = ensure({ x: t.x, y: t.y, s: t.s, kind: t.kind, v: t.v }); return massOf(parts(L).filter(isWood)) / KG; }
 
   // ================= ПРОЕКЦИЯ И ПОЗА =================
-  const LD = (() => { const v = [-0.6, -0.38, 0.7], l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
+  // словарь C (js/style.js): одно солнце на всю игру; 2 тона, тушь — контуром силуэта (Style.inked/figure), без градиентов и бликов
+  const SC = typeof Style !== 'undefined' && Style.on, SP = SC ? Style.P : null;
+  const LD = SC ? Style.SUN : (() => { const v = [-0.6, -0.38, 0.7], l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
   const VW = [0, 0.8, 0.6];
   let R = [1, 0, 0, 0, 1, 0, 0, 0, 1], PZ = 0, PW = 0, KS = 1, OX = 0, OY = 0, BX = 0, BY = 0, BH = 1, GRD = 0, LIFT = 0, LZ0 = 0, LZ1 = 1, LH = 1;
   let AOK = 0.62, AOZ = 0, SK0 = 1e9, SK1 = -1e9, SKD = 0, ZADD = 0, VIB = 0, VT = 0, SNOW = 1, ALPHA = 1, GS = 0, GT = 0, FLAT = 0;   // FLAT — лапы ложатся плашмя (лежит: побеги поворачиваются под своим весом); GS — провис под своим весом в мировой вертикали (лежит), GT — расстояние по ветви
@@ -308,19 +310,20 @@ const Tree = (() => {
       if (!b.cw || lq) return; let n = 0; const cl = b.cw * b.len;
       for (let i = 0; i <= 6; i++) { const t = 0.1 + i / 6 * 0.82; pt(t, 0, 0); BUF[n++] = SX; BUF[n++] = SY; }
       for (let i = 6; i >= 0; i--) { const t = 0.1 + i / 6 * 0.82 + 0.03, d = cl * Math.sin(Math.PI * (t - 0.06) / 0.9) * (0.55 + 0.45 * hh(b.sd, i)); pt(t, (hh(b.sd, i + 9) - 0.5) * 0.5, d); BUF[n++] = SX; BUF[n++] = SY; }
-      path(g, n / 2); g.fillStyle = tone(P.ndl, bri * 0.42 + 0.05); g.fill();
+      path(g, n / 2); g.fillStyle = SC ? SP.ink : tone(P.ndl, bri * 0.42 + 0.05); g.fill();
     };
     if (!under) curtain();
     // лапа
     const O = outline(lq ? 4 : mid ? 6 : 9); let n = 0;
     for (const [t, s] of O) { const j = s ? 0.8 + 0.35 * hh(b.sd, n) : 1; pt(t, s * j, 0); BUF[n * 2] = SX; BUF[n * 2 + 1] = SY; n++; }
     path(g, n);
-    if (lq || mid) g.fillStyle = tone(P.ndl, 0.18 + 0.55 * bri);
+    if (SC) g.fillStyle = !under && bri > 0.5 ? SP.pine : SP.ink;   // C: лапа — свет (хвоя) или тень (тушь)
+    else if (lq || mid) g.fillStyle = tone(P.ndl, 0.18 + 0.55 * bri);
     else { pt(0.05, 0, 0); const x0 = SX, y0 = SY; pt(1, 0, 0); const gr = g.createLinearGradient(x0, y0, SX, SY); gr.addColorStop(0, tone(P.ndl, 0.06 + 0.2 * bri)); gr.addColorStop(0.5, tone(P.ndl, 0.22 + 0.45 * bri)); gr.addColorStop(1, tone(P.ndl, 0.32 + 0.62 * bri)); g.fillStyle = gr; }
     g.fill();
     if (under) curtain();
-    // побеги «ёлочкой»: тёмные щели между боковыми веточками и светлые верхушки
-    if (!lq) {
+    // побеги «ёлочкой»: тёмные щели между боковыми веточками и светлые верхушки (C — нет: мелкая деталь внутри силуэта)
+    if (!lq && !SC) {
       const lw = Math.max(0.35, b.len * KS * M * 0.022) * sc;
       g.lineWidth = lw; g.lineCap = 'round';
       g.strokeStyle = tone(P.ndl, 0.04 + 0.12 * bri); g.beginPath();
@@ -337,33 +340,33 @@ const Tree = (() => {
       const lump = i => (i === 0 || i === NS ? 0.15 : i % 2 ? 1 : 0.42) * (0.75 + 0.4 * hh(b.sd, i + 30));
       const band = dz => { let m = 0; ZADD = dz; for (let i = 0; i <= NS; i++) { pt(0.14 + i / NS * 0.74, wk * lump(i) + 0.08, 0); BUF[m++] = SX; BUF[m++] = SY; }
         for (let i = NS; i >= 0; i--) { pt(0.16 + i / NS * 0.74, -wk * lump(i) * 0.85 + 0.08, 0); BUF[m++] = SX; BUF[m++] = SY; } ZADD = 0; path(g, m / 2); };
-      const a0 = g.globalAlpha; g.globalAlpha = a0 * Math.min(1, sk * 1.4);
-      band(th * 0.35); g.fillStyle = '#9fb5cb'; g.fill();
-      band(th); g.fillStyle = lq ? '#eef3f8' : '#f3f7fb'; g.fill();
-      if (!lq && !mid) { g.fillStyle = 'rgba(255,255,255,0.9)'; ZADD = th * 1.15; pt(0.35, 0.25, 0); const ax = SX, ay = SY; pt(0.62, 0.2, 0); ZADD = 0; GT = 0; g.lineWidth = Math.max(0.5, th * M * 0.9) * sc; g.strokeStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(SX, SY); g.stroke(); }
+      const a0 = g.globalAlpha; g.globalAlpha = a0 * (SC ? 1 : Math.min(1, sk * 1.4));
+      band(th * 0.35); g.fillStyle = SC ? SP.shade : '#9fb5cb'; g.fill();
+      band(th); g.fillStyle = SC ? SP.paper : lq ? '#eef3f8' : '#f3f7fb'; g.fill();
+      if (!lq && !mid && !SC) { g.fillStyle = 'rgba(255,255,255,0.9)'; ZADD = th * 1.15; pt(0.35, 0.25, 0); const ax = SX, ay = SY; pt(0.62, 0.2, 0); ZADD = 0; GT = 0; g.lineWidth = Math.max(0.5, th * M * 0.9) * sc; g.strokeStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(SX, SY); g.stroke(); }
       g.globalAlpha = a0; GT = 0;
     }
   }
   // голая ветвь (берёза, сухостой): сужающаяся линия, боковые прутья, у берёзы — свисающие веточки; снег — тонкой линией сверху
   function drawBare(g, S, b, wz, lq, sc) {
     const P = S.P, w0 = Math.max(0.5, b.db * KS * M) * sc;
-    g.strokeStyle = b.dead ? '#4d443c' : P.twig; g.lineCap = 'round';
+    g.strokeStyle = SC ? SP.ink : b.dead ? '#4d443c' : P.twig; g.lineCap = 'round';
     let px, py; for (let i = 0; i <= 4; i++) { const q = brPt(S, b, wz, i / 4); GT = i / 4 * b.len; tf(q[0], q[1], q[2], wz); if (i) { g.lineWidth = w0 * (1 - i / 5); g.beginPath(); g.moveTo(px, py); g.lineTo(SX, SY); g.stroke(); } px = SX; py = SY; }
     GT = 0; if (lq) return;
     const sub = (t0, da, l) => { const q = brPt(S, b, wz, t0), az = b.az + da; GT = t0 * b.len; tf(q[0], q[1], q[2], wz); const x0 = SX, y0 = SY;
       tf(q[0] + Math.cos(az) * l * 0.7, q[1] + Math.sin(az) * l * 0.7, q[2] + l * (P.burnt ? 0.5 : 0.35), wz); g.moveTo(x0, y0); g.lineTo(SX, SY);
       if (!P.burnt) { const ex = SX, ey = SY; tf(q[0] + Math.cos(az) * l * 0.9, q[1] + Math.sin(az) * l * 0.9, q[2] + l * 0.05, wz); g.moveTo(ex, ey); g.lineTo(SX, SY); } };
     g.lineWidth = Math.max(0.35, w0 * 0.35); g.beginPath();
-    for (let i = 0; i < (P.burnt || b.dead ? 1 : 4); i++) sub(0.3 + i * 0.17, (i % 2 ? 0.7 : -0.7) * (0.6 + hh(b.sd, i)), b.len * (0.35 - i * 0.05));
+    for (let i = 0; i < (P.burnt || b.dead ? 1 : SC ? 2 : 4); i++) sub(0.3 + i * 0.17, (i % 2 ? 0.7 : -0.7) * (0.6 + hh(b.sd, i)), b.len * (0.35 - i * 0.05));
     g.stroke();
-    if (!P.burnt && !b.dead) {   // берёза: тонкие свисающие веточки (повислая) — тёмная «вуаль» кроны
-      g.lineWidth = Math.max(0.3, w0 * 0.16); g.strokeStyle = 'rgba(58,36,28,0.55)'; g.beginPath();
+    if (!P.burnt && !b.dead && !SC) {   // берёза: тонкие свисающие веточки (C — нет: крона берёзы — только линии ветвей) (повислая) — тёмная «вуаль» кроны
+      g.lineWidth = Math.max(0.3, w0 * 0.16); g.strokeStyle = SC ? SP.ink : 'rgba(58,36,28,0.55)'; g.beginPath();
       for (let i = 0; i < 6; i++) { const t0 = 0.35 + i * 0.11, q = brPt(S, b, wz, t0), l = b.len * (0.22 + 0.2 * hh(b.sd, i + 20)), sd = (hh(b.sd, i + 40) - 0.5) * 0.3;
         GT = t0 * b.len; tf(q[0], q[1], q[2], wz); g.moveTo(SX, SY); tf(q[0] + Math.cos(b.az + sd) * l * 0.25, q[1] + Math.sin(b.az + sd) * l * 0.25, q[2] - l, wz); g.lineTo(SX, SY); }
       g.stroke(); GT = 0;
     } GT = 0;
     if (SNOW > 0.05) { const q0 = brPt(S, b, wz, 0.05), q1 = brPt(S, b, wz, 0.55); ZADD = b.db * KS * 0.6; tf(q0[0], q0[1], q0[2], wz); const x0 = SX, y0 = SY; tf(q1[0], q1[1], q1[2], wz); ZADD = 0;
-      const u = rot(q1[0] - q0[0], q1[1] - q0[1], q1[2] - q0[2]); if (Math.abs(u[2]) / (Math.hypot(u[0], u[1], u[2]) || 1) < 0.75) { g.strokeStyle = '#f3f7fb'; g.lineWidth = w0 * 0.55 * SNOW; g.beginPath(); g.moveTo(x0, y0); g.lineTo(SX, SY); g.stroke(); } }
+      const u = rot(q1[0] - q0[0], q1[1] - q0[1], q1[2] - q0[2]); if (Math.abs(u[2]) / (Math.hypot(u[0], u[1], u[2]) || 1) < 0.75) { g.strokeStyle = SC ? SP.paper : '#f3f7fb'; g.lineWidth = w0 * 0.55 * SNOW; g.beginPath(); g.moveTo(x0, y0); g.lineTo(SX, SY); g.stroke(); } }
   }
   // участок ствола: силуэт цилиндра, свет поперёк (градиент), кора, пеньки сучьев
   function drawSeg(g, S, za, zb, lq, sc, stubs) {
@@ -378,6 +381,8 @@ const Tree = (() => {
     // внутри кроны ствол в тени ветвей (обрубленный/без кроны — на свету)
     const ao = AOK && !S.P.bare ? 1 - AOK * sm(AOZ - 0.2, AOZ + 0.5, (za + zb) / 2) : 1;
     const br = n => (0.15 + 0.85 * (0.5 + 0.5 * dot(n, LD))) * ao, P = S.P.bark;
+    if (SC) segC(g, S, ax, ay, bx, by, px, py, wa, wb, ne, ao);
+    else {
     if (lq) g.fillStyle = tone(P, br(nf) * 0.85);
     else {
       const mx = (ax + bx) / 2, my = (ay + by) / 2, w = (wa + wb) / 2 + 0.01, gr = g.createLinearGradient(mx + px * w, my + py * w, mx - px * w, my - py * w);
@@ -385,10 +390,12 @@ const Tree = (() => {
       gr.addColorStop(0.75, tone(P, br(nrm([nf[0] - ne[0], nf[1] - ne[1], nf[2] - ne[2]])) * 0.9)); gr.addColorStop(1, tone(P, br([-ne[0], -ne[1], -ne[2]]) * 0.7)); g.fillStyle = gr;
     }
     g.fill();
+    }
     if (lq || wa < 0.6) return;
-    // кора: трещины (ель, кедр, сухостой) или чечевички (берёза) — только на видимой стороне
+    // кора: трещины (ель, кедр, сухостой) или чечевички (берёза) — только на видимой стороне (C — только берёза: пятна тушью)
     const birch = S.P.bare && !S.P.burnt; g.lineCap = 'round';
-    g.strokeStyle = birch ? 'rgba(25,22,20,0.85)' : 'rgba(18,12,8,0.7)'; g.lineWidth = Math.max(0.5 * sc, (birch ? 0.03 : 0.011) * M * KS); g.beginPath();
+    if (SC && !birch) { if (stubs) stubsAt(g, S, za, zb, sc, stubs); return; }
+    g.strokeStyle = SC ? SP.ink : birch ? 'rgba(25,22,20,0.85)' : 'rgba(18,12,8,0.7)'; g.lineWidth = Math.max(0.5 * sc, (birch ? 0.03 : 0.011) * M * KS); g.beginPath();
     for (const m of S.marks) {
       if (m.z < za || m.z >= zb) continue; const d = rot(Math.cos(m.ph), Math.sin(m.ph), 0); if (dot(d, VW) < 0.15) continue;
       const r = rz(S, m.z) * 1.01;
@@ -396,8 +403,18 @@ const Tree = (() => {
       else { tf(Math.cos(m.ph) * r, Math.sin(m.ph) * r, m.z, m.z); g.moveTo(SX, SY); const z1 = Math.min(zb, m.z + m.l); tf(Math.cos(m.ph + 0.05) * rz(S, z1), Math.sin(m.ph + 0.05) * rz(S, z1), z1, z1); g.lineTo(SX, SY); }
     }
     g.stroke();
-    // пеньки обрубленных сучьев: светлый срез на коре
-    if (stubs) for (const w of S.wh) { if (w.z < za || w.z >= zb || !stubs(w)) continue; for (const b of w.br) { const d = rot(Math.cos(b.az), Math.sin(b.az), 0); if (dot(d, VW) < 0) continue; const r = rz(S, w.z) * 1.08; tf(Math.cos(b.az) * r, Math.sin(b.az) * r, w.z, w.z); g.fillStyle = '#3a2618'; g.beginPath(); g.arc(SX, SY, Math.max(0.5, b.db * KS * M * 0.75) * sc, 0, TAU); g.fill(); g.fillStyle = '#c79a62'; g.beginPath(); g.arc(SX, SY, Math.max(0.35, b.db * KS * M * 0.45) * sc, 0, TAU); g.fill(); } }
+    if (stubs) stubsAt(g, S, za, zb, sc, stubs);
+  }
+  // пеньки обрубленных сучьев: светлый срез на коре
+  function stubsAt(g, S, za, zb, sc, stubs) {
+    for (const w of S.wh) { if (w.z < za || w.z >= zb || !stubs(w)) continue; for (const b of w.br) { const d = rot(Math.cos(b.az), Math.sin(b.az), 0); if (dot(d, VW) < 0) continue; const r = rz(S, w.z) * 1.08; tf(Math.cos(b.az) * r, Math.sin(b.az) * r, w.z, w.z); g.fillStyle = SC ? SP.ink : '#3a2618'; g.beginPath(); g.arc(SX, SY, Math.max(0.5, b.db * KS * M * 0.75) * sc, 0, TAU); g.fill(); g.fillStyle = SC ? SP.ochre : '#c79a62'; g.beginPath(); g.arc(SX, SY, Math.max(0.35, b.db * KS * M * 0.45) * sc, 0, TAU); g.fill(); } }
+  }
+  // C: ствол — тон тени, освещённая половина (к солнцу) — тон света; кора берёзы — пятна тушью
+  function segC(g, S, ax, ay, bx, by, px, py, wa, wb, ne, ao) {
+    const M_ = S.P.burnt ? 'burnt' : S.P.bare ? 'birch' : 'bark', lt = Style.MAT[M_], sg = dot(ne, LD) >= 0 ? 1 : -1;
+    g.fillStyle = SP[lt[1]]; g.fill();
+    if (S.P.bare) { g.strokeStyle = SP.ink; g.lineWidth = Math.max(0.6, Math.min(wa * 0.5, Style.INK * 0.5)); g.stroke(); }   // голое дерево — без контура силуэта: кромка ствола своей линией
+    if (ao > 0.55) { g.fillStyle = SP[lt[0]]; g.beginPath(); g.moveTo(ax + px * wa * sg, ay + py * wa * sg); g.lineTo(bx + px * wb * sg, by + py * wb * sg); g.lineTo(bx - px * wb * sg * 0.15, by - py * wb * sg * 0.15); g.lineTo(ax - px * wa * sg * 0.15, ay - py * wa * sg * 0.15); g.closePath(); g.fill(); }
   }
   // торец: плоскость сечения (local XY → мир) — эллипс точной проекции, годовые кольца, кора по краю; snow — снег поверх
   function drawDisc(g, S, z, snow, fresh, lq) {
@@ -405,6 +422,13 @@ const Tree = (() => {
     if (r < 0.3) return;
     g.save(); g.transform(e1[0] * r, e1[1] * r, e2[0] * r, e2[1] * r, cx, cy);
     const W = WOOD[S.kind] || WOOD[0];
+    if (SC) {   // C: торец — охра (свежий) / дерево, кольцо коры и одно годовое — тушью
+      g.fillStyle = SP.ink; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill();
+      g.fillStyle = fresh ? SP.ochre : SP.wood; g.beginPath(); g.arc(0, 0, 0.84, 0, TAU); g.fill();
+      if (!lq) { g.strokeStyle = SP.wood; g.lineWidth = 0.07; g.beginPath(); g.arc(0.03, 0.02, 0.45, 0, TAU); g.stroke(); }
+      if (snow > 0.25) { g.fillStyle = SP.paper; g.beginPath(); g.ellipse(-0.08, -0.06, 0.8, 0.72, 0.3, 0, TAU); g.fill(); }
+      g.restore(); return;
+    }
     g.fillStyle = tone(S.P.bark, 0.25); g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill();
     g.fillStyle = tone(W, fresh ? 0.75 : 0.5); g.beginPath(); g.arc(0, 0, 0.88, 0, TAU); g.fill();
     if (!lq) {
@@ -427,9 +451,9 @@ const Tree = (() => {
     if (q <= 0.01) return;
     // выемка на силуэте: клин вынут — за ним снег; дно (горизонтальный рез) светлое, верхняя грань — в тени
     const ht = (r - d) * 1.0;
-    g.beginPath(); tf(sd * r * 1.08, 0, z + ht, z); g.moveTo(SX, SY); tf(sd * d, 0, z + 0.004, z); g.lineTo(SX, SY); tf(sd * r * 1.08, 0, z - 0.004, z); g.lineTo(SX, SY); g.closePath(); g.fillStyle = '#dfe7ef'; g.fill();
-    face(0, '#e8c48e');   // верхняя грань смотрит вниз — сверху не видна
-    g.strokeStyle = '#2a1a10'; g.lineWidth = Math.max(0.4, r * KS * M * 0.07); g.beginPath(); tf(sd * r * 1.04, 0, z + ht, z); g.moveTo(SX, SY); tf(sd * d, 0, z + 0.004, z); g.lineTo(SX, SY); g.stroke();
+    g.beginPath(); tf(sd * r * 1.08, 0, z + ht, z); g.moveTo(SX, SY); tf(sd * d, 0, z + 0.004, z); g.lineTo(SX, SY); tf(sd * r * 1.08, 0, z - 0.004, z); g.lineTo(SX, SY); g.closePath(); g.fillStyle = SC ? SP.paper : '#dfe7ef'; g.fill();
+    face(0, SC ? SP.ochre : '#e8c48e');   // верхняя грань смотрит вниз — сверху не видна
+    g.strokeStyle = SC ? SP.ink : '#2a1a10'; g.lineWidth = Math.max(0.4, r * KS * M * 0.07); g.beginPath(); tf(sd * r * 1.04, 0, z + ht, z); g.moveTo(SX, SY); tf(sd * d, 0, z + 0.004, z); g.lineTo(SX, SY); g.stroke();
     void cy;
   }
   // ---------- сборка кадра дерева: элементы по глубине ----------
@@ -463,7 +487,7 @@ const Tree = (() => {
         case 3: drawNotch(g, S, e.a.q, e.a.sd, e.b); break;
       }
     }
-    if (z1 >= S.H - 0.01 && !S.P.bare && SNOW > 0.2) { tf(0, 0, S.H - 0.04, S.H); const up = rot(0, 0, 1)[2]; if (up > 0.6) { g.fillStyle = '#f3f7fb'; g.beginPath(); g.ellipse(SX, SY + 0.02 * M * KS, 0.06 * M * KS, 0.05 * M * KS, 0, 0, TAU); g.fill(); } }
+    if (z1 >= S.H - 0.01 && !S.P.bare && SNOW > 0.2) { tf(0, 0, S.H - 0.04, S.H); const up = rot(0, 0, 1)[2]; if (up > 0.6) { g.fillStyle = SC ? SP.paper : '#f3f7fb'; g.beginPath(); g.ellipse(SX, SY + 0.02 * M * KS, 0.06 * M * KS, 0.05 * M * KS, 0, 0, TAU); g.fill(); } }
   }
   // слабый пресет: половина ветвей, оставшиеся шире — силуэт кроны тот же
   const WIDE = new WeakMap(); const scaleW = b => { let c = WIDE.get(b); if (!c) { c = Object.assign({}, b, { fw: b.fw * 1.45 }); WIDE.set(b, c); } return c; };
@@ -473,6 +497,10 @@ const Tree = (() => {
   // спрайт стоящего (класс; опора 0,0 — комель на снегу): тень, воронка у ствола, модель в покое со снегом
   function paintSprite(g, kind, si, v) {
     const S = spec(kind, si, v), s = TS[si], A = W_();
+    if (SC) {   // C: в спрайте только дерево с контуром; тень — по одному правилу в GFX (shadowsC)
+      pose(S, 1, { snow: 1 }); const sc = g.getTransform().a;
+      Style.inked(g, c => render(c, S, { sc: 1 / Math.max(0.5, sc), lq: low() }), S.P.bare ? 0 : Style.inkFor(sc, false)); return;
+    }
     if (A) { A.shadow(g, 0, 0, (kind === 2 ? 24 : kind === 1 || kind === 3 ? 14 : 19) * s, 5.5 * s, 0.4); A.trunkWell(g, s, v, kind === 2 ? 1.3 : kind === 3 ? 0.9 : 1, kind === 2 ? 6311 : kind === 3 ? 7129 : 4401); }
     pose(S, 1, { snow: 1 }); render(g, S, { sc: 1 / Math.max(0.5, g.getTransform().a), lq: low() });   // sc — 1 px устройства в px спрайта
   }
@@ -489,7 +517,7 @@ const Tree = (() => {
   const live = (t, notch) => t.shake > 0 || (notch && notch.q > 0) || SN.has(t);
   // стоящее дерево живьём: bendPx — изгиб вершины (px), notch {q, sd}
   function drawStanding(g, t, o) {
-    const { S, k } = of(t), wl = wellSprite(S.kind, S.si, S.v), dpr = g.getTransform().a;
+    const { S, k } = of(t), wl = SC ? null : wellSprite(S.kind, S.si, S.v), dpr = g.getTransform().a;
     if (wl) { const s = wl._s || 1; g.drawImage(wl, t.x - 45 * k, t.y - 18 * k, 90 * k, 30 * k); void s; }
     const sh = t.shake > 0 ? t.shake : 0, tt = typeof now === 'number' ? now : 0;
     const bx = (o.bend || 0) / M / k + (sh ? Math.sin(tt * 38) * sh * 0.5 : 0);
@@ -497,6 +525,7 @@ const Tree = (() => {
     viaCanvas(g, t, t.x - R0, t.y - Hp, R0 * 2, Hp + R0 * 0.75 + 8, sh > 0 ? 2 : 1, (c, s) => {
       pose(S, k, { ox: t.x, oy: t.y, bend: [bx, sh ? Math.cos(tt * 31) * sh * 0.15 : 0], vib: sh * 0.25, t: tt, snow: snowOf(t) });
       render(c, S, { notch: o.notch, sc: 1 / s, lq: low() });
+      if (SC && !S.P.bare) Style.outlineCanvas(c.canvas, Style.inkFor(s, true));
     });
     void dpr;
   }
@@ -517,11 +546,12 @@ const Tree = (() => {
   }
   // пень: ствол 0..HC, свежий торец (снег нарастает), без ветвей
   function drawStump(g, t, snow) {
-    const { S, k } = of(t), wl = wellSprite(S.kind, S.si, S.v), dpr = g.getTransform().a;
+    const { S, k } = of(t), wl = SC ? null : wellSprite(S.kind, S.si, S.v), dpr = g.getTransform().a;
     if (wl) g.drawImage(wl, t.x - 45 * k, t.y - 18 * k, 90 * k, 30 * k);
     pose(S, k, { ox: t.x, oy: t.y, snow: 1 }); const hz = HC / k;
-    render(g, S, { z0: 0, z1: hz, has: () => false, discs: [[hz, 1, snow < 0.5]], dsnow: snow, sc: 1 / Math.max(0.5, dpr), lq: low() });
-    if (snow < 0.5) { tf(0, 0, hz, hz); const r = rz(S, hz) * k * M; g.strokeStyle = '#efd8a8'; g.lineWidth = Math.max(0.5, r * 0.15); g.beginPath(); g.moveTo(SX - r * 0.7, SY - r * 0.1); g.lineTo(SX - r * 0.2, SY - r * 0.5); g.moveTo(SX + r * 0.1, SY - r * 0.05); g.lineTo(SX + r * 0.4, SY - r * 0.55); g.stroke(); }   // недопил — щепа торчит
+    const paint = gg => render(gg, S, { z0: 0, z1: hz, has: () => false, discs: [[hz, 1, snow < 0.5]], dsnow: snow, sc: 1 / Math.max(0.5, dpr), lq: low() });
+    if (SC) { const r = rz(S, 0) * k * M + 3; Style.cast(g, t.x, t.y, hz * k * M, r * 2.2); Style.figure(g, t.x - r - 2, t.y - hz * k * M - r - 2, r * 2 + 4, hz * k * M + r * 2 + 4, paint, { snap: false }); } else paint(g);
+    if (snow < 0.5) { tf(0, 0, hz, hz); const r = rz(S, hz) * k * M; g.strokeStyle = SC ? SP.ochre : '#efd8a8'; g.lineWidth = Math.max(0.5, r * 0.15); g.beginPath(); g.moveTo(SX - r * 0.7, SY - r * 0.1); g.lineTo(SX - r * 0.2, SY - r * 0.5); g.moveTo(SX + r * 0.1, SY - r * 0.05); g.lineTo(SX + r * 0.4, SY - r * 0.55); g.stroke(); }   // недопил — щепа торчит
   }
   // ---------- ствол на земле / в падении ----------
   // o: {x, y, a, kind, s, v | sk, k, hc, zTop, top, cut, ...}, P — поза валки (GFX.fallPose): th, lag (px), roll, ph
@@ -548,6 +578,7 @@ const Tree = (() => {
     }
     const Rt = S.H * k * M + crownPx(S, k) + 20;
     viaCanvas(g, o, o.x - Rt, o.y - Rt, Rt * 2, Rt * 1.75, 1, (c, s) => {
+      if (SC) { pose(S, k, X.po); render(c, S, Object.assign({ sc: 1 / s }, X.ro)); Style.outlineCanvas(c.canvas, Style.inkFor(s, true)); c.globalCompositeOperation = 'destination-over'; shadowLog(c, S, k, o, X, P); c.globalCompositeOperation = 'source-over'; sinkFx(c, S, k, o, X); return; }
       shadowLog(c, S, k, o, X, P);
       pose(S, k, X.po); render(c, S, Object.assign({ sc: 1 / s }, X.ro));
       sinkFx(c, S, k, o, X);
@@ -564,6 +595,7 @@ const Tree = (() => {
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, -x0 * dpr, -y0 * dpr);
     const o0 = { x: 0, y: 0 }, oo = Object.assign({}, o, o0);
+    if (SC) { pose(S, k, Object.assign({}, X.po, { ox: 0, oy: 0 })); render(g, S, Object.assign({ sc: 1 / dpr }, X.ro)); Style.outlineCanvas(cv, Style.inkFor(dpr, true)); g.globalCompositeOperation = 'destination-over'; shadowLog(g, S, k, oo, X, LIE_P); g.globalCompositeOperation = 'source-over'; sinkFx(g, S, k, oo, X); return { cv, key, x0, y0, w: x1 - x0, h: y1 - y0 }; }
     shadowLog(g, S, k, oo, X, LIE_P);
     pose(S, k, Object.assign({}, X.po, { ox: 0, oy: 0 })); render(g, S, Object.assign({ sc: 1 / dpr }, X.ro));
     sinkFx(g, S, k, oo, X);
@@ -577,6 +609,7 @@ const Tree = (() => {
     for (let i = 0; i <= n; i++) {
       const z = X.ro.z0 + (zc - X.ro.z0) * i / n, d = (z - X.ro.z0) * k * M, cx = o.x + Math.cos(o.a) * d, cy = o.y + Math.sin(o.a) * d * 0.6;
       let rc = rz(S, z) * k * M * 2 + 2; for (const w of S.wh) if (Math.abs(w.z - z) < 0.5 && X.ro.has(w)) { for (const b of w.br) rc = Math.max(rc, b.len * k * M * 0.55); }
+      if (SC) { g.globalAlpha = a0 * (lie > 0.6 ? 1 : 0); g.fillStyle = SP.shade; g.beginPath(); g.ellipse(cx + Style.SHV.x * 8, cy + Style.SHV.y * 8 + 2, rc * 0.9, rc * 0.38, 0, 0, TAU); g.fill(); continue; }   // C: сплошной тон тени, сдвиг по солнцу
       g.globalAlpha = a0 * lie; A.shadow(g, cx + 2, cy + 3, rc, rc * 0.42, 0.22);
     }
     g.globalAlpha = a0;
@@ -606,15 +639,18 @@ const Tree = (() => {
     const cx = p.fx != null ? lerp(p.fx, p.x, ke) : p.x, cy = p.fx != null ? lerp(p.fy, p.y, ke) - 4 * Math.sin(Math.PI * Math.min(1, e * 1.6)) * (1 - e) : p.y;
     const a = p.ang, ca = Math.cos(a), sa = Math.sin(a), h = len / 2 * M, ox = cx - ca * h, oy = cy - sa * h * 0.6;
     const rr = (rz(S, p.z0) + rz(S, p.z1)) / 2, roll = (p.id || 0) * 1.7 + (1 - ke) * 6;
-    const A = W_(); if (A) A.shadow(g, cx + 1, cy + 1.5, Math.max(4, len * M * 0.55), Math.max(2, rr * k * M * 1.6), 0.3);
+    const A = W_();
+    if (SC) { g.fillStyle = SP.shade; g.beginPath(); g.ellipse(cx + Style.SHV.x * 4, cy + 1.5 + Style.SHV.y * 4, Math.max(4, len * M * 0.55), Math.max(2, rr * k * M * 1.3), a * 0.6, 0, TAU); g.fill(); }   // C: тень сплошным тоном
+    else if (A) A.shadow(g, cx + 1, cy + 1.5, Math.max(4, len * M * 0.55), Math.max(2, rr * k * M * 1.6), 0.3);
+    const R_ = len * M * 0.6 + rr * k * M * 2 + (p.kind === 'top' ? S.H * k * M * 0.5 : 0) + 6, box = (gg, fn) => (SC ? Style.figure(gg, cx - R_, cy - R_, R_ * 2, R_ * 2, fn, { snap: false }) : fn(gg));
     if (p.kind === 'top') {
       pose(S, k, { th: Math.PI / 2, a, roll, pz: p.z0, pw: rr, ox, oy, grd: 1, lift: 0.12, lz0: p.z0, gs: 0.4, flat: 0.85, snow: snowAge(p, time) });
-      return render(g, S, { z0: p.z0, z1: S.H, discs: [[p.z0, -1, 1]], sc });
+      return box(g, gg => render(gg, S, { z0: p.z0, z1: S.H, discs: [[p.z0, -1, 1]], sc }));
     }
     pose(S, k, { th: Math.PI / 2, a, roll, pz: p.z0, pw: rr, ox, oy });
     const sn = snowAge(p, time);
-    render(g, S, { aok: 0, z0: p.z0, z1: p.z1, has: () => false, stubs: () => true, discs: [[p.z0, -1, 1], [p.z1, 1, 1]], dsnow: sn * 0.6, sc });
-    if (sn > 0.05) { g.globalAlpha *= Math.min(1, sn * 1.5); g.fillStyle = '#f3f7fb'; tf(0, 0, p.z0 + 0.02, p.z0); const x0 = SX, y0 = SY; tf(0, 0, p.z1 - 0.02, p.z1); g.lineCap = 'round'; g.strokeStyle = '#f3f7fb'; g.lineWidth = Math.max(0.8, rr * k * M * 0.9); g.beginPath(); g.moveTo(x0, y0 - rr * k * M * 0.75); g.lineTo(SX, SY - rr * k * M * 0.75); g.stroke(); g.globalAlpha = 1; }
+    box(g, gg => render(gg, S, { aok: 0, z0: p.z0, z1: p.z1, has: () => false, stubs: () => true, discs: [[p.z0, -1, 1], [p.z1, 1, 1]], dsnow: sn * 0.6, sc }));
+    if (sn > 0.05) { g.globalAlpha *= Math.min(1, sn * 1.5); g.fillStyle = SC ? SP.paper : '#f3f7fb'; tf(0, 0, p.z0 + 0.02, p.z0); const x0 = SX, y0 = SY; tf(0, 0, p.z1 - 0.02, p.z1); g.lineCap = 'round'; g.strokeStyle = '#f3f7fb'; g.lineWidth = Math.max(0.8, rr * k * M * 0.9); g.beginPath(); g.moveTo(x0, y0 - rr * k * M * 0.75); g.lineTo(SX, SY - rr * k * M * 0.75); g.stroke(); g.globalAlpha = 1; }
   }
   const snowAge = (p, time) => clamp((time - p.t) / (CYCLE * 0.6), 0, 0.85);
   function drawBoughPart(g, p, time, sc) {
@@ -625,12 +661,14 @@ const Tree = (() => {
     let bx = p.x - ca * half, by = p.y - sa * half * 0.6, lift = 0, tw = 0;
     if (e < 1 && p.fx != null) { bx = lerp(p.fx, bx, ke); by = lerp(p.fy, by, ke); lift = (p.fz || 0.3) * (1 - ke); tw = (1 - e) * 0.9; }
     const A = W_(), a0 = g.globalAlpha, fade = 1 - sm(0.75, 1, bury); g.globalAlpha = a0 * fade;
-    if (A && e >= 1) A.shadow(g, p.x + 1, p.y + 1.5, b.len * k * M * 0.55, b.len * k * M * 0.22, 0.2);
+    if (SC && e >= 1) { g.fillStyle = SP.shade; g.beginPath(); g.ellipse(p.x + 2, p.y + 2, b.len * k * M * 0.5, b.len * k * M * 0.18, p.ang * 0.6, 0, TAU); g.fill(); }
+    else if (A && e >= 1) A.shadow(g, p.x + 1, p.y + 1.5, b.len * k * M * 0.55, b.len * k * M * 0.22, 0.2);
     // ветвь целиком поворачиваем: её азимут → ang, основание — в (bx, by)
     pose(S, k, { roll: p.ang - b.az, pz: w.z, pw: lift / k + 0.02, ox: bx - Math.cos(p.ang) * rz(S, w.z) * k * M, oy: by - Math.sin(p.ang) * rz(S, w.z) * k * M * 0.6, grd: 1, gs: 0.25, flat: 1, snow: snowAge(p, time) });
     if (tw) { const c = Math.cos(tw), s = Math.sin(tw), r = R; R = [r[0], r[1] * c - r[2] * s, r[1] * s + r[2] * c, r[3], r[4] * c - r[5] * s, r[4] * s + r[5] * c, r[6], r[7] * c - r[8] * s, r[7] * s + r[8] * c]; }
-    if (S.P.bare || b.dead) drawBare(g, S, b, w.z, low(), sc); else drawBough(g, S, b, w.z, low(), sc);
-    if (bury > 0.3) { g.globalAlpha = a0 * fade * sm(0.3, 0.75, bury); g.fillStyle = '#eef3f8'; g.beginPath(); g.ellipse(p.x, p.y - 1, b.len * k * M * 0.5, b.len * k * M * 0.2, p.ang * 0.6, 0, TAU); g.fill(); }
+    const L_ = b.len * k * M + 8, paint = gg => { if (S.P.bare || b.dead) drawBare(gg, S, b, w.z, low(), sc); else drawBough(gg, S, b, w.z, low(), sc); };
+    if (SC) Style.figure(g, bx - L_, by - L_, L_ * 2, L_ * 2, paint, { snap: false }); else paint(g);
+    if (bury > 0.3) { g.globalAlpha = a0 * fade * sm(0.3, 0.75, bury); g.fillStyle = SC ? SP.paper : '#eef3f8'; g.beginPath(); g.ellipse(p.x, p.y - 1, b.len * k * M * 0.5, b.len * k * M * 0.2, p.ang * 0.6, 0, TAU); g.fill(); }
     g.globalAlpha = a0;
   }
   function frame() { lcBudget = 2; FR++; }
