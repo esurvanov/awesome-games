@@ -400,33 +400,26 @@ const GFX = (() => {
   const treeV = t => t.kind === 0 && !t.wall ? (t.v + ((((t.x * 73856093) ^ (t.y * 19349663)) >>> 0) % 3)) % 3 : t.v;
   // изгиб: смещение на высоте h (0..160) = sway·h²/160 — комель на месте, крона гнётся; срезы спрайта стыкуются по ломаной
   const SLICE = [-10, 28, 70, 112, 160], GUSTY = [];
-  // отклики вещей на жесты героя (Interact) — память рендера, не в G: зарубка на стволе растёт с каждым ударом,
-  // костёр вспыхивает от рук, тайник приподнимает крышку, пнутый сугроб оставляет ямку
-  const CUT = new WeakMap(), FLARE = new WeakMap(), OPEN = new WeakMap(), KICKS = [];
+  // отклики вещей на жесты героя (Interact) — память рендера, не в G: костёр вспыхивает от рук, тайник приподнимает крышку,
+  // пнутый сугроб оставляет ямку. Подруб и задний рез — состояние дерева (t.cut, сейв; js/actions.js), не память рендера
+  const FLARE = new WeakMap(), OPEN = new WeakMap(), KICKS = [];
   if (typeof Interact !== 'undefined') {
-    Interact.on('hit', e => { const t = e.target; if (!t) return; const c = CUT.get(t) || { n: 0, side: Math.sign((e.who === 'p' ? G.p.x : e.who.x) - t.x) || 1 }; c.n++; CUT.set(t, c); if (typeof Tree !== 'undefined') Tree.shook(t, e.power || 1); });
+    Interact.on('hit', e => { const t = e.target; if (t && e.who !== 'p' && typeof Tree !== 'undefined') Tree.shook(t, e.power || 1); });   // люди посёлка: снег с кроны
     Interact.on('warm', e => { if (e.target) FLARE.set(e.target, now); });
     Interact.on('open', e => { if (e.target) OPEN.set(e.target, now); });
     Interact.on('kick', e => { KICKS.push({ x: e.x, y: e.y, t0: now }); if (KICKS.length > 8) KICKS.shift(); });
   }
-  function drawCut(t, c) {
-    const s = t.s, sd = c.side, n = Math.min(c.n, 6), d = (1.5 + n * 0.6) * s, h = (2 + n * 0.5) * s, x = t.x + sd * 5 * s, y = t.y - 15 * s;
-    cx.fillStyle = '#3a2618'; cx.beginPath(); cx.moveTo(x, y - h - 0.8); cx.lineTo(x - sd * (d + 0.8), y); cx.lineTo(x, y + h * 0.6 + 0.8); cx.closePath(); cx.fill(); // тень зарубки
-    cx.fillStyle = '#e0b47a'; cx.beginPath(); cx.moveTo(x, y - h); cx.lineTo(x - sd * d, y); cx.lineTo(x, y + h * 0.6); cx.closePath(); cx.fill();
-    cx.fillStyle = '#c79a62'; cx.beginPath(); cx.moveTo(x, y - h); cx.lineTo(x - sd * d, y); cx.lineTo(x, y); cx.closePath(); cx.fill(); // верхняя грань темнее
-    cx.fillStyle = '#d9bd8a'; for (let i = 0; i < Math.min(n, 5); i++) cx.fillRect(x + sd * (4 + i * 3.3), t.y + 2 + (i % 2) * 2, 2.2, 1.2); // щепа у комля
-  }
   // объёмная модель (js/tree3d.js): стоящие в покое — спрайт модели, в движении/рубке — живая модель; пень — тоже модель
   const M3 = t => typeof Tree !== 'undefined' && !t.wall && Tree.MODEL[t.kind];
-  // глубина зарубки: доля диаметра — от ударов и срубленной доли
-  const notchOf = t => { const c = CUT.get(t); return c ? { q: Math.min(0.72, 0.05 * c.n + 0.5 * (1 - t.wood / World.wood0(t))), sd: c.side } : null; };
+  // рубка стоящего: подруб/задний рез — t.cut (направление валки d, глубины nq/bq)
+  const notchOf = t => (t.cut && !t.cut.f && t.cut.h > 0 ? t.cut : null);
   const stumpOf = (t, sn) => (M3(t) ? Tree.drawStump(cx, t, sn) : ArtWorld.stump(cx, t.x, t.y, t.s, sn));
   // отрастание (World.regrowK): росток из пня в последней трети, деревце растёт и к концу «переходит» в ёлочку
   // малого роста, взрослая дорастает (World.adultK) — ни одной смены вида скачком; GROWK — масштаб ёлки при перерисовке
   let GROWK = 0;
   function drawTree(t, wind) {
     if (t.wood <= 0) {
-      CUT.delete(t); stumpOf(t, t.cutAt != null && G.time - t.cutAt < CYCLE * 0.6 ? clamp((G.time - t.cutAt) / (CYCLE * 0.6), 0, 1) : 1); // свежий срез без снега, снег нарастает за ~0.6 суток
+      stumpOf(t, t.cutAt != null && G.time - t.cutAt < CYCLE * 0.6 ? clamp((G.time - t.cutAt) / (CYCLE * 0.6), 0, 1) : 1); // свежий срез без снега, снег нарастает за ~0.6 суток
       const k = t.cutAt != null ? World.regrowK(t) : 0; if (k > 0.65) ArtWorld.sapling(cx, t.x, t.y, t.s * 0.5 * (k - 0.65) / 0.35, t.v);
       return;
     }
@@ -441,13 +434,13 @@ const GFX = (() => {
     if (M3(t) && !GROWK && !(t.gAt != null && World.adultK(t) < 1)) { const nt = notchOf(t); if (Tree.live(t, nt)) { const g = gustAt(t.x, t.y), ph = t.x * 0.013 + t.y * 0.007, Hp = 112 * t.s;
       const sw = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) * ENV.wx; Tree.drawStanding(cx, t, { bend: sw * Hp * Hp / 160, notch: nt }); return; } }
     const g = gustAt(t.x, t.y), ph = t.x * 0.013 + t.y * 0.007;
-    const sway = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) * ENV.wx + (t.shake > 0 ? Math.sin(now * 60) * t.shake * 0.25 : 0); // гнутся по ветру (ENV.wx — знак и доля x)
+    const sway = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) * ENV.wx + (t.shake > 0 ? Math.sin(now * 13.5) * t.shake * 0.25 : 0); // гнутся по ветру; дрожь от удара — ~2 Гц, затухает (World.shakeTree) (ENV.wx — знак и доля x)
     const fl = wind * (0.3 + g) * 0.9 * Math.sin(now * 7.3 + ph * 5); // дрожь верхушки, px
     if (g > 0.75 && GUSTY.length < 8 && dist2(t, G.p) < 340 * 340) GUSTY.push(t);
     const S = treeSprite(t, treeV(t)), tw = ArtWorld.treeW(t.kind), k = t.s / ArtWorld.treeK(t.s), kd = k * dpr * tjit(t) * (GROWK || (t.gAt != null ? World.adultK(t) : 1));
     const X = (t.x - cam.x + shx) * dpr, Y = (t.y - cam.y + shy) * dpr;
     if (window.QUALITY === 'low' || Math.abs(sway * 160) + Math.abs(fl) < 1.5) { // штиль: изгиб < 0.4 px от наклона — один drawImage
-      cx.setTransform(kd, 0, -sway * kd, kd, X, Y); cx.drawImage(S, -tw / 2, -160, tw, 170); WT(); const c = CUT.get(t); if (c) drawCut(t, c); return;
+      cx.setTransform(kd, 0, -sway * kd, kd, X, Y); cx.drawImage(S, -tw / 2, -160, tw, 170); WT(); return;
     }
     const sc = S.width / tw, off = h => (h > 0 ? sway * h * h / 160 : 0);
     let rLo = S.height, hLo = SLICE[0], oLo = 0;
@@ -458,25 +451,22 @@ const GFX = (() => {
       cx.drawImage(S, 0, rHi, S.width, rB - rHi, -tw / 2, rHi / sc - 160, tw, (rB - rHi) / sc);
       rLo = rHi; hLo = hHi; oLo = oHi;
     }
-    WT(); const c = CUT.get(t); if (c) drawCut(t, c);
+    WT();
   }
   // ---------- валка и лежачая ель: ОДИН рендер (падение, лежит, обрубка, разделка, заметание; до и после загрузки сейва) ----------
   // Ствол героя — G.logs (L.f — идёт валка: t, w надлом, T падение, r перекат); деревья людей посёлка — FALL (только рендер, лежат и уходят).
   // Поза: th — угол от вертикали (0 стоит → π/2 лежит), lag — отставание кроны (px на вершине), roll — перекат вокруг ствола.
-  // Надлом: качание и наклон до 0.06; падение — маятник θ'' = sin θ (медленный старт, разгон); удар: два отскока, хлёст кроны, перекат.
-  const PEND = (() => {
-    const pts = [[0, 0.06]]; let t = 0, a = 0.06, w = 0.16;
-    while (a < Math.PI / 2) { w += Math.sin(a) * 2e-3; a += w * 2e-3; t += 2e-3; pts.push([t, Math.min(a, Math.PI / 2)]); }
-    const T = []; for (let i = 0, j = 0; i <= 64; i++) { const tt = t * i / 64; while (j < pts.length - 2 && pts[j + 1][0] < tt) j++; T.push(pts[j][1]); }
-    T[64] = Math.PI / 2; return T;
-  })();
+  // Треск недоруба (f.w с): медленный наклон до θ0 = 0.08; падение — стержень на шарнире θ'' = (3g/2L)·sin θ (Tree.FALL, f.T — по
+  // реальной высоте); на ~70° недоруб рвётся — комель съезжает с пня (sl, м); удар: два отскока кроны, хлёст, комель подпрыгивает (bz, м), перекат.
+  const FALL0 = { th0: 0.08, at: u => 0.08 + (Math.PI / 2 - 0.08) * u * u, ub: 0.8 };   // запасная (нет Tree)
   function fallPose(f, el) {
-    const w = f.w, T = f.T;
-    if (el < w) { const k = el / w; return { th: 0.06 * k * k + Math.sin(el * 41) * 0.011 * (1 - 0.6 * k), lag: 0, roll: 0, ph: 0 }; }
+    const w = f.w, T = f.T, F = typeof Tree !== 'undefined' ? Tree.FALL : FALL0, s = f.s || 0;
+    if (el < w) { const k = el / w; return { th: F.th0 * k * k * (3 - 2 * k) + Math.sin(el * 37) * 0.005 * (1 - k), lag: 0, roll: 0, ph: 0, sl: 0, bz: 0 }; }
     const u = (el - w) / T;
-    if (u < 1) { const x = u * 64, i = Math.min(63, x | 0), th = PEND[i] + (PEND[i + 1] - PEND[i]) * (x - i), om = (PEND[i + 1] - PEND[i]) * 64 / T; return { th, lag: om * 7, roll: 0, ph: 1 }; }
+    if (u < 1) { const th = F.at(u), om = (F.at(Math.min(1, u + 0.01)) - th) / (0.01 * T); return { th, lag: om * 7, roll: 0, ph: 1, sl: u > F.ub ? s * smooth(F.ub, 1.12, u) : 0, bz: 0 }; }
     const e = el - w - T, b = e < 0.2 ? 0.075 * Math.sin(e / 0.2 * Math.PI) : e < 0.36 ? 0.028 * Math.sin((e - 0.2) / 0.16 * Math.PI) : 0;
-    return { th: Math.PI / 2 - b, lag: -9 * Math.exp(-e * 6) * Math.cos(e * 21), roll: (f.r || 0.06) * (1 - Math.exp(-e * 8)), ph: 2 };
+    const hp = f.hp || 0, bz = e < 0.3 ? hp * Math.sin(e / 0.3 * Math.PI) : e < 0.45 ? hp * 0.25 * Math.sin((e - 0.3) / 0.15 * Math.PI) : 0;
+    return { th: Math.PI / 2 - b, lag: -9 * Math.exp(-e * 6) * Math.cos(e * 21), roll: (f.r || 0.06) * (1 - Math.exp(-e * 8)), ph: 2, sl: s * smooth(F.ub, 1.12, 1 + e / T), bz };
   }
   const LIE = { th: Math.PI / 2, lag: 0, roll: 0, ph: 3 }, DRAGP = { th: Math.PI / 2, lag: 0, roll: 0, ph: 2.5 };
   // снег с ветвей: спрайт без снега для лежачей кроны (снег сверху рисуется отдельно, по месту) — один раз на спрайт, не больше одного за кадр
@@ -597,7 +587,8 @@ const GFX = (() => {
   // ствол героя — объёмной моделью: поза валки та же (fallPose), снег на ветвях стряхнут падением и нарастает, заметание — поверх
   function drawLog3(L) {
     Tree.ensure(L); let o = LOGV.get(L); if (!o) { o = {}; LOGV.set(L, o); }
-    for (const k of ['x', 'y', 'a', 'sk', 'k', 'hc', 'zt', 'cl', 'zTop', 'top', 'cut', 'sink', 'kind', 'len']) o[k] = L[k];
+    for (const k of ['x', 'y', 'a', 'sk', 'k', 'hc', 'zt', 'cl', 'zTop', 'top', 'cut', 'sink', 'kind', 'len', 'roll', 'lm']) o[k] = L[k];
+    o.pc = L.f ? L.f.c || 0 : 0;   // в падении ось — на кромке недоруба
     const age = G.time - (L.t0 || 0); o.snowN = +clamp(0.12 + age / (CYCLE * 1.2), 0, 0.85).toFixed(1); o.dsnow = +clamp(age / (CYCLE * 0.8), 0, 0.8).toFixed(1);
     const bury = Actions.logSnow(L), al = 1 - smooth(0.55, 0.9, bury) * 0.999; if (al <= 0.01) return;
     let P = L.drag ? DRAGP : LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); if (P.ph < 2) o.snowN = 1 - smooth(0.2, 1.2, P.th); }   // волоком — живой рисунок, не запечённый
@@ -633,7 +624,7 @@ const GFX = (() => {
     if (FALL.length >= 6) FALL.shift();
     const len = 150 * t.s / ArtWorld.treeK(t.s) * tjit(t);
     const f = { x: t.x, y: t.y, kind: t.kind, s: t.s, v: treeV(t), a: d, len, t0: now, w: 0.3, T: 0.9 + Math.random() * 0.4, r: 0.05 };
-    if (typeof Tree !== 'undefined' && Tree.MODEL[t.kind]) { const q = Tree.of(t); f.sk = q.S.key; f.k = q.k; f.len = Math.round((q.S.H * q.k - Tree.HC) * Tree.M); }
+    if (typeof Tree !== 'undefined' && Tree.MODEL[t.kind]) { const q = Tree.of(t); f.sk = q.S.key; f.k = q.k; f.len = Math.round((q.S.H * q.k - Tree.HC) * Tree.M); f.T = Tree.FALL.T(q.S.H * q.k - Tree.HC); f.s = 0.3; f.hp = 0.15; }
     FALL.push(f);
     if (!f.sk) { G.lap = G.lap || [];
       for (const k of [0.45, 0.7]) for (const sg of [1, -1]) { const c = Math.cos(d), sn = Math.sin(d) * 0.6; if (G.lap.length < 48) G.lap.push({ x: Math.round(t.x + c * len * k - sn * sg * 9), y: Math.round(t.y + sn * len * k + c * sg * 6), a: +(d + sg * 0.5).toFixed(2), s: t.s, t: G.time }); } }

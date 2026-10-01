@@ -81,11 +81,18 @@ const Actions = (() => {
     G.litter.push({ x: Math.round(p.x + p.face * 13), y: Math.round(p.y + 5), k, t: G.time, a: +(Math.random() * 3).toFixed(2) });
   }
   // ---------- срубленная ель: лежит, пока не разделают (чурки на снегу — это и есть дрова) ----------
-  // Валка: надлом (качание и треск, warn с) → падение маятником (медленный старт, fall с) → удар о землю (урон, преграда) → отскок и перекат.
-  // Направление — от зарубки (стороны, где стоял герой) ± spread; изредка (risk, в ветер/пургу чаще) — на героя или вбок.
-  // Если по пути ствола другой ствол, изба, обломки, куча, бревно — пробуем другой угол (±0.4…1.2), затем обратную сторону.
-  // Разделка: обрубка сучьев (крона снимается от вершины по ударам, лапник на снег), затем чурки; остаток ствола и лапник заметает (bury сут).
-  const FELL = { warn: [0.35, 0.55], fall: [0.8, 1.4], settle: 0.9, spread: 0.3, risk: 0.1, riskWind: 0.05, riskStorm: 0.08, dmg: 14, hitR: 17, bury: 0.75, buryOld: 0.25, logMax: 8, lapMax: 48 };
+  // Валка (как в жизни, ТОИ Р-15-003-97 / OSHA): направление выбирают заранее — наклон дерева (из хэша места), ветер, свободное место.
+  //   подруб (клин ≤ 1/3 Ø, раскрытие ~55°) — со стороны падения, ~60 % ударов, герой стоит сбоку от линии падения;
+  //   задний рез — с обратной стороны на 4 см выше, до недоруба ~10 % Ø (герой сам обходит ствол); недоруб — петля: держит и ведёт.
+  //   Ударов — по толщине (тонкая 6, средняя ~12, толстая до 16). Состояние — t.cut (сейв), t.wood — непрерывная мера (отрастание, перепись).
+  // Падение: треск недоруба (warn с) → стержень на шарнире θ'' = (3g/2L)·sin θ вокруг кромки недоруба (Tree.FALL) → на ~70° недоруб
+  //   рвётся, комель съезжает с пня и подпрыгивает → удар о землю (урон, преграда, соседи осыпаются) → отскок, перекат (L.roll).
+  //   Риск «на героя» — от ошибок: перерубил недоруб (устал/замёрз — рука неточна), дерево клонит против валки (наклон/ветер);
+  //   в лютый мороз (< −30°) ствол может расколоться вдоль («барберское кресло»). Герой сам отходит под 45° назад.
+  // Разделка: обрубка сучьев (по мутовке от комля, с другой стороны ствола; подмятые — после переката), затем чурки; остаток и лапник заметает.
+  const FELL = { warn: [0.55, 0.8], settle: 0.9, dmg: 14, hitR: 17, bury: 0.75, buryOld: 0.25, logMax: 8, lapMax: 48,
+    slide: [0.2, 0.5], hop: [0.1, 0.3], roll: [0.12, 0.6], back: [1.5, 2], barber: [0.01, 0.03], barberT: -30 };
+  const CHOP = { n: [6, 16], dD: [0.15, 0.26], notch: 0.6, nq: 0.31, hinge: 0.1, cyc: 1.3, deep: 45, tramp: [5, 10], trampR: 1.2, trampTire: 0.12 };
   const chopDX = t => World.trunkR(t) + 10.5;   // где стоит герой у ствола: вплотную к преграде ствола, лезвие — в ствол
   // длина лежачего ствола (px): от реза (HC над снегом) до вершины — реальная высота модели (js/tree3d.js), 23 px = 1 м
   function logLen(t) { if (typeof Tree !== 'undefined') { const q = Tree.of(t); return Math.round((q.S.H * q.k - Tree.HC) * Tree.M); } return Math.round(150 * t.s / (ArtWorld.treeK ? ArtWorld.treeK(t.s) : 1) * (typeof GFX !== 'undefined' && GFX.tjit ? GFX.tjit(t) : 1)); }
@@ -98,6 +105,7 @@ const Actions = (() => {
       for (const k of ['cockpit', 'tail']) { const P = POI[k]; if (Math.abs(x - P.x) < (k === 'cockpit' ? 170 : 110) && Math.abs(y - P.y) < 70) return true; }
       if (Math.abs(x - POI.labaz.x) < 45 && Math.abs(y - POI.labaz.y + 10) < 40) return true;
       if (Space.nearest(Space.trees, x, y, 14, q => q !== t && q.wood > 0 && !q.wall)) return true;
+      if (Space.rocks && Space.nearest(Space.rocks, x, y, 34, q => Math.hypot(q.x - x, (q.y - y) / 0.7) < 22 * (q.s || 1) + 6)) return true;   // глыба курумника — не валить на неё
       for (const s of G.stacks) if (dist2(s, { x, y }) < 30 * 30) return true;
       for (const f of G.fires) if (dist2(f, { x, y }) < 26 * 26) return true;
       if (G.col) for (const b of G.col.builds) { const B = BUILDS[b.type]; if (Math.abs(x - b.x) < B.w / 2 + 8 && Math.abs(y - b.y) < B.h / 2 + 8) return true; }
@@ -111,27 +119,137 @@ const Actions = (() => {
     return null;
   }
   const rr = (a, b) => a + Math.random() * (b - a);
-  function fell(t) {
-    const p = G.p, len = logLen(t), side = t.nside || Math.sign(p.x - t.x) || -p.face || 1, toHero = Math.atan2(p.y - t.y, p.x - t.x);
-    let a0 = (side > 0 ? Math.PI : 0) + rr(-FELL.spread, FELL.spread), risk = 0;
-    const w = typeof Wind !== 'undefined' ? Wind.at(t.x, t.y) : { ms: 0 };
-    if (Math.random() < FELL.risk + FELL.riskWind * clamp((w.ms - 4) / 8, 0, 1) + (stormOn() ? FELL.riskStorm : 0)) {
-      risk = Math.random() < 0.6 ? 1 : 2;   // 1 — на героя, 2 — вбок
-      a0 = risk === 1 ? toHero + rr(-0.2, 0.2) : a0 + (Math.random() < 0.5 ? 1 : -1) * (Math.PI / 2 + rr(-0.25, 0.25));
+  // своя случайность дерева (хэш места и номера удара): наклон, разброс удара — одно и то же дерево ведёт себя одинаково
+  const hrng = (t, k) => mulberry((Math.imul(t.x | 0, 73856093) ^ Math.imul(t.y | 0, 19349663) ^ Math.imul(k | 0, 83492791)) | 0);
+  const M3T = t => typeof Tree !== 'undefined' && Tree.MODEL[t.kind];
+  // ударов на дерево — по толщине у комля: Ø 15 см — 6, 20 см — ~11, 26 см — 16; молодое деревце — 3
+  function hitsFor(t) {
+    if (t.stage === 1) return 3;
+    const D = M3T(t) ? Tree.size(t).D : 0.2 * (t.s || 1);
+    return clamp(Math.round(CHOP.n[0] + (D - CHOP.dD[0]) / (CHOP.dD[1] - CHOP.dD[0]) * (CHOP.n[1] - CHOP.n[0])), CHOP.n[0], CHOP.n[1]);
+  }
+  // наклон дерева (хэш места): угол и доля (1 ≈ 3°)
+  const leanOf = t => { const r = hrng(t, 1); return { a: r() * Math.PI * 2, m: 0.15 + 0.85 * r() * r() }; };
+  // куда валить: наклон + ветер (вектор), слабо — от героя; занято — ближайший свободный угол (fallDir)
+  function planDir(t) {
+    const p = G.p, ln = leanOf(t), w = typeof Wind !== 'undefined' ? Wind.at(t.x, t.y) : { ms: 0, dx: 0, dy: 0 };
+    const vx = Math.cos(ln.a) * ln.m * 1.2 + w.dx * w.ms * 0.08, vy = Math.sin(ln.a) * ln.m * 1.2 + w.dy * w.ms * 0.08, away = Math.atan2((t.y - p.y) / 0.6, t.x - p.x);
+    const a0 = Math.hypot(vx, vy) > 0.45 ? Math.atan2(vy, vx) : away, a = fallDir(t, a0);
+    return a == null ? a0 : a;
+  }
+  // точка у ствола под углом f (по земле): на расстоянии chopDX (px) — тело вплотную к преграде ствола; не прямо за/перед стволом
+  // (≤ 37° от поперечной оси экрана: герой не заслоняет рез и не прячется за ствол)
+  // lean — куда сместить точку, если она прямо за/перед стволом: +1 — к стороне падения (подруб), −1 — от неё (задний рез)
+  function spotAt(t, f, lean) {
+    let c = Math.cos(f), s = Math.sin(f);
+    if (Math.abs(c) < 0.8) { const cd = t.cut ? Math.cos(t.cut.d) * (lean || 0) : 0; c = (Math.abs(cd) > 0.05 ? Math.sign(cd) : c < -0.05 ? -1 : c > 0.05 ? 1 : Math.sign(G.p.x - t.x) || 1) * 0.8; s = Math.sign(s || 1) * 0.6; }
+    const ex = c, ey = 0.6 * s, l = Math.hypot(ex, ey), D = chopDX(t);
+    return { x: t.x + ex / l * D, y: t.y + ey / l * D + (ey >= 0 ? 3 : 0), f };   // к камере — ниже комля на 3 px (ноги не в стволе)
+  }
+  const CUTT = t => !!t.cut && !t.cut.f;   // рубка начата и не кончена
+  // состояние рубки: создаётся при первом подходе (направление — тогда же); старый сейв (дрова < wood0) — подруб уже начат
+  function cutOf(t, make) {
+    let c = t.cut; if (c && c.f && t.wood > 0) { delete t.cut; c = null; }   // отрос после валки — новая рубка
+    if (c || !make) return c;
+    const N = hitsFor(t), w0 = World.wood0(t), d = planDir(t), p = G.p, nN = Math.max(2, Math.round(N * CHOP.notch));
+    // сторона от линии падения — где герой (подруб рубят сбоку)
+    const nx = -Math.sin(d), ny = Math.cos(d), sd = ((p.x - t.x) * nx + (p.y - t.y) / 0.6 * ny) >= 0 ? 1 : -1;
+    c = t.cut = { d: +d.toFixed(3), N, nN, h: 0, nq: 0, bq: 0, sd, sn: +Tree.snowOf(t).toFixed(3), st: +G.time.toFixed(2) };
+    const h0 = clamp(Math.round(N * (1 - Math.min(1, t.wood / w0))), 0, N - 1);
+    for (let i = 0; i < h0; i++) cutStep(t, c, 0);
+    return c;
+  }
+  // один удар по плану: подруб растёт до nq, затем задний рез до недоруба; дрова — непрерывная доля
+  function cutStep(t, c, sloppy) {
+    c.h++;
+    if (c.h <= c.nN) c.nq = +(CHOP.nq * c.h / c.nN).toFixed(4);
+    else {
+      const left = c.N - c.h, goal = 1 - c.nq - CHOP.hinge;
+      if (left > 0) c.bq = +(goal * (c.h - c.nN) / (c.N - c.nN)).toFixed(4);
+      else { const r = hrng(t, 900 + c.h)(); c.bq = +(goal + (r - 0.35) * (0.02 + 0.12 * sloppy)).toFixed(4); if (1 - c.nq - c.bq < 0.035) c.e = 1; }   // последний: рука устала/замёрзла — может перерубить недоруб
     }
-    let a = fallDir(t, a0); const blocked = a == null; if (blocked) a = a0;
+    t.wood = c.h >= c.N ? 0 : +(World.wood0(t) * (1 - c.h / c.N)).toFixed(4);
+  }
+  const phaseOf = c => (c.h < c.nN ? 'n' : 'b');   // подруб / задний рез
+  // где стоять: подруб — сбоку от линии падения (сторона sd), задний рез — сзади-сбоку (обошёл ствол)
+  function chopSpot(t) {
+    const c = cutOf(t), p = G.p;
+    const fs = c ? (phaseOf(c) === 'n' ? [c.d + c.sd * Math.PI / 2, c.d - c.sd * Math.PI / 2] : [c.d + Math.PI - c.sd * 0.6, c.d + Math.PI + c.sd * 0.6])
+      : [Math.atan2((p.y - t.y) / 0.6, p.x - t.x)];
+    const ln = c ? (phaseOf(c) === 'n' ? 1 : -1) : 0;
+    for (const f of fs) { const q = spotAt(t, f, ln); if (!onIce(q.x, q.y) && !World.blocked(q.x, q.y, 9.5)) return q; }
+    // занято — ближайшая свободная точка по кругу
+    for (let k = 1; k < 12; k++) for (const sg of [1, -1]) { const q = spotAt(t, fs[0] + sg * k * 0.26, ln); if (!onIce(q.x, q.y) && !World.blocked(q.x, q.y, 9.5)) return q; }
+    return null;
+  }
+  // рубка только у ствола: герой у своей точки (≤ 6 px) — лезвие в ствол
+  const atTrunk = t => { const q = chopSpot(t), p = G.p; return !!q && Math.hypot(p.x - q.x, p.y - q.y) <= 6; };
+  function startChop(t) {
+    const p = G.p; if (!atTrunk(t)) return false;
+    const c = cutOf(t, true), pose = Hero.chopPose(), sd = Math.sign(p.x - t.x) || -p.face || 1; p.face = -sd;
+    const a = { k: 'chop', t: 0, full: 1, dur: CHOP.cyc * Hero.chopTime() / TUNE.hero.chop * (t.kind === 3 ? TUNE.zone.garChop : 1) * (A.chopK[pose] || 1), o: t, pose,
+      tg: { x: t.x + sd * 4 * t.s, y: t.y + (p.y - t.y - 3) * 0.3 }, th: -10, ph: phaseOf(c) };
+    a.ia = Hero.chopCycle(a).ia; p.action = a;
+    if (c.h === 0 && typeof temperature === 'function' && temperature() < FELL.barberT) Fx.toast(':frost: Мороз — ствол хрупкий: может расколоться вдоль. Руби и сразу отходи');
+    return true;
+  }
+  // удар в ствол (касание топора — доля a.ia цикла): подруб/задний рез растёт, щепа из реза по ходу удара, ель вздрагивает, снег с кроны
+  function chopHit(a) {
+    const t = a.o, p = G.p; if (!(t.wood > 0)) return;
+    const c = cutOf(t, true), w0 = World.wood0(t), k = w0 / c.N, sl = clamp(Math.max((G.s.tire || 0) - 60, 20 - G.s.warm, 20 - G.s.food) / 30, 0, 1);   // sl — рука неточна (устал, замёрз, голоден)
+    const ph = phaseOf(c); cutStep(t, c, sl); c.t = +G.time.toFixed(2);
+    Hero.xp('chop', k); G.s.food = Math.max(0, G.s.food - A.chopFood * k);
+    // место удара — устье реза (подруб — со стороны падения, задний рез — с обратной); щепа вылетает из него конусом, чуть по ходу топора
+    const ud = ph === 'n' ? c.d : c.d + Math.PI, sa = Math.atan2((t.y - p.y) / 0.6, t.x - p.x), r = World.trunkR(t) * 0.5;
+    const ej = Math.atan2(Math.sin(ud) * 0.7 + Math.sin(sa) * 0.3, Math.cos(ud) * 0.7 + Math.cos(sa) * 0.3), hx = t.x + Math.cos(ud) * r, hy = t.y + Math.sin(ud) * r * 0.6;
+    const ti = G.s.tire || 0;
+    Interact.emit('hit', { who: 'p', target: t, x: hx, y: hy, power: k, dir: ej, z: Tree.HC * Tree.M + (ph === 'b' ? Tree.BK * Tree.M : 0), back: ph === 'b' ? 1 : 0, sh: 0.16 + 0.12 * c.h / c.N, snow: 0 });
+    G.s.tire = clamp(ti + TUNE.tire.hit * (Settings.diff().tire || 1) * k, 0, 100);   // силы — за дерево как прежде (за 3 «полена»), а не втрое за каждый из ~12 ударов
+    // снег с кроны: первый удар — почти половина, дальше по остатку
+    const fall = Tree.shook(t, 1, c.h === 1 ? 0.45 : 0.28); if (fall > 0.02) ArtWorld.fx.branchSnow(G.parts, t, clamp(fall * 2.4, 0.15, 1));
+    if (typeof Game !== 'undefined' && Game.hitStop) Game.hitStop(0.06); Fx.shake(1.2);
+    if (t.wood <= 0) {
+      World.felled(t); const L = fell(t); a.fell = L;
+      Interact.emit('fell', { who: 'p', target: t, x: t.x, y: t.y, dir: L.a, log: L });
+      a.dur = Math.min(a.dur, a.t + 0.22);   // выдернул топор — и сразу отходить
+    }
+  }
+  // отход: 1.5–2 м назад под 45° от линии падения, в сторону, где стоит (не под ствол)
+  function retreat(L) {
+    const p = G.p, a = L.a + Math.PI, nx = -Math.sin(L.a), ny = Math.cos(L.a), sd = ((p.x - L.x) * nx + (p.y - L.y) / 0.6 * ny) >= 0 ? 1 : -1, d = rr(FELL.back[0], FELL.back[1]) * Tree.M;
+    for (const s of [sd, -sd]) { const f = a - s * Math.PI / 4, x = p.x + Math.cos(f) * d, y = p.y + Math.sin(f) * d * 0.6;
+      if (!World.blocked(x, y, 9) && !onIce(x, y) && !inPath(L, { x, y })) { p.backoff = now + 1.6; autoTo(x, y, 3, () => {}); return; } }
+  }
+  function fell(t) {
+    const p = G.p, len = logLen(t), c = cutOf(t, true), q = M3T(t) ? Tree.of(t) : null, Hm = q ? q.S.H * q.k - Tree.HC : len / Tree.M;
+    const R_ = hrng(t, 77 + c.h), ln = leanOf(t), w = typeof Wind !== 'undefined' ? Wind.at(t.x, t.y) : { ms: 0, dx: 0, dy: 0 };
+    // клонит вдоль/поперёк валки: наклон (доля ~3°) + ветер
+    const fx = Math.cos(c.d), fy = Math.sin(c.d), lx = Math.cos(ln.a) * ln.m + w.dx * w.ms * 0.06, ly = Math.sin(ln.a) * ln.m + w.dy * w.ms * 0.06;
+    const along = lx * fx + ly * fy, cross = -lx * fy + ly * fx;
+    let a = c.d, risk = 0;
+    if (c.e) {   // недоруб перерублен: дерево никто не ведёт — садится назад (клонит против валки) или уходит вбок
+      if (along < -0.2) { a = c.d + Math.PI + (R_() - 0.5) * 0.7; risk = 1; }
+      else { a = c.d + (cross >= 0 ? 1 : -1) * (0.5 + 0.7 * R_()); risk = 2; }
+    } else { a = c.d + clamp(cross * 0.18, -0.2, 0.2) + (R_() - 0.5) * 0.08; const b = fallDir(t, a); if (b != null) a = b; }   // недоруб держит: уводит чуть-чуть
+    // барберское кресло: лютый мороз, ствол раскалывается вдоль — комель бьёт вверх-назад
+    const bc = typeof temperature === 'function' && temperature() < FELL.barberT && R_() < FELL.barber[0] + (FELL.barber[1] - FELL.barber[0]) * clamp((FELL.barberT - temperature()) / 15, 0, 1) ? 1 : 0;
+    if (bc) { c.bc = 1; risk = risk || 3; }
+    c.f = 1; c.fa = +a.toFixed(3);
     G.logs = G.logs || [];
     // лишние старые стволы не исчезают — их заметает (bury), исчезают, когда скроет целиком (tickLogs)
     const live = G.logs.filter(L => !L.bury && !L.done);
     if (live.length >= FELL.logMax) live[0].bury = G.time;
-    const n = World.wood0(t);
-    const L = { x: t.x, y: t.y, a: +a.toFixed(3), len: blocked && typeof Tree === 'undefined' ? Math.round(len * 0.55) : len, s: t.s, kind: t.kind, v: t.v, n, n0: n, t0: G.time, id: (G.logN = (G.logN || 0) + 1),
-      f: { t: 0, w: +rr(FELL.warn[0], FELL.warn[1]).toFixed(2), T: +rr(FELL.fall[0], FELL.fall[1]).toFixed(2), r: +rr(0.035, 0.1).toFixed(3) * (Math.random() < 0.5 ? 1 : -1), risk } };
+    const n = World.wood0(t), cm = c.e ? 0 : q ? Tree.rz(q.S, Tree.HC / q.k) * q.k * (1 - 2 * c.nq) : 0;   // ось — передняя кромка недоруба (м от оси ствола)
+    const ex = Math.cos(a), ey = Math.sin(a);
+    const L = { x: Math.round(t.x + ex * cm * Tree.M), y: Math.round(t.y + ey * cm * Tree.M * 0.6), cx: t.x, cy: t.y, a: +a.toFixed(3), len, s: t.s, kind: t.kind, v: t.v, n, n0: n, t0: G.time, id: (G.logN = (G.logN || 0) + 1),
+      f: { t: 0, w: +rr(FELL.warn[0], FELL.warn[1]).toFixed(2), T: +(q ? Tree.FALL.T(Hm) : 2).toFixed(3), H: +Hm.toFixed(2), r: +((R_() < 0.5 ? 1 : -1) * (FELL.roll[0] + (FELL.roll[1] - FELL.roll[0]) * R_())).toFixed(3),
+        c: +cm.toFixed(3), s: +(c.e ? 0.3 + 0.5 * R_() : FELL.slide[0] + (FELL.slide[1] - FELL.slide[0]) * R_()).toFixed(2) * (c.e && risk === 1 ? -1 : 1), hp: +(FELL.hop[0] + (FELL.hop[1] - FELL.hop[0]) * R_()).toFixed(2), risk, bc } };
     // объёмная модель: форма и масштаб — те же, что у стоящего; план разделки (чурки ~0.45 м), масса целого
-    if (typeof Tree !== 'undefined') { const q = Tree.of(t); L.sk = q.S.key; L.k = +q.k.toFixed(4); L.zTop = null; Tree.ensure(L); }
+    if (q) { L.sk = q.S.key; L.k = +q.k.toFixed(4); L.zTop = null; Tree.ensure(L); }
     G.logs.push(L);
-    World.shakeTree(t, L.f.w);
-    Barks.say(p, 'Па-адает!', { h: 60 });
+    World.shakeTree(t, 0.35);
+    Barks.say(p, bc ? 'Раскололо! Назад!' : risk === 1 ? 'Назад садится!' : 'Па-адает!', { h: 60 });
+    if (bc) Fx.toast(':frost: Ствол раскололся вдоль — комель бьёт назад!');
     if (inPath(L, p)) Fx.toast(document.body.classList.contains('has-touch') ? ':tree: Падает на тебя! Кнопка отскока' : ':tree: Падает на тебя! Shift — отскок');
     return L;
   }
@@ -155,6 +273,13 @@ const Actions = (() => {
   function impact(L) {
     const p = G.p, e = logEnd(L, 1); iceHit(L);
     Fx.shake(dist2(L, p) < 260 * 260 ? 5 : 2); Sound.src(e.x, e.y).thud ? Sound.src(e.x, e.y).thud(0.9, 1) : Sound.src(e.x, e.y).hit();
+    // соседние ели в длину ствола вздрагивают и осыпаются; нижние ветви ломаются о снег (щепки-веточки по нижней трети кроны)
+    const mx = (L.x + e.x) / 2, my = (L.y + e.y) / 2;
+    for (const q of treesNear(mx, my, L.len * 0.6 + 30)) {
+      if (!(q.wood > 0) || q.wall) continue; const dd = Math.hypot(q.x - mx, q.y - my); if (dd > L.len * 0.6 + 30) continue;
+      const k = clamp(1 - dd / (L.len * 0.6 + 30), 0.2, 1); World.shakeTree(q, 0.12 + 0.3 * k); if (ArtWorld.fx.branchSnow) ArtWorld.fx.branchSnow(G.parts, q, 0.3 + 0.6 * k);
+    }
+    if (ArtWorld.fx.twigs && !(window.QUALITY === 'low')) for (const k of [0.3, 0.45, 0.6]) { const q = logEnd(L, k); ArtWorld.fx.twigs(G.parts, q.x, q.y, 8, L.s || 1); }
     if (!p.inside && !p.ride && inPath(L, p)) {
       G.s.hp -= FELL.dmg; G.hurt = 1; p.action = null; Fx.shake(8); Fx.toast(':hp: Придавило стволом');
       Interact.emit('fellHit', { who: 'p', x: p.x, y: p.y, log: L });
@@ -179,7 +304,15 @@ const Actions = (() => {
     const Ls = G.logs; if (!Ls) return;
     for (let i = Ls.length - 1; i >= 0; i--) {
       const L = Ls[i], f = L.f;
-      if (f) { f.t += dt; if (!f.hit && f.t >= f.w + f.T) { f.hit = 1; impact(L); } if (f.t >= f.w + f.T + FELL.settle) delete L.f; }
+      if (f) {
+        f.t += dt; if (!f.hit && f.t >= f.w + f.T) { f.hit = 1; impact(L); }
+        // «кресло»: расколотая плаха бьёт назад — кто ближе 1.4 м за пнём (с обратной стороны), получает удар
+        if (f.bc && !f.bk && f.t >= 0.3) { f.bk = 1; const p = G.p, dx = p.x - L.cx, dy = (p.y - L.cy) / 0.6;
+          if (!p.inside && !p.ride && Math.hypot(dx, dy) < 1.4 * Tree.M && dx * Math.cos(L.a) + dy * Math.sin(L.a) < 0) { G.s.hp -= FELL.dmg * 0.7; G.hurt = 1; Fx.shake(7); Fx.toast(':hp: Ударило расколотым комлем'); } }
+        // комель: ось на кромке недоруба, после ~70° съезжает с пня (f.s м по ходу падения) — тело ствола движется непрерывно
+        if (L.cx != null && typeof GFX !== 'undefined' && GFX.fallPose) { const P = GFX.fallPose(f, f.t), d = (f.c || 0) + (P.sl || 0); L.x = Math.round(L.cx + Math.cos(L.a) * d * Tree.M); L.y = Math.round(L.cy + Math.sin(L.a) * d * Tree.M * 0.6); }
+        if (f.t >= f.w + f.T + FELL.settle) { L.roll = +(f.r || 0).toFixed(3); delete L.f; }   // перекат — в сейв (обрубка видит, что подмято)
+      }
       if (logSnow(L) >= 1) Ls.splice(i, 1);
     }
     if (G.lap) for (let i = G.lap.length - 1; i >= 0; i--) if (G.time - G.lap[i].t > CYCLE * FELL.bury) G.lap.splice(i, 1);
@@ -210,15 +343,15 @@ const Actions = (() => {
     return { x: L.x + vx * k, y: L.y + vy * k, k };
   }
   // где работать топором: обрубка — у края оставшейся кроны, разделка — у конца ствола (чурка за чуркой к комлю)
-  function workPt(L) {
-    if (L.sk != null && typeof Tree !== 'undefined' && L.zTop != null) { const z = Tree.workZ(L), H = Tree.of(L).S.H; return logEnd(L, clamp((z - L.hc) / (H - L.hc), 0.02, 1)); }
+  function workPt(L, o) {
+    if (L.sk != null && typeof Tree !== 'undefined' && L.zTop != null) { o = o || logOp(L); const H = Tree.of(L).S.H, z = o.z != null ? o.z : Tree.workZ(L, o.side || 1); return logEnd(L, clamp((z - L.hc) / (H - L.hc), 0.02, 1)); }
     const c = logCut(L), k = c < 1 ? 1 - (c + 0.5 / LIMB_N) * 0.88 : logK(L) - 0.06;
     return logEnd(L, clamp(k, 0.1, 1));
   }
-  // куда встать: сбоку от точки работы (x ± 18), не в стволе; ближняя к герою сторона
-  function workSpot(L, w) {
+  // куда встать: сбоку от точки работы (x ± 18), не в стволе; сторона side (обрубка — по другую сторону от ветвей) или та, где герой
+  function workSpot(L, w, side) {
     const p = G.p, c = Math.cos(L.a), s = Math.sin(L.a) * 0.6, l = Math.hypot(c, s) || 1, nx = -s / l, ny = c / l, R = 4.2 * (L.s || 1) + 11;
-    let best = null, bd = 1e9; const hs = (p.x - L.x) * nx + (p.y - L.y) * ny >= 0 ? 1 : -1;   // та сторона ствола, где герой
+    let best = null, bd = 1e9; const hs = side || ((p.x - L.x) * nx + (p.y - L.y) * ny >= 0 ? 1 : -1);   // сторона ствола
     for (const sd of [1, -1]) {
       const q = { x: w.x + sd * 18, y: w.y + 4 }, o = (q.x - L.x) * nx + (q.y - L.y) * ny;
       if (o * hs < R) { const k = hs * R - o; q.x += nx * k; q.y += ny * k; }
@@ -226,6 +359,37 @@ const Actions = (() => {
       const d = dist2(q, p); if (d < bd) { bd = d; best = q; }
     }
     return best;
+  }
+  // сторона ствола (±1 к нормали по земле), где точка q
+  const sideOf = (L, q) => ((q.x - L.x) * -Math.sin(L.a) + (q.y - L.y) / 0.6 * Math.cos(L.a) >= 0 ? 1 : -1);
+  // что делать со стволом сейчас: обрубка (мутовка от комля; герой — по другую сторону от ветвей, своя сторона пройдена — перейти),
+  // перекатить (остались подмятые), вершина (ветвей нет), чурка
+  function logOp(L) {
+    if (!(L.sk != null && typeof Tree !== 'undefined')) return { op: logCut(L) < 1 ? 'limb' : 'buck' };
+    Tree.ensure(L);
+    if (logCut(L) < 1) {
+      const hs = L.ls || sideOf(L, G.p), pl = Tree.limbPlan(L, hs);
+      if (pl.side) return { op: 'limb', side: pl.side, z: pl.z, sw: 1 };   // эту сторону прошёл — перейти на ту
+      if (pl.i != null) return { op: 'limb', side: hs, z: pl.z };
+      if (pl.roll) return { op: 'roll', side: sideOf(L, G.p) };
+    }
+    if (!L.top) return { op: 'top', side: L.ls || sideOf(L, G.p) };
+    return { op: 'buck' };
+  }
+  function logLabel(L) { const o = logOp(L); return o.op === 'limb' ? (o.sw ? 'Обрубать с той стороны' : 'Обрубить сучья') : o.op === 'roll' ? 'Перекатить ствол' : o.op === 'top' ? 'Отрубить вершину' : `Разделать · ${L.n}`; }
+  // перекатить ствол (подмятые ветви — наверх): толкает от себя двумя рывками 2–3 с, ствол поворачивается на 60–120° и откатывается на r·Δψ
+  function startRoll(L) {
+    const p = G.p, sd = sideOf(L, p), r = mulberry(((L.id | 0) * 7919 + (L.rn | 0) * 104729) | 0), da = (1.05 + 1.05 * r()) * -sd, m = typeof Tree !== 'undefined' && L.sk ? Tree.of(L) : null;
+    const rad = m ? Tree.rz(m.S, (L.hc + (L.zTop || L.zt)) / 2) * m.k : 0.08, sh = Math.min(0.3, rad * Math.abs(da)) * Tree.M, w0 = logEnd(L, logK(L) * 0.45), w = { x: w0.x + (p.x - w0.x) * 0.3, y: w0.y + (p.y - w0.y) * 0.3 }; faceTo(w0);   // руки — на ближний бок ствола
+    p.action = { k: 'roll', t: 0, dur: +(2.2 + 0.6 * r()).toFixed(2), o: L, pose: 'rollLog', fb: 'pry', tg: { x: Math.round(w.x), y: Math.round(w.y) }, th: -4, r0: L.roll || 0, r1: +((L.roll || 0) + da).toFixed(3),
+      x0: L.x, y0: L.y, sx: +(-Math.sin(L.a) * -sd * sh).toFixed(2), sy: +(Math.cos(L.a) * -sd * sh * 0.6).toFixed(2) };
+  }
+  function rollStep(a) {
+    const L = a.o; if (!G.logs || !G.logs.includes(L) || L.f) { G.p.action = null; return; }
+    const u = clamp(a.t / a.dur, 0, 1), e = u < 0.5 ? 0.45 * smooth(0.05, 0.45, u) : 0.45 + 0.55 * smooth(0.55, 0.95, u);   // два толчка
+    L.roll = +(a.r0 + (a.r1 - a.r0) * e).toFixed(4); L.x = Math.round(a.x0 + a.sx * e); L.y = Math.round(a.y0 + a.sy * e);
+    if (!a.th1 && u > 0.3) { a.th1 = 1; Sound.thud && Sound.thud(0.25, 1); ArtWorld.fx.snowPuff(G.parts, a.tg.x, a.tg.y, 0.4); }
+    if (!a.th2 && u > 0.8) { a.th2 = 1; Sound.thud && Sound.thud(0.3, 1); ArtWorld.fx.snowPuff(G.parts, a.tg.x, a.tg.y, 0.5); }
   }
   function nearLog(r) {
     const p = G.p; let best = null, bd = r * r;
@@ -236,23 +400,71 @@ const Actions = (() => {
   // дрова на снегу (чурки, комель, вершина); лапник — не дрова (его возьмёт переноска, js/tree3d.js — контракт частей)
   function nearChunks(r) { const p = G.p, w = typeof Tree !== 'undefined' ? Tree.isWood : () => true; return (G.chunks || []).filter(c => w(c) && dist2(c, p) < r * r); }
 
-  // боковая точка у ствола: x ± (преграда ствола + тело), чуть ниже комля; сперва сторона героя, занята — другая
-  function chopSpot(t) {
-    const p = G.p, s0 = Math.sign(p.x - t.x) || -p.face || 1, dx = chopDX(t);
-    for (const sd of [s0, -s0]) { const q = { x: t.x + sd * dx, y: t.y + 3 }; if (!onIce(q.x, q.y) && !World.blocked(q.x, q.y, 9.5)) return q; }
-    return null;
+  // площадка: снег у ствола выше колена (CHOP.deep см) и вокруг не утоптано — сперва вытоптать (обход 6–8 шагами, высоко колено)
+  function trampleNeed(t) {
+    if (typeof Depth === 'undefined' || typeof Trail === 'undefined' || t.stage === 1) return 0;
+    // кольцо ~1.2 м вокруг ствола: глубже колена в 3+ точках из 8 — площадки нет (своя тропинка к стволу — не площадка)
+    const R = Math.max(chopDX(t) + 2, CHOP.trampR * Tree.M); let n = 0, s = 0;
+    for (let i = 0; i < 8; i++) { const f = i / 8 * Math.PI * 2, d = Depth.depthAt(t.x + Math.cos(f) * R, t.y + 3 + Math.sin(f) * R * 0.7); if (d > CHOP.deep) { n++; s += d; } }
+    return n >= 3 ? s / n : 0;
   }
-  // рубка только у ствола: герой в точке сбоку (|dx| ≈ chopDX, |dy| ≤ 7)
-  const atTrunk = t => { const p = G.p, dx = Math.abs(p.x - t.x); return dx > chopDX(t) - 5 && dx < chopDX(t) + 5 && Math.abs(p.y - t.y - 3) <= 7; };
-  function startChop(t) {
-    const p = G.p; if (!atTrunk(t)) return false;
-    const pose = Hero.chopPose(), sd = Math.sign(p.x - t.x) || 1; t.nside = sd; p.face = -sd;
-    p.action = { k: 'chop', t: 0, dur: Hero.chopTime() * 0.5 * (t.kind === 3 ? TUNE.zone.garChop : 1) * (A.chopK[pose] || 1), o: t, pose, tg: { x: t.x + sd * 4 * t.s, y: t.y }, th: -10 };
+  // путь обхода: круг ~1.2 м вокруг ствола (не ближе преграды ствола), от места героя, 1¼ оборота
+  function startTrample(t, d) {
+    const p = G.p, R = Math.max(chopDX(t) + 2, CHOP.trampR * Tree.M), a0 = Math.atan2((p.y - t.y - 3) / 0.7, p.x - t.x);
+    const dur = clamp(CHOP.tramp[0] + (d - CHOP.deep) / 60 * (CHOP.tramp[1] - CHOP.tramp[0]), CHOP.tramp[0], CHOP.tramp[1]);
+    p.action = { k: 'trample', t: 0, dur: +dur.toFixed(2), o: t, pose: 'trample', loop: 1, per: 1.24, fb: 'trudge', a0: +a0.toFixed(3), R: +R.toFixed(1), x0: p.x, y0: p.y, st: 0, dir: Math.sign(Math.sin(t.x + t.y)) || 1 };
+  }
+  // шаг обхода: тело по кругу (≤ 2 px за кадр), на каждом шаге — пятно утаптывания под ногой и вдвое — у комля
+  function trampleStep(a, dt) {
+    const p = G.p, t = a.o, u = a.t / a.dur, ang = a.a0 + a.dir * u * Math.PI * 2.5, e = Math.min(1, a.t / 0.5);
+    const tx = t.x + Math.cos(ang) * a.R, ty = t.y + 3 + Math.sin(ang) * a.R * 0.7;
+    p.x = a.x0 + (tx - a.x0) * e; p.y = a.y0 + (ty - a.y0) * e; if (e >= 1) { a.x0 = tx; a.y0 = ty; }
+    const fx = -Math.sin(ang) * a.dir; if (Math.abs(fx) > 0.2) p.face = Math.sign(fx);
+    const st = Math.floor(a.t / (a.per / 2));   // шаг — полцикла позы
+    if (st > a.st) {
+      a.st = st; const sd = st % 2 ? 1 : -1, ox = Math.cos(ang) * sd * 4, oy = Math.sin(ang) * sd * 3;
+      Trail.stamp(p.x + ox, p.y + oy, TRAMP); Trail.stamp(t.x + (p.x - t.x) * 0.55, t.y + (p.y - t.y) * 0.55, TRAMP_IN);
+      G.s.tire = Math.min(100, (G.s.tire || 0) + CHOP.trampTire * a.per / 2 * (Settings.diff().tire || 1));
+      if (!(window.QUALITY === 'low')) ArtWorld.fx.snowPuff(G.parts, p.x + ox, p.y + oy, 0.2);
+    }
+  }
+  const TRAMP = { a: 0.62, r: 15 }, TRAMP_IN = { a: 0.5, r: 12 };
+  // ---------- лапник: сгрести в кучу ('pile' в G.chunks — масса, объём, число ветвей — сумма сгребённых), унести охапкой ----------
+  // по одной ветви: подтянул к куче (0.45 с, ветвь едет по снегу) → легла в кучу; куча — до охапки (PILE_KG). Назначение:
+  // у костра — сесть на лапник (отдых, как на пне: не на снегу); охапку — куда угодно (js/carry.js, вид части 'pile')
+  const PILE_KG = 18, RAKE_T = 0.55;
+  const boughy = q => q.kind === 'bough' || q.kind === 'branch';
+  const boughsNear = (x, y, r) => (G.chunks || []).filter(q => boughy(q) && !q.rk && Math.hypot(q.x - x, q.y - y) < r && G.time - q.t - (q.dl || 0) > 1);
+  const pileNear = (x, y, r) => (G.chunks || []).find(q => q.kind === 'pile' && Math.hypot(q.x - x, q.y - y) < r) || null;
+  function startRake() {
+    const p = G.p, near = pileNear(p.x, p.y, 70), at = near ? { x: near.x, y: near.y } : { x: Math.round(p.x + p.face * 16), y: Math.round(p.y + 5) };
+    const list = boughsNear(at.x, at.y, 80).sort((a, b) => dist2(a, at) - dist2(b, at)); let kg = near ? near.mass : 0; const take = [];
+    for (const q of list) { if (kg + q.mass > PILE_KG || take.length >= 8) break; kg += q.mass; take.push(q.id); }
+    if (!take.length) { Fx.toast(near && list.length ? ':hand: Куча — охапка, больше не сгрести' : ':close: Лапника рядом нет'); p.cd = 0.4; return false; }
+    faceTo(at);
+    p.action = { k: 'rake', t: 0, dur: +(take.length * RAKE_T + 0.25).toFixed(2), pose: 'pickUp', per: RAKE_T * 2, loop: 1, fb: 'build', tg: at, th: -2, at, ids: take, pid: near ? near.id : null };
     return true;
   }
-  function startBuck(L) {
-    const p = G.p, pose = Hero.chopPose(), w = workPt(L); faceTo(w);
-    const a = { k: 'buck', t: 0, dur: Hero.chopTime() * 0.5 * (A.chopK[pose] || 1), o: L, pose, fb: 'chop', tg: { x: w.x, y: w.y }, th: -3, limb: logCut(L) < 1 ? 1 : 0 };
+  // ветвь j подтягивается в своё окно [j·RAKE_T, +0.45 с]; дошла — легла в кучу (первая — и есть начало кучи)
+  function rakeStep(a, last) {
+    for (let j = 0; j < a.ids.length; j++) {
+      const q = (G.chunks || []).find(c => c.id === a.ids[j]); if (!q) continue;
+      const u = last ? 1 : clamp((a.t - j * RAKE_T) / 0.45, 0, 1); if (u <= 0) continue;
+      if (!q.rk) q.rk = { x0: q.x, y0: q.y };
+      const e = u * u * (3 - 2 * u); q.x = Math.round(q.rk.x0 + (a.at.x - q.rk.x0) * e); q.y = Math.round(q.rk.y0 + (a.at.y - q.rk.y0) * e);
+      if (u >= 1) toPile(a, q);
+    }
+  }
+  function toPile(a, q) {
+    let pl = a.pid != null ? (G.chunks || []).find(c => c.id === a.pid) : null;
+    if (!pl) { pl = { kind: 'pile', tk: q.tk, sk: q.sk, k: q.k, n: 0, mass: 0, vol: 0, bulk: 0, len: 0.8, diam: 0.5, x: a.at.x, y: a.at.y, ang: +(((a.at.x * 7.3 + a.at.y * 3.1) % 6.28)).toFixed(2), t: G.time, src: q.src, id: (G.partN = (G.partN || 0) + 1) }; G.chunks.push(pl); a.pid = pl.id; }
+    pl.n++; pl.mass = +(pl.mass + q.mass).toFixed(4); pl.vol = +(pl.vol + (q.vol || 0)).toFixed(6); pl.bulk = +(pl.bulk + (q.bulk || 0)).toFixed(4);
+    const i = G.chunks.indexOf(q); if (i >= 0) G.chunks.splice(i, 1);
+    Sound.thud && Sound.thud(0.08, 0); if (!(window.QUALITY === 'low')) ArtWorld.fx.snowPuff(G.parts, a.at.x, a.at.y, 0.15);
+  }
+  function startBuck(L, o) {
+    o = o || logOp(L); const p = G.p, pose = Hero.chopPose(), w = workPt(L, o); faceTo(w);
+    const a = { k: 'buck', t: 0, dur: Hero.chopTime() * 0.5 * (A.chopK[pose] || 1), o: L, pose, fb: 'chop', tg: { x: w.x, y: w.y }, th: -3, limb: o.op === 'limb' ? 1 : 0, op: o.op };
     a.per = Hero.chopCycle(a).cl; p.action = a;
   }
 
@@ -308,12 +520,17 @@ const Actions = (() => {
     // работа с деревом (чурки, ствол) — раньше следов и сугробов: удержание E не упирается в «мягкий» жест
     if (!p.inside) {
       // удержание E на разделке — разделка до конца (чурки соберёт следующее нажатие)
-      if (input.act && HOLD.last === 'log' && !Carry.busy()) { const lg = nearLog(44); if (lg) return { k: 'log', label: logCut(lg) < 1 ? 'Обрубить сучья' : lg.zt != null && !lg.top ? 'Отрубить вершину' : `Разделать · ${lg.n}`, rep: 1, o: lg }; }
+      if (input.act && HOLD.last === 'log' && !Carry.busy()) { const lg = nearLog(44); if (lg) return { k: 'log', label: logLabel(lg), rep: 1, o: lg }; }
       // пустые руки у ствола — сперва разделка (чурки соберёт, когда ствол разделан или руки уже набирают охапку)
-      const lg0 = !Carry.busy() && nearLog(44); if (lg0) return { k: 'log', label: logCut(lg0) < 1 ? 'Обрубить сучья' : lg0.zt != null && !lg0.top ? 'Отрубить вершину' : `Разделать · ${lg0.n}`, alt: dragOk(lg0) ? `Волоком · ${Math.round(Carry.logKg(lg0))} кг` : null, rep: 1, o: lg0 };
+      const lg0 = !Carry.busy() && nearLog(44); if (lg0) return { k: 'log', label: logLabel(lg0), alt: dragOk(lg0) ? `Волоком · ${Math.round(Carry.logKg(lg0))} кг` : null, rep: 1, o: lg0 };
       const ch = nearChunks(46).filter(q => !Carry.cantTake(q)); if (ch.length) { const q = ch.slice().sort((a, b) => dist2(a, p) - dist2(b, p))[0], nm = q.kind === 'butt' ? 'комель' : q.kind === 'top' ? 'вершину' : 'чурку';
         return { k: 'chunks', label: `Взять ${nm} · ${(q.mass || Tree.KG).toFixed(1).replace('.', ',')} кг` + (Carry.busy() ? ` · :hand:${Carry.count() + 1}` : ''), o: ch }; }
-      const lg = nearLog(44); if (lg) return { k: 'log', label: logCut(lg) < 1 ? 'Обрубить сучья' : lg.zt != null && !lg.top ? 'Отрубить вершину' : `Разделать · ${lg.n}`, rep: 1, o: lg };
+      const lg = nearLog(44); if (lg) return { k: 'log', label: logLabel(lg), rep: 1, o: lg };
+      if (!Carry.busy()) {   // лапник: сгрести в кучу (ещё есть рядом и куча не полна), кучу — взять охапкой
+        const pl = pileNear(p.x, p.y, 40), more = boughsNear(pl ? pl.x : p.x, pl ? pl.y : p.y, pl ? 80 : 46).length;
+        if (more && (!pl || pl.mass < PILE_KG - 1)) return { k: 'rake', label: 'Сгрести лапник', rep: 1 };
+        if (pl && !Carry.cantTake(pl)) return { k: 'pileTake', label: `Взять лапник · ${pl.mass.toFixed(1).replace('.', ',')} кг`, o: pl };
+      }
       const sk = !Carry.busy() && (G.litter || []).find(q => q.k === 'stick' && !q.vx && !q.fl && dist2(q, p) < 26 * 26); if (sk) return { k: 'litter', label: 'Подобрать палку', o: sk, soft: 1 }; // палка под ногами — раньше сугроба
       const lc = Carry.nearCtx(p); if (lc) return lc;   // вещи на снегу, туши (палка под ногами — раньше)
       const sc = Carry.stowCtx(p); if (sc) return sc;   // с ношей — убрать в рюкзак (что влезет) или «руки полны»
@@ -338,7 +555,9 @@ const Actions = (() => {
       const lt = (G.litter || []).find(q => !q.fl && dist2(q, p) < 34 * 34); if (lt) return { k: 'litter', label: lt.k === 'stick' ? 'Подобрать палку' : 'Подобрать банку', o: lt, soft: 1 };
     }
     { const sc = Carry.sledCtx(p); if (sc) return sc; }   // лицом к своим нартам — взять с них
-    const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall); if (t) return { k: 'tree', label: 'Рубить', alt: 'Трясти', rep: 1, o: t };
+    const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall);
+    if (t) { const c = CUTT(t) && t.cut.h > 0 ? t.cut : null; return { k: 'tree', label: trampleNeed(t) ? 'Вытоптать снег' : c ? (c.h < c.nN ? 'Подруб' : 'Задний рез') + ` ${c.h}/${c.N}` : 'Рубить', alt: 'Трясти', rep: 1, o: t }; }
+    const lb = !p.inside && !Carry.busy() && pileNear(p.x, p.y, 34); if (lb && nearest(G.fires, 120, f => f.fuel > 0)) return { k: 'rest', label: 'Сесть на лапник', o: lb, soft: 1 };   // лежанка у костра: сидит не на снегу
     const sp = !p.inside && nearest(Space.trees, 40, t => t.wood <= 0 && !t.wall && t.stage !== 1); if (sp) return { k: 'rest', label: 'Присесть', o: sp, soft: 1 };
     if (onIce(p.x, p.y)) {
       const hole = nearest(G.holes, 34, h => holeOk(h) && h.fish > 0 && !(h.ice > 0.3));
@@ -412,13 +631,18 @@ const Actions = (() => {
       case 'chunks': { const q = c.o.filter(q => !Carry.cantTake(q)).sort((a, b) => dist2(a, p) - dist2(b, p))[0]; if (!q) { if (!silent) Fx.toast(Carry.FULL[Carry.cantTake(c.o[0])] || ':hand: Руки полны'); break; }
         Carry.pick('part', q, []); p.cd = 0.1; } break;
       case 'litter': if (handsBusy(silent)) break; Carry.pick('litter', c.o, [{ k: 'stow' }]); break;
+      case 'rake': if (handsBusy(silent)) break; startRake(); break;
+      case 'pileTake': if (Carry.cantTake(c.o)) { if (!silent) Fx.toast(Carry.FULL[Carry.cantTake(c.o)] || ':hand: Руки полны'); break; } Carry.pick('part', c.o, []); p.cd = 0.1; break;
       case 'log': {
         if (handsBusy(silent)) break;
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
         // сам подходит сбоку к месту работы (край кроны / конец ствола) и рубит туда
-        const L = c.o, q = workSpot(L, workPt(L));
-        if (q && Math.hypot(q.x - p.x, q.y - p.y) > 6) { autoTo(q.x, q.y, 2, () => { if (G.logs && G.logs.includes(L) && L.n > 0 && !G.p.action) startBuck(L); }); p.cd = 0.2; break; }
-        startBuck(L);
+        const L = c.o, o = logOp(L), q = workSpot(L, workPt(L, o), o.side); if (o.side && o.op !== 'roll') L.ls = o.side;
+        const go = () => { delete G.p.overL; if (!G.logs || !G.logs.includes(L) || L.n <= 0 || G.p.action) return; if (o.op === 'roll') startRoll(L); else startBuck(L, o); };
+        // на другую сторону — перешагивает через ствол (по снегу он ниже колена; иначе обход через всю крону)
+        if (q && o.side && sideOf(L, p) !== o.side) p.overL = L.id; else delete p.overL;
+        if (q && Math.hypot(q.x - p.x, q.y - p.y) > 6) { autoTo(q.x, q.y, 2, go); p.cd = 0.2; break; }
+        go();
       } break;
       case 'trap': {
         const t = c.o; p.cd = 0.4; faceTo(t);
@@ -442,11 +666,14 @@ const Actions = (() => {
       case 'tree': {
         if (handsBusy(silent)) break;
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
-        // прицел: герой сам подходит к боковой точке у ствола (ближняя свободная сторона) — лезвие в ствол; издалека и из-за дерева не рубит
-        const t = c.o, q = chopSpot(t);
+        // направление валки решается при первом подходе (t.cut); герой сам встаёт к стволу: подруб — сбоку от линии падения,
+        // задний рез — обойдя ствол; в глубоком снегу — сперва вытаптывает площадку
+        const t = c.o; if (!CUTT(t) && t.wood > 0) cutOf(t, true);
+        const q = chopSpot(t);
         if (!q) { if (!silent) Fx.toast(':close: Не подойти к стволу'); p.cd = 0.5; break; }
-        if (Math.hypot(q.x - p.x, q.y - p.y) > 4) { autoTo(q.x, q.y, 1.5, () => { if (t.wood > 0 && !G.p.action) startChop(t); }); p.cd = 0.2; break; }
-        startChop(t);
+        const go = () => { const tr = trampleNeed(t); if (tr) startTrample(t, tr); else startChop(t); };
+        if (Math.hypot(q.x - p.x, q.y - p.y) > 4) { autoTo(q.x, q.y, 1.5, () => { if (t.wood > 0 && !G.p.action) go(); }); p.cd = 0.2; break; }
+        go();
       } break;
       case 'fish': if (handsBusy(silent)) break; p.action = { k: 'fish', ph: 'wait', t: 0, dur: rnd(1.5, 4) - 0.2 * (Hero.lvl('fish') - 1), o: c.o }; break;
       // лунка растёт по ударам пешни (h.dg 0..1): начатую — додолбить
@@ -474,18 +701,13 @@ const Actions = (() => {
   function finish(a) {
     const p = G.p;
     if (a.k === 'chop') {
-      const t = a.o; if (t.wood <= 0) return;
-      t.wood--; Hero.xp('chop'); G.s.food = Math.max(0, G.s.food - A.chopFood);
-      // отклик (дрожь, щепа, снег с веток, треск, вороны) — правила Interact
-      Interact.emit('hit', { who: 'p', target: t, x: t.x, y: t.y, power: 1 });
-      if (t.wood <= 0) {
-        World.felled(t); const L = fell(t);
-        Interact.emit('fell', { who: 'p', target: t, x: t.x, y: t.y, dir: L.a, log: L });
-      }
+      if (!a.full && a.o.wood > 0) chopHit(a);   // действие из старого сейва: удар — в конце
+      if (a.fell) retreat(a.fell);   // повалил — сразу отходит назад-вбок
     } else if (a.k === 'buck') {
       // обрубка: каждый удар снимает треть кроны от вершины (ветки летят, лапник на снег); последний — и верхушку чуркой.
       // разделка: каждый рез — чурка у места реза, откатывается от ствола; остаток ствола лежит и заметается (done)
       const L = a.o; if (!G.logs || !G.logs.includes(L) || L.n <= 0) return;
+      if (typeof Tree !== 'undefined' && L.sk && a.op === 'top') { const w = a.tg || workPt(L); Tree.split(L, 'top'); Sound.chop(); Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: w.x, y: w.y }); ArtWorld.fx.snowPuff(G.parts, w.x, w.y - 4, 0.5); return; }
       if (typeof Tree !== 'undefined' && L.sk) return finishBuck3(L, a);
       const c0 = logCut(L);
       if (c0 < 1) {
@@ -505,6 +727,10 @@ const Actions = (() => {
       Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: at.x, y: at.y }); Sound.chop(); ArtWorld.fx.snowPuff(G.parts, at.x, at.y, 0.35);
       Fx.floatText(at.x, at.y - 20, first ? ':tree: сучья' : `чурка ×${n}`);
       if (L.n <= 0) L.done = G.time;   // остаток ствола (комель) не исчезает — заметает за FELL.bury суток
+    } else if (a.k === 'rake') { rakeStep(a, 1);
+    } else if (a.k === 'roll') {
+      const L = a.o; if (G.logs && G.logs.includes(L)) { L.roll = a.r1; L.x = Math.round(a.x0 + a.sx); L.y = Math.round(a.y0 + a.sy); L.rn = (L.rn || 0) + 1; delete L.ls; }
+      G.s.tire = Math.min(100, (G.s.tire || 0) + TUNE.tire.hit * 2 * (Settings.diff().tire || 1));
     } else if (a.k === 'fish') {
       if (a.ph === 'wait') {
         // клюёт! полоса с зелёной зоной — жми E вовремя
@@ -742,7 +968,8 @@ const Actions = (() => {
         for (let k = 0; k < 7; k++) G.parts.push({ type: 'dot', x: h.x + rnd(-5, 5), y: h.y - 2, vx: rnd(-60, 60), vy: rnd(-90, -40), g: 300, life: 0.45, max: 0.45, color: k % 2 ? '#dbe9f4' : '#9fc3dc' });
       }
     }
-    if ((a.k === 'chop' && !G.gear.saw) || a.k === 'wreck' || a.k === 'buck') {
+    if (a.k === 'chop' && a.full) { const m = (a.ia || 0.52) * a.dur; if (t0 < m && a.t >= m) chopHit(a); }   // удар — в касание топора
+    else if ((a.k === 'chop' && !G.gear.saw) || a.k === 'wreck' || a.k === 'buck') {
       const c = Hero.chopCycle(a), i0 = Math.floor(t0 / c.cl - c.ia), i1 = Math.floor(a.t / c.cl - c.ia);
       if (i1 > i0 && i1 >= 0 && a.t < a.dur - 1e-3) {
         if (a.k === 'chop') Interact.emit('hit', { who: 'p', target: a.o, x: a.o.x, y: a.o.y, power: 0.4, mid: 1 });
@@ -792,6 +1019,9 @@ const Actions = (() => {
     if (a.k === 'job') { const J = JOB[a.j]; if (J && J.tick) J.tick(a, dt); return; }
     if (a.k === 'mount' || a.k === 'unmount') { Transport.boardStep(a); return; }
     if (a.k === 'digout') { Depth.dig(p.x, p.y, dt); return; }
+    if (a.k === 'trample') { trampleStep(a, dt); return; }
+    if (a.k === 'roll') { rollStep(a); return; }
+    if (a.k === 'rake') { rakeStep(a); return; }
     if (a.k === 'clear') { clearStep(a, dt); return; }
     if (a.k === 'warm') {
       if (!(a.o.fuel > 0)) { p.action = null; return; }
@@ -830,6 +1060,7 @@ const Actions = (() => {
     },
     noteRead() { if (PLATE && PLATE.note) PLATE = null; },
     eat(a) { if (a.ate && a.o === 'can') litter('can'); },   // бросил есть после первой ложки — банка на снегу
+    rake(a) { for (const q of G.chunks || []) if (q.rk && a.ids.includes(q.id)) delete q.rk; },   // бросил сгребать — ветвь осталась, где её тянули
     fish(a) { if (a.ph === 'play') { Fx.floatText(a.o.x, a.o.y - 30, 'Сошла'); Sound.tone('triangle', 400, 200, 0.2, 0.15); } },
     inspect(a) { if (PLATE && PLATE.a === a) PLATE = null; },
   };
@@ -1443,6 +1674,7 @@ const Actions = (() => {
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession,
     nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
     fell, iceHit, knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, logCut, logSnow, falling, danger, inPath, chopSpot, atTrunk, FELL, get plate() { return PLATE; },
+    CHOP, cutOf, hitsFor, leanOf, trampleNeed, spotAt, PILE_KG, pileNear, boughsNear,
     hutLeft, HUTO, CAN_LIFE, inView, walkTo: autoTo, get stoveDoor() { return stoveDoor; }, useWood, woodHave, strike, eatHand, dropStick, handsBusy,
     jobs: { job, JOB, jobAt, abort, faceTo, work },
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),

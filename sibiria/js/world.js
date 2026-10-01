@@ -223,10 +223,11 @@ const World = (() => {
     SHAKING.clear(); for (const t of G.trees) if (t.shake > 0) SHAKING.add(t);
     REGROW.clear(); for (const t of G.trees) if (t.cutAt != null) REGROW.add(t);
   }
-  // дрожь дерева от удара: обновляем только дрожащие, а не весь лес каждый кадр
-  const SHAKING = new Set();
-  function shakeTree(t, v) { t.shake = v; SHAKING.add(t); }
-  function tickTrees(dt) { for (const t of SHAKING) { t.shake -= dt; if (t.shake <= 0) { t.shake = 0; SHAKING.delete(t); } } }
+  // дрожь дерева от удара: амплитуда затухает экспонентой (τ ≈ 0.4 с — заметно 1–2 с), новый толчок не гасит идущий;
+  // обновляем только дрожащие, а не весь лес каждый кадр
+  const SHAKING = new Set(), SHAKE_TAU = 0.4;
+  function shakeTree(t, v) { t.shake = Math.max(t.shake || 0, v); SHAKING.add(t); }
+  function tickTrees(dt) { const k = Math.exp(-dt / SHAKE_TAU); for (const t of SHAKING) { t.shake = t.shake * k - dt * 0.004; if (t.shake <= 0.004) { t.shake = 0; SHAKING.delete(t); } } }
 
   // ---------- отрастание леса: пень → молодое деревце (меньше дров) → взрослое дерево ----------
   // Только срубленные деревья (wood ≤ 0) отслеживаются — REGROW маленький и не идёт по всему лесу.
@@ -389,7 +390,7 @@ const World = (() => {
     NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, trunkR(t))) touch('tree', t);
     NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushFoot(o, r, rockFoot(q))) touch('rock', q);
     const bk = who === 'p' || who === 'n' ? null : BK[bodyKind(o, who, r)]; // зверь: через лежачий ствол перешагивает/перепрыгивает (ниже своего прыжка)
-    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && !(L.drag && who === 'p') && !(bk && bk.jump && logH(L, o) < bk.jump) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю; свой волок — не преграда тащащему
+    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && !(L.drag && who === 'p') && !(who === 'p' && o.overL === L.id) && !(bk && bk.jump && logH(L, o) < bk.jump) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю; свой волок — не преграда тащащему; на обрубке герой перешагивает «свой» ствол (overL)
     // открытая вода (перекат, дыры) — ИИ обходит; герой в неё проваливается (thinIce)
     if (who !== 'p' && typeof Ice !== 'undefined' && Ice.pushWater(o, r)) touch('water', null);
     // горящий костёр: тела держатся от огня (keepR), герой — упор и ожог при шаге в огонь; World.blocked (q — не герой) огонь не видит

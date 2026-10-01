@@ -1344,8 +1344,16 @@ const ArtWorld = (() => {
       for (let i = 0; i < 4 + 2 * n; i++) parts.push({ type: 'puff', x: x + rnd(-8, 8), y: y + rnd(-4, 2), vx: rnd(-18, 18), vy: rnd(-16, -4), r0: rnd(4, 6), r1: rnd(13, 20) * (0.8 + 0.2 * n), life: rnd(0.55, 0.9), max: 0.9 });
       for (let i = 0; i < 8; i++) bit(parts, x, y, 'snow', i % 2 ? '#f6f9fc' : '#dde6ee', 70, 110, rnd(0.6, 1), rnd(1.4, 2.6));
     },
-    chips(parts, x, y) {
+    // щепа: dir (рад по земле) — из реза конусом ±35°, с высоты реза z (px); без dir — во все стороны (люди посёлка, разделка)
+    chips(parts, x, y, dir, z) {
       const C = ['#eacd9a', '#c79a62', '#8a6a45', '#e3d5b6'];
+      if (dir != null) {
+        for (let i = 0; i < 8; i++) { const a = dir + (FXR() - 0.5) * 1.22, v = rnd(45, 140), life = rnd(1.6, 2.6);   // ложится на снег; дальше её держит рисунок пня/ствола (Tree.drawChips)
+          parts.push({ type: 'bit', kind: 'chip', c: C[i % 4], x, y, vx: 0, vy: 0, ux: Math.cos(a) * v, uy: Math.sin(a) * v * 0.6, uz: rnd(30, 110), gz: 420, z0: z || 8, sz: rnd(0.55, 1.2), rot: FXR() * TAU, spin: rnd(-14, 14), life, max: life }); }
+        for (let i = 0; i < 3; i++) bit(parts, x, y - (z || 8) * 0.5, 'snow', '#f6f9fc', 40, 60, rnd(0.5, 0.8), rnd(1.2, 2));
+        parts.push({ type: 'puff', x, y: y - 2, vx: Math.cos(dir) * 10, vy: -6, r0: 3, r1: 9, life: 0.45, max: 0.45 });
+        return;
+      }
       for (let i = 0; i < 7; i++) bit(parts, x, y - 10, 'chip', C[i % 4], 110, 150, rnd(1.6, 2.6), rnd(0.55, 1.2));   // щепа в настоящий размер: 3–6 см (23 px = 1 м)
       for (let i = 0; i < 4; i++) bit(parts, x, y - 4, 'snow', '#f6f9fc', 50, 70, rnd(0.5, 0.8), rnd(1.2, 2));
       parts.push({ type: 'puff', x, y, vx: 0, vy: -6, r0: 3, r1: 10, life: 0.5, max: 0.5 });

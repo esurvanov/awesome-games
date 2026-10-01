@@ -421,21 +421,33 @@ var ArtPeople = (function () {
     P.tilt = 0.12 + load * 0.08; P.hb = load * 0.9;
   }
   function chop(o, t, a) {
-    // удар в a = 0.52 (Hero IMPACT.chop — урон по дереву): опускание 0.37→0.52 (≈0.135 с), стоп-кадр ≈50 мс, отдача, возврат
-    const REST = 0.95, UP = -2.45, HIT = 0.72, R = 11;
-    let b;
-    if (a < 0.37) b = lerp(REST, UP, sm(a / 0.37));
-    else if (a < 0.52) { const e = (a - 0.37) / 0.15; b = lerp(UP, HIT, Math.pow(e, 1.8)); }
-    else if (a < 0.575) b = HIT + 0.015 * Math.sin((a - 0.52) * 400);   // топор в стволе
-    else if (a < 0.68) { const e = (a - 0.575) / 0.105; b = HIT - 0.2 * Math.sin(e * PI * 2) * (1 - e); }
-    else b = lerp(HIT, REST, sm((a - 0.68) / 0.32));
-    const w = clamp((REST - b) / (REST - UP), 0, 1), imp = a < 0.5 ? 0 : a < 0.53 ? sm((a - 0.5) / 0.03) : 1 - sm((a - 0.575) / 0.14);
-    P.f0x = 4.5; P.f1x = -3.8; P.f1a = -0.1;
-    P.lean = lerp(0.36, -0.14, w) + 0.045 * imp; P.hy = -16.8 + (1 - w) * 1.3 + 0.3 * imp; shoulder();   // корпус «проваливается» за ударом
-    handA(0, b, R); P.hl0 = P.hl1 = 1.5;
-    P.tk = 'axe'; P.ta = b + 0.1; P.two = 1; P.gap = -3.6;
-    P.tilt = lerp(0.25, -0.2, w) + 0.05 * imp; P.hb = 0.6 * imp;
-    if (a >= 0.37 && a < 0.53) P.trail = [lerp(UP, b, 0.35), b, R + 17];
+    // косой удар (цикл ~1.3 с — одно действие): замах — топор за ближнее плечо (дуга не над головой), вес на задней ноге,
+    // плечи развёрнуты назад (tw < 0), кисти — к ближнему боку; удар в a = 0.52 (Hero IMPACT.chop): шаг передней ногой,
+    // разворот корпуса (tw > 0), кисти идут наискось через тело, лезвие ~45°; 0.52–0.6 — топор в стволе (hit-stop),
+    // 0.6–0.7 — рывок-выдёргивание, к концу цикла — покой: следующий удар без скачка
+    const REST = 0.95, UP = -2.05, T = o.target && isFinite(o.target.x) ? o.target : { x: 11, y: -10 };
+    // лезвие — в цель (ствол, в т. ч. наискось в глубину): угол кисти, радиус и наклон топорища, как chopAim в js/art-poses.js
+    const sx0 = 0.4 + Math.sin(0.2) * SHO, sy0 = hipY(-16.1) - Math.cos(0.2) * SHO, dx0 = T.x - sx0, dy0 = T.y - sy0, D0 = clamp(Math.hypot(dx0, dy0), 8, 28.6), r1 = clamp(D0 * 0.5, 8.5, 11);
+    const cq = Math.cos(0.85), Lh = clamp(-r1 * cq + Math.sqrt(Math.max(0, r1 * r1 * cq * cq - r1 * r1 + D0 * D0)), 10.6, 16.5), cc = 16 - Math.sqrt(Lh * Lh - 16), dd = Math.acos(clamp((D0 * D0 - r1 * r1 - Lh * Lh) / (2 * r1 * Lh), -1, 1));
+    const HIT = Math.atan2(dy0, dx0) - Math.atan2(Lh * Math.sin(dd), r1 + Lh * Math.cos(dd)), HK = dd - Math.atan2(4, 16 - cc);
+    let b, r, h = 0;
+    if (a < 0.4) { const e = sm(a / 0.4); b = lerp(REST, UP, e); r = lerp(11, 9.2, e); }
+    else if (a < 0.52) { const e = Math.pow((a - 0.4) / 0.12, 1.7); b = lerp(UP, HIT, e); r = lerp(9.2, r1, e); h = e; }
+    else if (a < 0.6) { b = HIT + 0.012 * Math.sin((a - 0.52) * 300); r = r1; h = 1; }   // топор в стволе
+    else if (a < 0.7) { const e = (a - 0.6) / 0.1; b = HIT - 0.34 * Math.sin(e * PI); r = r1 - 1.2 * Math.sin(e * PI); h = 1; }   // выдернул рывком
+    else { const e = sm((a - 0.7) / 0.3); b = lerp(HIT, REST, e); r = lerp(r1, 11, e); h = 1 - e; }
+    const wu = a < 0.4 ? sm(a / 0.4) : a < 0.52 ? 1 - sm((a - 0.4) / 0.12) : 0;   // замах 0..1
+    const st = a < 0.36 ? 0 : a < 0.52 ? sm((a - 0.36) / 0.16) : a < 0.72 ? 1 : 1 - sm((a - 0.72) / 0.28);   // шаг передней ногой
+    const imp = a < 0.5 ? 0 : a < 0.53 ? sm((a - 0.5) / 0.03) : 1 - sm((a - 0.575) / 0.14), pull = a >= 0.6 && a < 0.7 ? Math.sin((a - 0.6) / 0.1 * PI) : 0;
+    P.f0x = 4 + 1.9 * st; P.f0y = -2 - 1.5 * Math.sin(st * PI) * (a < 0.52 ? 1 : 0); P.f1x = -3.8 + 0.3 * st; P.f1a = -0.1;
+    P.hx = -0.8 * wu + 1 * st * (1 - wu);   // вес: назад на замахе, вперёд с шагом
+    P.lean = lerp(0.3, -0.1, wu) + 0.1 * st * (1 - wu) + 0.045 * imp - 0.05 * pull; P.hy = -16.8 + (1 - wu) * 0.9 + 0.3 * imp; shoulder();   // корпус «проваливается» за ударом
+    P.tw = -0.24 * wu + 0.2 * st * (1 - wu);   // разворот корпуса: назад на замахе, вперёд на ударе
+    handA(0, b, r); const lt = 3.2 * wu - 1.6 * st * (1 - wu); P.hl0 = 1.5 + lt; P.hl1 = 1.5 - lt;   // кисти наискось через тело
+    P.tk = 'axe'; P.ta = b + lerp(0.1, HK, h) + 0.35 * wu; P.two = 1; P.gap = -3.6 + cc * h;
+    if (cc * h > 0.05) { P.tox = P.h0x - Math.cos(P.ta) * cc * h; P.toy = P.h0y - Math.sin(P.ta) * cc * h; }
+    P.tilt = lerp(0.2, -0.15, wu) + 0.05 * imp; P.hb = 0.6 * imp; P.mouth = 0.35 * pull;
+    if (a >= 0.4 && a < 0.53) P.trail = [lerp(UP, b, 0.35), b, r + 17];
     if (a >= 0.52 && a < 0.58) P.spark = 1;
   }
   function saw(o, t) {
@@ -2249,7 +2261,7 @@ var ArtPeople = (function () {
   const H = { pack: () => ({ Hb: pkTop(1.5) * 14.6 - 2.2, d: pkW(4.2), fill: HFILL, kg: HPK }),
     face: () => FC, belt: k => (k === 'axe' && CL && CL.axeBelt ? (P.tk = 'axe', P.belt = 1, true) : false), P, PI, lerp, sm, clamp, seg, shoulder, handA, handR, foot, gait, idle, walk, run, limp, sit, stride, view: () => (BACK ? -1 : FRONT ? 1 : 0),
     SHO, hipY, hip: hipD, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, MT, TORSO, KL }, armFK, swingArms, runW, REST, RR, RA: [RA0, RA1] };
-  const DUR = { chop: 0.9, dig: 1.0, build: 0.7, swing: 0.45, shoot: 1.4, hurt: 0.6, dead: 1.2 };
+  const DUR = { chop: 1.3, dig: 1.0, build: 0.7, swing: 0.45, shoot: 1.4, hurt: 0.6, dead: 1.2 };
   const ANIMS = ['idle', 'walk', 'run', 'limp', 'carry', 'talk', 'wave', 'chop', 'dig', 'fish', 'fishBite', 'build', 'swing', 'aim', 'shoot', 'sit', 'sleep', 'hurt', 'dead'];
   function register(name, spec) { POSE[name] = spec; if (spec.dur) DUR[name] = spec.dur; if (!ANIMS.includes(name)) ANIMS.push(name); }
   return {

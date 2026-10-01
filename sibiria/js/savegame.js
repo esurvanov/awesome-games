@@ -47,6 +47,8 @@ const SaveGame = (() => {
       if (t.cutAt != null) row.push(t.cutAt);
       o.treeD.push(row);
     });
+    // treeC: рубка стоящего / пень по-настоящему (js/actions.js t.cut: направление валки, подруб, задний рез, щепа)
+    o.treeC = []; G.trees.forEach((t, i) => { if (t.cut && (t.cut.h > 0 || t.cut.f) && !(t.cut.f && t.wood > 0)) o.treeC.push([i, t.cut]); });
     o.fogB = packFog(G.fog);
     if (typeof Trail !== 'undefined') { const tb = Trail.pack(); if (tb) { o.trailB = tb; o.trailF = +Trail.fill.toFixed(3); } } // тропы (js/trail.js)
     o.live = {}; for (const k of LIVE) o.live[k] = packList(G[k] || []);
@@ -76,7 +78,7 @@ const SaveGame = (() => {
   function load(json) {
     const g = typeof json === 'string' ? JSON.parse(json) : json;
     const bad = problem(g); if (bad) throw new Error(bad);
-    const { _v, gen, W: _w, H: _h, cyc, treeD, fogB, live, amGot, trailB, trailF, ...rest } = g;
+    const { _v, gen, W: _w, H: _h, cyc, treeD, treeC, fogB, live, amGot, trailB, trailF, ...rest } = g;
     G = Object.assign(rest, { trees: [], drifts: [], cracks: [], tussocks: [], prints: [], parts: [] });
     // темп времени: сейв со старыми сутками (cyc нет — 480) → те же день и час при нынешнем CYCLE
     const kT = CYCLE / (cyc || 480);
@@ -92,6 +94,7 @@ const SaveGame = (() => {
       if (cutAt != null) { t.stage = stage || 0; t.cutAt = cutAt * kT; }
       else if (w <= 0) { t.stage = 0; t.cutAt = G.time - TUNE.world.regrowStumpDays * CYCLE * 0.7; }
     }
+    for (const [i, c] of treeC || []) { const t = G.trees[i]; if (t && c) { t.cut = c; if (kT !== 1) { if (c.t != null) c.t *= kT; if (c.st != null) c.st *= kT; } } }
     G.stashes = G.stashes || [];
     G.fog = unpackFog(fogB);
     if (typeof Trail !== 'undefined') Trail.load(trailB, trailF); // нет поля (старый сейв) — троп нет

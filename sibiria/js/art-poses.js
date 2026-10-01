@@ -582,6 +582,10 @@
     handA(0, b, r); P.hl0 = P.hl1 = 1.5; P.tk = 'axe'; P.ta = b + k; P.two = 1; P.gap = -3.6 + (c || 0);
     if (c > 0.05) { P.tox = P.h0x - cos(P.ta) * c; P.toy = P.h0y - sin(P.ta) * c; }
   }
+  // косой удар (все варианты рубки): wu — замах 0..1, st — шаг 0..1, k — размах (устал/замёрз — меньше).
+  // Таз: назад на замахе, вперёд с шагом (до body); кисти наискось через тело, разворот корпуса, передняя стопа — шагом (после axe)
+  const obHx = (wu, st, k) => (-0.7 * wu + 0.9 * st * (1 - wu)) * k;
+  function oblique(wu, st, k) { const lt = (3.2 * wu - 1.6 * st * (1 - wu)) * k; P.hl0 += lt; P.hl1 -= lt; P.tw = (-0.24 * wu + 0.2 * st * (1 - wu)) * k; P.f0x += 1.8 * st * k; }
 
   // устал: медленный замах, тяжёлое падение, пауза с одышкой
   R('chopHeavy', { dur: 1.2, fn(o, t, a) {
@@ -595,9 +599,10 @@
     else if (a < 0.86) { b = hit.b + 0.06 * sin(seg(a, 0.665, 0.72) * PI); h = 1; }
     else { const e = sm((a - 0.86) / 0.14); b = lerp(hit.b, REST, e); h = 1 - e; }
     const w = clamp((REST - b) / (REST - UP), 0, 1), pause = env(a, 0.66, 0.72, 0.84, 0.92), imp = env(a, 0.6, 0.63, 0.67, 0.78);
+    const st = a < 0.5 ? 0 : a < 0.62 ? sm((a - 0.5) / 0.12) : a < 0.86 ? 1 : 1 - sm((a - 0.86) / 0.14);
     P.f0x = 4.2; P.f1x = -3.8; P.f1a = -0.1; P.br = sin(t * 7) * pause;
-    body(lerp(lerp(0.42, -0.08, w), 0.42, h) + 0.08 * pause + 0.04 * imp, -15.6 + (1 - w) * 0.6 - 0.9 * w + 0.4 * pause + 0.15 * P.br + 0.3 * imp, 0.3);
-    axe(b, lerp(11, hit.r, h), lerp(0.1, hit.k, h), hit.c * h);
+    body(lerp(lerp(0.42, -0.08, w), 0.42, h) + 0.08 * pause + 0.04 * imp, -15.6 + (1 - w) * 0.6 - 0.9 * w + 0.4 * pause + 0.15 * P.br + 0.3 * imp, 0.3 + obHx(w, st, 0.7));
+    axe(b, lerp(11, hit.r, h), lerp(0.1, hit.k, h), hit.c * h); oblique(w, st, 0.7);
     P.tilt = lerp(0.3, -0.12, w) + 0.12 * pause; P.mouth = 0.3 + 0.5 * pause; P.hb = 0.5 * P.br;
     if (a >= 0.52 && a < 0.63) P.trail = [lerp(UP, b, 0.35), b, lerp(11, hit.r, h) + 17];
     if (a >= 0.62 && a < 0.69) P.spark = 1;
@@ -613,10 +618,10 @@
     else if (a < 0.37) { const e = Math.pow((a - 0.27) / 0.1, 1.6); b = lerp(UP, hit.b, e); h = e; }
     else if (a < 0.86) { b = hit.b; h = 1; }
     else { const e = sm((a - 0.86) / 0.14); b = lerp(hit.b, REST, e); h = 1 - e; }
-    const w = clamp((REST - b) / (REST - UP), 0, 1);
+    const w = clamp((REST - b) / (REST - UP), 0, 1), st = a < 0.25 ? 0 : a < 0.37 ? sm((a - 0.25) / 0.12) : a < 0.86 ? 1 : 1 - sm((a - 0.86) / 0.14);
     P.f0x = 3.8; P.f1x = -3.2;
-    body(lerp(L0, 0.02, w) + 0.04 * bump(a, 0.8, 0.9), HY + 0.4 * w, 0);
-    axe(b, lerp(11, hit.r, h), lerp(0.1, hit.k, h), hit.c * h);
+    body(lerp(L0, 0.02, w) + 0.04 * bump(a, 0.8, 0.9), HY + 0.4 * w, obHx(w, st, 0.55));
+    axe(b, lerp(11, hit.r, h), lerp(0.1, hit.k, h), hit.c * h); oblique(w, st, 0.55);
     const off = env(a, 0.42, 0.5, 0.72, 0.82);   // руки отпустили топорище
     if (off > 0) {
       const hx0 = P.h0x, hy0 = P.h0y; if (P.tox === null) { P.tox = hx0; P.toy = hy0; } P.two = 0;
@@ -641,10 +646,10 @@
     else if (a < 0.45) { const e = ((a - 0.34) / 0.11) ** 2; b = lerp(BACK, hit.b, e); h = e; }
     else if (a < 0.56) { b = hit.b + 0.08 * sin(seg(a, 0.45, 0.56) * PI); h = 1; }
     else { const e = sm((a - 0.56) / 0.44); b = lerp(hit.b, REST, e); h = 1 - e; }
-    const w = clamp((b - REST) / (BACK - REST), 0, 1), gust = 0.03 * sin(t * 2.1);
+    const w = clamp((b - REST) / (BACK - REST), 0, 1), gust = 0.03 * sin(t * 2.1), st = a < 0.32 ? 0 : a < 0.45 ? sm((a - 0.32) / 0.13) : a < 0.6 ? 1 : 1 - sm((a - 0.6) / 0.4);
     P.f0x = 4.8; P.f1x = -4.2; P.f1a = -0.1;
-    body(L0 - 0.06 * w + 0.05 * h + gust, HY + 0.4 * w, 0.2 - 0.6 * w);
-    axe(b, lerp(11, hit.r, h), lerp(0.1 + 0.55 * w, hit.k, h), hit.c * h);   // на замахе топор назад горизонтально, не в снег
+    body(L0 - 0.06 * w + 0.05 * h + gust, HY + 0.4 * w, 0.2 - 0.6 * w + obHx(w, st, 0.5));
+    axe(b, lerp(11, hit.r, h), lerp(0.1 + 0.55 * w, hit.k, h), hit.c * h); oblique(w, st, 0.5);   // на замахе топор назад горизонтально, не в снег
     P.tilt = 0.12 - 0.08 * h; P.eyes = 1; P.hb = 0.4 * h;
     if (a >= 0.34 && a < 0.46) P.trail = [lerp(BACK, b, 0.4), b, lerp(11, hit.r, h) + 17];
     if (a >= 0.44 && a < 0.5) P.spark = 1;
@@ -660,6 +665,38 @@
     handAt(0, T.x + 1.2 * q - 0.4, T.y - 1.2, w); handAt(1, T.x + 1.2 * q + 0.4, T.y + 1.4, w);
     P.hl0 = lerp(6.6, 3, w); P.hl1 = lerp(6.6, 3, w); stow(o);
     P.tilt = lerp(0, -0.55 - L * 0.5, w); P.mouth = 0.4 * Math.abs(q); P.hb = 0.5 * q;
+  } });
+
+  // вытоптать площадку у ствола: шаг за шагом по кругу — колено высоко (вытащить ногу из снега), стопа с силой вниз,
+  // корпус оседает на каждом шаге, руки в стороны для равновесия (цикл — два шага; само тело ведёт действие, js/actions.js trample)
+  R('trample', { loop: true, dur: 1.24, fn(o, t, a) {
+    H.idle(o, t); stow(o);
+    let dip = 0, sh = 0;
+    for (let i = 0; i < 2; i++) {
+      const u = (((a - i * 0.5) % 1) + 1) % 1 * 2; if (u > 1) continue;
+      const lift = u < 0.5 ? sm(u / 0.5) * 7 : u < 0.78 ? 7 * (1 - sm((u - 0.5) / 0.28)) : 0, fwd = sin(Math.min(1, u / 0.78) * PI) * 1.6;
+      dip = Math.max(dip, bump(u, 0.74, 1)); sh = (i ? 0.6 : -0.6) * sm(u / 0.3) * (1 - sm((u - 0.8) / 0.2));
+      if (i) { P.f1y = -2 - lift; P.f1x = -1.6 + fwd; P.f1a = lift * 0.06; } else { P.f0y = -2 - lift; P.f0x = 1.3 + fwd; P.f0a = lift * 0.06; }
+    }
+    body(0.12 + 0.06 * dip, -17.2 + 1.3 * dip, sh);
+    hand(0, 5.5, 7 + 1.2 * dip, 0.7); hand(1, 4.5, 7.6 + 1.2 * dip, 0.7); P.hl0 = 7.2; P.hl1 = 7.4;
+    P.tilt = 0.14 + 0.08 * dip; P.hb = 1.1 * dip; P.mouth = 0.25 + 0.2 * dip;
+  } });
+  // перекатить ствол: присел, обе руки под ствол, два толчка от себя (u ≈ 0.3 и 0.8 действия); вдох — выдох
+  R('rollLog', { dur: 2.4, fn(o, t, a) {
+    const T = tgt(o, 9, -3), k = bendK(T, 12.4, 0.35), p1 = bump(a, 0.12, 0.45), p2 = bump(a, 0.6, 0.95), push = Math.max(p1, p2), w = env(a, 0, 0.1, 0.92, 1);
+    bend(k, w); P.f0x = 3.6 + 0.8 * push; P.f1x = -3.6 - 0.6 * push; P.f1a = -0.15;
+    body(P.lean + 0.12 * push, P.hy + 0.6 * push, P.hx + 1.6 * push);
+    handAt(0, T.x + 1.2 * push - 0.3, T.y - 0.8, w); handAt(1, T.x + 1.2 * push + 0.6, T.y + 0.4, w);
+    P.hl0 = lerp(6.6, 2.6, w); P.hl1 = lerp(6.6, 2.2, w); stow(o);
+    P.tilt = lerp(0, 0.35, w) - 0.15 * push; P.mouth = 0.5 * push; P.hb = 0.6 * push;
+  } });
+  // отход от падающей ели: шаг назад-вбок, корпус развёрнут к дереву, ближняя рука вперёд — закрыться (ходьба, своя голова-плечи)
+  R('backoff', { loop: true, loco: true, fn(o, t, a, ph, sp) {
+    H.gait(ph, St(sp) * 0.8, 0, 1.15, 6);
+    body(-0.06 + 0.02 * cos(2 * ph), P.hy + 0.3, 0.2);
+    hand(0, 6.6, 1.8, 0.85); P.hl0 = 4.6; H.swingArms(ph, 0.18, 0.2, 0.2, 0.02, 0, 0.7); hand(0, 6.6, 1.8, 0.85);
+    P.tw = -0.2; P.tilt = -0.3; P.eyes = 1; P.mouth = 0.4;
   } });
 
   R('kick', { dur: 0.6, free: true, fn(o, t, a) {

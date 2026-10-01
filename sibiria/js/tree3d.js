@@ -128,9 +128,20 @@ const Tree = (() => {
     if (L.m0 == null) L.m0 = +whole(L).mass.toFixed(3);
     return L;
   }
-  // мутовки ниже вершины (их обрубают), по третям
+  // мутовки ниже вершины (их обрубают — по мутовке от комля); L.lm[i] — какие ветви i-й мутовки уже срублены (биты по порядку в w.br)
   const limbW = (S, L) => S.wh.filter(w => w.z < L.zt && w.z > L.hc);
-  const limbedN = (S, L) => Math.floor(limbW(S, L).length * (L.cut || (L.lim ? 1 : 0)) + 1e-6);
+  function lmOf(S, L) {
+    const lw = limbW(S, L);
+    if (!L.lm || L.lm.length !== lw.length) {   // старый сейв: доля L.cut — целые мутовки от комля
+      const n = Math.floor(lw.length * (L.cut || (L.lim ? 1 : 0)) + 1e-6); L.lm = lw.map((w, i) => (i < n ? (1 << w.br.length) - 1 : 0));
+    }
+    return L.lm;
+  }
+  const isCut = (L, i, j) => !!((L.lm[i] >> j) & 1);
+  // доля срубленных ветвей (L.cut — для старых проверок и подписей: 1 — обрублено всё)
+  function cutFrac(S, L) { const lw = limbW(S, L), lm = lmOf(S, L); let a = 0, n = 0; lw.forEach((w, i) => { for (let j = 0; j < w.br.length; j++) { n++; if (isCut(L, i, j)) a++; } }); return n ? a / n : 1; }
+  // мутовка обрублена целиком — пеньки сучьев видны; нижняя необрубленная — ствол лежит на ней (LIFT)
+  const limbedN = (S, L) => { const lm = lmOf(S, L), lw = limbW(S, L); let n = 0; while (n < lw.length && lm[n] === (1 << lw[n].br.length) - 1) n++; return n; };
   // целое сваленное дерево (без пня): ствол hc..H + все ветви
   function whole(L) {
     const { S, k } = of(L), k3 = k * k * k; let vol = stemV(S, L.hc, S.H) * k3, mass = vol * S.P.rho;
@@ -154,8 +165,8 @@ const Tree = (() => {
     const L = o.zt != null ? o : ensure(Object.assign({ x: o.x, y: o.y, s: o.s, kind: o.kind, v: o.v }, {}));
     const { S, k } = of(L), out = [];
     if (o.zt == null) out.push(Object.assign(piece(S, k, 'stump', 0, L.hc, false), { fixed: 1 }));
-    const lw = limbW(S, L), ln = o.zt == null ? 0 : limbedN(S, L);
-    for (let i = ln; i < lw.length; i++) for (const b of lw[i].br) out.push(bough(S, k, lw[i], b));   // лапник (хвоя) или голая ветвь/сухой сук
+    const lw = limbW(S, L), lm = o.zt == null ? null : lmOf(S, L);
+    for (let i = 0; i < lw.length; i++) lw[i].br.forEach((b, j) => { if (!lm || !isCut(L, i, j)) out.push(bough(S, k, lw[i], b)); });   // лапник (хвоя) или голая ветвь/сухой сук
     if (!L.top) out.push(piece(S, k, 'top', L.zt, S.H, true));
     const zTop = L.top ? L.zTop : L.zt, n = Math.max(0, Math.round((zTop - L.hc) / L.cl));
     for (let i = n - 1; i >= 0; i--) out.push(piece(S, k, i ? 'chunk' : 'butt', L.hc + i * L.cl, i === n - 1 ? zTop : L.hc + (i + 1) * L.cl, false));
@@ -206,25 +217,64 @@ const Tree = (() => {
     if (G.chunks.length > 320) { const i = G.chunks.findIndex(q => (q.kind === 'bough' || q.kind === 'branch') && G.time - q.t > CYCLE * 0.75); if (i >= 0) G.chunks.splice(i, 1); }
     return p;
   }
-  // отделить: 'limb' — следующая треть мутовок (ветви — лапником на снег), на последней — и вершину; 'buck' — чурку с конца
+  // ---------- обрубка: по мутовке от комля к вершине. Герой — по одну сторону ствола (hs ±1 к нормали); рубит ветви, что торчат вверх
+  // и на дальнюю сторону (топор — не к ногам); ветви своей стороны — перейти; подмятые стволом (pin) — только после переката (L.roll);
+  // вершину — отдельным ударом, когда ветвей не осталось. 'buck' — чурку с конца. ----------
   let SRC = null;
-  function split(L, op) {
+  // геометрия ветви на лежащем стволе (поза «лежит» с перекатом): A — крепление, D — ось ветви (м, от комля), tipZ — высота кончика
+  function brGeo(S, k, L, X, w, b) {
+    pose(S, k, Object.assign({}, X, { ox: 0, oy: 0, gs: 0, grd: 0, lag: 0 }));
+    const r0 = rz(S, w.z); tf(Math.cos(b.az) * r0, Math.sin(b.az) * r0, w.z, w.z); const A = [TX, TY, TZ];
+    const T1 = brPt(S, b, w.z, 1); tf(T1[0], T1[1], T1[2], w.z); const D = [TX - A[0], TY - A[1], TZ - A[2]];
+    return { A, D, tipZ: TZ, Lb: b.len * k, hl: Math.hypot(D[0], D[1]) };
+  }
+  function brCls(S, k, L, X, w, b) {
+    const g = brGeo(S, k, L, X, w, b), n = [-Math.sin(L.a), Math.cos(L.a)];
+    if ((g.tipZ < 0.02 && g.A[2] < (X.pw + (X.lift || 0)) * k) || g.D[2] < -0.5 * g.Lb) return { c: 'pin', sd: Math.sign(g.D[0] * n[0] + g.D[1] * n[1]) || 1, g };
+    if (g.D[2] > 0.55 * g.Lb || g.hl < 0.3 * g.Lb) return { c: 'up', sd: 0, g };
+    return { c: 'side', sd: Math.sign(g.D[0] * n[0] + g.D[1] * n[1]) || 1, g };
+  }
+  // можно ли срубить с героем на стороне hs; после двух перекатов подмятые достаются топором (ствол уже не повернуть удобнее)
+  const canCut = (L, cl, hs) => cl.c === 'up' || (cl.c === 'side' && cl.sd !== hs) || (cl.c === 'pin' && (L.rn || 0) >= 2 && cl.sd !== hs);
+  // план обрубки: {i, z} — мутовка (от комля) | {side} — эту сторону всю прошёл, перейти | {roll: 1} — остались подмятые | {top: 1} — ветвей нет
+  const PLAN = new WeakMap();
+  function limbPlan(L, hs) {
+    ensure(L); const { S, k } = of(L), lw = limbW(S, L), lm = lmOf(S, L), key = lm.join(',') + '|' + (L.roll || 0) + '|' + hs + '|' + (L.rn || 0) + '|' + L.a;
+    const ca = PLAN.get(L); if (ca && ca.key === key) return ca.r;
+    const X = logOpts(S, k, L, LIE_P).po; let other = null, pinned = 0, r = null;
+    for (let i = 0; i < lw.length && !r; i++) lw[i].br.forEach((b, j) => {
+      if (r || isCut(L, i, j)) return; const cl = brCls(S, k, L, X, lw[i], b);
+      if (canCut(L, cl, hs)) r = { i, z: lw[i].z }; else if (canCut(L, cl, -hs)) { if (other == null) other = { side: -hs, i, z: lw[i].z }; } else pinned++;
+    });
+    if (!r) r = other || (pinned ? { roll: 1 } : { top: 1 });
+    PLAN.set(L, { key, r }); return r;
+  }
+  // для проверок (tests/tree-check.js): состояние каждой ветви на лежащем стволе — мутовка i, ветвь j, класс (pin/up/side), сторона, срублена ли
+  function limbState(L) {
+    ensure(L); const { S, k } = of(L), lw = limbW(S, L), X = logOpts(S, k, L, LIE_P).po, out = []; lmOf(S, L);
+    lw.forEach((w, i) => w.br.forEach((b, j) => { const cl = brCls(S, k, L, X, w, b); out.push({ i, j, c: cl.c, sd: cl.sd, cut: isCut(L, i, j) }); }));
+    return out;
+  }
+  function split(L, op, hs) {
     ensure(L); SRC = L.id; const { S, k } = of(L), out = [];
     if (op === 'limb') {
-      const lw = limbW(S, L), c0 = L.cut || 0, c1 = c0 + 1 / 3 > 0.99 ? 1 : +(c0 + 1 / 3).toFixed(3);
-      const i0 = Math.floor(lw.length * c0 + 1e-6), i1 = Math.floor(lw.length * c1 + 1e-6);
-      const r = hitRng(L), wp = alongPx(L, i1 > i0 ? (lw[i0].z + lw[i1 - 1].z) / 2 : L.zt), s = strike(L, wp.x, wp.y, r);
-      for (let i = i0; i < i1; i++) {
-        const w = lw[i];
-        for (const b of w.br) {
-          const p = bough(S, k, w, b), g = boughRest(S, k, L, w, b, r, s);
-          Object.assign(p, g, { dl: +((i - i0) * 0.12 + b.j * 0.03).toFixed(2) });   // dl — задержка: ветви падают по одной
-          out.push(push(p));
-        }
-      }
-      L.cut = c1; delete L.lim;
-      if (c1 >= 1 && !L.top) { const p = piece(S, k, 'top', L.zt, S.H, true); place(L, p, L.zt, S.H, r, s); out.push(push(p)); L.top = 1; L.zTop = L.zt; }
+      if (!hs) hs = L.ls || (typeof G !== 'undefined' && G.p ? (Math.sign((G.p.x - L.x) / M * -Math.sin(L.a) + (G.p.y - L.y) / (0.6 * M) * Math.cos(L.a)) || 1) : 1);
+      const pl = limbPlan(L, hs); if (pl.i == null || pl.side) return out;
+      const lw = limbW(S, L), w = lw[pl.i], X = logOpts(S, k, L, LIE_P).po, r = hitRng(L), wp = alongPx(L, w.z), s = strike(L, wp.x, wp.y, r);
+      let n = 0;
+      w.br.forEach((b, j) => {
+        if (isCut(L, pl.i, j)) return; const cl = brCls(S, k, L, X, w, b); if (!canCut(L, cl, hs)) return;
+        const p = bough(S, k, w, b), g = boughRest(S, k, L, w, b, r, s, cl);
+        Object.assign(p, g, { dl: +(n++ * 0.07).toFixed(2) });   // dl — задержка: ветви отделяются по одной
+        L.lm[pl.i] |= 1 << j; out.push(push(p));
+      });
+      L.cut = +cutFrac(S, L).toFixed(4); delete L.lim; PLAN.delete(L);
       return out;
+    }
+    if (op === 'top') {   // вершина — когда ветвей не осталось
+      if (L.top || cutFrac(S, L) < 1) return out;
+      const r = hitRng(L), wp = alongPx(L, L.zt), s = strike(L, wp.x, wp.y, r), p = piece(S, k, 'top', L.zt, S.H, true);
+      place(L, p, L.zt, S.H, r, s); out.push(push(p)); L.top = 1; L.zTop = L.zt; L.cut = 1; return out;
     }
     if (op === 'buck') {
       if (!L.top || L.n <= 0) return out;
@@ -237,40 +287,35 @@ const Tree = (() => {
     }
     return out;
   }
-  // где работает топор (класс z): обрубка — середина текущей трети мутовок, раскряжёвка — место реза
-  function workZ(L) {
+  // где работает топор (класс z): обрубка — мутовка по плану (или середина ствола — перекатить), вершина, раскряжёвка — место реза
+  function workZ(L, hs) {
     ensure(L); const { S } = of(L);
-    if ((L.cut || 0) < 1) { const lw = limbW(S, L), c0 = L.cut || 0, i0 = Math.floor(lw.length * c0 + 1e-6), i1 = Math.max(i0 + 1, Math.floor(lw.length * Math.min(1, c0 + 1 / 3) + 1e-6)); const a = lw[i0], b = lw[Math.min(lw.length - 1, i1 - 1)]; return a && b ? (a.z + b.z) / 2 : (L.hc + L.zt) / 2; }
+    if (cutFrac(S, L) < 1) { const pl = limbPlan(L, hs || 1); return pl.z != null ? pl.z : pl.roll ? (L.hc + L.zt) / 2 : L.zt; }
+    if (!L.top) return L.zt;
     return L.n <= 1 ? (L.hc + L.zTop) / 2 : L.zTop - L.cl;
   }
-  // где ляжет обрубленная ветвь: отделяется у ствола в точке крепления (z, азимут — по позе «лежит», как рисуется ствол),
-  // падает под тяжестью: торчала в сторону — ложится плашмя туда же у места крепления; вверх — валится через ствол на сторону
-  // (чаще — от удара); вниз в снег (подмята стволом) — остаётся под ним (pin). Удар чуть отталкивает от героя, лёгкую — дальше.
-  // Центр части — не дальше 0.45·длины + 0.45 м от места крепления.
-  function boughRest(S, k, L, w, b, r, s) {
-    const X = logOpts(S, k, L, LIE_P).po; pose(S, k, Object.assign({}, X, { ox: 0, oy: 0, gs: 0, grd: 0, lag: 0 }));
-    const r0 = rz(S, w.z); tf(Math.cos(b.az) * r0, Math.sin(b.az) * r0, w.z, w.z); const A = [TX, TY, TZ];
-    const T1 = brPt(S, b, w.z, 1); tf(T1[0], T1[1], T1[2], w.z); const D = [TX - A[0], TY - A[1], TZ - A[2]];
-    const Lb = b.len * k, hl = Math.hypot(D[0], D[1]), ea = [Math.cos(L.a), Math.sin(L.a)], n = [-ea[1], ea[0]], rL = r0 * k;
+  // где ляжет обрубленная ветвь: отделяется у ствола в месте крепления и оседает под своим весом (не летит):
+  // торчала вбок — ложится туда же, основание соскальзывает; вверх — валится через ствол на сторону удара; подмятая — где была.
+  // Ветви ели растут к вершине — лёжа смотрят к ней; основания — вразброс вдоль ствола (±0.25 м), не «звездой» из одной точки.
+  // Форма «лежит» считается здесь один раз (az — высоты оси, см) и хранится в части.
+  function boughRest(S, k, L, w, b, r, s, cl) {
+    const { A, D, Lb, hl } = cl.g, ea = [Math.cos(L.a), Math.sin(L.a)], n = [-ea[1], ea[0]], rL = rz(S, w.z) * k;
     const sn = Math.sign(s[0] * n[0] + s[1] * n[1]) || 1, rot = (v, f) => [v[0] * Math.cos(f) - v[1] * Math.sin(f), v[0] * Math.sin(f) + v[1] * Math.cos(f)];
-    let dir, base = [A[0], A[1]], pin = 0, push = (0.06 + 0.3 * r()) / (1 + brMass(S, b, k) / 6);
-    if ((TZ < 0.02 && A[2] < (X.pw + (X.lift || 0)) * k) || D[2] < -0.5 * Lb) {   // подмята (кончик в снегу под стволом) или висела вниз — остаётся под стволом
-      dir = hl > 0.15 * Lb ? [D[0] / hl, D[1] / hl] : [n[0] * (D[0] * n[0] + D[1] * n[1] < 0 ? -1 : 1), n[1] * (D[0] * n[0] + D[1] * n[1] < 0 ? -1 : 1)];
-      dir = rot(dir, (r() - 0.5) * 0.3); pin = 1; push *= 0.2;
-    } else if (D[2] > 0.55 * Lb || hl < 0.3 * Lb) {   // торчала вверх: валится через ствол — на сторону удара (чаще) или куда клонилась
-      const lean = hl > 0.05 ? Math.sign(D[0] * n[0] + D[1] * n[1]) || sn : sn, sd = r() < 0.65 ? sn : lean;
-      dir = rot([n[0] * sd, n[1] * sd], (r() - 0.5) * 1.1 + (hl > 0.05 ? 0.3 * Math.sign(D[0] * ea[0] + D[1] * ea[1]) : 0));
-      base = [A[0] + n[0] * sd * rL * (0.6 + 0.6 * r()), A[1] + n[1] * sd * rL * (0.6 + 0.6 * r())];
-    } else {   // в сторону: ложится туда, куда торчала, основание соскальзывает с высоты наружу
-      dir = rot([D[0] / hl, D[1] / hl], (r() - 0.5) * 0.6);
-      const sl = Math.min(0.25, Math.max(0, A[2]) * 0.3 * r()); base = [A[0] + dir[0] * sl, A[1] + dir[1] * sl];
-    }
-    const ja = r() * TAU, jr = 0.1 * r();   // отскок
-    base = [base[0] + s[0] * push + Math.cos(ja) * jr, base[1] + s[1] * push + Math.sin(ja) * jr];
-    dir = rot(dir, (r() - 0.5) * 0.35);   // доворот при ударе о снег
+    let dir, base = [A[0], A[1]], push = (0.04 + 0.16 * r()) / (1 + brMass(S, b, k) / 6);
+    if (cl.c === 'up') { const sd = r() < 0.72 ? sn : -sn; dir = rot([n[0] * sd, n[1] * sd], (r() - 0.5) * 0.9); base = [A[0] + n[0] * sd * rL * (0.6 + 0.6 * r()), A[1] + n[1] * sd * rL * (0.6 + 0.6 * r())]; }
+    else if (cl.c === 'side') { dir = rot([D[0] / (hl || 1), D[1] / (hl || 1)], (r() - 0.5) * 0.5); const sl = Math.min(0.25, Math.max(0, A[2]) * 0.3 * r()); base = [A[0] + dir[0] * sl, A[1] + dir[1] * sl]; }
+    else { dir = hl > 0.15 * Lb ? [D[0] / hl, D[1] / hl] : [n[0] * cl.sd, n[1] * cl.sd]; push *= 0.2; }
+    const tw = 0.45 + 0.35 * r(); dir = [dir[0] + ea[0] * tw, dir[1] + ea[1] * tw]; { const l = Math.hypot(dir[0], dir[1]) || 1; dir = [dir[0] / l, dir[1] / l]; }   // к вершине
+    const sp = (r() - 0.5) * 0.5;   // вдоль ствола ±0.25 м
+    base = [base[0] + ea[0] * sp + s[0] * push, base[1] + ea[1] * sp + s[1] * push];
     const h = Lb * 0.45, ca = [base[0] + dir[0] * h, base[1] + dir[1] * h], q = alongPx(L, L.hc);
     const [x, y] = clear(q.x + ca[0] * M, q.y + 0.6 * ca[1] * M, Lb * 0.12 * M);
-    return { fx: Math.round(q.x + A[0] * M), fy: Math.round(q.y + 0.6 * A[1] * M), fz: +Math.max(0, A[2]).toFixed(2), x, y, ang: +Math.atan2(dir[1], dir[0]).toFixed(3), ...(pin ? { pin: 1 } : {}) };
+    // ось «лежит»: основание у снега, середина приподнята боковыми побегами (10–25 см, у коротких — ниже), кончик в снегу
+    const mid = 10 + 15 * r() * clamp(Lb / 0.9, 0.4, 1);
+    const az = [2 + Math.round(2 * r()), Math.round(mid * (0.62 + 0.15 * r())), Math.round(mid), Math.round(mid * (0.45 + 0.2 * r())), -Math.round(2 + 3 * r())];
+    const dl = Math.hypot(D[0], D[1], D[2]) || 1;
+    return { fx: Math.round(q.x + A[0] * M), fy: Math.round(q.y + 0.6 * A[1] * M), fz: +Math.max(0, A[2]).toFixed(2), x, y, ang: +Math.atan2(dir[1], dir[0]).toFixed(3),
+      az, ss: r() < 0.5 ? 1 : -1, tl: +((r() - 0.5) * 0.5).toFixed(2), d0: [+(D[0] / dl).toFixed(2), +(D[1] / dl).toFixed(2), +(D[2] / dl).toFixed(2)], ...(cl.c === 'pin' ? { pin: 1 } : {}) };
   }
   // дрова — чурка, комель, вершина (своя масса и объём; подбор — js/carry.js, руки → рюкзак/нарты/поленница); лапник — не дрова
   const isWood = p => !p.kind || p.kind === 'chunk' || p.kind === 'butt' || p.kind === 'top';
@@ -284,7 +329,7 @@ const Tree = (() => {
   const SC = typeof Style !== 'undefined' && Style.flat, SP = SC ? Style.P : null;
   const LD = typeof Style !== 'undefined' && Style.on ? Style.SUN : (() => { const v = [-0.6, -0.38, 0.7], l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
   const VW = [0, 0.8, 0.6];
-  let R = [1, 0, 0, 0, 1, 0, 0, 0, 1], PZ = 0, PW = 0, KS = 1, OX = 0, OY = 0, BX = 0, BY = 0, BH = 1, GRD = 0, LIFT = 0, LZ0 = 0, LZ1 = 1, LH = 1;
+  let R = [1, 0, 0, 0, 1, 0, 0, 0, 1], PZ = 0, PW = 0, PXo = 0, PYo = 0, KS = 1, OX = 0, OY = 0, BX = 0, BY = 0, BH = 1, GRD = 0, LIFT = 0, LZ0 = 0, LZ1 = 1, LH = 1;
   let AOK = 0.62, AOZ = 0, SK0 = 1e9, SK1 = -1e9, SKD = 0, ZADD = 0, VIB = 0, VT = 0, SNOW = 1, ALPHA = 1, GS = 0, GT = 0, FLAT = 0;   // FLAT — лапы ложатся плашмя (лежит: побеги поворачиваются под своим весом); GS — провис под своим весом в мировой вертикали (лежит), GT — расстояние по ветви
   let TX = 0, TY = 0, TZ = 0, SX = 0, SY = 0;
   // поза: th — угол от вертикали, a — куда падает (по земле), roll — поворот вокруг ствола, lag — отставание кроны (м на вершине),
@@ -295,14 +340,14 @@ const Tree = (() => {
     const r00 = c + kx * kx * (1 - c), r01 = kx * ky * (1 - c), r02 = ky * s, r10 = kx * ky * (1 - c), r11 = c + ky * ky * (1 - c), r12 = -kx * s, r20 = -ky * s, r21 = kx * s, r22 = c;
     // × Rz(ψ)
     R = [r00 * cp + r01 * sp, -r00 * sp + r01 * cp, r02, r10 * cp + r11 * sp, -r10 * sp + r11 * cp, r12, r20 * cp + r21 * sp, -r20 * sp + r21 * cp, r22];
-    PZ = o.pz || 0; PW = o.pw != null ? o.pw : PZ; KS = k; OX = o.ox || 0; OY = o.oy || 0; BH = S.H;
+    PZ = o.pz || 0; PW = o.pw != null ? o.pw : PZ; PXo = o.px || 0; PYo = o.py || 0; KS = k; OX = o.ox || 0; OY = o.oy || 0; BH = S.H;   // px/py — точка поворота сдвинута от оси (кромка недоруба, класс)
     const lg = o.lag || 0; BX = (o.bend ? o.bend[0] : 0) - Math.cos(a) * lg; BY = (o.bend ? o.bend[1] : 0) - Math.sin(a) * lg;
     GRD = o.grd ? 1 : 0; LIFT = o.lift || 0; LZ0 = o.lz0 || 0; LZ1 = LZ0 + 0.7; LH = S.H;
     SK0 = o.sink ? o.sink[0] : 1e9; SK1 = o.sink ? o.sink[1] : -1e9; SKD = o.sink ? o.sink[2] : 0;
     VIB = o.vib || 0; VT = o.t || 0; GS = o.gs || 0; GT = 0; FLAT = o.flat || 0; SNOW = o.snow != null ? o.snow : 1; ZADD = 0; ALPHA = o.al != null ? o.al : 1;
   }
   function tf(x, y, z, za) {
-    const q = za / BH, b = q * q; x += BX * b; y += BY * b; z -= PZ;
+    const q = za / BH, b = q * q; x += BX * b - PXo; y += BY * b - PYo; z -= PZ;
     let X = R[0] * x + R[1] * y + R[2] * z, Y = R[3] * x + R[4] * y + R[5] * z, Z = R[6] * x + R[7] * y + R[8] * z + PW;
     if (LIFT) Z += LIFT * sm(LZ0 - 0.3, LZ1, za) * (1 - 0.55 * za / LH);
     if (GT) Z -= GS * GT * GT;
@@ -490,22 +535,95 @@ const Tree = (() => {
     if (snow > 0.02) { g.globalAlpha *= Math.min(1, snow * 1.4); g.fillStyle = '#f2f6fa'; g.beginPath(); g.ellipse(-0.08, -0.06, 0.8, 0.72, 0.3, 0, TAU); g.fill(); }
     g.restore();
   }
-  // зарубка: клин из ствола со стороны sd (±1 по X мира), глубина q (доля диаметра), высота HC
-  function drawNotch(g, S, q, sd, z) {
-    const r = rz(S, z), d = r - 2 * r * q, f0 = Math.acos(clamp(d / r, -1, 1)), N = 7, dir = Math.atan2(0, sd);
-    const P = (f, zz, rr) => tf(Math.cos(dir + f) * rr, Math.sin(dir + f) * rr, zz, zz);
-    const cy = Math.cos(f0) * r;   // хорда
-    const face = (top, col) => { g.beginPath(); P(-f0, z, r); g.moveTo(SX, SY);
-      for (let i = 0; i <= N; i++) { const f = -f0 + 2 * f0 * i / N, rr = r; P(f, top ? z + (Math.cos(f) * rr - d) * 1.0 : z, rr * 1.01); g.lineTo(SX, SY); }
-      P(f0, z, r); g.lineTo(SX, SY); g.closePath(); g.fillStyle = col; g.fill(); };
-    if (q <= 0.01) return;
-    // выемка на силуэте: клин вынут — за ним снег; дно (горизонтальный рез) светлое, верхняя грань — в тени
-    const ht = (r - d) * 1.0;
-    g.beginPath(); tf(sd * r * 1.08, 0, z + ht, z); g.moveTo(SX, SY); tf(sd * d, 0, z + 0.004, z); g.lineTo(SX, SY); tf(sd * r * 1.08, 0, z - 0.004, z); g.lineTo(SX, SY); g.closePath(); g.fillStyle = SC ? SP.paper : '#dfe7ef'; g.fill();
-    face(0, SC ? SP.ochre : '#e8c48e');   // верхняя грань смотрит вниз — сверху не видна
-    g.strokeStyle = SC ? SP.ink : '#2a1a10'; g.lineWidth = Math.max(0.4, r * KS * M * 0.07); g.beginPath(); tf(sd * r * 1.04, 0, z + ht, z); g.moveTo(SX, SY); tf(sd * d, 0, z + 0.004, z); g.lineTo(SX, SY); g.stroke();
-    void cy;
+  // ---------- рубка стоящего: подруб, задний рез, недоруб (состояние t.cut — js/actions.js) ----------
+  // c = { d — куда валится (рад по земле), nq — глубина подруба (доля Ø, ≤ 1/3), bq — заднего реза (доля Ø, с обратной стороны) }
+  // подруб: горизонтальное дно на высоте z + наклонная верхняя грань (раскрытие ≈55°) со стороны d; задний рез — щель на BK выше,
+  // с обратной стороны; между ними — недоруб (петля), он и ведёт дерево.
+  const OPEN = Math.tan(0.96), BK = 0.04;   // tan раскрытия подруба; задний рез выше подруба, м
+  function notchGeo(S, c, z) {
+    const r = rz(S, z), c0 = r * (1 - 2 * clamp(c.nq || 0, 0, 0.45)), cb = r * (1 - 2 * clamp(c.bq || 0, 0, 0.95));
+    return { r, c0, cb, a0: Math.acos(clamp(c0 / r, -1, 1)), ab: Math.acos(clamp(cb / r, -1, 1)) };
   }
+  // видимая (передняя к камере) часть дуги поверхности [f0, f1] — n точек
+  function frontArc(f0, f1, n) { const out = []; for (let i = 0; i <= n; i++) { const f = f0 + (f1 - f0) * i / n; if (Math.sin(f) > -0.06) out.push(f); } return out; }
+  const WOODC = { cut: '#e9c88f', top: '#a8814f', crease: '#3a2414', kerf: '#1d120b', fiber: '#f3dcae' };
+  function drawNotch(g, S, c, z) {
+    const { r, c0, cb, a0, ab } = notchGeo(S, c, z), d = c.d, n = lowLOD() ? 5 : 10, cs = Math.cos(d), sn = Math.sin(d);
+    const P = (f, zz) => tf(Math.cos(f) * r, Math.sin(f) * r, zz, zz), zt = f => z + Math.max(0, r * Math.cos(f - d) - c0) * OPEN;
+    const lw = Math.max(0.5, r * KS * M * 0.09);
+    if (c.nq > 0.004) {
+      const fr = frontArc(d - a0, d + a0, n);
+      if (fr.length > 1) {
+        // полоса коры, вынутая клином: вырезаем из холста (за ней — то, что видно в выемку: дно, верхняя грань или снег за стволом)
+        const strip = () => { g.beginPath(); P(fr[0], z); g.moveTo(SX, SY); for (const f of fr) { P(f, z); g.lineTo(SX, SY); } for (let i = fr.length - 1; i >= 0; i--) { P(fr[i], zt(fr[i]) + 0.002); g.lineTo(SX, SY); } g.closePath(); };
+        g.save(); strip(); g.globalCompositeOperation = 'destination-out'; g.fill(); g.globalCompositeOperation = 'source-over'; g.clip();
+        // дно (горизонтальный рез) — свежая древесина: сегмент круга за хордой
+        const seg = (zf) => { g.beginPath(); tf(cs * c0 - sn * r * Math.sin(a0), sn * c0 + cs * r * Math.sin(a0), z, z); g.moveTo(SX, SY); for (let i = 0; i <= n; i++) { const f = d + a0 - 2 * a0 * i / n; P(f, zf(f)); g.lineTo(SX, SY); } g.closePath(); };
+        seg(() => z); g.fillStyle = SC ? SP.ochre : WOODC.cut; g.fill();
+        // верхняя грань смотрит вниз-наружу: видна, только если подруб к камере
+        const nz = 1 / Math.hypot(OPEN, 1), vis = (sn * OPEN * 0.8 - 0.6) * nz;
+        if (vis > -0.25) { seg(zt); g.fillStyle = SC ? SP.ink : WOODC.top; g.globalAlpha *= clamp(0.55 + vis, 0.3, 1); g.fill(); g.globalAlpha = 1; }
+        // вершина клина (хорда) — тёмная складка; за ней недоруб: волокна тянутся, когда задний рез близко
+        g.strokeStyle = SC ? SP.ink : WOODC.crease; g.lineWidth = lw; g.beginPath();
+        tf(cs * c0 - sn * r * Math.sin(a0), sn * c0 + cs * r * Math.sin(a0), z, z); g.moveTo(SX, SY); tf(cs * c0 + sn * r * Math.sin(a0), sn * c0 - cs * r * Math.sin(a0), z, z); g.lineTo(SX, SY); g.stroke();
+        g.restore();
+      }
+    }
+    // задний рез: щель на BK выше подруба с обратной стороны (видна её передняя часть)
+    if (c.bq > 0.004) {
+      const zb = z + BK / KS, fb = frontArc(d + Math.PI - ab, d + Math.PI + ab, n);
+      if (fb.length > 1) {
+        g.strokeStyle = SC ? SP.ink : WOODC.kerf; g.lineWidth = lw * 1.1; g.lineCap = 'round'; g.beginPath(); P(fb[0], zb); g.moveTo(SX, SY); for (const f of fb) { P(f, zb); g.lineTo(SX, SY); } g.stroke();
+        if (!SC) { g.strokeStyle = 'rgba(243,220,174,0.85)'; g.lineWidth = lw * 0.5; g.beginPath(); P(fb[0], zb - 0.006 / KS); g.moveTo(SX, SY); for (const f of fb) { P(f, zb - 0.006 / KS); g.lineTo(SX, SY); } g.stroke(); }
+      }
+    }
+    void cb;
+  }
+  // пень после валки: уступ (подруб ниже, задний рез выше), «борода» недоруба — рваные волокна, у «кресла» — расколотая плаха
+  function drawStumpTop(g, S, c, z, snow, seed) {
+    const { r, c0, cb } = notchGeo(S, c, z), d = c.d, n = lowLOD() ? 6 : 12, zb = z + BK / KS, cs = Math.cos(d), sn = Math.sin(d);
+    const at = (s, v, zz) => tf(cs * s - sn * v, sn * s + cs * v, zz, zz);   // s — вдоль d, v — поперёк
+    const sw = Math.sqrt(Math.max(0, r * r - cb * cb));
+    // задняя площадка (выше на BK): бок коры и торец-сегмент
+    if (c.bq > 0.02) {
+      const fb = frontArc(d + Math.PI - Math.acos(clamp(cb / r, -1, 1)), d + Math.PI + Math.acos(clamp(cb / r, -1, 1)), n);
+      if (fb.length > 1) { g.beginPath(); tf(Math.cos(fb[0]) * r, Math.sin(fb[0]) * r, z, z); g.moveTo(SX, SY); for (const f of fb) { tf(Math.cos(f) * r, Math.sin(f) * r, zb, zb); g.lineTo(SX, SY); } for (let i = fb.length - 1; i >= 0; i--) { tf(Math.cos(fb[i]) * r, Math.sin(fb[i]) * r, z, z); g.lineTo(SX, SY); } g.closePath(); g.fillStyle = SC ? SP.ink : tone(S.P.bark, 0.3); g.fill(); }
+      g.beginPath(); at(-cb, sw, zb); g.moveTo(SX, SY); for (let i = 0; i <= n; i++) { const f = d + Math.PI - Math.acos(clamp(cb / r, -1, 1)) + 2 * Math.acos(clamp(cb / r, -1, 1)) * i / n; tf(Math.cos(f) * r, Math.sin(f) * r, zb, zb); g.lineTo(SX, SY); } g.closePath();
+      g.fillStyle = SC ? SP.ochre : '#d9b47c'; g.fill();
+    }
+    // «борода» недоруба: волокна вырваны и отогнуты в сторону падения
+    const hs = Math.max(0.01, c0 + cb), R_ = rng(seed | 0), nf = lowLOD() ? 4 : 9;
+    g.strokeStyle = SC ? SP.paper : WOODC.fiber; g.lineCap = 'round'; g.lineWidth = Math.max(0.5, r * KS * M * 0.07);
+    g.beginPath();
+    for (let i = 0; i < nf; i++) {
+      const v = (R_() * 2 - 1) * Math.sqrt(Math.max(0, r * r - c0 * c0)) * 0.9, s0 = c0 - R_() * hs, h = (0.015 + 0.035 * R_()) / KS;
+      at(s0, v, z + 0.002); g.moveTo(SX, SY); at(s0 + h * 0.8, v + (R_() - 0.5) * h * 0.4, z + h); g.lineTo(SX, SY);
+    }
+    g.stroke();
+    // «барберское кресло»: плаха откололась вдоль и торчит с обратной стороны
+    if (c.bc) {
+      const hh2 = 0.55 / KS, w2 = r * 0.7;
+      g.beginPath(); at(-r * 0.95, -w2, zb); g.moveTo(SX, SY); at(-r * 0.95, -w2 * 0.6, zb + hh2); g.lineTo(SX, SY); at(-r * 0.7, 0, zb + hh2 * 1.12); g.lineTo(SX, SY); at(-r * 0.95, w2 * 0.5, zb + hh2 * 0.9); g.lineTo(SX, SY); at(-r * 0.95, w2, zb); g.lineTo(SX, SY); g.closePath();
+      g.fillStyle = SC ? SP.ochre : '#cfa56b'; g.fill(); g.strokeStyle = SC ? SP.ink : tone(S.P.bark, 0.25); g.lineWidth = Math.max(0.5, r * KS * M * 0.1); g.stroke();
+    }
+    // снег ложится поверх
+    if (snow > 0.05) { tf(0, 0, zb, zb); const rr = r * KS * M; g.globalAlpha *= Math.min(1, snow * 1.3); g.fillStyle = SC ? SP.paper : '#f2f6fa'; g.beginPath(); g.ellipse(SX, SY - rr * 0.1, rr * 0.95, rr * 0.5, 0, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  }
+  // щепа на снегу у ствола: летит из зарубки конусом по ходу удара и остаётся лежать (заметает за полсуток)
+  function drawChips(g, t, c) {
+    if (!c || !(c.h > 0)) return;
+    const age = (typeof G !== 'undefined' ? G.time : 0) - (c.t || 0), cover = clamp(age / (CYCLE * 0.5), 0, 1); if (cover >= 1) return;
+    const { k } = of(t), n = Math.min(lowLOD() ? 14 : 36, c.h * 3), R_ = rng(Math.imul(t.x | 0, 7919) ^ (t.y | 0) * 104729), a0 = g.globalAlpha;
+    const nN = c.nN || Math.round((c.N || 12) * 0.6);
+    for (let i = 0; i < n; i++) {
+      const back = i % 3 === 2 && c.h > nN, dir = (back ? c.d + Math.PI : c.d) + (R_() - 0.5) * 1.2, dd = (0.25 + 1.1 * R_() * R_()) * Math.min(1.3, 0.8 + k * 0.3);
+      const x = t.x + Math.cos(dir) * dd * M, y = t.y + Math.sin(dir) * dd * M * 0.6 + 1, s = (0.04 + 0.06 * R_()) * M, rot = R_() * 3;
+      g.globalAlpha = a0 * (1 - sm(0.2 + 0.6 * R_(), 1, cover)); if (g.globalAlpha <= 0.01) continue;
+      g.fillStyle = SC ? SP.ochre : i % 4 ? '#e3c590' : '#bf9560'; g.save(); g.translate(x, y); g.rotate(rot); g.fillRect(-s / 2, -s * 0.18, s, s * 0.36); g.restore();
+    }
+    g.globalAlpha = a0;
+  }
+  const lowLOD = () => low();
   // ---------- сборка кадра дерева: элементы по глубине ----------
   // o: z0/z1 — участок ствола; has(w, b) — ветвь на месте; stubs(w) — у мутовки пеньки; discs [[z, outward ±1, fresh]]; notch {q, sd}
   const EL = []; let ELN = 0, ND = 0;
@@ -526,7 +644,7 @@ const Tree = (() => {
       }
     }
     if (o.discs) for (const dd of o.discs) { const n = rot(0, 0, dd[1]); if (dot(n, VW) <= 0.02) continue; tf(0, 0, dd[0], dd[0]); el(0.8 * TY + 0.6 * TZ + 0.002, 2, dd, null); }
-    if (o.notch && o.notch.q > 0) el(ND + 0.002, 3, o.notch, HC / KS);   // зарубка — поверх своего куска ствола
+    if (o.notch && (o.notch.nq > 0 || o.notch.bq > 0)) el(ND + 0.002, 3, o.notch, HC / KS);   // подруб/задний рез — поверх своего куска ствола
     // вершина: снежный комок на верхушке (стоит)
     const sub = EL.slice(0, ELN).sort((a, b) => a.d - b.d);
     for (const e of sub) {
@@ -534,7 +652,7 @@ const Tree = (() => {
         case 0: drawSeg(g, S, e.a, e.b, lq, sc, o.stubs); break;
         case 1: if (S.P.bare || e.a.dead) drawBare(g, S, e.a, e.b.z, lq, sc); else drawBough(g, S, lq ? scaleW(e.a) : e.a, e.b.z, lq, sc); break;
         case 2: drawDisc(g, S, e.a[0], o.dsnow || 0, e.a[2], lq); break;
-        case 3: drawNotch(g, S, e.a.q, e.a.sd, e.b); break;
+        case 3: drawNotch(g, S, e.a, e.b); break;
       }
     }
     if (z1 >= S.H - 0.01 && !S.P.bare && SNOW > 0.2) { tf(0, 0, S.H - 0.04, S.H); const up = rot(0, 0, 1)[2]; if (up > 0.6) { g.fillStyle = SC ? SP.paper : '#f3f7fb'; g.beginPath(); g.ellipse(SX, SY + 0.02 * M * KS, 0.06 * M * KS, 0.05 * M * KS, 0, 0, TAU); g.fill(); } }
@@ -560,22 +678,35 @@ const Tree = (() => {
     return A.sprite('twell' + kind + si + v, 90, 30, g => { g.translate(45, 18); A.shadow(g, 0, 0, (kind === 2 ? 24 : kind === 1 || kind === 3 ? 14 : 19) * s, 5.5 * s, 0.4); A.trunkWell(g, s, v, kind === 2 ? 1.3 : kind === 3 ? 0.9 : 1, kind === 2 ? 6311 : kind === 3 ? 7129 : 4401); });
   }
   // снег на ветвях стоящего: стряхнули — меньше, нарастает за ~2 мин (память рендера)
-  const SN = new WeakMap();
-  const snowOf = t => { const e = SN.get(t); if (!e) return 1; const v = Math.min(1, e.v + ((typeof now === 'number' ? now : 0) - e.t) / 120); if (v >= 1) { SN.delete(t); return 1; } return v; };
-  function shook(t, p) { const v = snowOf(t); SN.set(t, { v: Math.max(0, v - 0.3 * (p || 1)), t: typeof now === 'number' ? now : 0 }); }
-  // живой: движется, рубится (зарубка) или стряхнут снег
-  const live = (t, notch) => t.shake > 0 || (notch && notch.q > 0) || SN.has(t);
-  // стоящее дерево живьём: bendPx — изгиб вершины (px), notch {q, sd}
+  // рубится (t.cut) — снег в состоянии дерева (сейв): sn на момент st (G.time), нарастает так же
+  const SN = new WeakMap(), SNOW_T = 120;
+  const clk = () => (typeof now === 'number' ? now : 0), gt = () => (typeof G !== 'undefined' && G ? G.time : 0);
+  const snowOf = t => {
+    if (t.cut && t.cut.st != null) return Math.min(1, t.cut.sn + (gt() - t.cut.st) / SNOW_T);
+    const e = SN.get(t); if (!e) return 1; const v = Math.min(1, e.v + (clk() - e.t) / SNOW_T); if (v >= 1) { SN.delete(t); return 1; } return v;
+  };
+  // стряхнуть: доля снега k от того, что ещё лежит (первый удар — много, дальше по остатку); вернёт, сколько упало (0..1)
+  function shook(t, p, k) {
+    const v = snowOf(t), dv = k != null ? v * k : Math.min(v, 0.3 * (p || 1)), v1 = Math.max(0, v - dv);
+    if (t.cut) { t.cut.sn = +v1.toFixed(3); t.cut.st = +gt().toFixed(2); } else SN.set(t, { v: v1, t: clk() });
+    return dv;
+  }
+  // живой: движется, рубится (подруб/задний рез) или стряхнут снег
+  const live = (t, notch) => t.shake > 0 || (notch && (notch.nq > 0 || notch.bq > 0)) || SN.has(t) || (t.cut && snowOf(t) < 1);
+  // стоящее дерево живьём: bend — изгиб вершины (px), notch — t.cut. Дрожь от удара — затухает (World.shakeTree):
+  // ствол ходит на своей частоте (~2 Гц), ветви мельче и быстрее. Не движется — картинка не перерисовывается (ключ состояния)
   function drawStanding(g, t, o) {
     const { S, k } = of(t), wl = SC ? null : wellSprite(S.kind, S.si, S.v), dpr = g.getTransform().a;
     if (wl) { const s = wl._s || 1; g.drawImage(wl, t.x - 45 * k, t.y - 18 * k, 90 * k, 30 * k); void s; }
-    const sh = t.shake > 0 ? t.shake : 0, tt = typeof now === 'number' ? now : 0;
-    const bx = (o.bend || 0) / M / k + (sh ? Math.sin(tt * 38) * sh * 0.5 : 0);
-    const R0 = crownPx(S, k) + 26, Hp = S.H * k * M + 26;
-    viaCanvas(g, t, t.x - R0, t.y - Hp, R0 * 2, Hp + R0 * 0.75 + 8, sh > 0 ? 2 : 1, (c, s) => {
-      pose(S, k, { ox: t.x, oy: t.y, bend: [bx, sh ? Math.cos(tt * 31) * sh * 0.15 : 0], vib: sh * 0.25, t: tt, snow: snowOf(t) });
-      render(c, S, { notch: o.notch, sc: 1 / s, lq: low() });
-      if (SC && !S.P.bare) Style.outlineCanvas(c.canvas, Style.inkFor(s, true));
+    if (o.notch) drawChips(g, t, o.notch);
+    const sh = t.shake > 0.004 ? t.shake : 0, tt = clk(), bend = Math.abs(o.bend || 0) < 0.6 ? 0 : o.bend;
+    const bx = (bend || 0) / M / k + (sh ? Math.sin(tt * 13.5) * sh * 0.42 + Math.sin(tt * 29) * sh * 0.06 : 0);
+    const R0 = crownPx(S, k) + 26, Hp = S.H * k * M + 26, sn = snowOf(t), c = o.notch;
+    const ver = sh || bend ? (sh > 0 ? 2 : 1) : 'v' + (c ? [c.h, c.nq, c.bq].join(',') : '') + '|' + sn.toFixed(2) + '|' + low();
+    viaCanvas(g, t, t.x - R0, t.y - Hp, R0 * 2, Hp + R0 * 0.75 + 8, ver, (cv, s) => {
+      pose(S, k, { ox: t.x, oy: t.y, bend: [bx, sh ? Math.cos(tt * 11) * sh * 0.12 : 0], vib: sh * 0.22, t: tt, snow: sn });
+      render(cv, S, { notch: c, sc: 1 / s, lq: low() });
+      if (SC && !S.P.bare) Style.outlineCanvas(cv.canvas, Style.inkFor(s, true));
     });
     void dpr;
   }
@@ -598,21 +729,30 @@ const Tree = (() => {
   function drawStump(g, t, snow) {
     const { S, k } = of(t), wl = SC ? null : wellSprite(S.kind, S.si, S.v), dpr = g.getTransform().a;
     if (wl) g.drawImage(wl, t.x - 45 * k, t.y - 18 * k, 90 * k, 30 * k);
+    const c = t.cut && t.cut.d != null && (t.cut.nq > 0 || t.cut.bq > 0) ? t.cut : null;
+    if (c) drawChips(g, t, c);
     pose(S, k, { ox: t.x, oy: t.y, snow: 1 }); const hz = HC / k;
-    const paint = gg => render(gg, S, { z0: 0, z1: hz, has: () => false, discs: [[hz, 1, snow < 0.5]], dsnow: snow, sc: 1 / Math.max(0.5, dpr), lq: low() });
-    if (SC) { const r = rz(S, 0) * k * M + 3; Style.cast(g, t.x, t.y, hz * k * M, r * 2.2); Style.figure(g, t.x - r - 2, t.y - hz * k * M - r - 2, r * 2 + 4, hz * k * M + r * 2 + 4, paint, { snap: false, cache: t, every: 1e9, ver: Math.round(snow * 10) }); } else paint(g);
-    if (snow < 0.5) { tf(0, 0, hz, hz); const r = rz(S, hz) * k * M; g.strokeStyle = SC ? SP.ochre : '#efd8a8'; g.lineWidth = Math.max(0.5, r * 0.15); g.beginPath(); g.moveTo(SX - r * 0.7, SY - r * 0.1); g.lineTo(SX - r * 0.2, SY - r * 0.5); g.moveTo(SX + r * 0.1, SY - r * 0.05); g.lineTo(SX + r * 0.4, SY - r * 0.55); g.stroke(); }   // недопил — щепа торчит
+    // срез: свежий — подруб и задний рез уступом, недоруб — рваной бородой (рубили по-настоящему); иначе — ровный торец
+    const paint = gg => { render(gg, S, { z0: 0, z1: hz, has: () => false, discs: [[hz, 1, snow < 0.5]], dsnow: c ? snow * 0.6 : snow, sc: 1 / Math.max(0.5, dpr), lq: low() }); if (c) { pose(S, k, { ox: t.x, oy: t.y, snow: 1 }); drawStumpTop(gg, S, c, hz, snow, (t.x * 31 + t.y) | 0); } };
+    if (SC) { const r = rz(S, 0) * k * M + 3, ht = hz * k * M + (c && c.bc ? 0.6 * M : 0); Style.cast(g, t.x, t.y, ht, r * 2.2); Style.figure(g, t.x - r - 2, t.y - ht - r - 2, r * 2 + 4, ht + r * 2 + 4, paint, { snap: false, cache: t, every: 1e9, ver: Math.round(snow * 10) + (c ? 'c' : '') }); } else paint(g);
+    if (snow < 0.5 && !c) { tf(0, 0, hz, hz); const r = rz(S, hz) * k * M; g.strokeStyle = SC ? SP.ochre : '#efd8a8'; g.lineWidth = Math.max(0.5, r * 0.15); g.beginPath(); g.moveTo(SX - r * 0.7, SY - r * 0.1); g.lineTo(SX - r * 0.2, SY - r * 0.5); g.moveTo(SX + r * 0.1, SY - r * 0.05); g.lineTo(SX + r * 0.4, SY - r * 0.55); g.stroke(); }   // недопил — щепа торчит
   }
   // ---------- ствол на земле / в падении ----------
   // o: {x, y, a, kind, s, v | sk, k, hc, zTop, top, cut, ...}, P — поза валки (GFX.fallPose): th, lag (px), roll, ph
+  // P.bz — комель подпрыгнул (м): ствол лежит на кроне, поднята только комлевая часть; o.pc — ось на кромке недоруба (м, в падении);
+  // o.roll — перекат ствола (сейв); ветви — по одной (o.lm, js/tree3d.js lmOf)
   function logOpts(S, k, o, P) {
     const lie = Math.pow(Math.sin(P.th), 2), hc = o.hc != null ? o.hc : HC / k, rb = rz(S, hc);
-    const lw = o.zt != null ? limbW(S, o) : [], ln = o.zt != null ? limbedN(S, o) : 0, lim = new Set(lw.slice(0, ln));
-    const zTop = o.zTop != null ? o.zTop : S.H, lowest = S.wh.find(w => !lim.has(w) && w.z > hc && w.z <= zTop);
-    const pw = lerp(hc, rb, lie * lie) + (P.ph >= 2 ? 0 : 0);
+    const lw = o.zt != null ? limbW(S, o) : [], lm = o.zt != null ? lmOf(S, o) : null, wi = new Map(lw.map((w, i) => [w, i]));
+    const cutB = (w, b) => { const i = wi.get(w); return i != null && lm && isCut(o, i, w.br.indexOf(b)); };
+    const anyCut = w => { const i = wi.get(w); return i != null && lm && lm[i] > 0; }, allCut = w => { const i = wi.get(w); return i != null && lm && lm[i] === (1 << w.br.length) - 1; };
+    const zTop = o.zTop != null ? o.zTop : S.H, lowest = S.wh.find(w => !allCut(w) && w.z > hc && w.z <= zTop);
+    const bz = P.bz || 0, Lr = Math.max(1, (zTop - hc) * k), pc = (o.pc || 0) * (1 - lie * lie) / k;
+    const pw = lerp(hc, rb, lie * lie) + bz / k;
     return {
-      po: { gs: 0.5 * lie * lie, flat: 0.85 * lie * lie, th: P.th, a: o.a, roll: P.roll || 0, lag: (P.lag || 0) / M / k, pz: hc, pw, ox: o.x, oy: o.y, grd: P.th > 0.3, lift: lowest ? 0.3 * lie : 0, lz0: lowest ? lowest.z : 0, sink: o.sink, snow: o.snowN != null ? o.snowN : 1 },
-      ro: { aok: 0.35, aoz: lowest ? lowest.z : 1e9, z0: hc, z1: zTop, has: w => !lim.has(w) && w.z <= zTop, stubs: w => lim.has(w), discs: [[hc, -1, 1]].concat(zTop < S.H - 0.01 ? [[zTop, 1, 1]] : []), dsnow: o.dsnow || 0 },
+      po: { gs: 0.5 * lie * lie, flat: 0.85 * lie * lie, th: P.th + (bz ? Math.atan(bz / Lr) : 0), a: o.a, roll: (P.roll || 0) + (o.roll || 0), lag: (P.lag || 0) / M / k, pz: hc, pw, px: Math.cos(o.a) * pc, py: Math.sin(o.a) * pc,
+        ox: o.x, oy: o.y, grd: P.th > 0.3, lift: lowest ? 0.3 * lie : 0, lz0: lowest ? lowest.z : 0, sink: o.sink, snow: o.snowN != null ? o.snowN : 1 },
+      ro: { aok: 0.35, aoz: lowest ? lowest.z : 1e9, z0: hc, z1: zTop, has: (w, b) => w.z <= zTop && !(b && cutB(w, b)), stubs: anyCut, discs: [[hc, -1, 1]].concat(zTop < S.H - 0.01 ? [[zTop, 1, 1]] : []), dsnow: o.dsnow || 0 },
     };
   }
   // кэш лежачих: та же картинка, пока состояние не изменилось (ключ), иначе — перепечь
@@ -621,7 +761,7 @@ const Tree = (() => {
     const { S, k } = of(o), X = logOpts(S, k, o, P), dpr = g.getTransform().a;
     const still = P.ph === 3 && !low() ? 1 : P.ph === 3 ? 1 : 0;
     if (still) {
-      const key = [o.cut || 0, o.zTop, o.snowN && o.snowN.toFixed(1), o.dsnow && o.dsnow.toFixed(1), dpr.toFixed(2), o.sink ? o.sink.join(',') : ''].join('|');
+      const key = [o.cut || 0, o.lm ? o.lm.join('.') : '', (o.roll || 0).toFixed(3), o.zTop, o.snowN && o.snowN.toFixed(1), o.dsnow && o.dsnow.toFixed(1), dpr.toFixed(2), o.sink ? o.sink.join(',') : ''].join('|');
       let c = LC.get(o);
       if (!c || c.key !== key) { if (lcBudget > 0 || !c) { lcBudget--; c = bakeLog(S, k, o, X, dpr, key); if (c) LC.set(o, c); } }
       if (c) { g.drawImage(c.cv, o.x + c.x0, o.y + c.y0, c.w, c.h); return; }
@@ -676,14 +816,17 @@ const Tree = (() => {
   // ---------- отделённые части на снегу ----------
   // чурка/комель/вершина: лежит по ang, катится от места реза (fx, fy) 0.45 с; лапник — падает с ветвью 0.55 с с задержкой dl
   // лёг — своя картинка (перепечь, когда подсыпало снега); летит/катится — живьём
+  const settleT = p => 0.4 + 0.3 * hh((p.id || 0) | 0, 5);   // ветвь оседает 0.4–0.7 с
   function drawPart(g, p, time) {
-    if (!p.sk || time - p.t - (p.dl || 0) < 0.6) return drawPart0(g, p, time);
-    const ver = Math.round(snowAge(p, time) * 10) + '|' + Math.round(clamp((time - p.t) / (CYCLE * 0.75), 0, 1) * 20), r = p.len * M * 0.75 + 12;
+    const busy = p.kind === 'bough' || p.kind === 'branch' ? settleT(p) + 0.05 : 0.6;
+    if (!p.sk || time - p.t - (p.dl || 0) < busy || p.rk) return drawPart0(g, p, time);   // rk — сгребают: движется, живьём
+    const ver = Math.round(snowAge(p, time) * 10) + '|' + Math.round(clamp((time - p.t) / (CYCLE * 0.75), 0, 1) * 20) + '|' + low() + (p.kind === 'pile' ? '|' + p.n : ''), r = (p.kind === 'pile' ? 1.3 : p.len) * M * 0.75 + 12;
     viaCanvas(g, p, p.x - r, p.y - r * 0.85, r * 2, r * 1.6, ver, c => drawPart0(c, p, time), 3);
   }
   function drawPart0(g, p, time) {
     const dpr = g.getTransform().a, sc = 1 / Math.max(0.5, dpr);
     if (p.kind === 'bough' || p.kind === 'branch') return drawBoughPart(g, p, time, sc);
+    if (p.kind === 'pile') return drawPile(g, p, time, sc);
     if (!p.sk) { const A = W_(); if (A) A.chunk(g, p.x, p.y, p.a || 0); return; }   // старый сейв: чурка без формы
     const { S } = of(p), k = p.k, len = (p.z1 - p.z0) * k, e = p.fx != null ? clamp((time - p.t) / 0.45, 0, 1) : 1, ke = 1 - (1 - e) * (1 - e);
     const cx = p.fx != null ? lerp(p.fx, p.x, ke) : p.x, cy = p.fx != null ? lerp(p.fy, p.y, ke) - 4 * Math.sin(Math.PI * Math.min(1, e * 1.6)) * (1 - e) : p.y;
@@ -703,25 +846,146 @@ const Tree = (() => {
     if (sn > 0.05) { g.globalAlpha *= Math.min(1, sn * 1.5); g.fillStyle = SC ? SP.paper : '#f3f7fb'; tf(0, 0, p.z0 + 0.02, p.z0); const x0 = SX, y0 = SY; tf(0, 0, p.z1 - 0.02, p.z1); g.lineCap = 'round'; g.strokeStyle = '#f3f7fb'; g.lineWidth = Math.max(0.8, rr * k * M * 0.9); g.beginPath(); g.moveTo(x0, y0 - rr * k * M * 0.75); g.lineTo(SX, SY - rr * k * M * 0.75); g.stroke(); g.globalAlpha = 1; }
   }
   const snowAge = (p, time) => clamp((time - p.t) / (CYCLE * 0.6), 0, 0.85);
+  // ---------- лапник на снегу: своя форма «лежит» (считается один раз — boughRest, хранится в части: az, ss, tl) ----------
+  // ось — 5 точек (az, см над снегом): основание у снега, середина приподнята боковыми побегами, кончик в снегу;
+  // боковые побеги «домиком»: от оси вверх-вбок 20–40° и дугой к снегу; нижние (занавес) уходят в снег — срез линией снега;
+  // снег сверху — с одной стороны (ss). Лёгкий пресет — меньше побегов, без «ёлочки».
+  const zAx = (az, u) => { const x = clamp(u, 0, 1) * 4, i = Math.min(3, x | 0), f = x - i; return (az[i] + (az[i + 1] - az[i]) * f) / 100; };
+  const defAz = p => { const h = hh((p.id || 1) | 0, 11), m = 10 + 14 * h; return [3, Math.round(m * 0.7), Math.round(m), Math.round(m * 0.5), -3]; };
+  const SH_ = [];
+  // o: { bx, by — основание (px мира), ang — куда (рад по земле), len (м), az (см), ss, tl, snow, el — подъём оси (оседает), ke — доля формы «лежит», bz — основание над снегом (м) }
+  function drawLying(g, S, b, o, sc, lq) {
+    const P = S.P, e = [Math.cos(o.ang), Math.sin(o.ang)], n = [-e[1], e[0]], L = o.len, ce = Math.cos(o.el || 0), se = Math.sin(o.el || 0), ke = o.ke == null ? 1 : o.ke;
+    const axZ = u => (o.bz || 0) * (1 - u * 0.6) + u * L * se + zAx(o.az, u) * ke, cv = (o.tl || 0) * 0.12 * L;
+    const AX = u => { const sl = Math.sin(Math.PI * u) * cv; return [e[0] * u * L * ce + n[0] * sl, e[1] * u * L * ce + n[1] * sl, axZ(u)]; };
+    const PX = (x, y, z) => { SX = o.bx + x * M; SY = o.by + (0.6 * y - z) * M; };
+    const np = lq ? 4 : 7, fw = (P.fw || 0.36) * 1.15, sn = o.snow || 0, sd0 = (b.sd || 1) | 0;
+    SH_.length = 0;
+    for (let j = 0; j < np; j++) {
+      const u = 0.1 + j / (np - 1) * 0.82, rt = AX(u), env = Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.08)), 0.65) * (1 - 0.35 * u), ls = L * fw * env + 0.02;
+      for (const s of [1, -1]) {
+        const be = 0.95 + (hh(sd0, j * 2 + (s > 0 ? 1 : 0)) - 0.5) * 0.35, ga = 0.35 + 0.35 * hh(sd0, j * 2 + 40 + (s > 0 ? 1 : 0)), hd = [e[0] * Math.cos(be) + n[0] * s * Math.sin(be), e[1] * Math.cos(be) + n[1] * s * Math.sin(be)];
+        SH_.push({ u, s, rt, ls, hd, tg: Math.tan(ga) * ke + (1 - ke) * 0.1, d: 0.8 * (rt[1] + hd[1] * ls * 0.5) + 0.6 * rt[2], lit: 0.5 + 0.5 * (-0.35 * s * (n[0] * LD[0] + n[1] * LD[1]) + 0.94 * LD[2]) });
+      }
+    }
+    const col = (k2, alt) => (SC ? (alt ? SP.ink : SP.pine) : tone(P.ndl, k2));
+    // занавес — нижние веточки уходят в снег: тёмное под побегами (видно, что ветвь объёмная, а не плёнка)
+    if (!lq) {
+      g.fillStyle = col(0.06, 1); g.beginPath();
+      for (const q of SH_) { if (q.rt[2] < 0.02) continue; const r = q.rt, z0 = r[2];
+        PX(r[0], r[1], z0 * 0.85); g.moveTo(SX, SY); PX(r[0] + q.hd[0] * q.ls * 0.42, r[1] + q.hd[1] * q.ls * 0.42, 0); g.lineTo(SX, SY); PX(r[0] + q.hd[0] * q.ls * 0.12 - q.hd[1] * q.s * 0.03, r[1] + q.hd[1] * q.ls * 0.12 + q.hd[0] * q.s * 0.03, 0); g.lineTo(SX, SY); g.closePath(); }
+      g.fill();
+    }
+    // ось (побег-стебель) — один элемент с глубиной своей середины
+    const am = AX(0.5); SH_.push({ ax: 1, d: 0.8 * am[1] + 0.6 * am[2] - 0.001 });
+    SH_.sort((a, q) => a.d - q.d);
+    const NS = lq ? 4 : 6, lw = Math.max(0.35 * sc, 0.012 * M);
+    for (const q of SH_) {
+      if (q.ax) {   // стебель: коричневый, тонкий, к кончику тоньше
+        g.strokeStyle = SC ? SP.ink : '#4a3122'; g.lineCap = 'round';
+        let px = 0, py = 0; for (let i = 0; i <= 4; i++) { const a = AX(i / 4); PX(a[0], a[1], Math.max(0, a[2])); if (i) { g.lineWidth = Math.max(0.4 * sc, (b.db || 0.02) * M * (1 - i / 5)); g.beginPath(); g.moveTo(px, py); g.lineTo(SX, SY); g.stroke(); } px = SX; py = SY; }
+        continue;
+      }
+      const r = q.rt; if (r[2] < -0.01) continue;
+      // центральная линия побега: подъём γ у оси, дальше дугой к снегу; уходит под снег — режем по линии снега
+      const zt = t => r[2] * (1 - Math.pow(t, 1.4)) + q.ls * q.tg * t * (1 - t) * 0.95 - 0.03 * t;
+      let tEnd = 1; for (let i = 1; i <= 8; i++) { const t = i / 8; if (zt(t) < 0) { const t0 = (i - 1) / 8, z0 = zt(t0), z1 = zt(t); tEnd = t0 + (t - t0) * z0 / ((z0 - z1) || 1); break; } }
+      if (tEnd < 0.12) continue;
+      const pp = [-q.hd[1], q.hd[0]], wd = t => (0.03 + 0.06 * q.ls) * (1 - 0.6 * t) * (t < 0.08 ? 0.5 + t / 0.16 : 1), pt = (t, sgn) => { const w = wd(t) * sgn; PX(r[0] + q.hd[0] * q.ls * t + pp[0] * w, r[1] + q.hd[1] * q.ls * t + pp[1] * w, Math.max(0, zt(t) + Math.abs(w) * 0.25)); };
+      g.beginPath(); for (let i = 0; i <= NS; i++) { const t = tEnd * i / NS; pt(t, 1); if (i) g.lineTo(SX, SY); else g.moveTo(SX, SY); }
+      for (let i = NS; i >= 0; i--) { pt(tEnd * i / NS, -1); g.lineTo(SX, SY); }
+      g.closePath(); g.fillStyle = col(0.14 + 0.5 * q.lit * q.lit, q.lit < 0.5); g.fill();
+      if (!lq && !SC) {   // «ёлочка»: тёмная жилка и светлые кончики хвоинок
+        g.strokeStyle = tone(P.ndl, 0.05 + 0.1 * q.lit); g.lineWidth = lw; g.beginPath(); pt(0, 0); g.moveTo(SX, SY); pt(tEnd * 0.9, 0); g.lineTo(SX, SY);
+        for (let i = 1; i < 4; i++) { const t = tEnd * i / 4; pt(t, 0); const x0 = SX, y0 = SY; pt(t + 0.08, 1); g.moveTo(x0, y0); g.lineTo(SX, SY); pt(t, 0); pt(t + 0.08, -1); g.moveTo(x0, y0); g.lineTo(SX, SY); }
+        g.stroke();
+      }
+      // уходит в снег — белая губа снега у места входа
+      if (tEnd < 0.98 && !lq) { pt(tEnd, 0); g.fillStyle = SC ? SP.paper : '#eef3f8'; g.beginPath(); g.ellipse(SX, SY + 0.3, Math.max(0.6, wd(tEnd) * M * 1.4), Math.max(0.4, wd(tEnd) * M * 0.6), o.ang * 0.6, 0, TAU); g.fill(); }
+    }
+    // снег сверху — с одной стороны оси (куда мело), комьями
+    if (sn > 0.04) {
+      g.globalAlpha *= Math.min(1, sn * 1.6); g.fillStyle = SC ? SP.paper : '#f3f7fb';
+      for (let i = 0; i < (lq ? 3 : 6); i++) { const u = 0.12 + i * (lq ? 0.25 : 0.13), a = AX(u), r0 = (0.03 + 0.04 * hh(sd0, i + 70)) * (0.6 + 0.6 * sn) * (1 - 0.4 * u);
+        PX(a[0] + n[0] * o.ss * 0.035, a[1] + n[1] * o.ss * 0.035, Math.max(0, a[2]) + 0.025); g.beginPath(); g.ellipse(SX, SY, r0 * M * 1.3, r0 * M * 0.7, o.ang * 0.6, 0, TAU); g.fill(); }
+      g.globalAlpha = 1;
+    }
+  }
+  // форма лежащей ветви числами (проверки): середина оси и кончик (см), доля точек побегов над снегом
+  function boughShape(p) {
+    const { S } = of(p), w = S.wh[p.w], b = w && w.br.find(q => q.j === p.b); if (!b) return null;
+    const az = p.az || defAz(p), L = b.len * p.k, fw = (S.P.fw || 0.36) * 1.15, sd0 = (b.sd || 1) | 0; let up = 0, n = 0;
+    for (let j = 0; j < 7; j++) {
+      const u = 0.1 + j / 6 * 0.82, z0 = zAx(az, u), ls = L * fw * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.08)), 0.65) * (1 - 0.35 * u) + 0.02;
+      for (const s of [1, -1]) { const tg = Math.tan(0.35 + 0.35 * hh(sd0, j * 2 + 40 + (s > 0 ? 1 : 0))); for (let i = 0; i <= 8; i++) { const t = i / 8, z = z0 * (1 - Math.pow(t, 1.4)) + ls * tg * t * (1 - t) * 0.95 - 0.03 * t; n++; if (z > 0.005) up++; } }
+    }
+    return { mid: az[2], tip: az[4], base: az[0], above: up / n, bare: !!(S.P.bare || b.dead) };
+  }
+  // голая ветвь / сухой сук лёжа: стебель по оси «лежит», боковые прутья вверх-вбок, снег — линией сверху
+  function drawLyingBare(g, S, b, o, sc) {
+    const e = [Math.cos(o.ang), Math.sin(o.ang)], n = [-e[1], e[0]], L = o.len, ce = Math.cos(o.el || 0), se = Math.sin(o.el || 0), ke = o.ke == null ? 1 : o.ke;
+    const AX = u => [e[0] * u * L * ce, e[1] * u * L * ce, Math.max(0, (o.bz || 0) * (1 - u * 0.6) + u * L * se + zAx(o.az, u) * ke * 0.6)];
+    const PX = a => { SX = o.bx + a[0] * M; SY = o.by + (0.6 * a[1] - a[2]) * M; };
+    g.strokeStyle = SC ? SP.ink : b.dead ? '#4d443c' : S.P.twig || '#4a3127'; g.lineCap = 'round'; const w0 = Math.max(0.5 * sc, (b.db || 0.02) * M);
+    let px, py; for (let i = 0; i <= 4; i++) { PX(AX(i / 4)); if (i) { g.lineWidth = w0 * (1 - i / 5); g.beginPath(); g.moveTo(px, py); g.lineTo(SX, SY); g.stroke(); } px = SX; py = SY; }
+    g.lineWidth = Math.max(0.35 * sc, w0 * 0.4); g.beginPath();
+    for (let i = 0; i < 3; i++) { const u = 0.3 + i * 0.2, a = AX(u), s = i % 2 ? 1 : -1, l = L * (0.3 - i * 0.06); PX(a); g.moveTo(SX, SY); PX([a[0] + (e[0] * 0.6 + n[0] * s * 0.8) * l, a[1] + (e[1] * 0.6 + n[1] * s * 0.8) * l, a[2] + l * 0.25]); g.lineTo(SX, SY); }
+    g.stroke();
+    if ((o.snow || 0) > 0.05) { g.strokeStyle = SC ? SP.paper : '#f3f7fb'; g.lineWidth = w0 * 0.6 * Math.min(1, o.snow * 1.5); g.beginPath(); const a0 = AX(0.05); PX([a0[0], a0[1], a0[2] + 0.015]); g.moveTo(SX, SY); const a1 = AX(0.6); PX([a1[0], a1[1], a1[2] + 0.015]); g.lineTo(SX, SY); g.stroke(); }
+  }
+  // часть-ветвь: отделилась в месте роста и оседает вниз под своим весом — основание опускается, ось поворачивается вокруг него к снегу,
+  // кончик касается снега и чуть отскакивает (settleT); дальше лежит своей формой (запечённый спрайт — drawPart)
   function drawBoughPart(g, p, time, sc) {
     const { S } = of(p), k = p.k, w = S.wh[p.w], b = w && w.br.find(q => q.j === p.b); if (!b) return;
-    const e = clamp((time - p.t - (p.dl || 0)) / 0.55, 0, 1), ke = e * e;
     const bury = clamp((time - p.t) / (CYCLE * 0.75), 0, 1); if (bury >= 1) return;
-    const half = b.len * k * 0.45 * M, ca = Math.cos(p.ang), sa = Math.sin(p.ang);
-    let bx = p.x - ca * half, by = p.y - sa * half * 0.6, lift = 0, tw = 0;
-    if (e < 1 && p.fx != null) { bx = lerp(p.fx, bx, ke); by = lerp(p.fy, by, ke); lift = (p.fz || 0.3) * (1 - ke); tw = (1 - e) * 0.9; }
+    const len = b.len * k, T = settleT(p), e = clamp((time - p.t - (p.dl || 0)) / T, 0, 1), ca = Math.cos(p.ang), sa = Math.sin(p.ang), half = len * 0.45 * M;
+    const rx = p.x - ca * half, ry = p.y - sa * half * 0.6;   // основание лёжа (px)
+    const o = { bx: rx, by: ry, ang: p.ang, len, az: p.az || defAz(p), ss: p.ss || 1, tl: p.tl || 0, el: 0, ke: 1, bz: 0, snow: snowAge(p, time) };
+    if (e < 1 && p.fx != null) {
+      const d0 = p.d0 || [ca, sa, 0.35], g0 = Math.atan2(d0[1], d0[0]), el0 = Math.asin(clamp(d0[2], -0.9, 0.95));
+      const kb = sm(0, 0.55, e), kr = e < 0.8 ? (e / 0.8) * (e / 0.8) : 1, bo = e > 0.8 ? 0.07 * Math.sin((e - 0.8) / 0.2 * Math.PI) : 0;
+      let da = p.ang - g0; da = Math.atan2(Math.sin(da), Math.cos(da));
+      o.bx = lerp(p.fx, rx, kb); o.by = lerp(p.fy, ry, kb); o.bz = (p.fz || 0.3) * (1 - kb) * (1 - kb);
+      o.ang = g0 + da * sm(0, 0.85, e); o.el = el0 * (1 - kr) + bo; o.ke = kr; o.snow *= 0;
+    }
     const A = W_(), a0 = g.globalAlpha, fade = 1 - sm(0.75, 1, bury); g.globalAlpha = a0 * fade;
-    if (SC && e >= 1) { g.fillStyle = SP.shade; g.beginPath(); g.ellipse(p.x + 2, p.y + 2, b.len * k * M * 0.5, b.len * k * M * 0.18, p.ang * 0.6, 0, TAU); g.fill(); }
-    else if (A && e >= 1) A.shadow(g, p.x + 1, p.y + 1.5, b.len * k * M * 0.55, b.len * k * M * 0.22, 0.2);
-    // ветвь целиком поворачиваем: её азимут → ang, основание — в (bx, by)
-    pose(S, k, { roll: p.ang - b.az, pz: w.z, pw: lift / k + 0.02, ox: bx - Math.cos(p.ang) * rz(S, w.z) * k * M, oy: by - Math.sin(p.ang) * rz(S, w.z) * k * M * 0.6, grd: 1, gs: 0.25, flat: 1, snow: snowAge(p, time) });
-    if (tw) { const c = Math.cos(tw), s = Math.sin(tw), r = R; R = [r[0], r[1] * c - r[2] * s, r[1] * s + r[2] * c, r[3], r[4] * c - r[5] * s, r[4] * s + r[5] * c, r[6], r[7] * c - r[8] * s, r[7] * s + r[8] * c]; }
-    const L_ = b.len * k * M + 8, paint = gg => { if (S.P.bare || b.dead) drawBare(gg, S, b, w.z, low(), sc); else drawBough(gg, S, b, w.z, low(), sc); };
-    if (SC) Style.figure(g, bx - L_, by - L_, L_ * 2, L_ * 2, paint, { snap: false }); else paint(g);
-    if (bury > 0.3) { g.globalAlpha = a0 * fade * sm(0.3, 0.75, bury); g.fillStyle = SC ? SP.paper : '#eef3f8'; g.beginPath(); g.ellipse(p.x, p.y - 1, b.len * k * M * 0.5, b.len * k * M * 0.2, p.ang * 0.6, 0, TAU); g.fill(); }
+    if (e >= 1) { if (SC) { g.fillStyle = SP.shade; g.beginPath(); g.ellipse(p.x + 2, p.y + 2, len * M * 0.5, len * M * 0.2, p.ang * 0.6, 0, TAU); g.fill(); } else if (A) A.shadow(g, p.x + 1, p.y + 2, len * M * 0.55, len * M * 0.26, 0.22); }
+    const L_ = len * M + 10, paint = gg => { if (S.P.bare || b.dead) drawLyingBare(gg, S, b, o, sc); else drawLying(gg, S, b, o, sc, low()); };
+    if (SC) Style.figure(g, o.bx - L_, o.by - L_, L_ * 2, L_ * 2, paint, { snap: false }); else paint(g);
+    if (bury > 0.3) { g.globalAlpha = a0 * fade * sm(0.3, 0.75, bury); g.fillStyle = SC ? SP.paper : '#eef3f8'; g.beginPath(); g.ellipse(p.x, p.y - 1, len * M * 0.5, len * M * 0.2, p.ang * 0.6, 0, TAU); g.fill(); }
+    g.globalAlpha = a0;
+  }
+  // куча лапника (сгребли): ветви внахлёст, выше к середине; масса — сумма сгребённых
+  function drawPile(g, p, time, sc) {
+    const { S } = of(p), k = p.k || 1, bury = clamp((time - (p.t || 0)) / (CYCLE * 0.75), 0, 1); if (bury >= 1) return;
+    const live = []; for (const w of S.wh) for (const b of w.br) if (!b.dead && w.z > S.H * 0.25 && w.z < S.H * 0.7) live.push(b);
+    if (!live.length) return;
+    const n = clamp(Math.round(2 + Math.sqrt(p.mass || 1) * 1.7), 2, lowLOD() ? 6 : 11), id = (p.id || 1) | 0, sn = snowAge(p, time), A = W_(), a0 = g.globalAlpha;
+    g.globalAlpha = a0 * (1 - sm(0.75, 1, bury));
+    const R0 = (0.35 + 0.05 * n) * M;
+    if (SC) { g.fillStyle = SP.shade; g.beginPath(); g.ellipse(p.x + 2, p.y + 2, R0 * 1.1, R0 * 0.45, 0, 0, TAU); g.fill(); } else if (A) A.shadow(g, p.x + 1, p.y + 2, R0 * 1.2, R0 * 0.5, 0.28);
+    for (let i = 0; i < n; i++) {
+      const b = live[(i * 7 + id) % live.length], len = clamp(b.len * k, 0.5, 1.1), ang = (p.ang || 0) + (hh(id, i) - 0.5) * 2.4 + (i % 2) * Math.PI, rr = (0.12 + 0.18 * hh(id, i + 20)) * (1 - i / (n + 2));
+      const cx = p.x + Math.cos(ang + 1.9) * rr * M, cy = p.y + Math.sin(ang + 1.9) * rr * M * 0.6, z = 2 + i * 2.2;
+      const o = { bx: cx - Math.cos(ang) * len * 0.45 * M, by: cy - Math.sin(ang) * len * 0.45 * M * 0.6, ang, len, az: [z + 2, z + 12, z + 15, z + 8, Math.max(-2, z - 6)], ss: i % 2 ? 1 : -1, tl: hh(id, i + 9) - 0.5, ke: 1, snow: i === n - 1 ? sn : sn * 0.4 };
+      if (S.P.bare) drawLyingBare(g, S, b, o, sc); else drawLying(g, S, b, o, sc, low() || i < n - 4);
+    }
     g.globalAlpha = a0;
   }
   function frame() { lcBudget = 2; FR++; }
+
+  // ---------- падение: стержень на шарнире θ'' = (3g / 2L)·sin θ (L — высота над резом, м) ----------
+  // безразмерно: время в τ = √(2L / 3g), θ'' = sin θ от θ0 (недоруб отпустил) без начальной скорости; таблица θ(u), u = t / T
+  const FALL = (() => {
+    const th0 = 0.08, dt = 1e-4; let th = th0, w = 0, t = 0; const pts = [[0, th0]];
+    while (th < Math.PI / 2) { w += Math.sin(th) * dt; th += w * dt; t += dt; pts.push([t, Math.min(th, Math.PI / 2)]); }
+    const N = 128, TB = []; for (let i = 0, j = 0; i <= N; i++) { const tt = t * i / N; while (j < pts.length - 2 && pts[j + 1][0] < tt) j++; TB.push(pts[j][1]); }
+    TB[N] = Math.PI / 2;
+    const at = u => { const x = clamp(u, 0, 1) * N, i = Math.min(N - 1, x | 0); return TB[i] + (TB[i + 1] - TB[i]) * (x - i); };
+    const uAt = a => { for (let i = 0; i < N; i++) if (TB[i + 1] >= a) return (i + (a - TB[i]) / ((TB[i + 1] - TB[i]) || 1)) / N; return 1; };
+    const tau = L => Math.sqrt(2 * L / (3 * 9.81));
+    return { th0, Tn: t, wn: w, at, uAt, tau, T: L => t * tau(L), tip: L => w / tau(L) * L, ub: uAt(1.22) };   // ub — недоруб рвётся на ~70°
+  })();
 
   // ---------- дерево × лёд ----------
   // нагрузка удара ствола на лёд (Н) по окнам ~1.5 м: Σ dm·v²/(2δ), v = ω·r (маятник вокруг пня), δ — смятие (ствол 0.15 м, крона 0.4 м)
@@ -746,7 +1010,7 @@ const Tree = (() => {
 
   return {
     M, KG, CH, HC, KP, TS, workZ, spec, of, size, ensure, whole, parts, split, take, isWood, woodOf, massOf, rz, stemV,
-    paintSprite, drawStanding, drawStump, drawLog, drawPart, live, shook, snowOf, frame, iceImpact, varOf, jit, MODEL,
+    paintSprite, drawStanding, drawStump, drawLog, drawPart, live, shook, snowOf, frame, iceImpact, varOf, jit, MODEL, FALL, notchGeo, OPEN, BK, limbPlan, limbState, boughShape, cutFrac: L => { ensure(L); return cutFrac(of(L).S, L); }, drawChips,
     get stats() { return { specs: SPECS.size }; }, LD,   // свет модели — то же солнце, что у теней (Style.SUN)
   };
 })();
