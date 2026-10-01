@@ -281,6 +281,7 @@
   .tbtns #t-act { grid-column: 2; grid-row: 1 / span 2; width: 74px; height: 74px; }
   .tbtns #t-act .ic { width: 34px; height: 34px; }
   .tbtns #t-cmd { grid-column: 2; position: relative; }
+  .tbtns #t-dodge { position: absolute; right: calc(100% + 10px); bottom: 0; } /* отскок — вне сетки, левее нижнего ряда: сетка не растёт */
   .tbtns #t-cmd:not([data-n=""])[data-n]::after { content: attr(data-n); position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--w-gold); color: var(--on-accent); font: 700 11px/18px var(--f-body); }
   .order-mode .stickzone { pointer-events: none; } .order-mode .stick { display: none; }
   .order-mode #t-act, .order-mode #t-fire, .order-mode #t-eat, .order-mode #t-sniff { opacity: .5; }
@@ -409,6 +410,7 @@
     <button class="btn sec" id="t-craft" aria-label="Мастерская"><svg class="ic"><use href="#i-craft"/></svg></button>
     <button class="btn sec" id="t-sniff" aria-label="Нюх"><svg class="ic"><use href="#i-sniff"/></svg></button>
     <button class="btn sec" id="t-cmd" aria-label="Режим приказов посёлку" aria-pressed="false"><svg class="ic"><use href="#i-people"/></svg></button>
+    <button class="btn sec" id="t-dodge" aria-label="Отскок"><svg class="ic"><use href="#i-back"/></svg></button>
   </div>
 </div>
 
@@ -458,7 +460,7 @@
       <div class="tile"><svg class="ic"><use href="#i-epoch"/></svg>эпохи</div>
     </div>
     <div class="keys" id="keys-hint">
-      <span><kbd>WASD</kbd>идти</span><span><kbd>E</kbd>действие</span><span><kbd>F</kbd>огонь</span><span><kbd>Q</kbd>есть</span><span><kbd>C</kbd>мастерская</span>
+      <span><kbd>WASD</kbd>идти</span><span><kbd>E</kbd>действие</span><span><kbd>F</kbd>огонь</span><span><kbd>Q</kbd>есть</span><span><kbd>Shift</kbd>отскок</span><span><kbd>C</kbd>мастерская</span>
       <span><kbd>R</kbd>ловушка</span><span><kbd>B</kbd>стройка</span><span><kbd>V</kbd>нюх</span><span><kbd>H</kbd>набат</span><span><kbd>ЛКМ</kbd>рамка</span><span><kbd>ПКМ</kbd>приказ</span><span><kbd>колесо</kbd>масштаб</span>
     </div>
     <div class="btns">

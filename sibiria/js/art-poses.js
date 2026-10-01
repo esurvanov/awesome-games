@@ -262,6 +262,37 @@
     P.tilt = -0.5 * j; P.eyes = j > 0.5 ? 1 : 0; P.hb = -j; P.mouth = 0.4 * j;
   } });
 
+  // отпрыгнул (отскок, Shift): толчок с присевших ног → короткий полёт назад-вбок, корпус откинут, руки в стороны → приземление в присед
+  R('dodge', { dur: 0.45, free: true, fn(o, t, a) {
+    const push = bump(a, 0, 0.18), air = env(a, 0.1, 0.22, 0.5, 0.62), land = bump(a, 0.5, 0.95), j = Math.max(air, 0.6 * land);
+    P.f0x = lerp(1.3, -3.2, air) + 0.8 * land; P.f0y = -2 - 3.2 * air; P.f0a = -0.25 * air;
+    P.f1x = lerp(-1.6, -5.4, air) - 0.6 * land; P.f1y = -2 - 2.4 * air;
+    body(0.04 - 0.3 * air + 0.22 * land + 0.1 * push, -17.2 + 3.2 * push + 2.2 * air + 3.6 * land, -2.4 * air + 0.6 * land);
+    P.oy = -3.4 * air;
+    hand(0, 7.5, -2.5, 0.9 * j); hand(1, 6.2, -4, 0.85 * j); P.hl0 = lerp(6.6, 8.2, air); P.hl1 = lerp(6.6, 4.4, air);
+    P.tilt = -0.3 * air + 0.18 * land; P.mouth = 0.5 * air; P.hb = -air + 0.6 * land; P.eyes = 0;
+  } });
+
+  // взять чурку: наклон → касание (a 0.34 — с земли в руку) → к груди → закинуть на рюкзак через плечо → руки в покой
+  R('takeChunk', { dur: 1.0, fn(o, t, a) {
+    stow(o);
+    const T = tgt(o, 8, -2), k = bendK(T, 12.6, 0), dn = a < 0.3 ? sm(a / 0.3) : a < 0.38 ? 1 : 1 - sm(seg(a, 0.38, 0.6));
+    bend(k, dn); P.f0x = lerp(1.6, 2.6, dn); P.f1x = lerp(-1.6, -2.4, dn);
+    const E = [P.sx + 6.5, P.sy + 4], UP = [P.sx + 1.5, P.sy - 9], BK = [P.hx - 5, P.sy - 6.5], rx = P.sx + R0[0], ry = P.sy + R0[1];
+    let x, y, lat = 3;
+    if (a < 0.3) { const e = sm(a / 0.3); x = lerp(rx, T.x, e); y = lerp(ry, T.y, e); lat = lerp(6.6, 3, e); }
+    else if (a < 0.38) { x = T.x; y = T.y; }
+    else if (a < 0.6) { const e = sm(seg(a, 0.38, 0.6)); x = lerp(T.x, E[0], e); y = lerp(T.y, E[1], e); }
+    else if (a < 0.74) { const e = sm(seg(a, 0.6, 0.74)); x = lerp(E[0], UP[0], e); y = lerp(E[1], UP[1], e); }   // вверх к плечу
+    else if (a < 0.84) { const e = sm(seg(a, 0.74, 0.84)); x = lerp(UP[0], BK[0], e); y = lerp(UP[1], BK[1], e); lat = lerp(3, 6.5, e); }   // за голову — на рюкзак
+    else { const e = sm(seg(a, 0.84, 1)); x = lerp(BK[0], rx, e); y = lerp(BK[1], ry, e); lat = lerp(6.5, 6.6, e); }
+    P.h0x = x; P.h0y = y; P.hl0 = lat;
+    const two = env(a, 0.34, 0.42, 0.56, 0.66);   // вторая рука помогает поднять
+    handAt(1, lerp(lerp(P.sx + R1[0], P.hx + 5.5, dn), x - 1.6, two), lerp(lerp(P.sy + R1[1], hip() - 1.5, dn), y + 1, two), 1); P.hl1 = lerp(lerp(6.6, 4, dn), 3, two);
+    if (a > 0.34 && a < 0.84 && o.item) P.held = [o.item, x - 0.3, y - 0.4, a < 0.6 ? -0.2 : lerp(-0.2, -1.4, seg(a, 0.6, 0.84))];
+    P.tilt = 0.3 * dn - 0.12 * bump(a, 0.6, 0.86); P.hb = 0.3 * bump(a, 0.34, 0.6) + 0.25 * bump(a, 0.66, 0.86);
+  } });
+
   // ================= рубка: варианты =================
   // топор: лезвие (точка искр) = кисть + (16−c, 4) вдоль топорища; c — насколько кисть съехала к топору.
   // Решаем удар так, чтобы лезвие легло в T: к близкому стволу кисти перехватывают ближе к обуху.

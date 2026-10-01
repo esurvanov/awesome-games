@@ -298,7 +298,7 @@ const World = (() => {
   }
   const touch = (k, o) => { CONTACT.k = k; CONTACT.o = o; };
   // сваленный ствол героя (G.logs, пока не разделан): отрезок комель → оставшийся конец (вид 3/4: y ×0.6), толщина — как у картинки
-  // (ArtWorld.felledLog: полуширина 4.2·s у комля → 1.6·s у вершины); разделка укорачивает преграду вместе со стволом
+  // (как рисует GFX drawFelled: полуширина 4.2·s у комля → 1.6·s у вершины); разделка укорачивает преграду вместе со стволом
   function pushLog(o, r, L) {
     const s = L.s || 1, k = Actions.logK(L), ex = L.x + Math.cos(L.a) * L.len * k, ey = L.y + Math.sin(L.a) * L.len * 0.6 * k;
     const R = 4.2 * s + r + 2; // рамка — быстрый отсев
@@ -318,7 +318,7 @@ const World = (() => {
   function pushAll(o, r, who) {
     NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, trunkR(t))) touch('tree', t);
     NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushFoot(o, r, rockFoot(q))) touch('rock', q);
-    if (G.logs) for (const L of G.logs) if (L.n > 0 && pushLog(o, r, L)) touch('log', L);
+    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю
     if (Math.abs(o.x - HUT.x) < 180 && Math.abs(o.y - HUT.y) < 160) {
       for (const R of HUT_WALLS) if (pushRect(o, r, R.x0, R.x1, R.y0, R.y1)) touch('wall', null);
       if (who !== 'p' && who !== 'n' && G.hut.door) pushRect(o, r, DOOR_RECT.x0, DOOR_RECT.x1, DOOR_RECT.y0, DOOR_RECT.y1);

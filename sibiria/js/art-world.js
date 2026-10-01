@@ -1354,6 +1354,12 @@ const ArtWorld = (() => {
         parts.push({ type: 'puff', x: t.x + rnd(-10, 10) * s, y: t.y + rnd(1, 4), h: rnd(0.35, 0.8) * H, vx: rnd(-8, 8), vy: 0, r0: rnd(4, 6), r1: rnd(11, 17) * (0.7 + 0.3 * power), life: rnd(0.7, 1.1), max: 1.1 });
       }
     },
+    // ветки с обрубленной кроны: зелёные лапки и щепа летят от ствола; z — с высоты кроны
+    twigs(parts, x, y, z, s = 1) {
+      const n = typeof window !== 'undefined' && window.QUALITY === 'low' ? 3 : 7;
+      for (let i = 0; i < n; i++) { const a = FXR() * TAU, v = rnd(25, 75);
+        parts.push({ type: 'bit', kind: 'chip', c: i % 3 ? (i % 2 ? '#2f5a3a' : '#244a31') : '#5b3d27', x, y, vx: 0, vy: 0, ux: Math.cos(a) * v, uy: Math.sin(a) * v * 0.5, uz: rnd(30, 90), gz: 300, z0: z * rnd(0.4, 1), sz: rnd(2.2, 3.6) * s, rot: FXR() * TAU, spin: rnd(-10, 10), life: rnd(2.5, 3.5), max: 3.5 }); }
+    },
     smoke(parts, x, y, big) {
       for (let i = 0; i < (big ? 3 : 1); i++) parts.push({ type: 'smoke', x: x + rnd(-4, 4), y: y + rnd(-3, 3), vx: rnd(-6, 6), vy: rnd(-32, -18) * (big ? 1.3 : 1), life: big ? 3.5 : 2.6, max: big ? 3.5 : 2.6, big: big ? 1 : 0, sd: FXR() });
     },
@@ -2059,36 +2065,22 @@ const ArtWorld = (() => {
     if (snow < 0.3) { g.fillStyle = '#d9bd8a'; for (let i = 0; i < 5; i++) g.fillRect(x + (i - 2) * 3.2 * s, y + 1.5 + (i % 2) * 1.6, 1.8, 1); }   // щепа у комля
     el(g, x - 5 * s, y + 0.4 * s, 5 * s, 1.8 * s, SNOW_HI); el(g, x + 5.5 * s, y + 0.8 * s, 3.4 * s, 1.2 * s, '#dde6ee');
   }
-  // сваленная ель (G.logs): ствол от комля по направлению a (вид 3/4: y ×0.6), k — сколько осталось; до первого реза — крона лапником,
-  // если её не рисует спрайт падения (sprite = true); после — голый ствол, у вершины куча сучьев; снег на верхней кромке
-  function felledLog(g, L, k, sprite) {
-    const c = Math.cos(L.a), sn = Math.sin(L.a) * 0.6, s = L.s || 1, len = L.len;
-    const ex = L.x + c * len * k, ey = L.y + sn * len * k, R0 = 4.2 * s, R1 = (4.2 + (1.6 - 4.2) * k) * s;
-    const nl = Math.hypot(-sn, c) || 1, nx = -sn / nl, ny = c / nl;
-    // сучья: где была крона (дальний конец), остаются после обрубки
-    if (L.lim) {
-      const tx = L.x + c * len * 0.82, ty = L.y + sn * len * 0.82;
-      for (let i = 0; i < 7; i++) { const q = (i * 0.37) % 1, bx = tx + c * (q - 0.5) * 30 * s + nx * (i % 2 ? 5 : -5), by = ty + sn * (q - 0.5) * 30 * s + ny * (i % 3 - 1) * 3;
-        line(g, '#3a2618', 1.2, bx - c * 6, by - sn * 6 + 1, bx + c * 6 + nx * 3, by + sn * 6 + ny * 2);
-        el(g, bx, by - 1.5, 6 * s, 2.2 * s, i % 2 ? '#2f5a3a' : '#274d33', L.a * 0.6 + (i - 3) * 0.3); }
-      el(g, tx, ty - 3, 14 * s, 3 * s, 'rgba(246,249,252,0.75)', L.a * 0.6);
+  const smoothK = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  // лапник на снегу (G.lap): обрубленные ветки веером вдоль a; k — сколько прошло из срока заметания (0 свежий → 1 скрыт)
+  function lapnik(g, q, k) {
+    if (k >= 1) return;
+    const s = q.s || 1, a = q.a, c = Math.cos(a), sn = Math.sin(a) * 0.6, sv = clamp(k, 0, 1), al = 1 - smoothK(0.7, 1, sv), h = ((q.x * 73 + q.y * 31) >>> 0) % 997;
+    g.globalAlpha = al; shadow(g, q.x, q.y + 1, 15 * s, 4.5 * s, 0.22 * al); g.globalAlpha = al;
+    for (let i = 0; i < 5; i++) {
+      const u = (i - 2) * 0.32 + ((h >> i) & 3) * 0.05, L = (11 + ((h >> (i + 2)) & 3) * 2) * s, ax = Math.cos(a + u), ay = Math.sin(a + u) * 0.6;
+      const x0 = q.x - ax * L * 0.45 + (i - 2) * sn * 2.4, y0 = q.y - ay * L * 0.45 + (i - 2) * 1.2, x1 = x0 + ax * L, y1 = y0 + ay * L - 1.5;
+      line(g, '#3a2618', 1, x0, y0, x1, y1);
+      for (let j = 1; j <= 3; j++) { const t = j / 4, bx = x0 + (x1 - x0) * t, by = y0 + (y1 - y0) * t; el(g, bx, by - 1, (4.2 - j * 0.7) * s, 1.7 * s, (i + j) % 2 ? '#2f5a3a' : '#244a31', a + u + (j % 2 ? 0.5 : -0.5)); }
     }
-    if (sprite) return;
-    shadow(g, (L.x + ex) / 2 + 2, (L.y + ey) / 2 + 3, Math.hypot(ex - L.x, ey - L.y) / 2 + 6, 5, 0.3);
-    g.lineCap = 'round';
-    // тело ствола: трапеция R0 → R1, тёмная нижняя кромка, светлая верхняя, снег поверх
-    g.fillStyle = '#5b3d27'; g.beginPath(); g.moveTo(L.x + nx * R0, L.y + ny * R0 - R0); g.lineTo(ex + nx * R1, ey + ny * R1 - R1); g.lineTo(ex - nx * R1, ey - ny * R1 - R1); g.lineTo(L.x - nx * R0, L.y - ny * R0 - R0); g.closePath(); g.fill();
-    line(g, '#3a2618', 1.6 * s, L.x + nx * R0 * 0.6, L.y + ny * R0 * 0.6 - R0 * 0.3, ex + nx * R1 * 0.6, ey + ny * R1 * 0.6 - R1 * 0.3);
-    line(g, '#8a6a45', 1 * s, L.x - nx * R0 * 0.5, L.y - ny * R0 * 0.5 - R0 * 1.3, ex - nx * R1 * 0.5, ey - ny * R1 * 0.5 - R1 * 1.3);
-    // торцы: комель и свежий рез — светлое дерево с кольцом
-    el(g, L.x, L.y - R0, R0 * 0.55, R0, '#c79a62', L.a * 0.6); el(g, L.x, L.y - R0, R0 * 0.25, R0 * 0.45, '#8a6a45', L.a * 0.6);
-    if (L.lim || k < 0.999) { el(g, ex, ey - R1, R1 * 0.55, R1, '#e0b47a', L.a * 0.6); el(g, ex, ey - R1, R1 * 0.22, R1 * 0.4, '#c79a62', L.a * 0.6); }
-    else {   // крона (после загрузки сейва — без спрайта падения): лапник вдоль вершины
-      for (let i = 0; i < 9; i++) { const q = 0.35 + i * 0.075, bx = L.x + c * len * q, by = L.y + sn * len * q, w = (1.15 - q) * 16 * s;
-        el(g, bx + nx * w * 0.35, by + ny * w * 0.35 - 3, w * 0.55, 3.2 * s, '#274d33', L.a * 0.6 + 0.5); el(g, bx - nx * w * 0.35, by - ny * w * 0.35 - 3, w * 0.55, 3 * s, '#2f5a3a', L.a * 0.6 - 0.5);
-        el(g, bx, by - 5, w * 0.35, 1.2 * s, 'rgba(246,249,252,0.85)', L.a * 0.6); }
-    }
-    line(g, 'rgba(246,249,252,0.9)', 1.6 * s, L.x + c * 6, L.y + sn * 6 - R0 * 1.8, ex - c * 4, ey - sn * 4 - R1 * 1.8);   // снег по верху
+    // снег сверху: чуть-чуть сразу, к концу срока — покрывалом
+    g.globalAlpha = al * (0.25 + 0.75 * sv); el(g, q.x + 1, q.y - 2, (6 + 10 * sv) * s, (1.4 + 3 * sv) * s, '#f4f8fb', a * 0.6);
+    if (sv > 0.35) { g.globalAlpha = al * (sv - 0.35) * 1.4; el(g, q.x - c * 4, q.y - sn * 4 - 1, 13 * s, 4 * s, '#eef3f8', a * 0.6); }
+    g.globalAlpha = 1;
   }
   // чурка на снегу: короткий кругляк торцом к камере, a — поворот
   function chunk(g, x, y, a = 0) {
@@ -2425,7 +2417,7 @@ const ArtWorld = (() => {
     paintSpruce, paintBirch, trunkWell, rootsInSnow, bodyLight, paintCedar, paintMi8, mi8Wires: () => MI8_WIRES, paintTail, paintChum, paintLabaz, paintMi8Fly, mi8Fly, rotor, tailRotor, MI8_DOOR,
     treeSprite, treeW, treeK, spr, reset, rng, setScale, shadow, budget, purge, stats,
     sprite, el, rr, poly, line, lg, rg, // примитивы — для js/art-zones.js (тот же кэш и масштаб)
-    stump, felledLog, chunk, emptyCan, sapling, stashPile, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
+    stump, lapnik, chunk, emptyCan, sapling, stashPile, sled, note, trap, amulet, inspect, polynya, hole, tube, groundDrift, tussock,
     hutFloor, hutNorth, hutFront, hutRoof, hutStove, hutBench, hutChest, hutBed, hutTop: HUT_TOP,
     fire, stack, building, flame,
     fx, drawParticle, decal, print,

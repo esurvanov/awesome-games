@@ -407,40 +407,162 @@ const GFX = (() => {
     }
     WT(); const c = CUT.get(t); if (c) drawCut(t, c);
   }
-  // падение срубленного дерева (Interact 'fell'): поворот вокруг комля к dir с разгоном, удар, лежит и тает
-  const FALL = [], FALL_T = 0.9, FALL_LIE = 24;
-  if (typeof Interact !== 'undefined') Interact.on('fell', ev => {
-    const t = ev.target; if (!t || t.stage === 1) return;
-    const w = ev.who, d = ev.dir != null ? ev.dir : w ? Math.atan2(t.y - w.y, t.x - w.x) : 0;
-    if (FALL.length >= 6) FALL.shift();
-    FALL.push({ x: t.x, y: t.y, kind: t.kind, s: t.s, wall: t.wall, v: treeV(t), d, t0: now, hit: 0, log: ev.log || null });
-  });
-  // ствол героя (G.logs) лежит, пока его не разделают: спрайт с кроной — до первого реза (сучья), дальше — голый ствол (ArtWorld.felledLog)
-  const fallLive = f => f.log && G.logs && G.logs.includes(f.log) && !f.log.lim;
-  function drawFall(f) {
-    const el = now - f.t0, k = Math.min(1, el / FALL_T), bo = el > FALL_T ? 0.07 * Math.exp(-(el - FALL_T) * 8) * Math.abs(Math.sin((el - FALL_T) * 18)) : 0;
-    const th = k * k * Math.PI / 2 - bo, ct = Math.cos(th), st = Math.sin(th), cd = Math.cos(f.d), sd = Math.sin(f.d);
-    const Ux = cd * st, Uy = -ct + 0.6 * sd * st;                 // «вверх» дерева: от вертикали к лежачему в проекции 3/4
-    let px = -sd, py = 0.6 * cd; if (px < 0) { px = -px; py = -py; } // поперёк ствола на земле, без зеркала
-    const Vx = 1 - st + px * st, Vy = py * st;
-    if (k >= 1 && !f.hit) { f.hit = 1; fallImpact(f, cd, 0.6 * sd); }
-    const a = fallLive(f) ? 1 : clamp((FALL_T + FALL_LIE - el) / 4, 0, 1), S = treeSprite(f, f.v), tw = ArtWorld.treeW(f.kind), kd = f.s / ArtWorld.treeK(f.s) * dpr, sc = S.width / tw;
-    const X = (f.x - cam.x + shx) * dpr, Y = (f.y - cam.y + shy) * dpr, rb = Math.round(152 * sc); // без сугроба и тени у комля
-    if (st > 0.5) { cx.globalAlpha = 0.3 * a * (st - 0.5) * 2; cx.setTransform(Vx * kd, Vy * kd, -Ux * kd, -Uy * kd, X, Y + 3 * dpr); cx.drawImage(SHADOW, -tw * 0.3, -150, tw * 0.6, 140); }
-    cx.globalAlpha = a; cx.setTransform(Vx * kd, Vy * kd, -Ux * kd, -Uy * kd, X, Y);
-    cx.drawImage(S, 0, 0, S.width, rb, -tw / 2, -160, tw, rb / sc);
-    cx.globalAlpha = 1; WT();
+  // ---------- валка и лежачая ель: ОДИН рендер (падение, лежит, обрубка, разделка, заметание; до и после загрузки сейва) ----------
+  // Ствол героя — G.logs (L.f — идёт валка: t, w надлом, T падение, r перекат); деревья людей посёлка — FALL (только рендер, лежат и уходят).
+  // Поза: th — угол от вертикали (0 стоит → π/2 лежит), lag — отставание кроны (px на вершине), roll — перекат вокруг ствола.
+  // Надлом: качание и наклон до 0.06; падение — маятник θ'' = sin θ (медленный старт, разгон); удар: два отскока, хлёст кроны, перекат.
+  const PEND = (() => {
+    const pts = [[0, 0.06]]; let t = 0, a = 0.06, w = 0.16;
+    while (a < Math.PI / 2) { w += Math.sin(a) * 2e-3; a += w * 2e-3; t += 2e-3; pts.push([t, Math.min(a, Math.PI / 2)]); }
+    const T = []; for (let i = 0, j = 0; i <= 64; i++) { const tt = t * i / 64; while (j < pts.length - 2 && pts[j + 1][0] < tt) j++; T.push(pts[j][1]); }
+    T[64] = Math.PI / 2; return T;
+  })();
+  function fallPose(f, el) {
+    const w = f.w, T = f.T;
+    if (el < w) { const k = el / w; return { th: 0.06 * k * k + Math.sin(el * 41) * 0.011 * (1 - 0.6 * k), lag: 0, roll: 0, ph: 0 }; }
+    const u = (el - w) / T;
+    if (u < 1) { const x = u * 64, i = Math.min(63, x | 0), th = PEND[i] + (PEND[i + 1] - PEND[i]) * (x - i), om = (PEND[i + 1] - PEND[i]) * 64 / T; return { th, lag: om * 7, roll: 0, ph: 1 }; }
+    const e = el - w - T, b = e < 0.2 ? 0.075 * Math.sin(e / 0.2 * Math.PI) : e < 0.36 ? 0.028 * Math.sin((e - 0.2) / 0.16 * Math.PI) : 0;
+    return { th: Math.PI / 2 - b, lag: -9 * Math.exp(-e * 6) * Math.cos(e * 21), roll: (f.r || 0.06) * (1 - Math.exp(-e * 8)), ph: 2 };
   }
-  function fallImpact(f, ux, uy) {
-    const K = f.s / ArtWorld.treeK(f.s), n = window.QUALITY === 'low' ? 2 : 4;
-    for (let i = 0; i < n; i++) { const h = (40 + i * 100 / n) * K; ArtWorld.fx.snowPuff(G.parts, f.x + ux * h, f.y + uy * h, 0.8); }
-    if (typeof Fx !== 'undefined' && Fx.shake) Fx.shake(4);
+  const LIE = { th: Math.PI / 2, lag: 0, roll: 0, ph: 3 };
+  // снег с ветвей: спрайт без снега для лежачей кроны (снег сверху рисуется отдельно, по месту) — один раз на спрайт, не больше одного за кадр
+  const NOSNOW = new WeakMap(); let nsBudget = 1;
+  function desnow(S) {
+    let c = NOSNOW.get(S); if (c) return c;
+    if (nsBudget <= 0 || LOWQ()) return null; nsBudget--;
+    try {
+      c = document.createElement('canvas'); c.width = S.width; c.height = S.height; const g = c.getContext('2d'); g.drawImage(S, 0, 0);
+      const im = g.getImageData(0, 0, c.width, c.height), d = im.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (!d[i + 3]) continue; const r = d[i], gg = d[i + 1], b = d[i + 2];
+        if (b > 140 && gg > 135 && b >= r - 4 && b - r < 70) { const k = 0.45 + 0.75 * (r + gg + b) / 765; d[i] = 48 * k; d[i + 1] = 92 * k; d[i + 2] = 66 * k; }
+      }
+      g.putImageData(im, 0, 0);
+    } catch (e) { c = S; }
+    NOSNOW.set(S, c); return c;
+  }
+  // полуширина кроны на высоте h (ед. спрайта): ель — конус, берёза/гарь — узко, кедр — шире
+  const crownR = (kind, h) => h < 10 ? 0 : (kind === 2 ? 52 : kind === 1 ? 20 : kind === 3 ? 10 : 44) * clamp(1 - (h - 14) / 150, 0.08, 1);
+  const TAU_ = Math.PI * 2;
+  // o: {x, y, a — куда лёг, s, kind, v, len, cut 0..1 — снято кроны от вершины, kl — доля ствола после разделки, snow, bury 0..1, al}
+  function drawFelled(o, P) {
+    const th = P.th, st = Math.sin(th), ct = Math.cos(th), cd = Math.cos(o.a), sd = Math.sin(o.a);
+    const tw = ArtWorld.treeW(o.kind), kd = o.len / 150 * dpr, X = (o.x - cam.x + shx) * dpr, Y = (o.y - cam.y + shy) * dpr;
+    // ось ствола на экране (на ед. высоты); к камере — ведём через бок, чтобы не схлопнулась в точку
+    let ux = cd * st, uy = -ct + 0.6 * sd * st; if (sd > 0.3) ux += (cd >= 0 ? 1 : -1) * 0.42 * sd * Math.sin(2 * th);
+    const ul = Math.hypot(ux, uy) || 1, Ux = ux * kd, Uy = uy * kd, vx = -uy / ul, vy = ux / ul, ang = Math.atan2(Uy, Ux);
+    const Vx = vx * kd, Vy = vy * kd - P.roll * kd * 0.8 * st;   // поперёк: ширина кроны прежняя; перекат — наклон поперечника
+    const s = o.s || 1, cut = o.cut || 0, hc = 160 - cut * 154, hEnd = 150 * (o.kl == null ? 1 : o.kl), lie = st * st;
+    // смещение оси на высоте h: подъём над снегом (крона держит ствол), отставание/хлёст кроны поперёк хода
+    const mx = cd * ct, my = st + 0.6 * sd * ct, ml = Math.hypot(mx, my) || 1, arch = 6 * s * (1 - cut) * lie;
+    const off = h => { const z = (4.2 * s + arch * Math.pow(Math.sin(Math.PI * clamp(h / 155, 0, 1)), 0.7)) * lie * dpr, q = P.lag * (h / 160) * (h / 160) * dpr; return [-mx / ml * q, -z - my / ml * q]; };
+    const at = h => { const O = off(h); return [X + Ux * h + O[0], Y + Uy * h + O[1]]; };
+    const al = o.al == null ? 1 : o.al; if (al <= 0.01) return;
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    // тень на снегу вдоль ствола (лежит/почти лёг)
+    if (lie > 0.3) {
+      const a0 = [X, Y], a1 = [X + cd * st * kd * hEnd, Y + 0.6 * sd * st * kd * hEnd], w = (cut < 1 ? 26 : 7) * s * dpr;
+      cx.globalAlpha = 0.26 * al * lie; cx.save(); cx.translate((a0[0] + a1[0]) / 2, (a0[1] + a1[1]) / 2 + 3 * dpr); cx.rotate(Math.atan2(a1[1] - a0[1], a1[0] - a0[0]));
+      const Lh = Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) / 2 + 10 * dpr; cx.drawImage(SHADOW, -Lh, -w * 0.55, Lh * 2, w * 1.1); cx.restore();
+    }
+    cx.globalAlpha = al;
+    // голый ствол там, где кроны нет (обрублена) — от среза кроны до конца (рез или вершина)
+    const R = h => (4.2 + (1.6 - 4.2) * clamp(h / 150, 0, 1)) * s * dpr * 0.62 * (1 + 0.6 * lie);
+    if (hc < hEnd + 2) {
+      const h0 = Math.max(6, hc - 4), a0 = at(h0), a1 = at(hEnd), r0 = R(h0), r1 = R(hEnd);
+      cx.fillStyle = '#5b3d27'; cx.beginPath();
+      cx.moveTo(a0[0] + vx * r0, a0[1] + vy * r0); cx.lineTo(a1[0] + vx * r1, a1[1] + vy * r1); cx.lineTo(a1[0] - vx * r1, a1[1] - vy * r1); cx.lineTo(a0[0] - vx * r0, a0[1] - vy * r0); cx.closePath(); cx.fill();
+      const sg = vy >= 0 ? 1 : -1;   // тёмная кромка — к снегу (вниз по экрану), светлая — сверху
+      cx.strokeStyle = '#3a2618'; cx.lineWidth = r0 * 0.55; cx.beginPath(); cx.moveTo(a0[0] + vx * sg * r0 * 0.6, a0[1] + vy * sg * r0 * 0.6); cx.lineTo(a1[0] + vx * sg * r1 * 0.6, a1[1] + vy * sg * r1 * 0.6); cx.stroke();
+      cx.strokeStyle = '#8a6a45'; cx.lineWidth = Math.max(1, r0 * 0.32); cx.beginPath(); cx.moveTo(a0[0] - vx * sg * r0 * 0.5, a0[1] - vy * sg * r0 * 0.5); cx.lineTo(a1[0] - vx * sg * r1 * 0.5, a1[1] - vy * sg * r1 * 0.5); cx.stroke();
+      if (lie > 0.8) { cx.fillStyle = '#3a2618'; for (let h = Math.max(24, hc); h < hEnd - 6; h += 15) { const q = at(h), r = R(h); cx.fillRect(q[0] - r * 0.22, q[1] - r * 1.15, r * 0.45, r * 0.5); } }   // пеньки сучьев
+      if ((o.kl != null && o.kl < 0.999) || cut >= 1) { cx.fillStyle = '#e0b47a'; cx.beginPath(); cx.ellipse(a1[0], a1[1], r1 * 0.6, r1, ang, 0, TAU_); cx.fill(); cx.fillStyle = '#c79a62'; cx.beginPath(); cx.ellipse(a1[0], a1[1], r1 * 0.24, r1 * 0.4, ang, 0, TAU_); cx.fill(); }   // свежий рез
+    }
+    // крона: срезы спрайта вдоль оси (SLICE), каждый — своим смещением; снятое обрубкой (выше hc) не рисуем
+    if (hc > 8) {
+      const S0 = treeSprite({ kind: o.kind, s, wall: false }, o.v), sc = S0.width / tw, ns = st > 0.3 ? desnow(S0) : null, kn = ns && ns !== S0 ? smooth(0.25, 1.15, th) : 0;
+      for (const [S, aa] of kn >= 1 ? [[ns, 1]] : kn > 0 ? [[S0, 1], [ns, kn]] : [[S0, 1]]) {
+        cx.globalAlpha = al * aa;
+        let hLo = 8, oLo = off(8);
+        for (let i = 1; i < SLICE.length && hLo < hc; i++) {
+          const hHi = Math.min(SLICE[i], hc), oHi = off(hHi), dh = hHi - hLo; if (dh < 0.5) { hLo = hHi; oLo = oHi; continue; }
+          const gx = (oHi[0] - oLo[0]) / dh, gy = (oHi[1] - oLo[1]) / dh, rHi = Math.max(0, Math.round((160 - hHi) * sc)), rLo = Math.min(S.height, Math.round((160 - hLo) * sc) + (i > 1 ? 1 : 0));
+          cx.setTransform(Vx, Vy, -(Ux + gx), -(Uy + gy), X + oLo[0] - hLo * gx, Y + oLo[1] - hLo * gy);
+          cx.drawImage(S, 0, rHi, S.width, rLo - rHi, -tw / 2, rHi / sc - 160, tw, (rLo - rHi) / sc);
+          hLo = hHi; oLo = oHi;
+        }
+      }
+      cx.globalAlpha = al; cx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    // торец комля (свежий спил) — лёжа виден
+    if (lie > 0.6) { const q = at(7), r = R(7); cx.globalAlpha = al * lie; cx.fillStyle = '#c79a62'; cx.beginPath(); cx.ellipse(q[0], q[1], r * 0.6, r, ang, 0, TAU_); cx.fill(); cx.fillStyle = '#8a6a45'; cx.beginPath(); cx.ellipse(q[0], q[1], r * 0.22, r * 0.38, ang, 0, TAU_); cx.fill(); cx.globalAlpha = al; }
+    // снег сверху (только лёжа): лёгкий, нарастает со временем; потом холмик заметает ствол целиком
+    if (P.ph >= 2) {
+      const sn = clamp(o.snow || 0, 0, 1), bu = o.bury || 0, top = Math.max(hEnd, Math.min(hc, 158));
+      cx.fillStyle = '#f4f8fb';
+      for (let h = 14; h < top - 4; h += 9) {
+        const cr = h < hc ? crownR(o.kind, h) * kd * 0.62 : 0, q = at(h), r = R(h), up = cr * (0.5 + 0.25 * P.roll) + r * 0.9, w = Math.max(cr * 0.7, r * 1.3) * (0.6 + 0.6 * sn);
+        cx.globalAlpha = al * (0.3 + 0.6 * sn) * (h < hc ? 0.8 : 1);
+        cx.beginPath(); cx.ellipse(q[0] + Ux * 2, q[1] - up, w * 0.55 + dpr, (1.1 + 2.2 * sn) * dpr * s, ang * 0.85, 0, TAU_); cx.fill();
+      }
+      if (bu > 0) {   // заметает: холмик растёт поверх, к концу сам сливается со снегом
+        const b = smooth(0, 0.7, bu), fade = 1 - smooth(0.82, 1, bu);
+        for (let h = 8; h < top; h += 10) {
+          const cr = h < hc ? crownR(o.kind, h) * kd * 0.6 : 0, q = at(h), r = R(h), w = Math.max(cr, r * 2.2) * (0.7 + 0.5 * b);
+          cx.globalAlpha = b * fade * 0.95; cx.fillStyle = (h / 10 | 0) % 2 ? '#eef3f8' : '#f6f9fc';
+          cx.beginPath(); cx.ellipse(q[0], q[1] - r * 0.4, w, w * 0.42 + 2 * dpr, ang * 0.5, 0, TAU_); cx.fill();
+        }
+      }
+    }
+    cx.globalAlpha = 1; WT();
+    // в падении — снег с кроны (хлопья с высоты); удар — облачка по всей длине (fallImpact)
+    if (P.ph === 1 && state === 'play' && th > 0.25 && o.kind !== 3) {
+      const kk = o.len / 150;
+      FX.emit('fall' + o.x + ',' + o.y, LOWQ() ? 8 : 26, (parts, r) => { const h = 40 + r() * 110, z = h * ct * kk, gx = o.x + cd * st * h * kk, gy = o.y + 0.6 * sd * st * h * kk, w = crownR(o.kind, h) * kk;
+        parts.push({ type: 'bit', kind: 'snow', c: r() < 0.6 ? '#f6f9fc' : '#dde6ee', x: gx + (r() - 0.5) * w, y: gy + (r() - 0.5) * 4, vx: 0, vy: 0, ux: (r() - 0.5) * 30, uy: (r() - 0.5) * 8, uz: r() * 10, gz: 200, z0: Math.max(4, z), sz: 1.2 + r() * 1.3, rot: 0, spin: 0, life: 2.2, max: 2.2 }); });
+    }
+  }
+  // удар о землю (один раз на падение): облачка снега по всей длине ствола; тряска — у деревьев посёлка (у героя — Actions)
+  const HITF = new WeakSet();
+  function fallImpact(o, own) {
+    if (HITF.has(o)) return; HITF.add(o);
+    const n = LOWQ() ? 3 : 7, cd = Math.cos(o.a), sd = Math.sin(o.a);
+    for (let i = 0; i < n; i++) { const k = (0.12 + 0.88 * i / (n - 1)) * o.len; ArtWorld.fx.snowPuff(G.parts, o.x + cd * k, o.y + 0.6 * sd * k, i > n / 2 ? 0.9 : 0.6); }
+    if (!own && typeof Fx !== 'undefined' && Fx.shake) Fx.shake(3);
+  }
+  // ствол героя: всё состояние — в L (сейв), рендер один и тот же
+  const LOGV = new WeakMap();
+  function drawLog(L) {
+    let o = LOGV.get(L); if (!o) { o = { x: L.x, y: L.y, kind: L.kind, s: L.s, v: treeV({ kind: L.kind, wall: false, v: L.v || 0, x: L.x, y: L.y }) }; LOGV.set(L, o); }
+    o.a = L.a; o.len = L.len; o.cut = Actions.logCut(L); o.kl = L.n0 && L.n < L.n0 ? Actions.logK(L) : null;
+    o.snow = clamp((G.time - (L.t0 || 0)) / (CYCLE * 1.5), 0, 0.7); o.bury = Actions.logSnow(L); o.al = 1 - smooth(0.55, 0.9, o.bury) * 0.999;
+    let P = LIE; if (L.f) { P = fallPose(L.f, L.f.t); if (L.f.hit) fallImpact(o, true); }
+    drawFelled(o, P);
+  }
+  // деревья людей посёлка: падают от рубщика, лежат FALL_LIE с и уходят (ствол унесли), лапник остаётся на снегу (G.lap)
+  const FALL = [], FALL_LIE = 22;
+  if (typeof Interact !== 'undefined') Interact.on('fell', ev => {
+    const t = ev.target; if (!t || t.stage === 1 || ev.log) return;
+    const w = ev.who, d = (ev.dir != null ? ev.dir : w ? Math.atan2(t.y - w.y, t.x - w.x) : 0) + (Math.random() - 0.5) * 0.5;
+    if (FALL.length >= 6) FALL.shift();
+    const len = 150 * t.s / ArtWorld.treeK(t.s) * tjit(t);
+    FALL.push({ x: t.x, y: t.y, kind: t.kind, s: t.s, v: treeV(t), a: d, len, t0: now, w: 0.3, T: 0.9 + Math.random() * 0.4, r: 0.05 });
+    G.lap = G.lap || [];
+    for (const k of [0.45, 0.7]) for (const sg of [1, -1]) { const c = Math.cos(d), sn = Math.sin(d) * 0.6; if (G.lap.length < 48) G.lap.push({ x: Math.round(t.x + c * len * k - sn * sg * 9), y: Math.round(t.y + sn * len * k + c * sg * 6), a: +(d + sg * 0.5).toFixed(2), s: t.s, t: G.time }); }
+  });
+  function drawFall(f) {
+    const el = now - f.t0, P = fallPose(f, el); if (P.ph >= 2) fallImpact(f, false);
+    f.al = clamp((f.w + f.T + FALL_LIE - el) / 3, 0, 1); f.snow = 0; f.cut = 0; f.kl = null; f.bury = 0;
+    drawFelled(f, P);
   }
   function tickFalls() {
-    for (let i = FALL.length - 1; i >= 0; i--) { const f = FALL[i]; if (f.log ? !fallLive(f) && now - f.t0 > FALL_T : now - f.t0 > FALL_T + FALL_LIE) FALL.splice(i, 1); }
+    nsBudget = 1;
+    for (let i = FALL.length - 1; i >= 0; i--) { const f = FALL[i]; if (now - f.t0 > f.w + f.T + FALL_LIE) FALL.splice(i, 1); }
     if (FALL.length && now < FALL[FALL.length - 1].t0) FALL.length = 0;
   }
-  const spriteLog = L => FALL.some(f => f.log === L && fallLive(f));
+  // точка сортировки лежачего: нижний (ближний к камере) конец
+  const fallY = o => Math.max(o.y, o.y + Math.sin(o.a) * o.len * 0.6) - 2;
   // спрайты рендера — в общем кэше ArtWorld: та же ступень зума, бюджет печи за кадр, чистка старых ступеней
   const spr = (k, w, h, ox, oy, paint, sc) => ArtWorld.sprite('gfx:' + k, w, h, g => { g.translate(ox, oy); paint(g); }, sc);
   const MI8 = () => spr('mi8s', 320, 210, 160, 140, g => ArtWorld.paintMi8(g, 'static')); // корпус без живых частей (js/live.js)
@@ -740,10 +862,11 @@ const GFX = (() => {
     for (const o of Zones.OBJS) if (o.type === 'steam' && near(o.x, o.y, 40)) ArtZones.steamGround(cx, o, ENV);
     for (const f of G.fallen || []) if (near(f.x, f.y, 140)) ArtZones.fallenLog(cx, f);
     // от работы: сучья у разделанных стволов, чурки на снегу, пустые банки (исчезают через полсуток)
-    for (const c of G.chunks || []) if (near(c.x, c.y, 30)) ArtWorld.chunk(cx, c.x, c.y, c.a);
+    for (const q of G.lap || []) if (near(q.x, q.y, 40)) ArtWorld.lapnik(cx, q, (G.time - q.t) / (CYCLE * Actions.FELL.bury));
+    // чурка отваливается от ствола и откатывается (fx,fy — где отрезана, 0.45 с)
+    for (const c of G.chunks || []) if (near(c.x, c.y, 30)) { const e = c.fx != null ? clamp((G.time - c.t) / 0.45, 0, 1) : 1, k = 1 - (1 - e) * (1 - e);
+      if (e >= 1) ArtWorld.chunk(cx, c.x, c.y, c.a); else ArtWorld.chunk(cx, c.fx + (c.x - c.fx) * k, c.fy + (c.y - c.fy) * k - 4 * Math.sin(Math.PI * Math.min(1, e * 1.6)) * (1 - e), c.a + (1 - k) * 3 * Math.sign(c.x - c.fx || 1)); }
     if (G.litter) { for (let i = G.litter.length - 1; i >= 0; i--) if (G.time - G.litter[i].t > CYCLE * 0.5) G.litter.splice(i, 1); for (const q of G.litter) if (near(q.x, q.y, 20)) ArtWorld.emptyCan(cx, q.x, q.y, q.a); }
-    // срубленные ели лежат на снегу (после удара — слой земли)
-    for (const f of FALL) if (now - f.t0 >= FALL_T) { if (near(f.x, f.y, 180)) drawFall(f); else f.hit = 1; }
   }
 
   // ---------- тени по солнцу: единственный источник направленной тени ----------
@@ -1120,7 +1243,7 @@ const GFX = (() => {
     const L = [];
     const vis = (x, y) => x > x0 && x < x1 && y > y0 && y < y1;
     for (const t of treesNear(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 220)) if (vis(t.x, t.y)) L.push([t.y, 0, t]);
-    for (const f of FALL) if (now - f.t0 < FALL_T) L.push([f.y, 36, f]);
+    for (const f of FALL) if (vis(f.x, f.y) || vis(f.x + Math.cos(f.a) * f.len, f.y + Math.sin(f.a) * f.len * 0.6)) L.push([fallY(f), 36, f]);
     for (const hh of G.hares) if (vis(hh.x, hh.y)) L.push([hh.y, 1, hh]);
     for (const w of G.wolves) if (vis(w.x, w.y)) L.push([w.y, 2, w]);
     for (const f of G.fires) if (vis(f.x, f.y)) L.push([f.y, 3, f]);
@@ -1143,7 +1266,7 @@ const GFX = (() => {
       if (G.col.ghost) L.push([G.col.ghost.y + BUILDS[G.col.ghost.type].h / 2, 28]);
     }
     for (const a of G.amuletsAt || []) if ((!a.got || Actions.grabbing(a)) && vis(a.x, a.y)) L.push([a.y, 25, a]);
-    for (const lg of G.logs || []) if (vis(lg.x, lg.y) || vis(lg.x + Math.cos(lg.a) * lg.len, lg.y)) L.push([Math.max(lg.y, lg.y + Math.sin(lg.a) * lg.len * 0.6 * Actions.logK(lg)) - 2, 37, lg]);
+    for (const lg of G.logs || []) if (vis(lg.x, lg.y) || vis(lg.x + Math.cos(lg.a) * lg.len, lg.y + Math.sin(lg.a) * lg.len * 0.6)) L.push([lg.f && !lg.f.hit ? lg.y : fallY(lg), 37, lg]);
     // зоны: объекты, глыбы, транспорт на стоянке (верхом — рисуется с героем)
     for (const o of Zones.OBJS) if (o.type !== 'steam' && o.x > x0 - 120 && o.x < x1 + 120 && o.y > y0 && o.y < y1 + 120) L.push([o.y, 32, o]);
     for (const q of Space.rocks.near(cam.x + vw / 2, cam.y + vh / 2, Math.max(vw, vh) / 2 + 100)) if (vis(q.x, q.y)) L.push([q.y, 33, q]);
@@ -1186,7 +1309,7 @@ const GFX = (() => {
         case 35: drawNpc(o); break;
         case 36: drawFall(o); break;
         case 38: drawSinker(o); break;
-        case 37: ArtWorld.felledLog(cx, o, Actions.logK(o), spriteLog(o)); break;
+        case 37: drawLog(o); break;
         case 34: if (o === 'buran') ArtZones.buran(cx, G.veh.buran, ENV, false); else ArtZones.deerSled(cx, G.veh.deer, ENV); break;
       }
       if (SNOWK) Snow.after(cx, k, o); // шапка снега поверх вещи (js/snow.js)
@@ -1460,6 +1583,7 @@ const GFX = (() => {
     // для замеров (tests): сколько кусков в очереди печи
     get bakeQueue() { return bakeQ.length; }, bakeMax(reset) { const v = bakeMax; if (reset) bakeMax = 0; return v; },
     dropChunks() { chunks.clear(); bakeQ = []; },
+    tjit, fallPose,   // размер ели ±7 % (длина ствола = видимой ели); поза валки — для проверок (tests/tree-check.js)
     // память кэшей (замеры): куски снега по ступеням + спрайты ArtWorld
     stats() {
       const by = {}; for (const e of chunks.values()) { const k = e.s + '/' + e.cs; by[k] = (by[k] || 0) + 1; }
