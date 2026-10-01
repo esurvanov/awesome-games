@@ -150,7 +150,8 @@ var ArtPeople = (function () {
   const RA0 = [0.05, 0.21], RA1 = [-0.06, 0.19];
   const hipY = v => -2 + (v + 2) * KL;
   const hipD = () => (P.hyD ? P.hy : hipY(P.hy));   // таз на экране в координатах рига
-  const P = { lg0: [0, 0, 0, 0, 0, 0, 0, 0, 0], lg1: [0, 0, 0, 0, 0, 0, 0, 0, 0], ar0: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ar1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };   // lg — экранные таз/колено/щиколотка нарисованных ног + углы бедра/голени и стопы (>0 — носок вниз) в риге (для проверок, tests/gait-angles.js); ar — экранные плечо/локоть/запястье/кончик варежки нарисованной руки + угол плеча, сгиб локтя, плечо→запястье в риге (tests/arm-check.js)
+  const P = { lg0: new Array(14).fill(0), lg1: new Array(14).fill(0), ar0: new Array(13).fill(0), ar1: new Array(13).fill(0), pts: new Array(20).fill(0) };   // lg — экранные таз/колено/щиколотка нарисованных ног + углы бедра/голени и стопы (>0 — носок вниз) в риге (для проверок, tests/gait-angles.js); ar — экранные плечо/локоть/запястье/кончик варежки нарисованной руки + угол плеча, сгиб локтя, плечо→запястье в риге, масштаб варежки (tests/arm-check.js);
+  // lg[9..13] — носок, точка снега под стопой (экран), опора 1/0 — для кромки снега по ногам (gfx sunk); pts — 10 точек тела на экране (голова…кисти) — для «за препятствием»
   function reset() {
     P.hx = 0; P.hy = -17.2; P.hyD = 0; P.lean = 0.04; P.tilt = 0; P.br = 0;
     P.f0x = 1.3; P.f0y = -2; P.f0a = 0; P.f1x = -1.6; P.f1y = -2; P.f1a = 0;
@@ -162,7 +163,7 @@ var ArtPeople = (function () {
     P.trail = null; P.held = null; P.held2 = null; P.tlat = null; P.belt = 0; P.taT = null; P.staff = 0; P.carry = 0; P.smoke = 0; P.spark = 0; P.zz = 0;
     P.st0 = P.st1 = -1; P.q0 = P.q1 = 0; P.u0 = P.u1 = 0; P.pk = 0;   // опора стоп из походки (−1 — поза без шага); pk — стопы закреплены (planting); u — доля опоры
     P.rx0 = P.rx1 = 0; P.ob = 0; P.roll = 0; P.prot = 0; P.tw = 0;   // шаг: перекат стопы (x щиколотки), наклон таза, крен корпуса, скрут таза/плеч (рад)
-    P.hlat = 0; P.bz = 0; P.dLean = 0; P.dDip = 0; P.hlag = 0; P.pkx = 0; P.pky = 0; P.axw = 0; P.clx = 0; P.cly = 0; P.pom = 0; P.cover = 0;   // cover — пурга: доля «рука у лица» (art-poses shield); этап 4: таз вбок к опорной ноге, вдох (плечи вверх), инерция корпуса/головы/рюкзака (для проверок)
+    P.hlat = 0; P.bz = 0; P.dLean = 0; P.dDip = 0; P.hlag = 0; P.pkx = 0; P.pky = 0; P.pka = 0; P.axw = 0; P.clx = 0; P.cly = 0; P.pom = 0; P.cover = 0;   // cover — пурга: доля «рука у лица» (art-poses shield); этап 4: таз вбок к опорной ноге, вдох (плечи вверх), инерция корпуса/головы/рюкзака (для проверок)
   }
   function shoulder() { P.sx = P.hx + Math.sin(P.lean) * SHO; P.sy = hipD() - Math.cos(P.lean) * SHO; }
   function handA(i, ang, d) { const x = P.sx + Math.cos(ang) * d, y = P.sy + Math.sin(ang) * d; if (i) { P.h1x = x; P.h1y = y; } else { P.h0x = x; P.h0y = y; } }
@@ -197,6 +198,9 @@ var ArtPeople = (function () {
   // S — доля фронтальности (0 профиль, 1 анфас/спина), LS — куда уходит ближний бок: −1 в ¾ к камере
   // (ближний бок назад по ходу), +1 в ¾ со спины; LZ — ближний к камере бок ниже на экране
   let X0 = 0, Y0 = 0, FC = 1, K = 1, S = 0, SY = 0, CR = 1, SR = 0, QX = 0, QY = 0, BACK = false, FRONT = false, LS = -1, LZ = 0;
+  // ракурс ног (…L) и корпуса (FC, S, K, SY, LS, LZ) раздельно: ноги разворачиваются сразу, корпус — пружиной (полураспад VLAG),
+  // сторона при развороте у корпуса — на TLAG позже; между тазом и плечами — смешение по высоте (VSPL — ракурсы различаются)
+  let FCL = 1, SL = 0, KL2 = 1, SYL = 0, LSL = -1, LZL = 0, TWL = 0, VSPL = false;
   const B34 = 0.4, LEGW = 3.3;                      // базовый поворот ¾ к камере при ходьбе/работе боком
   const kOf = s => 1 - 0.82 * s * s;    // сжатие оси «вперёд» ~cos поворота
   // SHX/SHY — крен корпуса внутрь поворота (сдвиг на px высоты над тазом); P.hlat — таз и корпус вбок к опорной ноге
@@ -204,7 +208,9 @@ var ArtPeople = (function () {
   function pr(fx, y, lat) {
     lat += P.hlat;
     if (P.roll) { const h = P.hy - y; if (h > 0) lat += P.roll * Math.min(h, SHO); }   // крен корпуса к опорной ноге (голова — с плечами, не валится)
-    let X = FC * (fx * K + lat * S * LS), Y = y + fx * SY + lat * LZ;
+    let k = K, s = S, sy = SY, ls = LS, lz = LZ;
+    if (VSPL) { const w = clamp((P.hy - y) / SHO, 0, 1); if (w < 1) { k = KL2 + (K - KL2) * w; s = SL + (S - SL) * w; sy = SYL + (SY - SYL) * w; ls = LSL + (LS - LSL) * w; lz = LZL + (LZ - LZL) * w; } }   // таз — как ноги, плечи — как корпус
+    let X = FC * (fx * k + lat * s * ls), Y = y + fx * sy + lat * lz;
     if (SHX || SHY) { const h = P.hy - y; X += SHX * h; Y += SHY * h; }
     if (P.rot) { const dx = X - P.pvx, dy = Y - P.pvy; X = P.pvx + dx * CR - dy * SR; Y = P.pvy + dx * SR + dy * CR; }
     QX = X0 + X + P.ox; QY = Y0 + Y + P.oy;
@@ -223,10 +229,11 @@ var ArtPeople = (function () {
   let TW = 0;
   function legAxes(vyv) {
     const w = WL, mx = Math.sqrt(Math.max(0, 1 - vyv * vyv));
-    let hx = FC * mx, hy = vyv;
-    if (TW > 0) { hx *= 1 - TW; hy = hy * (1 - TW) + TW * (BACK ? -1 : 1); const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l; }
-    GFX = lerp(FC * K, hx, w); GFY = lerp(SY, hy, w); GLX = FC * S * LS; GLY = LZ;
+    let hx = FCL * mx, hy = vyv;
+    if (TWL > 0) { hx *= 1 - TWL; hy = hy * (1 - TWL) + TWL * (BACK ? -1 : 1); const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l; }
+    GFX = lerp(FCL * KL2, hx, w); GFY = lerp(SYL, hy, w); GLX = FCL * SL * LSL; GLY = LZL;
   }
+  function prL(fx, y, lat) { const f = FC; FC = FCL; pr(fx, y, lat); FC = f; }   // точка ноги (тазобедренный сустав) — сторона ног
   function M(g, fx, y, lat) { pr(fx, y, lat); g.moveTo(QX, QY); }
   function Ln(g, fx, y, lat) { pr(fx, y, lat); g.lineTo(QX, QY); }
   function ell(g, x, y, rx, ry, col, r) { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, r || 0, 0, PI * 2); g.fill(); }
@@ -578,8 +585,10 @@ var ArtPeople = (function () {
   let CFG = false, TRL = null;   // CFG — идёт рисунок фигуры C; TRL — дуга маха (линии скорости кладутся поверх, вне контура)
   // контактная тень стопы: кэшированное радиальное пятно
   let CONT = null;
+  // SINK — фигура в снегу на столько px (gfx sunk): тени под ногами не рисуем — они под снегом (иначе серый клин у кромки)
+  let SINK = 0;
   function cont(g, x, y, rx, ry, a) {
-    if (CFG) return;
+    if (CFG || SINK > 2.5) return;
     if (CONT === null) {
       CONT = false;
       if (typeof document !== 'undefined') {
@@ -595,7 +604,7 @@ var ArtPeople = (function () {
   // ---------- кэш тени ----------
   let SHIMG = null;
   function shadow(g, x, y, w, h) {
-    if (CFG) return;
+    if (CFG || SINK > 2.5) return;
     if (SHIMG === null) {
       SHIMG = false;
       if (typeof document !== 'undefined') {
@@ -1476,7 +1485,8 @@ var ArtPeople = (function () {
   function drawPackV(g, L, T, back) {
     const { Hx, Hy, Nx, Ny, ux, uy, fnx, fny, B } = T, pk = L.packType, col = C(L.pack), dk = C(mix(L.pack, '#10141c', 0.35));
     // рюкзак висит на лямках: низ отстаёт/подскакивает сильнее верха (пружина, P.pkx/pky — смещение низа, px экрана)
-    const q = (a, of) => { const w = 1 - 0.65 * clamp(a, 0, 1.3); return [lerp(Hx, Nx, a) + fnx * of + P.pkx * w, lerp(Hy, Ny, a) + fny * of + P.pky * w]; };   // a — доля от таза к шее, of — вперёд (минус — за спину)
+    const ra = LQ ? 0 : P.pka;   // угол мешка (пружина): поворот вокруг верха у шеи
+    const q = (a, of) => { const w = 1 - 0.65 * clamp(a, 0, 1.3), x = lerp(Hx, Nx, a) + fnx * of + P.pkx * w, y = lerp(Hy, Ny, a) + fny * of + P.pky * w; return ra ? [x - ra * (y - Ny), y + ra * (x - Nx)] : [x, y]; };   // a — доля от таза к шее, of — вперёд (минус — за спину)
     const rot = Math.atan2(uy, ux) + PI / 2, ctr = back || S >= 0.55, ow = ctr ? 0 : 1;
     if (pk === 'sack') {
       const sk = HERO ? lerp(0.82, 1.12, HFILL) : 1, c = ctr ? q(0.5 * sk, 0) : q(0.52 * sk, -B - 2.4 * sk), rx = (ctr ? 5.3 : 3.5) * sk, ry = (ctr ? 5.4 : 5.2) * sk;
@@ -1596,7 +1606,7 @@ var ArtPeople = (function () {
     if (P.pk) { const d = Math.hypot(fx - hx, fy - hy), mx = TH + SHN - 0.02; if (d > mx) { const k = Math.min(1 + 0.12 * WL, d / mx + 0.001); l1 *= k; l2 *= k; } }
     ik(hx, hy, fx, fy, l1, l2, -1);
     const kx = KX, ky = KY, ax = EX, ay = EY, lk = lat;
-    const LG = i ? P.lg1 : P.lg0; pr(hx, hy, lat0 * 0.9); LG[0] = QX; LG[1] = QY; lp(kx, ky, lk); LG[2] = QX; LG[3] = QY; lp(ax, ay, lat); LG[4] = QX; LG[5] = QY; LG[6] = Math.atan2(ky - hy, kx - hx); LG[7] = Math.atan2(ay - ky, ax - kx); LG[8] = fa;
+    const LG = i ? P.lg1 : P.lg0; prL(hx, hy, lat0 * 0.9); LG[0] = QX; LG[1] = QY; lp(kx, ky, lk); LG[2] = QX; LG[3] = QY; lp(ax, ay, lat); LG[4] = QX; LG[5] = QY; LG[6] = Math.atan2(ky - hy, kx - hx); LG[7] = Math.atan2(ay - ky, ax - kx); LG[8] = fa;
     // бедро 4.2 → колено 3.6 → голень 3.3 (к снегу темнее); валенок 3.8 — от середины голени
     taper(g, LG[2], LG[3], LG[4], LG[5], 3.6, 3.3, C(near ? L.pantsLow : L.pantsFarLow));   // голень под бедром: колено — светлым концом бедра
     taper(g, LG[0], LG[1], LG[2], LG[3], 4.2, 3.7, C(near ? L.pants : L.pantsFar));
@@ -1606,6 +1616,7 @@ var ArtPeople = (function () {
     if (L.knee && near && !LQ) { g.globalAlpha = 0.85; ell(g, LG[2] + 0.3, LG[3] + 0.4, 2, 1.6, C(L.knee), LG[7] + 0.3); g.globalAlpha = 1; }   // наколенник
     lp(lerp(kx, ax, bh), lerp(ky, ay, bh), lerp(lk, lat, bh)); const bx = QX, by = QY;
     lp(ax + Math.cos(fa) * 3.1, ay + 1.1 + Math.sin(fa) * 3.1, lat); const tx = QX, ty = QY;
+    LG[9] = tx; LG[10] = ty; lp(ax, 0, lat); LG[11] = QX; LG[12] = QY; LG[13] = (i ? P.st1 : P.st0) === 1 ? 1 : 0;   // носок, снег под щиколоткой, опора
     if (L.bootH != null) { g.fillStyle = bc; g.beginPath(); taperP(g, bx, by, LG[4], LG[5], bw, 3.8); taperP(g, LG[4], LG[5], tx, ty, 3.8, 3.3); g.fill(); }
     else { taper(g, bx, by, LG[4], LG[5], bw, 3.8, bc); taper(g, LG[4], LG[5], tx, ty, 3.8, 3.3, bc); }
     g.globalAlpha = 0.35; g.fillStyle = C(mix(L.boots, '#10141c', 0.4)); g.fillRect(bx - 1.8, by - 0.2, 3.6, 0.7); g.globalAlpha = 1;   // край голенища
@@ -1620,20 +1631,33 @@ var ArtPeople = (function () {
   // рука: IK от плечевого сустава (joint); рукав пуховика сужается от плеча к обшлагу, верх рукава — плоский овал поперёк корпуса
   // (плечо куртки, не вращается с рукой), а не круглая «шляпка» на конце трубки; рукав начинается чуть ниже сустава (плечо не торчит
   // над воротом); варежка ≈0.09 H.
-  // ADEP — рука свободна (ходьба/покой, без предмета): в виде со спины/анфас мах вперёд-назад уходит в глубину — ход «вперёд» на экране
-  // сжат сильнее корпуса (AKA), вертикаль от глубины (SY) остаётся: кисть впереди со спины чуть выше, в анфас — ниже; кисть впереди — к середине
-  const ADEP = [0, 0], AL = [0, 0, 0];
-  let AKA = 1, ARL = 0;
+  // ADEP — рука свободна (ходьба/покой, без предмета): в виде со спины/анфас мах вперёд-назад уходит в глубину. Проекция честная:
+  // вынос по глубине на экране x — как у корпуса (сжатие AKA ≥ 0.3, было 0.18 — иначе кисть бега уходит наружу), по y — глубина × sin φ (φ ≈ 0.5: камера сверху ¾, ASY):
+  // кисть к камере — ниже и чуть крупнее (AMS = 1 + 0.05·d/FA), от камеры — выше, но варежка не выше ≈0.6 длины руки под плечом
+  // (кисть опускается, локоть раскрывается — рука не «подогнута»); локоть к камере — чуть наружу
+  const ADEP = [0, 0], AL = [0, 0, 0], APHI = 0.55, ALIM = 0.46;
+  let AKA = 1, ARL = 0, ASY = 0, AMS = 1;
   // крен корпуса (P.roll): рука висит с плеча — вся рука сдвигается вбок вместе с плечевым суставом (ARL), а не скашивается по высоте,
   // как корпус в pr (иначе предплечье, ушедшее в глубину, на экране ломается вбок)
   function pq(fx, y, lat) { const r = P.roll; P.roll = 0; pr(fx, y, lat + ARL); P.roll = r; }
-  function pa(fx, y, lat) { const f = JX + (fx - JX) * AKA; pq(f, y + (fx - f) * SY, lat); }
+  function pa(fx, y, lat) { const d = fx - JX, f = JX + d * AKA; pq(f, y + d * (ASY - AKA * SY), lat); }   // экран: y + JX·SY + d·ASY
   function armSolve(i, far) {   // KX,KY — локоть, EX,EY — кисть (в риге); AL — вбок: плечо, локоть, кисть
-    const hx = i ? P.h1x : P.h0x, hy = i ? P.h1y : P.h0y, s = i ? -1 : 1, hl = i ? P.hl1 : P.hl0, d = ADEP[i];
-    joint(hx, hy, i); ik(JX, JY, hx, hy, UA, FA, 1);
-    AKA = 1 - d * 0.82 * sm((S - 0.4) / 0.55); ARL = P.roll * clamp(P.hy - JY, 0, SHO);
-    const fw = Math.max(0, EX - JX);
-    AL[0] = s * 6; AL[1] = s * (6.5 + (far ? 2.2 * S : 0) + d * (0.5 - 0.05 * fw)); AL[2] = s * (hl + (hl > 5 ? d * (0.2 - 0.12 * fw) : 0));   // рука за корпусом — локоть наружу, чтобы читался; свободная — локоть чуть в сторону (пуховик)
+    const s = i ? -1 : 1, hl = i ? P.hl1 : P.hl0, d = ADEP[i], wv = d * sm((S - 0.4) / 0.55), sg = SY >= 0 ? 1 : -1;
+    let hx = i ? P.h1x : P.h0x, hy = i ? P.h1y : P.h0y;
+    joint(hx, hy, i);
+    AKA = 1 - 0.7 * wv; ASY = lerp(SY, sg * APHI, wv); ARL = P.roll * clamp(P.hy - JY, 0, SHO);
+    ik(JX, JY, hx, hy, UA, FA, 1);
+    if (wv > 0 && sg * (EX - JX) < 0) {   // мах от камеры: запястье на экране не выше ALIM·(плечо+предплечье) под точкой плеча (как в arm)
+      const dr = 0.7 + 1.2 * S * S, lim = ALIM * (UA + FA), ys = () => { pa(JX - Math.sin(P.lean) * dr, JY + Math.cos(P.lean) * dr, 0); const y0 = QY; pa(EX, EY, 0); return QY - y0; };
+      if (ys() < lim) {   // кисть ведём к «рука висит» (под суставом), пока не опустится до предела: половинным делением доли пути
+        const ax = EX, ay = EY, bx = JX + 0.4 * (EX - JX), by = JY + UA + FA - 0.3; let lo = 0, hi = 1;
+        for (let k = 0; k < 7; k++) { const t = (lo + hi) / 2; ik(JX, JY, lerp(ax, bx, t), lerp(ay, by, t), UA, FA, 1); if (ys() < lim) lo = t; else hi = t; }
+        const t = hi * wv; ik(JX, JY, lerp(ax, bx, t), lerp(ay, by, t), UA, FA, 1);
+      }
+    }
+    AMS = 1 + 0.05 * wv * clamp(sg * (EX - JX) / FA, -1.2, 1.2);
+    const fw = Math.max(0, EX - JX), ke = wv * 0.3 * Math.max(0, sg * (KX - JX)) / UA;
+    AL[0] = s * 6; AL[1] = s * (6.5 + (far ? 2.2 * S : 0) + d * (0.5 - 0.05 * fw) + ke); AL[2] = s * (hl + (hl > 5 ? d * (0.2 - 0.12 * fw) : 0));   // рука за корпусом — локоть наружу, чтобы читался; свободная — локоть чуть в сторону (пуховик)
   }
   // экранные плечо/локоть/запястье руки i без побочных эффектов (для тени руки на корпусе); ASH — чья тень ляжет на куртку
   const AQ = [0, 0, 0, 0, 0, 0], ASH = [0, 0];
@@ -1654,13 +1678,13 @@ var ArtPeople = (function () {
     // (предплечье в глубину — варежка короче на экране, а не «крючок» вдоль короткого отрезка)
     const dx = wx - e0, dy = wy - e1, dl = Math.hypot(dx, dy) || 1;
     pa(EX + (EX - ex) / FA * MT, EY + (EY - ey) / FA * MT, AL[2]); const tx = QX - wx, ty = QY - wy, tl = Math.hypot(tx, ty);
-    if (!up) ell(g, wx + tx * 0.42, wy + ty * 0.42, Math.max(1.75, 0.58 * tl), 1.75, C(near ? L.mitt : L.mittFar), Math.atan2(ty, tx));
+    if (!up) ell(g, wx + tx * 0.42, wy + ty * 0.42, Math.max(1.75, 0.58 * tl) * AMS, 1.75 * AMS, C(near ? L.mitt : L.mittFar), Math.atan2(ty, tx));   // AMS — ближе к камере крупнее
     const AR = i ? P.ar1 : P.ar0; AR[0] = sx; AR[1] = sy; AR[2] = e0; AR[3] = e1; AR[4] = wx; AR[5] = wy; AR[6] = wx + tx; AR[7] = wy + ty;
-    AR[8] = Math.atan2(ex - JX, ey - JY); AR[9] = Math.atan2(EX - ex, EY - ey) - AR[8]; AR[10] = Math.hypot(EX - JX, EY - JY); AR[11] = -(EY + (EY - ey) / FA * MT);   // кончик варежки над снегом (риг)
+    AR[8] = Math.atan2(ex - JX, ey - JY); AR[9] = Math.atan2(EX - ex, EY - ey) - AR[8]; AR[10] = Math.hypot(EX - JX, EY - JY); AR[11] = -(EY + (EY - ey) / FA * MT); AR[12] = AMS;   // кончик варежки над снегом (риг)
     const col = C(L.armSep ? (near ? L.sleeve : L.sleeveFar) : near ? L.body : L.far);
     g.fillStyle = col; g.beginPath();
     g.moveTo(kx + Math.cos(kr) * 2.55, ky + Math.sin(kr) * 2.55); g.ellipse(kx, ky, 2.55, 1.8, kr, 0, -PI * 2, true);   // та же намотка, что у taperP
-    taperP(g, sx, sy, e0, e1, 4.6, 3.8); if (!up) taperP(g, e0, e1, wx, wy, 3.7, 3.15); g.fill();
+    taperP(g, sx, sy, e0, e1, 4.6, 3.8); if (!up) taperP(g, e0, e1, wx, wy, 3.7 * (1 + (AMS - 1) * 0.5), 3.15 * AMS); g.fill();
     if (up) { if (near) { EP[0] = kx; EP[1] = ky; EP[2] = e0; EP[3] = e1; edges(g, 2, 3.9, C(L.armL), C(L.dark)); } pq(EX, EY, lat * hl); return; }
     if (near) { EP[0] = kx; EP[1] = ky; EP[2] = e0; EP[3] = e1; EP[4] = lerp(e0, wx, 0.7); EP[5] = lerp(e1, wy, 0.7); edges(g, 3, 3.9, C(L.armL), C(L.dark)); }
     if (!LQ) {   // складка на сгибе локтя (внутренняя сторона угла) и шов плеча — рукав, а не две трубки на кнопке
@@ -1746,7 +1770,7 @@ var ArtPeople = (function () {
   // Кисти — в полярных координатах от плеча (линейно кисть проходила бы сквозь плечо и выворачивала локоть),
   // угол инструмента — по кратчайшему пути.
   const MEM = new WeakMap(), BL = ['hx', 'hy', 'lean', 'tilt', 'f0x', 'f0y', 'f0a', 'f1x', 'f1y', 'f1a', 'sx', 'sy', 'hl0', 'hl1', 'hb', 'gap', 'hlat', 'rx0', 'rx1', 'roll', 'prot', 'tw', 'ob'];
-  const BLEND = 0.13, BLEND_HIT = 0.05, TURN = 0.24;
+  const BLEND = 0.13, BLEND_HIT = 0.05, TURN = 0.24, VLAG = 0.08, TLAG = 0.07;   // VLAG — полураспад ракурса корпуса за ногами, TLAG — корпус меняет сторону позже ног
   const HIT = { swing: 1, chop: 1, chopHeavy: 1, chopCold: 1, chopLow: 1, throw: 1, kick: 1, build: 1, dig: 1, shoot: 1, hurt: 1, flinch: 1, stagger: 1 };
   const wrapA = d => d - 2 * PI * Math.round(d / (2 * PI));   // (−π, π]
   function memOf(o) {
@@ -1764,7 +1788,7 @@ var ArtPeople = (function () {
   // усталость дыхания, пружины от движения в мире (наклон от ускорения, присед, крен в поворот, топор на ремне).
   // После смешивания (dynPost): прибавки к показанной позе (только ходьба/покой/возня — в работе поза как есть: топор бьёт в ствол),
   // вдох (плечи), запаздывание головы, рюкзак/ворот/помпон от шеи и головы. В low — без ворота, помпона, лямок.
-  const NSP = 11;
+  const NSP = 13;
   const FIDG = { stamp: 1, rubHands: 1, blowHands: 1, adjustPack: 1, lookAround: 1, wipeNose: 1, yawn: 1, stretch: 1, listen: 1, talkHero: 1, shiver: 1, brushSnow: 1 };
   const EXERT = { run: 1, chop: 0.85, chopHeavy: 0.85, chopCold: 0.8, chopLow: 0.85, dig: 0.8, trudge: 0.7, pry: 0.7, build: 0.5, shield: 0.4, pickUpHeavy: 0.6, swing: 0.6 };
   function spr(s, j, x, f, z, dt) {
@@ -1825,8 +1849,17 @@ var ArtPeople = (function () {
     const hx0 = P.lean + P.tilt, hl = scl(SPR(4, hx0, 3.6, 0.5) - hx0, 0.15); P.tilt += hl * 0.8; P.hlag = hl;
     // рюкзак: низ отстаёт от шеи (экран), от ускорения фигуры — назад/вперёд, на шаге — подскок с запаздыванием
     const TL = TORSO + P.bz, nX = P.hx + Math.sin(P.lean) * TL, nY = hipY(P.hy) - Math.cos(P.lean) * TL, xs = FC * K * nX, ys = nY + SY * nX;
-    P.pkx = scl(SPR(5, xs - scl(mm.ax * 6e-4, 1.2), 3.2, 0.45) - xs, 1.4);
-    P.pky = scl(SPR(6, ys - scl(mm.ay * 3e-4, 0.8), 5.5, 0.4) - ys, 1);
+    // герой (80 л): цель пружины — шея; от разгона — назад, от боковой скорости — чуть отстаёт (на остановке — перелёт),
+    // со спины/спереди — вбок за тазом на шаге (P.hlat, усилено: мешок на лямках раскачивается шире корпуса); пределы 3 / 2 px, угол — своя пружина ±4°
+    if (HERO) {
+      const sw = 3 * FC * S * LS * P.hlat, ia = -scl(mm.ax * 1.1e-3, 2.2) - scl(mm.vx * 6e-3, 1);   // раскачка на шаге (3.2 Гц) и рывок/скорость (4.8 Гц — пик ≈0.1 с)
+      P.pkx = scl(SPR(5, xs + sw, 3.2, 0.45) - xs + SPR(12, ia, 4.8, 0.42), 3);
+      P.pky = scl(SPR(6, ys - scl(mm.ay * 4e-4, 1), 5.5, 0.4) - ys, 2);
+      P.pka = scl(SPR(11, 0.028 * P.pkx, 2.6, 0.35), 0.07);
+    } else {
+      P.pkx = scl(SPR(5, xs - scl(mm.ax * 6e-4, 1.2), 3.2, 0.45) - xs, 1.4);
+      P.pky = scl(SPR(6, ys - scl(mm.ay * 3e-4, 0.8), 5.5, 0.4) - ys, 1); P.pka = 0;
+    }
     if (!LQ) {
       P.clx = 0.6 * scl(SPR(7, xs, 5, 0.35) - xs, 1.2); P.cly = 0.6 * scl(SPR(8, ys, 6, 0.35) - ys, 1.2);
       const hc = headC()[1]; P.pom = scl(SPR(10, hc, 3.5, 0.25) - hc, 1.3);
@@ -1981,24 +2014,32 @@ var ArtPeople = (function () {
     FC = o.face < 0 ? -1 : 1; GT = o.gait || null; WL = 0; TW = 0; LQ = typeof window !== 'undefined' && window.QUALITY === 'low';
     const vyv = isSag(anim) ? 0 : clamp(o.vy || 0, -1, 1);
     // ракурс: боком — ¾ к камере (B34), вниз — к анфасу, вверх — через профиль к спине
-    const b34 = anim === 'dead' ? 0 : B34, V = vyv >= 0 ? lerp(b34, 1, vyv) : b34 + vyv * (1 + b34);
-    S = Math.abs(V); K = kOf(S); SY = V * 0.3; LS = V < 0 ? 1 : -1; LZ = 0.36 * (1 - S); X0 = x; Y0 = y;
+    const b34 = anim === 'dead' ? 0 : B34, vOf = v => (v >= 0 ? lerp(b34, 1, v) : b34 + v * (1 + b34));
     const mm = memOf(o);
-    // спина/лицо: гистерезис −0.40/−0.30, чтобы при ходе почти вертикально не мигало (A11)
-    if (mm) { if (vyv < -0.4) mm.back = true; else if (vyv > -0.3) mm.back = false; if (vyv > 0.4) mm.front = true; else if (vyv < 0.3) mm.front = false; BACK = mm.back; FRONT = mm.front; }
+    // корпус догоняет ноги по ракурсу: пружина первого порядка, полураспад VLAG (ноги — сразу)
+    let vt = vyv;
+    if (mm) { const dt = mm.vtT == null ? NaN : clamp(t - mm.vtT, 0, 0.1); mm.vtT = t; if (mm.vt == null || !(dt >= 0)) mm.vt = vyv; else mm.vt += (vyv - mm.vt) * (1 - Math.pow(2, -dt / VLAG)); vt = Math.abs(mm.vt - vyv) < 1e-3 ? vyv : mm.vt; }
+    const V = vOf(vt), VL = vOf(vyv);
+    S = Math.abs(V); K = kOf(S); SY = V * 0.3; LS = V < 0 ? 1 : -1; LZ = 0.36 * (1 - S); X0 = x; Y0 = y;
+    SL = Math.abs(VL); KL2 = kOf(SL); SYL = VL * 0.3; LSL = VL < 0 ? 1 : -1; LZL = 0.36 * (1 - SL); FCL = FC; TWL = 0;
+    // спина/лицо (корпус): гистерезис −0.40/−0.30, чтобы при ходе почти вертикально не мигало (A11)
+    if (mm) { if (vt < -0.4) mm.back = true; else if (vt > -0.3) mm.back = false; if (vt > 0.4) mm.front = true; else if (vt < 0.3) mm.front = false; BACK = mm.back; FRONT = mm.front; }
     else { BACK = vyv < -0.35; FRONT = vyv > 0.35; }
     g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
-    // поворот: через лицо к камере (со спины — через спину), а не сжатием в полоску
+    // поворот: через лицо к камере (со спины — через спину), а не сжатием в полоску; ноги — сразу, корпус — на TLAG позже
     if (mm) {
       if (FC !== mm.face) { mm.fromFace = mm.face; mm.face = FC; mm.turnT = t; }
-      const k = (t - mm.turnT) / TURN;
-      if (k >= 0 && k < 1) {
-        const w = 1 - Math.abs(1 - 2 * k); TW = w;
-        if (k < 0.5) FC = mm.fromFace;
+      const tw = k => (k >= 0 && k < 1 ? 1 - Math.abs(1 - 2 * k) : 0), kl = (t - mm.turnT) / TURN, kt = (t - mm.turnT - TLAG) / TURN;
+      if (kl >= 0 && kl < 1) { const w = tw(kl); TWL = w; if (kl < 0.5) FCL = mm.fromFace; if (SL < w) { SL = w; KL2 = kOf(SL); LSL = BACK ? 1 : -1; LZL = 0.36 * (1 - SL); } }
+      if (kt < 1 && kl >= 0) {
+        const w = tw(kt); TW = w;
+        if (kt < 0.5) FC = mm.fromFace;
         if (S < w) { S = w; K = kOf(S); LS = BACK ? 1 : -1; LZ = 0.36 * (1 - S); }
         if (!BACK && w > 0.45) FRONT = true;
       }
     }
+    VSPL = FCL !== FC || Math.abs(SL - S) > 1e-3 || LSL !== LS;
+    P.vwL = vyv; P.vwT = vt; P.fcL = FCL; P.fcT = FC;   // для проверок (tests/body-lag.js)
     // оттенок
     TA = 0;
     if (o.wet) { TC = '#27394a'; TA = 0.2; }
@@ -2190,6 +2231,11 @@ var ArtPeople = (function () {
         g.fillStyle = 'rgba(246,249,252,' + ((FRONT ? 0.25 : 0.4) * (1 - e)).toFixed(2) + ')'; g.beginPath(); g.arc(QX, QY, 1 + e * 3.4, 0, PI * 2); g.fill();   // в анфас пар слабее — не закрывает лицо
       }
     }
+    { // точки тела на экране (голова, шея, грудь, таз, колени, щиколотки, кисти) — для проверки «за препятствием» (gfx)
+      const T = P.pts, hc = headC(); let j = 0; const put = () => { T[j++] = QX; T[j++] = QY; };
+      pr(hc[0], hc[1], 0); put(); const nx = P.hx + Math.sin(P.lean) * TORSO, ny = P.hy - Math.cos(P.lean) * TORSO; pr(nx, ny, 0); put(); pr((nx + P.hx) / 2, (ny + P.hy) / 2, 0); put(); pr(P.hx, P.hy, 0); put();
+      for (const A of [P.lg0[2], P.lg0[3], P.lg1[2], P.lg1[3], P.lg0[4], P.lg0[5], P.lg1[4], P.lg1[5], P.ar0[4], P.ar0[5], P.ar1[4], P.ar1[5]]) T[j++] = A;
+    }
     if (!CFG) finish(g, o, L, x, y, env);
     g.restore();
     TA = 0; GT = null;
@@ -2248,13 +2294,14 @@ var ArtPeople = (function () {
   // view() — ракурс текущей фигуры: −1 спиной к камере, 1 лицом, 0 боком (для поз, которые его учитывают)
   const H = { pack: () => ({ Hb: pkTop(1.5) * 14.6 - 2.2, d: pkW(4.2), fill: HFILL, kg: HPK }),
     face: () => FC, belt: k => (k === 'axe' && CL && CL.axeBelt ? (P.tk = 'axe', P.belt = 1, true) : false), P, PI, lerp, sm, clamp, seg, shoulder, handA, handR, foot, gait, idle, walk, run, limp, sit, stride, view: () => (BACK ? -1 : FRONT ? 1 : 0),
-    SHO, hipY, hip: hipD, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, MT, TORSO, KL }, armFK, swingArms, runW, REST, RR, RA: [RA0, RA1] };
+    SHO, hipY, hip: hipD, sink: () => SINK, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, MT, TORSO, KL }, armFK, swingArms, runW, REST, RR, RA: [RA0, RA1] };
   const DUR = { chop: 0.9, dig: 1.0, build: 0.7, swing: 0.45, shoot: 1.4, hurt: 0.6, dead: 1.2 };
   const ANIMS = ['idle', 'walk', 'run', 'limp', 'carry', 'talk', 'wave', 'chop', 'dig', 'fish', 'fishBite', 'build', 'swing', 'aim', 'shoot', 'sit', 'sleep', 'hurt', 'dead'];
   function register(name, spec) { POSE[name] = spec; if (spec.dur) DUR[name] = spec.dur; if (!ANIMS.includes(name)) ANIMS.push(name); }
   return {
     dbg: DBG, draw, LOOKS, HERO_LOOKS: HV, look, mix, stride, gaitFor, advance, register, POSE, H,
-    setDirector: f => { DIRECTOR = f; },   // постановщик разговора (js/talk.js): o (с key) → {anim, animT, o, emo, mouth, nod, blink} | null
+    setDirector: f => { DIRECTOR = f; },
+    setSink: v => { SINK = v || 0; },   // gfx sunk: фигура в снегу на v px (тени под снегом не рисуются, trudge — подъём стопы)   // постановщик разговора (js/talk.js): o (с key) → {anim, animT, o, emo, mouth, nod, blink} | null
     ANIMS,
     // длительности разовых циклов (сек) — для animT
     DUR,
