@@ -158,6 +158,45 @@ var TreeCheck = (() => {
         const h = (G.iceHoles || [])[G.iceHoles.length - 1]; Ice.reset && Ice.reset(); G.iceHoles = [];
         const c = onto(bx, Pn.y + 4, Pn.x - 4, Pn.y + 2); ok(Ice.active(), '8: герой на льду у пролома не провалился'); Ice.reset(); void h; void c;
         G.iceHoles = []; G.p.wetT = 0; }
+      // ---- 9: где ложатся части (js/tree3d.js boughRest/place): ветвь — не дальше длина + 0.5 м от места крепления на стволе,
+      //      ничто не дальше вершины + 1 м по оси, чурка — не дальше 1.5 м от места реза; разлёт у двух деревьев и двух сторон удара — разный,
+      //      повороты и откаты чурок — разные (не ряды)
+      { const Mx = Tree.M;
+        // герой с одной стороны ствола (side ±1) у места работы; обрубка и раскряжёвка напрямую (Tree.split)
+        const work = (L, side) => {
+          const p = P(), at = z => { const d = (z - L.hc) * L.k * Mx; return { x: L.x + Math.cos(L.a) * d, y: L.y + Math.sin(L.a) * d * 0.6 }; };
+          const stand = () => { const q = at(Tree.workZ(L)); p.x = q.x - Math.sin(L.a) * side * Mx; p.y = q.y + Math.cos(L.a) * side * Mx * 0.6; };
+          let g = 0; while ((L.cut || 0) < 1 && g++ < 6) { stand(); Tree.split(L, 'limb'); }
+          while (L.n > 0 && g++ < 60) { stand(); Tree.split(L, 'buck'); }
+          return G.chunks.filter(q => q.src === L.id);
+        };
+        // метрика части в осях ствола (м): u — вдоль от комля, v — поперёк
+        const uv = (L, q) => { const dx = (q.x - L.x) / Mx, dy = (q.y - L.y) / (0.6 * Mx), c = Math.cos(L.a), s = Math.sin(L.a); return { u: dx * c + dy * s, v: -dx * s + dy * c }; };
+        const check = (L, ps, tag) => {
+          const { S, k } = Tree.of(L), top = (S.H - L.hc) * k, r = { bMax: 0, wMax: 0, beyond: -9, n: ps.length };
+          for (const q of ps) {
+            const c = uv(L, q), boughy = q.kind === 'bough' || q.kind === 'branch', za = boughy ? S.wh[q.w].z : (q.z0 + q.z1) / 2, d = Math.hypot(c.u - (za - L.hc) * k, c.v);
+            r.beyond = Math.max(r.beyond, c.u - top);
+            if (boughy) { r.bMax = Math.max(r.bMax, d); ok(d <= q.len + 0.5, `9: ${tag}: ветвь легла в ${d.toFixed(2)} м от места крепления (длина ${q.len})`); }
+            else { r.wMax = Math.max(r.wMax, d); ok(d <= 1.5, `9: ${tag}: ${q.kind} легла в ${d.toFixed(2)} м от места реза`); }
+            ok(c.u <= top + 1, `9: ${tag}: ${q.kind} за вершиной на ${(c.u - top).toFixed(2)} м`);
+          }
+          const wd = ps.filter(q => q.kind === 'chunk'), angs = wd.map(q => q.ang - L.a), lat = wd.map(q => Math.abs(uv(L, q).v));
+          const sd = a => { const m = a.reduce((x, y) => x + y, 0) / (a.length || 1); return Math.sqrt(a.reduce((x, y) => x + (y - m) * (y - m), 0) / (a.length || 1)); };
+          r.angSd = +sd(angs).toFixed(2); r.latSd = +sd(lat).toFixed(2);
+          ok(wd.length < 3 || (r.angSd > 0.15 && r.latSd > 0.06), `9: ${tag}: чурки рядами (разброс поворота ${r.angSd}, отката ${r.latSd})`);
+          r.bMax = +r.bMax.toFixed(2); r.wMax = +r.wMax.toFixed(2); r.beyond = +r.beyond.toFixed(2); return r;
+        };
+        const fresh = i => { base(); const t = pickTree(i), L = fellIt(t); let k = 0; while (L && L.f && k++ < 400) frame(); return L; };
+        const off = (L, ps) => { const { S, k } = Tree.of(L); return ps.filter(q => q.kind === 'bough' || q.kind === 'branch').map(q => { const c = uv(L, q); return [c.u - (S.wh[q.w].z - L.hc) * k, c.v]; }); };
+        const differ = (a, b) => { const n = Math.min(a.length, b.length); let m = 0; for (let i = 0; i < n; i++) if (Math.hypot(a[i][0] - b[i][0], a[i][1] - b[i][1]) > 0.08) m++; return n ? m / n : 0; };
+        info.lay = {};
+        const L1 = fresh(6), keepL = JSON.parse(JSON.stringify(L1)), A1 = work(L1, 1); info.lay.t1r = check(L1, A1, 'дерево 1 справа');
+        G.chunks = []; G.logs = [Object.assign({}, keepL)]; const L1b = G.logs[0], A2 = work(L1b, -1); info.lay.t1l = check(L1b, A2, 'дерево 1 слева');
+        const ds = differ(off(L1, A1), off(L1b, A2)); info.lay.sideDiff = +ds.toFixed(2); ok(ds > 0.5, '9: удар с разных сторон — ветви легли так же: ' + ds.toFixed(2));
+        const L2 = fresh(8), B1 = work(L2, 1); info.lay.t2 = check(L2, B1, 'дерево 2');
+        const dt = differ(off(L1, A1), off(L2, B1)); info.lay.treeDiff = +dt.toFixed(2); ok(dt > 0.5, '9: два дерева — разлёт одинаковый: ' + dt.toFixed(2));
+        G.chunks = []; G.logs = []; }
       // ---- 6б: старые стволы сверх 8 — заметаются, не исчезают ----
       base(); { for (let i = 0; i < 10; i++) { const t = pickTree(4 + i); if (!t) break; const L = fellIt(t); let k = 0; while (L.f && k++ < 400) frame(); }
         const n = G.logs.length, bur = G.logs.filter(L => L.bury != null).length; info.logs = [n, bur];

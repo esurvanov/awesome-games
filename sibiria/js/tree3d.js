@@ -13,7 +13,9 @@
 //   { id, kind: 'butt' (комель) | 'chunk' (чурка) | 'top' (вершина с мелкими ветвями) | 'bough' (ветвь с хвоей) | 'branch' (голая ветвь, сухой сук), src — id ствола, tk — вид дерева, sk — класс формы, k — масштаб,
 //     len (м), diam (м, средний; d0/d1 — у торцов), vol (м³ твёрдого тела), mass (кг), bulk (м³ габарит, у лапника),
 //     x, y (px мира, центр), ang (рад, направление оси по земле), t (G.time появления), fx, fy (откуда отлетела — анимация),
-//     z0, z1 (участок ствола, м класса) · w, b (мутовка и ветвь — у лапника) }
+//     z0, z1 (участок ствола, м класса) · w, b (мутовка и ветвь — у лапника) · fz (м, высота отрыва над снегом) · pin: 1 — ветвь подмята, лежит под стволом }
+//   лапник: (fx, fy) — точка крепления на стволе, (x, y) — центр, ang — куда смотрит от основания (основание = центр − 0.45·длины по ang);
+//   L.hits — номер удара по стволу (ГСЧ разлёта, в сейве)
 //   Tree.parts(o) — из чего состоит дерево/ствол сейчас (то, что ещё не отделено); Tree.split(L, 'limb'|'buck') — отделить;
 //   Tree.whole(L) — масса и объём всего сваленного дерева; сумма частей = целое (пень — отдельно, остаётся в земле).
 //   Tree.take(part) — масса и объём части (кг, л); KG — прежнее «полено» 6 кг (единица печи и прогнозов).
@@ -162,11 +164,41 @@ const Tree = (() => {
   const massOf = list => list.reduce((a, p) => a + (p.fixed ? 0 : p.mass), 0);
   // точка ствола (класс z) → мир px
   const alongPx = (L, z) => { const d = (z - L.hc) * L.k * M; return { x: L.x + Math.cos(L.a) * d, y: L.y + Math.sin(L.a) * d * 0.6 }; };
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  function place(L, p, z, side) {
-    const q = alongPx(L, z), nx = -Math.sin(L.a) * 0.6, ny = Math.cos(L.a), nl = Math.hypot(nx, ny) || 1, sd = side * (7 + p.diam * M * 0.9 + rnd(0, 4));
-    p.fx = Math.round(q.x); p.fy = Math.round(q.y); p.x = Math.round(q.x + nx / nl * sd + rnd(-2, 2)); p.y = Math.round(q.y + ny / nl * sd * 0.6 + rnd(-1, 1) + 2);
-    p.ang = +(L.a + rnd(-0.5, 0.5)).toFixed(3);
+  // ---------- куда ложатся отделённые части (метры по земле: X → мир x/M, Y → мир y/(0.6·M)) ----------
+  // ГСЧ удара: своя на ствол и номер удара (L.hits — в сейве), без общего Math.random: каждое дерево и удар — свой разлёт
+  function hitRng(L) {
+    L.hits = (L.hits || 0) + 1; const id = L.id != null ? L.id | 0 : (Math.imul(L.x | 0, 73856093) ^ Math.imul(L.y | 0, 19349663));
+    return rng(Math.imul(id ^ 0x2c1b3c6d, 2654435761) ^ Math.imul(L.hits, 0x27d4eb2f) ^ ((L.sk | 0) * 131));
+  }
+  // направление удара по земле (ед.): от героя к месту на стволе; героя нет — случайная сторона поперёк оси
+  function strike(L, gx, gy, r) {
+    const p = typeof G !== 'undefined' && G.p;
+    if (p) { const dx = (gx - p.x) / M, dy = (gy - p.y) / (0.6 * M), l = Math.hypot(dx, dy); if (l > 0.05) return [dx / l, dy / l]; }
+    const sd = r() < 0.5 ? 1 : -1; return [-Math.sin(L.a) * sd, Math.cos(L.a) * sd];
+  }
+  // не внутрь стоящих стволов (и героя — для катящихся чурок): выталкиваем центр части из их круга (px мира)
+  function clear(x, y, rad, hero) {
+    const T = typeof G !== 'undefined' && G.trees || [], tr = typeof World !== 'undefined' && World.trunkR ? World.trunkR : t => 4 + 8 * (t.s || 1);
+    const ob = []; for (const t of T) if (t.wood > 0 && Math.abs(t.x - x) < 30 && Math.abs(t.y - y) < 30) ob.push([t.x, t.y, tr(t)]);
+    if (hero && typeof G !== 'undefined' && G.p) ob.push([G.p.x, G.p.y, 7]);
+    for (let it = 0; it < 3; it++) for (const [ox, oy, orr] of ob) { const dx = x - ox, dy = y - oy, d = Math.hypot(dx, dy), m = orr + rad; if (d < m) { const ux = d > 0.01 ? dx / d : 0, uy = d > 0.01 ? dy / d : 1; x = ox + ux * m; y = oy + uy * m; } }
+    return [Math.round(x), Math.round(y)];
+  }
+  // чурка/комель/вершина: отделяется в месте реза [za, zb] на оси ствола, падает с высоты оси и откатывается поперёк (недалеко),
+  // в сторону от удара чаще; поворачивается, пока катится. Вершина — у конца ствола, почти на месте.
+  function place(L, p, za, zb, r, s) {
+    const { S, k } = of(L), zc = (za + zb) / 2, q = alongPx(L, zc), ea = [Math.cos(L.a), Math.sin(L.a)], n = [-ea[1], ea[0]];
+    const rc = (p.d0 + p.d1) / 4 || p.diam / 2, hAx = rz(S, L.hc) * k, sn = Math.sign(s[0] * n[0] + s[1] * n[1]) || 1, side = r() < 0.72 ? sn : -sn;
+    let lat, du, da;
+    if (p.kind === 'top') { lat = side * (0.05 + 0.3 * r()); du = (r() - 0.3) * 0.3; da = (r() - 0.5) * 0.5; }
+    else {   // катится: путь ~ высота падения + толчок, короткая чурка разворачивается сильнее
+      lat = side * (rc * 0.6 + hAx * 0.3 + (0.04 + 0.65 * r() * r()) * (1 - 0.4 * Math.min(1, p.mass / 120)));
+      du = (r() - 0.3) * 0.4; da = (r() - 0.5) * (p.len < 0.7 ? 1.6 : 0.7);
+    }
+    const X = ea[0] * du + n[0] * lat, Y = ea[1] * du + n[1] * lat;
+    p.fx = Math.round(q.x); p.fy = Math.round(q.y); p.fz = +hAx.toFixed(2);
+    [p.x, p.y] = clear(q.x + X * M, q.y + 0.6 * Y * M, rc * M, 1);
+    p.ang = +(L.a + da).toFixed(3);
   }
   function push(p) {
     G.chunks = G.chunks || []; p.id = (G.partN = (G.partN || 0) + 1); p.t = G.time; if (p.src == null && SRC != null) p.src = SRC; G.chunks.push(p);
@@ -181,27 +213,27 @@ const Tree = (() => {
     if (op === 'limb') {
       const lw = limbW(S, L), c0 = L.cut || 0, c1 = c0 + 1 / 3 > 0.99 ? 1 : +(c0 + 1 / 3).toFixed(3);
       const i0 = Math.floor(lw.length * c0 + 1e-6), i1 = Math.floor(lw.length * c1 + 1e-6);
-      const P = { th: Math.PI / 2, a: L.a, roll: L.f ? L.f.r || 0 : 0, lag: 0 };
+      const r = hitRng(L), wp = alongPx(L, i1 > i0 ? (lw[i0].z + lw[i1 - 1].z) / 2 : L.zt), s = strike(L, wp.x, wp.y, r);
       for (let i = i0; i < i1; i++) {
         const w = lw[i];
         for (const b of w.br) {
-          const p = bough(S, k, w, b), g = boughRest(S, k, L, w, b, P);
+          const p = bough(S, k, w, b), g = boughRest(S, k, L, w, b, r, s);
           Object.assign(p, g, { dl: +((i - i0) * 0.12 + b.j * 0.03).toFixed(2) });   // dl — задержка: ветви падают по одной
           out.push(push(p));
         }
       }
       L.cut = c1; delete L.lim;
-      if (c1 >= 1 && !L.top) { const p = piece(S, k, 'top', L.zt, S.H, true); place(L, p, (L.zt + S.H) / 2, Math.random() < 0.5 ? 1 : -1); p.fx = p.x; p.fy = p.y; out.push(push(p)); L.top = 1; L.zTop = L.zt; }
+      if (c1 >= 1 && !L.top) { const p = piece(S, k, 'top', L.zt, S.H, true); place(L, p, L.zt, S.H, r, s); out.push(push(p)); L.top = 1; L.zTop = L.zt; }
       return out;
     }
     if (op === 'buck') {
       if (!L.top || L.n <= 0) return out;
-      let p;
-      if (L.n <= 1) { p = piece(S, k, 'butt', L.hc, L.zTop, false); place(L, p, (L.hc + L.zTop) / 2, (G.chunks || []).length % 2 ? 1 : -1); L.zTop = L.hc; L.n = 0; }
-      else { const z0 = Math.max(L.hc, L.zTop - L.cl); p = piece(S, k, 'chunk', z0, L.zTop, false); place(L, p, (z0 + L.zTop) / 2, (G.chunks || []).length % 2 ? 1 : -1); L.zTop = z0; L.n--; }
+      let p; const r = hitRng(L), z0 = L.n <= 1 ? L.hc : Math.max(L.hc, L.zTop - L.cl), wp = alongPx(L, z0), s = strike(L, wp.x, wp.y, r);
+      if (L.n <= 1) { p = piece(S, k, 'butt', L.hc, L.zTop, false); place(L, p, L.hc, L.zTop, r, s); L.zTop = L.hc; L.n = 0; }
+      else { p = piece(S, k, 'chunk', z0, L.zTop, false); place(L, p, z0, L.zTop, r, s); L.zTop = z0; L.n--; }
       out.push(push(p));
-      // последний рез отделяет и комель: остаток ствола — тоже часть, которую можно взять
-      if (L.n === 1) { const q = piece(S, k, 'butt', L.hc, L.zTop, false); place(L, q, (L.hc + L.zTop) / 2, -Math.sign(p.y - p.fy || 1)); L.zTop = L.hc; L.n = 0; out.push(push(q)); }
+      // последний рез отделяет и комель: остаток ствола — тоже часть, которую можно взять (сам по себе — не катится, лишь сползает)
+      if (L.n === 1) { const q = piece(S, k, 'butt', L.hc, L.zTop, false); place(L, q, L.hc, L.zTop, r, [-s[0], -s[1]]); L.zTop = L.hc; L.n = 0; out.push(push(q)); }
     }
     return out;
   }
@@ -211,14 +243,34 @@ const Tree = (() => {
     if ((L.cut || 0) < 1) { const lw = limbW(S, L), c0 = L.cut || 0, i0 = Math.floor(lw.length * c0 + 1e-6), i1 = Math.max(i0 + 1, Math.floor(lw.length * Math.min(1, c0 + 1 / 3) + 1e-6)); const a = lw[i0], b = lw[Math.min(lw.length - 1, i1 - 1)]; return a && b ? (a.z + b.z) / 2 : (L.hc + L.zt) / 2; }
     return L.n <= 1 ? (L.hc + L.zTop) / 2 : L.zTop - L.cl;
   }
-  // где ляжет обрубленная ветвь: от места на стволе в сторону, куда она торчала (по позе «лежит»)
-  function boughRest(S, k, L, w, b, P) {
-    pose(S, k, { th: P.th, a: L.a, roll: P.roll, pz: L.hc, pw: rz(S, L.hc), ox: 0, oy: 0 });
-    const r0 = rz(S, w.z); tf(Math.cos(b.az) * r0, Math.sin(b.az) * r0, w.z, w.z); const x0 = TX, y0 = TY, z0 = TZ;
-    const P1 = brPt(S, b, w.z, 0.7); tf(P1[0], P1[1], P1[2], w.z); const dx = TX - x0, dy = TY - y0, dl = Math.hypot(dx, dy) || 1;
-    const q = alongPx(L, w.z), ang = Math.atan2(dy, dx), half = b.len * k * 0.8;   // отброшена в сторону от ствола
-    return { fx: Math.round(q.x + x0 * M), fy: Math.round(q.y + 0.6 * y0 * M), fz: +Math.max(0, z0).toFixed(2),
-      x: Math.round(q.x + x0 * M + dx / dl * half * M + rnd(-2, 2)), y: Math.round(q.y + 0.6 * (y0 + dy / dl * half) * M + rnd(-1, 1)), ang: +ang.toFixed(3) };
+  // где ляжет обрубленная ветвь: отделяется у ствола в точке крепления (z, азимут — по позе «лежит», как рисуется ствол),
+  // падает под тяжестью: торчала в сторону — ложится плашмя туда же у места крепления; вверх — валится через ствол на сторону
+  // (чаще — от удара); вниз в снег (подмята стволом) — остаётся под ним (pin). Удар чуть отталкивает от героя, лёгкую — дальше.
+  // Центр части — не дальше 0.45·длины + 0.45 м от места крепления.
+  function boughRest(S, k, L, w, b, r, s) {
+    const X = logOpts(S, k, L, LIE_P).po; pose(S, k, Object.assign({}, X, { ox: 0, oy: 0, gs: 0, grd: 0, lag: 0 }));
+    const r0 = rz(S, w.z); tf(Math.cos(b.az) * r0, Math.sin(b.az) * r0, w.z, w.z); const A = [TX, TY, TZ];
+    const T1 = brPt(S, b, w.z, 1); tf(T1[0], T1[1], T1[2], w.z); const D = [TX - A[0], TY - A[1], TZ - A[2]];
+    const Lb = b.len * k, hl = Math.hypot(D[0], D[1]), ea = [Math.cos(L.a), Math.sin(L.a)], n = [-ea[1], ea[0]], rL = r0 * k;
+    const sn = Math.sign(s[0] * n[0] + s[1] * n[1]) || 1, rot = (v, f) => [v[0] * Math.cos(f) - v[1] * Math.sin(f), v[0] * Math.sin(f) + v[1] * Math.cos(f)];
+    let dir, base = [A[0], A[1]], pin = 0, push = (0.06 + 0.3 * r()) / (1 + brMass(S, b, k) / 6);
+    if ((TZ < 0.02 && A[2] < (X.pw + (X.lift || 0)) * k) || D[2] < -0.5 * Lb) {   // подмята (кончик в снегу под стволом) или висела вниз — остаётся под стволом
+      dir = hl > 0.15 * Lb ? [D[0] / hl, D[1] / hl] : [n[0] * (D[0] * n[0] + D[1] * n[1] < 0 ? -1 : 1), n[1] * (D[0] * n[0] + D[1] * n[1] < 0 ? -1 : 1)];
+      dir = rot(dir, (r() - 0.5) * 0.3); pin = 1; push *= 0.2;
+    } else if (D[2] > 0.55 * Lb || hl < 0.3 * Lb) {   // торчала вверх: валится через ствол — на сторону удара (чаще) или куда клонилась
+      const lean = hl > 0.05 ? Math.sign(D[0] * n[0] + D[1] * n[1]) || sn : sn, sd = r() < 0.65 ? sn : lean;
+      dir = rot([n[0] * sd, n[1] * sd], (r() - 0.5) * 1.1 + (hl > 0.05 ? 0.3 * Math.sign(D[0] * ea[0] + D[1] * ea[1]) : 0));
+      base = [A[0] + n[0] * sd * rL * (0.6 + 0.6 * r()), A[1] + n[1] * sd * rL * (0.6 + 0.6 * r())];
+    } else {   // в сторону: ложится туда, куда торчала, основание соскальзывает с высоты наружу
+      dir = rot([D[0] / hl, D[1] / hl], (r() - 0.5) * 0.6);
+      const sl = Math.min(0.25, Math.max(0, A[2]) * 0.3 * r()); base = [A[0] + dir[0] * sl, A[1] + dir[1] * sl];
+    }
+    const ja = r() * TAU, jr = 0.1 * r();   // отскок
+    base = [base[0] + s[0] * push + Math.cos(ja) * jr, base[1] + s[1] * push + Math.sin(ja) * jr];
+    dir = rot(dir, (r() - 0.5) * 0.35);   // доворот при ударе о снег
+    const h = Lb * 0.45, ca = [base[0] + dir[0] * h, base[1] + dir[1] * h], q = alongPx(L, L.hc);
+    const [x, y] = clear(q.x + ca[0] * M, q.y + 0.6 * ca[1] * M, Lb * 0.12 * M);
+    return { fx: Math.round(q.x + A[0] * M), fy: Math.round(q.y + 0.6 * A[1] * M), fz: +Math.max(0, A[2]).toFixed(2), x, y, ang: +Math.atan2(dir[1], dir[0]).toFixed(3), ...(pin ? { pin: 1 } : {}) };
   }
   // дрова — чурка, комель, вершина (своя масса и объём; подбор — js/carry.js, руки → рюкзак/нарты/поленница); лапник — не дрова
   const isWood = p => !p.kind || p.kind === 'chunk' || p.kind === 'butt' || p.kind === 'top';
