@@ -22,7 +22,7 @@
     for (let i = 1; i < K.length; i++) if (a <= K[i][0]) return lerp(K[i - 1][1], K[i][1], sm((a - K[i - 1][0]) / (K[i][0] - K[i - 1][0])));
     return K[K.length - 1][1];
   }
-  const R0 = [1.4, 12.2], R1 = [-1, 12.3];   // кисти в покое относительно плеча (как idle)
+  const R0 = H.REST[0], R1 = H.REST[1], RR = H.RR;   // кисти в покое относительно плеча (как idle: рука почти прямая, варежка у бедра); RR — плечо→кисть в покое
   // кисть i к точке (dx,dy) от плеча с весом w (0 — покой)
   function hand(i, dx, dy, w) { const r = i ? R1 : R0; handR(i, lerp(r[0], dx, w), lerp(r[1], dy, w)); }
   // кисть i к абсолютной точке с весом w
@@ -102,7 +102,7 @@
     const w = env(a, 0, 0.2, 0.75, 1), shrug = bump(a, 0.3, 0.56), drop = bump(a, 0.56, 0.78);
     body(0.04 - 0.06 * shrug + 0.05 * drop, -17.2 - 1.1 * shrug + 0.45 * drop);
     hand(0, 3.2, 3.2 + 3 * bump(a, 0.28, 0.48) + 1.8 * bump(a, 0.5, 0.66), w); P.hl0 = lerp(6.6, 4, w);
-    hand(1, -1.4, 11.2 - 1.4 * shrug, 1);
+    hand(1, R1[0] - 0.4, R1[1] - 0.6 - 1.4 * shrug, 1);
     P.tilt = -0.06 * shrug + 0.12 * drop; P.hb = -shrug * 0.8 + drop * 0.5;
   } });
 
@@ -113,7 +113,7 @@
       key(a, [[0, 0], [0.3, -0.7], [0.5, 0.6], [0.86, 0.4], [1, 0]]));
     const w = env(a, 0.52, 0.64, 0.84, 0.96), E = headPt(4.6, 2.6);
     handAt(0, E[0], E[1], w); P.hl0 = lerp(6.6, 3, w);
-    hand(1, -1.6, 11.6, 1);
+    hand(1, R1[0] - 0.6, R1[1] - 0.4, 1);
     P.hb = 0.4 * sin(a * PI * 3);
   } });
 
@@ -133,10 +133,10 @@
     H.idle(o, t); stow(o);
     // руки вверх через перёд и назад за голову — и обратно тем же путём (без полного оборота плеча)
     const s = env(a, 0.2, 0.45, 0.6, 0.86), K = [[0, 1.46], [0.35, -1.65], [0.6, -2.35], [0.8, -1.3], [1, 1.46]];
-    const tr = 0.03 * sin(t * 31) * env(a, 0.4, 0.45, 0.58, 0.62), rr = 11 + 1.4 * s;   // на подъёме/спуске локоть согнут, в растяжке — прямые руки
+    const tr = 0.03 * sin(t * 31) * env(a, 0.4, 0.45, 0.58, 0.62), rr = 12.2 + 1.7 * s;   // на подъёме/спуске локоть согнут, в растяжке — прямые руки
     P.f0y = P.f1y = -2 - 1.1 * s; P.f0a = P.f1a = 0.45 * s;
     body(0.04 - 0.17 * s, -17.2 - 1.1 * s);
-    handA(0, key(a, K) + tr, lerp(12.2, rr, env(a, 0, 0.15, 0.85, 1))); handA(1, key(clamp(a - 0.04, 0, 1), K) - tr, lerp(12.3, rr, env(a, 0.04, 0.19, 0.89, 1)));
+    handA(0, key(a, K) + tr, lerp(RR, rr, env(a, 0, 0.15, 0.85, 1))); handA(1, key(clamp(a - 0.04, 0, 1), K) - tr, lerp(RR, rr, env(a, 0.04, 0.19, 0.89, 1)));
     P.hl0 = P.hl1 = 6.6 + 1.5 * s;
     P.tilt = -0.36 * s; P.eyes = s > 0.5 ? 1 : 0; P.mouth = 0.45 * env(a, 0.35, 0.45, 0.55, 0.65); P.br = s;
   } });
@@ -166,7 +166,7 @@
     const wu = env(a, 0.1, 0.38, 0.62, 0.86), hb = env(a, 0.14, 0.4, 0.6, 0.8), nod = bump(a, 0.76, 1);
     P.tilt = -0.46 * hb + 0.18 * nod;
     body(0.04 - 0.1 * hb + 0.03 * nod, -17.2 - 0.6 * hb);
-    handA(0, lerp(1.46, -1.9, wu), lerp(12.2, 12.8, wu)); P.hl0 = 6.6 + wu;
+    handA(0, lerp(1.46, -1.9, wu), lerp(RR, 13.6, wu)); P.hl0 = 6.6 + wu;
     hand(1, 1.5, 10.2, hb);
     P.mouth = env(a, 0.2, 0.34, 0.62, 0.76); P.eyes = hb > 0.3 || (nod > 0.3 && nod < 0.8) ? 1 : 0; P.br = hb; P.hb = 0.5 * nod;
   } });
@@ -178,7 +178,7 @@
   // глубокий снег: высокие колени, сильный наклон, руки широко для равновесия
   R('trudge', { loop: true, loco: true, free: true, fn(o, t, a, ph, sp) {
     H.gait(ph, St(sp), 4.6 + sp * 1.2);
-    const sn = sin(ph - 0.4), c2 = cos(2 * ph);
+    const c2 = cos(2 * ph);
     // стопа проваливается в снег с задержкой после постановки (до ≈1 px) и выдёргивается в начале переноса — без скачка
     for (let i = 0; i < 2; i++) {
       const st = i ? P.st1 : P.st0, u = i ? P.u1 : P.u0, q = i ? P.q1 : P.q0;
@@ -188,8 +188,7 @@
     }
     if (P.f0y < -2.5) P.f0a = 0.32; if (P.f1y < -2.5) P.f1a = 0.32;   // носок висит — стопу тянут из снега
     body(0.3 + 0.04 * c2, -16.1 - 1.1 * c2, 0.8 + 0.4 * c2);
-    const A = 4.6 + sp;   // руки шире и выше — для равновесия, мах с запаздыванием
-    handR(0, 2 - A * sn, 10.2 - Math.abs(sn) * 2); handR(1, 2 + A * sn, 10.2 - Math.abs(sn) * 2);
+    H.swingArms(ph - 0.4, 0.26 + 0.06 * sp, 0.4, 0.3, 0.06);   // руки шире (hl) и согнуты сильнее — для равновесия, мах с запаздыванием
     P.hl0 = P.hl1 = 8.8;
     P.tilt = -0.1 + 0.04 * sin(2 * ph); P.hb = 1.3 * cos(2 * ph + 0.9); P.mouth = 0.2 + 0.2 * Math.max(0, c2);
   } });
@@ -202,7 +201,7 @@
     P.tilt = 0.3 + 0.03 * sin(2 * ph);
     const F = headPt(6.2, 0.4);
     P.h0x = F[0] + 0.4 * sin(t * 13); P.h0y = F[1] + 0.3 * sin(t * 11) + 0.4 * cos(2 * ph); P.hl0 = 1;
-    handR(1, 1.5 + 2 * sn, 11.2); P.hl1 = 5.5;
+    H.armFK(1, 0.04 + 0.22 * sn * (sn > 0 ? 1 : 0.72), 0.25 + 0.25 * Math.max(0, sn)); P.hl1 = 5.5;   // дальняя рука — маятник, почти прямая
     stow(o, 1); P.eyes = 1; P.hb = 0.5 * cos(2 * ph + 0.9);
   } });
 
@@ -212,7 +211,7 @@
     const sn = sin(ph), c2 = cos(2 * ph);
     if (P.f0y < -2.2) P.f0a = 0.28; if (P.f1y < -2.2) P.f1a = 0.28;
     body(0.24 + 0.03 * c2, -16.3 - 0.5 * c2);
-    handR(0, 0.6 - 1.4 * sn, 12.9); handR(1, 0.6 + 1.4 * sn, 12.9); P.hl0 = P.hl1 = 6;
+    H.armFK(0, 0.03 - 0.1 * sn, 0.12); H.armFK(1, 0.03 + 0.1 * sn, 0.12); P.hl0 = P.hl1 = 6;
     P.tilt = 0.5 + 0.07 * sin(2 * ph + 1) + 0.05 * sin(t * 0.7); P.hb = 1.2 * cos(2 * ph + 1.5);
     P.eyes = sin(t * 0.9 + seedOf(o)) > 0.75 ? 1 : 0; P.mouth = 0.25;
   } });
@@ -235,7 +234,7 @@
     P.f1x = lerp(-1.6, -3.4, dr); P.f1y = -2; P.f1a = 0;
     body(0.04 - 0.36 * dr + 0.16 * bump(a, 0.5, 0.85), -17.2 + 3 * dr, -1.6 * dr);
     const fl = env(a, 0.04, 0.14, 0.6, 0.88), q = a * 40;
-    handA(0, lerp(1.46, -1.1 + 0.9 * sin(q), fl), 12.2); handA(1, lerp(1.65, -2.3 + 0.9 * sin(q + 2), fl), 12.2);
+    handA(0, lerp(1.46, -1.1 + 0.9 * sin(q), fl), RR); handA(1, lerp(1.65, -2.3 + 0.9 * sin(q + 2), fl), RR);
     P.hl0 = P.hl1 = 6.6 + 3 * fl;
     P.tilt = -0.32 * dr + 0.12 * bump(a, 0.5, 0.85); P.mouth = 0.7 * dr; P.hb = -dr;
   } });
@@ -371,8 +370,8 @@
     stow(o);
     // бросок с согнутым локтем: кисть перед грудью к уху и за голову (замах), через верх вперёд (выброс ≈0.55 — метка броска),
     // доводка вниз-вперёд и обратно тем же путём, без полного оборота плеча
-    const TX = [[0, 1.4], [0.16, 5.2], [0.26, 5.2], [0.35, -1], [0.45, -5], [0.51, 1.2], [0.58, 7.6], [0.78, 7.4], [1, 1.4]];
-    const TY = [[0, 12.2], [0.16, 4.6], [0.26, -3.2], [0.35, -8.6], [0.45, -7.2], [0.51, -9.6], [0.58, -6.6], [0.78, 4.4], [1, 12.2]];
+    const TX = [[0, R0[0]], [0.16, 5.2], [0.26, 5.2], [0.35, -1], [0.45, -5], [0.51, 1.2], [0.58, 7.6], [0.78, 7.4], [1, R0[0]]];
+    const TY = [[0, R0[1]], [0.16, 4.6], [0.26, -3.2], [0.35, -8.6], [0.45, -7.2], [0.51, -9.6], [0.58, -6.6], [0.78, 4.4], [1, R0[1]]];
     const dx = key(a, TX), dy = key(a, TY);
     const wd = env(a, 0, 0.35, 0.45, 0.55), fo = env(a, 0.45, 0.6, 0.78, 1), stp = sm(seg(a, 0.28, 0.5));
     P.f0x = lerp(1.3, 5, stp); P.f0y = -2 - 2.2 * bump(a, 0.28, 0.5); P.f1x = -2.2;
@@ -380,7 +379,7 @@
     handR(0, dx, dy); P.hl0 = 6.6;
     // дальняя рука: вперёд-вверх на замахе, одним плавным ходом вниз-назад на выбросе (без двух наложенных огибающих)
     const fo1 = env(a, 0.42, 0.68, 0.78, 1), b1 = key(a, [[0, 1.65], [0.35, -0.35], [0.45, -0.35], [0.7, 2.1], [0.8, 2.1], [1, 1.65]]);
-    handA(1, b1, lerp(12.3, 10.8, Math.max(wd, fo1))); P.hl1 = 5;
+    handA(1, b1, lerp(RR, 11.2, Math.max(wd, fo1))); P.hl1 = 5;
     P.tilt = -0.14 * wd + 0.1 * fo; P.mouth = 0.5 * bump(a, 0.48, 0.66);
     if (a >= 0.45 && a < 0.6) P.trail = [Math.atan2(-7.2, -5), Math.atan2(dy, dx), 11];
   } });
@@ -465,7 +464,7 @@
     else { const e = sm(seg(a, G1, UP1)); x = lerp(T.x, cx, e); y = lerp(T.y, cy, e); }
     P.h0x = x + j; P.h0y = y;
     if (heavy) { P.h1x = x - 2.2 - j; P.h1y = y + 0.3; P.hl0 = P.hl1 = 4; }
-    else { const e = seg(a, G1, UP1); handR(1, lerp(-1, 5.8, e), lerp(12.3, 7.5, e)); P.hl0 = 3; P.hl1 = lerp(6.6, 3, e); }
+    else { const e = seg(a, G1, UP1); handR(1, lerp(R1[0], 5.8, e), lerp(R1[1], 7.5, e)); P.hl0 = 3; P.hl1 = lerp(6.6, 3, e); }
     P.tilt = 0.34 * dn - 0.1 * strain; P.mouth = heavy ? 0.5 * strain : 0; P.eyes = strain > 0.5 ? 1 : 0; P.hb = 0.4 * j + 0.4 * bump(a, S1, UP1);
   }
   R('pickUp', { dur: 0.9, fn(o, t, a) { lift(o, t, a, false); } });
@@ -479,7 +478,7 @@
     const L = reachLean(T, 1.6, -16.8, 0.08, 12.4), w = env(a, 0, 0.35, 0.8, 1), pull = sm(seg(a, 0.45, 0.8));
     body(lerp(0.04, L - 0.28 * pull, w), lerp(-17.2, -16.8, w), HX - 0.8 * pull);
     handAt(0, T.x - 6 * pull, T.y - 4 * pull, w); P.hl0 = lerp(6.6, 4, w);
-    handR(1, lerp(-1, -3, pull * w), lerp(12.3, 11, pull * w));
+    handR(1, lerp(R1[0], -3, pull * w), lerp(R1[1], 12.4, pull * w));
     P.tilt = 0.2 * w - 0.12 * pull; P.mouth = 0.3 * bump(a, 0.45, 0.7); P.hb = -0.4 * bump(a, 0.45, 0.6);
   } });
 
@@ -573,7 +572,7 @@
     const gw = env((t * 0.16 + s0 * 0.13) % 1, 0.62, 0.7, 0.82, 0.9);
     P.f0x = 1.6 + 0.4 * sw; P.f1x = -1.9 + 0.4 * sw;
     body(0.05 + 0.02 * sw + 0.03 * nod, -17.2 + 0.25 * Math.abs(sw), 0.5 * sw);
-    hand(0, 1.6, 11.6, 1); hand(1, 5.8 + 0.8 * sin(t * 2.1), 6.4 + 0.6 * cos(t * 1.7), gw); P.hl1 = lerp(6.6, 4.5, gw);
+    hand(0, R0[0], R0[1] - 0.3, 1); hand(1, 5.8 + 0.8 * sin(t * 2.1), 6.4 + 0.6 * cos(t * 1.7), gw); P.hl1 = lerp(6.6, 4.5, gw);
     P.tilt = 0.06 + 0.16 * nod + 0.05 * sin(t * 0.43 + s0); P.hb = 0.4 * nod;
     P.mouth = 0; stow(o); holdTorch(o);
   } });
@@ -643,7 +642,7 @@
     else if (a < 0.86) { const e = sm(seg(a, 0.7, 0.86)); x = lerp(E[0], BK[0], e); y = lerp(E[1], BK[1], e) - 3 * sin(e * PI); lat = lerp(3, 7.5, e); }   // за спину, в сумку
     else { const e = sm(seg(a, 0.86, 1)); x = lerp(BK[0], rx, e); y = lerp(BK[1], ry, e); lat = lerp(7.5, 6.6, e); }
     P.h0x = x; P.h0y = y; P.hl0 = lat;
-    handAt(1, low ? lerp(P.sx - 1, P.hx + 5.5, dn) : P.sx - 1, low ? lerp(P.sy + 12.3, hip() - 1.5, dn) : P.sy + 12.3, 1); P.hl1 = lerp(6.6, 4, dn);
+    handAt(1, low ? lerp(P.sx + R1[0], P.hx + 5.5, dn) : P.sx + R1[0], low ? lerp(P.sy + R1[1], hip() - 1.5, dn) : P.sy + R1[1], 1); P.hl1 = lerp(6.6, 4, dn);
     if (hold) P.held = [it, x - 0.3, y + (it === 'hare' ? 0.6 : -0.6), it === 'hare' ? PI / 2 - 0.15 : -0.3];
     const look = env(a, 0.4, 0.48, 0.66, 0.72);
     P.tilt = 0.3 * dn + look * 0.05 - 0.08 * bump(a, 0.72, 0.86); P.hb = 0.3 * bump(a, 0.26, 0.44) + 0.2 * bump(a, 0.74, 0.86);
@@ -657,7 +656,7 @@
     bend(k, dn); P.f0x = 2.6; P.f1x = -2.4;
     const rx = P.sx + R0[0], ry = P.sy + R0[1], e = sm(seg(a, 0, 0.4)) * (1 - sm(seg(a, 0.6, 0.95)));
     P.h0x = lerp(rx, T.x, e); P.h0y = lerp(ry, T.y, e); P.hl0 = lerp(6.6, 3, e);
-    handAt(1, lerp(P.sx - 1, P.hx + 5.5, dn), lerp(P.sy + 12.3, hip() - 1.5, dn), 1); P.hl1 = lerp(6.6, 4, dn);
+    handAt(1, lerp(P.sx + R1[0], P.hx + 5.5, dn), lerp(P.sy + R1[1], hip() - 1.5, dn), 1); P.hl1 = lerp(6.6, 4, dn);
     if (a < 0.5 && o.item) P.held = [o.item, P.h0x - 0.3, P.h0y - 0.5, -0.2];
     P.tilt = 0.3 * dn; P.hb = 0.3 * bump(a, 0.4, 0.6);
   } });
@@ -731,7 +730,7 @@
     H.gait(ph, St(sp), 1.4 + sp * 0.6);
     const sn = sin(ph), gu = clamp(o.gust || 0, 0, 1);
     body(0.02 - 0.05 * gu + 0.02 * cos(2 * ph), P.hy + 0.3);
-    handR(0, 1.8 - 1.2 * sn, 11); handR(1, 1.8 + 1.2 * sn, 11); P.hl0 = P.hl1 = 5.8;
+    H.armFK(0, 0.06 - 0.1 * sn, 0.45); H.armFK(1, 0.06 + 0.1 * sn, 0.45); P.hl0 = P.hl1 = 5.8;
     P.tilt = 0.24 + 0.03 * sin(2 * ph); P.hb = 0.4 * cos(2 * ph + 0.9);
     stow(o, 1);
   } });
@@ -749,7 +748,7 @@
   R('iceFall', { dur: 0.5, sag: true, fn(o, t, a) {
     H.idle(o, t); const e = sm(a / 0.35);
     body(0.04 - 0.16 * e, -17.2 + 1.2 * e);
-    handR(0, lerp(1.4, 4.5, e), lerp(12.2, -13.5, e)); handR(1, lerp(-1, -3.5, e), lerp(12.3, -12.5, e)); P.hl0 = P.hl1 = 8.5;
+    handR(0, lerp(R0[0], 4.5, e), lerp(R0[1], -13.5, e)); handR(1, lerp(R1[0], -3.5, e), lerp(R1[1], -12.5, e)); P.hl0 = P.hl1 = 8.5;
     P.mouth = e; P.tilt = -0.22 * e; P.eyes = 0;
   } });
   // в воде по грудь: холодовой шок — судорожно хватает воздух, руки бьют по воде перед собой
@@ -788,7 +787,7 @@
     H.idle(o, t); const k = sm(seg(a, 0, 0.4)), e = sm(seg(a, 0.45, 1)), FC_ = H.face();
     body(lerp(1.3, 0.06, e), lerp(-8.8, -17.2, e), lerp(-3, 0, e));
     const gx = P.sx + 2, gy = -2.6;
-    handAt(0, lerp(gx + 1, P.sx + 1.4, e), lerp(gy, P.sy + 12.2, e), 1); handAt(1, lerp(gx - 1.2, P.sx - 1, e), lerp(gy + 0.5, P.sy + 12.3, e), 1);
+    handAt(0, lerp(gx + 1, P.sx + R0[0], e), lerp(gy, P.sy + R0[1], e), 1); handAt(1, lerp(gx - 1.2, P.sx + R1[0], e), lerp(gy + 0.5, P.sy + R1[1], e), 1);
     P.hl0 = 6; P.hl1 = 6;
     P.f0x = lerp(-5.5, 1.3, e); P.f1x = lerp(-7.5, -1.6, e); P.f0y = P.f1y = -2; P.f0a = P.f1a = lerp(-0.6, 0, e);
     const pr = 1 - k; if (pr > 0.01) { P.rot = FC_ * PI / 2 * pr * 0.85; P.pvx = 0; P.pvy = -19.8; P.oy = 13 * pr; }
