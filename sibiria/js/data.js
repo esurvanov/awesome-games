@@ -236,6 +236,9 @@ const TUNE = {
     sleepFrom: 19,    // лечь можно с 19:00…
     sleepTo: 6,       // …и до 06:00
     wakeAt: 7,        // утро (подъём, рассвет, улов) — с 07:00 до полудня
+    // «До утра» (Z): та же симуляция пачками шагов skipDt за кадр (не дольше skipMs мс); вне избы — бодрствуя.
+    // Будит: утро, угрозы (как сон) — вне избы волк/шатун ближе skipThreatR
+    skipDt: 0.05, skipMs: 12, skipThreatR: 600,
   },
   // температура воздуха: днём day0 + dayStep·(день−1), ночью night0 + nightStep·(день−1), с coldDay-го дня ночью coldMin
   temp: { day0: -22, dayStep: -2, night0: -40, nightStep: -3, coldDay: 5, coldMin: -55, storm: -12 },
