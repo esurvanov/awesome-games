@@ -9,7 +9,8 @@
 //   back/front — рука качается в глубину: на экране без «крючка» вбок (slow: излом плечо / предплечье+варежка ≤ 22°, короткое — по доле длины;
 //                fast: локоть ≈90° — предплечье уходит в глубину и на экране складывается вверх/вниз, излом не меряем; кисть бега идёт к середине корпуса,
 //                но не за неё: кончик варежки внутрь от плеча ≤ 5 px),
-//                кончик варежки не уходит наружу от плеча (≤ 1.6 px), мах читается по вертикали (кисть по экрану ходит вверх-вниз ≥ 0.8 px)
+//                кончик варежки не уходит наружу от плеча (≤ 1.6 px), мах читается по вертикали (кисть по экрану ходит вверх-вниз ≥ 0.8 px;
+//                кончик варежки ≥ 3 px; со спины на бегу ≥ 2.5 — локоть 90°, предплечье уходит в глубину), запястье на экране ниже плеча ≥ 0.45·(плечо+предплечье), ближняя варежка крупнее в 1.03–1.08
 // В браузере: (0,eval)(await (await fetch('tests/arm-check.js')).text()); ArmCheck.run()
 // Playwright:  cd tests && node arm-check.js   (playwright из tests/node_modules или NODE_PATH)
 var ArmCheck = (() => {
@@ -19,7 +20,7 @@ var ArmCheck = (() => {
     len: [0.40, 0.46], idleFlex: [5, 20], idleTip: [0.33, 0.42],
     fwd: [14, 30], bwd: [10, 25], flexBack: [5, 22], flexFwd: [25, 50], flexGain: 10,   // slow
     runFwd: [18, 35], runBwd: [35, 50], runFlex: [75, 100], runWrist: 3, inward: 5,     // fast
-    kink: 22, outward: 1.6, vy: 0.8,
+    kink: 22, outward: 1.6, vy: 0.8, vyDeep: 3, vyDeepRun: 2.5, below: 0.45, mitt: [1.03, 1.08],   // спереди/сзади: ход кисти по y, кисть под плечом (доля плечо+предплечье), ближняя варежка крупнее
   };
   // синтетический шаг со скоростью v (px/с): тот же рисунок героя (шаблон d из игры), фаза и походка — от пути, как в gfx.stepPhase
   function synth(d0, v, vy, sec) {
@@ -65,7 +66,7 @@ var ArmCheck = (() => {
     const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
     return { thMax: Math.max(...th), thMin: Math.min(...th), flMin: Math.min(...fl), flMax: Math.max(...fl), flAvg: avg(fl), flAtF: fl[iF], flAtB: fl[iB],
       kink: Math.max(...kink), kinkAvg: avg(kink), outMax: Math.max(...out), wyRange: Math.max(...wy) - Math.min(...wy), inMax: -Math.min(...out),
-      wrist: Math.min(...fr.map(f => f[i ? 'w1' : 'w0'])),
+      wrist: Math.min(...fr.map(f => f[i ? 'w1' : 'w0'])), below: Math.min(...fr.map(f => f[k][5] - f[k][1])), hy: (() => { const h = fr.map(f => f[k][7] - f[k][1]); return Math.max(...h) - Math.min(...h); })(), mitt: Math.max(...fr.map(f => f[k][12] || 1)),
       reach: avg(fr.map(f => f[k][10])), tip: avg(fr.map(f => (f[k][11] != null ? f[k][11] : f.y - f[k][7]) / HGT)) };
   }
   const r1 = v => Math.round(v * 10) / 10;
@@ -87,7 +88,7 @@ var ArmCheck = (() => {
         const W = rec(mx, my, 1.5, 2, 'walk').filter(f => f.v > 150), I = rec(0, 0, 1.2, 1.5, 'idle', my);
         const S = synth(TPL, 40, my, 2), Md = synth(TPL, 115, my, 2);
         const fl = nm !== 'side', w0 = stats(W, 0, fl), w1 = stats(W, 1, fl), s0 = stats(S, 0, fl), s1 = stats(S, 1, fl), m0 = stats(Md, 0, fl), i0 = stats(I, 0, fl), i1 = stats(I, 1, fl);
-        const sum = (a, b) => ({ fwd: r1(a.thMax), bwd: r1(-a.thMin), flex: [r1(a.flMin), r1(a.flMax)], flexAtFwd: r1(a.flAtF), flexAtBwd: r1(a.flAtB), wrist: r1(a.wrist), kink: r1(Math.max(a.kink, b.kink)), inw: r1(Math.max(a.inMax, b.inMax)), out: r1(Math.max(a.outMax, b.outMax)), wy: r1(a.wyRange) });
+        const sum = (a, b) => ({ fwd: r1(a.thMax), bwd: r1(-a.thMin), flex: [r1(a.flMin), r1(a.flMax)], flexAtFwd: r1(a.flAtF), flexAtBwd: r1(a.flAtB), wrist: r1(a.wrist), kink: r1(Math.max(a.kink, b.kink)), inw: r1(Math.max(a.inMax, b.inMax)), out: r1(Math.max(a.outMax, b.outMax)), wy: r1(a.wyRange), below: r1(Math.min(a.below, b.below)), mitt: +Math.max(a.mitt, b.mitt).toFixed(3) });
         const m = res.m[nm] = { frames: W.length + '/' + S.length + '/' + I.length, fast: sum(w0, w1), mid: sum(m0, stats(Md, 1, fl)), slow: sum(s0, s1),
           idle: { flex: [r1(i0.flAvg), r1(i1.flAvg)], reach: r1(i0.reach), tip: +i0.tip.toFixed(3), kink: r1(Math.max(i0.kink, i1.kink)), out: r1(Math.max(i0.outMax, i1.outMax)) } };
         fail(W.length > 60 && S.length > 60 && I.length > 30, nm + ' мало кадров ' + m.frames);
@@ -117,6 +118,11 @@ var ArmCheck = (() => {
             fail(Math.max(a.outMax, b.outMax) <= C.outward, nm + ' ' + s + ' кисть наружу ' + r1(Math.max(a.outMax, b.outMax)) + ' px');
             fail(a.wyRange >= C.vy, nm + ' ' + s + ' мах в глубину не читается (кисть по вертикали ' + r1(a.wyRange) + ' px)');
           }
+          // мах в глубину честно: ход кисти по экрану ≥ 3 px (быстро и средне), кисть от камеры не «подогнута» к плечу, ближняя варежка крупнее
+          const LA = ArtPeople.H.LEN.UA + ArtPeople.H.LEN.FA;
+          for (const [s, a, b] of [['slow', s0, s1], ['mid', m0, stats(Md, 1, fl)], ['fast', w0, w1]]) { const v = Math.max(a.hy, b.hy); m[s].hy = r1(v); const lim = nm === 'back' && s === 'fast' ? C.vyDeepRun : C.vyDeep; fail(v >= lim, nm + ' ' + s + ' ход кисти (кончик варежки) по y ' + r1(v) + ' px < ' + lim); }
+          for (const [s, a, b] of [['slow', s0, s1], ['mid', m0, stats(Md, 1, fl)], ['fast', w0, w1]]) fail(Math.min(a.below, b.below) >= C.below * LA, nm + ' ' + s + ' кисть высоко: ' + r1(Math.min(a.below, b.below)) + ' px под плечом < ' + r1(C.below * LA));
+          { const mt = Math.max(w0.mitt, w1.mitt, m0.mitt); if (nm === 'front') fail(mt >= C.mitt[0] && mt <= C.mitt[1], nm + ' масштаб ближней варежки ' + mt.toFixed(3)); else fail(mt <= C.mitt[1], nm + ' масштаб варежки ' + mt.toFixed(3)); }   // со спины к камере идёт кисть сзади — ход в глубину мал
           fail(Math.max(i0.kink, i1.kink) <= C.kink, nm + ' idle излом ' + r1(Math.max(i0.kink, i1.kink)) + '°');
         }
       }

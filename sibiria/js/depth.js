@@ -394,10 +394,10 @@ const Depth = (() => {
   const blit = (g, img, x, y, rx, ry, a) => { if (a <= 0.01) return; g.globalAlpha = a; g.drawImage(img, x - rx, y - ry, rx * 2, ry * 2); };
   const W_ = () => disc('w', '244,247,250'), H_ = () => disc('h', '255,255,255', 0.2), S_ = () => disc('s', '104,132,162', 0.3);
   // комья валика по дуге a0..a1 (детерминированы от места), размер — от глубины
-  function lumps(g, x, y, rx, ry, a0, a1, deep, k, sd, al) {
-    const n = 5 + Math.round(deep * 4), rn = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296, W = W_(), Hh = H_();
+  function lumps(g, x, y, rx, ry, a0, a1, deep, k, sd, al, nn, sz = 1) {
+    const n = nn || 5 + Math.round(deep * 4), rn = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296, W = W_(), Hh = H_();
     for (let i = 0; i < n; i++) {
-      const a = a0 + (a1 - a0) * (i + 0.5 + (rn() - 0.5) * 0.5) / n, px = x + Math.cos(a) * rx, py = y + Math.sin(a) * ry, rad = (2.2 + 2.4 * deep) * (0.75 + 0.5 * rn());
+      const a = a0 + (a1 - a0) * (i + 0.5 + (rn() - 0.5) * 0.5) / n, px = x + Math.cos(a) * rx, py = y + Math.sin(a) * ry, rad = (2.2 + 2.4 * deep) * (0.75 + 0.5 * rn()) * sz;
       blit(g, W, px, py, rad * 1.35, rad * 0.8, al * k);
       blit(g, Hh, px - rad * 0.3, py - rad * 0.32, rad * 0.7, rad * 0.36, 0.55 * al * k);
     }
@@ -418,12 +418,27 @@ const Depth = (() => {
       blit(g, S_(), 0, ry * 0.9 + 1.2, qr * 1.35, ry * 0.95 + 1.5, 0.22 + 0.12 * qd);
       lumps(g, 0, 0.2, qr + 0.8, ry + 0.9, Math.PI * 0.02, Math.PI * 0.98, qd, 1, 0x7F31, 0.95);
     }
-    e = { c, bx, by, bw, bh }; RIM.set(key, e); if (RIM.size > 48) RIM.delete(RIM.keys().next().value);
+    e = { c, bx, by, bw, bh }; RIM.set(key, e); if (RIM.size > 128) RIM.delete(RIM.keys().next().value);
     return e;
   }
+  // валик по размеру ямы (rx/ry меняются плавно — ширина по разносу стоп): спрайт ступенями 2 / 1 px (печь не каждый кадр), рисуется растянутым до точного
   function rim(g, L, side, k) {
-    const e = rimSprite(side, L.rx, L.ry, Math.min(1, L.px / 26), scaleOf(g));
-    g.globalAlpha = k; g.drawImage(e.c, L.cx + e.bx, L.cy + e.by, e.bw, e.bh); g.globalAlpha = 1;
+    const qx = Math.max(4, Math.round(L.rx / 2) * 2), qy = Math.max(2, Math.round(L.ry)), e = rimSprite(side, qx, qy, Math.min(1, L.px / 26), scaleOf(g)), sx = L.rx / qx, sy = L.ry / qy;
+    g.globalAlpha = k; g.drawImage(e.c, L.cx + e.bx * sx, L.cy + e.by * sy, e.bw * sx, e.bh * sy); g.globalAlpha = 1;
+  }
+  // воротник у голени (gfx: человек в снегу): полудуга мелких комьев вокруг ноги на линии снега; 'b' — задняя (до ноги), 'f' — передняя
+  function collar(g, x, y, rx, side, deep) {
+    if (STC) return;
+    const S = scaleOf(g), qr = Math.max(2, Math.round(rx)), qd = Math.min(1, deep) < 0.5 ? 0.5 : 1, key = 'c' + side + qr + ':' + qd + '@' + S;
+    let e = RIM.get(key);
+    if (!e) {
+      const ry = 0.9 + 0.22 * qr, bx = -(qr + 3.5), by = -(ry + 3.5), bw = -2 * bx, bh = -2 * by, c = document.createElement('canvas');
+      c.width = Math.ceil(bw * S); c.height = Math.ceil(bh * S); const cg = c.getContext('2d'); cg.scale(S, S); cg.translate(-bx, -by);
+      if (side === 'b') lumps(cg, 0, -0.1, qr, ry, Math.PI * 1.08, Math.PI * 1.92, qd, 1, 0x2C17, 0.8, 3, 0.45);
+      else { blit(cg, S_(), 0, ry * 0.7, qr * 1.15, ry + 0.6, 0.16 + 0.1 * qd); lumps(cg, 0, 0.15, qr + 0.2, ry + 0.2, Math.PI * 0.06, Math.PI * 0.94, qd, 1, 0x6E41, 0.95, 4, 0.45); }
+      e = { c, bx, by, bw, bh }; RIM.set(key, e); if (RIM.size > 128) RIM.delete(RIM.keys().next().value);
+    }
+    const k = rx / qr; g.drawImage(e.c, x + e.bx * k, y + e.by, e.bw * k, e.bh);
   }
   // словарь C (js/style.js): яма — полость тоном тени, бровка — линия туши, валик — бумага; колея — тень с кромками тушью
   const STC = typeof Style !== 'undefined' && Style.flat;
@@ -559,7 +574,7 @@ const Depth = (() => {
     }
     return n;
   }
-  const art = { back, front, trenches };
+  const art = { back, front, trenches, collar };
 
   function stats() {
     let n = 0; for (const b of BL) if (b) n++;

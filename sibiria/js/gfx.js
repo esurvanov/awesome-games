@@ -781,32 +781,148 @@ const GFX = (() => {
     light(o.x + dx / d * 7, o.y - 24 + dy / d * 3, 36 + 10 * k, 'f', 0.5 * k * k);
   }
   // ---------- тело в снегу / воде (js/depth.js, js/ice.js): ниже линии снега фигуры не видно; по линии — бровка-валик ----------
-  // Фигура опускается на провал (translate), обрезка — выше передней дуги ямы; 'hole' — ползёт с полыньи: над дырой тела не видно.
+  // Звери: фигура опускается на провал (translate), обрезка — выше передней дуги ямы; 'hole' — ползёт с полыньи: над дырой тела не видно.
   function sunkL(g, L, fn) {
     if (!ghost) Depth.art.back(g, L);
     g.save(); g.beginPath();
     if (L.mode === 'hole') { g.rect(L.cx - 160, L.cy - 180, 320, 300); g.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2); g.clip('evenodd'); }
     else { g.rect(L.cx - 140, L.cy - 220, 280, 220 + L.ry * 0.45); g.clip(); g.translate(0, L.px); } // прямоугольник дешевле кривой; дугу ямы закрывает передний валик
-    try { fn(); } finally { g.restore(); }
+    try { fn(g); } finally { g.restore(); }
     if (!ghost) Depth.art.front(g, L);
   }
-  // снег на одежде героя после провала (Depth.heroSnow 0..1): налёт по ногам и полам — по нарисованному ригу (ArtPeople.H.P.lg*)
-  function snowCoat(g) {
-    const k = Depth.heroSnow; if (!(k > 0.03) || !window.ArtPeople) return;
-    const P = ArtPeople.H.P; g.save(); g.lineCap = 'round'; g.strokeStyle = '#eef3f8';
-    for (const [L, a] of [[P.lg1, 0.3], [P.lg0, 0.42]]) { // налёт пятнами (штрих), гуще к голенищу
-      g.setLineDash([1.6, 1.1]); g.globalAlpha = a * k; g.lineWidth = 3; g.beginPath(); g.moveTo(L[0], L[1] + 2); g.lineTo(L[2], L[3]); g.lineTo(L[4], L[5]); g.stroke(); g.setLineDash([]);
-      g.globalAlpha = 0.6 * a * k; g.lineWidth = 1.3; g.beginPath(); g.moveTo(L[2] - 1.2, L[3] + 0.4); g.lineTo(L[2] + 1, L[3]); g.moveTo(L[4] - 1.4, L[5] - 1); g.lineTo(L[4] + 1, L[5] - 1.2); g.stroke(); // комья у колена и голенища
+  // ---------- человек в снегу: кромка по каждой ноге (A) и буфер фигуры для силуэта за препятствием (B) ----------
+  // high: фигура рисуется в свой буфер (окно FBW×FBH мира у опоры, пиксели устройства 1:1), ниже кромки — destination-out
+  // с мягким краем ≈4.5 px устройства. Кромка — линия снега у тела, у каждой ноги — «чаша» (передняя губа ямы у голени:
+  // опорная глубже — видна ниже, переносная мельче); у голени — воротник комьев (задний и передний дальней — под фигуру,
+  // передний ближней — поверх). Тени ног под снегом не рисуются (ArtPeople.setSink). low и люди без силуэта — клип по той же кривой
+  // (чаши прошлого кадра), без буфера. Буфер героя/Веры/выбранных остаётся до конца кадра — из него силуэт (occSil).
+  const FBW = 112, FBH = 122, FBY = 104;
+  const FBUF = new Map(); let FBSH = null, KEEPFB = false;   // свои буферы — у тех, кого показываем силуэтом; прочим — общий
+  const FREC = new Map();   // o → кадр фигуры {cv, X, Y, pw, ph, x0, y0, s, pts, f}
+  const CUTM = new WeakMap();   // o → чаши прошлого кадра (low) и разнос стоп (ширина валика)
+  function fbFor(o, keep) {
+    let e = keep ? FBUF.get(o) : FBSH;
+    if (!e) { const c = document.createElement('canvas'); e = { cv: c, g: c.getContext('2d'), f: 0 }; if (keep) FBUF.set(o, e); else FBSH = e; }
+    e.f = frame; return e;
+  }
+  function fbTrim() { for (const [o, e] of FBUF) if (frame - e.f > 120) { e.cv.width = e.cv.height = 0; FBUF.delete(o); } for (const [o, r] of FREC) if (frame - r.f > 2) FREC.delete(o); }
+  // чаши [x, y, rx, dip, нога] — где нога (таз→колено→щиколотка→носок, опущенные на px) входит в снег над своей точкой опоры
+  function legCups(px, out) {
+    const P = ArtPeople.H.P; out.length = 0;
+    for (let i = 0; i < 2; i++) {
+      const LG = i ? P.lg1 : P.lg0, gy = LG[12], q = [LG[0], LG[1] + px, LG[2], LG[3] + px, LG[4], LG[5] + px, LG[9], LG[10] + px];
+      if (q[1] > gy) continue;   // таз под снегом — нога вся в снегу
+      for (let k = 0; k < 3; k++) {
+        const x0 = q[k * 2], y0 = q[k * 2 + 1], x1 = q[k * 2 + 2], y1 = q[k * 2 + 3];
+        if (y0 <= gy && y1 > gy) { const u = (gy - y0) / (y1 - y0), dy = y1 - y0, l = Math.hypot(x1 - x0, dy); out.push(x0 + (x1 - x0) * u, gy, Math.min(4.6, 1.9 * l / Math.max(0.4, dy)) + 0.7, LG[13] ? 2.1 : 0.9, i); break; }
+      }   // нога над снегом (переносную вытащили) — чаши нет
     }
-    const hx = (P.lg0[0] + P.lg1[0] + P.lg0[2] + P.lg1[2]) / 4, hy = (P.lg0[1] + P.lg1[1]) * 0.33 + (P.lg0[3] + P.lg1[3]) * 0.17;
-    g.globalAlpha = 0.3 * k; g.fillStyle = '#eef3f8'; g.beginPath(); g.ellipse(hx, hy, 4.6, 1.1, 0, 0, Math.PI * 2); g.fill(); // кромка пол
-    g.restore();
+    return out;
+  }
+  // в полосе ноги — её линия (дальняя нога к камере спиной входит в снег выше линии тела, ближняя — ниже), к краю полосы — к линии тела;
+  // полосы двух ног перекрылись — ниже (ближняя) из двух
+  function cutY(x, base, C) {
+    let y = -1e9;
+    for (let i = 0; i < C.length; i += 5) { const u = Math.abs(x - C[i]) / C[i + 2]; if (u < 1) { const w = u < 0.7 ? 1 : 1 - (u - 0.7) / 0.3; y = Math.max(y, base + (C[i + 1] + C[i + 3] * Math.sqrt(1 - u * u) - base) * w * w * (3 - 2 * w)); } }
+    return y > -1e9 ? y : base;
+  }
+  // область ниже кромки (ye — низ окна) или выше (ye — верх окна: клип low); x — шагом 0.5 мира
+  function cutPath(x0, x1, ye, base, C) {   // вне чаш — прямая линия тела, в чашах — шагом 0.4 (≤ ~30 точек на ногу)
+    const p = new Path2D(), R = [];
+    for (let i = 0; i < C.length; i += 5) R.push([C[i] - C[i + 2], C[i] + C[i + 2]]);
+    R.sort((a, b) => a[0] - b[0]); p.moveTo(x0, base); let x = x0;
+    for (const [a, b] of R) { if (b <= x) continue; const s = Math.max(a, x); if (s > x) p.lineTo(s, base); for (let u = s; u < b; u += 0.4) p.lineTo(u, cutY(u, base, C)); x = b; p.lineTo(x, cutY(x, base, C)); }
+    p.lineTo(x1, base); p.lineTo(x1, ye); p.lineTo(x0, ye); p.closePath(); return p;
+  }
+  // налипший снег (Depth.heroSnow 0..1): 2–3 комка на голени над кромкой; стопа вытащена — комок на носке
+  function snowCoat(g, C, px, base) {
+    const k = Depth.heroSnow; if (!(k > 0.03)) return;
+    const P = ArtPeople.H.P; g.fillStyle = '#eef3f8';
+    for (const [LG, a] of [[P.lg1, 0.75], [P.lg0, 0.95]]) {
+      if (LG === P.lg1 && Math.abs(P.lg1[4] - P.lg0[4]) < 3.5) continue;   // дальняя голень за ближней — комья не поверх неё
+      const kx = LG[2], ky = LG[3] + px, ax = LG[4], ay = LG[5] + px, tx = LG[9], ty = LG[10] + px, cy = cutY(ax, base, C);
+      g.globalAlpha = a * Math.min(1, k * 1.4); g.beginPath();
+      for (const [h, r, dx] of [[1.3, 1.05, -0.5], [2.9, 0.85, 0.6], [4.6, 0.7, -0.2]]) {
+        const yy = Math.min(cy, ay + 0.6) - h; if (yy < ky + 0.8) continue;   // выше колена — нет
+        const u = (yy - ky) / Math.max(0.5, ay - ky), xx = kx + (ax - kx) * u + dx; g.moveTo(xx + r, yy); g.ellipse(xx, yy, r, r * 0.8, 0, 0, Math.PI * 2);
+      }
+      if (ty < cy - 0.5) { g.moveTo(tx + 0.9, ty - 0.6); g.ellipse(tx - 0.3, ty - 0.6, 1.2, 0.6, 0, 0, Math.PI * 2); }
+      g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+  const CUPS = [];
+  // валик ямы — шире разноса стоп (rx ≥ полуразнос + 4) и по середине стоп (прошлый кадр, сглажено)
+  function rimFit(L, m) { if (!m.sp) return; L.rx = Math.max(L.rx, m.sx + 4); L.ry = Math.max(L.ry, m.sy + 2.5); L.cx = m.cx; }
+  function sunkP(g, o, L, fn, hero) {
+    const P = ArtPeople.H.P, low = window.QUALITY === 'low', base = L.cy + 0.4, x0 = o.x - FBW / 2, x1 = o.x + FBW / 2;
+    let m = CUTM.get(o); if (!m) { m = { c: [], sp: 0, sx: 0, sy: 0, cx: o.x }; CUTM.set(o, m); }
+    rimFit(L, m);
+    if (!ghost) Depth.art.back(g, L);
+    ArtPeople.setSink(L.px);
+    if ((low || !(hero || KEEPFB)) && !ghost) {   // low и массовка: клип по кривой прошлого кадра, без буфера (бюджет кадра)
+      g.save(); g.clip(cutPath(x0, x1, o.y - FBY, base, m.c)); g.translate(0, L.px);
+      try { fn(g); } finally { g.restore(); ArtPeople.setSink(0); }
+      legCups(L.px, CUPS); recPts(o, L.px);
+      for (let i = 0; i < CUPS.length; i += 5) if (!CUPS[i + 4]) Depth.art.collar(g, CUPS[i], CUPS[i + 1], CUPS[i + 2], 'f', Math.min(1, L.px / 20));
+    } else {
+      figLayer(g, o, hero || KEEPFB, b => {
+        b.save(); b.translate(0, L.px); try { fn(b); } finally { b.restore(); ArtPeople.setSink(0); }
+        legCups(L.px, CUPS);
+        // мягкая кромка: всё ниже кромки, выше — 4 слоя по 0.2 (≈4.5 px устройства)
+        const path = cutPath(x0, x1, o.y + 20, base, CUPS), d = Math.min(1.6, Math.max(0.6, 4.5 / b.getTransform().a)) / 4;
+        b.globalCompositeOperation = 'destination-out'; b.fill(path); b.globalAlpha = 0.2;
+        for (let i = 1; i <= 4; i++) { b.translate(0, -d); b.fill(path); }
+        b.translate(0, 4 * d); b.globalAlpha = 1;
+        if (!ghost) {
+          const dp = Math.min(1, L.px / 20);
+          b.globalCompositeOperation = 'destination-over';
+          for (let i = 0; i < CUPS.length; i += 5) { Depth.art.collar(b, CUPS[i], CUPS[i + 1], CUPS[i + 2], 'b', dp); if (CUPS[i + 4]) Depth.art.collar(b, CUPS[i], CUPS[i + 1], CUPS[i + 2], 'f', dp); }
+          b.globalCompositeOperation = 'source-over';
+          for (let i = 0; i < CUPS.length; i += 5) if (!CUPS[i + 4]) Depth.art.collar(b, CUPS[i], CUPS[i + 1], CUPS[i + 2], 'f', dp);
+          if (hero) snowCoat(b, CUPS, L.px, base);
+        }
+        b.globalCompositeOperation = 'source-over';
+      }, L.px);
+    }
+    m.c.length = 0; for (const v of CUPS) m.c.push(v);
+    const gx0 = P.lg0[11], gy0 = P.lg0[12], gx1 = P.lg1[11], gy1 = P.lg1[12], e = m.sp ? 0.5 : 1;
+    m.sx += (Math.abs(gx0 - gx1) / 2 - m.sx) * e; m.sy += (Math.abs(gy0 - gy1) / 2 - m.sy) * e; m.cx += ((gx0 + gx1) / 2 - m.cx) * e; m.sp = 1;
+    m.cut = CUPS.slice(); m.base = base; m.px = L.px;   // для проверок (tests/snow-legs.js)
+    rimFit(L, m); m.rim = [L.cx, L.rx, L.ry, Math.abs(P.lg0[11] - P.lg1[11])];
+    if (!ghost) Depth.art.front(g, L);
+  }
+  // точки тела последней нарисованной фигуры (мир, со сдвигом провала px) — проверка «за препятствием»
+  function recPts(o, px, r) {
+    if (!r) { r = FREC.get(o); if (!r) { r = { pts: new Float32Array(20) }; FREC.set(o, r); } r.cv = null; }
+    const T = ArtPeople.H.P.pts; for (let i = 0; i < 20; i++) r.pts[i] = T[i] + (i & 1 ? px : 0); r.f = frame; r.cy = o.y; return r;
+  }
+  // фигура в буфер (пиксели устройства 1:1 с g), затем на g; запись кадра для силуэта
+  function figLayer(g, o, keep, paint, px = 0) {
+    const T = g.getTransform(), s = T.a, X = Math.round(s * (o.x - FBW / 2) + T.e), Y = Math.round(s * (o.y - FBY) + T.f), pw = Math.ceil(FBW * s), ph = Math.ceil(FBH * s);
+    const x0 = (X - T.e) / s, y0 = (Y - T.f) / s, e = fbFor(o, keep), b = e.g;
+    if (e.cv.width < pw || e.cv.height < ph) { e.cv.width = Math.max(e.cv.width, pw); e.cv.height = Math.max(e.cv.height, ph); }
+    b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'source-over'; b.globalAlpha = 1; b.clearRect(0, 0, pw, ph);
+    b.setTransform(s, 0, 0, s, -x0 * s, -y0 * s);
+    paint(b);
+    b.setTransform(1, 0, 0, 1, 0, 0); b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(e.cv, 0, 0, pw, ph, X, Y, pw, ph); g.restore();
+    const r = recPts(o, px);
+    r.cv = keep ? e.cv : null; r.X = X; r.Y = Y; r.pw = pw; r.ph = ph; r.x0 = x0; r.y0 = y0; r.s = s;
+    return r;
   }
   function sunk(g, o, kind, fn) {
-    if (typeof Depth === 'undefined' || !o || insideHut(o.x, o.y)) return fn();
-    const L = Depth.look(o, kind), f = o === G.p && !ghost ? () => { fn(); snowCoat(g); } : fn;
-    if (!L || L.mode === 'none' || (L.mode !== 'hole' && L.px < 2.5)) return f(); // тонкий снег (≲ 11 см) — без воронки
-    sunkL(g, L, f);
+    const person = kind === 'p' || kind === 'n', hero = o === G.p && !ghost;
+    if (typeof Depth === 'undefined' || !o || insideHut(o.x, o.y)) return person ? plainP(g, o, fn, hero) : fn(g);
+    const L = Depth.look(o, kind);
+    if (!L || L.mode === 'none' || (L.mode !== 'hole' && L.px < 2.5)) return person ? plainP(g, o, fn, hero) : fn(g); // тонкий снег (≲ 11 см) — без воронки
+    if (person && L.mode === 'snow') return sunkP(g, o, L, fn, hero);
+    sunkL(g, L, fn); if (person) recPts(o, L.mode === 'snow' ? L.px : 0);
+  }
+  // человек не в снегу: силуэт — тоже из буфера (герой и кого показываем), остальные — прямо
+  function plainP(g, o, fn, hero) {
+    if ((hero || KEEPFB) && window.QUALITY !== 'low' && !ghost) { figLayer(g, o, true, fn); return; }
+    fn(g); recPts(o, 0);
   }
   // походка людей по провалу: глубже колена — trudge, глубже пояса — «плывёт» (wade)
   function deepWalk(o, anim, moving, kind = 'n') {
@@ -835,9 +951,9 @@ const GFX = (() => {
     if (b.tg && !b.loco && b.ik) target = loc(p, b.tg, b.th, avy === null ? 0 : vy, face);
     if (p.ride && !ghost) { const v = G.veh[p.ride]; if (p.ride === 'buran') ArtZones.buran(g, v, ENV, true); else ArtZones.deerSled(g, v, ENV); }
     const x = p.sleeping ? p.x - 4 : p.x, sp = clamp(b.speed / 200, 0, 1), rime = typeof Ice !== 'undefined' ? Ice.rime() : 0;
-    const fig = () => ArtPeople.draw(g, { key: p, x: p.ride ? x - p.face * 8 : x, y: p.ride ? p.y - (p.ride === 'buran' ? 14 : 8) : p.y, face, vy, speed: sp, t: now, phase: stepPhase(HMOT, anim, b.loco ? b.speed : 0, vy), gait: b.loco && !p.ride ? HMOT.gait : null, onStep: ghost ? null : Hero.footStep,
-      anim, animT: b.animT, item: p.action && p.action.item, load: ghost || (b.st === 'act' && !(ArtPeople.POSE[anim] && ArtPeople.POSE[anim].own)) ? null : Carry.art(), wind: WP.w, gust: WP.g, look: heroLook(), tool: b.tool, target, frost: Math.max(clamp((30 - G.s.warm) / 30, 0, 1), rime), tire: b.tire || 0, wet: p.wetT > 0, blink: p.iT > 0, seed: 1, deep: typeof Depth !== 'undefined' ? Depth.heroSink : 0, kg: p.action && p.action.k === 'clear' ? p.action.kg : null, side: p.action && p.action.side }, ENV);
-    const fig2 = p.action && p.action.k === 'clear' && !ghost && typeof Trail !== 'undefined' ? () => { fig(); Trail.drawTool(g, p.action, face, p.x, p.y, !!b.loco); } : fig; // лопата в руках
+    const fig = (gg = g) => ArtPeople.draw(gg, { key: p, x: p.ride ? x - p.face * 8 : x, y: p.ride ? p.y - (p.ride === 'buran' ? 14 : 8) : p.y, face, vy, speed: sp, t: now, phase: stepPhase(HMOT, anim, b.loco ? b.speed : 0, vy), gait: b.loco && !p.ride ? HMOT.gait : null, onStep: ghost ? null : Hero.footStep,
+      anim, animT: b.animT, item: p.action && p.action.item, load: (b.st === 'act' && !(ArtPeople.POSE[anim] && ArtPeople.POSE[anim].own)) ? null : Carry.art(), wind: WP.w, gust: WP.g, look: heroLook(), tool: b.tool, target, frost: Math.max(clamp((30 - G.s.warm) / 30, 0, 1), rime), tire: b.tire || 0, wet: p.wetT > 0, blink: p.iT > 0, seed: 1, deep: typeof Depth !== 'undefined' ? Depth.heroSink : 0, kg: p.action && p.action.k === 'clear' ? p.action.kg : null, side: p.action && p.action.side }, ENV);
+    const fig2 = p.action && p.action.k === 'clear' && !ghost && typeof Trail !== 'undefined' ? (gg = g) => { fig(gg); Trail.drawTool(gg, p.action, face, p.x, p.y, !!b.loco); } : fig; // лопата в руках
     if (p.ride || p.sleeping) fig(); else sunk(g, p, 'p', fig2); // в снегу по колено/пояс/грудь — ниже снега не видно (js/depth.js)
     if (p.torch > 0 && b.tool === 'torch') light(p.x + face * 14, p.y - 38, 240, 'w', 0.9);
     // (светлый круг вокруг героя без источника убран: ночью свет — только от огня, факела, окна; луна — слабым общим светом в ambient)
@@ -866,7 +982,7 @@ const GFX = (() => {
     const u = G.urk, m = motion(u, u.face), moving = m.spd > 8, sp = moving ? null : standPose('urk', u, 3);
     const talking = !!(sp && sp.talking), vy = view(m, moving ? dirY(m) : sp && sp.vy || 0), fc = sp && sp.face || m.face;
     const WP = windPose(u, fc, vy, moving ? 'walk' : sp ? sp.anim : 'idle', moving), anim = deepWalk(u, WP.anim, moving);
-    sunk(g, u, 'n', () => ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: fc, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: 0.35, anim, animT: sp && sp.animT || 0, wind: WP.w, gust: WP.g, look: LK.urk, tool: 'none', seed: 3 }, ENV));
+    sunk(g, u, 'n', gg => ArtPeople.draw(gg, { key: u, x: u.x, y: u.y, face: fc, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: 0.35, anim, animT: sp && sp.animT || 0, wind: WP.w, gust: WP.g, look: LK.urk, tool: 'none', seed: 3 }, ENV));
     if (!ghost) rimLight(u);
     if (ghost) return;
     if (dist2(u, G.p) < 160 * 160 && !talking && !UI.modal()) mark('talk', u.x, u.y - 60 + Math.sin(now * 3) * 2);
@@ -880,7 +996,7 @@ const GFX = (() => {
     const sp = moving ? null : standPose('vera', v, 5, ['rubHands', 'blowHands', 'lookAround', 'wipeNose']), stand = follow && sp;
     const vy = view(m, moving ? dirY(m) : stand && sp.vy || 0), fc = sp && sp.face || m.face;
     const WP = windPose(v, fc, vy, follow ? (moving ? 'limp' : stand ? sp.anim : 'idle') : 'sit', moving), anim = deepWalk(v, WP.anim, moving);
-    sunk(g, v, 'n', () => ArtPeople.draw(g, { key: v, x: v.x, y: v.y, face: fc, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: 0.3, anim, animT: stand && sp.animT || 0, wind: WP.w, gust: WP.g, look: LK.vera, tool: 'none', seed: 5 }, ENV));
+    sunk(g, v, 'n', gg => ArtPeople.draw(gg, { key: v, x: v.x, y: v.y, face: fc, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: 0.3, anim, animT: stand && sp.animT || 0, wind: WP.w, gust: WP.g, look: LK.vera, tool: 'none', seed: 5 }, ENV));
     if (!ghost) rimLight(v);
     if (!ghost && (v.state === 'tail' || (v.state === 'hut' && v.food <= 0))) mark(v.food <= 0 && v.state === 'hut' ? 'food' : 'alarm', v.x, v.y - 56 + Math.sin(now * 3) * 2);
   }
@@ -889,7 +1005,7 @@ const GFX = (() => {
     const u = n.st, m = motion(u, u.face), moving = m.spd > 8, sp = moving ? null : standPose(n.id, u, sd(n.id));
     const talking = !!(sp && sp.talking), vy = view(m, moving ? dirY(m) : sp && sp.vy || 0), fc = sp && sp.face || m.face;
     const WP = windPose(u, fc, vy, moving ? 'walk' : sp ? sp.anim : 'idle', moving), anim = deepWalk(u, WP.anim, moving);
-    sunk(g, u, 'n', () => ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: fc, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: 0.35, anim, animT: sp && sp.animT || 0, wind: WP.w, gust: WP.g, look: n.rec.look, tool: 'none', seed: 7 }, ENV));
+    sunk(g, u, 'n', gg => ArtPeople.draw(gg, { key: u, x: u.x, y: u.y, face: fc, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: 0.35, anim, animT: sp && sp.animT || 0, wind: WP.w, gust: WP.g, look: n.rec.look, tool: 'none', seed: 7 }, ENV));
     if (!ghost) rimLight(u);
     if (ghost) return;
     if (dist2(u, G.p) < 160 * 160 && !talking && !UI.modal()) mark('talk', u.x, u.y - 60 + Math.sin(now * 3) * 2);
@@ -1222,7 +1338,7 @@ const GFX = (() => {
     }
     const sp = clamp(T.sp / 160, 0.2, 1), vy = view(m, anim === 'walk' || anim === 'carry' ? dirY(m) : 0);
     const WP = windPose(u, moved ? m.face : uf, vy, anim, moved); anim = deepWalk(u, WP.anim, moved); if (!ghost) rimLight(u);
-    sunk(g, u, 'n', () => ArtPeople.draw(g, { key: u, x: u.x, y: u.y, face: moved ? m.face : uf, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: sp, anim, animT, wind: WP.w, gust: WP.g, look: LK[u.type], tool, target,
+    sunk(g, u, 'n', gg => ArtPeople.draw(gg, { key: u, x: u.x, y: u.y, face: moved ? m.face : uf, vy, t: now, phase: stepPhase(m, anim, m.spd, vy), gait: m.gait, speed: sp, anim, animT, wind: WP.w, gust: WP.g, look: LK[u.type], tool, target,
       carry: c ? ITEMS[c].i : null, sel: sel && !ghost, hp: !ghost && u.hp < mh ? u.hp / mh : null, seed: u.id, crowd: 1 }, ENV));
   }
   function drawAmulet(a) { const s = ArtWorld.amulet(cx, a.x, a.y); EYES.push({ x: s.x, y: s.y, spark: 0.4 + Math.sin(now * 3 + a.x) * 0.4 }); }
@@ -1248,10 +1364,16 @@ const GFX = (() => {
 
   // ---------- разговор: дерево/постройка перед участниками плавно становится полупрозрачной (js/talk.js — кого беречь) ----------
   let TALKW = []; const FADEM = new Map(), FADEK = { 0: 1, 11: 1, 14: 1, 22: 1, 32: 1, 33: 1 };
+  // low: вещь, за которой целиком скрылся герой (HIDE — с прошлого кадра, см. silhouette), гаснет до 0.4 за 0.25 с (вместо силуэта)
+  let HIDE = new Set(), HIDE2 = new Set();
+  const occKey = (k, o) => (o && typeof o === 'object' ? o : 'k' + k);
   function occFade(k, o) {
-    const r = occRect(k, o); let tg = 1; const oy = o && o.y != null ? o.y : r ? r[3] : 0, key = o && typeof o === 'object' ? o : 'k' + k;
+    const r = occRect(k, o); let tg = 1; const oy = o && o.y != null ? o.y : r ? r[3] : 0, key = occKey(k, o), hid = HIDE.has(key);
     if (r) for (const q of TALKW) if (q && oy > q.y + 2 && r[0] < q.x + 12 && r[2] > q.x - 12 && r[1] < q.y - 4 && r[3] > q.y - 50) { tg = 0.3; break; }
-    let v = FADEM.has(key) ? FADEM.get(key) : 1; v += (tg - v) * Math.min(1, rdt * 6); if (Math.abs(v - tg) < 0.01) v = tg;
+    if (hid) tg = Math.min(tg, 0.4);
+    let v = FADEM.has(key) ? FADEM.get(key) : 1;
+    if (TALKW.length) v += (tg - v) * Math.min(1, rdt * 6); else v += clamp(tg - v, -2.4 * rdt, 2.4 * rdt);   // 1 → 0.4 за 0.25 с
+    if (Math.abs(v - tg) < 0.01) v = tg;
     if (v >= 1) FADEM.delete(key); else FADEM.set(key, v);
     return v;
   }
@@ -1292,14 +1414,81 @@ const GFX = (() => {
     return f.y < (top == null ? F.y1 : top);
   }
   const overlap = (a, b) => { const w = Math.min(a[2], b[2]) - Math.max(a[0], b[0]), h = Math.min(a[3], b[3]) - Math.max(a[1], b[1]); return w > 0 && h > 0 ? w * h / ((b[2] - b[0]) * (b[3] - b[1])) : 0; };
-  function drawGhostFigure(o, fn) {
-    const W0 = 70, H0 = 80, S = dpr, x0 = o.x - W0 / 2, y0 = o.y - H0 + 12;
-    const pw = Math.ceil(W0 * S), ph = Math.ceil(H0 * S);
-    if (sv.width < pw || sv.height < ph) { sv.width = Math.max(sv.width, pw); sv.height = Math.max(sv.height, ph); }
-    sx_.setTransform(1, 0, 0, 1, 0, 0); sx_.clearRect(0, 0, pw, ph);
-    sx_.setTransform(S, 0, 0, S, -x0 * S, -y0 * S);
-    ghost = true; try { fn(sx_); } finally { ghost = false; }
-    cx.globalAlpha = 0.38; cx.drawImage(sv, 0, 0, pw, ph, x0, y0, W0, H0); cx.globalAlpha = 1;
+  // Силуэт (B): закрывающие вещи (нарисованы позже фигуры и стоят перед ней) — в маску ½ мира на окно буфера фигуры:
+  // ель — её же спрайтом (крона и ствол как нарисованы), прочее — прямоугольником. Закрыто ≥ 30 % точек тела (голова, шея, грудь,
+  // таз, колени, щиколотки, кисти над снегом; гаснет < 20 %) — high (occSil): буфер фигуры (с ношей, со снегом у ног) → один цвет (source-in),
+  // светлый контур в 1 px устройства → только там, где закрыто (маска) → одна альфа 0.45, нарастает за 0.15 с; low — вещь гаснет (occFade).
+  const OCQ = 0.5, OCW = Math.ceil(FBW * OCQ), OCH = Math.ceil(FBH * OCQ), OCC = { cv: null, g: null };
+  const SILS = new WeakMap(), SILD = '#1d3149', SILL = '#c9d8ea', SILA = 0.45;
+  const sv2 = document.createElement('canvas'), sx2 = sv2.getContext('2d');
+  const DBGS = { cov: 0, on: 0, a: 0, n: 0 };   // для проверок (tests/snow-legs.js): доля закрытого, силуэт, альфа, сколько раз нарисован
+  function occMask(w) {
+    if (!OCC.cv) { OCC.cv = document.createElement('canvas'); OCC.cv.width = OCW; OCC.cv.height = OCH; OCC.g = OCC.cv.getContext('2d'); }
+    const m = OCC.g, o = w.o, bx = o.x - FBW / 2, by = o.y - FBY;
+    m.setTransform(1, 0, 0, 1, 0, 0); m.clearRect(0, 0, OCW, OCH); m.fillStyle = '#000';
+    for (let i = 0; i < w.occ.length; i += 2) {
+      const k = w.occ[i], q = w.occ[i + 1];
+      if (isTreeOcc(k, q)) {
+        const S = treeSprite(q, treeV(q)), tw = ArtWorld.treeW(q.kind), kk = treeK(q);
+        m.setTransform(OCQ * kk, 0, 0, OCQ * kk, OCQ * (q.x - bx), OCQ * (q.y - by)); m.drawImage(S, -tw / 2, -160, tw, 170);
+      } else { const r = occRect(k, q); if (r) { m.setTransform(OCQ, 0, 0, OCQ, -OCQ * bx, -OCQ * by); m.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]); } }
+    }
+    m.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  // проверка без чтения холста: ель — по альфе её спрайта (уменьшенная копия читается один раз на спрайт), прочее — прямоугольник
+  const isTreeOcc = (k, q) => k === 0 && q.stage !== 1 && q.wood > 0;
+  const treeK = q => q.s / ArtWorld.treeK(q.s) * tjit(q) * (q.gAt != null ? World.adultK(q) : 1);
+  const SPA = new WeakMap();
+  function spriteAlpha(S) {
+    let m = SPA.get(S); if (m) return m;
+    const w = 48, h = Math.max(1, Math.round(w * S.height / S.width)), c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(S, 0, 0, w, h); const D = g.getImageData(0, 0, w, h).data, a = new Uint8Array(w * h);
+    for (let i = 0; i < a.length; i++) a[i] = D[i * 4 + 3];
+    m = { w, h, a }; SPA.set(S, m); return m;
+  }
+  function occAt(k, q, x, y) {
+    if (isTreeOcc(k, q)) {
+      const tw = ArtWorld.treeW(q.kind), kk = treeK(q), u = ((x - q.x) / kk + tw / 2) / tw, v = ((y - q.y) / kk + 160) / 170;
+      if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
+      const m = spriteAlpha(treeSprite(q, treeV(q))); return m.a[Math.floor(v * m.h) * m.w + Math.floor(u * m.w)] > 140;
+    }
+    const r = occRect(k, q); return !!r && x > r[0] && x < r[2] && y > r[1] && y < r[3];
+  }
+  // доля точек тела (над снегом), закрытых вещами впереди
+  function covered(w, rec) {
+    const o = w.o, T = rec.pts; let n = 0, c = 0;
+    for (let i = 0; i < 20; i += 2) {
+      const x = T[i], y = T[i + 1]; if (y > o.y + 0.5) continue;   // под снегом — не в счёт
+      n++; for (let j = 0; j < w.occ.length; j += 2) if (occAt(w.occ[j], w.occ[j + 1], x, y)) { c++; break; }
+    }
+    return n ? c / n : 0;
+  }
+  function occSil(w) {
+    const rec = FREC.get(w.o), low = window.QUALITY === 'low';
+    let st = SILS.get(w.o); if (!st) { st = { on: false, a: 0 }; SILS.set(w.o, st); }
+    if (!rec || rec.f !== frame || !w.occ) { st.on = false; st.a = 0; if (w.o === G.p) { DBGS.cov = 0; DBGS.on = 0; DBGS.a = 0; } return; }
+    const cov = covered(w, rec);
+    st.on = cov >= 0.3 || (st.on && cov >= 0.2);
+    if (w.o === G.p) { DBGS.cov = cov; DBGS.on = st.on ? 1 : 0; }
+    if (!st.on) { st.a = 0; return; }
+    if (low || !rec.cv) { for (let i = 0; i < w.occ.length; i += 2) HIDE2.add(occKey(w.occ[i], w.occ[i + 1])); return; }
+    st.a = Math.min(1, st.a + rdt / 0.15); occMask(w);
+    const pw = rec.pw, ph = rec.ph, s = rec.s;
+    for (const c of [sv, sv2]) if (c.width < pw || c.height < ph) { c.width = Math.max(c.width, pw); c.height = Math.max(c.height, ph); }
+    // один цвет по форме фигуры
+    sx_.setTransform(1, 0, 0, 1, 0, 0); sx_.globalAlpha = 1; sx_.globalCompositeOperation = 'source-over'; sx_.clearRect(0, 0, pw, ph);
+    sx_.drawImage(rec.cv, 0, 0, pw, ph, 0, 0, pw, ph); sx_.globalCompositeOperation = 'source-in'; sx_.fillStyle = SILD; sx_.fillRect(0, 0, pw, ph); sx_.globalCompositeOperation = 'source-over';
+    // контур: та же форма сдвигами на 1 px светлым, тело поверх
+    sx2.setTransform(1, 0, 0, 1, 0, 0); sx2.globalAlpha = 1; sx2.globalCompositeOperation = 'source-over'; sx2.clearRect(0, 0, pw, ph);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) sx2.drawImage(sv, 0, 0, pw, ph, dx, dy, pw, ph);
+    sx2.globalCompositeOperation = 'source-in'; sx2.fillStyle = SILL; sx2.fillRect(0, 0, pw, ph);
+    sx2.globalCompositeOperation = 'source-over'; sx2.drawImage(sv, 0, 0, pw, ph, 0, 0, pw, ph);
+    // только где закрыто
+    sx2.globalCompositeOperation = 'destination-in'; const bx = w.o.x - FBW / 2, by = w.o.y - FBY;
+    sx2.drawImage(OCC.cv, 0, 0, OCW, OCH, (bx - rec.x0) * s, (by - rec.y0) * s, OCW / OCQ * s, OCH / OCQ * s);
+    sx2.globalCompositeOperation = 'source-over';
+    cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalAlpha = SILA * st.a; cx.drawImage(sv2, 0, 0, pw, ph, rec.X, rec.Y, pw, ph); cx.restore();
+    if (w.o === G.p) { DBGS.a = SILA * st.a; DBGS.n++; }
   }
 
   // ---------- окружающий свет ----------
@@ -1477,27 +1666,28 @@ const GFX = (() => {
     L.sort((a, b) => a[0] - b[0]);
     // фигуры, которые покажем силуэтом, если их закроет объект, нарисованный позже
     const watch = [], SNOWK = typeof Snow !== 'undefined' && !window.SNOW_OFF;
-    const figRect = o => [o.x - 10, o.y - 44, o.x + 10, o.y - 4];
+    const figRect = o => [o.x - 14, o.y - 52, o.x + 14, o.y + 2];
     TALKW = !ghost && typeof Talk !== 'undefined' && Talk.watchers ? Talk.watchers() : [];
+    HIDE = HIDE2; HIDE2 = new Set(); fbTrim();
     for (const [, k, o] of L) {
-      const fa = (TALKW.length || FADEM.size) && FADEK[k] ? occFade(k, o) : 1; if (fa < 1) cx.globalAlpha = fa;   // разговор: что закрывает участников — полупрозрачно
+      const fa = (TALKW.length || FADEM.size || HIDE.size) && (FADEK[k] || HIDE.has(occKey(k, o))) ? occFade(k, o) : 1; if (fa < 1) cx.globalAlpha = fa;   // разговор: что закрывает участников — полупрозрачно; low — что закрыло героя
       switch (k) {
         case 0: drawTree(o, wind); break; case 1: drawHare(o); break; case 2: drawWolf(o); break; case 3: drawFire(o); break;
         case 4: drawStack(o); break; case 5: drawBear(o); break;
-        case 6: drawPlayer(); if (!p.inside && !p.sleeping) watch.push({ o: p, r: figRect(p), fn: g => drawPlayer(g), hit: 0 }); break;
+        case 6: drawPlayer(); if (!p.inside && !p.sleeping) watch.push({ o: p, r: figRect(p), occ: null }); break;
         case 27: { const dr = Math.sign(p.x - p.sx) || 1; ArtWorld.sled(cx, p.sx, p.sy, 0, dr); Carry.drawSledLoad(cx, p.sx, p.sy, dr); } break;
         case 40: Carry.drawLoose(cx, o); break;
         case 41: Carry.drawCarc(cx, o); break;
         case 42: Carry.drawPile(cx); break;
         case 7: drawUrk(); break;
-        case 8: drawVera(); if (G.vera.state === 'follow') watch.push({ o: G.vera, r: figRect(G.vera), fn: g => drawVera(g), hit: 0 }); break;
+        case 8: { const fw = G.vera.state === 'follow'; KEEPFB = fw; drawVera(); KEEPFB = false; if (fw) watch.push({ o: G.vera, r: figRect(G.vera), occ: null }); } break;
         case 9: drawWreck(0); break; case 29: drawWreck(1); break; case 30: drawWreck(2); break; case 10: drawTailObj(); break;
         case 11: drawChum(); break; case 12: drawDeer(o); break; case 13: ArtWorld.sled(cx, POI.chum.x + 80, POI.chum.y + 120, 0, 1); break;
         case 14: cx.drawImage(LABAZ(), POI.labaz.x - 40, POI.labaz.y - 80, 80, 90); break;
         case 15: drawNorthWall(); break; case 16: drawStove(); break; case 17: drawBench(); break; case 18: drawChest(); break; case 19: drawBed(); break;
         case 20: drawSouthWall(); break; case 21: drawRoof(); break;
         case 22: drawBuilding(o); break;
-        case 23: drawUnit(o); if (o.type !== 'laika' && G.col.sel.includes(o.id)) watch.push({ o, r: figRect(o), fn: g => drawUnit(o, g), hit: 0 }); break;
+        case 23: { const sl = o.type !== 'laika' && G.col.sel.includes(o.id); KEEPFB = sl; drawUnit(o); KEEPFB = false; if (sl) watch.push({ o, r: figRect(o), occ: null }); } break;
         case 25: drawAmulet(o); break; case 26: drawInspect(o); break;
         case 28: drawGhostBuilding(); break;
         case 31: ArtWorld.drawParticle(cx, o, ENV); cx.globalAlpha = 1; break;
@@ -1512,9 +1702,9 @@ const GFX = (() => {
       }
       if (SNOWK) Snow.after(cx, k, o); // шапка снега поверх вещи (js/snow.js)
       if (fa < 1) cx.globalAlpha = 1;
-      if (watch.length) { const r = occRect(k, o); if (r) for (const w of watch) if (w.o !== o && overlap(r, w.r) > 0.25 && behind(k, o, w.o)) w.hit = 1; }
+      if (watch.length) { const r = occRect(k, o); if (r) for (const w of watch) if (w.o !== o && overlap(r, w.r) > 0 && behind(k, o, w.o)) (w.occ || (w.occ = [])).push(k, o); }
     }
-    for (const w of watch) if (w.hit) drawGhostFigure(w.o, w.fn);
+    for (const w of watch) occSil(w);
     // порыв рядом с героем стряхивает снег с крон (редко; эмиттер — спавн в update)
     if (GUSTY.length && state === 'play') FX.emit('gust-snow', wind > 1 ? 1.5 : 0.4, parts => { const t = GUSTY[(CR() * GUSTY.length) | 0]; if (t && t.wood > 0) ArtWorld.fx.branchSnow(parts, t, 0.3); });
     // 4. частицы в воздухе (дым, пар, точки) — поверх объектов
@@ -1787,6 +1977,8 @@ const GFX = (() => {
     get bakeQueue() { return bakeQ.length; }, bakeMax(reset) { const v = bakeMax; if (reset) bakeMax = 0; return v; },
     dropChunks() { chunks.clear(); bakeQ = []; },
     tjit, fallPose,   // размер ели ±7 % (длина ствола = видимой ели); поза валки — для проверок (tests/tree-check.js)
+    // для проверок (tests/snow-legs.js): кадр фигуры (буфер, окно, точки), кромка ног (чаши, линия снега), силуэт (последний слой)
+    figDbg(o) { const r = FREC.get(o || G.p), m = CUTM.get(o || G.p); return { rec: r || null, cut: m && m.cut || null, base: m ? m.base : null, px: m ? m.px : 0, sil: DBGS, silCv: sv2, tintCv: sv, rim: m ? m.rim : null, cutY: (x, b, c) => cutY(x, b, c) }; },
     // память кэшей (замеры): куски снега по ступеням + спрайты ArtWorld
     stats() {
       const by = {}; for (const e of chunks.values()) { const k = e.s + '/' + e.cs; by[k] = (by[k] || 0) + 1; }
