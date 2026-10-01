@@ -875,6 +875,7 @@ const UI = (() => {
 
   // ---------- ввод ----------
   const keys = new Set(), joy = { x: 0, y: 0, id: null, ox: 0, oy: 0 };
+  const SHIFT_TAP = 350; let shiftTap = 0; // мс: чистое нажатие Shift без цели — отскок назад на отпускании (см. keydown)
   function keyAction(k) {
     if (state !== 'play') return;
     tips.did({ E: 'act', F: 'fire', Q: 'eat', B: 'build', C: 'craft' }[k]);
@@ -925,8 +926,13 @@ const UI = (() => {
     if (e.code === 'Escape' || e.code === 'KeyP') { pause(true); return; }
     keys.add(e.code);
     if (e.repeat) return;
+    const shift = e.code === 'ShiftLeft' || e.code === 'ShiftRight';
+    if (!shift) shiftTap = 0;   // Shift с другой клавишей — сочетание (Cmd+Shift+4 — снимок экрана, Shift+буква), не отскок
     if (e.code === 'KeyE' || e.code === 'Space') { input.act = true; keyAction('E'); }
-    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !G.col.sel.length) Hero.dodge();   // отскок (рывок по направлению / от угрозы); с выделенными людьми Shift — добавить к выделению
+    // отскок (рывок по направлению / от угрозы); с выделенными людьми Shift — добавить к выделению.
+    // Есть куда (ввод, падающий ствол, волк) — сразу; иначе («назад») — только на чистое короткое нажатие Shift (на отпускании):
+    // стоящий герой не отпрыгивает от Shift в составе сочетаний и с модификаторами
+    if (shift && !G.col.sel.length && !e.metaKey && !e.ctrlKey && !e.altKey) { if (Hero.dodgeAim()) Hero.dodge(); else shiftTap = performance.now(); }
     if (e.code === 'KeyF') keyAction('F');
     if (e.code === 'KeyX') keyAction('X');
     if (e.code === 'KeyQ') keyAction('Q');
@@ -946,8 +952,15 @@ const UI = (() => {
     const g = /^(Digit|Numpad)([1-3])$/.exec(e.code);
     if (g) { if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); groupSet(+g[2]); } else groupGet(+g[2]); }
   });
-  addEventListener('keyup', e => { keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Space') input.act = false; });
-  addEventListener('blur', () => { keys.clear(); input.act = false; });
+  addEventListener('keyup', e => {
+    keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Space') input.act = false;
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && shiftTap) {
+      const tap = performance.now() - shiftTap < SHIFT_TAP && !e.metaKey && !e.ctrlKey && !e.altKey; shiftTap = 0;
+      if (tap && state === 'play' && !kind && !G.col.sel.length) Hero.dodge();
+    }
+  });
+  addEventListener('pointerdown', () => { shiftTap = 0; }, true);   // Shift+клик (выделение) — не отскок
+  addEventListener('blur', () => { keys.clear(); input.act = false; shiftTap = 0; });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(true); });
 
   const zoneEl = $('stickzone'), stick = $('stick'), knob = $('knob');
