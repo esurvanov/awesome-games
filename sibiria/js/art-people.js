@@ -132,6 +132,11 @@ var ArtPeople = (function () {
     n.hoodL = mix(n.hood || n.body, '#f3e3c8', 0.3); n.hoodM = mix(n.hood || n.body, '#f3e3c8', 0.12); n.bodyL = mix(n.body, '#f3e3c8', 0.16);
     n.armL = mix(n.body, '#f3e3c8', 0.28); n.pantsL = mix(n.pants, '#dde6ee', 0.22); n.pantsD = mix(n.pants, '#10141c', 0.45);   // блик на ткани — тёплый, низкий контраст
     n.bootsL = mix(n.boots, '#dde6ee', 0.3); n.mittL = mix(n.mitt, '#f3e3c8', 0.3);
+    if (SCs()) {   // C: 2 тона на материал — блики = основной тон, дальняя сторона = тень (роли привяжет контекст Style.figure)
+      const hd = n.hood || n.body;
+      for (const [k, v] of [['bodyH', n.body], ['bodyL', n.body], ['armL', n.body], ['sleeve', n.body], ['hoodL', hd], ['hoodM', hd], ['pantsL', n.pants], ['bootsL', n.boots], ['mittL', n.mitt],
+        ['furL', n.fur], ['faceL', n.face], ['nL', n.face], ['reflL', n.refl], ['hatL', n.hat], ['hatC', n.hat], ['packL', n.pack], ['ruffL', n.ruff], ['far', n.dark], ['sleeveFar', n.dark]]) if (n[k] != null && v != null) n[k] = v;
+    }
     NORM.set(l, n); return n;
   }
 
@@ -568,9 +573,13 @@ var ArtPeople = (function () {
   const SAG = { sleep: 1, dead: 1, sit: 1, rest: 1, fish: 1, fishBite: 1 };
   const isSag = a => SAG[a] || (POSE[a] && POSE[a].sag);
 
+  // словарь C (js/style.js): фигура рисуется через Style.figure — роли, контур силуэта, ореол; тень — по правилу в GFX (shadowsC)
+  const SCs = () => typeof Style !== 'undefined' && Style.flat;   // плоский C — только в режиме 'flat'
+  let CFG = false, TRL = null;   // CFG — идёт рисунок фигуры C; TRL — дуга маха (линии скорости кладутся поверх, вне контура)
   // контактная тень стопы: кэшированное радиальное пятно
   let CONT = null;
   function cont(g, x, y, rx, ry, a) {
+    if (CFG) return;
     if (CONT === null) {
       CONT = false;
       if (typeof document !== 'undefined') {
@@ -586,6 +595,7 @@ var ArtPeople = (function () {
   // ---------- кэш тени ----------
   let SHIMG = null;
   function shadow(g, x, y, w, h) {
+    if (CFG) return;
     if (SHIMG === null) {
       SHIMG = false;
       if (typeof document !== 'undefined') {
@@ -1941,7 +1951,23 @@ var ArtPeople = (function () {
 
   // ---------- главный вход ----------
   const NOENV = { now: 0, night: 0, light() {}, spark() {} };
+  // C: рамка фигуры (мир, от опоры): обычная — по росту и замаху, лёжа/у лунки/с оружием — шире
+  const LQ_ = () => typeof window !== 'undefined' && window.QUALITY === 'low';
+  const WIDE = { sleep: 1, dead: 1, fish: 1, fishBite: 1, shoot: 1, aim: 1, freezeFall: 1, sit: 1, rest: 1 };
   function draw(g, o, env) {
+    if (!SCs() || CFG || Style.depth) return draw0(g, o, env);
+    const t = o.t || 0; if (o.blink && Math.floor(t * 20) % 2) return;
+    const x = o.x, y = o.y, wide = WIDE[o.anim] || o.ride, hw = wide ? 48 : 32;
+    if (o.sel) { g.strokeStyle = Style.P.ochre; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, o.anim === 'sleep' || o.anim === 'dead' ? 24 : 15, 6, 0, 0, PI * 2); g.stroke(); }
+    // главные фигуры (герой, Вера, Уркачан, люди зон) — тушь 8 сдвигами и ореол; массовка посёлка — тушь крестом, без ореола (бюджет кадра)
+    const hero = !!(o.key && typeof G !== 'undefined' && G && G.p === o.key), crowd = !!o.crowd && !hero;
+    const halo = hero || (!crowd && !(typeof window !== 'undefined' && window.QUALITY === 'low'));
+    TRL = null; CFG = true;   // массовка — из кэша 30 Гц; слабый пресет: герой 30 Гц, массовка 15 Гц
+    try { Style.figure(g, x - hw, y - 86, hw * 2, 98, gg => draw0(gg, o, env), { halo, few: crowd, cache: crowd || LQ_() ? o.key || null : null, every: LQ_() && !hero ? 4 : 2 }); } finally { CFG = false; }
+    if (TRL) { Style.speedPath(g, TRL, [0.86, 1.1]); TRL = null; }
+    finish(g, o, look(heroSub(o.look)), x, y, env);
+  }
+  function draw0(g, o, env) {
     env = env || NOENV; if (!env.light) env.light = NOENV.light; if (!env.spark) env.spark = NOENV.spark;
     const t = o.t || 0; if (o.blink && Math.floor(t * 20) % 2) return;
     // постановка разговора (js/talk.js): поза/жест, ракурс, предмет в руке, мимика — только у участников (по o.key)
@@ -1983,8 +2009,8 @@ var ArtPeople = (function () {
     P.pko = null; if (HERO) { DBG.logs = 0; DBG.off = 0; DBG.fill = HFILL; }
     if (POL) { const tf = g.getTransform ? g.getTransform() : null; DET = !LQ && (tf ? Math.hypot(tf.a, tf.b) : 1) >= 2.8; DETN = false; }
     else { DET = false; const tf = !LQ && g.getTransform ? g.getTransform() : null, sc = tf ? Math.hypot(tf.a, tf.b) : 1; DETN = sc >= 2.2; DETF = sc >= 2.8; }
-    if (o.sel) { g.strokeStyle = '#ffd27a'; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, anim === 'sleep' || anim === 'dead' ? 24 : 15, 6, 0, 0, PI * 2); g.stroke(); }
-    if (anim === 'sleep') { drawSleep(g, o, L, x, y, t, env); finish(g, o, L, x, y, env); g.restore(); GT = null; return; }
+    if (o.sel && !CFG) { g.strokeStyle = '#ffd27a'; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, anim === 'sleep' || anim === 'dead' ? 24 : 15, 6, 0, 0, PI * 2); g.stroke(); }
+    if (anim === 'sleep') { drawSleep(g, o, L, x, y, t, env); if (!CFG) finish(g, o, L, x, y, env); g.restore(); GT = null; return; }
     // поза
     switch (anim) {
       case 'walk': walk(o, t, ph, sp); break;
@@ -2138,7 +2164,8 @@ var ArtPeople = (function () {
     if (P.pko && pkoZ() === 'top') drawPackOff(g, L, P.pko);   // рюкзак перед героем — поверх вещи в руке: что ниже кромки горловины — уже внутри
     if (P.carry && o.carry && !back) { pr(P.sx + 7.5, P.sy + 5.2, 0); carryIc(g, o.carry, QX, QY, 12); }
     if (!f0 && !m0) arm(g, L, 0, true, 0, bz0);
-    if (P.trail) {
+    if (P.trail && CFG) { const [b0, b1, R] = P.trail; pr(P.sx, P.sy, 0); TRL = [QX, QY]; for (let i = 0; i <= 6; i++) { const b = lerp(b0, b1, i / 6); pr(P.sx + Math.cos(b) * R, P.sy + Math.sin(b) * R, 0); TRL.push(QX, QY); } }   // C: мах — линиями скорости (поверх)
+    else if (P.trail) {
       const [b0, b1, R] = P.trail;
       g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 2.2; g.beginPath();
       for (let i = 0; i <= 6; i++) { const b = lerp(b0, b1, i / 6); pr(P.sx + Math.cos(b) * R, P.sy + Math.sin(b) * R, 0); i ? g.lineTo(QX, QY) : g.moveTo(QX, QY); }
@@ -2163,7 +2190,7 @@ var ArtPeople = (function () {
         g.fillStyle = 'rgba(246,249,252,' + ((FRONT ? 0.25 : 0.4) * (1 - e)).toFixed(2) + ')'; g.beginPath(); g.arc(QX, QY, 1 + e * 3.4, 0, PI * 2); g.fill();   // в анфас пар слабее — не закрывает лицо
       }
     }
-    finish(g, o, L, x, y, env);
+    if (!CFG) finish(g, o, L, x, y, env);
     g.restore();
     TA = 0; GT = null;
   }

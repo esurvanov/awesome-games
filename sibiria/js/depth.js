@@ -416,9 +416,18 @@ const Depth = (() => {
     const e = rimSprite(side, L.rx, L.ry, Math.min(1, L.px / 26), scaleOf(g));
     g.globalAlpha = k; g.drawImage(e.c, L.cx + e.bx, L.cy + e.by, e.bw, e.bh); g.globalAlpha = 1;
   }
+  // словарь C (js/style.js): яма — полость тоном тени, бровка — линия туши, валик — бумага; колея — тень с кромками тушью
+  const STC = typeof Style !== 'undefined' && Style.flat;
+  function backC(g, L) { g.fillStyle = Style.P.shade; g.beginPath(); g.ellipse(L.cx, L.cy - L.ry * 0.1, L.rx * 1.05, L.ry * 1.1, 0, 0, TAU); g.fill(); }
+  function frontC(g, L) {
+    const x = L.cx, y = L.cy, rx = L.rx + 3, ry = L.ry + 2;
+    if (L.px >= 10) { g.fillStyle = Style.P.paper; g.beginPath(); g.ellipse(x, y + 1, rx, ry, 0, 0, Math.PI); g.quadraticCurveTo(x, y - ry * 0.55, x + rx, y + 1); g.fill(); }   // глубоко — валик закрывает тело; мелко — только бровка (тень у ног видна)
+    g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(); g.lineCap = 'round'; g.beginPath(); g.moveTo(x - rx, y + 1); g.quadraticCurveTo(x, y - ry * 0.55, x + rx, y + 1); g.stroke();   // бровка — главный разрыв формы
+  }
   // задняя часть ямы (до фигуры): синеватая полость в тени и задний валик
   function back(g, L) {
     if (L.mode !== 'snow') return;
+    if (STC) { if (L.px >= 3) backC(g, L); return; }
     rim(g, L, 'b', Math.min(1, L.px / 6));
   }
   // передний валик (после фигуры): тень на теле у среза, комья валика (светлый верх), синеватая тень под валиком
@@ -432,6 +441,7 @@ const Depth = (() => {
       g.globalAlpha = 1; return;
     }
     if (L.mode !== 'snow') return;
+    if (STC) { if (L.px >= 4) frontC(g, L); return; }
     rim(g, L, 'f', Math.min(1, L.px / 5));
   }
   // печь куска колеи r[a..b] в спрайт (мир → px × S)
@@ -492,6 +502,9 @@ const Depth = (() => {
     for (const q of PT) {
       if (q.x < x0 - 40 || q.x > x1 + 40 || q.y < y0 - 40 || q.y > y1 + 40) continue;
       const al = Math.min(1, q.life / q.max * 1.4); if (al < 0.03) continue;
+      if (STC) { const rx = q.r, ry = q.r * 0.42; g.globalAlpha = al; g.fillStyle = Style.P.paper; g.beginPath(); g.ellipse(q.x, q.y + 1, rx * 1.18, ry * 1.3, 0, 0, TAU); g.fill();
+        g.fillStyle = Style.P.shade; g.beginPath(); g.ellipse(q.x, q.y, rx, ry, 0, 0, TAU); g.fill();
+        g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(); g.beginPath(); g.ellipse(q.x, q.y, rx, ry, 0, Math.PI * 1.02, Math.PI * 1.98); g.stroke(); n++; continue; }
       if (lo) { const rx = q.r, ry = q.r * 0.42; g.globalAlpha = 0.6 * al; g.fillStyle = '#5f7c99'; g.beginPath(); g.ellipse(q.x, q.y + ry * 0.2, rx * 0.85, ry * 0.8, 0, 0, TAU); g.fill();
         g.globalAlpha = 0.85 * al; g.strokeStyle = '#f4f7fa'; g.lineWidth = 2.4; g.beginPath(); g.ellipse(q.x, q.y, rx * 1.12, ry * 1.2, 0, 0, TAU); g.stroke(); n++; continue; }
       const S = scaleOf(g); let e = TSP.get(q);
@@ -508,6 +521,12 @@ const Depth = (() => {
         let life = 0, dd = 0; for (let k = a; k <= b; k++) { life += r[k].life / r[k].max; dd += r[k].d; } life /= b - a + 1; dd /= b - a + 1;
         const al = Math.min(1, life * 1.4) * Math.min(1, dd / 50), w = q0.w * (0.75 + 0.35 * Math.min(1, dd / 70) + 0.25 * sm(70, 140, dd)), dk = Math.round(sm(60, 140, dd) * 4) / 4;
         if (al < 0.03) continue;
+        if (STC) { // C: полоса тоном тени, по краям — кромки тушью (нормаль к ходу)
+          g.globalAlpha = al; g.strokeStyle = Style.P.shade; g.lineWidth = w * 0.8; g.beginPath(); g.moveTo(q0.x, q0.y); for (let k = a + 1; k <= b; k++) g.lineTo(r[k].x, r[k].y); g.stroke();
+          g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(1.1); g.beginPath();
+          for (const sd of [-1, 1]) for (let k = a; k <= b; k++) { const p0 = r[Math.max(a, k - 1)], p1 = r[Math.min(b, k + 1)], dx = p1.x - p0.x, dy = p1.y - p0.y, l = Math.hypot(dx, dy) || 1, ox = -dy / l * w * 0.42 * sd, oy = dx / l * w * 0.36 * sd; k === a ? g.moveTo(r[k].x + ox, r[k].y + oy) : g.lineTo(r[k].x + ox, r[k].y + oy); }
+          g.stroke(); n++; continue;
+        }
         if (lo) { // low: полоса — две линии (дно, светлый дальний край)
           g.globalAlpha = al * (0.5 + 0.25 * dk); g.strokeStyle = '#7f98b2'; g.lineWidth = w * 0.75; g.beginPath(); g.moveTo(q0.x, q0.y); for (let k = a + 1; k <= b; k++) g.lineTo(r[k].x, r[k].y); g.stroke();
           g.globalAlpha = al * 0.7; g.strokeStyle = '#f4f7fa'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(q0.x, q0.y - w * 0.4); for (let k = a + 1; k <= b; k++) g.lineTo(r[k].x, r[k].y - w * 0.4); g.stroke();
@@ -524,7 +543,9 @@ const Depth = (() => {
     g.globalAlpha = 1;
     // разгребы: кольцо отброшенного снега
     for (const q of DG) if (q.x > x0 - 40 && q.x < x1 + 40 && q.y > y0 - 40 && q.y < y1 + 40) {
-      const al = q.k * Math.min(1, q.life / 40); g.globalAlpha = 0.35 * al; g.fillStyle = '#8fa7c0'; g.beginPath(); g.ellipse(q.x, q.y + 1, q.r * 0.7, q.r * 0.26, 0, 0, TAU); g.fill();
+      const al = q.k * Math.min(1, q.life / 40);
+      if (STC) { g.globalAlpha = al; g.fillStyle = Style.P.shade; g.beginPath(); g.ellipse(q.x, q.y + 1, q.r * 0.7, q.r * 0.26, 0, 0, TAU); g.fill(); g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(1.1); g.beginPath(); g.ellipse(q.x, q.y, q.r * 0.82, q.r * 0.33, 0, Math.PI, TAU); g.stroke(); g.globalAlpha = 1; continue; }
+      g.globalAlpha = 0.35 * al; g.fillStyle = '#8fa7c0'; g.beginPath(); g.ellipse(q.x, q.y + 1, q.r * 0.7, q.r * 0.26, 0, 0, TAU); g.fill();
       g.globalAlpha = 0.6 * al; g.strokeStyle = '#f6f9fc'; g.lineWidth = 3; g.beginPath(); g.ellipse(q.x, q.y, q.r * 0.82, q.r * 0.33, 0, 0, TAU); g.stroke(); g.globalAlpha = 1;
     }
     return n;

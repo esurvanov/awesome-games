@@ -169,8 +169,36 @@ const Trail = (() => {
   // наложение цвета (src-over, прямая альфа) в пиксель PX = [r, g, b, a]
   const PX = new Float32Array(4);
   function over(cr, cg, cb, a) { if (a <= 0.004) return; const A = PX[3], k = A * (1 - a), na = a + k; PX[0] = (cr * a + PX[0] * k) / na; PX[1] = (cg * a + PX[1] * k) / na; PX[2] = (cb * a + PX[2] * k) / na; PX[3] = na; }
+  // словарь C (js/style.js): тропа — тон тени с кромкой тушью; контур по полю (marching squares) в мировых координатах —
+  // Path2D, рисуется живьём: линия постоянной экранной толщины на любом зуме, перепечки при зуме нет
+  const SC = typeof Style !== 'undefined' && Style.flat, TT = 0.62;   // порог «тропа читается» — с 3-го прохода (p ≥ 0.6)
+  function bakeC(bi, bj, lo, t0) {
+    const N = BS + 2, F = new Float32Array(N * N), i0 = bi * BS - 1, j0 = bj * BS - 1;
+    let any = 0; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const v = QV(val(i0 + i, j0 + j)); F[j * N + i] = v; if (v >= TT) any = 1; }
+    const key = bi + bj * BX;
+    if (!any) { CH.set(key, { c: null, f: null, S: lo, sig: -1 }); return; }
+    const fill = new Path2D(), line = new Path2D(), X = k => (i0 + k + 0.5) * C, Y = k => (j0 + k + 0.5) * C - LIFT;
+    const P = [], cut = (xa, ya, va, xb, yb, vb) => { const u = (TT - va) / (vb - va); return [xa + (xb - xa) * u, ya + (yb - ya) * u]; };
+    for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) {   // клетки блока: от центра клетки 0 до центра 32 (сосед — свои)
+      const v = [F[j * N + i], F[j * N + i + 1], F[(j + 1) * N + i + 1], F[(j + 1) * N + i]], q = [[X(i), Y(j)], [X(i + 1), Y(j)], [X(i + 1), Y(j + 1)], [X(i), Y(j + 1)]];
+      const inn = v.map(a => a >= TT), n = inn.filter(Boolean).length; if (!n) continue;
+      if (n === 4) { fill.rect(q[0][0], q[0][1], C, C); continue; }
+      P.length = 0; const ex = [];   // ex — точки пересечения по рёбрам (верх, право, низ, лево)
+      for (let k = 0; k < 4; k++) { const k1 = (k + 1) & 3; if (inn[k]) P.push(q[k]); if (inn[k] !== inn[k1]) { const c = cut(q[k][0], q[k][1], v[k], q[k1][0], q[k1][1], v[k1]); P.push(c); ex[k] = c; } }
+      fill.moveTo(P[0][0], P[0][1]); for (let k = 1; k < P.length; k++) fill.lineTo(P[k][0], P[k][1]); fill.closePath();
+      const seg = (a, b) => { line.moveTo(ex[a][0], ex[a][1]); line.lineTo(ex[b][0], ex[b][1]); };
+      if (n === 2 && inn[0] === inn[2]) {   // седло: отделить углы меньшинства относительно центра
+        const cin = (v[0] + v[1] + v[2] + v[3]) / 4 >= TT, iso = k => inn[k] !== cin;
+        if (iso(0)) seg(0, 3); if (iso(1)) seg(0, 1); if (iso(2)) seg(1, 2); if (iso(3)) seg(2, 3);
+      } else { const e = []; for (let k = 0; k < 4; k++) if (ex[k]) e.push(k); if (e.length === 2) seg(e[0], e[1]); }
+    }
+    CH.set(key, { c: null, f: fill, l: line, S: lo });
+    if (CH.size > 48) for (const [k2, v2] of CH) { if (k2 !== key && !v2.vis) { CH.delete(k2); break; } }
+    const ms = performance.now() - t0; bakes++; bakeMs = Math.max(bakeMs, ms); BT.push(ms); if (BT.length > 64) BT.shift();
+  }
   function bake(bi, bj, lo) {
-    const t0 = performance.now(), N = BS + 2, M = N * 2; // поле клеток 34×34 → вдвое мельче (6 px мира): стенки и валик — полосой в полклетки
+    const t0 = performance.now(), N = BS + 2, M = N * 2;
+    if (SC) return bakeC(bi, bj, lo, t0); // поле клеток 34×34 → вдвое мельче (6 px мира): стенки и валик — полосой в полклетки
     if (!FC) { FC = document.createElement('canvas'); FC.width = FC.height = M; FG = FC.getContext('2d'); FD = FG.createImageData(M, M); }
     const F = new Float32Array(N * N), F2 = new Float32Array(M * M), i0 = bi * BS - 1, j0 = bj * BS - 1;
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) F[j * N + i] = QV(val(i0 + i, j0 + j));
@@ -201,6 +229,7 @@ const Trail = (() => {
     if (CH.size > (lo ? 40 : 24)) for (const [k2, v2] of CH) { if (k2 !== key && !v2.vis) { CH.delete(k2); break; } }
     const ms = performance.now() - t0; bakes++; bakeMs = Math.max(bakeMs, ms); BT.push(ms); if (BT.length > 64) BT.shift();
   }
+  const VIS = [];
   const LIFT = 3; // ближняя стенка видна ниже дна (3/4 сверху): поле чуть выше, дно — под ногами
   const has = (bi, bj) => { for (let j = bj - 1; j <= bj + 1; j++) for (let i = bi - 1; i <= bi + 1; i++) if (i >= 0 && j >= 0 && i < BX && j < BY && BL[i + j * BX]) return true; return false; };
   // слой троп в кадре (до следов): view — [x0, y0, x1, y1] мира; вернёт число кусков
@@ -217,11 +246,16 @@ const Trail = (() => {
       if (miss) { const s = sig(bi, bj); if (!s) { CH.set(key, e = { c: null, S: lo, sig: 0 }); miss = false; } } // пусто (только край соседа не дотянулся) — без печи
       else if (chk) { const s = sig(bi, bj); if (s !== e.sig) e.want = 1; } // уровень сменился — в очередь
       if ((miss || (e && e.want)) && (todo < 0 || (miss && !tMiss))) { todo = key; tMiss = miss; }
-      if (e) { e.vis = 1; if (e.c && e.S === lo) { g.drawImage(e.c, MG, MG, e.px, e.px, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
+      if (e) { e.vis = 1; if (e.f && e.S === lo) { VIS.push(e); n++; } else if (e.c && e.S === lo) { g.drawImage(e.c, MG, MG, e.px, e.px, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
     }
     if (todo >= 0) { // ≤ 1 печь за кадр
       const bi = todo % BX, bj = (todo / BX) | 0, s = sig(bi, bj); bake(bi, bj, lo);
-      const e = CH.get(todo); if (e) { e.sig = s; e.want = 0; if (tMiss && e.c) { e.vis = 1; g.drawImage(e.c, MG, MG, e.px, e.px, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
+      const e = CH.get(todo); if (e) { e.sig = s; e.want = 0; if (tMiss && e.f) { e.vis = 1; VIS.push(e); n++; } else if (tMiss && e.c) { e.vis = 1; g.drawImage(e.c, MG, MG, e.px, e.px, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
+    }
+    if (VIS.length) {   // C: сначала все заливки, потом все кромки (кромка соседа не перекрыта заливкой)
+      g.fillStyle = Style.P.shade; for (const e of VIS) g.fill(e.f);
+      g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(); g.lineCap = 'round'; g.lineJoin = 'round'; for (const e of VIS) g.stroke(e.l);
+      VIS.length = 0;
     }
     return n;
   }
@@ -230,6 +264,12 @@ const Trail = (() => {
   function drawShovel(g, a = 1) {
     if (!G || (G.gear && G.gear.shovel) || (G.flags && G.flags.shovel)) return;
     const x = SHOVEL.x, y = SHOVEL.y; g.save(); g.globalAlpha = a; g.lineCap = 'round';
+    if (SC) {   // C: черенок и совок — дерево, присыпка — бумага, контур тушью
+      g.strokeStyle = Style.P.ink; g.lineWidth = 2.6 + Style.lw(2); g.beginPath(); g.moveTo(x + 1, y - 6); g.lineTo(x + 7, y - 38); g.stroke();
+      g.strokeStyle = Style.P.wood; g.lineWidth = 2.6; g.beginPath(); g.moveTo(x + 1, y - 6); g.lineTo(x + 7, y - 38); g.stroke();
+      g.fillStyle = Style.P.wood; g.strokeStyle = Style.P.ink; g.lineWidth = Style.lw(); g.beginPath(); g.moveTo(x - 6, y - 8); g.lineTo(x + 5, y - 9); g.lineTo(x + 6, y + 2); g.lineTo(x - 6, y + 2); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = Style.P.paper; g.beginPath(); g.ellipse(x, y + 2, 9, 2.6, 0, 0, Math.PI * 2); g.fill(); g.restore(); return;
+    }
     g.strokeStyle = '#5b3d27'; g.lineWidth = 2.6; g.beginPath(); g.moveTo(x + 1, y - 6); g.lineTo(x + 7, y - 38); g.stroke();
     g.strokeStyle = '#8a6a45'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x + 0.5, y - 7); g.lineTo(x + 6.3, y - 37); g.stroke();
     g.strokeStyle = '#5b3d27'; g.lineWidth = 2; g.beginPath(); g.moveTo(x + 4, y - 38); g.lineTo(x + 10, y - 39); g.stroke(); // ручка
