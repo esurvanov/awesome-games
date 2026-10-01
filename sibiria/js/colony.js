@@ -2,8 +2,13 @@
 // Посёлок по мотивам Age of Empires: люди с циклом «добыть → склад → снова»,
 // стройка с убывающей отдачей строителей, эпохи с условием «2 здания + цена»,
 // улучшения-модификаторы, фактория с плавающим курсом, набат, вышки.
+// Выработка — в игровом времени (K = TUNE.time.k): работа у дерева/лунки/обломков длится ×K, а путь (телесный, скорость
+// ходьбы прежняя) копится в u.lag ×(K − 1) и доплачивается следующей работой — добыча за игровые сутки и на единицу еды как при часе 20 с.
+// Охота: выстрел телесный (заяц бегает), поэтому после него — передышка u.pause = (K − 1)·выстрел + lag.
 const Colony = (() => {
-  const C0 = TUNE.colony;
+  const C0 = TUNE.colony, K = TUNE.time.k;
+  const workDone = (u, time) => u.t >= time * K + (u.lag || 0); // готова ли единица работы
+  const walked = (u, dt) => { u.lag = (u.lag || 0) + (K - 1) * dt; };
   const byId = id => G.col.units.find(u => u.id === id);
   const bById = id => G.col.builds.find(b => b.id === id);
   const carryN = u => Object.values(u.carry).reduce((a, b) => a + b, 0);
@@ -114,8 +119,10 @@ const Colony = (() => {
   // Цикл сбора: go → work → drop → go
   function gather(u, dt, sp) {
     const t = u.task, cap = Math.round((t.k === 'hunt' ? C0.carry.hunt : t.k === 'fish' ? C0.carry.fish : C0.carry.other) * mod('carry'));
+    if (u.pause > 0) { u.pause -= dt; return; } // передышка охотника (игровой темп)
     if (carryN(u) >= cap) t.ph = 'drop';
     if (t.ph === 'drop') {
+      walked(u, dt);
       const res = Object.keys(u.carry)[0] || 'wood', d = nearestOf(drops(res), u);
       if (go(u, d.x, d.y, sp, dt, 8)) { deposit(u); t.ph = 'go'; if (t.stop) { u.task = { k: 'idle' }; } }
       return;
@@ -141,16 +148,18 @@ const Colony = (() => {
       };
     } else if (t.k === 'hunt') {
       const h = findHare(u);
-      if (!h) { if (carryN(u)) t.ph = 'drop'; else go(u, HUT.x + Math.cos(u.id) * 300, HUT.y + Math.sin(u.id) * 300, sp * 0.5, dt); return; }
+      if (!h) { if (carryN(u)) t.ph = 'drop'; else { walked(u, dt); go(u, HUT.x + Math.cos(u.id) * 300, HUT.y + Math.sin(u.id) * 300, sp * 0.5, dt); } return; }
       src = h; reach = UNITS[u.type].rng || 30; time = C0.huntT;
       yieldFn = () => {
         G.col.proj.push({ x: u.x, y: u.y - 22, tx: h.x, ty: h.y - 6, t: 0 });
         if (Math.random() < C0.huntP && G.hares.includes(h)) { G.hares.splice(G.hares.indexOf(h), 1); u.carry.meat = (u.carry.meat || 0) + 2; u.carry.hare = (u.carry.hare || 0) + 1; G.stats.hares++; }
       };
     }
-    if (dist(u, src) > reach) { t.ph = 'go'; u.t = 0; go(u, src.x, src.y, sp, dt, reach - 2); return; }
+    if (dist(u, src) > reach) { t.ph = 'go'; u.t = 0; walked(u, dt); go(u, src.x, src.y, sp, dt, reach - 2); return; }
     t.ph = 'work'; u.working = t.k; u.face = Math.sign(src.x - u.x) || u.face;
-    u.t += dt; if (u.t >= time) { u.t = 0; yieldFn(); }
+    u.t += dt;
+    const hunt = t.k === 'hunt';
+    if (hunt ? u.t >= time : workDone(u, time)) { u.t = 0; if (hunt) u.pause = (K - 1) * time + (u.lag || 0); u.lag = 0; yieldFn(); }
   }
   // удар топора человека посёлка: отклик — правила Interact (как у героя; звук — через раз)
   function chopHit(u, tree) {
@@ -164,16 +173,17 @@ const Colony = (() => {
     if (!open.length || G.flags.rescued) { if (u.carry.wood) { t.k = 'chop'; t.ph = 'drop'; t.stop = 1; } else u.task = { k: 'idle' }; return; }
     const s = nearestOf(open, u);
     if ((u.carry.wood || 0) > 0) {
+      walked(u, dt);
       if (go(u, s.x, s.y + 24, sp, dt, 10)) { const n = Math.min(u.carry.wood, 4 - s.wood); s.wood += n; u.carry.wood -= n; if (!u.carry.wood) delete u.carry.wood; Sound.src(s).chop(); Fx.floatText(s.x, s.y - 30, `:fire: ${s.wood}/4`); }
       return;
     }
     let tree = t.tree && t.tree.wood > 0 ? t.tree : null;
     if (!tree) { tree = findTree(s, C0.treeR); t.tree = tree; }
     if (!tree) { u.task = { k: 'idle' }; return; }
-    if (dist(u, tree) > TREE_R) { u.t = 0; go(u, tree.x, tree.y, sp, dt, TREE_R - 2); return; }
+    if (dist(u, tree) > TREE_R) { u.t = 0; walked(u, dt); go(u, tree.x, tree.y, sp, dt, TREE_R - 2); return; }
     u.working = 'chop'; u.face = Math.sign(tree.x - u.x) || u.face;
     u.t += dt;
-    if (u.t >= C0.chopT / mod('chop')) { u.t = 0; tree.wood--; chopHit(u, tree); u.carry.wood = (u.carry.wood || 0) + 1; if (u.carry.wood >= Math.min(3, 4 - s.wood) || tree.wood <= 0) t.tree = null; }
+    if (workDone(u, C0.chopT / mod('chop'))) { u.t = 0; u.lag = 0; tree.wood--; chopHit(u, tree); u.carry.wood = (u.carry.wood || 0) + 1; if (u.carry.wood >= Math.min(3, 4 - s.wood) || tree.wood <= 0) t.tree = null; }
   }
   const nearWoodshed = o => G.col.builds.some(b => b.done && b.type === 'woodshed' && dist2(b, o) < C0.woodshedR * C0.woodshedR);
 

@@ -28,7 +28,7 @@ const Survival = (() => {
     const hunger = (sleeping ? B.hungerSleep : (B.hunger + (p.moving ? B.hungerMove * (1 + 0.5 * eff) : 0)) * (T < B.deepFrost ? B.hungerDeep : 1)) * Settings.diff().hunger;
     return { loss, hunger };
   }
-  // усталость в секунду (+ рост, − отдых). s — {warm, food, frost, awake}; c — {sleeping, doze, fuel, moving, eff, over, rest, tea}
+  // усталость в секунду (+ рост, − отдых). s — {warm, food, frost, awake}; c — {sleeping, doze, fuel, moving, eff, over, rest (0/1/2 — restLevel), tea}
   function tireRate(s, c) {
     // дрожь — телесная (в реальных с): чем холоднее, тем быстрее выматывает; обморожение — сверху
     const shiver = TI.shiver * clamp((TI.shiverFrom - s.warm) / TI.shiverFrom, 0, 1) + TI.frost * (s.frost || 0);
@@ -40,11 +40,12 @@ const Survival = (() => {
     let up = 0;
     if (!(c.tea > 0)) { // чай: пока греет — не устаёшь
       const aw = (s.awake || 0) / HOUR;
-      let h = TI.awake * (aw > TI.awakeFrom ? 1 + (aw - TI.awakeFrom) / TI.awakeK : 1);
+      const warmRest = c.rest && s.warm > TI.restWarm;
+      let h = TI.awake * (aw > TI.awakeFrom ? 1 + (aw - TI.awakeFrom) / TI.awakeK : 1) * (warmRest && c.rest < 2 ? TI.fireAwake : 1); // у огня стоя — бодрствование медленнее
       if (c.moving) h += (TI.walk + TI.snow * (c.eff || 0)) * (c.over ? TI.over : 1);
       up = (h / HOUR + shiver) * hungry * diff;
     }
-    return up - (c.rest && s.warm > TI.restWarm ? TI.rest / HOUR : 0);
+    return up - (c.rest >= 2 && s.warm > TI.restWarm ? TI.rest / HOUR : 0); // восстановление — только сидя/в тёплой избе
   }
   // счётчик бодрствования (игровые с): во сне тает
   const awakeStep = (s, sleeping, dt) => { s.awake = sleeping ? Math.max(0, (s.awake || 0) - TI.awakeSleep * dt) : (s.awake || 0) + dt; };
@@ -66,8 +67,14 @@ const Survival = (() => {
     Interact.on('hit', e => { if (e.who === 'p') add(); });
     Interact.on('work', e => { if (e.who === 'p' && (e.what === 'buck' || e.what === 'dig' || e.what === 'wreck')) add(); });
   }
-  // отдых: сидит на пне / греет руки / стоит без дела у огня или печи (тепло героя)
-  const resting = (p, heat) => !p.moving && (p.action ? p.action.k === 'rest' || p.action.k === 'warm' : heat > 0);
+  // отдых: 2 — сидит на пне или стоит без дела в тёплой избе (печь горит) — силы восстанавливаются;
+  // 1 — греет руки / стоит у огня — только бодрствование медленнее (TI.fireAwake); 0 — нет. Одна функция для игры и прогноза
+  function restLevel(p, heat, fuel) {
+    if (p.moving) return 0;
+    const k = p.action ? p.action.k : null;
+    if (k === 'rest' || (!k && p.inside && fuel > 0)) return 2;
+    return k === 'warm' || (!k && heat > 0) ? 1 : 0;
+  }
   function tick(dt, night) {
     const p = G.p, s = G.s;
     sub();
@@ -77,7 +84,7 @@ const Survival = (() => {
     const cause = body(s, heat, r, dt, Hero.maxWarm()); if (cause) G.cause = cause;
     const sl = p.sleeping || !!p.doze;
     s.tire = clamp(s.tire + tireRate(s, { sleeping: sl, doze: p.doze, fuel: p.inside ? G.hut.fuel : 0, moving: p.moving,
-      eff: typeof Depth !== 'undefined' ? Depth.effort() : 0, over: Inv.weight() > Inv.capKg(), rest: resting(p, heat), tea: p.teaT }) * dt, 0, 100);
+      eff: typeof Depth !== 'undefined' ? Depth.effort() : 0, over: Inv.weight() > Inv.capKg(), rest: restLevel(p, heat, G.hut.fuel), tea: p.teaT }) * dt, 0, 100);
     awakeStep(s, p.sleeping, dt);
     dozeTick(dt, heat);
     if (s.warm < B.frostBelow) { G.frostAcc += dt; if (G.frostAcc > B.frostT && s.frost < B.frostMax) { G.frostAcc = 0; s.frost++; Fx.toast(':frost: Обморожение · макс. тепло −10'); } } else G.frostAcc = 0;
@@ -133,7 +140,7 @@ const Survival = (() => {
       if (sleeping && fuel <= 0) { o.wakeAt = t; break; } // печь погасла — разбудит
       const { T, heat } = air(hero, t, fuel, fires);
       const c = body(s, heat, rates(hero, T, night, sleeping, s.tire), DT, 100 - B.frostWarm * s.frost);
-      s.tire = clamp(s.tire + tireRate(s, { sleeping, fuel: p.inside ? fuel : 0, rest: heat > 0, tea: hero.teaT }) * DT, 0, 100);
+      s.tire = clamp(s.tire + tireRate(s, { sleeping, fuel: p.inside ? fuel : 0, rest: restLevel(hero, heat, fuel), tea: hero.teaT }) * DT, 0, 100);
       hero.teaT = Math.max(0, hero.teaT - DT); hero.wetT = Math.max(0, hero.wetT - DT);
       awakeStep(s, sleeping, DT);
       if (s.warm < B.frostBelow) { acc += DT; if (acc > B.frostT && s.frost < B.frostMax) { acc = 0; s.frost++; } } else acc = 0;
@@ -145,5 +152,5 @@ const Survival = (() => {
     }
     return Object.assign(o, { warm: s.warm, food: s.food, tire: s.tire, hp: Math.max(0, s.hp), at: t });
   }
-  return { tick, air, rates, tireRate, body, forecast, dozeFx };
+  return { tick, air, rates, tireRate, restLevel, body, forecast, dozeFx };
 })();

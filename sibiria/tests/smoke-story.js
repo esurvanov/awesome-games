@@ -511,6 +511,8 @@ function phases() {
     ok(G.col.ep === 3 && CHAPTERS[G.chapter].num === 'VI' && G.storm && G.storm.big, `⏫ эпоха IV «Посёлок» → глава VI «Зимовка»: большая пурга назначена на ${G.storm ? ((G.storm.a / CYCLE * 24 + TUNE.time.startH) % 24).toFixed(1) : '?'} ч`);
     // + запас в лабаз: переход в эпоху IV съел еду, а зимовка требует её отдельно
     if (FOOD_KEYS.reduce((s, k) => s + (G.chest[k] || 0), 0) < STORY.winter.food) G.chest.can = (G.chest.can || 0) + STORY.winter.food;
+    // + дрова: выработка посёлка — в игровом времени (TUNE.time.k), а фазы теста идут реальными секундами — сутки не набегают
+    if ((G.chest.wood || 0) < STORY.winter.wood) G.chest.wood = STORY.winter.wood;
     S.run(1);
     ok(G.flags.winterWood && G.flags.winterFood, `🪵 запасы на пургу: дров ${G.chest.wood}, еды ${FOOD_KEYS.reduce((s, k) => s + (G.chest[k] || 0), 0)}`);
     G.time = G.storm.a + 1; S.IN(); S.run(1);
