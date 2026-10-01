@@ -22,3 +22,6 @@ tools/.stand-queue/
 tools/rockgallery/out/
 tools/rockgallery/marks/
 __pycache__/
+# tree pipeline: downloaded sources and intermediates (tools/trees/build_all.sh regenerates them)
+tools/trees/src/
+tools/trees/out/

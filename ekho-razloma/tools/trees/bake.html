@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><title>impostor bake</title>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/" } }</script>
+<script type="module">
+// Hemi-octahedral impostor bake (modules/vegetation.js GLSL_OCT): 8x8 views, three atlases — albedo (sRGB RGBA), world normal (*.5+.5), depth
+// (r = dot(p - C, D) / radius * .5 + .5). Cell (fx, fy): D = impDec(f / 7 * 2 - 1), fy = 0 is the BOTTOM row of the image (TextureLoader flipY).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const G = 8;
+const impDec = (gx, gy) => { const x = (gx + gy) * .5, z = (gx - gy) * .5; return new THREE.Vector3(x, 1 - Math.abs(x) - Math.abs(z), z).normalize(); };
+const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setClearColor(0x000000, 0); document.body.appendChild(r.domElement);
+const TL = new THREE.TextureLoader(); const T = (f, srgb) => new Promise((res) => TL.load('/assets/veg/ph/' + f, (t) => { t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.flipY = false; res(t); }));
+window.bake = async (glbUrl) => {
+  const tex = { sprigs: await T('sprigs_atlas.png', true), stem: await T('stem_bark.jpg', true), bark: await T('bark.jpg', true), ta: await T('trunk_a.jpg', true), tb: await T('trunk_b.jpg', true), ps: await T('sap_bark.jpg', true) };
+  const mapOf = { needlesPH: tex.sprigs, stemPH: tex.stem, barkPH: tex.bark, deadPH: tex.bark, trunkPHa: tex.ta, trunkPHb: tex.tb, barkPS: tex.ps };
+  const g = await new Promise((res) => new GLTFLoader().load(glbUrl, res));
+  const meshes = []; const box = new THREE.Box3();
+  g.scene.updateMatrixWorld(true);
+  g.scene.traverse((o) => { if (o.isMesh) { meshes.push(o); o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox); } });
+  const C = box.getCenter(new THREE.Vector3()); let R = 0; const v = new THREE.Vector3();
+  for (const m of meshes) { const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); R = Math.max(R, v.distanceTo(C)); } }
+  const frame = R * 1.03, meta = { center: [C.x, C.y, C.z], radius: R, frameHalf: frame, height: box.max.y };
+  const uni = { uD: { value: new THREE.Vector3() }, uC: { value: C }, uR: { value: R } };
+  const mk = (pass, m) => {
+    const map = mapOf[m.material.name], aT = m.material.name === 'needlesPH' ? 0.5 : 0.3;
+    if (pass === 'albedo') return new THREE.MeshBasicMaterial({ map, alphaTest: aT, vertexColors: !!m.geometry.attributes.color, side: THREE.DoubleSide, toneMapped: false });
+    const vs = `varying vec3 vN; varying vec3 vP; varying vec2 vU; void main(){ vN = normal; vP = position; vU = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`;
+    const fs = pass === 'normal'
+      ? `uniform sampler2D map; uniform float aT; varying vec3 vN; varying vec2 vU; void main(){ if (texture2D(map, vU).a < aT) discard; gl_FragColor = vec4(normalize(vN) * .5 + .5, 1.); }`
+      : `uniform sampler2D map; uniform float aT; uniform vec3 uD; uniform vec3 uC; uniform float uR; varying vec3 vP; varying vec2 vU; void main(){ if (texture2D(map, vU).a < aT) discard; gl_FragColor = vec4(vec3(dot(vP - uC, uD) / uR * .5 + .5), 1.); }`;
+    return new THREE.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, side: THREE.DoubleSide, uniforms: { map: { value: map }, aT: { value: aT }, ...uni } });
+  };
+  const out = {};
+  for (const [pass, size] of [['albedo', 1024], ['normal', 512], ['depth', 512]]) {
+    const scene = new THREE.Scene(); const cell = size / G;
+    r.setSize(size, size, false); r.domElement.width = size; r.domElement.height = size; r.setScissorTest(true); r.setClearColor(0x000000, 0); r.clear(true, true, true);
+    const root = new THREE.Group(); for (const m of meshes) { const c = new THREE.Mesh(m.geometry, mk(pass, m)); c.matrixAutoUpdate = false; c.matrix.copy(m.matrixWorld); root.add(c); } scene.add(root);
+    const cam = new THREE.OrthographicCamera(-frame, frame, frame, -frame, 0.05, R * 3.2);
+    for (let fy = 0; fy < G; fy++) for (let fx = 0; fx < G; fx++) {
+      const D = impDec(fx / (G - 1) * 2 - 1, fy / (G - 1) * 2 - 1); uni.uD.value.copy(D);
+      let T = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), D); T = T.lengthSq() < 1e-8 ? new THREE.Vector3(1, 0, 0) : T.normalize(); const B = new THREE.Vector3().crossVectors(D, T);
+      cam.position.copy(C).addScaledVector(D, R * 1.6); cam.up.copy(B); cam.lookAt(C); cam.updateMatrixWorld(true);
+      r.setViewport(fx * cell, fy * cell, cell, cell); r.setScissor(fx * cell, fy * cell, cell, cell); r.render(scene, cam);
+    }
+    out[pass] = r.domElement.toDataURL('image/png');
+  }
+  return { meta, out };
+};
+window.__ready = true;
+</script>

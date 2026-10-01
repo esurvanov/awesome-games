@@ -75,6 +75,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
 
   /* ------------------------------------------------------------------ species */
   // sc: scale range · S: billboard cell size (m) · align: +X downwind · snow: puff amount when shaken · src: game|pack
+  const NOPH = /[?&]noph\b/.test(location.search);   // ?noph: the old species only (A/B, fallback) — the Poly Haven firs are not loaded or planted
   const NEW_MUL = 0.47;   // pass-2 species: real models to 0.47 x treeNear (≈82 m on high), cross cards beyond
   const SP = [
     { name: 'tree_spruce_tall_snow', src: 'game', sc: [0.6, 0.95], snow: 1, nearMul: 0.36 },
@@ -87,6 +88,14 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     { name: 'tree_spruce_krummholz', S: 2.64, sc: [0.7, 1.35], align: true, snow: 0.5, nearMul: NEW_MUL },
     { name: 'tree_pine_scots', S: 14.0, sc: [0.75, 1.1], snow: 0.4, nearMul: NEW_MUL },
     { name: 'tree_snag_dead', S: 7.6, sc: [0.7, 1.2], snow: 0.1, nearMul: NEW_MUL },
+    // Poly Haven CC0 firs (tools/trees/: scan crown shape + photo sprig cards, decimated trunk; origin at the trunk base)
+    { name: 'tree_fir_a', src: 'ph', lodMul: 0.5, sc: [0.5, 0.78], snow: 1.0, nearMul: NEW_MUL },
+    { name: 'tree_fir_b', src: 'ph', lodMul: 0.5, sc: [0.6, 0.95], snow: 1.0, nearMul: NEW_MUL },
+    { name: 'tree_fir_c', src: 'ph', lodMul: 0.5, sc: [0.6, 0.95], snow: 0.9, nearMul: NEW_MUL },
+    // young dense conical firs (fir_sapling_medium): 8.7 / 7.8 / 5.9 m models, grown ×1.25-1.9
+    { name: 'tree_fir_d', src: 'ph', lodMul: 0.5, sc: [1.2, 1.7], snow: 1.1, nearMul: NEW_MUL },
+    { name: 'tree_fir_e', src: 'ph', lodMul: 0.5, sc: [1.25, 1.8], snow: 1.1, nearMul: NEW_MUL },
+    { name: 'tree_fir_f', src: 'ph', lodMul: 0.5, sc: [1.5, 2.1], snow: 1.1, nearMul: NEW_MUL },
   ];
   const NSP = SP.length;
   
@@ -148,7 +157,7 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
       if (h > 46) return rr < 0.45 ? 7 : rr < 0.8 ? 4 : 1;
       if (cv > 1.4 && h > 12) return rr < 0.6 ? 6 : 4;
       // tree_pine_scots (8) is retired: its flat crown read as a dark blob at night and its trunk was inside-out
-      const w = [[3, 0.32], [4, 0.2], [5, 0.18], [0, 0.13], [1, 0.08], [6, 0.03], [2, 0.03], [9, 0.03]];
+      const w = NOPH ? [[3, 0.32], [4, 0.2], [5, 0.18], [0, 0.13], [1, 0.08], [6, 0.03], [2, 0.03], [9, 0.03]] : [[13, 0.26], [14, 0.20], [15, 0.14], [10, 0.06], [11, 0.05], [12, 0.03], [3, 0.08], [4, 0.06], [5, 0.04], [6, 0.02], [2, 0.02], [9, 0.03], [0, 0.005], [1, 0.005]];   // 10–15: the Poly Haven firs (13–15 dense young, 10–12 tall sparse scans)
       let a = 0; for (const [s, p] of w) { a += p; if (rr < a) return s; } return 3;
     };
     for (let i = 0; i < list.length; i++) { const t = list[i]; t.v = pick(t[0], t[2], C.getH(t[0], t[2]), r()); }
@@ -345,7 +354,8 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     let nv = 0, ni = 0;
     for (const p of parts) { if (!geos.includes(p.geo)) { geos.push(p.geo); nv += p.geo.attributes.position.count; ni += p.geo.index ? p.geo.index.count : 0; } }
     const lod = new Map();   // needle geometry → its thinned far copy
-    if (needles) for (const g of geos) { const l = cardLod(g); if (l) { lod.set(g, l); nv += l.attributes.position.count; ni += l.index.count; } }
+    for (const p of parts) if (p.lod && !lod.has(p.geo)) { lod.set(p.geo, p.lod); nv += p.lod.attributes.position.count; ni += p.lod.index ? p.lod.index.count : 0; }   // hand-made LOD1 (Poly Haven firs)
+    if (needles) for (const g of geos) { if (lod.has(g)) continue; const l = cardLod(g); if (l) { lod.set(g, l); nv += l.attributes.position.count; ni += l.index.count; } }
     const spSet = new Set(parts.map((p) => p.sp)), trees = F.trees.filter((t) => spSet.has(t.v));
     if (!trees.length) return null;
     let nInst = 0; for (const t of trees) nInst += parts.filter((p) => p.sp === t.v).length;
@@ -406,11 +416,11 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     for (const t of F.trees) {
       // shadow LOD per tree: tall trees cast up to shadowR, small ones stop earlier (alpha-tested foliage in 2 cascades is the
       // most expensive part of the shadow pass)
-      const cr = Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) * thinK(t, dens) + 1.5;
+      const cr = SP[t.v].src === 'ph' ? Math.min(SR, 22 + 1.3 * (SP[t.v].H || 8) * t.s) : Math.min(SR, 30 + 3.2 * (SP[t.v].H || 8) * t.s), d2 = (t[0] - cx) ** 2 + (t[2] - cz) ** 2, nr = R * (SP[t.v].nearMul || 1) * thinK(t, dens) + 1.5;
       const st = d2 < nr * nr ? ((t[0] - sx) ** 2 + (t[2] - sz) ** 2 < Math.min(S2, cr * cr) ? 1 : 2) : 0;
       if (st) nNear++; if (st === 1) nCast++;
       if (st !== t.st) { setTreeState(t, st); t.st = st; }
-      if (st) { const fl = t.far ? d2 > (LD - 2) * (LD - 2) : d2 > LD * LD; if (fl !== !!t.far) { t.far = fl; setTreeLod(t, fl); } if (fl) nFar++; }
+      if (st) { const ld = LD * (SP[t.v].lodMul || 1), fl = t.far ? d2 > (ld - 2) * (ld - 2) : d2 > ld * ld; if (fl !== !!t.far) { t.far = fl; setTreeLod(t, fl); } if (fl) nFar++; }
     }
     VEG.stats.nearTrees = nNear; VEG.stats.castTrees = nCast; VEG.stats.cardLodTrees = nFar;
   }
@@ -540,6 +550,12 @@ vec3 vegSnow(vec3 alb, vec3 n, vec3 wp, float k){
     tree_fir_windbent: [[0, 4.59, 0], 4.9985, 5.1485, 9.18],
     tree_spruce_krummholz: [[0, 1.224, 0], 1.8161, 1.8706, 2.448],
     tree_snag_dead: [[0, 3.726, 0], 3.8248, 3.9396, 7.452],
+    tree_fir_a: [[0.0512, 9.5845, -0.3175], 9.7055, 9.9967, 19.2481],
+    tree_fir_b: [[0.2379, 7.1982, -0.0508], 7.3324, 7.5524, 14.4825],
+    tree_fir_c: [[0.3797, 7.3723, -0.0524], 7.517, 7.7425, 14.8383],
+    tree_fir_d: [[-0.0986, 4.4897, 0.0938], 4.7715, 4.9146, 9.0677],
+    tree_fir_e: [[0.0169, 3.9091, 0.0958], 4.5071, 4.6424, 7.9362],
+    tree_fir_f: [[0.1212, 3.0141, 0.0471], 3.8681, 3.9842, 6.2151],
   };
   const GLSL_OCT = `
 vec2 impEnc(vec3 d){ d.y = max(d.y, 0.); d /= (abs(d.x) + d.y + abs(d.z)); return vec2(d.x + d.z, d.x - d.z); }
@@ -655,6 +671,12 @@ vec3 impNW;`)
     TEX.pbark = loadTex('bark_pine_color.jpg', true, false); TEX.pbarkN = loadTex('bark_pine_normal.jpg', false, false);
     TEX.dbark = loadTex('bark_dead_color.jpg', true, false); TEX.dbarkN = loadTex('bark_dead_normal.jpg', false, false);
     TEX.sbark = loadTex('shrub_bark.jpg', true, false);
+    // Poly Haven firs (tools/trees/make_textures.py): photo sprig atlas + normal, bark / trunk colour + normal
+    TEX.phNeedle = loadTex('ph/sprigs_atlas.png', true, false); TEX.phNeedleN = loadTex('ph/sprigs_n.jpg', false, false);
+    TEX.phBark = loadTex('ph/bark.jpg', true, false); TEX.phBarkN = loadTex('ph/bark_n.jpg', false, false);
+    TEX.phTa = loadTex('ph/trunk_a.jpg', true, false); TEX.phTaN = loadTex('ph/trunk_a_n.jpg', false, false);
+    TEX.phTb = loadTex('ph/trunk_b.jpg', true, false); TEX.phTbN = loadTex('ph/trunk_b_n.jpg', false, false);
+    TEX.phSap = loadTex('ph/sap_bark.jpg', true, false); TEX.phSapN = loadTex('ph/sap_bark_n.jpg', false, false);
     loadImpostors();
     // tuft cards / shrub leaves / decals → 2x2 atlases (glTF uv: flipY false, cell k at ((k%2)*512, floor(k/2)*512))
     const TUFTS = ['veg_tuft_dry_tussock', 'veg_tuft_sedge', 'veg_tuft_seedgrass', 'veg_tuft_frosted'];
@@ -664,6 +686,7 @@ vec3 impNW;`)
     into(A.tuft, TUFTS, false); into(A.leaf, LEAVES, false); into(A.decal, DECALS, true);
     TEX.lichen = loadTex('veg_decal_lichen_orange.png', true, true);
     C.loadPacked('veg_set', C.ASSET, onVegSet);
+    if (!NOPH) C.loadPacked('veg_fir_ph', C.ASSET, onFirSet);
     C.loadPacked('rock_namaqualand_boulder_02', C.ASSET, (g) => { R.flat = g; });
     // NATURE: Poly Haven CC0 scans (tools/pack-rocks.mjs: 3 LODs, normal map re-baked for LOD0, AO in the albedo)
     for (const n of ['namaqualand_boulder_06', 'rock_07', 'rock_09']) C.loadPacked('rock_ph_' + n, C.ASSET, (g) => { (R.ph = R.ph || {})[n] = g; }, () => { (R.ph = R.ph || {})[n] = null; });
@@ -682,7 +705,30 @@ vec3 impNW;`)
     buildNewSpecies();
     buildGroundAssets();
     VEG.ready.vegSet = true;
+    tryBuildPh();
   }
+  // the Poly Haven firs: a second pack; built once both packs are in (the groups share the forest's tree list)
+  const PH = { pack: false, built: false };
+  function widen(geo) {
+    for (const k in geo.attributes) {
+      const a = geo.attributes[k]; if (a.array instanceof Float32Array && !a.normalized) continue;
+      const f = new Float32Array(a.count * a.itemSize); for (let i = 0; i < a.count; i++) for (let q = 0; q < a.itemSize; q++) f[i * a.itemSize + q] = a.getComponent(i, q);
+      geo.setAttribute(k, new THREE.BufferAttribute(f, a.itemSize, false));
+    }
+    if (geo.index && !(geo.index.array instanceof Uint32Array) && geo.index.count > 0) geo.setIndex(new THREE.BufferAttribute(Uint32Array.from(geo.index.array), 1));
+    return geo;
+  }
+  function onFirSet(g) {
+    const root = g.scene; root.updateMatrixWorld(true);
+    for (const node of root.children) {
+      const parts = [];
+      node.traverse((o) => { if (o.isMesh) { const geo = widen(o.geometry.clone()); sanitize(geo); geo.applyMatrix4(o.matrixWorld); parts.push({ geo, name: o.material.name, mat: o.material }); } });
+      if (/_l1$/.test(node.name)) { (PACK[node.name.replace(/_l1$/, '')] = PACK[node.name.replace(/_l1$/, '')] || {}).lodParts = parts; continue; }   // LOD1 of a species: same part order
+      PACK[node.name] = Object.assign(PACK[node.name] || {}, { node, parts });
+    }
+    PH.pack = true; tryBuildPh();
+  }
+  function tryBuildPh() { if (!NOPH && VEG.ready.vegSet && PH.pack && !PH.built) { PH.built = true; try { buildPhSpecies(); } catch (e) { console.warn('[veg] Poly Haven firs', e); } } }
   // some source meshes carry NaN vertex colours (6 verts in the needle set) → NaN pixels → bloom turns the frame black
   function sanitize(geo) {
     for (const k in geo.attributes) { const at = geo.attributes[k], a = at.array; let bad = 0; for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) { a[i] = k === 'color' ? 1 : 0; bad++; } if (bad) { at.needsUpdate = true; VEG.stats.nanFixed = (VEG.stats.nanFixed || 0) + bad; } }
@@ -805,6 +851,7 @@ vec3 impNW;`)
     const gN = [], gP = [], gD = [];
     if (PACK.tree_spruce_young_dusted && PACK.tree_fir_windbent) PACK.tree_fir_windbent = flagTree(PACK.tree_spruce_young_dusted, 1.35);
     for (let s = 3; s < NSP; s++) {
+      if (SP[s].src === 'ph') continue;   // built by buildPhSpecies()
       const P = PACK[SP[s].name]; if (!P) { console.warn('[veg] missing', SP[s].name); continue; }
       for (const p of P.parts) {
         if (p.name === 'needles') { if (!p.geo.attributes.color) continue; if (s >= 3 && s <= 6 && !p.geo.__crownN) { sphereNormals(p.geo, 0.7); p.geo.__crownN = true; } gN.push({ sp: s, geo: p.geo }); }   // crown-volume normals for the pass-2 spruces / fir too (only pass-1 had them)
@@ -823,6 +870,41 @@ vec3 impNW;`)
     makeGroup('pbark', patchTreeNear(pbark, false, false, NEW_MUL), gP, false, NEW_MUL);
     makeGroup('dbark', patchTreeNear(dbark, false, false, NEW_MUL), gD, false, NEW_MUL);
     publishParts();
+  }
+
+  /* Poly Haven firs: 4 groups (draw calls) — sprig cards (alpha-to-coverage, normal map, crown AO in COLOR_0), bark (branch stubs + twig stems +
+   * dead branches, one bark texture), and the two trunk textures. The crown normals are the cards' outward-from-the-trunk normals (tools/trees). */
+  function buildPhSpecies() {
+    const std = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.95, metalness: 0 }, o));
+    const needles = std({ name: 'needlesPH', map: TEX.phNeedle, normalMap: TEX.phNeedleN, alphaTest: 0.42, alphaToCoverage: true, vertexColors: true, side: THREE.DoubleSide, roughness: 0.88 });
+    const bark = std({ name: 'barkPH', map: TEX.phBark, normalMap: TEX.phBarkN, alphaTest: 0.5, alphaToCoverage: true }); bark.color.setRGB(0.85, 0.83, 0.8);
+    const trA = std({ name: 'bark', map: TEX.phTa, normalMap: TEX.phTaN, alphaTest: 0.5, alphaToCoverage: true }); trA.color.setRGB(0.85, 0.83, 0.8);
+    const trB = std({ name: 'bark', map: TEX.phTb, normalMap: TEX.phTbN, alphaTest: 0.5, alphaToCoverage: true }); trB.color.setRGB(0.85, 0.83, 0.8);
+    const barkS = std({ name: 'barkPS', map: TEX.phSap, normalMap: TEX.phSapN, alphaTest: 0.5, alphaToCoverage: true }); barkS.color.setRGB(0.85, 0.83, 0.8);
+    const gN = [], gBk = [], gBs = [], gTa = [], gTb = [];
+    for (let s = 0; s < NSP; s++) {
+      if (SP[s].src !== 'ph') continue;
+      const P = PACK[SP[s].name]; if (!P) { console.warn('[veg] missing', SP[s].name); continue; }
+      const holder = new THREE.Group();
+      const seen = {};   // the n-th part of a material name pairs with the n-th LOD1 part of that name
+      for (const p of P.parts) {
+        const k = (seen[p.name] = (seen[p.name] || 0) + 1) - 1, lp = (P.lodParts || []).filter((q) => q.name === p.name)[k]; p.lod = lp ? lp.geo : null;
+        if (p.name === 'needlesPH') gN.push({ sp: s, geo: p.geo, lod: p.lod });
+        else if (p.name === 'barkPH') gBk.push({ sp: s, geo: p.geo, lod: p.lod });
+        else if (p.name === 'barkPS') { gBs.push({ sp: s, geo: p.geo, lod: p.lod }); const big = P.parts.filter((q) => q.name === 'barkPS').sort((a, b) => b.geo.index.count - a.geo.index.count)[0]; if (p === big) { const m = new THREE.Mesh(p.geo, barkS); m.name = 'bark'; holder.add(m); } }
+        else if (p.name === 'trunkPHa' || p.name === 'trunkPHb') { (p.name === 'trunkPHa' ? gTa : gTb).push({ sp: s, geo: p.geo, lod: p.lod }); const m = new THREE.Mesh(p.geo, p.name === 'trunkPHa' ? trA : trB); m.name = 'bark'; holder.add(m); }
+      }
+      const trees = F.trees.filter((t) => t.v === s);
+      if (trees.length) try { seatTrees(trees, holder, SP[s].name); } catch (e) { console.warn('[veg] trunk colliders', SP[s].name, e); }
+      const bb = new THREE.Box3(); for (const p of P.parts) { p.geo.computeBoundingBox(); bb.union(p.geo.boundingBox); } SP[s].H = bb.max.y;
+    }
+    makeGroup('phneedles', patchTreeNear(needles, true, false, NEW_MUL), gN, true, NEW_MUL);
+    makeGroup('phbark', patchTreeNear(bark, false, false, NEW_MUL), gBk, false, NEW_MUL);
+    makeGroup('phbarkS', patchTreeNear(barkS, false, false, NEW_MUL), gBs, false, NEW_MUL);
+    makeGroup('phtrunkA', patchTreeNear(trA, false, false, NEW_MUL), gTa, false, NEW_MUL);
+    makeGroup('phtrunkB', patchTreeNear(trB, false, false, NEW_MUL), gTb, false, NEW_MUL);
+    publishParts();
+    VEG.stats.phFirs = { needleTris: gN.reduce((a, p) => a + p.geo.index.count / 3, 0) | 0, trees: F.trees.filter((t) => SP[t.v].src === 'ph').length };
   }
 
   /* ================================================================== GROUND: tufts, shrubs, decals */

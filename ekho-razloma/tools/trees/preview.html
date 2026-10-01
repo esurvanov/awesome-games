@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><title>tree preview</title>
+<style>html,body{margin:0;background:#07090f;overflow:hidden}</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const Q = new URLSearchParams(location.search), file = Q.get('glb'), dist = +(Q.get('d') || 6), h = +(Q.get('h') || 3), look = +(Q.get('look') || 4), fov = +(Q.get('fov') || 50), ang = +(Q.get('a') || 0.6);
+const r = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); r.setPixelRatio(1); r.setSize(innerWidth, innerHeight); r.outputColorSpace = THREE.SRGBColorSpace;
+r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = +(Q.get('e') || 1.6); r.shadowMap.enabled = true; document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b1226); scene.fog = new THREE.FogExp2(0x0b1226, 0.006);
+const cam = new THREE.PerspectiveCamera(fov, innerWidth / innerHeight, 0.1, 800);
+cam.position.set(Math.sin(ang) * dist, h, Math.cos(ang) * dist); cam.lookAt(0, look, 0);
+scene.add(new THREE.HemisphereLight(0x6f86c8, 0x2a3350, 0.9));
+const moon = new THREE.DirectionalLight(0xcfdcff, 2.6); moon.position.set(Math.sin(ang + 0.9) * 40, 45, Math.cos(ang + 0.9) * 40); moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048);
+Object.assign(moon.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 200 }); scene.add(moon);
+const snow = new THREE.Mesh(new THREE.CircleGeometry(300, 48), new THREE.MeshStandardMaterial({ color: 0x9aa6bd, roughness: 0.95 })); snow.rotation.x = -Math.PI / 2; snow.receiveShadow = true; scene.add(snow);
+const TL = new THREE.TextureLoader(); const T = (f, srgb) => { const t = TL.load('/assets/veg/ph/' + f); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; };
+const mats = {
+  needlesPH: new THREE.MeshStandardMaterial({ map: T('sprigs_atlas.png', true), normalMap: T('sprigs_n.jpg'), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.85 }),
+  stemPH: new THREE.MeshStandardMaterial({ map: T('stem_bark.jpg', true), roughness: 0.95 }),
+  barkPH: new THREE.MeshStandardMaterial({ map: T('bark.jpg', true), normalMap: T('bark_n.jpg'), roughness: 0.95 }),
+  trunkPHa: new THREE.MeshStandardMaterial({ map: T('trunk_a.jpg', true), normalMap: T('trunk_a_n.jpg'), roughness: 0.95 }),
+  trunkPHb: new THREE.MeshStandardMaterial({ map: T('trunk_b.jpg', true), normalMap: T('trunk_b_n.jpg'), roughness: 0.95 }),
+  barkPS: new THREE.MeshStandardMaterial({ map: T('sap_bark.jpg', true), normalMap: T('sap_bark_n.jpg'), roughness: 0.95 }),
+  deadPH: new THREE.MeshStandardMaterial({ map: T('bark.jpg', true), roughness: 0.95 }),
+};
+mats.needlesPH.map.flipY = false; mats.needlesPH.normalMap.flipY = false; for (const k in mats) if (mats[k].map) mats[k].map.flipY = false; for (const k of ['barkPH', 'trunkPHa', 'trunkPHb', 'barkPS']) mats[k].normalMap.flipY = false;
+new GLTFLoader().load(file, (g) => {
+  const n = +(Q.get('n') || 1), gap = +(Q.get('gap') || 8);
+  for (let i = 0; i < n; i++) {
+    const root = g.scene.clone(true); root.position.set((i - (n - 1) / 2) * gap, 0, (i % 2) * -3); root.rotation.y = i * 1.3;
+    root.traverse((o) => { if (o.isMesh) { const m = mats[o.material.name]; if (m) o.material = m; o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(root);
+  }
+  r.render(scene, cam); setTimeout(() => { r.render(scene, cam); window.__done = true; }, 800);
+});
+</script>
