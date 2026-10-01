@@ -89,6 +89,11 @@ const Bear = (() => {
       let vx = tx - b.x, vy = ty - b.y; const l = Math.hypot(vx, vy) || 1;
       b.vx = vx / l * Math.min(sp, l * 4); b.vy = vy / l * Math.min(sp, l * 4);
     }
+    // огонь: шатун обходит костёр/кучу/вышку (радиус — доля волчьего; голодный последнего выхода подходит ближе), с рывка — тоже сворачивает
+    for (const f of Fire.burning()) {
+      const r = Fire.fearR(f) * (b.finalStand ? B.fireFearLast : B.fireFear), dx = b.x - f.x, dy = b.y - f.y, dd = Math.hypot(dx, dy);
+      if (dd < r && dd > 0.1) { const k = (r - dd) * 6; b.vx += dx / dd * k; b.vy += dy / dd * k; if (b.st === 'charge' && dd < r * 0.7) b.st = 'hunt'; }
+    }
     if (b.st === 'windup' || b.st === 'stun') { b.vx = 0; b.vy = 0; }
     b.x += b.vx * dt; b.y += b.vy * dt; World.solid(b, Math.abs(b.x - HUT.x) < 160 && Math.abs(b.y - HUT.y) < 160 ? 11 : 20, 'b');
     if (Math.abs(b.vx) > 5) b.face = Math.sign(b.vx);

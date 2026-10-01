@@ -231,9 +231,10 @@ var InteractMatrix = (() => {
     () => { put(HUT.x - 260, HUT.y - 20); walk(1, 0, 3); const inW = HUT_WALLS.some(Rr => P().x > Rr.x0 && P().x < Rr.x1 && P().y > Rr.y0 && P().y < Rr.y1);
       return ok(!inW && P().x < HUT.x, `x−изба=${r1(P().x - HUT.x)}, внутри стены=${inW}, в избе=${insideHut(P().x, P().y)}`); }, 'js/world.js:334 HUT_WALLS');
   cell('hero', 'fire', 'в костёр не заходит (упор/обход) или обжигается',
-    () => { const d = deepSpot(); const f = mkFire(d.x + 50, d.y); put(d.x, d.y); const hp0 = G.s.hp; walk(1, 0, 1.2); let mind = 1e9; step(0.01); mind = Math.hypot(P().x - f.x, P().y - f.y);
-      const d2 = { x: P().x, y: P().y }; put(f.x, f.y); step(2); return { st: 'none', obs: `прошёл сквозь костёр (дошёл до x−огонь=${r1(d2.x - f.x)}); стоя в огне 2 с: hp ${r1(hp0)}→${r1(G.s.hp)}` }; },
-    'js/world.js:309 pushAll (костров нет)');
+    () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const f = mkFire(d.x + 50, d.y + 1); put(d.x, d.y); G.s.hp = 100; let mind = 1e9;
+      step(2, () => { input.mx = 1; mind = Math.min(mind, Math.hypot(P().x - f.x, P().y - f.y)); }); input.mx = 0; const hp = G.s.hp;
+      return ok(mind > 12 && hp < 100 && hp > 60, `упёрся в огонь: ближе ${r1(mind)} px к центру; 2 с напора: hp 100→${r1(hp)} (ожог, не смерть)`); },
+    'js/world.js pushAll → js/fire.js keepR/burnHero');
   cell('hero', 'other', 'тела расталкиваются: сквозь волка/человека не пройти',
     () => { const d = deepSpot(); put(d.x, d.y); const w = Wolves.at(0, 300); w.x = d.x + 4; w.y = d.y; w.st = 'lie'; step(0.3); return ok(Math.hypot(w.x - P().x, w.y - P().y) > 18, `дистанция герой–волк ${r1(Math.hypot(w.x - P().x, w.y - P().y))} px (сумма радиусов 22)`); },
     'js/world.js:403 crowd');
@@ -278,39 +279,44 @@ var InteractMatrix = (() => {
     if (row === 'hare') na(row, 'trail', 'заяц по насту — тропа не нужна');
     else cell(row, 'trail', 'по тропе — быстрее, чем по целине', () => { const r = C['b' + row]; return r ? ok(r.b > r.a * 1.1, `×${r2(r.b / r.a)} к целине`) : { st: 'broken', obs: 'нет замера' }; }, 'js/depth.js:273 mulKind, js/trail.js:263 depth');
     cell(row, 'bareIce', 'на голом льду: скользит/осторожничает (медленнее, заносит на поворотах)',
-      () => { const s = iceSpot(true), [who, r, , v] = KINDS[row]; put(s.x, s.y + 160); const m = moveBody({ x: s.x - 40, y: s.y }, r, who, v, 0, 1); return { st: 'none', obs: `путь по льду ${r1(m.d)} px из ${v} — как по утоптанному, без скольжения` }; },
-      'js/hero.js:48 (скольжение — только герой)');
+      () => { const s = iceSpot(true), [who, r, , v] = KINDS[row]; put(s.x, s.y + 160); const o = { x: s.x - 45, y: s.y }; moveBody(o, r, who, v, 0, 0.5); const x1 = o.x; moveBody(o, r, who, 0, 0, 1); const c = o.x - x1;
+        const d = deepSpot(70), q = { x: d.x, y: d.y }; put(d.x, d.y + 160); moveBody(q, r, who, v, 0, 0.5); const y1 = q.x; moveBody(q, r, who, 0, 0, 1); const c2 = q.x - y1;
+        return ok(c > 4 && c2 < 1, `накат после остановки: лёд ${r1(c)} px, снег ${r1(c2)} px`); },
+      'js/world.js env (голый лёд: инерция по сцеплению вида)');
     na(row, 'iceSnow', 'на льду под снегом — как по снегу (тонкий слой)');
     if (row === 'bear') {
       const thin = () => { const t = thinPt(), h0 = holes(); put(PY().x - 260, PY().y); G.bear = { x: t.x, y: t.y, hp: 9, hp0: 9, st: 'hunt', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0 }; for (let i = 0; i < 6; i++) O['Bear.tick'](DT, 23, 1); return { gone: !G.bear, n: holes() - h0 }; };
       cell(row, 'thinIce', E.thin, () => { const r = thin(); return ok(r.gone && r.n > 0, `шатун ушёл под лёд=${r.gone}, пробоин +${r.n}`); }, 'js/bear.js:97, js/ice.js:170 Ice.animal');
       cell(row, 'water', E.water, () => { const w = waterPt(), h0 = holes(); put(PY().x - 260, PY().y); G.bear = { x: w.x, y: w.y, hp: 9, hp0: 9, st: 'hunt', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0 }; O['Bear.tick'](DT, 23, 1); return ok(!G.bear && holes() > h0, `в воде: ушёл под лёд=${!G.bear}`); }, 'js/bear.js:97');
     } else {
-      cell(row, 'thinIce', E.thin, () => { const r = bodyThin(row, MK[row]); const want = row !== 'hare';
-        return want ? { st: r.n > 0 ? 'works' : 'none', obs: `4 с на тонком льду: пробоин +${r.n}, ни треска, ни провала` } : { st: r.n === 0 ? 'works' : 'broken', obs: `пробоин +${r.n} (верно: лёгкий — и механики нет)` }; },
-        'js/world.js:458 thinIce (только G.p), js/bear.js:97 (только шатун)');
+      cell(row, 'thinIce', E.thin, () => { const [who, r] = KINDS[row], t = thinPt(), h0 = holes(); put(PY().x - 260, PY().y); const o = MK[row](t.x, t.y); let at = -1;
+        World.solid(o, r, who); for (let tt = 0; tt < 8 && at < 0; tt += DT) { G.time += DT; o.x += Math.sin(tt * 3) * 20 * DT; World.solid(o, r, who); if (holes() > h0) at = tt; }
+        const want = row !== 'hare', out = !World.onThinIce(o);
+        return want ? ok(at > 0, `на тонком льду: пролом через ${r2(at)} с, выбрался на крепкий=${out}`) : ok(at < 0, `8 с на тонком льду: пробоин ${holes() - h0} (лёгкий — держит)`); },
+        'js/world.js env (масса → время пролома), js/ice.js fallBody');
       cell(row, 'water', E.water, () => { const w = waterPt(), [who, r, , v] = KINDS[row]; put(PY().x - 260, PY().y); const o = { x: w.x - 60, y: w.y }; let inW = 0; World.solid(o, r, who);
         for (let t = 0; t < 1.5; t += DT) { G.time += DT; o.x += v * DT; World.solid(o, r, who); if (Ice.inWater(o.x, o.y)) inW++; }
-        return { st: 'none', obs: `тело прошло по открытой воде ${r1(inW * DT)} с, без реакции (keepOut/провал — только герой)` }; }, 'js/ice.js:142 keepOut (только герой)');
+        return ok(inW === 0 && (Math.abs(o.x - w.x) > 20 || Math.abs(o.y - w.y) > 10), `в воде ${r1(inW * DT)} с; обошёл: x−вода=${r1(o.x - w.x)}, y−вода=${r1(o.y - w.y)}`); }, 'js/world.js pushAll → js/ice.js pushWater');
     }
     cell(row, 'tree', 'упирается в ствол, обходит', () => { const r = bodyHit(row, d => { const t = mkTree(d.x + 60, d.y); t.wood = 9; return t; });
       return ok(r.o.x < r.tgt.x - 4 || Math.abs(r.o.y - r.tgt.y) > 6, `тело обошло/встало: x−ствол=${r1(r.o.x - r.tgt.x)}, y−ствол=${r1(r.o.y - r.tgt.y)}`); }, 'js/world.js:309 pushAll');
     const overExp = row === 'npc' ? 'перелезает через ствол медленно или обходит' : row === 'bear' ? 'медведь перелезает через ствол' : 'перепрыгивает/перешагивает ствол';
     cell(row, 'log', overExp, () => { const [who, r, , v] = KINDS[row]; const d = deepSpot(); clearTrees(d.x, d.y, 220); const L = mkLog(d.x + 60, d.y - 80, Math.PI / 2 * 1.0, 300); put(d.x, d.y + 200);
-      const o = { x: d.x, y: d.y }; moveBody(o, r, who, v, 0, 2.2); const crossed = o.x > d.x + 60 + 5, side = Math.abs(o.y - d.y);
-      return row === 'npc' ? ok(!crossed, `${crossed ? 'перешёл' : 'упёрся'} (сдвиг вдоль ствола ${r1(side)} px)`) : { st: crossed ? 'works' : 'broken', obs: `${crossed ? 'перешёл' : 'упёрся как в стену, не перепрыгнул'} (вдоль ствола ${r1(side)} px)` }; },
-      'js/world.js:331 pushLog (для всех одинаково)');
+      const o = { x: d.x, y: d.y }; moveBody(o, r, who, v, 0, 3.5); const crossed = o.x > d.x + 60 + 5, side = Math.abs(o.y - d.y);
+      return row === 'npc' ? ok(!crossed || side > 60, `${crossed ? (side > 60 ? 'обошёл с конца' : 'перешёл') : 'упёрся'} (сдвиг вдоль ствола ${r1(side)} px)`) : { st: crossed ? 'works' : 'broken', obs: `${crossed ? 'перешёл' : 'упёрся как в стену, не перепрыгнул'} (вдоль ствола ${r1(side)} px)` }; },
+      'js/world.js pushAll (jump: logH) + env (over — медленнее)');
     cell(row, 'hut', row === 'hare' ? 'в избу не заходит' : 'стены держат; в дверь (если нет двери) — по своим правилам',
       () => { const [who, r, , v] = KINDS[row]; put(HUT.x, HUT.y + 300); const o = { x: HUT.x - 260, y: HUT.y - 20 }; moveBody(o, r, who, v, 0, 3);
         const inW = HUT_WALLS.some(Rr => o.x > Rr.x0 && o.x < Rr.x1 && o.y > Rr.y0 && o.y < Rr.y1); return ok(!inW, `внутри стены=${inW}, x−изба=${r1(o.x - HUT.x)}`); }, 'js/world.js:334');
     if (row === 'wolf') cell(row, 'fire', E.fire, () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const f = mkFire(d.x, d.y, 900); put(d.x + 10, d.y); const w = Wolves.at(0, 300); w.x = d.x + 40; w.y = d.y; w.st = 'circle';
       let mn = 1e9; for (let i = 0; i < 180; i++) { O['Wolves.tick'](DT, 1); mn = Math.min(mn, Math.hypot(w.x - f.x, w.y - f.y)); } const R0 = Fire.fearR(f);
       return ok(Math.hypot(w.x - f.x, w.y - f.y) > R0 * 0.8, `радиус страха ${R0}; волк через 3 с в ${r1(Math.hypot(w.x - f.x, w.y - f.y))} px от огня`); }, 'js/wolves.js:104');
-    else if (row === 'bear') cell(row, 'fire', E.fire, () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const f = mkFire(d.x, d.y, 900); put(d.x + 6, d.y); G.bear = { x: d.x + 260, y: d.y, hp: 9, hp0: 9, st: 'hunt', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0, finalStand: 1 };
-      let mn = 1e9; for (let i = 0; i < 240 && G.bear; i++) { O['Bear.tick'](DT, 23, 1); mn = Math.min(mn, Math.hypot(G.bear.x - f.x, G.bear.y - f.y)); }
-      return { st: mn < Fire.fearR(f) * 0.6 ? 'none' : 'works', obs: `шатун подошёл к огню на ${r1(mn)} px (радиус страха волков ${Fire.fearR(f)})` }; }, 'js/bear.js (Fire не читает)');
+    else if (row === 'bear') cell(row, 'fire', E.fire, () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const f = mkFire(d.x, d.y, 900); put(d.x + 6, d.y);
+      const run = last => { G.bear = { x: d.x + 260, y: d.y, hp: 9, hp0: 9, st: 'hunt', t: 3, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0, finalStand: last };
+        let mn = 1e9; for (let i = 0; i < 300 && G.bear; i++) { O['Bear.tick'](DT, 23, 1); G.time += DT; mn = Math.min(mn, Math.hypot(G.bear.x - f.x, G.bear.y - f.y)); } G.bear = null; return mn; };
+      const a = run(0), b = run(1); return ok(a > 70 && b > 35 && b < a, `шатун держится от огня: обычный ${r1(a)} px, голодный (последний выход) ${r1(b)} px (страх волков ${Fire.fearR(f)})`); }, 'js/bear.js fireFear');
     else cell(row, 'fire', E.fire, () => { const [who, r, , v] = KINDS[row]; const d = deepSpot(); clearTrees(d.x, d.y, 200); mkFire(d.x + 70, d.y); put(d.x, d.y + 160); const m = moveBody({ x: d.x, y: d.y }, r, who, v, 0, 2);
-      return { st: m.minF < 10 ? 'none' : 'works', obs: `прошёл в ${r1(m.minF)} px от центра огня` }; }, 'js/world.js:309 pushAll (костров нет)');
+      return ok(m.minF >= r + 10, `прошёл в ${r1(m.minF)} px от центра огня`); }, 'js/world.js pushAll → js/fire.js keepR');
     cell(row, 'other', row === 'npc' ? 'тела расталкиваются (сквозь героя не проходит)' : row === 'hare' || row === 'deer' ? 'убегает от героя; телами не пересекаются' : 'нападает на героя/людей; телами не пересекаются',
       () => { const d = deepSpot(); put(d.x, d.y); const o = row === 'bear' ? (G.bear = { x: d.x + 4, y: d.y, hp: 9, hp0: 9, st: 'stun', t: 9, face: 1, step: 0, cd: 0, stunCd: 0, pr: 0, tgt: 0, raid: 0 }) : MK[row](d.x + 4, d.y);
         step(0.3); const dd = Math.hypot(o.x - P().x, o.y - P().y); return ok(dd > 12, `дистанция до героя ${r1(dd)} px через 0.3 с`); }, 'js/world.js:403 crowd');
@@ -330,47 +336,55 @@ var InteractMatrix = (() => {
   for (const row of ['sled', 'buran']) {
     const nm = row === 'sled' ? 'упряжка' : '«Буран»';
     cell(row, 'snow', `${nm} в глубоком снегу вязнет — медленнее, чем по накатанному`, () => { const r = vehSpeed(row === 'sled' ? 'deer' : 'buran'); C['v' + row] = r;
-      return { st: r.v2 > r.v1 * 1.1 ? 'works' : 'broken', obs: `снег ${Math.round(r.d)} см: ${Math.round(r.v1)} px/с; там же расчищено: ${Math.round(r.v2)} px/с (×${r2(r.v2 / r.v1)}) — глубина снега не учитывается` }; },
-      'js/depth.js:201 heroMul: p.ride → 1; js/hero.js:21 speedOn (только тип местности)');
-    cell(row, 'trail', `по тропе/зимнику ${nm} быстрее`, () => { const r = C['v' + row]; return r ? { st: r.v2 > r.v1 * 1.1 ? 'works' : 'broken', obs: `расчищенная тропа ×${r2(r.v2 / r.v1)} (зимник-зона TERRAIN.trail ×1.3 есть, протоптанная/расчищенная — нет)` } : { st: 'broken', obs: 'нет замера' }; }, 'js/content/zones.js:168 TERRAIN.trail, js/trail.js:107 (только пешком)');
+      return { st: r.v2 > r.v1 * 1.1 ? 'works' : 'broken', obs: `снег ${Math.round(r.d)} см: ${Math.round(r.v1)} px/с; там же расчищено: ${Math.round(r.v2)} px/с (×${r2(r.v2 / r.v1)})` }; },
+      'js/depth.js rideMul, js/hero.js speed');
+    cell(row, 'trail', `по тропе/зимнику ${nm} быстрее`, () => { const r = C['v' + row]; return r ? { st: r.v2 > r.v1 * 1.1 ? 'works' : 'broken', obs: `расчищенная тропа ×${r2(r.v2 / r.v1)} (зимник-зона — свой ×1.3 в TERRAIN)` } : { st: 'broken', obs: 'нет замера' }; }, 'js/depth.js rideMul (Trail.at), js/content/zones.js TERRAIN.trail');
     const kind = row === 'sled' ? 'deer' : 'buran';
     cell(row, 'bareIce', `${nm} на голом льду скользит, заносит, тормозит дольше`, () => { const c = coast(iceSpot(true), kind); return ok(c > 8, `накат после отпускания ${r1(c)} px`); }, 'js/hero.js:48 glide (верхом тоже)');
     cell(row, 'iceSnow', 'лёд под снегом — сцепление', () => { const c = coast(iceSpot(false), kind); return ok(c < 4, `накат ${r1(c)} px`); }, 'js/hero.js:6 slick');
-    cell(row, 'thinIce', `${nm} (${row === 'sled' ? '~300' : '~350'} кг с седоком) проламывает тонкий лёд`, () => { const t = thinPt(), h0 = holes(); put(t.x - 150, t.y); mountV(kind); step(0.2); P().x = t.x; G.veh[kind].x = t.x; step(4);
-      const r = { st: Ice.active() || holes() > h0 ? 'works' : 'broken', obs: `4 с верхом на тонком льду: провал=${Ice.active()}, пробоин +${holes() - h0} (тонкий лёд выключен при p.ride)` }; if (P().ride) Transport.dismount(); return r; }, 'js/world.js:462 thinIce: … && !p.ride');
+    cell(row, 'thinIce', `${nm} (${row === 'sled' ? '~300' : '~350'} кг с седоком) проламывает тонкий лёд; олени сами на него не идут`, () => { const t = thinPt();
+      // подъезд: упряжка встаёт у кромки, «Буран» въезжает
+      put(PY().x - POI.polynya.r - 40, t.y); mountV(kind); step(0.2); walk(1, 0, kind === 'buran' ? 0.25 : 1.5); const onT = World.onThinIce(P()) || Ice.active(); if (P().ride) Transport.dismount(); fresh();
+      const h0 = holes(); put(t.x - 150, t.y); mountV(kind); step(0.2); P().x = t.x; G.veh[kind].x = t.x; step(4);
+      const r = { st: (Ice.active() || holes() > h0) && onT === (kind === 'buran') ? 'works' : 'broken', obs: `подъезд: въехал на тонкий=${onT}; 4 с верхом на тонком льду: провал=${Ice.active()}, пробоин +${holes() - h0}, транспорт у кромки=${!!(G.veh[kind] && !World.onThinIce(G.veh[kind]))}` }; if (P().ride) Transport.dismount(); return r; }, 'js/world.js thinIce (RIDE_K) → rideSink');
     cell(row, 'water', `${nm} в открытую воду — провал`, () => { const w = waterPt(); put(w.x - 120, w.y); mountV(kind); step(0.2); P().x = w.x; P().y = w.y; G.veh[kind].x = w.x; step(1);
-      const r = { st: Ice.active() ? 'works' : 'broken', obs: `верхом над водой переката 1 с: провал=${Ice.active()}` }; if (P().ride) Transport.dismount(); return r; }, 'js/world.js:462, :465');
+      const r = { st: Ice.active() ? 'works' : 'broken', obs: `верхом над водой переката 1 с: провал=${Ice.active()}` }; if (P().ride) Transport.dismount(); return r; }, 'js/world.js thinIce (Ice.inWater верхом)');
     cell(row, 'tree', 'упирается в ствол (удар, остановка)', () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const t = mkTree(d.x + 70, d.y); t.wood = 9; put(d.x, d.y); mountV(kind); walk(1, 0, 1.2); const x = P().x; Transport.dismount(); return ok(x < t.x - 6, `остановка в ${r1(t.x - x)} px от оси ствола`); }, 'js/hero.js:63 World.solid');
     cell(row, 'log', 'перед стволом встаёт (переехать нельзя/медленно)', () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); mkLog(d.x + 70, d.y - 80, Math.PI / 2, 300); put(d.x, d.y); mountV(kind); walk(1, 0, 1.2); const x = P().x; Transport.dismount(); return ok(x < d.x + 70, `x−ствол=${r1(x - d.x - 70)}`); }, 'js/world.js:331');
     cell(row, 'hut', 'стены держат', () => { put(HUT.x - 300, HUT.y - 20); mountV(kind); walk(1, 0, 2); const p = P(), inW = HUT_WALLS.some(Rr => p.x > Rr.x0 && p.x < Rr.x1 && p.y > Rr.y0 && p.y < Rr.y1); Transport.dismount(); return ok(!inW, `внутри стены=${inW}`); }, 'js/world.js:334');
     cell(row, 'fire', 'через костёр не едет (олени шарахаются / гасит и разбрасывает)', () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const f = mkFire(d.x + 60, d.y); put(d.x, d.y); mountV(kind); let mn = 1e9; step(1.2, () => { input.mx = 1; mn = Math.min(mn, Math.hypot(P().x - f.x, P().y - f.y)); }); input.mx = 0; Transport.dismount();
-      return { st: mn < 10 ? 'none' : 'works', obs: `проехал в ${r1(mn)} px от огня, костёр fuel=${Math.round(f.fuel)}` }; }, 'js/world.js:309 (костров нет)');
+      return ok(mn > 20, `ближе всего к огню ${r1(mn)} px, костёр fuel=${Math.round(f.fuel)}`); }, 'js/world.js pushAll → js/fire.js keepR (упряжка шарахается)');
     cell(row, 'other', 'сбивает/расталкивает зверей и людей (масса больше)', () => { const d = deepSpot(); put(d.x, d.y); mountV(kind); const w = Wolves.at(0, 300); w.x = d.x + 4; w.y = d.y; w.st = 'lie'; step(0.3); const dd = Math.hypot(w.x - P().x, w.y - P().y); Transport.dismount(); return ok(dd > 20, `волк отодвинут на ${r1(dd)} px`); }, 'js/world.js:410 crowd (r16, m3)');
   }
 
   // === брошенная палка (Actions.alt → throwAt → launch → land) ===
-  function throwAt(tgSetup, forceHit) {
+  function throwAt(tgSetup, forceHit, each) {
     const r = tgSetup(); const p = P(); put(r.from.x, r.from.y); p.face = 1; p.cd = 0; const n0 = G.parts.length;
     const keep = Math.random; if (forceHit) Math.random = () => 0.01;
     Actions.alt(); let landed = null, k = 0; const pc0 = G.parts.length;
-    step(1.4); Math.random = keep;
+    step(1.4, each); Math.random = keep;
     const near = G.parts.filter(q => Math.abs(q.x - r.tg.x) < 40 && Math.abs(q.y - r.tg.y) < 40 && q.type !== 'dot').length;
     return { r, near, action: p.action };
   }
   const harePt = (x, y) => MK.hare(x, y);
   cell('stick', 'snow', 'палка падает в снег (облачко), остаётся лежать/торчать — можно подобрать',
     () => { const d = deepSpot(); clearTrees(d.x, d.y, 250); const res = throwAt(() => ({ from: { x: d.x, y: d.y }, tg: harePt(d.x + 110, d.y) }));
-      return { st: res.near > 0 ? 'broken' : 'none', obs: `облачко снега у цели: ${res.near} частиц; палка в мире после падения: нет (только частица полёта)` }; }, 'js/actions.js:570 launch, :586 throw obj:snow');
+      const q = (G.litter || []).find(o => o.k === 'stick'); let lbl = null; if (q) { G.hares.length = 0; put(q.x - 14, q.y); const c = Actions.context(); lbl = c && c.label; }
+      return ok(res.near > 0 && q && lbl === 'Подобрать палку', `облачко снега у цели: ${res.near} частиц; палка лежит ${q ? `в ${r1(q.x - d.x - 110)} px от цели` : 'нет'}; рядом: «${lbl}»`); }, 'js/actions.js land → dropStick (G.litter k stick)');
   na('stick', 'trail', 'как снег');
   cell('stick', 'bareIce', 'палка о голый лёд: стук, отскок/скольжение, без облака снега',
-    () => { const s = iceSpot(true); const res = throwAt(() => ({ from: { x: s.x - 60, y: s.y }, tg: harePt(s.x + 40, s.y) }));
-      return { st: 'broken', obs: `на льду: облако «снега» ${res.near} частиц (событие всегда obj:'snow'), стука/скольжения нет` }; }, 'js/actions.js:586');
+    () => { const s = iceSpot(true); const puffs = () => G.parts.filter(q => q.type === 'puff' && Math.abs(q.x - s.x - 40) < 40).length; const p0 = puffs();
+      const res = throwAt(() => ({ from: { x: s.x - 60, y: s.y }, tg: harePt(s.x + 40, s.y) })); const q = (G.litter || []).find(o => o.k === 'stick');
+      return ok(q && q.x > s.x + 50 && puffs() === p0, `облачков снега ${puffs() - p0}; палка проскользила до x−цель=${q ? r1(q.x - s.x - 40) : '—'} px`); }, 'js/actions.js land/slide, js/interact.js throw×ice');
   na('stick', 'iceSnow', 'как снег');
   na('stick', 'thinIce', 'масса палки ничтожна');
-  cell('stick', 'water', 'палка в воде: всплеск, плывёт', () => ({ st: 'none', obs: 'бросок только в зверя (throwTarget), вода как цель не существует; при промахе над водой — облако снега' }), 'js/actions.js:530 throwTarget');
+  cell('stick', 'water', 'палка в воде: всплеск, плывёт', () => { const w = waterPt(); const n0 = G.parts.length; throwAt(() => ({ from: { x: w.x - 120, y: w.y }, tg: harePt(w.x, w.y) }));
+      const st = (G.litter || []).filter(o => o.k === 'stick').length, sp = G.parts.slice(n0).filter(q => q.type === 'steam' || q.type === 'ring' || q.type === 'drop' || q.type === 'bit').length;
+      return ok(st === 0 && sp > 0, `палок на льду ${st}; брызг/пара ${sp}`); }, 'js/actions.js land (Ice.water), js/interact.js throw×wet');
   cell('stick', 'tree', 'ствол на пути броска — палка бьётся о дерево',
-    () => { const d = deepSpot(); clearTrees(d.x, d.y, 250); const t = mkTree(d.x + 55, d.y - 4); t.wood = 9; const res = throwAt(() => ({ from: { x: d.x, y: d.y }, tg: harePt(d.x + 110, d.y) }));
-      return { st: 'none', obs: `дерево на линии: палка долетела до цели (облако у цели ${res.near} частиц), дерево shake=${r2(t.shake || 0)}` }; }, 'js/actions.js:573 tickFly (без проверки пути)');
+    () => { const d = deepSpot(); clearTrees(d.x, d.y, 250); const t = mkTree(d.x + 75, d.y - 4); t.wood = 9; let sh = 0; const res = throwAt(() => ({ from: { x: d.x, y: d.y }, tg: harePt(d.x + 150, d.y) }), false, () => { sh = Math.max(sh, t.shake || 0); });
+      const q = (G.litter || []).find(o => o.k === 'stick');
+      return ok(q && q.x < t.x && sh > 0, `палка ударилась о ствол: лежит в ${q ? r1(t.x - q.x) : '—'} px перед ним, дрожь дерева ${r2(sh)}`); }, 'js/actions.js stickPath → land');
   na('stick', 'log', 'бросок навесом — ствол не мешает');
   cell('stick', 'hut', 'из избы не бросить (стены)', () => { put(SPOT.bed.x, SPOT.bed.y + 4); P().inside = true; const w = Wolves.at(0, 300); w.x = P().x + 60; w.y = P().y; const t = Actions.altLabel(Actions.context()); return ok(!t || t[0] !== 'Бросить палку', `подсказка броска в избе: ${t ? t[0] : 'нет'}`); }, 'js/actions.js:531');
   na('stick', 'fire', '—');
@@ -381,18 +395,27 @@ var InteractMatrix = (() => {
   // === костёр ===
   cell('fire', 'snow', 'костёр вытапливает снег вокруг (проталина растёт)',
     () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); put(d.x, d.y); P().face = 1; G.inv.wood = 10; Actions.fireKey(); const f = G.fires[G.fires.length - 1];
-      const x = f.x + 40, y = f.y, d0 = Depth.depthAt(x, y); R.render = true; frame(); G.time += 200; frame(); R.render = false; const d1 = Depth.depthAt(x, y);
-      return ok(d1 < d0 * 0.8, `снег в 40 px от огня ${Math.round(d0)} → ${Math.round(d1)} см через 200 с (melt=${r2(f.melt || 0)}; считается в рисовании gfx.js:815)`); }, 'js/depth.js:136, js/gfx.js:815 drawFire');
+      const x = f.x + 40, y = f.y, d0 = Depth.depthAt(x, y); frame(); G.time += 200; frame(); const d1 = Depth.depthAt(x, y);
+      return ok(d1 < d0 * 0.8, `снег в 40 px от огня ${Math.round(d0)} → ${Math.round(d1)} см через 200 с без рисования (melt=${r2(f.melt || 0)} — Fire.tick)`); }, 'js/fire.js tick (melt), js/depth.js:136');
   na('fire', 'trail', 'как снег');
-  function fireIce(sp) { put(sp.x - 30, sp.y); P().face = 1; G.inv.wood = 10; const n0 = G.fires.length; Actions.fireKey(); return G.fires.length - n0; }
+  // костёр на льду: разжечь F, герой отходит; за sec с — лужа (thaw), насквозь — дыра, костёр уходит в воду
+  function fireIce(sp, sec) {
+    put(sp.x - 30, sp.y); P().face = 1; G.inv.wood = 10; const n0 = G.fires.length, h0 = holes(); Actions.fireKey(); const f = G.fires.length > n0 ? G.fires[G.fires.length - 1] : null;
+    if (!f) return { n: 0 }; put(sp.x - 160, sp.y + 140); f.fuel = 1e4; let half = -1, t = 0;
+    for (; t < sec && G.fires.includes(f); t += 0.25) { G.time += 0.25; Fire.tick(0.25, 0, false); if (half < 0 && f.thaw >= 0.4) half = t; }
+    return { n: 1, f, half, t, hole: holes() > h0, gone: !G.fires.includes(f) };
+  }
+  const fiObs = r => r.n ? `разведено 1; лужа (лёд слабеет) через ${r.half >= 0 ? Math.round(r.half) + ' с' : '—'}; ${r.gone ? `провалился под лёд через ${Math.round(r.t)} с, дыра=${r.hole}` : 'держит'}` : 'не разжечь';
   cell('fire', 'bareIce', 'на толстом льду костёр горит, протаивает лужу; лёд может треснуть',
-    () => { const n = fireIce(iceSpot(true)); return { st: n ? 'works' : 'none', obs: `разведено костров: ${n} («На льду не разжечь» — запрет вместо протаивания)` }; }, 'js/actions.js:766');
-  cell('fire', 'iceSnow', 'то же, сначала тает снег', () => { const n = fireIce(iceSpot(false)); return { st: n ? 'works' : 'none', obs: `разведено: ${n}` }; }, 'js/actions.js:766');
-  cell('fire', 'thinIce', 'на тонком льду костёр проплавляет лёд → пробоина', () => { const n = fireIce(thinPt()); return { st: n ? 'works' : 'none', obs: `разведено: ${n}` }; }, 'js/actions.js:766');
+    () => { const r = fireIce(iceSpot(true), 400); return ok(r.n && r.half > 30 && r.gone && r.t > 120, fiObs(r)); }, 'js/actions.js fireKey (Ice.water), js/ice.js fireTick');
+  cell('fire', 'iceSnow', 'то же, сначала тает снег', () => { const a = fireIce(iceSpot(true), 400).t; fresh(); const r = fireIce(iceSpot(false), 400); return ok(r.n && r.gone && r.t > a, fiObs(r) + ` (голый лёд — ${Math.round(a)} с)`); }, 'js/ice.js fireTick');
+  cell('fire', 'thinIce', 'на тонком льду костёр проплавляет лёд → пробоина', () => { const r = fireIce(thinPt(), 60); return ok(r.n && r.gone && r.hole && r.t < 30, fiObs(r)); }, 'js/ice.js fireTick');
   na('fire', 'water', 'на воде костёр не развести');
   cell('fire', 'tree', 'костёр под елью: тепло сбрасывает снег с лап (может погасить), ствол обугливается',
-    () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const t = mkTree(d.x + 20, d.y - 4); t.wood = 9; const f = mkFire(d.x, d.y, 900); put(d.x - 80, d.y); step(30);
-      return { st: 'none', obs: `30 с: shake ели=${r2(t.shake || 0)}, дров ${t.wood}, топливо ${Math.round(f.fuel)}; ель не знает о костре` }; }, 'js/fire.js:33');
+    () => { const d = deepSpot(); clearTrees(d.x, d.y, 200); const t = mkTree(d.x + 20, d.y - 4); t.wood = 9; const f = mkFire(d.x, d.y, 900); put(d.x - 80, d.y); let sh = 0, n = 0, last = 0;
+      step(40, () => { sh = Math.max(sh, t.shake || 0); if (f.hiss && f.hiss !== last) { last = f.hiss; n++; } });
+      const burnt = 900 - f.fuel, base = 40 * Fire.burn(f, 0, false);
+      return ok(sh > 0 && n > 0 && burnt > base + 10, `40 с: комьев снега с ели ${n}, дрожь ${r2(sh)}, топливо −${Math.round(burnt)} (без снега −${Math.round(base)})`); }, 'js/fire.js treeSnow');
   na('fire', 'log', 'см. «лежачий ствол × костёр»');
   cell('fire', 'hut', 'у стены избы не разжечь (сгорит)', () => { put(HUT.x + 40, HUT.y + 90); P().face = 1; G.inv.wood = 10; const n0 = G.fires.length; Actions.fireKey(); return ok(G.fires.length === n0, `разведено у избы: ${G.fires.length - n0}`); }, 'js/actions.js:767');
   na('fire', 'fire', '—');

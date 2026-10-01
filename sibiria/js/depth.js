@@ -208,6 +208,17 @@ const Depth = (() => {
     if (HS.s > 110) m *= (0.45 + 1.1 * Math.max(0, Math.sin(HS.ph))) / 0.8; // по грудь — рывками: выдернул ногу — шаг, увяз — стоит
     return m;
   }
+  // верхом (Hero.speed): «Буран» на гусенице вязнет в глубоком меньше, упряжка (олени по брюхо, нарты с грузом) — больше; поверхность (TERRAIN.deer/buran)
+  // уже учитывает обычную целину — множитель к ней; по тропе/расчищенному — до ×1.25 (зимник-зона — свой ×1.3 в TERRAIN)
+  const RF = { buran: s => 1 - 0.42 * sm(25, 190, s), deer: (s, ld) => 1 - (0.5 + 0.2 * ld) * sm(20, 150, s) };
+  function rideMul(kind) {
+    const p = G.p, f = RF[kind]; if (!G || !f || !ensure()) return 1;
+    const ld = kind === 'deer' && typeof Inv !== 'undefined' ? Math.max(0, Math.min(1.5, Inv.weight() / Math.max(1, Inv.capKg()))) : 0;
+    const d = depthAt(p.x, p.y), ref = (BASE[Zones.terrainKey(p.x, p.y)] || 60) + 14;
+    let m = Math.max(0.35, Math.min(1, f(d, ld) / f(ref, ld)));
+    if (typeof Trail !== 'undefined') m *= 1 + 0.25 * sm(0.25, 0.8, Trail.at(p.x, p.y));
+    return m;
+  }
   // 0..1: насколько тяжело идти (тепло/еда тратятся быстрее, дыхание чаще)
   // порог — 22 см: по тропе (провал < 22) не выматывает, по целине — заметно; работа лопатой — не меньше 0.6 (пот на морозе)
   const effort = () => { if (!G || !G.p) return 0; const a = G.p.action, w = a && a.k === 'clear' ? 0.6 : 0; return G.p.moving ? Math.max(w, CL ? 1 : sm(22, 120, HS.s)) : w; };
@@ -278,6 +289,8 @@ const Depth = (() => {
     }
     st.x = o.x; st.y = o.y;
   }
+  // конец шага World.solid: тело встало после упоров — следующий шаг считаем отсюда (иначе провал «откатывает» шаг вдоль преграды и тело дрожит у ствола/огня)
+  function settle(o) { const st = ST.get(o); if (st && !hold) { st.x = o.x; st.y = o.y; } }
   // обход глубокого: ИИ выбирает из 5 направлений то, где мельче (цена — провал + отклонение от цели)
   const SA = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35], SC = new WeakMap();
   function steer(o, dx, dy, kind = 'n') {
@@ -523,7 +536,7 @@ const Depth = (() => {
     return { blocks: n, kb: +(n * BS * BS / 1024).toFixed(1), maxKb: +(BX * BY * BS * BS / 1024).toFixed(0), buildMs: +buildMs.toFixed(2), trench: TR.length, digs: DG.length, pits: PT.length, cell: C };
   }
   return {
-    depthAt, crustAt, sinkAt, sinkOf, heroMul, tickHero, tick, drag, steer, dig, effort, look, art, stats, KIND, PX, BASE, mulHuman, mulKind,
+    depthAt, crustAt, sinkAt, sinkOf, heroMul, rideMul, tickHero, tick, drag, settle, steer, dig, effort, look, art, stats, KIND, PX, BASE, mulHuman, mulKind,
     get heroSink() { return HS.s; }, get heroSnow() { return HS.snow; }, get climb() { return CL ? Math.min(1, CL.t / CLB.dur) : -1; }, get outT() { return HS.out; },
     brush() { HS.snow *= 0.35; }, bareIce, CLB, get pits() { return PT; }, set hold(v) { hold = v ? 1 : 0; }, get trenchList() { return TR; }, reset() { gKey = null; ensure(); },
   };

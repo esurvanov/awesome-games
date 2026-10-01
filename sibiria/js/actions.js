@@ -280,6 +280,7 @@ const Actions = (() => {
     if (!p.inside) {
       const ch = nearChunks(46); if (ch.length) return { k: 'chunks', label: `Взять чурки · +${ch.length} :wood:`, o: ch };
       const lg = nearLog(44); if (lg) return { k: 'log', label: logCut(lg) < 1 ? 'Обрубить сучья' : `Разделать · ${lg.n}`, rep: 1, o: lg };
+      const sk = (G.litter || []).find(q => q.k === 'stick' && !q.vx && dist2(q, p) < 26 * 26); if (sk) return { k: 'litter', label: 'Подобрать палку', o: sk, soft: 1 }; // палка под ногами — раньше сугроба
     }
     if (!G.gear.shovel && !G.flags.shovel && !p.inside && typeof Trail !== 'undefined' && dist2(Trail.SHOVEL, p) < 40 * 40) return { k: 'shovel', label: 'Взять лопату :shovel:' };
     if (!p.inside && !onIce(p.x, p.y)) {
@@ -297,7 +298,7 @@ const Actions = (() => {
       if (pr) return { k: 'tracks', label: 'Читать след', o: pr, soft: 1 };
     }
     if (!p.inside) {
-      const lt = (G.litter || []).find(q => dist2(q, p) < 34 * 34); if (lt) return { k: 'litter', label: 'Подобрать банку', o: lt, soft: 1 };
+      const lt = (G.litter || []).find(q => dist2(q, p) < 34 * 34); if (lt) return { k: 'litter', label: lt.k === 'stick' ? 'Подобрать палку' : 'Подобрать банку', o: lt, soft: 1 };
     }
     const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall); if (t) return { k: 'tree', label: 'Рубить', alt: 'Трясти', rep: 1, o: t };
     const sp = !p.inside && nearest(Space.trees, 40, t => t.wood <= 0 && !t.wall && t.stage !== 1); if (sp) return { k: 'rest', label: 'Присесть', o: sp, soft: 1 };
@@ -371,7 +372,7 @@ const Actions = (() => {
       // чурки — по одной за жест: с земли уходит в момент касания рукой (contacts), удержание E собирает кучу
       case 'chunks': { const q = c.o.slice().sort((a, b) => dist2(a, p) - dist2(b, p))[0]; faceTo(q);
         p.action = { k: 'take', t: 0, dur: D().takeChunk || 1, pose: 'takeChunk', item: 'chunk', tg: { x: q.x, y: q.y }, th: -2, o: q, grab: 0.34, chunk: 1, fb: 'pickUp' }; p.cd = 0.1; } break;
-      case 'litter': G.litter.splice(G.litter.indexOf(c.o), 1); take('canE', c.o, -1); Sound.tone && Sound.tone('triangle', 1300, 900, 0.08, 0.03); break;
+      case 'litter': G.litter.splice(G.litter.indexOf(c.o), 1); if (c.o.k === 'stick') { faceTo(c.o); Hero.play('pickUp', { react: 1, tg: c.o }); Sound.pick(); break; } take('canE', c.o, -1); Sound.tone && Sound.tone('triangle', 1300, 900, 0.08, 0.03); break;
       case 'log': {
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
         // сам подходит сбоку к месту работы (край кроны / конец ствола) и рубит туда
@@ -564,17 +565,52 @@ const Actions = (() => {
   function callDog(u) { faceTo(u); G.p.action = { k: 'call', t: 0, dur: D().call || 1, pose: 'call', o: u, marks: [0.3], fb: 'wave' }; }
   // полёт палки: точка на земле у цели; частица-«палка» летит по дуге, отклик — по прилёту
   const FLY = [], GR = 320;
+  // ствол на линии броска (герой → цель, по земле): палка бьётся о ближайший; дерево самой цели (ворон на макушке) — не помеха
+  function stickPath(x0, y0, x1, y1) {
+    const vx = x1 - x0, vy = y1 - y0, L = Math.hypot(vx, vy); if (L < 30) return null;
+    let best = null, bu = 1;
+    for (const t of treesNear((x0 + x1) / 2, (y0 + y1) / 2, L / 2 + 30)) {
+      if (!(t.wood > 0) || (t.x - x1) ** 2 + (t.y - y1) ** 2 < 14 * 14) continue;
+      const u = ((t.x - x0) * vx + (t.y - y0) * vy) / (L * L); if (u <= 14 / L || u >= bu) continue;
+      const px = x0 + vx * u - t.x, py = y0 + vy * u - t.y, R = World.trunkR(t) + 2;
+      if (px * px + py * py < R * R) { bu = u; best = t; }
+    }
+    if (!best) return null;
+    const k = Math.max(0, bu - (World.trunkR(best) + 5) / L); return { t: best, x: x0 + vx * k, y: y0 + vy * k };
+  }
   function launch(a) {
-    const p = G.p, o = a.o, x0 = p.x + p.face * 10, y0 = p.y - 44, x1 = o.x, y1 = o.y - (o.z || 0) - 8;
+    const p = G.p, o = a.o, x0 = p.x + p.face * 10, y0 = p.y - 44, hit = stickPath(p.x, p.y, o.x, o.y);
+    const gx = hit ? hit.x : o.x, gy = hit ? hit.y : o.y, x1 = gx, y1 = hit ? gy - 26 : o.y - (o.z || 0) - 8;
     const T = clamp(Math.hypot(x1 - x0, y1 - y0) / A.throwV, 0.25, 0.9);
     G.parts.push({ type: 'dot', x: x0, y: y0, vx: (x1 - x0) / T, vy: (y1 - y0) / T - 0.5 * GR * T, g: GR, life: T, max: T, color: '#5a3d22' });
-    FLY.push({ t: T, o, kind: a.kind, x: x1, y: o.y }); p.cd = A.throwCd; Sound.whoosh && Sound.whoosh();
+    FLY.push({ t: T, o, kind: a.kind, x: gx, y: gy, tree: hit ? hit.t : null, dx: Math.sign(gx - p.x) || p.face }); p.cd = A.throwCd; Sound.whoosh && Sound.whoosh();
   }
   function tickFly(dt) {
     for (let i = FLY.length - 1; i >= 0; i--) { const f = FLY[i]; if ((f.t -= dt) > 0) continue; FLY.splice(i, 1); land(f); }
+    if (G.litter) for (let i = G.litter.length - 1; i >= 0; i--) { const q = G.litter[i]; if (q.vx) slide(q, dt, i); }
+  }
+  // палка остаётся лежать (G.litter, k 'stick': подобрать — E; заметает за полсуток, как банку); в воде — тонет/уплывает
+  function dropStick(x, y, vx = 0, vy = 0) {
+    if (Ice.water(x, y)) return null;
+    G.litter = G.litter || []; if (G.litter.length >= 12) G.litter.shift();
+    const q = { x: Math.round(x), y: Math.round(y), k: 'stick', t: G.time, a: +(((x * 7.3 + y * 3.1) % 6.28 + 6.28) % 6.28).toFixed(2) };
+    if (vx || vy) { q.vx = vx; q.vy = vy; }
+    G.litter.push(q); return q;
+  }
+  // по голому льду палка скользит, стучит о ствол (отскок), в снегу — встаёт, в воде — пропадает
+  function slide(q, dt, i) {
+    const e = Math.exp(-dt * 1.4); q.vx *= e; q.vy *= e; q.x += q.vx * dt; q.y += q.vy * dt;
+    for (const t of treesNear(q.x, q.y, 20)) if (t.wood > 0 && (t.x - q.x) ** 2 + (t.y - q.y) ** 2 < (World.trunkR(t) + 3) ** 2) { q.vx *= -0.4; q.vy *= -0.4; q.x += q.vx * dt * 2; q.y += q.vy * dt * 2; Sound.thud && Sound.thud(0.12, 1); }
+    if (Ice.water(q.x, q.y)) { Ice.splash(q.x, q.y); G.litter.splice(i, 1); return; }
+    if (Math.hypot(q.vx, q.vy) < 6 || !Depth.bareIce(q.x, q.y)) { delete q.vx; delete q.vy; q.x = Math.round(q.x); q.y = Math.round(q.y); }
   }
   function land(f) {
-    const o = f.o, near = dist2(o, f) < 44 * 44, p = G.p;
+    const o = f.o, p = G.p;
+    if (f.tree) { // о ствол: глухой удар, ветки вздрогнули — палка падает у комля, к бросавшему
+      Interact.emit('throw', { who: 'p', obj: 'tree', target: f.tree, x: f.x, y: f.y });
+      dropStick(f.x - f.dx * 6, f.y + 3); return;
+    }
+    const near = dist2(o, f) < 44 * 44;
     if (f.kind === 'wolf' && near && G.wolves.includes(o) && Math.random() < A.throwHit) {
       o.st = 'flee'; o.t = 0.8; Sound.hit(); Fx.floatText(o.x, o.y - 40, 'Пошёл!'); Fx.burst(o.x, o.y - 14, 5, '#dde6ee');
     } else if (f.kind === 'hare' && near && liveHare(o)) {
@@ -583,7 +619,10 @@ const Actions = (() => {
         Fx.floatText(o.x, o.y - 20, '+:meat: +:hare:'); Fx.burst(o.x, o.y - 6, 10, '#ffffff'); Sound.pick();
       } else { const a = Math.atan2(o.y - p.y, o.x - p.x); o.vx = Math.cos(a) * 170; o.vy = Math.sin(a) * 170; o.t = 0.7; }
     }
-    Interact.emit('throw', { who: 'p', obj: 'snow', target: o, x: f.x, y: f.y });
+    // поверхность под палкой: вода — всплеск, голый лёд — стук и скольжение, снег — облачко, палка торчит
+    const wet = Ice.water(f.x, f.y), bare = !wet && Depth.bareIce(f.x, f.y);
+    Interact.emit('throw', { who: 'p', obj: wet ? 'water' : bare ? 'ice' : 'snow', target: o, x: f.x, y: f.y });
+    if (!wet) dropStick(f.x + f.dx * 4, f.y + 2, bare ? f.dx * 120 : 0, 0);
     // лайка бежит за палкой (кроме «сидеть») и сама возвращается к герою
     const d = petDog();
     if (d && d.task.k !== 'stay' && dist2(d, p) < A.dogR * A.dogR) { d.task = { k: 'move', x: f.x, y: f.y }; d.wag = now + 3; }
@@ -763,7 +802,7 @@ const Actions = (() => {
     if (s && s.wood < 4 && !s.lit) { if (Inv.take('wood', 1, false)) { s.wood++; Sound.chop(); feed(s, 0, 1); } else Fx.toast(':close: Не хватает: :wood:1'); return; }
     if (Inv.cnt('wood', false) < F.buildCost) return Fx.toast(':close: Костёр: :wood:3');
     const x = clamp(p.x + p.face * 30, 60, W - 60), y = p.y + 8;
-    if (onIce(x, y)) return Fx.toast(':close: На льду не разжечь');
+    if (Ice.water(x, y)) return Fx.toast(':close: Тут вода — не разжечь'); // на льду можно: протаивает лужу (js/ice.js fireTick)
     if (Math.abs(x - HUT.x) < 130 && Math.abs(y - HUT.y) < 110) return Fx.toast(':close: Слишком близко к избе');
     Inv.take('wood', F.buildCost, false); G.fires.push({ x, y, fuel: F.buildFuel }); Fx.toast(':fire: Костёр'); Sound.ok2();
   }
