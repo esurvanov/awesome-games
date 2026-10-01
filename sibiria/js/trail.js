@@ -156,7 +156,7 @@ const Trail = (() => {
 
   // ---------- рисунок ----------
   // поле куска 34×34 (клетки −1..32, края — из соседей) → мягкое RGBA → увеличение со сглаживанием в холст куска
-  const CH = new Map(), BT = []; let lastChk = -9, FC = null, FG = null, FD = null, bakeMs = 0, bakes = 0;
+  const CH = new Map(), BT = [], MG = 4; let lastChk = -9, FC = null, FG = null, FD = null, bakeMs = 0, bakes = 0;
   const QV = v => Math.round(v * 8) / 8;
   function sig(bi, bj) {
     let s = 0; const i0 = bi * BS - 1, j0 = bj * BS - 1;
@@ -190,9 +190,10 @@ const Trail = (() => {
     if (!any) { CH.set(key, { c: null, S: lo, sig: -1 }); return; }
     FG.putImageData(FD, 0, 0);
     let e = CH.get(key); const px = lo ? 192 : 512;
-    if (!e || !e.c || e.c.width !== px) { const c = document.createElement('canvas'); c.width = c.height = px; e = { c, g: c.getContext('2d') }; }
-    const g = e.g, u = px / BS; g.clearRect(0, 0, px, px); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-    g.drawImage(FC, -u, -u, N * u, N * u); // пиксель поля = полклетки; клетка −1 → за краем куска
+    // поля холста MG px: при рисовании берётся только середина (source rect) — сглаживание на стыке видит соседа, шва нет
+    if (!e || !e.c || e.px !== px) { const c = document.createElement('canvas'); c.width = c.height = px + 2 * MG; e = { c, g: c.getContext('2d'), px }; }
+    const g = e.g, u = px / BS; g.clearRect(0, 0, px + 2 * MG, px + 2 * MG); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(FC, MG - u, MG - u, N * u, N * u); // пиксель поля = полклетки; клетка −1 → за краем куска
     e.S = lo; CH.set(key, e);
     if (CH.size > (lo ? 40 : 24)) for (const [k2, v2] of CH) { if (k2 !== key && !v2.vis) { CH.delete(k2); break; } }
     const ms = performance.now() - t0; bakes++; bakeMs = Math.max(bakeMs, ms); BT.push(ms); if (BT.length > 64) BT.shift();
@@ -213,11 +214,11 @@ const Trail = (() => {
       if (miss) { const s = sig(bi, bj); if (!s) { CH.set(key, e = { c: null, S: lo, sig: 0 }); miss = false; } } // пусто (только край соседа не дотянулся) — без печи
       else if (chk) { const s = sig(bi, bj); if (s !== e.sig) e.want = 1; } // уровень сменился — в очередь
       if ((miss || (e && e.want)) && (todo < 0 || (miss && !tMiss))) { todo = key; tMiss = miss; }
-      if (e) { e.vis = 1; if (e.c && e.S === lo) { g.drawImage(e.c, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
+      if (e) { e.vis = 1; if (e.c && e.S === lo) { g.drawImage(e.c, MG, MG, e.px, e.px, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
     }
     if (todo >= 0) { // ≤ 1 печь за кадр
       const bi = todo % BX, bj = (todo / BX) | 0, s = sig(bi, bj); bake(bi, bj, lo);
-      const e = CH.get(todo); if (e) { e.sig = s; e.want = 0; if (tMiss && e.c) { e.vis = 1; g.drawImage(e.c, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
+      const e = CH.get(todo); if (e) { e.sig = s; e.want = 0; if (tMiss && e.c) { e.vis = 1; g.drawImage(e.c, MG, MG, e.px, e.px, bi * BW, bj * BW - LIFT, BW, BW); n++; } }
     }
     return n;
   }
