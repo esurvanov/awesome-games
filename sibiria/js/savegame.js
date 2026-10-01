@@ -4,6 +4,7 @@
 // трещины, кочки, места оберегов) пересчитывается из seed и не хранится. Хранятся:
 //  treeD — изменённые деревья [индекс, дрова(, дрожь)]; fogB — туман 2 бита на клетку (base64);
 //  live — зайцы/вороны/олени компактно (числа до 0,01); amGot — индексы собранных оберегов;
+//  trailB/trailF — тропы и расчистка (js/trail.js: тронутые блоки, байты, RLE нулей, base64) и счётчик заметания;
 //  всё остальное состояние G как есть. Ссылки на общие объекты (дерево в задаче человека, лунка
 //  в действии героя) пишутся как {$ref:[список, индекс]} и восстанавливаются при загрузке.
 // Версии: 2 — ключ sibir2-save; 3 — ячейки, весь G; 4 — дельта. Сейвы < 4 не читаются (мир другой).
@@ -47,6 +48,7 @@ const SaveGame = (() => {
       o.treeD.push(row);
     });
     o.fogB = packFog(G.fog);
+    if (typeof Trail !== 'undefined') { const tb = Trail.pack(); if (tb) { o.trailB = tb; o.trailF = +Trail.fill.toFixed(3); } } // тропы (js/trail.js)
     o.live = {}; for (const k of LIVE) o.live[k] = packList(G[k] || []);
     o.amGot = []; (G.amuletsAt || []).forEach((a, i) => { if (a.got) o.amGot.push(i); });
     return JSON.stringify(o, function (key, v) {
@@ -74,7 +76,7 @@ const SaveGame = (() => {
   function load(json) {
     const g = typeof json === 'string' ? JSON.parse(json) : json;
     const bad = problem(g); if (bad) throw new Error(bad);
-    const { _v, gen, W: _w, H: _h, cyc, treeD, fogB, live, amGot, ...rest } = g;
+    const { _v, gen, W: _w, H: _h, cyc, treeD, fogB, live, amGot, trailB, trailF, ...rest } = g;
     G = Object.assign(rest, { trees: [], drifts: [], cracks: [], tussocks: [], prints: [], parts: [] });
     // темп времени: сейв со старыми сутками (cyc нет — 480) → те же день и час при нынешнем CYCLE
     const kT = CYCLE / (cyc || 480);
@@ -92,6 +94,7 @@ const SaveGame = (() => {
     }
     G.stashes = G.stashes || [];
     G.fog = unpackFog(fogB);
+    if (typeof Trail !== 'undefined') Trail.load(trailB, trailF); // нет поля (старый сейв) — троп нет
     for (const k of LIVE) G[k] = unpackList(live && live[k]);
     for (const i of amGot || []) if (G.amuletsAt[i]) G.amuletsAt[i].got = 1;
     // ссылки → объекты

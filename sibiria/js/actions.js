@@ -24,7 +24,7 @@ const Actions = (() => {
   // PLATE — плашка над героем/вещью: текст записки или подпись осмотра; страницы считает рисование (GFX), E — дальше/закрыть, шаг — закрыть.
   let PLATE = null, AUTO = null, LAST = null, LASTG = null;
   // cx — жест, который E/движение прерывают без потерь (эффект уже применён): взять в руки, поесть, осмотр, чтение
-  const CRAFT_T = { torch: 1.2, tea: 2.5, stew: 4, snare: 3, lure: 3, trap: 4.5, hat: 5, dokha: 7, sled: 8, antenna: 5, radio: 8 };
+  const CRAFT_T = { shovel: 4, torch: 1.2, tea: 2.5, stew: 4, snare: 3, lure: 3, trap: 4.5, hat: 5, dokha: 7, sled: 8, antenna: 5, radio: 8 };
   const EAT_ITEM = { stew: 'bowl', can: 'can', dried: 'dried', meat: 'meat', fish: 'fish', honey: 'jar' };
   // взять вещь: наклон → в руке ≈1 с → в сумку (поза takeItem); tg — где лежит, th — высота
   function take(item, tg, th) {
@@ -169,6 +169,7 @@ const Actions = (() => {
     }
     for (const w of ['cockpit', 'tail']) if (G.wreck[w].length && dist2(POI[w], p) < 120 * 120) return { k: 'wreck', label: `Разбирать · ${G.wreck[w].length}`, o: w };
     if (!G.flags.tube && dist2(TUBE_POS, p) < 44 * 44) return { k: 'tube', label: 'Взять :tube:' };
+    if (!G.gear.shovel && !G.flags.shovel && !p.inside && typeof Trail !== 'undefined' && dist2(Trail.SHOVEL, p) < 40 * 40) return { k: 'shovel', label: 'Взять лопату :shovel:' };
     if (!p.inside && !onIce(p.x, p.y)) {
       // сугроб под ногами не перехватывает «Рубить»: дерево рядом, герой к нему лицом или оно ближе середины сугроба — дерево (ниже)
       // увяз глубже пояса (js/depth.js) — разгрести снег вокруг себя (утоптать и выбраться)
@@ -195,6 +196,8 @@ const Actions = (() => {
       if (hole) return { k: 'fish', label: 'Рыбачить', o: hole };
       return { k: 'dig', label: 'Пробить лунку' };
     }
+    // лопата: в поле, где нет другого действия — расчищать (держать E; идти можно, втрое медленнее)
+    if (G.gear.shovel && !p.inside && !p.ride && typeof Trail !== 'undefined') return { k: 'clear', label: 'Расчищать :shovel:', soft: 1 };
     return null;
   }
 
@@ -221,6 +224,8 @@ const Actions = (() => {
       case 'throw': throwAt(c.o, 'wolf'); break;
       case 'dog': faceTo(c.o); p.action = { k: 'pet', t: 0, dur: A.petT, pose: 'pet', loop: 1, tg: c.o, th: -8, o: c.o }; break;
       case 'fire': faceTo(c.o); p.action = { k: 'warm', t: 0, dur: A.warmT, pose: G.s.warm < 30 ? 'warmHandsCold' : 'warmHands', loop: 1, tg: c.o, th: -8, o: c.o, fl: 0 }; break;
+      case 'shovel': faceTo(Trail.SHOVEL); G.flags.shovel = 1; G.gear.shovel = 1; Hero.play('pickUp', { react: 1, tg: Trail.SHOVEL, th: -14 }); Fx.toast(':shovel: Лопата · держи E в поле — расчищать снег'); Sound.ok2(); break;
+      case 'clear': p.action = { k: 'clear', t: 0, dur: 1e6, pose: 'scoop', per: D().scoop || 1, loop: 1, walk: 1, fb: 'dig', ph: 0 }; break;
       case 'digout': { const per = D().scoop || 1; p.action = { k: 'digout', t: 0, dur: 2.4, pose: 'scoop', per, loop: 1, fb: 'dig' }; } break;
       case 'drift': p.action = { k: 'kick', t: 0, dur: D().kick || A.kickT, pose: 'kick', tg: { x: p.x + p.face * 16, y: p.y + 2 }, o: c.o, marks: [0.45], fb: 'swing' }; break;
       case 'tracks': faceTo(c.o); p.action = { k: 'read', t: 0, dur: A.readT, pose: 'crouch', loop: 1, tg: c.o, o: c.o }; break;
@@ -484,10 +489,26 @@ const Actions = (() => {
       else if (a.k === 'call') Sound.whistle && Sound.whistle();
     }
   }
+  // расчистка лопатой: пока держит E — пятно перед собой (по ходу или лицом) → pack 1 за ~1.2 с (≈ 1 м² за 1.5 с);
+  // каждый замах (цикл позы scoop) — усталость как удар топором, хруст и выброс снега в сторону
+  function clearStep(a, dt) {
+    const p = G.p;
+    if (!input.act || p.ride || p.inside || UI.modal()) { p.action = null; return; }
+    const v = Math.hypot(p.vx || 0, p.vy || 0), ux = p.moving && v > 5 ? p.vx / v : p.face, uy = p.moving && v > 5 ? p.vy / v * 0.8 : 0.15;
+    const x = p.x + ux * 12, y = p.y + 2 + uy * 10;
+    Trail.shovel(x, y, 16, dt / 1.2); a.ahead = Trail.at(x + ux * 20, y + uy * 20); // впереди ещё не расчищено — шаг медленнее (Hero.speed)
+    const ph = Math.floor(a.t / a.per + 0.45);
+    if (ph > a.ph) {
+      a.ph = ph; G.s.tire = Math.min(100, (G.s.tire || 0) + TUNE.tire.hit * (Settings.diff().tire || 1)); // замах — как удар
+      if (Sound.ok() && Sound.shovel) Sound.shovel();
+      if (!(window.QUALITY === 'low')) ArtWorld.fx.snowPuff(G.parts, x - p.face * 4, y - 6, 0.3);
+    }
+  }
   // пока длится: тепло у огня, отдых на пне; огонь погас — греться нечем
   function during(a, dt) {
     const p = G.p;
     if (a.k === 'digout') { Depth.dig(p.x, p.y, dt); return; }
+    if (a.k === 'clear') { clearStep(a, dt); return; }
     if (a.k === 'warm') {
       if (!(a.o.fuel > 0)) { p.action = null; return; }
       if (Fire.heatAt(p, 0) > 0) G.s.warm = Math.min(Hero.maxWarm(), G.s.warm + A.warmHeat * dt);

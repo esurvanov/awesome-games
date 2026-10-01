@@ -19,13 +19,13 @@ const Survival = (() => {
     const eff = typeof Depth !== 'undefined' ? Depth.effort() : 0;
     let loss = (B.lossBase + Math.max(0, -T + B.lossFrom) * B.lossPerDeg) * Hero.clothMul() * (1 - B.coldSkill * (Hero.lvl('cold') - 1)) * Settings.diff().cold;
     if (!p.inside) loss *= 1 + B.nightLoss * night; // ночной мороз
-    if (p.moving) loss *= B.moving * (1 + 0.5 * eff); // по пояс в снегу — выдыхается, потеет, мёрзнет
+    if (p.moving || eff > 0) loss *= B.moving * (1 + 0.5 * eff); // по пояс в снегу или с лопатой — выдыхается, потеет, мёрзнет
     if (onIce(p.x, p.y)) loss *= B.ice;
     if (p.wetT > 0) loss *= B.wet;
     if (p.teaT > 0) loss *= B.tea;
     loss *= 1 + TI.coldLoss * smooth(TI.coldFrom, 100, tire);
     if (p.doze) loss *= TI.dozeLoss; // уснул в снегу
-    const hunger = (sleeping ? B.hungerSleep : (B.hunger + (p.moving ? B.hungerMove * (1 + 0.5 * eff) : 0)) * (T < B.deepFrost ? B.hungerDeep : 1)) * Settings.diff().hunger;
+    const hunger = (sleeping ? B.hungerSleep : (B.hunger + (p.moving || eff > 0 ? B.hungerMove * (1 + 0.5 * eff) : 0)) * (T < B.deepFrost ? B.hungerDeep : 1)) * Settings.diff().hunger;
     return { loss, hunger };
   }
   // усталость в секунду (+ рост, − отдых). s — {warm, food, frost, awake}; c — {sleeping, doze, fuel, moving, eff, over, rest, tea}
@@ -76,7 +76,7 @@ const Survival = (() => {
     const r = rates(p, T, night, p.sleeping || p.doze);
     const cause = body(s, heat, r, dt, Hero.maxWarm()); if (cause) G.cause = cause;
     const sl = p.sleeping || !!p.doze;
-    s.tire = clamp(s.tire + tireRate(s, { sleeping: sl, doze: p.doze, fuel: p.inside ? G.hut.fuel : 0, moving: p.moving,
+    s.tire = clamp(s.tire + tireRate(s, { sleeping: sl, doze: p.doze, fuel: p.inside ? G.hut.fuel : 0, moving: p.moving || !!(p.action && p.action.k === 'clear'),
       eff: typeof Depth !== 'undefined' ? Depth.effort() : 0, over: Inv.weight() > Inv.capKg(), rest: resting(p, heat), tea: p.teaT }) * dt, 0, 100);
     awakeStep(s, p.sleeping, dt);
     dozeTick(dt, heat);

@@ -485,7 +485,7 @@ const GFX = (() => {
   function drawBench() { const b = SPOT.bench; ArtWorld.hutBench(cx, b.x, b.y, { bench: G.hut.bench, radio: G.flags.radioBuilt }, ENV); }
   function drawChest() { const c = SPOT.chest; ArtWorld.hutChest(cx, c.x, c.y, UI.kind === 'chest' || now - (OPEN.get(SPOT.chest) || -9) < 1.2); } // крышка открыта, пока роется
   function drawBed() { const b = SPOT.bed; ArtWorld.hutBed(cx, b.x, b.y); }
-  function drawSouthWall() { ArtWorld.hutFront(cx, hutH(), ENV); }
+  function drawSouthWall() { ArtWorld.hutFront(cx, hutH(), ENV); if (typeof Trail !== 'undefined') Trail.drawShovel(cx, roofA * 0.82 + 0.18); } // лопата у двери (пока не взяли)
   function drawRoof() {
     roofA += ((G.p.inside ? 0 : 1) - roofA) * ease(9, rdt); // 0.15 за кадр при 60 к/с
     if (roofA < 0.03) return;
@@ -625,7 +625,8 @@ const GFX = (() => {
     const x = p.sleeping ? p.x - 4 : p.x, sp = clamp(b.speed / 200, 0, 1), rime = typeof Ice !== 'undefined' ? Ice.rime() : 0;
     const fig = () => ArtPeople.draw(g, { key: p, x: p.ride ? x - p.face * 8 : x, y: p.ride ? p.y - (p.ride === 'buran' ? 14 : 8) : p.y, face, vy, speed: sp, t: now, phase: stepPhase(HMOT, anim, b.loco ? b.speed : 0, vy), gait: b.loco && !p.ride ? HMOT.gait : null, onStep: ghost ? null : Hero.footStep,
       anim, animT: b.animT, item: p.action && p.action.item, wind: WP.w, gust: WP.g, look: heroLook(), tool: b.tool, target, frost: Math.max(clamp((30 - G.s.warm) / 30, 0, 1), rime), tire: b.tire || 0, wet: p.wetT > 0, blink: p.iT > 0, seed: 1, deep: typeof Depth !== 'undefined' ? Depth.heroSink : 0 }, ENV);
-    if (p.ride || p.sleeping) fig(); else sunk(g, p, 'p', fig); // в снегу по колено/пояс/грудь — ниже снега не видно (js/depth.js)
+    const fig2 = p.action && p.action.k === 'clear' && !ghost && typeof Trail !== 'undefined' ? () => { fig(); Trail.drawTool(g, p.action, face, p.x, p.y, !!b.loco); } : fig; // лопата в руках
+    if (p.ride || p.sleeping) fig(); else sunk(g, p, 'p', fig2); // в снегу по колено/пояс/грудь — ниже снега не видно (js/depth.js)
     if (p.torch > 0 && b.tool === 'torch') light(p.x + face * 14, p.y - 38, 240, 'w', 0.9);
     // (светлый круг вокруг героя без источника убран: ночью свет — только от огня, факела, окна; луна — слабым общим светом в ambient)
     rimLight(p);
@@ -729,6 +730,7 @@ const GFX = (() => {
     const P = POI.polynya;
     ArtWorld.polynya(cx, P.x + 10, P.y + 4);
     const gv = [cam.x, cam.y, cam.x + vw, cam.y + vh];
+    if (typeof Trail !== 'undefined') Trail.draw(cx, gv); // тропы и расчистка (js/trail.js) — до лунок и следов
     if (typeof Ice !== 'undefined') Ice.drawHoles(cx, gv); // провалы во льду: вода, обломки, рябь; трещины перед провалом; мокрый след
     // пар над открытой водой в мороз: гуще в лютый холод, сносит ветром (частицы breath, эмиттер — спавн в update)
     if (state === 'play' && !UI.modal() && Math.abs(P.x - (cam.x + vw / 2)) < vw && Math.abs(P.y - (cam.y + vh / 2)) < vh) {

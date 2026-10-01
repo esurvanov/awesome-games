@@ -29,6 +29,7 @@ const Hero = (() => {
       if (p.creaked && World.onThinIce(p)) s *= 0.5; // лёд трещит — ступает осторожно
     }
     if (stormOn() && !p.inside) s *= H.storm;
+    if (p.action && p.action.walk) s *= (p.action.ahead || 0) > 0.95 ? 0.33 : 0.11; // с лопатой: по расчищенному — втрое медленнее, целину — пробивает (≈ 1 м² за 1.5 с)
     s *= 1 - TI.speed * smooth(TI.speedFrom, 100, tire()); // нет сил — плетётся
     return s;
   }
@@ -45,7 +46,7 @@ const Hero = (() => {
       if (!p.moving && !p.action && slick(p.x, p.y) && Math.hypot(p.vx || 0, p.vy || 0) > PT.glideV) { B.glide = true; const q = 1 - ease(H.iceGrip, dt); p.vx *= q; p.vy *= q; p.x += p.vx * dt; p.y += p.vy * dt; p.face = B.vf; }
       else if (!p.moving) { p.vx = p.vy = 0; B.vf = p.face; }
       if (p.moving) {
-        if (p.action) p.action = null;
+        if (p.action && !p.action.walk) p.action = null; // расчистка лопатой — на ходу
         let sp = speed();
         const k = slick(p.x, p.y) ? H.iceGrip : H.grip;
         const e = ease(k, dt); p.vx = (p.vx || 0) + (mx * sp - (p.vx || 0)) * e; p.vy = (p.vy || 0) + (my * sp - (p.vy || 0)) * e;
@@ -191,9 +192,9 @@ const Hero = (() => {
     if (s === 'sleep') r.anim = 'sleep';
     else if (s === 'ice') { const q = Ice.pose(); r.anim = has(q.k) ? q.k : 'hurt'; r.animT = q.a; r.tool = 'none'; } // полынья: провал → в воде → кромка → ползком → на ноги
     else if (s === 'ride') r.anim = 'sit';
-    else if (s === 'act') actPose(p.action, r);
+    else if (s === 'act' && !(p.action.walk && p.moving)) actPose(p.action, r); // с лопатой на ходу — шагом (ниже)
     else if (PRI[s]) { const o = B.one; r.anim = o.k; r.animT = o.a0 + (o.a1 - o.a0) * clamp((now - o.t0) / o.dur, 0, 1); r.tg = o.tg; r.th = o.th; r.ik = o.ik; }
-    else if (s === 'walk') { const v = Math.max(0, Math.hypot(p.vx || 0, p.vy || 0) + (B.drv || 0)), l = Math.hypot(input.mx, input.my) || 1; r.loco = true; r.speed = v; r.anim = walkPose(v > PT.runV); r.vy = clamp(input.my / l, -1, 1); }
+    else if (s === 'walk' || s === 'act') { if (s === 'act') r.tool = 'none'; const v = Math.max(0, Math.hypot(p.vx || 0, p.vy || 0) + (B.drv || 0)), l = Math.hypot(input.mx, input.my) || 1; r.loco = true; r.speed = v; r.anim = walkPose(v > PT.runV); r.vy = clamp(input.my / l, -1, 1); }
     else if (s === 'glide') { r.anim = has('slip') ? 'slip' : 'idle'; r.animT = PT.glideA; }
     else if (s === 'panel') { const q = B.pp, d = D[q.k] || 1.6; r.anim = q.k; r.animT = (now % d) / d; r.tg = q.tg || null; r.th = q.th || 0; r.ik = !!q.ik; }
     else { r.anim = idlePose(); if (r.anim !== 'idle') { const f = heat(); r.animT = (now % 1.6) / 1.6; if (f) { r.tg = f; r.th = -8; } } }
