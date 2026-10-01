@@ -98,7 +98,7 @@ var TreeCheck = (() => {
         const cuts = []; let g = 0;
         while (Actions.logCut(L) < 1 && g++ < 12) { Actions.interact(); let k = 0; while ((p.action || input.auto) && k++ < 400) frame(); cuts.push(+Actions.logCut(L).toFixed(2)); keep('обрубка ' + cuts.length); }
         info.cuts = cuts; ok(cuts.length === 3 && cuts[0] > 0.3 && cuts[0] < 0.4 && cuts[1] > 0.6 && cuts[1] < 0.7 && cuts[2] === 1, '5: обрубка не по третям: ' + cuts);
-        const bo = G.chunks.filter(q => src(q) && q.kind === 'bough').length; info.boughs = bo; ok(bo >= 8, '5: лапника (ветвей) на снегу мало: ' + bo);
+        const bo = G.chunks.filter(q => src(q) && (q.kind === 'bough' || q.kind === 'branch')).length; info.boughs = bo; ok(bo >= 8, '5: лапника (ветвей) на снегу мало: ' + bo);
         ok(L.top === 1 && G.chunks.some(q => src(q) && q.kind === 'top') && L.n === n0, '5: обрубка не отрезала вершину частью: top ' + L.top + ' n ' + L.n + '/' + n0);
         // сейв посреди: копия, загрузка, сверка ствола и частей
         const snap = SaveGame.snapshot(); SaveGame.load(snap); const L2 = G.logs.find(q => q.id === L.id);

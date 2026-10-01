@@ -1,0 +1,279 @@
+{
+ "A1": {
+  "corr": {
+   "tree": 1,
+   "smoke": 1,
+   "flag": 0.986,
+   "sound": 0.999
+  },
+  "lag": {
+   "want": 4.545,
+   "gust": 4.333,
+   "flags": 4.333
+  },
+  "base": {
+   "night": 1.2,
+   "morning": 1.2,
+   "day": 4.5,
+   "evening": 1.2,
+   "storm": 18
+  },
+  "beaufort": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   8
+  ],
+  "reads": {
+   "gust": 154,
+   "ms": 12
+  },
+  "grep": []
+ },
+ "A2": {
+  "scale": 2,
+  "diffPct": 0.262,
+  "cover": 120166,
+  "drawImage": 7,
+  "msPerFrame": 0.014
+ },
+ "A3": {
+  "ms1": {
+   "mean": 93,
+   "hz": 0.7,
+   "amp": 1.206
+  },
+  "ms4": {
+   "mean": 7.885,
+   "hz": 2.4,
+   "amp": 4.823
+  },
+  "ms5": {
+   "mean": 6.655,
+   "hz": 2.6,
+   "amp": 5.288
+  },
+  "ms18": {
+   "mean": -0.003,
+   "hz": 6,
+   "amp": 14.086
+  },
+  "phase": 2.513
+ },
+ "A4": {
+  "calmMax": 0,
+  "windCorr": 0.92,
+  "windPeak": 1.801,
+  "hit": {
+   "bits": 11,
+   "peak": 3.569,
+   "dur": 0.9
+  },
+  "gustBits": 20
+ },
+ "A5": {
+  "chains": 3,
+  "points": [
+   8,
+   8,
+   8
+  ],
+  "stretchPct": 0.702,
+  "nan": false,
+  "stormSwayPx": 2.543,
+  "touch": {
+   "push": 10.265,
+   "touches": 3,
+   "settle": 1.067
+  },
+  "hum": {
+   "ms6": false,
+   "ms9": true
+  },
+  "stepMs": 0.003
+ },
+ "A6": {
+  "ms5": {
+   "ang": 0,
+   "sl": 0
+  },
+  "ms8": {
+   "ang": 0.074,
+   "slams": 0
+  },
+  "ms12": {
+   "slams": 6.333,
+   "minGap": 6.217
+  },
+  "push": {
+   "peak": 0.044,
+   "dur": 0.95
+  },
+  "stormPuffs": 9
+ },
+ "A7": {
+  "ms1": 0.14,
+  "ms3": 0.345,
+  "ms3lift": 0,
+  "storm": {
+   "flut": 3,
+   "hop": 10.118,
+   "dist": 28.293
+  },
+  "readable": [
+   true,
+   true,
+   true
+  ]
+ },
+ "A8": {
+  "grow": {
+   "mi8": 1439,
+   "barrel": 1439,
+   "crates": 1439,
+   "tail": 1439,
+   "barrelT": 1439,
+   "hut": 1439,
+   "labaz": 1439,
+   "chum": 1439
+  },
+  "blow": {
+   "cap6": 1,
+   "cap7_5": 1,
+   "t10": 4.5,
+   "t18": 1
+  },
+  "hit": {
+   "target": "barrel",
+   "amount": 1,
+   "cap": 0,
+   "bits": 19,
+   "roof": 1,
+   "rock": true,
+   "low": {
+    "events": 1,
+    "bits": 0
+   }
+  },
+  "drift": {
+   "d3ms": 0,
+   "steps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "tStep": {
+    "0": 0.5,
+    "1": 322,
+    "2": 643.5,
+    "3": 965
+   }
+  },
+  "geo": {
+   "mi8": {
+    "h": 30,
+    "lee": [
+     91.6,
+     6,
+     1.2
+    ],
+    "wind": [
+     -119,
+     0.45
+    ],
+    "west": -113.6
+   },
+   "barrelT": {
+    "h": 20,
+    "lee": [
+     10.4,
+     6,
+     1.2
+    ],
+    "wind": [
+     -14,
+     0.45
+    ],
+    "west": -10.4
+   },
+   "hut": {
+    "h": 44,
+    "lee": [
+     129.28,
+     6,
+     1.2
+    ],
+    "wind": [
+     -137.2,
+     0.45
+    ],
+    "west": -129.28
+   },
+   "chum": {
+    "h": 40,
+    "lee": [
+     48.8,
+     6,
+     1.2
+    ],
+    "wind": [
+     -56,
+     0.45
+    ],
+    "west": -48.8
+   }
+  },
+  "pixels": {
+   "windE": {
+    "east": 28872,
+    "west": 7666
+   },
+   "windW": {
+    "east": 8579,
+    "west": 24648
+   }
+  },
+  "budget": {
+   "builds10s": 38,
+   "buildMs": 0.7,
+   "stepMs": 0.001,
+   "drawMs": 0.026
+  }
+ },
+ "A9": {
+  "prints": {
+   "ms0": {
+    "t": 100.017,
+    "at60": 1
+   },
+   "ms5": {
+    "t": 25.017,
+    "at60": 0
+   },
+   "ms10": {
+    "t": 12.5,
+    "at60": 0
+   },
+   "storm": {
+    "t": 6.267,
+    "at60": 0
+   },
+   "base": 25
+  },
+  "drift": {
+   "ms4": 0,
+   "ms8": 30,
+   "ms4_9": 0,
+   "low10": 0
+  },
+  "canopy": {
+   "forest": 0.5,
+   "hut": 0.935,
+   "usPerCall": 0.135
+  }
+ }
+}
