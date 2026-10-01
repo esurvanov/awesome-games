@@ -149,10 +149,19 @@ function lib() {
         S.tp(t.x + dx, t.y + dy); G.p.face = dx > 0 ? -1 : 1; S.tick();
         const c = Actions.context(); if (c && c.k === 'tree') break;
       }
-      const before = G.stats.wood; S.act(); S.act();
-      S.run(4, () => !(G.logs || []).some(L => L.f));   // валка: надлом и падение, ствол ложится
-      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки); охапка полна — отнести в поленницу и вернуться
-      for (let j = 0; j < 60; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) { if (Carry.busy() && (G.chunks || []).some(q => Tree.isWood(q) && dist2(q, G.p) < 90 * 90)) { S.deliver(); continue; } break; } S.act(); }
+      // рубка по-настоящему (js/actions.js): площадка в сугробе, подруб, обход, задний рез (~12 ударов, герой сам встаёт и обходит)
+      const before = G.stats.wood; for (let h = 0; h < 40 && t.wood > 0; h++) { const c = Actions.context(); if (!c || c.k !== 'tree') break; S.act(); }
+      S.run(8, () => !(G.logs || []).some(L => L.f));   // валка: треск, падение, ствол ложится; герой отошёл назад-вбок
+      // этап 4: ель лежит — обрубить (по мутовке, с двух сторон, перекат), разделать и подобрать чурки; охапка полна — в поленницу и вернуться
+      const Lg = (G.logs || []).find(q => q.n > 0 && q.cx === t.x && q.cy === t.y);
+      for (let j = 0; j < 200; j++) {
+        const c = Actions.context(); if (c && (c.k === 'log' || c.k === 'chunks')) { S.act(); continue; }
+        if (Carry.busy() && (G.chunks || []).some(q => Tree.isWood(q) && dist2(q, G.p) < 200 * 200)) { S.deliver(); continue; }
+        if (Lg && G.logs.includes(Lg) && Lg.n > 0) { const e = Actions.logEnd(Lg, Actions.logK(Lg) * 0.4); S.tp(e.x - Math.sin(Lg.a) * 26, e.y + Math.cos(Lg.a) * 16); S.tick(); const c2 = Actions.context(); if (!c2 || c2.k !== 'log') break; continue; }   // к стволу (отошёл от падающей ели)
+        const q = (G.chunks || []).filter(q => Tree.isWood(q) && dist2(q, G.p) < 200 * 200).sort((a, b) => dist2(a, G.p) - dist2(b, G.p))[0];
+        if (q && !Carry.cantTake(q)) { S.tp(q.x + 16, q.y + 3); S.tick(); const c3 = Actions.context(); if (!c3 || c3.k !== 'chunks') break; continue; }
+        break;
+      }
       S.deliver();
       if (G.stats.wood === before && t.wood > 0 && Inv.weight() > Inv.capKg() + 6) break;
     }
