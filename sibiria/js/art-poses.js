@@ -177,29 +177,34 @@
 
   // глубокий снег: высокие колени, сильный наклон, руки широко для равновесия
   R('trudge', { loop: true, loco: true, free: true, fn(o, t, a, ph, sp) {
-    H.gait(ph, St(sp), 4.6 + sp * 1.2);
+    H.gait(ph, St(sp), 0, 1.35, 8);   // колено и бедро в переносе на 35 % выше нормы — ногу вытаскивают из снега
     const sn = sin(ph - 0.4), c2 = cos(2 * ph);
     // стопа проваливается в снег с задержкой после постановки (до ≈1 px) и выдёргивается в начале переноса — без скачка
+    let sink = 0;   // опорная стопа уходит в снег — таз оседает вместе с ней (иначе нога выпрямляется в струну)
     for (let i = 0; i < 2; i++) {
       const st = i ? P.st1 : P.st0, u = i ? P.u1 : P.u0, q = i ? P.q1 : P.q0;
       const dk = st === 1 ? sm((u - 0.1) / 0.45) : 1 - sm(q / 0.45);
       const kz = 0.8 * (1 - Math.min(1, Math.abs(o.vy || 0))) ** 3;   // к камере/от камеры провал не читается (стопа уходит в глубину) — только боком
       if (i) P.f1y += kz * dk; else P.f0y += kz * dk;
+      sink = Math.max(sink, kz * dk);
     }
-    if (P.f0y < -2.5) P.f0a = 0.32; if (P.f1y < -2.5) P.f1a = 0.32;   // носок висит — стопу тянут из снега
-    body(0.3 + 0.04 * c2, -16.1 - 1.1 * c2, 0.8 + 0.4 * c2);
+    body(0.3 + 0.03 * c2, P.hy + sink / H.LEN.KL, 0.4);   // колени согнуты в снегу (KB 8°) — таз ниже от самой походки
     const A = 4.6 + sp;   // руки шире и выше — для равновесия, мах с запаздыванием
     handR(0, 2 - A * sn, 10.2 - Math.abs(sn) * 2); handR(1, 2 + A * sn, 10.2 - Math.abs(sn) * 2);
     P.hl0 = P.hl1 = 8.8;
-    P.tilt = -0.1 + 0.04 * sin(2 * ph); P.hb = 1.3 * cos(2 * ph + 0.9); P.mouth = 0.2 + 0.2 * Math.max(0, c2);
+    P.tilt = -0.1 - 0.02 * c2; P.hb = 1.3 * cos(2 * ph + 0.9);   // голова гасит кивок корпуса P.mouth = 0.2 + 0.2 * Math.max(0, c2);
   } });
 
   // пурга: ближнее предплечье перед лицом, сгорблен, навстречу ветру
   R('shield', { loop: true, loco: true, fn(o, t, a, ph, sp) {
-    H.gait(ph, St(sp), 1.9 + sp);
-    const sn = sin(ph), gust = 0.05 * sin(t * 1.7) * sin(t * 0.63 + seedOf(o));
-    body(0.27 + gust + 0.02 * cos(2 * ph), P.hy + 0.5);
-    P.tilt = 0.3 + 0.03 * sin(2 * ph);
+    H.gait(ph, St(sp), 0, 0.95, 6);
+    // порывы: корпус то наваливается на ветер, то его отжимает назад; сбоку — шатает (крен и таз вбок), голова пригибается на ударе
+    const sd = seedOf(o), gw = clamp(o.gust || 0, 0, 1), g1 = sin(t * 1.7) * sin(t * 0.63 + sd) + 0.35 * sin(t * 4.3 + sd * 2), g2 = sin(t * 1.13 + sd) * sin(t * 2.9 + 1) + 0.3 * sin(t * 5.1);
+    const gk = 1 + gw;
+    const sn = sin(ph), gust = 0.07 * gk * g1;
+    body(0.27 + gust + 0.02 * cos(2 * ph), P.hy);
+    P.roll += 0.05 * gk * g2; P.hlat += 0.5 * gk * g2;
+    P.tilt = 0.3 - 0.6 * gust - 0.015 * cos(2 * ph);
     const F = headPt(6.2, 0.4);
     P.h0x = F[0] + 0.4 * sin(t * 13); P.h0y = F[1] + 0.3 * sin(t * 11) + 0.4 * cos(2 * ph); P.hl0 = 1;
     handR(1, 1.5 + 2 * sn, 11.2); P.hl1 = 5.5;
@@ -208,21 +213,20 @@
 
   // вымотан/голоден: голова свешена, ноги волочатся, руки висят
   R('tired', { loop: true, loco: true, free: true, fn(o, t, a, ph, sp) {
-    H.gait(ph, St(sp), 0.9 + sp * 0.4);
+    H.gait(ph, St(sp), 0, 0.75, 2);   // ноги поднимает ниже нормы — волочит; колени чуть подогнуты
     const sn = sin(ph), c2 = cos(2 * ph);
-    if (P.f0y < -2.2) P.f0a = 0.28; if (P.f1y < -2.2) P.f1a = 0.28;
-    body(0.24 + 0.03 * c2, -16.3 - 0.5 * c2);
+    body(0.24 + 0.03 * c2, P.hy);
     handR(0, 0.6 - 1.4 * sn, 12.9); handR(1, 0.6 + 1.4 * sn, 12.9); P.hl0 = P.hl1 = 6;
-    P.tilt = 0.5 + 0.07 * sin(2 * ph + 1) + 0.05 * sin(t * 0.7); P.hb = 1.2 * cos(2 * ph + 1.5);
+    P.tilt = 0.5 + 0.02 * sin(2 * ph + 1) + 0.05 * sin(t * 0.7); P.hb = 1.2 * cos(2 * ph + 1.5);
     P.eyes = sin(t * 0.9 + seedOf(o)) > 0.75 ? 1 : 0; P.mouth = 0.25;
   } });
 
   // мёрзнет: руки обнимают корпус, короткий скованный шаг
   R('cold', { loop: true, loco: true, fn(o, t, a, ph, sp) {
     const fr = clamp(o.frost == null ? 0.5 : o.frost, 0, 1);
-    H.gait(ph, St(sp), 1.3);
+    H.gait(ph, St(sp), 0, 0.8);   // скованный шаг: колено в переносе ниже нормы
     const j = sin(t * 45) * (0.15 + 0.3 * fr);
-    body(0.14 + 0.02 * cos(2 * ph), -17.3 - 0.3 * cos(2 * ph), j);
+    body(0.14 + 0.02 * cos(2 * ph), P.hy, j);
     hug(1, 0.3 * sin(2 * ph) + j); stow(o, 1);
     P.tilt = 0.22 + j * 0.1; P.hb = 0.4 * cos(2 * ph + 0.9) + j;
     P.mouth = fr > 0.5 && sin(t * 29) > 0.4 ? 0.25 : 0;
@@ -728,7 +732,7 @@
   } });
   // идёт по ветру (ветер в спину): прямо, чуть откинут, голова в плечи, руки близко к телу, шаг короче — не рвёт вперёд
   R('windBack', { loop: true, loco: true, fn(o, t, a, ph, sp) {
-    H.gait(ph, St(sp), 1.4 + sp * 0.6);
+    H.gait(ph, St(sp), 0, 0.85);
     const sn = sin(ph), gu = clamp(o.gust || 0, 0, 1);
     body(0.02 - 0.05 * gu + 0.02 * cos(2 * ph), P.hy + 0.3);
     handR(0, 1.8 - 1.2 * sn, 11); handR(1, 1.8 + 1.2 * sn, 11); P.hl0 = P.hl1 = 5.8;

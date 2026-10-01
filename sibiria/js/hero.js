@@ -46,7 +46,9 @@ const Hero = (() => {
         const k = onIce(p.x, p.y) ? H.iceGrip : H.grip;
         const e = ease(k, dt); p.vx = (p.vx || 0) + (mx * sp - (p.vx || 0)) * e; p.vy = (p.vy || 0) + (my * sp - (p.vy || 0)) * e;
         p.x += p.vx * dt; p.y += p.vy * dt; want = sp * dt;
-        if (storm && !p.inside) { const w = Wind.at(p.x, p.y), k = H.stormDrift * dt * (0.6 + 0.8 * w.gust); p.x += w.gx * k; p.y += w.gy * k * 0.6; } // снос — по ветру (Wind.dir, порыв рыщет), сильнее в порыв
+        B.dr = 0;
+        if (storm && !p.inside) { const w = Wind.at(p.x, p.y), k = H.stormDrift * dt * (0.6 + 0.8 * w.gust), v = Math.hypot(p.vx, p.vy) || 1; p.x += w.gx * k; p.y += w.gy * k * 0.6; B.dr = (w.gx * k * p.vx + w.gy * k * 0.6 * p.vy) / v; } // снос — по ветру (Wind.dir, порыв рыщет), сильнее в порыв
+        B.drv = dt > 0 ? B.dr / dt : 0; // снос вдоль хода — в путь ногами и скорость шага (стопа в опоре не скользит)
         if (p.ride) Transport.moved(ox, oy);
         if (Math.abs(mx) > 0.1) p.face = Math.sign(mx);
         // видимая сторона (B.vf) — за фактической скоростью: пока тело ещё едет в старую сторону быстрее FACE_V (лёд), не разворачиваем
@@ -55,7 +57,7 @@ const Hero = (() => {
       }
       contact(p, World.solid(p, 10, 'p'), dt, mx, my, want, ox, oy);
       if (typeof Ice !== 'undefined') Ice.keepOut(p); // открытая полынья — обходить
-      if (p.moving) B.odo += Math.hypot(p.vx || 0, p.vy || 0) * dt; // путь ногами (после упора — только вдоль стены): фаза шага
+      if (p.moving) B.odo += Math.max(0, Math.hypot(p.vx || 0, p.vy || 0) * dt + (B.dr || 0)); // путь ногами (после упора — только вдоль стены; снос пургой по ходу — тоже): фаза шага
       if (Math.hypot(p.x - p.lx, p.y - p.ly) > 20) {
         const a = Math.atan2(p.y - p.ly, p.x - p.lx), dr = !p.inside && !!driftAt(p.x, p.y);
         if (!p.inside) Interact.emit('step', { who: 'p', x: p.x, y: p.y, drift: dr });
@@ -186,7 +188,7 @@ const Hero = (() => {
     else if (s === 'ride') r.anim = 'sit';
     else if (s === 'act') actPose(p.action, r);
     else if (PRI[s]) { const o = B.one; r.anim = o.k; r.animT = o.a0 + (o.a1 - o.a0) * clamp((now - o.t0) / o.dur, 0, 1); r.tg = o.tg; r.th = o.th; r.ik = o.ik; }
-    else if (s === 'walk') { const v = Math.hypot(p.vx || 0, p.vy || 0), l = Math.hypot(input.mx, input.my) || 1; r.loco = true; r.speed = v; r.anim = walkPose(v > PT.runV); r.vy = clamp(input.my / l, -1, 1); }
+    else if (s === 'walk') { const v = Math.max(0, Math.hypot(p.vx || 0, p.vy || 0) + (B.drv || 0)), l = Math.hypot(input.mx, input.my) || 1; r.loco = true; r.speed = v; r.anim = walkPose(v > PT.runV); r.vy = clamp(input.my / l, -1, 1); }
     else if (s === 'glide') { r.anim = has('slip') ? 'slip' : 'idle'; r.animT = PT.glideA; }
     else if (s === 'panel') { const q = B.pp, d = D[q.k] || 1.6; r.anim = q.k; r.animT = (now % d) / d; r.tg = q.tg || null; r.th = q.th || 0; r.ik = !!q.ik; }
     else { r.anim = idlePose(); if (r.anim !== 'idle') { const f = heat(); r.animT = (now % 1.6) / 1.6; if (f) { r.tg = f; r.th = -8; } } }

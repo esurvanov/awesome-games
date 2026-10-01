@@ -142,7 +142,7 @@ var ArtPeople = (function () {
   const TH = 10, SHN = 9.9, UA = 7.0, FA = 6.6, TORSO = 14.6, SHO = 13, KL = 18 / 15.2, HN = 3.5;
   const hipY = v => -2 + (v + 2) * KL;
   const hipD = () => (P.hyD ? P.hy : hipY(P.hy));   // таз на экране в координатах рига
-  const P = { lg0: [0, 0, 0, 0, 0, 0, 0, 0], lg1: [0, 0, 0, 0, 0, 0, 0, 0] };   // lg — экранные таз/колено/щиколотка нарисованных ног + углы бедра/голени в риге (для проверок)
+  const P = { lg0: [0, 0, 0, 0, 0, 0, 0, 0, 0], lg1: [0, 0, 0, 0, 0, 0, 0, 0, 0] };   // lg — экранные таз/колено/щиколотка нарисованных ног + углы бедра/голени и стопы (>0 — носок вниз) в риге (для проверок, tests/gait-angles.js)
   function reset() {
     P.hx = 0; P.hy = -17.2; P.hyD = 0; P.lean = 0.04; P.tilt = 0; P.br = 0;
     P.f0x = 1.3; P.f0y = -2; P.f0a = 0; P.f1x = -1.6; P.f1y = -2; P.f1a = 0;
@@ -152,6 +152,7 @@ var ArtPeople = (function () {
     P.eyes = 0; P.mouth = 0; P.prop = null; P.hb = 0; P.flash = 0; P.bend = 0; P.sd = 0; P.arrow = 0;
     P.trail = null; P.held = null; P.held2 = null; P.tlat = null; P.belt = 0; P.taT = null; P.staff = 0; P.carry = 0; P.smoke = 0; P.spark = 0; P.zz = 0;
     P.st0 = P.st1 = -1; P.q0 = P.q1 = 0; P.u0 = P.u1 = 0; P.pk = 0;   // опора стоп из походки (−1 — поза без шага); pk — стопы закреплены (planting); u — доля опоры
+    P.rx0 = P.rx1 = 0; P.ob = 0; P.roll = 0; P.prot = 0; P.tw = 0;   // шаг: перекат стопы (x щиколотки), наклон таза, крен корпуса, скрут таза/плеч (рад)
     P.hlat = 0; P.bz = 0; P.dLean = 0; P.dDip = 0; P.hlag = 0; P.pkx = 0; P.pky = 0; P.axw = 0; P.clx = 0; P.cly = 0; P.pom = 0;   // этап 4: таз вбок к опорной ноге, вдох (плечи вверх), инерция корпуса/головы/рюкзака (для проверок)
   }
   function shoulder() { P.sx = P.hx + Math.sin(P.lean) * SHO; P.sy = hipD() - Math.cos(P.lean) * SHO; }
@@ -179,6 +180,7 @@ var ArtPeople = (function () {
   let SHX = 0, SHY = 0;
   function pr(fx, y, lat) {
     lat += P.hlat;
+    if (P.roll) { const h = P.hy - y; if (h > 0) lat += P.roll * Math.min(h, SHO); }   // крен корпуса к опорной ноге (голова — с плечами, не валится)
     let X = FC * (fx * K + lat * S * LS), Y = y + fx * SY + lat * LZ;
     if (SHX || SHY) { const h = P.hy - y; X += SHX * h; Y += SHY * h; }
     if (P.rot) { const dx = X - P.pvx, dy = Y - P.pvy; X = P.pvx + dx * CR - dy * SR; Y = P.pvy + dx * SR + dy * CR; }
@@ -222,7 +224,7 @@ var ArtPeople = (function () {
   }
 
   // ---------- позы ----------
-  // стопа: опора — линейно назад (+St → −St за долю цикла duty), перенос — плавно вперёд с подъёмом.
+  // стопа бега и хромоты (ходьба — gait() ниже, по клиническим кривым): опора — линейно назад (+St → −St за долю цикла duty), перенос — плавно вперёд с подъёмом.
   // u = 0 — стопа впереди (как sin(ph) = 1 в старой синусоиде), так что руки и корпус не меняются.
   // duty < 0.5 — фаза полёта (быстрый шаг/бег): обе стопы в воздухе. [3] — 1 опора / 0 перенос, [4] — доля переноса 0..1
   // GT — походка текущей фигуры {St, duty} от рендера (o.gait): та же, по которой шла фаза, — стопа в опоре проходит ровно путь тела
@@ -236,7 +238,6 @@ var ArtPeople = (function () {
   // этап 4: вес — таз ниже всего чуть после постановки (приём веса), выше над опорной ногой; вбок — к опорной ноге (с запаздыванием);
   // TIRE — усталость/холод 0..1 (ниже, короче мах рук, руки ближе); BRV — вдох −1..1 текущей фигуры (из памяти)
   let TIRE = 0, BRV = null;
-  const bob = ph => { const c = Math.cos(2 * ph - 0.35); return -0.62 * c + 0.28 * Math.max(0, -c) ** 2; };
   // таз при шаге с полётом: в опоре — по дуге вокруг стопы (расстояние таз–стопа постоянно, колено не «щёлкает»
   // за короткую опору), в полёте — плавно между краями дуги с небольшим подскоком
   // считается на экране (длина ноги своя), возвращается в «сырой» шкале таза (hipY — обратно)
@@ -247,15 +248,79 @@ var ArtPeople = (function () {
     const D = GT ? GT.duty : 0.5, u = ((ph - PI / 2) / (2 * PI)) % 1, v = (u < 0 ? u + 1 : u) % 0.5, fp = clamp((v - D) / Math.max(0.01, 0.5 - D), 0, 1);
     return unHip(edge - 0.6 * Math.sin(PI * fp));
   }
-  function gait(ph, St, lift) {
-    const a = foot(ph, St, lift, 0), b = foot(ph, St, lift, 0.5);
-    P.f0x = a[0] + 0.4; P.f0y = -2 - a[1]; P.f0a = a[2]; P.st0 = a[3]; P.q0 = a[4]; P.u0 = a[5];
-    P.f1x = b[0] - 0.4; P.f1y = -2 - b[1]; P.f1a = b[2]; P.st1 = b[3]; P.q1 = b[4]; P.u1 = b[5];
-    // шаг: таз выше всего над опорной ногой (перекат), ниже — в двойной опоре; с полётом — наоборот: проседает в опоре, выше в полёте.
-    // длинный шаг — таз ниже, чтобы вытянутая нога доставала до опоры
-    const fl = GT ? clamp((0.5 - GT.duty) / 0.25, 0, 1) : 0, hw = -16.9 + bob(ph) + clamp((St - 6.5) * 0.55, 0, 1.1) + 0.7 * TIRE;
-    P.hy = fl > 0 ? lerp(hw, hipArc(ph, St, a, b), fl) : hw;
-    P.hlat = -0.7 * (1 - 0.4 * fl) * Math.cos(ph - 0.25);   // вес над опорной ногой (ближняя — lat +)
+  // ---------- шаг по клиническим кривым (Winter 1991, Perry 1992) ----------
+  // % цикла через 5 % (0 — постановка пятки, 60 — отрыв носка, 100 — постановка): колено — сгиб, бедро — от вертикали (+ вперёд),
+  // стопа — к полу (+ носок вверх). Опора колена чуть ровнее нормы (≤ 2 SD): у фигуры одна опора на шаг, таз над ней не проваливается.
+  const GKN = [4, 10, 16, 19, 18, 17, 16, 15, 15, 16, 19, 22, 26, 46, 60, 60, 52, 38, 20, 7, 4];
+  const GTH = [22, 21, 20, 17, 14, 10, 6, 2, -2, -6, -10, -13, -12, -6, 2, 10, 17, 21, 23, 23, 22];
+  const GFT = [18, 6, 0, 0, 0, 0, 0, -1, -4, -8, -15, -28, -44, -34, -15, -6, -2, 3, 8, 14, 18];
+  // голеностоп (тыльное сгибание +): в переносе стопа висит от голени — к полу она носком вниз, пока голень отклонена назад
+  const GAN = [0, -5, -4, 0, 4, 6, 8, 9, 10, 9, 5, -4, -14, -16, -10, -6, -2, -1, 0, 0, 0];
+  const DEG = PI / 180;
+  // Катмулл–Ром по циклу (без изломов скорости на узлах)
+  function cr(T, pc) {
+    const x = ((pc % 100) + 100) % 100 / 5, i = Math.floor(x), f = x - i, p0 = T[(i + 19) % 20], p1 = T[i % 20], p2 = T[(i + 1) % 20], p3 = T[(i + 2) % 20];
+    return 0.5 * (2 * p1 + (p2 - p0) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (3 * p1 - p0 - 3 * p2 + p3) * f * f * f);
+  }
+  // перекат стопы (fa > 0 — носок вниз): носок стоит — щиколотка вперёд-вверх (отталкивание); пятка стоит — щиколотка назад (удар пяткой)
+  let RX = 0, RY = 0;
+  function roll(fa) {
+    if (fa >= 0) { RX = 3.1 - 3.1 * Math.cos(fa); RY = -3.1 * Math.sin(fa); }
+    else { RX = Math.min(0, -0.8 + 0.8 * Math.cos(fa) + 1.9 * Math.sin(fa)); RY = Math.min(0, 1.9 + 0.8 * Math.sin(fa) - 1.9 * Math.cos(fa)); }   // пятка (−0.8, 1.9) от щиколотки
+  }
+  // длина ноги таз–щиколотка при сгибе колена k (град)
+  const legD = k => Math.sqrt(TH * TH + SHN * SHN + 2 * TH * SHN * Math.cos(k * DEG));
+  const GOFF = -1.2, FHOP = 0.25;   // путь стопы чуть сзади таза: вперёд короче (нога почти прямая на ударе), назад длиннее (толчок с носка)
+  // таз (экранная шкала рига) над опорной стопой в доле опоры s: колено по кривой, стопа по перекату
+  // ox, oy — сдвиг тазобедренного сустава этой ноги от центра таза (скрут, наклон таза): у почти прямой ноги 0.1 px — это 5° колена
+  function hipSt(s, St, ox, oy) {
+    const fa = -cr(GFT, 60 * s) * DEG; roll(fa);
+    const dx = St * (1 - 2 * s) + GOFF + RX - ox, d = legD(cr(GKN, 60 * s) + KB * Math.sin(PI * Math.min(1, s * 1.25)));
+    return -2 + RY - oy - Math.sqrt(Math.max(0.5, d * d - dx * dx));
+  }
+  // KS — размах колена/бедра в переносе (1 — норма; глубокий снег — выше, усталость/холод — ниже);
+  // KB — добавка сгиба колена в опоре, град (глубокий снег, усталость, пригнулся от ветра): таз ниже согласованно с коленом, а не сдвигом
+  let KS = 1, KB = 0;
+  function gait(ph, St, lift, ks, kb) {
+    KS = ks != null ? ks : clamp((lift || 2.4) / 3.6, 0.6, 1.4); KB = (kb || 0) + 5 * TIRE;
+    const D = GT ? GT.duty : 0.5, base = ((ph - PI / 2) / (2 * PI)) % 1, V = [0, 0];
+    // вес над опорной ногой: таз вбок к ней, свободная сторона таза ниже (наклон таза), корпус чуть креном к опоре
+    const fl = GT ? clamp((0.5 - GT.duty) / 0.25, 0, 1) : 0, ob = -Math.cos(ph - 0.25);
+    P.hlat = 0.7 * (1 - 0.4 * fl) * ob; P.ob = ob; P.roll = 0.035 * ob;
+    // скрут: таз вперёд ближним боком с выносом ближней ноги, плечи — навстречу (ведут руки)
+    const sn = Math.sin(ph - 0.35); P.prot = 0.09 * sn; P.tw = -0.13 * sn;
+    const OX = [P.prot * LEGW, -P.prot * LEGW], OY = [-0.3 * ob, 0.3 * ob];
+    let hip = -1e9, any = false;
+    for (let i = 0; i < 2; i++) { let v = (base + 0.5 * i) % 1; if (v < 0) v += 1; V[i] = v; if (v < D) { hip = Math.max(hip, hipSt(v / D, St, OX[i], OY[i])); any = true; } }
+    if (!any) {   // полёт (быстрый шаг): таз плавно от отрыва к постановке, подлёт — нога в конце переноса не чертит снег
+      const i = V[0] % 1 < 0.5 ? 0 : 1, v = V[0] % 0.5, f = clamp((v - D) / Math.max(0.01, 0.5 - D), 0, 1);
+      hip = lerp(hipSt(1, St, OX[i], OY[i]), hipSt(0, St, OX[1 - i], OY[1 - i]), sm(f)) - FHOP * Math.sin(PI * f);
+    }
+    const h0 = hipSt(1, St, 0, 0), h1 = hipSt(0, St, 0, 0);   // таз в момент отрыва и постановки (концы переноса)
+    for (let i = 0; i < 2; i++) {
+      const v = V[i]; let x, y, fa, st, q, u, rx = 0;
+      if (v < D) {
+        const s = v / D; fa = -cr(GFT, 60 * s) * DEG; roll(fa);
+        x = St * (1 - 2 * s) + GOFF; y = -2 + RY; rx = RX; st = 1; q = 0; u = s;
+      } else {
+        q = (v - D) / (1 - D); const pc = 60 + 40 * q;
+        // перенос — прямая кинематика от кривых бедра и колена (размах KS сверх линии концов), концы стыкуются с опорой
+        const ex = (T, a) => { const e0 = cr(T, 60), e1 = cr(T, 100), l = lerp(e0, e1, q); return l + (cr(T, pc) - l) * a; };
+        const th = ex(GTH, 0.5 + 0.5 * KS) * DEG, kn = ex(GKN, KS) * DEG;
+        const fk = (t, k, hy) => [TH * Math.sin(t) + SHN * Math.sin(t - k), hy + TH * Math.cos(t) + SHN * Math.cos(t - k)];
+        const a = fk(cr(GTH, 60) * DEG, cr(GKN, 60) * DEG, h0), b = fk(cr(GTH, 100) * DEG, cr(GKN, 100) * DEG, h1), c = fk(th, kn, hip);
+        roll(-cr(GFT, 60) * DEG); const ax = -St + GOFF + RX, ay = -2 + RY; roll(-cr(GFT, 0) * DEG); const bx = St + GOFF + RX, by = -2 + RY;
+        const e = sm(q);
+        x = c[0] + lerp(ax - a[0], bx - b[0], e); y = c[1] + lerp(ay - a[1], by - b[1], e);
+        y = Math.min(y, -2 - 0.7 * Math.sin(PI * Math.min(1, q / 0.8)) * Math.min(1, KS));   // носок не чертит снег (к постановке — пятка вниз, зазор уходит)
+        // стопа от голени (голеностоп по кривой), сразу после отрыва — плавно из положения толчка
+        const sh = th - kn;
+        fa = lerp(-cr(GFT, 60) * DEG, -(sh + cr(GAN, pc) * DEG), sm(q / 0.3)); st = 0; u = 0;
+      }
+      if (i) { P.f1x = x; P.f1y = y; P.f1a = fa; P.st1 = st; P.q1 = q; P.u1 = u; P.rx1 = rx; }
+      else { P.f0x = x; P.f0y = y; P.f0a = fa; P.st0 = st; P.q0 = q; P.u0 = u; P.rx0 = rx; }
+    }
+    P.hy = unHip(hip);
     P.hb = 0.8 * Math.cos(2 * ph + 0.9);
   }
   function idle(o, t) {
@@ -266,15 +331,16 @@ var ArtPeople = (function () {
     P.hb = br * 0.25;
   }
   // походка по скорости v (px/с, мир = экран): полушаг опоры St (px по земле) и доля опоры duty.
-  // Каденс (цикл одной ноги) f = v·duty / (2·St): 30 px/с ≈ 1.5 Гц, 60 ≈ 2.3, 120 ≈ 2.9, 165 ≈ 2.8 (с фазой полёта), бег 198 ≈ 2.9.
-  // Длина шага растёт со скоростью до вылета ноги (≈ 7.4 px от таза, нога не выпрямляется в струну), дальше — короче опора (полёт), а не чаще шаг.
-  // vy — ракурс хода: к камере/от камеры шаг на 20 % короче (стопа впереди уходит вниз по экрану 1:1 с глубиной — длинная нога-«ходуля»)
+  // Частота шагов = v·duty / St: 30 px/с ≈ 2 шаг/с (как у человека), 165 px/с ≈ 4.8 (с фазой полёта — иначе стопы скользили бы).
+  // vy — ракурс хода: к камере/от камеры шаг на 28 % короче (стопа впереди уходит вниз по экрану 1:1 с глубиной — длинная нога-«ходуля»)
   function gaitFor(anim, v, vy) {
-    v = Math.max(0, v || 0); const kv = 1 - 0.2 * clamp(vy || 0, -1, 1) ** 2;
+    v = Math.max(0, v || 0); const kv = 1 - 0.28 * clamp(vy || 0, -1, 1) ** 2;
     if (anim === 'run') return { St: 8.6 * kv, duty: clamp(0.36 - (v - 120) / 400, 0.22, 0.36), v };
     if (anim === 'limp') return { St: clamp(2.6 + 0.04 * v, 3.3, 5) * kv, duty: 0.5, v };
-    const St = Math.min(6.6 + 0.8 * clamp((v - 60) / 80, 0, 1), 3.2 + 0.06 * v) * kv * (anim === 'trudge' ? 0.88 : 1);   // глубокий снег — шаг короче
-    return { St, duty: 0.5 - 0.25 * clamp((v - 70) / 80, 0, 1), v };
+    // ходьба: полушаг опоры ≈ 0.2 роста (на ударе пяткой нога почти прямая), доля опоры 0.62 (двойная опора, как у человека) на медленном шаге →
+    // 0.27 на скорости героя (165 px/с ≈ 4 роста/с — человеку это бег): без проскальзывания стоп иначе ≈ 10 шагов/с; так ≈ 4.8 шаг/с
+    const St = Math.min(9.2, 5.5 + 0.12 * v) * kv * (anim === 'trudge' ? 0.88 : 1);   // глубокий снег — шаг короче
+    return { St, duty: clamp(0.62 - (v - 30) * 0.35 / 128, 0.27, 0.62), v };
   }
   // приращение фазы за путь d (px по земле): опора — 2·St за 2π·duty фазы
   const advance = (d, gt) => d * PI * gt.duty / Math.max(0.5, gt.St);
@@ -283,13 +349,15 @@ var ArtPeople = (function () {
   function walk(o, t, ph, sp) {
     const St = stride('walk', sp), fl = GT ? clamp((0.5 - GT.duty) / 0.22, 0, 1) : 0;   // fl — доля «широкого шага с полётом»
     const Tr = TIRE;
-    gait(ph, St, (2.4 + sp * 1.2 + fl * 1.6) * (1 - 0.3 * Tr));
-    P.lean = 0.07 + sp * 0.06 + fl * 0.05 + 0.08 * Tr + 0.018 * Math.cos(2 * ph - 0.6); shoulder();   // корпус чуть клюёт на толчке
+    gait(ph, St, 0, 1 - 0.25 * Tr);
+    // корпус клюёт ±1.7° дважды за цикл (толчок/приём веса); голова держит взгляд — гасит ¾ этого кивка
+    const nod = 0.03 * Math.cos(2 * ph - 0.6);
+    P.lean = 0.07 + sp * 0.06 + fl * 0.05 + 0.08 * Tr + nod; shoulder();
     // руки — в противофазе ногам с запаздыванием (маятник от плеча): вперёд — с согнутым локтем, назад — прямее
     const A = (3 + sp * 2 + fl) * (1 - 0.45 * Tr), sn = Math.sin(ph - 0.35), dn = 0.9 * (1 - 0.5 * Tr);
     handR(0, 1 - A * sn, 12 - Math.abs(sn) * 0.8 - fl - dn * Math.max(0, -sn) + 0.5 * Tr); handR(1, 1 + A * sn, 12 - Math.abs(sn) * 0.8 - fl - dn * Math.max(0, sn) + 0.5 * Tr);
     if (Tr) { P.hl0 = P.hl1 = 6.6 - 1.2 * Tr; }
-    P.tilt = 0.03 * Math.sin(2 * ph) + 0.14 * Tr;
+    P.tilt = 0.01 * Math.sin(2 * ph) - 0.75 * nod + 0.14 * Tr;
   }
   function run(o, t, ph) {
     const St = stride('run'), s0 = Math.sin(ph - 0.25), a = foot(ph, St, 5.2, 0), b = foot(ph, St, 5.2, 0.5);
@@ -1103,10 +1171,19 @@ var ArtPeople = (function () {
     const hv = L.hem != null, sw = L.shW || 0;   // варианты героя: свой подол и плечи (иначе прежние числа)
     const D = hv ? L.hem : L.long ? 11 : L.quilt ? 4 : 5, hF = F + (hv ? L.flare : L.long ? 1.1 : 0.6), hB = B + (hv ? L.flare * 0.8 : L.long ? 0.9 : 0.4);
     const pt = (base, ou, of) => [base[0] + ux * ou + fnx * of, base[1] + uy * ou + fny * of];
+    // шаг: плечи скручены навстречу тазу (вперёд/назад по ходу; в анфас/со спины уходит в глубину — не видно);
+    // подол: выносимое бедро толкает переднюю полу вперёд-вверх (длиннее пола — сильнее), отставшее — заднюю назад
+    const vk = 1 - 0.8 * s, twT = 5.9 * P.tw * vk, twH = 4 * P.prot * vk;
+    let hf = 0, hb = 0;
+    if (P.st0 >= 0 && (P.lg0[6] || P.lg1[6])) for (const G of [P.lg0, P.lg1]) {
+      const th = PI / 2 - G[6], fw = D * Math.tan(clamp(th, -0.9, 0.9));
+      hf = Math.max(hf, 0.18 * fw + Math.max(0, fw - hF + 0.6) * 0.8); hb = Math.max(hb, -0.14 * fw);
+    }
+    hf *= vk; hb *= vk;
     const Hb = [Hx, Hy], Nb = [Nx, Ny];
-    const A = pt(Hb, -D, hF), Bp = pt(Nb, -2.4, F - 0.6 + sw), Ct = pt(Nb, 1.6, 0), Dp = pt(Nb, -2.4, -(B - 0.3 + sw)), E = pt(Hb, -D, -hB);
-    const midF = pt(Hb, ln * 0.5 - (L.long ? 2 : 0), F + 0.5 + sw * 0.4), midB = pt(Hb, ln * 0.5 - (L.long ? 2 : 0), -(B + 0.2 + sw * 0.4));
-    const cF = pt(Nb, 1.4, F - 0.8 + sw * 0.7), cB = pt(Nb, 1.4, -(B - 0.6 + sw * 0.7));
+    const A = pt(Hb, -D + hf * 0.35, hF + hf + twH), Bp = pt(Nb, -2.4, F - 0.6 + sw + twT), Ct = pt(Nb, 1.6, twT), Dp = pt(Nb, -2.4, -(B - 0.3 + sw) + twT), E = pt(Hb, -D + hb * 0.2, -hB - hb + twH);
+    const midF = pt(Hb, ln * 0.5 - (L.long ? 2 : 0), F + 0.5 + sw * 0.4 + (twT + twH) / 2), midB = pt(Hb, ln * 0.5 - (L.long ? 2 : 0), -(B + 0.2 + sw * 0.4) + (twT + twH) / 2);
+    const cF = pt(Nb, 1.4, F - 0.8 + sw * 0.7 + twT), cB = pt(Nb, 1.4, -(B - 0.6 + sw * 0.7) + twT);
     const jk = L.long || L.shag ? 1.4 : 1, HP = [0.25, 0.5, 0.75].map((t, i) => { const q = pt([lerp(E[0], A[0], t), lerp(E[1], A[1], t)], -(0.65 * Math.sin(PI * t) + HEMJ[i] * jk), 0); return q; });
     const hemPath = () => { g.moveTo(E[0], E[1]); for (const q of HP) g.lineTo(q[0], q[1]); g.lineTo(A[0], A[1]); };
     const trace = () => {
@@ -1373,13 +1450,15 @@ var ArtPeople = (function () {
   function leg(g, L, i, near) {
     const fa = i ? P.f1a : P.f0a, lat0 = i ? -LEGW : LEGW, fy = i ? P.f1y : P.f0y;
     // стопа: закреплённая точка (plant) в координатах рига или поза как есть
-    const fx = P.pk ? (i ? P.pf1x : P.pf0x) : i ? P.f1x : P.f0x, lat = P.pk ? (i ? P.pl1 : P.pl0) : lat0;
+    const fx = (P.pk ? (i ? P.pf1x : P.pf0x) : i ? P.f1x : P.f0x) + (i ? P.rx1 : P.rx0), lat = P.pk ? (i ? P.pl1 : P.pl0) : lat0;
+    // тазобедренный сустав: скрут таза (ближний вперёд при prot > 0) и наклон таза (свободная сторона ниже)
+    const hx = P.hx + (i ? -1 : 1) * P.prot * LEGW, hy = P.hy + (i ? 1 : -1) * 0.3 * P.ob;
     // закреплённая стопа чуть дальше вылета — нога тянется (до 12 %), а не отпускает опору
     let l1 = TH, l2 = SHN;
-    if (P.pk) { const d = Math.hypot(fx - P.hx, fy - P.hy), mx = TH + SHN - 0.02; if (d > mx) { const k = Math.min(1 + 0.12 * WL, d / mx + 0.001); l1 *= k; l2 *= k; } }
-    ik(P.hx, P.hy, fx, fy, l1, l2, -1);
+    if (P.pk) { const d = Math.hypot(fx - hx, fy - hy), mx = TH + SHN - 0.02; if (d > mx) { const k = Math.min(1 + 0.12 * WL, d / mx + 0.001); l1 *= k; l2 *= k; } }
+    ik(hx, hy, fx, fy, l1, l2, -1);
     const kx = KX, ky = KY, ax = EX, ay = EY, lk = lat;
-    const LG = i ? P.lg1 : P.lg0; pr(P.hx, P.hy, lat0 * 0.9); LG[0] = QX; LG[1] = QY; lp(kx, ky, lk); LG[2] = QX; LG[3] = QY; lp(ax, ay, lat); LG[4] = QX; LG[5] = QY; LG[6] = Math.atan2(ky - P.hy, kx - P.hx); LG[7] = Math.atan2(ay - ky, ax - kx);
+    const LG = i ? P.lg1 : P.lg0; pr(hx, hy, lat0 * 0.9); LG[0] = QX; LG[1] = QY; lp(kx, ky, lk); LG[2] = QX; LG[3] = QY; lp(ax, ay, lat); LG[4] = QX; LG[5] = QY; LG[6] = Math.atan2(ky - hy, kx - hx); LG[7] = Math.atan2(ay - ky, ax - kx); LG[8] = fa;
     // бедро 4.2 → колено 3.6 → голень 3.3 (к снегу темнее); валенок 3.8 — от середины голени
     taper(g, LG[2], LG[3], LG[4], LG[5], 3.6, 3.3, C(near ? L.pantsLow : L.pantsFarLow));   // голень под бедром: колено — светлым концом бедра
     taper(g, LG[0], LG[1], LG[2], LG[3], 4.2, 3.7, C(near ? L.pants : L.pantsFar));
@@ -1494,7 +1573,7 @@ var ArtPeople = (function () {
   // Смешивается итоговая поза (после факела/ноши/посоха/второй руки на топорище), в память пишется показанная.
   // Кисти — в полярных координатах от плеча (линейно кисть проходила бы сквозь плечо и выворачивала локоть),
   // угол инструмента — по кратчайшему пути.
-  const MEM = new WeakMap(), BL = ['hx', 'hy', 'lean', 'tilt', 'f0x', 'f0y', 'f0a', 'f1x', 'f1y', 'f1a', 'sx', 'sy', 'hl0', 'hl1', 'hb', 'gap', 'hlat'];
+  const MEM = new WeakMap(), BL = ['hx', 'hy', 'lean', 'tilt', 'f0x', 'f0y', 'f0a', 'f1x', 'f1y', 'f1a', 'sx', 'sy', 'hl0', 'hl1', 'hb', 'gap', 'hlat', 'rx0', 'rx1', 'roll', 'prot', 'tw', 'ob'];
   const BLEND = 0.13, BLEND_HIT = 0.05, TURN = 0.24;
   const HIT = { swing: 1, chop: 1, chopHeavy: 1, chopCold: 1, chopLow: 1, throw: 1, kick: 1, build: 1, dig: 1, shoot: 1, hurt: 1, flinch: 1, stagger: 1 };
   const wrapA = d => d - 2 * PI * Math.round(d / (2 * PI));   // (−π, π]
@@ -1656,6 +1735,10 @@ var ArtPeople = (function () {
     for (let i = 0; i < 2; i++) { const F = mm.ft[i]; if (F.ox || F.oy) act = true; }
     if (!act) return;
     const kd = Math.exp(-dt / 0.08), LAM = 0.01;
+    // снос тела поперёк хода (пурга): опорная стопа проскальзывает с телом вбок, а не растягивает ногу назад/вперёд по ¾-проекции
+    const gl = Math.hypot(GFX, GFY) || 1, gx = GFX / gl, gy = GFY / gl, bdx = mm.bx == null ? 0 : X0 - mm.bx, bdy = mm.bx == null ? 0 : Y0 - mm.by, bp = bdx * gx + bdy * gy;
+    let sx = bdx - bp * gx, sy = bdy - bp * gy; if (sx * sx + sy * sy > 64) sx = sy = 0;   // рывок/телепорт — не снос
+    mm.bx = X0; mm.by = Y0;
     for (let i = 0; i < 2; i++) {
       const F = mm.ft[i], fx = i ? P.f1x : P.f0x, lat = i ? -LEGW : LEGW, st = i ? P.st1 : P.st0, q = i ? P.q1 : P.q0;
       const nx = X0 + P.ox + fx * GFX + lat * GLX, ny = Y0 + P.oy + fx * GFY + lat * GLY;   // точка стопы по позе на снегу
@@ -1664,7 +1747,7 @@ var ArtPeople = (function () {
           F.st = true; F.wx = nx + F.ox; F.wy = ny + F.oy;
           if (o.onStep && WL > 0.5) o.onStep(F.wx + GFX * 1.5, F.wy + GFY * 1.5, i, Math.atan2(GFY, GFX));
         }
-        F.ox = F.wx - nx; F.oy = F.wy - ny;
+        F.wx += sx; F.wy += sy; F.ox = F.wx - nx; F.oy = F.wy - ny;
         if (F.ox * F.ox + F.oy * F.oy > 18 * 18) { F.wx = nx; F.wy = ny; F.ox = F.oy = 0; }   // телепорт/рывок — переставить стопу
       } else {
         if (F.st) { F.st = false; F.o0x = F.ox; F.o0y = F.oy; }
@@ -1686,7 +1769,9 @@ var ArtPeople = (function () {
   let CL = null;   // облик текущей фигуры (для поз из art-poses.js: H.belt)
   function beltAxe() {
     const s = Math.sin(P.lean), c = Math.cos(P.lean), hy = hipD(), R = 10.9 * 0.56;
-    P.tk = 'axe'; P.two = 0; P.tsc = 0.56; P.ta = -PI / 2 + P.lean - 0.1 + P.axw;   // топорище вниз вдоль бедра; axw — качание на ремне (пружина)
+    // топорище вниз-назад по бедру (не вертикальной «ножкой стула»); на шаге его отводит ближнее бедро: нога назад — топорище назад
+    const wk = P.st0 >= 0 ? 1 : 0, fx = clamp(P.f0x, -10, 10) * wk;
+    P.tk = 'axe'; P.two = 0; P.tsc = 0.56; P.ta = -PI / 2 + P.lean + 0.12 + 0.12 * wk - 0.014 * fx + P.axw;   // axw — качание на ремне (пружина)
     const bx = P.hx + s * 2.2 - c * 4.4, by = hy - c * 2.2 + s * 4.4;       // ремень у поясницы
     P.tox = bx - Math.cos(P.ta) * R; P.toy = by - Math.sin(P.ta) * R; P.tlat = lerp(3, 6, S * S);   // со спины — сбоку у бедра, а не «хвостом» по центру
   }
@@ -1794,8 +1879,8 @@ var ArtPeople = (function () {
     if (lying < 0.3) {
       const ka = 1 - lying * 3;
       for (let i = 0; i < 2; i++) {
-        const fy0 = i ? P.f1y : P.f0y; if (fy0 <= -3.2) continue;
-        lp((P.pk ? (i ? P.pf1x : P.pf0x) : i ? P.f1x : P.f0x) + 1.4, -0.1, P.pk ? (i ? P.pl1 : P.pl0) : i ? -LEGW : LEGW);
+        const fy0 = (i ? P.st1 : P.st0) === 1 ? -2 : i ? P.f1y : P.f0y; if (fy0 <= -3.2) continue;   // опорная стопа на перекате (пятка/носок) — на снегу
+        lp((P.pk ? (i ? P.pf1x : P.pf0x) : i ? P.f1x : P.f0x) + (i ? P.rx1 : P.rx0) + 1.4, -0.1, P.pk ? (i ? P.pl1 : P.pl0) : i ? -LEGW : LEGW);
         const lf = 1 - 0.6 * clamp(-(fy0 + 2) / 1.2, 0, 1);
         if (LQ) cont(g, QX + 0.2, QY, 4.6, 1.8, 0.5 * ka * lf); else { cont(g, QX, QY, 6.4, 2.6, 0.3 * ka * lf); cont(g, QX + 0.4, QY + 0.1, 3.4, 1.3, 0.34 * ka * lf); }
       }
@@ -1912,7 +1997,7 @@ var ArtPeople = (function () {
   // помощники для поз из других файлов (P — текущая поза, поля см. reset())
   // view() — ракурс текущей фигуры: −1 спиной к камере, 1 лицом, 0 боком (для поз, которые его учитывают)
   const H = { face: () => FC, belt: k => (k === 'axe' && CL && CL.axeBelt ? (P.tk = 'axe', P.belt = 1, true) : false), P, PI, lerp, sm, clamp, seg, shoulder, handA, handR, foot, gait, idle, walk, run, limp, sit, stride, view: () => (BACK ? -1 : FRONT ? 1 : 0),
-    SHO, hipY, hip: hipD, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, TORSO } };
+    SHO, hipY, hip: hipD, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, TORSO, KL } };
   const DUR = { chop: 0.9, dig: 1.0, build: 0.7, swing: 0.45, shoot: 1.4, hurt: 0.6, dead: 1.2 };
   const ANIMS = ['idle', 'walk', 'run', 'limp', 'carry', 'talk', 'wave', 'chop', 'dig', 'fish', 'fishBite', 'build', 'swing', 'aim', 'shoot', 'sit', 'sleep', 'hurt', 'dead'];
   function register(name, spec) { POSE[name] = spec; if (spec.dur) DUR[name] = spec.dur; if (!ANIMS.includes(name)) ANIMS.push(name); }
