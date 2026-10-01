@@ -156,7 +156,7 @@ var ArtPeople = (function () {
     P.trail = null; P.held = null; P.held2 = null; P.tlat = null; P.belt = 0; P.taT = null; P.staff = 0; P.carry = 0; P.smoke = 0; P.spark = 0; P.zz = 0;
     P.st0 = P.st1 = -1; P.q0 = P.q1 = 0; P.u0 = P.u1 = 0; P.pk = 0;   // опора стоп из походки (−1 — поза без шага); pk — стопы закреплены (planting); u — доля опоры
     P.rx0 = P.rx1 = 0; P.ob = 0; P.roll = 0; P.prot = 0; P.tw = 0;   // шаг: перекат стопы (x щиколотки), наклон таза, крен корпуса, скрут таза/плеч (рад)
-    P.hlat = 0; P.bz = 0; P.dLean = 0; P.dDip = 0; P.hlag = 0; P.pkx = 0; P.pky = 0; P.axw = 0; P.clx = 0; P.cly = 0; P.pom = 0;   // этап 4: таз вбок к опорной ноге, вдох (плечи вверх), инерция корпуса/головы/рюкзака (для проверок)
+    P.hlat = 0; P.bz = 0; P.dLean = 0; P.dDip = 0; P.hlag = 0; P.pkx = 0; P.pky = 0; P.axw = 0; P.clx = 0; P.cly = 0; P.pom = 0; P.cover = 0;   // cover — пурга: доля «рука у лица» (art-poses shield); этап 4: таз вбок к опорной ноге, вдох (плечи вверх), инерция корпуса/головы/рюкзака (для проверок)
   }
   function shoulder() { P.sx = P.hx + Math.sin(P.lean) * SHO; P.sy = hipD() - Math.cos(P.lean) * SHO; }
   function handA(i, ang, d) { const x = P.sx + Math.cos(ang) * d, y = P.sy + Math.sin(ang) * d; if (i) { P.h1x = x; P.h1y = y; } else { P.h0x = x; P.h0y = y; } }
@@ -364,22 +364,34 @@ var ArtPeople = (function () {
   // полушаг (длина опоры) по виду походки — его же берёт рендер, чтобы фаза шла от пройденного пути
   function stride(anim, sp) { if (GT) return GT.St; return anim === 'run' ? 7 : anim === 'limp' ? 3.3 : 4.5 + clamp(sp, 0, 1) * 3.5; }
   // мах рук на шаге: q — фаза (ближняя рука вперёд при sin q < 0), A — ход плеча (рад), f0 — сгиб локтя сзади, fA — прибавка сгиба на махе вперёд
-  function swingArms(q, A, f0, fA, b) {
+  // r — доля бега 0..1 (runW): руки смешиваются с беговыми — плечо вперёд ≤ RF, назад RB (назад больше), локоть ≈80–95° всё время
+  // (на махе вперёд чуть закрыт — кисть у груди, не у подбородка; сзади чуть открыт), кисть впереди — к середине корпуса; k — размах бега
+  const RF = 0.5, RBK = 0.78, RFL = 1.5;
+  function swingArms(q, A, f0, fA, b, r, k) {
+    r = r || 0; k = k == null ? 1 : k;
     for (let i = 0; i < 2; i++) {
-      const s = (i ? 1 : -1) * Math.sin(q), se = (i ? 1 : -1) * Math.sin(q - 0.45), th = (b || 0.02) + A * (s > 0 ? s : 0.72 * s);
-      armFK(i, th, f0 + fA * Math.max(0, se) ** 1.3);
+      const s = (i ? 1 : -1) * Math.sin(q), se = (i ? 1 : -1) * Math.sin(q - 0.45);
+      let th = (b || 0.02) + A * (s > 0 ? s : 0.72 * s), fl = f0 + fA * Math.max(0, se) ** 1.3;
+      if (r > 0) {
+        th = lerp(th, 0.03 + k * (s > 0 ? RF * s : RBK * s), r); fl = lerp(fl, RFL - 0.12 * se, r);
+        const hl = 6.6 - 1.3 * k * Math.max(0, s); if (i) P.hl1 = lerp(P.hl1, hl, r); else P.hl0 = lerp(P.hl0, hl, r);
+      }
+      armFK(i, th, fl);
     }
   }
+  // доля бега по скорости походки: до ≈75 px/с — шаг, от ≈150 px/с — лёгкий бег (герой 165 px/с ≈ 7 м/с); совпадает с появлением полёта в gaitFor
+  const runW = () => (GT ? sm(clamp((GT.v - 75) / 75, 0, 1)) : 0);
   function walk(o, t, ph, sp) {
     const St = stride('walk', sp), fl = GT ? clamp((0.5 - GT.duty) / 0.22, 0, 1) : 0;   // fl — доля «широкого шага с полётом»
     const Tr = TIRE;
     gait(ph, St, 0, 1 - 0.25 * Tr);
     // корпус клюёт ±1.7° дважды за цикл (толчок/приём веса); голова держит взгляд — гасит ¾ этого кивка
     const nod = 0.03 * Math.cos(2 * ph - 0.6);
-    P.lean = 0.07 + sp * 0.06 + fl * 0.05 + 0.08 * Tr + nod; shoulder();
+    const r = runW();
+    P.lean = 0.07 + sp * 0.06 + fl * 0.05 + 0.03 * r + 0.08 * Tr + nod; shoulder();   // на бегу — ещё чуть вперёд
     // руки — маятник от плеча в противофазе ногам, с запаздыванием: вперёд ≈20° (больше, чем назад ≈15°), локоть на махе вперёд
-    // сгибается до ≈35°, сзади почти прямой; сгиб чуть отстаёт от плеча (предплечье догоняет)
-    swingArms(ph - 0.35, (0.3 + 0.1 * sp + 0.05 * fl) * (1 - 0.45 * Tr), 0.2 + 0.08 * fl + 0.12 * Tr, (0.27 + 0.1 * sp + 0.1 * fl) * (1 - 0.35 * Tr));
+    // сгибается до ≈35°, сзади почти прямой; сгиб чуть отстаёт от плеча (предплечье догоняет). На скорости — руки бега (r)
+    swingArms(ph - 0.35, (0.3 + 0.1 * sp + 0.05 * fl) * (1 - 0.45 * Tr), 0.2 + 0.08 * fl + 0.12 * Tr, (0.27 + 0.1 * sp + 0.1 * fl) * (1 - 0.35 * Tr), 0.02, r, 1 - 0.35 * Tr);
     if (Tr) { P.hl0 = P.hl1 = 6.6 - 1.2 * Tr; }
     P.tilt = 0.01 * Math.sin(2 * ph) - 0.75 * nod + 0.14 * Tr;
   }
@@ -389,7 +401,7 @@ var ArtPeople = (function () {
     P.f1x = b[0] + 1.5; P.f1y = -2 - b[1]; P.f1a = b[2] * 1.4; P.st1 = b[3]; P.q1 = b[4];
     P.hy = hipArc(ph, St, a, b) + 0.6; P.hx = 1.2; P.hlat = -0.4 * Math.cos(ph - 0.25);   // таз по дуге над опорой, в полёте — подскок
     P.lean = 0.26 + 0.03 * Math.cos(2 * ph - 0.6); shoulder();
-    swingArms(ph - 0.25, 0.62, 1.25, 0.35, 0.12);   // бег: локоть ≈75–95°, мах от плеча шире
+    swingArms(ph - 0.25, 0, 0, 0, 0, 1);   // бег: локоть ≈80–95°, плечо вперёд ≤ 30°, назад ≈45°
     P.hb = 1.4 * Math.cos(2 * ph + 0.9); P.tilt = -0.12;
   }
   function limp(o, t, ph) {
@@ -2064,7 +2076,7 @@ var ArtPeople = (function () {
   // помощники для поз из других файлов (P — текущая поза, поля см. reset())
   // view() — ракурс текущей фигуры: −1 спиной к камере, 1 лицом, 0 боком (для поз, которые его учитывают)
   const H = { face: () => FC, belt: k => (k === 'axe' && CL && CL.axeBelt ? (P.tk = 'axe', P.belt = 1, true) : false), P, PI, lerp, sm, clamp, seg, shoulder, handA, handR, foot, gait, idle, walk, run, limp, sit, stride, view: () => (BACK ? -1 : FRONT ? 1 : 0),
-    SHO, hipY, hip: hipD, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, MT, TORSO, KL }, armFK, swingArms, REST, RR, RA: [RA0, RA1] };
+    SHO, hipY, hip: hipD, head: headC, look: () => CL, LEN: { TH, SHN, UA, FA, MT, TORSO, KL }, armFK, swingArms, runW, REST, RR, RA: [RA0, RA1] };
   const DUR = { chop: 0.9, dig: 1.0, build: 0.7, swing: 0.45, shoot: 1.4, hurt: 0.6, dead: 1.2 };
   const ANIMS = ['idle', 'walk', 'run', 'limp', 'carry', 'talk', 'wave', 'chop', 'dig', 'fish', 'fishBite', 'build', 'swing', 'aim', 'shoot', 'sit', 'sleep', 'hurt', 'dead'];
   function register(name, spec) { POSE[name] = spec; if (spec.dur) DUR[name] = spec.dur; if (!ANIMS.includes(name)) ANIMS.push(name); }
