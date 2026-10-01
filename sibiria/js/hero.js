@@ -3,6 +3,7 @@
 const Hero = (() => {
   const H = TUNE.hero;
   // сглаживание, не зависящее от FPS: доля пути за кадр dt при «жёсткости» k (1/с), калибровка — как у прежнего min(1, dt·k) при 60 к/с
+  const slick = (x, y) => (typeof Depth !== 'undefined' ? Depth.bareIce(x, y) : onIce(x, y)); // скользко только на голом льду; под снегом — сцепление
   const RATE = k => -60 * Math.log(1 - Math.min(k / 60, 0.99)), ease = (k, dt) => 1 - Math.exp(-dt * RATE(k));
   function lvl(k) { const x = G.skills[k]; let l = 1; for (let i = 1; i < LV.length; i++) if (x >= LV[i]) l = i + 1; return l; }
   function xp(k, n = 1) {
@@ -38,12 +39,12 @@ const Hero = (() => {
       const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
       p.moving = len > 0.15;
       B.glide = false; // скольжение по льду без ввода — своё состояние тела (не ходьба); действие держит героя на месте
-      if (!p.moving && !p.action && onIce(p.x, p.y) && Math.hypot(p.vx || 0, p.vy || 0) > PT.glideV) { B.glide = true; const q = 1 - ease(H.iceGrip, dt); p.vx *= q; p.vy *= q; p.x += p.vx * dt; p.y += p.vy * dt; p.face = B.vf; }
+      if (!p.moving && !p.action && slick(p.x, p.y) && Math.hypot(p.vx || 0, p.vy || 0) > PT.glideV) { B.glide = true; const q = 1 - ease(H.iceGrip, dt); p.vx *= q; p.vy *= q; p.x += p.vx * dt; p.y += p.vy * dt; p.face = B.vf; }
       else if (!p.moving) { p.vx = p.vy = 0; B.vf = p.face; }
       if (p.moving) {
         if (p.action) p.action = null;
         let sp = speed();
-        const k = onIce(p.x, p.y) ? H.iceGrip : H.grip;
+        const k = slick(p.x, p.y) ? H.iceGrip : H.grip;
         const e = ease(k, dt); p.vx = (p.vx || 0) + (mx * sp - (p.vx || 0)) * e; p.vy = (p.vy || 0) + (my * sp - (p.vy || 0)) * e;
         p.x += p.vx * dt; p.y += p.vy * dt; want = sp * dt;
         B.dr = 0;
@@ -108,7 +109,7 @@ const Hero = (() => {
   // ---------- «живой» герой: возня стоя, походка по обстановке, реакции, позы работы по состоянию ----------
   // Всё — память модуля (не в G): сейвы не меняются. Позы — ArtPeople.register (js/art-poses.js); нет позы — не играем.
   const LR = mulberry(0x11FE), lr = (a, b) => a + LR() * (b - a); // своя случайность: Math.random игры не тратим
-  const LF = { still: 0, next: 2, last: '', slipCd: 0, dir: null, wolf: false, sub: false }, LT = TUNE.life, PT = TUNE.pose;
+  const LF = { still: 0, next: 2, last: '', slipCd: 0, dir: null, wolf: false, sub: false, out: -9 }, LT = TUNE.life, PT = TUNE.pose;
   const has = k => !!(window.ArtPeople && ArtPeople.POSE[k]);
   const can = k => has(k) || !!(window.ArtPeople && ArtPeople.DUR[k]); // встроенные позы (swing, hurt, chop) — без register
 
@@ -143,6 +144,7 @@ const Hero = (() => {
     if (B.one && PRI[B.one.kind] > PRI[kind] && now - B.one.t0 < B.one.dur) return false;
     B.one = { k, kind, t0: now, dur: o.dur || ArtPeople.DUR[k] || 1, tg: o.tg || null, th: o.th || 0, ik: o.ik === undefined ? true : !!o.ik, a0: o.a0 || 0, a1: o.a1 == null ? 1 : o.a1, commit: PT.commit[k] || 0 };
     LF.last = k; LF.still = 0;
+    if (k === 'brushSnow' && typeof Depth !== 'undefined') Depth.brush(); // отряхнул — снега на одежде меньше
     return true;
   }
   // рубка доигрывает замах до конца удара (A9) — только без ввода и без нового действия
@@ -192,6 +194,9 @@ const Hero = (() => {
     else if (s === 'glide') { r.anim = has('slip') ? 'slip' : 'idle'; r.animT = PT.glideA; }
     else if (s === 'panel') { const q = B.pp, d = D[q.k] || 1.6; r.anim = q.k; r.animT = (now % d) / d; r.tg = q.tg || null; r.th = q.th || 0; r.ik = !!q.ik; }
     else { r.anim = idlePose(); if (r.anim !== 'idle') { const f = heat(); r.animT = (now % 1.6) / 1.6; if (f) { r.tg = f; r.th = -8; } } }
+    // выкарабкивается из глубокого (Depth.climb 0..1 — по ходу, только при вводе; отпустил — замер на месте позы)
+    const ck = typeof Depth !== 'undefined' ? Depth.climb : -1;
+    if (ck >= 0 && (s === 'walk' || s === 'idle') && has('climbOut')) { r.anim = 'climbOut'; r.animT = ck; r.loco = false; r.speed = 0; r.tg = null; }
     if (p.torch > 0 && s !== 'act' && r.anim !== 'swing' && r.anim !== 'sleep') r.tool = 'torch';
     // усталость/холод 0..1 — только для рисования (походка ниже, мах рук короче, дыхание чаще); до порогов поз tired/cold — плавно
     r.tire = clamp(Math.max((38 - G.s.warm) / 20, (38 - G.s.food) / 20, (50 - G.s.hp) / 22, typeof Depth !== 'undefined' ? Depth.effort() * 0.8 : 0), 0, 1);
@@ -257,6 +262,7 @@ const Hero = (() => {
   const TWO = { rubHands: 1, blowHands: 1, stretch: 1, brushSnow: 1, adjustPack: 1 }; // двуручная возня — не с факелом в руке
   // возня по ситуации (веса), без повтора подряд
   function pickFidget() {
+    if (typeof Depth !== 'undefined' && Depth.heroSink > 60) return null; // по пояс в снегу не возится (нос не вытирает)
     const p = G.p, W = [], add = (k, w) => { if (k !== LF.last && has(k) && !(p.torch > 0 && TWO[k])) W.push([k, w]); };
     if (cold()) { add('stamp', 3); add('rubHands', 3); add('blowHands', 2); }
     if (outStorm()) { add('brushSnow', 3); add('wipeNose', 1.5); }
@@ -281,7 +287,7 @@ const Hero = (() => {
     const len = Math.hypot(input.mx, input.my);
     if (len > 0.3) {
       const d = Math.atan2(input.my, input.mx), v = Math.hypot(p.vx || 0, p.vy || 0);
-      if (LF.dir !== null && LF.slipCd <= 0 && v > LT.slipV && onIce(p.x, p.y) && !p.ride && Math.abs(Math.atan2(Math.sin(d - LF.dir), Math.cos(d - LF.dir))) > 1.2) {
+      if (LF.dir !== null && LF.slipCd <= 0 && v > LT.slipV && slick(p.x, p.y) && !p.ride && Math.abs(Math.atan2(Math.sin(d - LF.dir), Math.cos(d - LF.dir))) > 1.2) {
         LF.slipCd = LT.slipCd; if (LR() < LT.slipP && play('slip', { react: 1 })) { Sound.tone('triangle', 900, 400, 0.12, 0.05); ArtWorld.fx.snowPuff(G.parts, p.x, p.y, 0.3); }
       }
       LF.dir = d;
@@ -295,6 +301,8 @@ const Hero = (() => {
     if (p.moving || p.action || p.sleeping || p.ride || B.glide || UI.modal()) { if (LF.still >= 0) LF.next = lr(LT.fidget[0], LT.fidget[1]); LF.still = -1e-9; return; }
     if (LF.still < 0) LF.still = 0;
     if (B.one) return;
+    // выбрался из глубокого и остановился (≤ 4 с) — отряхивается
+    if (typeof Depth !== 'undefined' && Depth.outT !== LF.out && G.time - Depth.outT < 4 && Depth.heroSink < 40) { LF.out = Depth.outT; if (play('brushSnow')) return; }
     LF.still += dt;
     if (LF.still > LF.next) { LF.still = 0; LF.next = lr(LT.again[0], LT.again[1]); const k = pickFidget(); if (k) play(k); }
   }
