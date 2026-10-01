@@ -638,6 +638,10 @@ var ArtPeople = (function () {
     } else if (kind === 'shovel') {   // лопата (взял у двери): черенок, деревянный совок на конце
       g.strokeStyle = C(W); g.lineWidth = 2; g.beginPath(); tM(g, -6, 0); tL(g, 14, 0); g.stroke();
       g.fillStyle = C('#76593a'); g.beginPath(); tM(g, 13, -3.2); tL(g, 20, -3.8); tL(g, 20.5, 3.8); tL(g, 13, 3.2); g.closePath(); g.fill();
+      // ком снега на совке (P.held[4] — кг, позы лопаты js/art-poses.js): размер от веса, тень снизу
+      const kg = P.held && P.held[0] === 'shovel' ? P.held[4] || 0 : 0;
+      if (kg > 0.2) { const r = 1.6 + 0.42 * kg; tp(16.8, -2.4 - r * 0.55); ell(g, QX, QY + 0.5, r * 1.25, r * 0.75, '#c9d6e2'); ell(g, QX, QY - 0.2, r * 1.15, r * 0.7, '#f4f7fa'); ell(g, QX - r * 0.35, QY - r * 0.35, r * 0.5, r * 0.28, '#ffffff'); }
+      if (HERO) { const S = DBG.sh || (DBG.sh = { b: [0, 0], g0: [0, 0], g1: [0, 0], t: 0, ux: 1 }); tp(17, 0); S.b[0] = QX; S.b[1] = QY; tp(-5, 0); S.g0[0] = QX; S.g0[1] = QY; tp(4.5, 0); S.g1[0] = QX; S.g1[1] = QY; S.ux = Math.sign(S.b[0] - S.g0[0]) || 1; S.t = typeof now === 'number' ? now : 0; }   // совок и хваты на экране (снег у совка, проверки)
     } else if (kind === 'log') {   // полено в руках (печь)
       g.strokeStyle = C('#765436'); g.lineWidth = 3.6; g.beginPath(); tM(g, -3, 0); tL(g, 6, 0); g.stroke();
       tp(6, 0); ell(g, QX, QY, 1.7, 1.7, C('#c79a62'));

@@ -54,7 +54,9 @@ require('fs').mkdirSync(OUT, { recursive: true });
       // вертолёт
       G.flags.contact = 1; G.flags.contactDay = G.day - 1; G.time = tAt(G.day, 9.05); G.heliDay = 0; update(0.05);
       log.push('heli ' + !!G.heli);
-      G.col.builds.push({ id: 999, type: 'pad', x: POI.mar.x, y: POI.mar.y + 170, prog: 1, done: 1 }); G.stacks.forEach(s => Fire.lightStack(s, 60)); for (let i = 0; i < 40 && !G.flags.rescued; i++) update(0.05); log.push('rescued ' + G.flags.rescued);
+      G.col.builds.push({ id: 999, type: 'pad', x: POI.mar.x, y: POI.mar.y + 170, prog: 1, done: 1 });
+      { const B = BUILDS.pad; for (let k = 0; k < 3; k++) for (let y = POI.mar.y + 170 - B.h / 2 + 4; y <= POI.mar.y + 170 + B.h / 2; y += 16) for (let x = POI.mar.x - B.w / 2 - 12; x <= POI.mar.x + B.w / 2 + 12; x += 12) Trail.stamp(x, y, Trail.PROF.shoes); } // площадку утоптали (снегоступы, 3 прохода)
+      G.stacks.forEach(s => Fire.lightStack(s, 60)); for (let i = 0; i < 40 && !G.flags.rescued; i++) update(0.05); log.push('rescued ' + G.flags.rescued);
     } catch (e) { log.push('ERR ' + e.message + ' ' + e.stack); }
     return log;
   });

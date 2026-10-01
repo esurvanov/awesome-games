@@ -115,10 +115,10 @@ var InteractMatrix = (() => {
       return ok(L && World.blocked(mid.x, mid.y, 6), `ствол лёг, преграда=${World.blocked(mid.x, mid.y, 6)}, частиц у ствола после удара=${parts}`); },
     'js/actions.js:143 impact(), js/world.js:331 pushLog');
   cell('fallTree', 'trail', 'ствол поперёк тропы перекрывает её (надо обойти/разделать)',
-    () => { const d = deepSpot(); for (let k = -20; k <= 200; k += 6) Trail.shovel(d.x + k, d.y + 40, 18, 1);
+    () => { const d = deepSpot(); for (let k = -20; k <= 200; k += 6) Trail.cut(d.x + k, d.y + 40, d.x + k, d.y + 40, 18 - 3);
       const { L } = fallOn(() => ({ x: d.x, y: d.y, pre: t => { t.nside = -1; } }));
       // тропа идёт вдоль +x под стволом? кладём ствол поперёк: дерево падает вниз (+y) не выйдет — проверяем точку тропы под стволом
-      const e = logEnd(L), m = { x: (L.x + e.x) / 2, y: (L.y + e.y) / 2 + 2 }; Trail.shovel(m.x, m.y, 20, 1);
+      const e = logEnd(L), m = { x: (L.x + e.x) / 2, y: (L.y + e.y) / 2 + 2 }; Trail.cut(m.x, m.y, m.x, m.y, 20 - 3);
       return ok(World.blocked(m.x, m.y, 6), `точка тропы под стволом занята=${World.blocked(m.x, m.y, 6)} (Trail.at=${r2(Trail.at(m.x, m.y))})`); },
     'js/world.js:331 (ствол — преграда на любой поверхности)');
   function fallIce(bare) {
@@ -206,7 +206,7 @@ var InteractMatrix = (() => {
   // === герой ===
   cell('hero', 'snow', 'проваливается (по колено–пояс) и идёт медленнее; по тропе — быстрее',
     () => { const d = deepSpot(); put(d.x, d.y); step(0.5); const v1 = walk(1, 0, 1.2), s1 = Depth.heroSink;
-      for (let k = -40; k <= 220; k += 6) Trail.shovel(d.x + k, d.y, 18, 1); put(d.x, d.y); step(0.5); const v2 = walk(1, 0, 1.2), s2 = Depth.heroSink;
+      for (let k = -40; k <= 220; k += 6) Trail.cut(d.x + k, d.y, d.x + k, d.y, 18 - 3); put(d.x, d.y); step(0.5); const v2 = walk(1, 0, 1.2), s2 = Depth.heroSink;
       C.heroV = { v1, v2 }; return ok(s1 > 30 && v2 > v1 * 1.15, `целина (снег ${Math.round(d.d)} см): провал ${Math.round(s1)} см, ${Math.round(v1)} px/с; расчищено: провал ${Math.round(s2)} см, ${Math.round(v2)} px/с`); },
     'js/depth.js:200 heroMul, js/hero.js:28');
   cell('hero', 'trail', 'по тропе быстрее, чем по целине',
@@ -245,7 +245,7 @@ var InteractMatrix = (() => {
     const [who, r, kind, v] = KINDS[row], d = deepSpot();
     const s = Depth.sinkAt(d.x + 60, d.y, kind), sh = Depth.sinkAt(d.x + 60, d.y, 'p');
     put(d.x, d.y + 140); const a = moveBody({ x: d.x, y: d.y }, r, who, v, 0, 1.5);
-    for (let k = -40; k <= 220; k += 6) Trail.shovel(d.x + k, d.y, 18, 1);
+    for (let k = -40; k <= 220; k += 6) Trail.cut(d.x + k, d.y, d.x + k, d.y, 18 - 3);
     const b = moveBody({ x: d.x, y: d.y }, r, who, v, 0, 1.5);
     C['b' + row] = { a: a.d, b: b.d, s, sh };
     return { a: a.d, b: b.d, s, sh, d: d.d };
@@ -338,7 +338,7 @@ var InteractMatrix = (() => {
   }
   function vehSpeed(kind) {
     const d = deepSpot(); put(d.x, d.y); mountV(kind); step(0.3); const v1 = walk(1, 0, 0.8); Transport.dismount();
-    for (let k = -40; k <= 600; k += 6) Trail.shovel(d.x + k, d.y, 18, 1); put(d.x, d.y); mountV(kind); step(0.3); const v2 = walk(1, 0, 0.8); Transport.dismount();
+    for (let k = -40; k <= 600; k += 6) Trail.cut(d.x + k, d.y, d.x + k, d.y, 18 - 3); put(d.x, d.y); mountV(kind); step(0.3); const v2 = walk(1, 0, 0.8); Transport.dismount();
     return { v1, v2, d: d.d };
   }
   for (const row of ['sled', 'buran']) {

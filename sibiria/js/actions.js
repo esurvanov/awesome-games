@@ -269,6 +269,8 @@ const Actions = (() => {
     if (h) { const nc = !p.ride && Npc.context(p); if (!(nc && nc.o && nc.o.x != null && dist2(nc.o, p) < dist2(h, p))) return { k: 'hare', label: 'Поймать', o: h }; }
     const tc = Transport.context(p); if (tc) return tc;
     if (p.ride) return null; // верхом — только «слезть»
+    // поленницу занесло пургой (без навеса) — сперва откопать (лопатой 4 броска, руками вдвое дольше)
+    if (!p.inside && (G.pileSnow || 0) > 0.25 && dist2(PILE_AT(), p) < 64 * 64) return { k: 'pileDig', label: G.gear.shovel ? 'Откопать поленницу :shovel:' : 'Откопать поленницу :hand:', rep: 1 };
     const cc = Carry.context(p); if (cc) return cc;   // с ношей у нарт/поленницы — уложить; с пустыми руками у поленницы — взять
     // из избы палку не бросить (стены) — и «Бросить палку» не перехватывает у лежанки «Спать», пока волки кружат у избы
     const wf = !p.inside && !Carry.busy() && nearest(G.wolves, A.throwR, w => w.st !== 'retreat'); if (wf) return { k: 'throw', label: 'Бросить палку', o: wf };
@@ -282,6 +284,9 @@ const Actions = (() => {
       const bl = G.col.builds.find(b => b.done && dist2(b, p) < (BUILDS[b.type].w / 2 + 34) ** 2 && ['market', 'forge'].includes(b.type));
       if (bl) return { k: 'bld', label: bl.type === 'market' ? 'Фактория :market:' : 'Кузня :forge:', o: bl };
     }
+    // дверь занесло: в проёме и перед дверью E — откапывать (раньше записок и зарубки на косяке)
+    if (!p.inside && typeof Trail !== 'undefined' && Math.abs(p.x - HUT.x) < 30 && p.y > HUT_IN.y1 - 2 && p.y < Trail.DOOR.y1 && Depth.depthAt(p.x, Math.max(p.y, Trail.DOOR.y0) + 14) > 35)
+      return G.gear.shovel ? clearCtx() : { k: 'digout', label: 'Разгрести снег :hand:', soft: 1, rep: 1 };
     for (const q of INSPECT) if (dist2(q, p) < 50 * 50) return { k: 'inspect', label: 'Осмотреть ' + q.i, o: q };
     const dr = G.deer && nearest(G.deer, 50); if (dr) return { k: 'deer', label: 'Олень :deer:', o: dr };
     { let nb = null, nd = 46 * 46; for (const id in NOTES) { if (id === 'labaz') continue; const d = dist2(notePos(id), p); if (d < nd) { nd = d; nb = id; } } // ближайшая записка там, где лист лежит сейчас (ветер сносит до 34 px; у обломков две в 42 px друг от друга)
@@ -319,11 +324,11 @@ const Actions = (() => {
       const sc = Carry.stowCtx(p); if (sc) return sc;   // с ношей — убрать в рюкзак (что влезет) или «руки полны»
     }
     if (p.inside && Carry.busy() && !(dist2(SPOT.stove, p) < 50 * 50 && Carry.woodN())) { const sc = Carry.stowCtx(p); if (sc) return sc; }
-    if (!G.gear.shovel && !G.flags.shovel && !p.inside && typeof Trail !== 'undefined' && dist2(Trail.SHOVEL, p) < 40 * 40) return { k: 'shovel', label: 'Взять лопату :shovel:' };
+    if (!G.gear.shovel && !G.flags.shovel && !p.inside && typeof Trail !== 'undefined' && dist2(Trail.SHOVEL, p) < 40 * 40) return { k: 'shovel', label: G.flags.shovelSnow ? 'Откопать лопату :hand:' : 'Взять лопату :shovel:' };
     if (!p.inside && !onIce(p.x, p.y)) {
       // сугроб под ногами не перехватывает «Рубить»: дерево рядом, герой к нему лицом или оно ближе середины сугроба — дерево (ниже)
       // увяз глубже пояса (js/depth.js) — разгрести снег вокруг себя (утоптать и выбраться)
-      if (typeof Depth !== 'undefined' && Depth.heroSink > 95 && !p.ride && !nearest(Space.trees, 34, t => t.wood > 0 && !t.wall)) return { k: 'digout', label: 'Разгрести снег', soft: 1 };
+      if (typeof Depth !== 'undefined' && Depth.heroSink > 95 && !p.ride && !nearest(Space.trees, 34, t => t.wood > 0 && !t.wall)) return G.gear.shovel ? clearCtx() : { k: 'digout', label: 'Разгрести снег :hand:', soft: 1, rep: 1 };
       const d = driftAt(p.x, p.y);
       if (d && !KICKED.has(d)) {
         const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall);
@@ -347,10 +352,11 @@ const Actions = (() => {
       if (part) return { k: 'dig', label: 'Долбить лунку', o: part };
       return { k: 'dig', label: 'Пробить лунку' };
     }
-    // лопата: в поле, где нет другого действия — расчищать (держать E; идти можно, втрое медленнее)
-    if (G.gear.shovel && !p.inside && !p.ride && typeof Trail !== 'undefined') return { k: 'clear', label: 'Расчищать :shovel:', soft: 1 };
+    // лопата: в поле, где нет другого действия — расчищать (держать E: мелко и с ходом — толкать, глубже — стоять и кидать)
+    if (G.gear.shovel && !p.inside && !p.ride && typeof Trail !== 'undefined') return clearCtx();
     return null;
   }
+  const clearCtx = () => ({ k: 'clear', label: 'Расчищать :shovel:', alt: (G.flags.throwSide || 1) > 0 ? 'Кидать влево' : 'Кидать вправо', soft: 1, rep: 1 }); // rep: удержание E — работа, не второе действие (X — сторона отвала)
 
   // ---------- E: действие по контексту ----------
   function interact(silent) {
@@ -376,9 +382,12 @@ const Actions = (() => {
       case 'dog': faceTo(c.o); p.action = { k: 'pet', t: 0, dur: A.petT, pose: 'pet', loop: 1, tg: c.o, th: -8, o: c.o }; break;
       case 'fire': faceTo(c.o); p.action = { k: 'warm', t: 0, dur: A.warmT, pose: G.s.warm < 30 ? 'warmHandsCold' : 'warmHands', loop: 1, tg: c.o, th: -8, o: c.o, fl: 0 }; break;
       // лопата у двери: дотянулся — в руке (со стены ушла в этот кадр), рассмотрел — за спину (снаряжение)
-      case 'shovel': faceTo(Trail.SHOVEL); job('shovel', 'take', { dur: 1.8, pose: 'takeItem', item: 'shovel', tg: at0(Trail.SHOVEL), th: -14, at: [0.2201, 0.84], fb: 'pickUp', o: Trail.SHOVEL }); break;
-      case 'clear': p.action = { k: 'clear', t: 0, dur: 1e6, pose: 'scoop', per: D().scoop || 1, loop: 1, walk: 1, fb: 'dig', ph: 0 }; break;
-      case 'digout': { const per = D().scoop || 1; p.action = { k: 'digout', t: 0, dur: 2.4, pose: 'scoop', per, loop: 1, fb: 'dig' }; } break;
+      case 'shovel': faceTo(Trail.SHOVEL);
+        if (G.flags.shovelSnow) job('shovel', 'dig', { dur: 4, pose: 'scoop', per: D().scoop || 1, loop: 1, tg: at0(Trail.SHOVEL), th: -4, at: [0.25, 0.5, 0.75, 0.97], fb: 'dig', o: Trail.SHOVEL });
+        else job('shovel', 'take', { dur: 1.8, pose: 'takeItem', item: 'shovel', tg: at0(Trail.SHOVEL), th: -14, at: [0.2201, 0.84], fb: 'pickUp', o: Trail.SHOVEL }); break;
+      case 'clear': clearStart(false); break;
+      case 'pileDig': { const q = PILE_AT(), sh = !!G.gear.shovel; faceTo(q); job('pile', 'dig', { dur: sh ? 4 * 1.8 : 8 * 1.8, pose: sh ? 'shovelThrow' : 'scoop', per: sh ? 1.8 : D().scoop || 1, loop: 1, tg: { x: q.x, y: q.y - 6 }, th: -6, fb: 'dig', o: q, at: sh ? [0.1, 0.35, 0.6, 0.85] : [0.06, 0.18, 0.31, 0.43, 0.56, 0.68, 0.81, 0.93] }); } break;
+      case 'digout': clearStart(true); break;
       case 'drift': p.action = { k: 'kick', t: 0, dur: D().kick || A.kickT, pose: 'kick', tg: { x: p.x + p.face * 16, y: p.y + 2 }, o: c.o, marks: [0.45], fb: 'swing' }; break;
       case 'tracks': faceTo(c.o); p.action = { k: 'read', t: 0, dur: A.readT, pose: 'crouch', loop: 1, tg: c.o, o: c.o }; break;
       // к пню своими ногами, последние шаги — опускается на него (сдвиг ≤ 1 px за кадр)
@@ -639,6 +648,10 @@ const Actions = (() => {
   function alt(c) {
     if (state !== 'play' || UI.modal()) return;
     const p = G.p; if (p.sleeping || p.ride || p.cd > 0 || p.ko || AUTO || (typeof Ice !== 'undefined' && Ice.active())) return;
+    if ((p.action && (p.action.k === 'clear' || p.action.k === 'digout')) || (c && c.k === 'clear')) { // куда кидать снег: сторона отвала
+      G.flags.throwSide = -(G.flags.throwSide || 1); if (p.action && p.action.side) p.action.side = G.flags.throwSide;
+      Fx.toast(G.flags.throwSide > 0 ? ':shovel: Кидаю вправо' : ':shovel: Кидаю влево'); p.cd = 0.3; return;
+    }
     if (p.action && p.action.cx) { p.action = null; watch(); }
     if (p.action) return;
     if (Carry.dragL()) { Carry.dragStop(); return; }          // X волоком — отпустить ствол
@@ -771,28 +784,123 @@ const Actions = (() => {
       else if (a.k === 'call') Sound.whistle && Sound.whistle();
     }
   }
-  // расчистка лопатой: пока держит E — пятно перед собой (по ходу или лицом) → pack 1 за ~1.2 с (≈ 1 м² за 1.5 с);
-  // каждый замах (цикл позы scoop) — усталость как удар топором, хруст и выброс снега в сторону
+  // ---------- лопата и руки: расчистка (js/trail.js cut/dump) ----------
+  // Режимы (выбор каждый кадр): «толкать» — снег у совка ≤ 25 см и есть ход: шаг ×0.4, перед совком растёт вал (a.load, м³),
+  //   полный (≥ 0.12 м³) или остановился/повернул — сброс вбок; «кидать» — глубже или стоя: бросок SH.act = 1.8 с (фазы позы
+  //   shovelThrow) + передышка до SH.per = 3.2 с → 18–19 бросков/мин: 0.25 — совок в снег (срез у фронта под один ком), 0.65 — бросок:
+  //   ком (V × ρ) дугой вбок перпендикулярно ходу, ложится в отвал; в передышке — шаг вперёд 0.4 м, когда фронт ушёл на длину черенка.
+  //   V = 0.03 м³ × (глубина/25, 1…2), не тяжелее 7 кг; ρ: свежий 100 кг/м³, слежалый/натоптанный до 250; руками — втрое меньше.
+  //   Силы: 0.15 + 0.05·кг за бросок; работа на тепле > 85 дольше 30 с — пот (p.wetT: «греет сейчас, холодит потом»).
+  const SH = { hw: 7, per: 3.2, act: 1.8, reach: 12, stepPx: 9.2, pushMax: 0.12, side: 22, sweatWarm: 85, sweatT: 30 };
+  const shRho = (x, y) => 100 + 150 * Trail.at(x, y);
+  function clearStart(hands) {
+    const p = G.p, l = Math.hypot(input.mx, input.my);
+    const ux = l > 0.15 ? input.mx / l : p.face, uy = l > 0.15 ? input.my / l : 0;
+    p.action = { k: hands ? 'digout' : 'clear', t: 0, dur: 1e6, pose: hands ? 'scoop' : 'shovelThrow', per: SH.per, act: SH.act, loop: 1, walk: hands ? 0 : 1, aim: 1, fb: 'dig',
+      ux, uy, sx: p.x, sy: p.y, front: 8, n: -1, side: G.flags.throwSide || 1, mode: 'throw', load: 0, hot: 0, vol: 0, kg: 0, bx: NaN, by: NaN, stop: 0, mx: 0, my: 0, hands: hands ? 1 : 0 };
+  }
+  // направление работы стоя: ввод (стрелки) — поворот полосы (> 25°), новый отсчёт фронта от героя (js/hero.js move → a.mx/a.my)
+  function clearAim(a, mx, my) {
+    a.mx = mx; a.my = my;
+    const l = Math.hypot(mx, my); if (l < 0.15 || a.mode === 'push') return;
+    const ux = mx / l, uy = my / l; if (ux * a.ux + uy * a.uy > 0.9) return;
+    const p = G.p; a.ux = ux; a.uy = uy; a.sx = p.x; a.sy = p.y; a.front = 8; if (Math.abs(ux) > 0.1) p.face = Math.sign(ux);
+  }
+  // ком: частица от совка (кадр рисования — ArtPeople.dbg.sh) дугой в точку отвала; вес — размер
+  function lump(x0, y0, z0, x1, y1, kg) {
+    if (window.QUALITY === 'low' || !G.parts) return;
+    const T = 0.5, gz = 400, uz = (0.5 * gz * T * T - z0) / T, k = 3 / (1 - Math.exp(-3 * T));
+    G.parts.push({ type: 'bit', kind: 'snow', c: '#f6f9fc', x: x0, y: y0, vx: 0, vy: 0, ux: (x1 - x0) * k, uy: (y1 - y0) * k, uz, gz, z0, sz: 1.8 + 0.45 * kg, rot: 0, spin: 2, life: 1.6, max: 1.6, live: 'snow' });
+    for (let i = 0; i < 4; i++) G.parts.push({ type: 'bit', kind: 'snow', c: i % 2 ? '#f6f9fc' : '#dde6ee', x: x0, y: y0, vx: 0, vy: 0, ux: (x1 - x0 + rnd(-5, 5)) * k, uy: (y1 - y0 + rnd(-3, 3)) * k, uz: uz * rnd(0.85, 1.1), gz, z0, sz: rnd(0.8, 1.4), rot: 0, spin: 4, life: 1.2, max: 1.2, live: 'snow' });
+  }
+  // совок на экране (последний кадр рисования) → точка на земле и высота над ней
+  function bladeAt(p, a) {
+    const S = typeof ArtPeople !== 'undefined' && ArtPeople.dbg && ArtPeople.dbg.sh;
+    return S && Math.abs(now - S.t) < 0.3 ? { x: S.b[0], y: p.y + 2, z: Math.max(2, p.y - S.b[1]) } : { x: p.x + a.ux * 16, y: p.y + 2 + a.uy * 8, z: 10 };
+  }
+  const sm01 = k => k * k * (3 - 2 * k);
   function clearStep(a, dt) {
     const p = G.p;
-    if (!input.act || p.ride || p.inside || UI.modal()) { p.action = null; return; }
-    const v = Math.hypot(p.vx || 0, p.vy || 0), ux = p.moving && v > 5 ? p.vx / v : p.face, uy = p.moving && v > 5 ? p.vy / v * 0.8 : 0.15;
-    const x = p.x + ux * 12, y = p.y + 2 + uy * 10;
-    Trail.shovel(x, y, 16, dt / 1.2); a.ahead = Trail.at(x + ux * 20, y + uy * 20); // впереди ещё не расчищено — шаг медленнее (Hero.speed)
-    const ph = Math.floor(a.t / a.per + 0.45);
-    if (ph > a.ph) {
-      a.ph = ph; G.s.tire = Math.min(100, (G.s.tire || 0) + TUNE.tire.hit * (Settings.diff().tire || 1)); // замах — как удар
-      if (Sound.ok() && Sound.shovel) Sound.shovel();
-      if (!(window.QUALITY === 'low')) ArtWorld.fx.snowPuff(G.parts, x - p.face * 4, y - 6, 0.3);
+    if (!input.act || p.ride || p.inside || UI.modal()) { if (a.load > 0.002) pushDump(a); p.action = null; return; }
+    const hands = a.hands, l = Math.hypot(a.mx, a.my), bx = p.x + a.ux * 14, by = p.y + 2 + a.uy * 10;
+    const ahead = Depth.depthAt(bx + a.ux * 6, by + a.uy * 6);
+    // толкать: мелко и есть ход
+    if (!hands && l > 0.15 && (a.mode === 'push' ? ahead <= 30 : ahead <= 25)) {
+      if (a.mode !== 'push') { a.mode = 'push'; a.bx = bx; a.by = by; a.load = 0; }
+      a.aim = 0;
+      const ux = a.mx / l, uy = a.my / l;
+      if (ux * a.ux + uy * a.uy < 0.85 && a.load > 0.01) pushDump(a); // повернул — сбросить вал
+      a.ux = ux; a.uy = uy;
+      const v = Trail.cut(a.bx === a.bx ? a.bx : bx, a.by === a.by ? a.by : by, bx, by, SH.hw, 1); a.bx = bx; a.by = by;
+      a.load += v; a.stop = 0; Trail.touch(bx, by);
+      G.s.tire = Math.min(100, (G.s.tire || 0) + dt * 0.08 * (Settings.diff().tire || 1));
+      if (a.load >= SH.pushMax) pushDump(a);
+      sweat(a, dt); return;
     }
+    if (a.mode === 'push') { // остановился — сброс набранного, дальше — кидать отсюда
+      a.stop += dt; if (l > 0.15 && a.stop < 0.25) return;
+      if (a.load > 0.002) pushDump(a);
+      a.mode = 'throw'; a.sx = p.x; a.sy = p.y; a.front = 8; a.t = 0; a.n = -1; a.bx = NaN;
+    }
+    a.aim = 1;
+    const per = a.per, n = Math.floor(a.t / per), tc = a.t - n * per, u = Math.min(1, tc / a.act);   // u — фаза броска; после 1 — передышка
+    if (n !== a.n) { a.n = n; a.cutD = 0; a.thrown = 0; a.stepD = 0; }
+    const along = (p.x - a.sx) * a.ux + (p.y - a.sy) * a.uy;
+    // 0.25 — совок в снег: срез у фронта
+    if (!a.cutD && u >= 0.25) {
+      a.cutD = 1;
+      const fx = a.sx + a.ux * a.front, fy = a.sy + a.uy * a.front, qx = fx + a.ux * 14, qy = fy + a.uy * 14, dE = Math.max(0, Depth.depthAt(qx, qy));   // стенка впереди — за краем среза
+      const rho = Trail.berm(qx, qy) > 20 ? 110 : shRho(qx, qy);
+      let V = Math.min(7 / rho, 0.03 * clamp(dE / 25, 1, 2.33)); if (hands) V /= 3;
+      // ход фронта под один ком: примерка среза (объём по клеткам) — подбор делением пополам
+      const hw = hands ? SH.hw - 1 : SH.hw, b0 = Math.max(along + 8, a.front - 20), X = f => a.sx + a.ux * f, Y = f => a.sy + a.uy * f;
+      let lo = 0.2, hi = 14;
+      for (let it = 0; it < 9; it++) { const m = (lo + hi) / 2; if (Trail.cut(X(b0), Y(b0), X(a.front + m), Y(a.front + m), hw, 1, true) > V) hi = m; else lo = m; }
+      const f1 = a.front + (lo + hi) / 2;
+      a.vol = Trail.cut(X(b0), Y(b0), X(f1), Y(f1), hw, 1); a.front = f1;
+      a.kg = a.vol * rho; Trail.touch(fx, fy); if (Depth.dug) Depth.dug();
+      G.s.tire = Math.min(100, (G.s.tire || 0) + (0.15 + 0.05 * a.kg) * (Settings.diff().tire || 1));
+      if (Sound.ok() && Sound.shovel) Sound.shovel();
+      a.cuts = (a.cuts || 0) + 1;
+    }
+    // 0.65 — бросок: вбок от оси, чуть назад; ком дугой от совка, объём — в отвал
+    if (!a.thrown && u >= 0.65) {
+      a.thrown = 1;
+      // куда лечь кому: вбок на SH.side, отвал уже выше 70 см — кидает дальше (через вал), до 2 м
+      const nx = -a.uy * a.side, ny = a.ux * a.side; let sd = SH.side; while (sd < 46 && Trail.berm(p.x + nx * sd, p.y + 2 + ny * sd * 0.85) > 70) sd += 6;
+      const L = { x: p.x + nx * sd - a.ux * 3 + rnd(-3, 3), y: p.y + 2 + ny * sd * 0.85 - a.uy * 3 + rnd(-2, 2) };
+      if (a.vol > 1e-4) { Trail.dump(L.x, L.y, a.vol, 10); Trail.touch(L.x, L.y); const b = bladeAt(p, a); lump(b.x, b.y, b.z, L.x, L.y, a.kg); }
+      a.vol = 0;
+    }
+    // передышка — шаг вперёд 0.4 м, когда фронт ушёл на длину черенка
+    if (!a.stepD && tc >= a.act + 0.2 && a.front - along > SH.reach + SH.stepPx * 0.6) { a.stepD = 1; a.stepT = 0; a.steps = (a.steps || 0) + 1; }
+    if (a.stepD === 1) {
+      const T = 0.6, k0 = clamp(a.stepT / T, 0, 1); a.stepT += dt; const k1 = clamp(a.stepT / T, 0, 1), d = (sm01(k1) - sm01(k0)) * SH.stepPx;
+      p.x += a.ux * d; p.y += a.uy * d; World.solid(p, 10, 'p'); if (k1 >= 1) a.stepD = 2;
+    }
+    sweat(a, dt);
+  }
+  // толкал — сброс вала вбок от совка
+  function pushDump(a) {
+    const p = G.p, nx = -a.uy * a.side, ny = a.ux * a.side, L = { x: p.x + a.ux * 16 + nx * 16, y: p.y + 2 + a.uy * 8 + ny * 14 };
+    Trail.dump(L.x, L.y, a.load, 10); Trail.touch(L.x, L.y);
+    G.s.tire = Math.min(100, (G.s.tire || 0) + (0.15 + 0.05 * a.load * 110) * (Settings.diff().tire || 1));
+    if (window.QUALITY !== 'low') ArtWorld.fx.snowPuff(G.parts, L.x, L.y - 2, 0.3);
+    if (Sound.ok() && Sound.shovel) Sound.shovel();
+    a.load = 0;
+  }
+  // пот: работа на тепле выше 85 дольше 30 с — одежда намокает (потом мёрзнет вдвое быстрее, пока не высохнет)
+  function sweat(a, dt) {
+    const p = G.p;
+    if (G.s.warm > SH.sweatWarm) a.hot += dt; else a.hot = Math.max(0, a.hot - dt * 0.5);
+    if (a.hot > SH.sweatT) { const was = p.wetT > 0; p.wetT = Math.min(HOUR * 1.5, (p.wetT || 0) + dt * 3); if (!was && !G.flags.sweatTip) { G.flags.sweatTip = 1; Fx.toast(':frost: Взмок · согреет сейчас, остудит потом'); } }
   }
   // пока длится: тепло у огня, отдых на пне; огонь погас — греться нечем
   function during(a, dt) {
     const p = G.p;
     if (a.k === 'job') { const J = JOB[a.j]; if (J && J.tick) J.tick(a, dt); return; }
     if (a.k === 'mount' || a.k === 'unmount') { Transport.boardStep(a); return; }
-    if (a.k === 'digout') { Depth.dig(p.x, p.y, dt); return; }
-    if (a.k === 'clear') { clearStep(a, dt); return; }
+    if (a.k === 'clear' || a.k === 'digout') { clearStep(a, dt); return; }
     if (a.k === 'warm') {
       if (!(a.o.fuel > 0)) { p.action = null; return; }
       if (Fire.heatAt(p, 0) > 0) G.s.warm = Math.min(Hero.maxWarm(), G.s.warm + A.warmHeat * dt);
@@ -950,7 +1058,7 @@ const Actions = (() => {
       const f = a.o, F = TUNE.fire;
       if (a.s === 'clear') {
         // первая горсть: место под костёр (видно, как утаптывается — f.site растёт до конца шага)
-        if (!a.made) { a.made = 1; f.site = 0.05; G.fires.push(f); }
+        if (!a.made) { a.made = 1; f.site = 0.05; f.snow = Math.round(Depth.depthAt(f.x, f.y)); G.fires.push(f); } // снег под костром — до проталины (js/fire.js: > 30 см — осядет)
         puff(f.x + rnd(-6, 6), f.y - 2, 0.4); work(); Sound.ok() && Sound.shovel && Sound.shovel();
       } else if (a.s === 'lay') {
         // полено из рук (охапка, потом рюкзак) — в костёр в момент касания; огонь — от массы полена
@@ -1084,14 +1192,15 @@ const Actions = (() => {
 
   // ---------- изба: щели, дверь, верстак, заслонка — работа на месте, часть растёт по ходу (G.hut.prog[id] 0..1) ----------
   // материалы уходят по шагам (доля цены в начале шага); прервал — сделанное и потраченное остаются, продолжить можно
-  const HUTO = { walls: { k: 'walls' }, door: { k: 'door' }, bench: { k: 'bench' }, damper: { k: 'damper' } };
-  const HUT_N = { walls: 3, door: 3, bench: 3, damper: 2 }, HUT_T = { walls: 3, door: 2.5, bench: 2.5, damper: 2 };
+  const HUTO = { walls: { k: 'walls' }, door: { k: 'door' }, bench: { k: 'bench' }, damper: { k: 'damper' }, roof: { k: 'roof' } };
+  const HUT_N = { walls: 3, door: 3, bench: 3, damper: 2, roof: 2 }, HUT_T = { walls: 3, door: 2.5, bench: 2.5, damper: 2, roof: 2.5 };
   function hutSpots(id) {
     const ins = G.p.inside, yo = HUT_IN.y1 + WALL + 12;
     if (id === 'walls') return ins ? [{ x: HUT.x - 22, y: HUT_IN.y0 + 24, f: -1 }, { x: HUT.x, y: HUT_IN.y0 + 24, f: 1 }, { x: HUT.x + 20, y: HUT_IN.y0 + 24, f: 1 }]   // между печью и верстаком
       : [{ x: HUT.x - 72, y: yo, f: -1 }, { x: HUT.x - 34, y: yo, f: 1 }, { x: HUT.x + 40, y: yo, f: 1 }];
     if (id === 'door') { const q = ins ? { x: HUT.x + 30, y: HUT_IN.y1 - 12, f: -1 } : { x: HUT.x + 30, y: yo, f: -1 }; return [q, q, q]; }   // навешивают с той стороны, где стоит
     if (id === 'bench') { const q = { x: SPOT.bench.x - 4, y: SPOT.bench.y + 20, f: 1 }; return [q, q, q]; }
+    if (id === 'roof') { const q = { x: PILE_AT().x - 34, y: PILE_AT().y + 14, f: 1 }; return [q, q]; }   // навес над поленницей — снаружи
     const q = { x: SPOT.stove.x + 22, y: SPOT.stove.y + 10, f: -1 }; return [q, q];
   }
   // сколько стоит оставшаяся работа (по шагам): шаг i платит units[i*U/n .. (i+1)*U/n)
@@ -1105,7 +1214,7 @@ const Actions = (() => {
     const sp = hutSpots(u.id)[i], n = HUT_N[u.id];
     jobAt(sp.x, sp.y, () => {
       const p = G.p; p.face = sp.f;
-      const tg = u.id === 'walls' ? { x: sp.x + sp.f * 10, y: sp.y - (p.inside ? 6 : 2) } : u.id === 'door' ? { x: HUT.x + 4, y: HUT_IN.y1 + WALL / 2 } : u.id === 'bench' ? { x: SPOT.bench.x, y: SPOT.bench.y } : { x: SPOT.stove.x, y: SPOT.stove.y };
+      const tg = u.id === 'roof' ? { x: PILE_AT().x - 18, y: PILE_AT().y - 20 } : u.id === 'walls' ? { x: sp.x + sp.f * 10, y: sp.y - (p.inside ? 6 : 2) } : u.id === 'door' ? { x: HUT.x + 4, y: HUT_IN.y1 + WALL / 2 } : u.id === 'bench' ? { x: SPOT.bench.x, y: SPOT.bench.y } : { x: SPOT.stove.x, y: SPOT.stove.y };
       const last = u.id === 'door' && i === n - 1;   // дверь: последний шаг — навесить на петли (потянуть створку)
       job('hut', 'w', { id: u.id, i, n, dur: HUT_T[u.id], pose: last ? 'open' : 'craft', loop: last ? 0 : 1, fb: 'build', tg, th: u.id === 'walls' ? -26 : u.id === 'door' ? -18 : u.id === 'bench' ? -20 : -40, o: HUTO[u.id], at: [0.12, 0.5, 0.85] });
     });
@@ -1131,13 +1240,24 @@ const Actions = (() => {
     },
   };
 
+  // поленница у избы (та же точка, что js/carry.js PILE): снег с неё — в отвал рядом
+  const PILE_AT = () => ({ x: HUT.x + 150, y: HUT.y + 86 });
+  JOB.pile = {
+    hit(a, i) {
+      const q = PILE_AT(), n = a.at.length, s0 = G.pileSnow || 0, take = Math.min(s0, 1 / n * 1.05); G.pileSnow = Math.max(0, s0 - take);
+      Trail.dump(q.x + 34, q.y + 10, take * 0.35, 12); Trail.touch(q.x + 34, q.y + 10); puff(q.x + rnd(-10, 10), q.y - 10, 0.35); work(); Sound.ok() && Sound.shovel && Sound.shovel();
+    },
+    end() { G.pileSnow = 0; Fx.toast(':wood: Поленница откопана'); },
+  };
   JOB.shovel = {
     hit(a, i) {
+      if (a.s === 'dig') { puff(Trail.SHOVEL.x + rnd(-6, 6), Trail.SHOVEL.y - 4, 0.35); work(); if (i === 3) { G.flags.shovelSnow = 0; Sound.pick(); } return; }
       if (i === 0) { G.flags.shovel = 1; Sound.pick(); }
-      else { G.gear.shovel = 1; Fx.toast(':shovel: Лопата · держи E в поле — расчищать снег'); Sound.ok2(); }
+      else { G.gear.shovel = 1; Fx.toast(':shovel: Лопата · держи E — копать, X — куда кидать'); Sound.ok2(); }
     },
     // не донёс до спины — прислонить обратно к стене (рука отпускает) — шагнул, значит поставил
     cancel(a) { if (G.flags.shovel && !G.gear.shovel) G.flags.shovel = 0; },
+    end(a) { if (a.s === 'dig' && !G.flags.shovelSnow) job('shovel', 'take', { dur: 1.8, pose: 'takeItem', item: 'shovel', tg: at0(Trail.SHOVEL), th: -14, at: [0.2201, 0.84], fb: 'pickUp', o: Trail.SHOVEL }); },
   };
 
   // ---------- F: огонь ----------
@@ -1164,8 +1284,10 @@ const Actions = (() => {
     const x = clamp(p.x + p.face * 26, 60, W - 60), y = p.y + 8;
     if (Ice.water(x, y)) return Fx.toast(':close: Тут вода — не разжечь'); // на льду можно: протаивает лужу (js/ice.js fireTick)
     if (Math.abs(x - HUT.x) < 130 && Math.abs(y - HUT.y) < 110) return Fx.toast(':close: Слишком близко к избе');
-    // место: утоптать и расчистить (2 горсти) → три полена по одному → растопка → огниво
-    const nf = { x: Math.round(x), y: Math.round(y), fuel: 0, lay: 0, b: 1, site: 0, fl: 0 };
+    // место: утоптать и расчистить (2 горсти) → три полена по одному → растопка → огниво; расчищено лопатой до земли — сразу класть
+    const nf = { x: Math.round(x), y: Math.round(y), fuel: 0, lay: 0, b: 1, site: 0, fl: 0 }, d = Depth.depthAt(nf.x, nf.y);
+    if (d < 10) { nf.site = 1; nf.snow = Math.round(d); G.fires.push(nf); return fireStep(nf, 'lay', { fresh: 1 }); }
+    if (d > Fire.SINK_D && !G.flags.fireSnowTip) { G.flags.fireSnowTip = 1; Fx.toast(':fire: Рыхлый снег — костёр осядет · :shovel: расчисти до земли'); }
     fireStep(nf, 'clear');
   }
 
@@ -1433,7 +1555,7 @@ const Actions = (() => {
     if (sess && G.chapter < R.fromChapter) { UI.dialog({ who: 'radio', t: lines[(Math.random() * lines.length) | 0], opts: [{ t: 'Выключить' }] }); Fx.toast(':radio: Борт не слышит · сначала отбейся от стаи'); return; }
     if (sess) {
       G.flags.contact = 1; G.flags.contactDay = G.day + (h >= 19 ? 0 : -1); G.flags.contactT = G.time; G.known.mar = 1; UI.dialog(DIALOG.radio_ok); Sound.ok2();
-      setTimeout(() => Fx.toast(padDone() ? ':pad: Площадка готова · борт через сутки в 09:00' : ':pad: Сядут только на расчищенную марь · :build: Площадка'), 1800);
+      setTimeout(() => Fx.toast(padDone() ? ':pad: Площадка готова · борт через сутки в 09:00' : ':radio: Пилот: «На мари 10×7 м — утоптать, вешки по углам»'), 1800);
     }
     else UI.dialog({ who: 'radio', t: Math.random() < 0.6 ? lines[(Math.random() * lines.length) | 0] : DIALOG.radio_noise.t, opts: [{ t: 'Выключить' }] });
   }
@@ -1444,7 +1566,7 @@ const Actions = (() => {
     nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
     fell, iceHit, knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, logCut, logSnow, falling, danger, inPath, chopSpot, atTrunk, FELL, get plate() { return PLATE; },
     hutLeft, HUTO, CAN_LIFE, inView, walkTo: autoTo, get stoveDoor() { return stoveDoor; }, useWood, woodHave, strike, eatHand, dropStick, handsBusy,
-    jobs: { job, JOB, jobAt, abort, faceTo, work },
+    jobs: { job, JOB, jobAt, abort, faceTo, work }, clearAim, SH,
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),
     reading: () => !!PLATE };
 })();

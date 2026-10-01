@@ -25,16 +25,20 @@ const Fire = (() => {
   // видимый огонь 0..1 идёт к цели с конечной скоростью: разгорается за ~2,5 с, гаснет за ~2 с (ни кадра скачком)
   const FL_UP = 0.4, FL_DN = 0.5;
   const toward = (v, tg, dt) => v + clamp(tg - v, -dt * FL_DN, dt * FL_UP);
+  // костёр на рыхлом снегу (> 30 см под ним, f.snow — замер при закладке): за ~1 игровой час проседает в яму (f.sink 0..1) —
+  // КПД дров до 0.7 (горит быстрее), радиус тепла до 0.6, на дне ямы слабый огонь может погаснуть. Расчищено до земли — 1 / 1
+  const SINK_D = 30, eff = f => 1 - 0.3 * (f.sink || 0), reach = f => 1 - 0.4 * (f.sink || 0);
   // тепло от ближайшего огня (0 — нет); list — свой список огней (прогноз ночи), по умолчанию — горящие сейчас
   function heatAt(p, heat, list = burning()) {
     for (const f of list) { if (!(f.fuel > 0)) continue;
-      const r = f.stack ? F.stackHeatR : F.heatR, dd = dist(f, p);
+      const r = (f.stack ? F.stackHeatR : F.heatR) * reach(f), dd = dist(f, p);
       if (dd < r) heat = Math.max(heat, F.heatBase + F.heatK * (1 - dd / r));
     }
     return heat;
   }
   // расход топлива костра, с/с (тик и прогноз ночи — одна формула); на льду лужа под костром гасит быстрее
-  const burn = (f, night, storm) => (storm ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn'))) * (1 + F.iceThaw.wet * (f.thaw || 0));
+  // в пургу за отвалом/стенкой (f.lee ≤ 0.5 — js/trail.js shelter) огонь не раздувает; осевший — КПД ниже
+  const burn = (f, night, storm) => (storm && !(f.lee <= 0.5) ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn'))) * (1 + F.iceThaw.wet * (f.thaw || 0)) / eff(f);
   const R = mulberry(0xF12E), rr = (a, b) => a + R() * (b - a); // свой поток: Math.random игры не тратим
   function tick(dt, night, storm) {
     for (const f of G.fires) {
@@ -47,6 +51,12 @@ const Fire = (() => {
       f.melt = f.t0 == null ? 0 : clamp(((f.fuel > 0 ? G.time : f.t1) - f.t0) / 150, 0, 1);
       if (typeof Ice !== 'undefined') Ice.fireTick(f, dt); // на льду — протаивает лужу, насквозь — уходит под воду (js/ice.js)
       if (!(f.fuel > 0)) { if (f.fl > 0.05 && Math.random() < dt * 2) G.parts.push({ type: 'smoke', x: f.x, y: f.y - 12, vx: rnd(-6, 6), vy: rnd(-26, -14), life: 2.2, max: 2.2 }); continue; }
+      if ((f.snow || 0) > SINK_D && !(f.thaw > 0)) {
+        const s0 = f.sink || 0; f.sink = Math.min(1, s0 + dt / HOUR);
+        if (s0 < 0.5 && f.sink >= 0.5 && dist2(f, G.p) < 300 * 300) Fx.toast(':fire: Костёр оседает в снег · жар слабее');
+        if (f.sink >= 1 && f.fuel < HOUR * 0.5 && R() < dt / HOUR) { f.fuel = 0; f.hiss = G.time; if (dist2(f, G.p) < 400 * 400) Fx.toast(':frost: Костёр утонул в снегу'); continue; }
+      }
+      if ((f.leeT = (f.leeT || 0) - dt) <= 0) { f.leeT = 2; f.lee = typeof Wind !== 'undefined' && Wind.shelter ? +Wind.shelter(f.x, f.y).toFixed(2) : 1; }
       f.fuel = Math.max(0, f.fuel - dt * burn(f, night, storm));
       treeSnow(f, dt);
       if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
@@ -106,7 +116,7 @@ const Fire = (() => {
   }
   // на рассвете гаснут забытые далёкие костры
   function dawn() { G.fires = G.fires.filter(f => f.fuel > 0 || dist2(f, G.p) < TUNE.r.fireKeep * TUNE.r.fireKeep); }
-  return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn, toward, keepR, burnHero, treeSnow };
+  return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn, toward, keepR, burnHero, treeSnow, eff, reach, SINK_D };
 })();
 
 // Печь: кг дров даёт secPerKg() игровых секунд огня (щели и заслонка — дольше); ночью горит быстрее. Полено — со своей массой

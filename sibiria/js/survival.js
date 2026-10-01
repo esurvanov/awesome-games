@@ -14,12 +14,23 @@ const Survival = (() => {
     }
     return { T, heat: Fire.heatAt(p, heat, fires) };
   }
-  // потеря тепла и голод в секунду; tire — усталость (вымотанный мёрзнет быстрее)
-  function rates(p, T, night, sleeping, tire = G.s.tire || 0) {
-    const eff = typeof Depth !== 'undefined' ? Depth.effort() : 0;
+  // ветер у героя, м/с (без порыва): погода в момент t × местность (полог, марь, голец) × укрытие за отвалом/стенкой (js/trail.js)
+  function windAt(p, t) {
+    if (p.inside || typeof Wind === 'undefined') return 0;
+    const ms = Wind.feel ? Wind.feel(p.x, p.y, t) : Wind.ms(p.x, p.y);
+    return ms;
+  }
+  // множитель потери тепла от ветра — одна формула для жизни и прогноза
+  const windMul = ms => 1 + B.wind * Math.max(0, ms - B.windFrom);
+  const working = p => !!(p.action && (p.action.k === 'clear' || p.action.k === 'digout'));
+  // потеря тепла и голод в секунду; tire — усталость (вымотанный мёрзнет быстрее); t — время (ветер; прогноз — свой час)
+  function rates(p, T, night, sleeping, tire = G.s.tire || 0, t = G.time) {
+    const eff = typeof Depth !== 'undefined' && p === G.p ? Depth.effort() : 0;
     let loss = (B.lossBase + Math.max(0, -T + B.lossFrom) * B.lossPerDeg) * Hero.clothMul() * (1 - B.coldSkill * (Hero.lvl('cold') - 1)) * Settings.diff().cold;
     if (!p.inside) loss *= 1 + B.nightLoss * night; // ночной мороз
-    if (p.moving || eff > 0) loss *= B.moving * (1 + 0.5 * eff); // по пояс в снегу или с лопатой — выдыхается, потеет, мёрзнет
+    loss *= windMul(windAt(p, t));                 // ветер выдувает тепло (за стенкой — меньше)
+    if (working(p)) loss *= B.work;                // копает — разогрет (пот — потом, p.wetT)
+    else if (p.moving || eff > 0) loss *= B.moving * (1 + 0.5 * eff); // по пояс в снегу — выдыхается, потеет, мёрзнет
     if (onIce(p.x, p.y)) loss *= B.ice;
     if (p.wetT > 0) loss *= B.wet;
     if (p.teaT > 0) loss *= B.tea;
@@ -81,9 +92,9 @@ const Survival = (() => {
     if (s.tire == null) s.tire = 0;
     const { T, heat } = air(p, G.time, G.hut.fuel);
     const r = rates(p, T, night, p.sleeping || p.doze);
-    const cause = body(s, heat, r, dt, Hero.maxWarm()); if (cause) G.cause = cause;
+    const cause = body(s, heat + (working(p) ? B.workHeat : 0), r, dt, Hero.maxWarm()); if (cause) G.cause = cause;
     const sl = p.sleeping || !!p.doze;
-    s.tire = clamp(s.tire + tireRate(s, { sleeping: sl, doze: p.doze, fuel: p.inside ? G.hut.fuel : 0, moving: p.moving || !!(p.action && p.action.k === 'clear'),
+    s.tire = clamp(s.tire + tireRate(s, { sleeping: sl, doze: p.doze, fuel: p.inside ? G.hut.fuel : 0, moving: p.moving && !working(p),
       eff: typeof Depth !== 'undefined' ? Depth.effort() : 0, over: Inv.weight() > Inv.capKg(), sled: Carry.sledKg() / 100, rest: restLevel(p, heat, G.hut.fuel), tea: p.teaT }) * dt, 0, 100);
     awakeStep(s, p.sleeping, dt);
     dozeTick(dt, heat);
@@ -139,7 +150,7 @@ const Survival = (() => {
       if (!p.inside && hadHeat && o.fuelAt == null && !heatSrc()) o.fuelAt = t;
       if (sleeping && fuel <= 0) { o.wakeAt = t; break; } // печь погасла — разбудит
       const { T, heat } = air(hero, t, fuel, fires);
-      const c = body(s, heat, rates(hero, T, night, sleeping, s.tire), DT, 100 - B.frostWarm * s.frost);
+      const c = body(s, heat, rates(hero, T, night, sleeping, s.tire, t), DT, 100 - B.frostWarm * s.frost);
       s.tire = clamp(s.tire + tireRate(s, { sleeping, fuel: p.inside ? fuel : 0, rest: restLevel(hero, heat, fuel), tea: hero.teaT }) * DT, 0, 100);
       hero.teaT = Math.max(0, hero.teaT - DT); hero.wetT = Math.max(0, hero.wetT - DT);
       awakeStep(s, sleeping, DT);
@@ -152,5 +163,5 @@ const Survival = (() => {
     }
     return Object.assign(o, { warm: s.warm, food: s.food, tire: s.tire, hp: Math.max(0, s.hp), at: t });
   }
-  return { tick, air, rates, tireRate, restLevel, body, forecast, dozeFx };
+  return { tick, air, rates, tireRate, restLevel, body, forecast, dozeFx, windAt, windMul };
 })();

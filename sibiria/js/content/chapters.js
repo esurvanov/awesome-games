@@ -29,7 +29,15 @@ const STORY = {
 
 // вторая ветка (концовка D): посёлок, который переживёт зиму без вертолёта.
 // В HUD появляется при провале вертолёта или с 5-го дня (alt — не блокирует главу).
-const padDone = () => !!(G && G.col && G.col.builds.some(b => b.type === 'pad' && b.done));
+// площадка: вешки стоят (стройка) и утоптано ≥ 80 % клеток до плотности ≥ 0.7 (js/trail.js frac). Пурга заметает — подновить
+const padSite = () => G && G.col && G.col.builds.find(b => b.type === 'pad' && b.done);
+const PADK = { t: -1, g: null, v: 0 };
+function padK() {
+  const b = padSite(); if (!b || typeof Trail === 'undefined') return 0;
+  if (PADK.g === G && Math.abs(G.time - PADK.t) < 0.5) return PADK.v;
+  const B = BUILDS.pad; PADK.g = G; PADK.t = G.time; return (PADK.v = Trail.frac(b.x - B.w / 2, b.y - B.h / 2, b.x + B.w / 2, b.y + B.h / 2, 0.7));
+}
+const padDone = () => !!padSite() && padK() >= 0.8;
 const CHAPTERS = (() => {
   const D_GOALS = [
     { ic: ':epoch:', t: 'Или: эпоха III «Промысел»', ok: g => g.col && g.col.ep >= STORY.dEp, at: 'hut', alt: 1, show: g => g.flags.heliMiss || g.day >= 5 || (g.col && g.col.ep >= 1) },

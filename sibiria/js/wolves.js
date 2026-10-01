@@ -102,6 +102,8 @@ const Wolves = (() => {
       if (!direct) {
         if (sp > 0 && (tx - w.x) ** 2 + (ty - w.y) ** 2 > 40 * 40) { const q = Nav.way(w, tx, ty); if (q.x !== tx || q.y !== ty) { const l0 = Math.hypot(tx - w.x, ty - w.y), l1 = Math.hypot(q.x - w.x, q.y - w.y) || 1; tx = w.x + (q.x - w.x) / l1 * l0; ty = w.y + (q.y - w.y) / l1 * l0; } }
         let vx = tx - w.x, vy = ty - w.y; const l = Math.hypot(vx, vy) || 1;
+        // тропы: в обход целины — по натоптанному (Depth.steer); по плотной тропе не вязнет — быстрее (js/depth.js mulKind) — цена троп у избы
+        if (sp > 0 && l > 70 && typeof Depth !== 'undefined' && Depth.steer) { const v = Depth.steer(w, vx, vy, 'wolf'); if (v) { vx = v.x * l; vy = v.y * l; } }
         vx = vx / l * Math.min(sp, l * 4); vy = vy / l * Math.min(sp, l * 4);
         for (const f of Fire.burning()) {
           const r = Fire.fearR(f), dx = w.x - f.x, dy = w.y - f.y, dd = Math.hypot(dx, dy);

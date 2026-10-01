@@ -108,8 +108,8 @@ const Depth = (() => {
   function tbRebuild() { TB.clear(); for (const q of TR) tbAdd(q); }
   const TR = [], DG = [], PT = [], RUNS = new Map(), TRMAX = 420, TLIFE = 60, PLIFE = 90, FREE = 15, ICE = 10; let RUN = 1, STEAM = null, EXCL = -1;
   const NB = [];
-  // глубина снега, см, в точке мира
-  function depthAt(x, y) {
+  // глубина снега, см, в точке мира; noTrail — без троп и отвалов (сырая целина: «глубина решает», объём снятого лопатой)
+  function depthAt(x, y, noTrail) {
     if (!ensure()) return 0;
     if (insideHut(x, y)) return 0;
     let d = base(x, y);
@@ -143,27 +143,29 @@ const Depth = (() => {
     for (const o of STEAM) { const dx = o.x - x, dy = o.y - y; if (dx * dx + dy * dy < 55 * 55) d *= sm(18, 55, Math.hypot(dx, dy)); }
     // посёлок: вокруг построек натоптано
     if (G.col && G.col.builds.length) { NB.length = 0; for (const b of Space.builds.near(x, y, 90, NB)) { const B = BUILDS[b.type], ex = Math.abs(x - b.x) - B.w / 2, ey = Math.abs(y - b.y) - B.h / 2; if (ex < 40 && ey < 40) d = Math.min(d, 14 + Math.max(0, Math.max(ex, ey)) * 0.8); } }
-    // тропы и расчистка лопатой (js/trail.js): × (1 − 0.85·pack), у края расчистки — отвал
-    if (typeof Trail !== 'undefined') d = Trail.depth(d, x, y);
+    // тропы и расчистка лопатой (js/trail.js): × f(pack) + отвалы и нанос у двери
+    if (typeof Trail !== 'undefined' && !noTrail) d = Trail.depth(d, x, y);
     // траншеи (свежая — утоптано до 0.3 глубины) и разгребы
-    const tb = TB.get(((x / 32) | 0) + ((y / 32) | 0) * 4096);
+    const tb = noTrail ? null : TB.get(((x / 32) | 0) + ((y / 32) | 0) * 4096);   // сырая целина — без траншей и разгребов
     if (tb) for (let i = tb.length - 1; i >= 0; i--) {
       const q = tb[i], dx = q.x - x, dy = q.y - y; if (dx > 12 || dx < -12 || dy > 12 || dy < -12) continue;
       if (q.run === EXCL && !q.free) continue; // своя колея не держит, пока тело в ней (не отошло на FREE px) — стоя не «всплывает»
       const r = q.w * 0.62; if (dx * dx + dy * dy < r * r) { const k = Math.min(1, q.life / q.max * 1.6); d = Math.min(d, d * (1 - 0.7 * k)); }
     }
-    for (const q of DG) { const dx = q.x - x, dy = q.y - y, q2 = dx * dx + dy * dy; if (q2 < q.r * q.r) d *= 1 - 0.78 * q.k * Math.min(1, q.life / 40) * (1 - sm(q.r * 0.55, q.r, Math.sqrt(q2))); }
+    if (!noTrail) for (const q of DG) { const dx = q.x - x, dy = q.y - y, q2 = dx * dx + dy * dy; if (q2 < q.r * q.r) d *= 1 - 0.78 * q.k * Math.min(1, q.life / 40) * (1 - sm(q.r * 0.55, q.r, Math.sqrt(q2))); }
     // лёд реки: снег сдувает — после всех добавок не глубже ICE см (берег не «затекает» на лёд)
     const rv = Math.abs(x - riverX(y)); if (rv < RW) { const cap = ICE + 240 * sm(RW - 8, RW, rv); if (d > cap) d = cap; }
     return d < 0 ? 0 : d > 230 ? 230 : d;
   }
   // голый лёд (снега < 3 см) — только на нём скользят; под снегом — сцепление
   const bareIce = (x, y) => onIce(x, y) && depthAt(x, y) < 3;
-  // наст 0..1 (из seed): на открытом ветер уплотняет; голец — почти всегда
+  const rawAt = (x, y) => depthAt(x, y, 1);
+  // наст 0..1 (из seed): на открытом ветер уплотняет; голец — почти всегда; свежий отвал/нанос (js/trail.js) — без наста
   function crustAt(x, y) {
     if (!ensure()) return 0;
     let c = 0.15 + 0.55 * sm(-0.15, 0.55, NCr.n2(x / 1500, y / 1500));
     if (Zones.terrainKey(x, y) === 'golets') c += 0.3;
+    if (typeof Trail !== 'undefined') { const h = Trail.berm(x, y); if (h > 5) c *= 1 - sm(5, 40, h); }
     return c > 1 ? 1 : c;
   }
   // провал вида kind в точке, см (gear — опора снаряжения 0..1)
@@ -220,8 +222,8 @@ const Depth = (() => {
     return m;
   }
   // 0..1: насколько тяжело идти (тепло/еда тратятся быстрее, дыхание чаще)
-  // порог — 22 см: по тропе (провал < 22) не выматывает, по целине — заметно; работа лопатой — не меньше 0.6 (пот на морозе)
-  const effort = () => { if (!G || !G.p) return 0; const a = G.p.action, w = a && a.k === 'clear' ? 0.6 : 0; return G.p.moving ? Math.max(w, CL ? 1 : sm(22, 120, HS.s)) : w; };
+  // порог — 22 см: по тропе (провал < 22) не выматывает, по целине — заметно; работа лопатой/руками — не меньше 0.6 (дыхание, пот)
+  const effort = () => { if (!G || !G.p) return 0; const a = G.p.action, w = a && (a.k === 'clear' || a.k === 'digout') ? 0.6 : 0; return G.p.moving ? Math.max(w, CL ? 1 : sm(22, 120, HS.s)) : w; };
   // яма на месте глубокого провала: одна на место (ближе 12 px — та же, углубляется)
   function pitAt(x, y, s) {
     let q = PT.find(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 144);
@@ -261,6 +263,13 @@ const Depth = (() => {
       rec(HS, p.x, p.y, Math.atan2(dy, dx), KIND.p, d, 'p');
       spray(HS, p.x, p.y, dx / (d || 1), dy / (d || 1), d / dt, KIND.p, dt);
     }
+    // первый раз на настоящей тропе — выгода цифрами: скорость и силы против целины рядом
+    if (p.moving && !p.ride && G.flags && !G.flags.trailTip && typeof Trail !== 'undefined' && Trail.at(p.x, p.y) >= 0.7) {
+      const ter = Zones.terrainAt(p.x, p.y), raw = depthAt(p.x, p.y, 1), sRaw = raw * KIND.p.k * (1 - crustAt(p.x, p.y) * KIND.p.crust), TI = TUNE.tire;
+      const eRaw = sm(22, 120, sRaw), eNow = sm(22, 120, HS.s), cut = 1 - (TI.walk + TI.snow * eNow) / (TI.walk + TI.snow * eRaw);
+      const k = Math.max(Trail.speedCap(p.x, p.y, ter.walk), mulHuman(HS.s, p.x, p.y) / Math.max(KIND.p.min, mulHuman(sRaw, p.x, p.y)));
+      if (k > 1.1 || cut > 0.2) { G.flags.trailTip = 1; Fx.toast(`:boots: Тропа ×${k.toFixed(1).replace('.', ',')} · силы −${Math.max(0, Math.round(cut * 100))}%`); }
+    }
     // застрял глубоко — подсказка (раз в 20 с)
     if (HS.s > 110 && p.moving && G.time - HS.lastT > 20) { HS.lastT = G.time; Fx.toast(':frost: Увяз по грудь · E — разгрести'); }
   }
@@ -285,7 +294,7 @@ const Depth = (() => {
       const d = Math.sqrt(d2) * m;
       rec(st, o.x, o.y, Math.atan2(dy, dx), KIND[kind], d, kind);
       if (pd < 900) spray(st, o.x, o.y, dx / Math.sqrt(d2), dy / Math.sqrt(d2), d / dt, KIND[kind], dt);
-      if (kind !== 'hare' && typeof Trail !== 'undefined') Trail.step(o, o.x, o.y, kind); // люди и звери тоже протаптывают
+      if (kind !== 'hare' && typeof Trail !== 'undefined') Trail.step(o, o.x, o.y, o.task && o.task.k === 'tramp' ? 'shoes' : kind); // люди и звери тоже протаптывают (площадку — на снегоступах)
     }
     st.x = o.x; st.y = o.y;
   }
@@ -557,8 +566,8 @@ const Depth = (() => {
     return { blocks: n, kb: +(n * BS * BS / 1024).toFixed(1), maxKb: +(BX * BY * BS * BS / 1024).toFixed(0), buildMs: +buildMs.toFixed(2), trench: TR.length, digs: DG.length, pits: PT.length, cell: C };
   }
   return {
-    depthAt, crustAt, sinkAt, sinkOf, heroMul, rideMul, tickHero, tick, drag, settle, steer, dig, effort, look, art, stats, KIND, PX, BASE, mulHuman, mulKind,
+    depthAt, rawAt, crustAt, sinkAt, sinkOf, heroMul, rideMul, tickHero, tick, drag, settle, steer, dig, effort, look, art, stats, KIND, PX, BASE, mulHuman, mulKind,
     get heroSink() { return HS.s; }, get heroSnow() { return HS.snow; }, get climb() { return CL ? Math.min(1, CL.t / CLB.dur) : -1; }, get outT() { return HS.out; },
-    brush() { HS.snow *= 0.35; }, bareIce, CLB, get pits() { return PT; }, set hold(v) { hold = v ? 1 : 0; }, get trenchList() { return TR; }, reset() { gKey = null; ensure(); },
+    brush() { HS.snow *= 0.35; }, dug() { HS.digT = G.time; }, bareIce, CLB, get pits() { return PT; }, set hold(v) { hold = v ? 1 : 0; }, get trenchList() { return TR; }, reset() { gKey = null; ensure(); },
   };
 })();

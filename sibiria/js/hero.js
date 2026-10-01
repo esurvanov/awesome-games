@@ -30,7 +30,7 @@ const Hero = (() => {
       if (p.creaked && World.onThinIce(p)) s *= 0.5; // лёд трещит — ступает осторожно
     } else if (typeof Depth !== 'undefined' && Depth.rideMul) s *= Depth.rideMul(p.ride); // верхом: глубокий снег вязнет, тропа быстрее (js/depth.js)
     if (stormOn() && !p.inside) s *= H.storm;
-    if (p.action && p.action.walk) s *= (p.action.ahead || 0) > 0.95 ? 0.33 : 0.11; // с лопатой: по расчищенному — втрое медленнее, целину — пробивает (≈ 1 м² за 1.5 с)
+    if (p.action && p.action.walk) s *= 0.4; // с лопатой толкает снег перед собой (мелко) — шаг ×0.4
     s *= 1 - TI.speed * smooth(TI.speedFrom, 100, tire()); // нет сил — плетётся
     return s;
   }
@@ -43,7 +43,10 @@ const Hero = (() => {
     if (!p.sleeping && !p.doze) { // уснул в снегу — не идёт (будит Survival)
       let mx = input.mx, my = input.my, want = 0;
       const ox = p.x, oy = p.y;
-      const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
+      let len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
+      // лопата/руки: ввод — направление работы; стоя и кидая — герой не идёт (шаг вперёд делает сама работа, js/actions.js)
+      const ca = p.action && (p.action.k === 'clear' || p.action.k === 'digout') ? p.action : null;
+      if (ca) { Actions.clearAim(ca, mx, my); if (ca.aim) { mx = my = 0; len = 0; } }
       p.moving = len > 0.15;
       B.glide = false; // скольжение по льду без ввода — своё состояние тела (не ходьба); действие держит героя на месте
       if (!p.moving && !p.action && slick(p.x, p.y) && Math.hypot(p.vx || 0, p.vy || 0) > PT.glideV) { B.glide = true; const q = 1 - ease(H.iceGrip, dt); p.vx *= q; p.vy *= q; p.x += p.vx * dt; p.y += p.vy * dt; p.face = B.vf; }
@@ -166,6 +169,7 @@ const Hero = (() => {
     const p = G.p; if (p.inside || p.ride || p.sleeping) return;
     B.feetT = now; const dk = typeof Depth !== 'undefined' ? Depth.heroSink : driftAt(x, y) ? 30 : 0;
     if (dk > 40) return; // глубже колена — не следы, а траншея (js/depth.js)
+    if (typeof Trail !== 'undefined' && Trail.at(x, y) > 0.9) return; // вычищено лопатой до плотного — отпечатка почти нет
     Fx.print(x, y, a, 'p', dk > 22 ? 1.35 : 1);
   }
   const vface = () => { const p = G.p; return (p.moving || B.glide) && !p.ride ? B.vf : p.face; };
@@ -211,7 +215,7 @@ const Hero = (() => {
     else if (a.pose) {
       r.anim = POSE[a.pose] ? a.pose : a.fb || 'idle';
       const per = a.k === 'wreck' ? chopCycle(a).cl : a.per || D[r.anim] || 1;
-      r.animT = r.anim === 'swing' || !(a.loop || a.per) ? clamp(a.t / (a.pd || a.dur), 0, 1) : (a.t % per) / per;   // pd — длительность позы, если действие длится дольше (бросок ждёт, пока палка летит)
+      r.animT = r.anim === 'swing' || !(a.loop || a.per) ? clamp(a.t / (a.pd || a.dur), 0, 1) : a.act ? Math.min(1, (a.t % per) / a.act) : (a.t % per) / per;   // act — движение короче цикла (лопата: бросок 1.8 с + передышка)   // pd — длительность позы, если действие длится дольше (бросок ждёт, пока палка летит)
       if (a.k === 'wreck' || a.k === 'loot') r.tool = r.anim.startsWith('chop') ? 'axe' : 'none'; // обломки отжимают руками; запасная рубка — топором
       r.tg = a.tg; r.th = a.th || 0;
     }
@@ -228,7 +232,8 @@ const Hero = (() => {
     else if (s === 'ride') r.anim = 'sit';
     else if (s === 'act' && !(p.action.walk && p.moving)) actPose(p.action, r); // с лопатой на ходу — шагом (ниже)
     else if (PRI[s]) { const o = B.one; r.anim = o.k; r.animT = o.a0 + (o.a1 - o.a0) * clamp((now - o.t0) / o.dur, 0, 1); r.tg = o.tg; r.th = o.th; r.ik = o.ik; }
-    else if (s === 'walk' || s === 'act') { if (s === 'act') r.tool = 'none'; const v = Math.max(0, Math.hypot(p.vx || 0, p.vy || 0) + (B.drv || 0)), l = Math.hypot(input.mx, input.my) || 1; r.loco = true; r.speed = v; r.anim = walkPose(v > PT.runV); r.vy = clamp(input.my / l, -1, 1); }
+    else if (s === 'walk' || s === 'act') { if (s === 'act') r.tool = 'none'; const v = Math.max(0, Math.hypot(p.vx || 0, p.vy || 0) + (B.drv || 0)), l = Math.hypot(input.mx, input.my) || 1; r.loco = true; r.speed = v; r.anim = walkPose(v > PT.runV); r.vy = clamp(input.my / l, -1, 1);
+      if (s === 'act' && p.action.k === 'clear' && has('shovelPush')) { r.anim = 'shovelPush'; r.tool = G.gear.saw ? 'saw' : 'axe'; } } // толкает лопатой (топор — за поясом)
     else if (s === 'glide') { r.anim = has('slip') ? 'slip' : 'idle'; r.animT = PT.glideA; }
     else if (s === 'panel') { const q = B.pp, d = D[q.k] || 1.6; r.anim = q.k; r.animT = (now % d) / d; r.tg = q.tg || null; r.th = q.th || 0; r.ik = !!q.ik; }
     else { r.anim = idlePose(); if (r.anim !== 'idle') { const f = heat(); r.animT = (now % 1.6) / 1.6; if (f) { r.tg = f; r.th = -8; } } }

@@ -94,8 +94,9 @@ function page(K1) {
   // старый баг: лёд, мокрая одежда, чай — множители теперь работают
   G.p.wetT = 10; const lw = Survival.rates(G.p, -40, 1, false, 0).loss; G.p.wetT = 0; G.p.teaT = 10; const lt = Survival.rates(G.p, -40, 1, false, 0).loss; G.p.teaT = 0;
   ok(near(lw / lossA, TUNE.body.wet, 0.01) && near(lt / lossA, TUNE.body.tea, 0.01), `💧 мокрый ×${(lw / lossA).toFixed(2)}, 🍵 чай ×${(lt / lossA).toFixed(2)}`);
-  G.p.x = riverX(G.p.y); const li = Survival.rates(G.p, -40, 1, false, 0).loss; field();
-  ok(near(li / lossA, TUNE.body.ice, 0.01), `🧊 на льду ×${(li / lossA).toFixed(2)}`);
+  // лёд — свой множитель (ветер над рекой сильнее — его меряет js/survival.js windMul, здесь ровный)
+  Wind.force({ ms: 4 }); const lossW = Survival.rates(G.p, -40, 1, false, 0).loss; G.p.x = riverX(G.p.y); const li = Survival.rates(G.p, -40, 1, false, 0).loss; field(); Wind.force();
+  ok(near(li / lossW, TUNE.body.ice, 0.01), `🧊 на льду ×${(li / lossW).toFixed(2)}`);
 
   // ---------- 5. засыпание на морозе ----------
   const doze = (setup, sec = 11) => { fresh(22); field(); G.s.warm = 20; G.s.tire = 95; G.s.hp = 100; setup && setup(); for (let t = 0; t < sec && state === 'play'; t += 0.05) { G.s.warm = Math.min(G.s.warm, 20); G.s.tire = Math.max(G.s.tire, 95); update(0.05); } return { warn: !!G.p.dozeWarn, doze: !!G.p.doze, ts: TS.slice() }; };

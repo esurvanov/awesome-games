@@ -78,6 +78,15 @@ function lib() {
   // еда из лабаза — сперва дойти до него (автопуть): дождаться и вернуться к собеседнику
   S.talk = (prefer) => { if (G.p.action || input.auto) { const c0 = S.care, x = G.p.x, y = G.p.y; S.care = false; S.run(8, () => !G.p.action && !input.auto); S.care = c0; S.tp(x, y); } if (G.p.cd > 0) { const c0 = S.care; S.care = false; S.run(1, () => G.p.cd <= 0); S.care = c0; }   // пауза после прошлого действия: E ещё не сработает
     S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
+  // площадка на мари: пройти дорожками поперёк (шаг 14 px), туда-обратно, пока не утоптано ≥ 80 % (js/content/chapters.js padK)
+  S.tramp = function () {
+    const b = padSite(); if (!b) return false; const B = BUILDS.pad, n = Math.ceil((B.h - 8) / 14), c0 = S.care; S.care = false;
+    for (let pass = 0; pass < 6 && !padDone(); pass++) for (let i = 0; i <= n && !padDone(); i++) {
+      const y = b.y - B.h / 2 + 4 + i * (B.h - 8) / n, dir = (i + pass) % 2 ? -1 : 1, x0 = b.x - dir * (B.w / 2 + 16), x1 = b.x + dir * (B.w / 2 + 16);
+      S.tp(x0, y); S.tick(); input.mx = dir; S.run(12, () => { G.p.y = y; input.mx = dir; return dir > 0 ? G.p.x >= x1 : G.p.x <= x1; }); input.mx = 0;
+    }
+    S.care = c0; return padDone();
+  };
   const IN = () => S.tp(HUT.x + 20, HUT.y - 30); // середина избы (не у печи/верстака/кровати)
   S.IN = IN;
 
@@ -349,7 +358,8 @@ function phases() {
     const site = G.col.builds.find(b => b.type === 'pad');
     ok(site && !site.done, '🛬 стройка площадки заложена (дрова из лабаза)');
     S.run(400, () => { if (site.done) return true; if (dist2(G.p, site) > 70 * 70) S.tp(site.x, site.y + 40); if (!G.p.action && G.p.cd <= 0) Actions.interact(true); return false; });
-    ok(site.done && padDone(), `🛬 площадка построена к ${hourOf().toFixed(1)} ч`);
+    ok(site.done, `🛬 вешки площадки стоят к ${hourOf().toFixed(1)} ч`);
+    ok(S.tramp(), `🥾 площадка утоптана: ${Math.round(padK() * 100)} % к ${hourOf().toFixed(1)} ч`);
     S.stacks(false);   // по охапке из поленницы на каждую кучу
     ok(G.stacks.every(s => s.wood >= 4), '🪵 3 кучи на мари по 4');
     S.IN(); S.until(4, 20.5); ok(S.sleepNight(), `😴 ночь 4 → ${hourOf().toFixed(1)} ч дня ${G.day}`);
@@ -360,6 +370,7 @@ function phases() {
   // вертолёт в 09:00: подбросить в кучи, если шатун разворошил, и зажечь все три
   function heli() {
     // дров на кучи (шатун ночью разворашивает): из лабаза, не хватит — нарубить
+    S.IN(); if (hourOf() < 8) S.untilH(8); if (!padDone()) ok(S.tramp(), `🥾 ночью замело — площадку подновили: ${Math.round(padK() * 100)} %`);   // пурга перед окном
     S.IN(); S.run(300, () => G.heli);
     ok(!!G.heli, `🚁 гул винтов в ${hourOf().toFixed(2)} ч дня ${G.day}`);
     const need = G.stacks.reduce((a, s) => a + (s.lit > 0 ? 0 : 4 - s.wood), 0);

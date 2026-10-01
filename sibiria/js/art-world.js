@@ -1130,34 +1130,27 @@ const ArtWorld = (() => {
     }
   }
 
-  // вертолётная площадка на мари: утоптанный квадрат, колья с флажками, «Н» из лапника
+  // вертолётная площадка на мари 10×7 м: утоптанное — слой троп (js/trail.js); здесь — вешки с флажками и тёмный лапник по углам
+  //   (метки для пилота), бечёвка между вешками, пока строят — полоска хода
   function pad(g, b, env) {
-    const x = b.x, y = b.y, w = 96, h = 70, k = b.done ? 1 : (b.prog || 0), t = env.now || 0;
-    g.globalAlpha = 0.35 + 0.65 * k;
-    g.fillStyle = '#dde6ee'; g.beginPath(); g.ellipse(x, y, w / 2 + 10, h / 2 + 8, 0, 0, TAU); g.fill();
-    g.fillStyle = 'rgba(147,172,196,0.35)';
-    for (let i = 0; i < 7; i++) { g.beginPath(); g.ellipse(x - w / 2 + 8 + i * 13, y + ((i * 37) % 11) - 5, 9, 3, 0.3, 0, TAU); g.fill(); }
-    g.globalAlpha = 1;
-    // «Н» из лапника появляется по мере стройки
-    if (k > 0.35) {
-      g.globalAlpha = Math.min(1, (k - 0.35) / 0.4);
-      g.strokeStyle = '#214736'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath();
-      g.moveTo(x - 16, y - 20); g.lineTo(x - 16, y + 20); g.moveTo(x + 16, y - 20); g.lineTo(x + 16, y + 20); g.moveTo(x - 16, y); g.lineTo(x + 16, y); g.stroke();
-      g.strokeStyle = '#2f5a3a'; g.lineWidth = 3; g.stroke(); g.lineCap = 'butt';
-      g.globalAlpha = 1;
-    }
-    // колья по углам с флажками
-    const posts = [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]];
+    const B = typeof BUILDS !== 'undefined' && BUILDS.pad ? BUILDS.pad : { w: 230, h: 161 }, x = b.x, y = b.y, w = B.w, h = B.h, k = b.done ? 1 : (b.prog || 0), t = env.now || 0;
+    const posts = [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]];
+    // бечёвка по периметру (видна, где вешки уже стоят)
+    g.strokeStyle = 'rgba(58,38,24,0.45)'; g.lineWidth = 0.8; g.setLineDash([3, 3]); g.beginPath();
+    for (let i = 0; i < 4; i++) { if (k < (i + 1) / 5) break; const [ax, ay] = posts[i], [bx, by] = posts[(i + 1) % 4]; g.moveTo(x + ax, y + ay - 6); g.lineTo(x + bx, y + by - 6); }
+    g.stroke(); g.setLineDash([]);
     posts.forEach(([dx, dy], i) => {
       if (k < (i + 1) / 5) return;
-      const px = x + dx, py = y + dy;
+      const px = x + dx, py = y + dy, sx = Math.sign(dx), sy = Math.sign(dy);
+      // лапник уголком внутрь площадки — тёмная метка на белом
+      g.strokeStyle = '#1f3d2c'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(px - sx * 3, py - sy * 2); g.lineTo(px - sx * 20, py - sy * 2); g.moveTo(px - sx * 3, py - sy * 2); g.lineTo(px - sx * 3, py - sy * 16); g.stroke();
+      g.strokeStyle = '#2f5a3a'; g.lineWidth = 2.2; g.stroke(); g.lineCap = 'butt';
+      g.fillStyle = 'rgba(39,57,74,0.25)'; g.beginPath(); g.ellipse(px, py + 1, 3, 1.2, 0, 0, TAU); g.fill();
       g.fillStyle = '#4b3220'; g.fillRect(px - 1.5, py - 22, 3, 22);
       const wv = Math.sin(t * 5 + i) * 2;
       g.fillStyle = '#b8392d'; g.beginPath(); g.moveTo(px + 1.5, py - 22); g.lineTo(px + 13, py - 18 + wv); g.lineTo(px + 1.5, py - 14); g.closePath(); g.fill();
     });
-    if (!b.done) {
-      rr(g, x - w / 2, y - h / 2 - 18, w, 5, 2.5, 'rgba(47,53,66,0.6)'); rr(g, x - w / 2, y - h / 2 - 18, w * k, 5, 2.5, '#ffd27a');
-    }
+    if (!b.done) { rr(g, x - 48, y - h / 2 - 30, 96, 5, 2.5, 'rgba(47,53,66,0.6)'); rr(g, x - 48, y - h / 2 - 30, 96 * k, 5, 2.5, '#ffd27a'); }
   }
   function building(g, b, env) {
     env = E(env);

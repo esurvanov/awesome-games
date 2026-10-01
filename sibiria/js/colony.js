@@ -233,6 +233,7 @@ const Colony = (() => {
           else if (u.type === 'bich') {
             const site = G.col.builds.find(b => !b.done && (dist2(b, u) < TUNE.r.siteSeek * TUNE.r.siteSeek || BUILDS[b.type].onMar));
             if (site) u.task = { k: 'build', b: site.id };
+            else if (padNeed()) u.task = { k: 'tramp', i: 0, e: u.id % 2 };   // площадку на мари — утоптать на снегоступах (стройки — раньше)
             else if (G.flags.contact && !G.flags.rescued && G.stacks.some(s => !s.lit && s.wood < 4)) u.task = { k: 'stack' };
           }
           else if (u.type === 'strelok' || u.type === 'laika') u.task = { k: 'guard' };
@@ -258,6 +259,10 @@ const Colony = (() => {
       }
       case 'chop': case 'fish': case 'wreck': case 'hunt': gather(u, dt, sp); break;
       case 'stack': stackWork(u, dt, sp); break;
+      // площадка: ходит дорожками поперёк (шаг 18 px), по очереди от края к краю
+      case 'tramp': { const b = padSite(); if (!b || !padNeed() || G.col.builds.some(q => !q.done && !BUILDS[q.type].onMar)) { u.task = { k: 'idle' }; break; }
+        const B = BUILDS.pad, n = Math.floor(B.h / 18), lane = (t.i + u.id * 3) % n, y = b.y - B.h / 2 + 9 + lane * 18, x = b.x + (t.e ? B.w / 2 - 8 : -B.w / 2 + 8);
+        if (go(u, x, y, sp * 0.7, dt, 4)) { t.e = 1 - t.e; t.i++; } break; }
     }
   }
 
@@ -332,6 +337,8 @@ const Colony = (() => {
     // призрак стройки на таче — перед героем
     if (C.ghost && C.ghost.touch) { C.ghost.x = p.x + p.face * 90; C.ghost.y = p.y - 10; C.ghost.ok = canPlace(C.ghost.type, C.ghost.x, C.ghost.y); }
   }
+  // площадку подновлять: вертолёт ещё ждут (связь есть, не улетели, не позже последнего борта) и утоптано < 80 %
+  const padNeed = () => G.flags.contact && !G.flags.rescued && G.day <= STORY.heliLastDay && padSite() && padK() < 0.8;
   function dirName(o) {
     const a = Math.atan2(o.y - G.p.y, o.x - G.p.x) * 180 / Math.PI;
     return ['с востока', 'с юго-востока', 'с юга', 'с юго-запада', 'с запада', 'с северо-запада', 'с севера', 'с северо-востока'][((Math.round(a / 45) % 8) + 8) % 8];
@@ -343,7 +350,7 @@ const Colony = (() => {
     }
     if (b.type === 'tower') b.fuel = C0.towerFuel;
     b.hp = C0.buildHp;
-    if (b.type === 'pad') { G.known.mar = 1; Fx.toast(':pad: Марь расчищена — вертолёт сядет'); for (const u of G.col.units) if (u.task.k === 'idle' && u.type === 'bich' && G.flags.contact) u.task = { k: 'stack' }; }
+    if (b.type === 'pad') { G.known.mar = 1; Fx.toast(':pad: Вешки стоят · утопчи площадку :boots:'); for (const u of G.col.units) if (u.task.k === 'idle' && u.type === 'bich' && G.flags.contact) u.task = { k: 'stack' }; }
   }
 
   // ---------- размещение ----------
@@ -357,7 +364,7 @@ const Colony = (() => {
     for (const t of treesNear(x, y, r + 20)) if (t.wood > 0 && dist2(t, { x, y }) < (r + 8) ** 2) return false;
     for (const b of Space.builds.near(x, y, r + 60)) { const R = Math.max(BUILDS[b.type].w, BUILDS[b.type].h) / 2; if (dist2(b, { x, y }) < (r + R + 10) ** 2) return false; }
     for (const c of World.COLL) if (dist2(c, { x, y }) < (c.r + r + 20) ** 2) return false;
-    for (const s of G.stacks) if (dist2(s, { x, y }) < (r + 40) ** 2) return false;
+    if (!B.flat) for (const s of G.stacks) if (dist2(s, { x, y }) < (r + 40) ** 2) return false;   // площадка — кучи по краям можно
     return true;
   }
   function startPlace(type) {
