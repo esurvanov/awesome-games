@@ -143,16 +143,16 @@ var TreeCheck = (() => {
       }
       // ---- 8: дерево × лёд: у переката (тонкий лёд) — пролом, ствол проваливается, герой рядом на льду — в воду; на толстом — цел ----
       { const Pn = POI.polynya;
-        const onto = (tx, ty, hx, hy) => { base(); const t = pickTree(5), ox = t.x, oy = t.y; t.x = tx; t.y = ty;
-          const L = Actions.fell(t); L.a = Math.atan2(Pn.y + 4 - ty, Pn.x + 10 - tx); L.f.risk = 0; if (hx != null) { G.p.x = hx; G.p.y = hy; Hero.snap(); }
+        const onto = (tx, ty, hx, hy, ang) => { base(); const t = pickTree(5), ox = t.x, oy = t.y; t.x = tx; t.y = ty;
+          const L = Actions.fell(t); L.a = ang != null ? ang : Math.atan2(Pn.y + 4 - ty, Pn.x + 10 - tx); L.f.risk = 0; if (hx != null) { G.p.x = hx; G.p.y = hy; Hero.snap(); }
           const h0 = (G.iceHoles || []).length; let k = 0; while (L.f && !L.f.hit && k++ < 400) { L.f.t += DT; if (L.f.t >= L.f.w + L.f.T) { L.f.hit = 1; Actions.iceHit(L); } }
           t.x = ox; t.y = oy; delete L.f; return { L, holes: (G.iceHoles || []).length - h0 }; };
         const bx = riverX(Pn.y) - RW - 30;
         const a = onto(bx, Pn.y + 4, null);   // с берега на перекат
         ok(a.holes > 0 && a.L.sink, '8: ель на тонком льду переката не пробила лёд: ' + JSON.stringify({ r: a.L.iceR, sink: a.L.sink, len: a.L.len }));
-        const fy = Pn.y + 900, far = onto(riverX(fy) - RW - 30, fy, null);   // далеко от переката — лёд ~0.4 м
-        ok(!far.holes && !far.L.sink, '8: на толстом льду пролом: ' + far.L.iceR);
-        info.ice = { thin: a.L.iceR, thick: far.L.iceR, hThin: +Ice.thick(Pn.x - 20, Pn.y).toFixed(3), hFar: +Ice.thick(riverX(fy), fy).toFixed(3) };
+        const fy = Pn.y + 900, far = onto(riverX(fy) - RW - 30, fy, null, null, 0);   // далеко от переката — поперёк реки на лёд ~0.4 м
+        ok(!far.holes && !far.L.sink && far.L.iceR > 0, '8: на толстом льду пролом (или ствол не лёг на лёд): ' + far.L.iceR);
+        info.ice = { farA: far.L.a, farLen: far.L.len, farX: far.L.x - riverX(far.L.y), thin: a.L.iceR, thick: far.L.iceR, hThin: +Ice.thick(Pn.x - 20, Pn.y).toFixed(3), hFar: +Ice.thick(riverX(fy), fy).toFixed(3) };
         const h = (G.iceHoles || [])[G.iceHoles.length - 1]; Ice.reset && Ice.reset(); G.iceHoles = [];
         const c = onto(bx, Pn.y + 4, Pn.x - 4, Pn.y + 2); ok(Ice.active(), '8: герой на льду у пролома не провалился'); Ice.reset(); void h; void c;
         G.iceHoles = []; G.p.wetT = 0; }
