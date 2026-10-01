@@ -70,7 +70,8 @@ function page() {
   fresh(16, 1); hut(false); G.hut.fuel = 80; fc = Survival.forecast(true); skip(); r = snap();
   ok(r.state === 'play' && !G.p.sleeping && (r.h >= 19 || r.h < 7) && TS.some(t => /Печь погасла/.test(t)), `🔥 полупустая печь: разбудила в ${r.h.toFixed(2)} ч (прогноз ${fc.wakeAt != null ? hh(fc.wakeAt) : '—'})`);
   ok(fc.wakeAt != null && near(hourOf(fc.wakeAt), r.h, 0.1), '🔮 прогноз «печь погаснет» ≈ факт');
-  fresh(17, 1); field(); G.inv.wood = 3; Actions.fireKey(); const f = G.fires[G.fires.length - 1];
+  // костёр раскладывается ≈ 8 с (расчистить, 3 полена, растопка, огниво) — доводим до огня
+  fresh(17, 1); field(); G.inv.wood = 3; Actions.fireKey(); for (let i = 0; i < 900 && (G.p.action || input.auto); i++) update(1 / 60); const f = G.fires[G.fires.length - 1];
   fc = Survival.forecast(false); skip(); r = snap();
   ok(f && r.state === 'over' && r.cause === 'cold' && fc.fuelAt != null, `🔥 костёр догорел (${fc.fuelAt != null ? hh(fc.fuelAt) : '—'}) → смерть от холода в ${r.h.toFixed(2)} ч (прогноз ${fc.deadAt != null ? hh(fc.deadAt) : '—'})`);
 

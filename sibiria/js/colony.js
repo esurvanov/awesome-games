@@ -52,6 +52,17 @@ const Colony = (() => {
       task: { k: 'idle' }, carry: {}, t: 0, cd: 0, hidden: false, prev: null, idleT: 0 }, extra);
     G.col.units.push(u); return u;
   }
+  // нанятый приходит своими ногами: появляется за краем видимого (≥ 820 px от героя и избы, по проходимому месту) и идёт к избе
+  function arrive(type) {
+    const d = HUT_DROP(), p = G.p; let at = null;
+    for (let i = 0; i < 16 && !at; i++) {
+      const a = Math.PI / 2 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.39, q = { x: clamp(d.x + Math.cos(a) * 900, 80, W - 80), y: clamp(d.y + Math.sin(a) * 900, 80, H - 80) };
+      if ((Math.abs(q.x - p.x) > 820 || Math.abs(q.y - p.y) > 560) && !World.blocked(q.x, q.y, 10) && !onIce(q.x, q.y)) at = q;
+    }
+    at = at || { x: clamp(d.x, 80, W - 80), y: clamp(d.y + 900, 80, H - 80) };
+    const u = spawn(type, { x: at.x, y: at.y }); u.task = { k: 'move', x: d.x + rnd(-20, 20), y: d.y + rnd(0, 20), arrive: 1 };
+    return u;
+  }
   // шаг к цели с обходом избы/построек/обломков (Nav) и выталкиванием из стен
   function go(u, x, y, sp, dt, stop = 4) {
     const D = Math.hypot(x - u.x, y - u.y);
@@ -249,7 +260,7 @@ const Colony = (() => {
     // найм
     if (C.queue.length) {
       const q = C.queue[0]; q.t -= dt;
-      if (q.t <= 0) { C.queue.shift(); const u = spawn(q.type); Fx.toast(`${UNITS[q.type].i} ${UNITS[q.type].n} в посёлке`); Sound.pick(); if (q.type === 'bich') u.idleT = 3; }
+      if (q.t <= 0) { C.queue.shift(); const u = arrive(q.type); Fx.toast(`${UNITS[q.type].i} ${UNITS[q.type].n} идёт в посёлок`); Sound.pick(); if (q.type === 'bich') u.idleT = 3; }
     }
     // эпоха
     if (C.epT > 0) { C.epT -= dt; if (C.epT <= 0) { C.epT = 0; C.ep++; UI.epoch(C.ep); if (Sound.sting) Sound.sting('epoch'); else Sound.ok2(); } }
@@ -354,10 +365,11 @@ const Colony = (() => {
     if (!g.ok) return Fx.toast(':close: Здесь не построить');
     const B = BUILDS[g.type]; if (!Inv.canPay(B.cost, true)) { G.col.ghost = null; return Fx.toast(':close: Не хватает ресурсов'); }
     Inv.payStock(B.cost);
-    const b = { id: G.col.nextId++, type: g.type, x: Math.round(g.x), y: Math.round(g.y), prog: 0, done: 0 };
+    const b = { id: G.col.nextId++, type: g.type, x: Math.round(g.x), y: Math.round(g.y), prog: 0, done: 0, t0: G.time };   // t0: разметка проступает (js/art-world.js construct)
     G.col.builds.push(b); G.col.ghost = null; Sound.hit();
     // ближайшие свободные бичи — на стройку
-    const idle = G.col.units.filter(u => u.type === 'bich' && (u.task.k === 'idle' || G.col.sel.includes(u.id))).sort((a, c) => dist2(a, b) - dist2(c, b)).slice(0, 3);
+    // идущие наниматься (arrive) — тоже свободны: сразу на стройку
+    const idle = G.col.units.filter(u => u.type === 'bich' && (u.task.k === 'idle' || u.task.arrive || G.col.sel.includes(u.id))).sort((a, c) => dist2(a, b) - dist2(c, b)).slice(0, 3);
     for (const u of idle) u.task = { k: 'build', b: b.id };
     Fx.toast(`${B.i} Стройка · ${idle.length ? ':bich: ' + idle.length : 'помогай сам (E)'}`);
   }

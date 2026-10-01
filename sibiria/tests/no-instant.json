@@ -103,7 +103,8 @@
    "·",
    "E:fish",
    "E:fish",
-   "E:fish"
+   "E:fish",
+   "E:dig"
   ],
   "ловушка: улов на рассвете": [
    "·"
@@ -121,7 +122,9 @@
    "·"
   ],
   "изба: стройка": [
-   "·"
+   "·",
+   "walls:true",
+   "door:true"
   ],
   "сон": [
    "уснул"
@@ -157,7 +160,6 @@
   "рубка": 5,
   "обрубка": 10,
   "разделка": 12,
-  "отдых на пне": 1,
   "заяц руками": 5,
   "заяц палкой": 18,
   "волк": 6,
@@ -167,44 +169,39 @@
   "сэвэки": 3,
   "лампа": 5,
   "лабаз": 4,
-  "лопата": 2,
+  "лопата": 4,
   "обломки": 1,
   "тайник": 1,
   "пинок сугроба": 1,
-  "костёр": 7,
+  "костёр": 26,
   "костёр догорел": 1,
   "сигнальная куча": 9,
-  "печь": 2,
+  "печь": 3,
   "лунка": 1,
   "рыбалка": 4,
-  "ловушка: поставить": 2,
-  "ловушка: улов на рассвете": 1,
-  "ловушка: забрать улов": 7,
-  "крафт": 4,
-  "крафт: отмена": 2,
-  "изба: стройка": 6,
-  "Буран": 2,
-  "упряжка": 2,
-  "упряжка: в нарты": 2,
+  "ловушка: поставить": 4,
+  "ловушка: забрать улов": 9,
+  "крафт": 11,
+  "изба: стройка": 30,
   "посёлок": 8,
   "посёлок: стройка": 11,
-  "посёлок: найм": 2,
+  "посёлок: найм": 1,
   "пень → поросль": 2,
   "ствол заметает": 1,
   "лапник заметает": 1
  },
  "errors": [],
- "frames": 16163,
+ "frames": 20769,
  "events": {
-  "morph": 31,
-  "appear": 44,
-  "vanish": 32,
-  "inv": 48,
-  "jump": 7
+  "morph": 62,
+  "appear": 48,
+  "vanish": 36,
+  "inv": 60,
+  "jump": 2
  },
  "violations": [
   {
-   "key": "обрубка|lap|appear|js/actions.js:166",
+   "key": "обрубка|lap|appear|js/actions.js:164",
    "sc": "обрубка",
    "cat": "lap",
    "ev": "appear",
@@ -212,7 +209,7 @@
    "to": "лапник",
    "t": 6.33,
    "at": [
-    "js/actions.js:166 ← js/actions.js:172 ← js/actions.js:432"
+    "js/actions.js:164 ← js/actions.js:170 ← js/actions.js:440"
    ],
    "why": [
     "C3 появился сразу целым (нет анимации появления, не из руки)"
@@ -222,33 +219,15 @@
    "pri": 1
   },
   {
-   "key": "костёр|inv|inv|js/inventory.js:11",
-   "sc": "костёр",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "12",
-   "to": "-3 wood",
-   "t": 122.7,
-   "at": [
-    "js/inventory.js:11 ← js/actions.js:768"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)"
-   ],
-   "act": "—",
-   "n": 3,
-   "pri": 1
-  },
-  {
    "key": "заяц руками|inv|inv|js/inventory.js:7",
    "sc": "заяц руками",
    "cat": "inv",
    "ev": "inv",
    "from": "0",
    "to": "+1 meat",
-   "t": 57.75,
+   "t": 58.75,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:347 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:351 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -258,27 +237,7 @@
    "pri": 1
   },
   {
-   "key": "печь|stove|morph|js/fire.js:68",
-   "sc": "печь",
-   "cat": "stove",
-   "ev": "morph",
-   "from": "печь холодная ~0 пол.",
-   "to": "печь горит ~1 пол.",
-   "t": 136.52,
-   "at": [
-    "js/fire.js:68 ← js/actions.js:367 ← js/actions.js:328",
-    "js/fire.js:75 ← js/game.js:53"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 сменил вид «печь холодная ~0 пол.» → «печь горит ~1 пол.» в один кадр (ни преемника с анимацией, ни постепенно)"
-   ],
-   "act": "—",
-   "n": 2,
-   "pri": 1
-  },
-  {
-   "key": "обрубка|chunk|appear|js/actions.js:441",
+   "key": "обрубка|chunk|appear|js/actions.js:449",
    "sc": "обрубка",
    "cat": "chunk",
    "ev": "appear",
@@ -286,7 +245,7 @@
    "to": "чурка",
    "t": 8.32,
    "at": [
-    "js/actions.js:441 ← js/actions.js:514 ← js/game.js:51"
+    "js/actions.js:449 ← js/actions.js:525 ← js/game.js:51"
    ],
    "why": [
     "C2 нет контакта с «buck»: инструмент в 102 px"
@@ -296,15 +255,15 @@
    "pri": 1
   },
   {
-   "key": "заяц руками|hare|vanish|js/actions.js:346",
+   "key": "заяц руками|hare|vanish|js/actions.js:350",
    "sc": "заяц руками",
    "cat": "hare",
    "ev": "vanish",
    "from": "заяц",
    "to": "—",
-   "t": 57.75,
+   "t": 58.75,
    "at": [
-    "js/actions.js:346 ← js/actions.js:328"
+    "js/actions.js:350 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3",
@@ -321,7 +280,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:hare",
-   "t": 58.23,
+   "t": 59.23,
    "at": [
     "p.action (take)"
    ],
@@ -339,7 +298,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:can",
-   "t": 79.55,
+   "t": 80.55,
    "at": [
     "p.action (eat)"
    ],
@@ -357,9 +316,9 @@
    "ev": "inv",
    "from": "2",
    "to": "-1 can",
-   "t": 79.55,
+   "t": 80.55,
    "at": [
-    "js/inventory.js:11 ← js/actions.js:778"
+    "js/inventory.js:11 ← js/actions.js:1062"
    ],
    "why": [
     "C1 действие «eat» шло 0.02 с < 0.3"
@@ -369,15 +328,15 @@
    "pri": 1
   },
   {
-   "key": "банка|litter|vanish|js/actions.js:374",
+   "key": "банка|litter|vanish|js/actions.js:378",
    "sc": "банка",
    "cat": "litter",
    "ev": "vanish",
    "from": "банка",
    "to": "—",
-   "t": 82.58,
+   "t": 83.58,
    "at": [
-    "js/actions.js:374 ← js/actions.js:328"
+    "js/actions.js:378 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3",
@@ -394,7 +353,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:canE",
-   "t": 83.07,
+   "t": 84.07,
    "at": [
     "p.action (take)"
    ],
@@ -406,90 +365,15 @@
    "pri": 1
   },
   {
-   "key": "костёр|fire|appear|js/actions.js:768",
-   "sc": "костёр",
-   "cat": "fire",
-   "ev": "appear",
-   "from": "—",
-   "to": "горит",
-   "t": 122.7,
-   "at": [
-    "js/actions.js:768"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 1
-  },
-  {
-   "key": "костёр|fire|morph|js/actions.js:692",
-   "sc": "костёр",
-   "cat": "fire",
-   "ev": "morph",
-   "from": "горит",
-   "to": "погас",
-   "t": 127.75,
-   "at": [
-    "js/actions.js:692 ← js/actions.js:480 ← js/actions.js:514"
-   ],
-   "why": [
-    "C3 сменил вид «горит» → «погас» в один кадр (ни преемника с анимацией, ни постепенно)"
-   ],
-   "act": "bury@2.02",
-   "n": 1,
-   "pri": 1
-  },
-  {
-   "key": "костёр|inv|inv|js/inventory.js:7",
-   "sc": "костёр",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "8",
-   "to": "+2 wood",
-   "t": 127.75,
-   "at": [
-    "js/inventory.js:7 ← js/actions.js:692 ← js/actions.js:480"
-   ],
-   "why": [
-    "C3 «wood» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
-   ],
-   "act": "bury@2.02",
-   "n": 1,
-   "pri": 1
-  },
-  {
-   "key": "костёр|fire|morph|js/actions.js:758",
-   "sc": "костёр",
-   "cat": "fire",
-   "ev": "morph",
-   "from": "погас",
-   "to": "горит",
-   "t": 129.77,
-   "at": [
-    "js/actions.js:758",
-    "js/fire.js:36 ← js/game.js:52"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 сменил вид «погас» → «горит» в один кадр (ни преемника с анимацией, ни постепенно)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 1
-  },
-  {
    "key": "заяц палкой|inv|inv|js/inventory.js:7",
    "sc": "заяц палкой",
    "cat": "inv",
    "ev": "inv",
    "from": "1",
    "to": "+1 hare",
-   "t": 61.4,
+   "t": 62.4,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:582 ← js/actions.js:574"
+    "js/inventory.js:7 ← js/actions.js:608 ← js/actions.js:600"
    ],
    "why": [
     "C3 «hare» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
@@ -499,15 +383,15 @@
    "pri": 2
   },
   {
-   "key": "заяц палкой|hare|vanish|js/actions.js:582",
+   "key": "заяц палкой|hare|vanish|js/actions.js:608",
    "sc": "заяц палкой",
    "cat": "hare",
    "ev": "vanish",
    "from": "заяц",
    "to": "—",
-   "t": 61.4,
+   "t": 62.4,
    "at": [
-    "js/actions.js:582 ← js/actions.js:574 ← js/actions.js:518"
+    "js/actions.js:608 ← js/actions.js:600 ← js/actions.js:529"
    ],
    "why": [
     "C3 исчез «заяц» без передачи в руку/преемника (через 0.2 с в руке: пусто)"
@@ -517,87 +401,15 @@
    "pri": 2
   },
   {
-   "key": "сигнальная куча|inv|inv|js/inventory.js:11",
-   "sc": "сигнальная куча",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "6",
-   "to": "-1 wood",
-   "t": 132.32,
-   "at": [
-    "js/inventory.js:11 ← js/actions.js:763"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)"
-   ],
-   "act": "—",
-   "n": 4,
-   "pri": 2
-  },
-  {
-   "key": "сигнальная куча|stack|morph|js/actions.js:763",
-   "sc": "сигнальная куча",
-   "cat": "stack",
-   "ev": "morph",
-   "from": "куча w0",
-   "to": "куча w1",
-   "t": 132.32,
-   "at": [
-    "js/actions.js:763"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)"
-   ],
-   "act": "—",
-   "n": 3,
-   "pri": 2
-  },
-  {
    "key": "рыбалка|inv|inv|js/inventory.js:7",
    "sc": "рыбалка",
    "cat": "inv",
    "ev": "inv",
    "from": "0",
-   "to": "+1 fish",
-   "t": 146.58,
+   "to": "+3 fish",
+   "t": 181.05,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:725"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)"
-   ],
-   "act": "—",
-   "n": 3,
-   "pri": 2
-  },
-  {
-   "key": "ловушка: забрать улов|inv|inv|js/inventory.js:7",
-   "sc": "ловушка: забрать улов",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "0",
-   "to": "+1 meat",
-   "t": 160.02,
-   "at": [
-    "js/inventory.js:7 ← js/actions.js:385 ← js/actions.js:328"
-   ],
-   "why": [
-    "C1 действие «take» шло 0.02 с < 0.3"
-   ],
-   "act": "take@0.02",
-   "n": 3,
-   "pri": 2
-  },
-  {
-   "key": "изба: стройка|inv|inv|js/inventory.js:11",
-   "sc": "изба: стройка",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "20",
-   "to": "-6 wood",
-   "t": 181.35,
-   "at": [
-    "js/inventory.js:11 ← js/inventory.js:28 ← js/actions.js:871"
+    "js/inventory.js:7 ← js/actions.js:778"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)"
@@ -613,9 +425,9 @@
    "ev": "jump",
    "from": "5100,5970",
    "to": "+37 px",
-   "t": 70.48,
+   "t": 71.48,
    "at": [
-    "js/wolves.js:25 ← js/actions.js:343 ← js/actions.js:328"
+    "js/wolves.js:25 ← js/actions.js:347 ← js/actions.js:328"
    ],
    "why": [
     "C3 скачок +37 px за кадр"
@@ -631,9 +443,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 wpelt",
-   "t": 71.68,
+   "t": 72.68,
    "at": [
-    "js/inventory.js:7 ← js/wolves.js:31 ← js/actions.js:343"
+    "js/inventory.js:7 ← js/wolves.js:31 ← js/actions.js:347"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)"
@@ -643,40 +455,21 @@
    "pri": 2
   },
   {
-   "key": "изба: стройка|hut|appear|js/actions.js:871",
-   "sc": "изба: стройка",
-   "cat": "hut",
-   "ev": "appear",
-   "from": "—",
-   "to": "изба:walls",
-   "t": 181.35,
+   "key": "ловушка: забрать улов|inv|inv|js/inventory.js:7",
+   "sc": "ловушка: забрать улов",
+   "cat": "inv",
+   "ev": "inv",
+   "from": "0",
+   "to": "+1 meat",
+   "t": 202.07,
    "at": [
-    "js/actions.js:871"
+    "js/inventory.js:7 ← js/actions.js:392 ← js/actions.js:328"
    ],
    "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
+    "C1 действие «take» шло 0.02 с < 0.3"
    ],
-   "act": "—",
+   "act": "take@0.02",
    "n": 2,
-   "pri": 2
-  },
-  {
-   "key": "отдых на пне|hero|jump|js/actions.js:342",
-   "sc": "отдых на пне",
-   "cat": "hero",
-   "ev": "jump",
-   "from": "5206,6048",
-   "to": "+32 px",
-   "t": 54.7,
-   "at": [
-    "js/actions.js:342 ← js/actions.js:328"
-   ],
-   "why": [
-    "C3 скачок +32 px за кадр"
-   ],
-   "act": "rest@0.02",
-   "n": 1,
    "pri": 2
   },
   {
@@ -686,9 +479,9 @@
    "ev": "appear",
    "from": "—",
    "to": "туша:wolf",
-   "t": 71.68,
+   "t": 72.68,
    "at": [
-    "js/fx.js:20 ← js/wolves.js:30 ← js/actions.js:343"
+    "js/fx.js:20 ← js/wolves.js:30 ← js/actions.js:347"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -705,9 +498,9 @@
    "ev": "vanish",
    "from": "волк",
    "to": "—",
-   "t": 71.68,
+   "t": 72.68,
    "at": [
-    "js/wolves.js:30 ← js/actions.js:343 ← js/actions.js:328"
+    "js/wolves.js:30 ← js/actions.js:347 ← js/actions.js:328"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -718,146 +511,15 @@
    "pri": 2
   },
   {
-   "key": "лопата|gear|appear|js/actions.js:337",
-   "sc": "лопата",
-   "cat": "gear",
-   "ev": "appear",
-   "from": "—",
-   "to": "снаряжение:shovel",
-   "t": 107.03,
-   "at": [
-    "js/actions.js:337 ← js/actions.js:328"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 появился сразу целым (нет анимации появления, предшественник: shovel (лопата), не из руки)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "лопата|shovel|vanish|js/actions.js:337",
-   "sc": "лопата",
-   "cat": "shovel",
-   "ev": "vanish",
-   "from": "лопата",
-   "to": "—",
-   "t": 107.03,
-   "at": [
-    "js/actions.js:337 ← js/actions.js:328"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 исчез «лопата» в один кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "тайник|stash|appear|js/actions.js:813",
-   "sc": "тайник",
-   "cat": "stash",
-   "ev": "appear",
-   "from": "—",
-   "to": "тайник",
-   "t": 119.15,
-   "at": [
-    "js/actions.js:813"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "сигнальная куча|stack|morph|js/fire.js:23",
-   "sc": "сигнальная куча",
-   "cat": "stack",
-   "ev": "morph",
-   "from": "куча w4",
-   "to": "горит w0",
-   "t": 135.48,
-   "at": [
-    "js/fire.js:23 ← js/actions.js:482 ← js/actions.js:514",
-    "js/fire.js:41 ← js/game.js:52"
-   ],
-   "why": [
-    "C3 сменил вид «куча w4» → «горит w0» в один кадр (ни преемника с анимацией, ни постепенно)"
-   ],
-   "act": "light@1.52",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "лунка|hole|appear|js/actions.js:454",
-   "sc": "лунка",
-   "cat": "hole",
-   "ev": "appear",
-   "from": "—",
-   "to": "лунка",
-   "t": 143.05,
-   "at": [
-    "js/actions.js:454 ← js/actions.js:514 ← js/game.js:51"
-   ],
-   "why": [
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "dig@4.02",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "рыбалка|hole|vanish|js/actions.js:728",
-   "sc": "рыбалка",
-   "cat": "hole",
-   "ev": "vanish",
-   "from": "лунка",
-   "to": "—",
-   "t": 155.45,
-   "at": [
-    "js/actions.js:728"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 исчез «лунка» в один кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "ловушка: поставить|trap|appear|js/actions.js:484",
-   "sc": "ловушка: поставить",
-   "cat": "trap",
-   "ev": "appear",
-   "from": "—",
-   "to": "snare:пусто",
-   "t": 158.47,
-   "at": [
-    "js/actions.js:484 ← js/actions.js:514 ← js/game.js:51"
-   ],
-   "why": [
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "place@2.02",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "ловушка: забрать улов|trap|morph|js/actions.js:386",
+   "key": "ловушка: забрать улов|trap|morph|js/actions.js:393",
    "sc": "ловушка: забрать улов",
    "cat": "trap",
    "ev": "morph",
    "from": "snare:hare",
    "to": "snare:пусто",
-   "t": 160.02,
+   "t": 202.07,
    "at": [
-    "js/actions.js:386 ← js/actions.js:328"
+    "js/actions.js:393 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -873,7 +535,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:hare",
-   "t": 160.5,
+   "t": 202.55,
    "at": [
     "p.action (take)"
    ],
@@ -885,110 +547,18 @@
    "pri": 2
   },
   {
-   "key": "ловушка: забрать улов|trap|vanish|js/actions.js:387",
-   "sc": "ловушка: забрать улов",
-   "cat": "trap",
-   "ev": "vanish",
-   "from": "snare:пусто",
-   "to": "—",
-   "t": 163.33,
-   "at": [
-    "js/actions.js:387 ← js/actions.js:328"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 исчез «snare:пусто» в один кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "крафт|inv|inv|js/inventory.js:11",
-   "sc": "крафт",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "4",
-   "to": "-1 scrap",
-   "t": 166.37,
-   "at": [
-    "js/inventory.js:11 ← js/inventory.js:28 ← js/actions.js:847"
-   ],
-   "why": [
-    "C1 действие «craft» шло 0.02 с < 0.3"
-   ],
-   "act": "craft@0.02",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "крафт|inv|inv|?",
-   "sc": "крафт",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "3",
-   "to": "-3 scrap",
-   "t": 170.38,
-   "at": [
-    "?",
-    "js/inventory.js:11 ← js/inventory.js:28 ← js/actions.js:847"
-   ],
-   "why": [
-    "C1 действие «craft» шло 0.02 с < 0.3"
-   ],
-   "act": "craft@0.02",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "Буран|hero|jump|js/transport.js:73",
-   "sc": "Буран",
-   "cat": "hero",
-   "ev": "jump",
-   "from": "5648,5860",
-   "to": "+42 px",
-   "t": 188.7,
-   "at": [
-    "js/transport.js:73 ← js/transport.js:48 ← js/actions.js:362"
-   ],
-   "why": [
-    "C3 скачок +42 px за кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "Буран|hero|jump|js/transport.js:80",
-   "sc": "Буран",
-   "cat": "hero",
-   "ev": "jump",
-   "from": "6734,5895",
-   "to": "+24 px",
-   "t": 191.75,
-   "at": [
-    "js/transport.js:80 ← js/transport.js:48 ← js/actions.js:362"
-   ],
-   "why": [
-    "C3 скачок +24 px за кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 2
-  },
-  {
-   "key": "посёлок|lap|appear|js/gfx.js:552",
+   "key": "посёлок|lap|appear|js/gfx.js:565",
    "sc": "посёлок",
    "cat": "lap",
    "ev": "appear",
    "from": "—",
    "to": "лапник",
-   "t": 210.23,
+   "t": 283.03,
    "at": [
-    "js/gfx.js:552 ← js/interact.js:106 ← js/colony.js:168"
+    "js/gfx.js:565 ← js/interact.js:106 ← js/colony.js:179"
    ],
    "why": [
-    "C2 нет контакта с «работа:chop»: инструмент в 101 px",
+    "C2 нет контакта с «работа:chop»: инструмент в 102 px",
     "C3 появился сразу целым (нет анимации появления, предшественник: tree (стоит w1), не из руки)"
    ],
    "act": "работа:chop@7.20",
@@ -996,15 +566,15 @@
    "pri": 3
   },
   {
-   "key": "посёлок: стройка|lap|appear|js/gfx.js:552",
+   "key": "посёлок: стройка|lap|appear|js/gfx.js:565",
    "sc": "посёлок: стройка",
    "cat": "lap",
    "ev": "appear",
    "from": "—",
    "to": "лапник",
-   "t": 233.5,
+   "t": 306.3,
    "at": [
-    "js/gfx.js:552 ← js/interact.js:106 ← js/colony.js:168"
+    "js/gfx.js:565 ← js/interact.js:106 ← js/colony.js:179"
    ],
    "why": [
     "C3 появился сразу целым (нет анимации появления, предшественник: tree (стоит w1), не из руки)"
@@ -1020,9 +590,9 @@
    "ev": "appear",
    "from": "—",
    "to": "туша:bear",
-   "t": 75.92,
+   "t": 76.92,
    "at": [
-    "js/fx.js:20 ← js/bear.js:15 ← js/actions.js:344"
+    "js/fx.js:20 ← js/bear.js:15 ← js/actions.js:348"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -1039,9 +609,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+4 meat",
-   "t": 75.92,
+   "t": 76.92,
    "at": [
-    "js/inventory.js:7 ← js/bear.js:15 ← js/actions.js:344"
+    "js/inventory.js:7 ← js/bear.js:15 ← js/actions.js:348"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)"
@@ -1057,32 +627,13 @@
    "ev": "vanish",
    "from": "шатун",
    "to": "—",
-   "t": 75.92,
+   "t": 76.92,
    "at": [
-    "js/bear.js:15 ← js/actions.js:344 ← js/actions.js:328"
+    "js/bear.js:15 ← js/actions.js:348 ← js/actions.js:328"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
     "C3 исчез «шатун» в один кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "банка истлела|litter|vanish|js/gfx.js:883",
-   "sc": "банка истлела",
-   "cat": "litter",
-   "ev": "vanish",
-   "from": "банка",
-   "to": "—",
-   "t": 85.82,
-   "at": [
-    "js/gfx.js:883 ← js/gfx.js:1252 ← js/gfx.js:1190"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 исчез «банка» в один кадр"
    ],
    "act": "—",
    "n": 1,
@@ -1095,7 +646,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:amulet",
-   "t": 87.12,
+   "t": 88.12,
    "at": [
     "p.action (take)"
    ],
@@ -1113,9 +664,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 tube",
-   "t": 89.67,
+   "t": 90.67,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:399 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:406 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -1131,7 +682,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:tube",
-   "t": 90.15,
+   "t": 91.15,
    "at": [
     "p.action (take)"
    ],
@@ -1149,9 +700,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+2 meat",
-   "t": 104,
+   "t": 105,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:352 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:356 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -1161,15 +712,15 @@
    "pri": 3
   },
   {
-   "key": "лабаз|labaz|vanish|js/actions.js:352",
+   "key": "лабаз|labaz|vanish|js/actions.js:356",
    "sc": "лабаз",
    "cat": "labaz",
    "ev": "vanish",
    "from": "мясо на лабазе",
    "to": "—",
-   "t": 104,
+   "t": 105,
    "at": [
-    "js/actions.js:352 ← js/actions.js:328"
+    "js/actions.js:356 ← js/actions.js:328"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3",
@@ -1186,7 +737,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:meat",
-   "t": 104.48,
+   "t": 105.48,
    "at": [
     "p.action (take)"
    ],
@@ -1204,9 +755,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 scrap",
-   "t": 117.52,
+   "t": 118.52,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:460 ← js/actions.js:514"
+    "js/inventory.js:7 ← js/actions.js:470 ← js/actions.js:525"
    ],
    "why": [
     "C3 «scrap» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
@@ -1222,199 +773,14 @@
    "ev": "inv",
    "from": "3",
    "to": "+1 wood",
-   "t": 120.75,
+   "t": 124.77,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:685 ← js/actions.js:480"
+    "js/inventory.js:7 ← js/actions.js:738 ← js/actions.js:491"
    ],
    "why": [
     "C3 «wood» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
    ],
    "act": "kick@0.60",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "ловушка: улов на рассвете|trap|morph|js/fauna.js:130",
-   "sc": "ловушка: улов на рассвете",
-   "cat": "trap",
-   "ev": "morph",
-   "from": "snare:пусто",
-   "to": "snare:hare",
-   "t": 159.48,
-   "at": [
-    "js/fauna.js:130"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "крафт: отмена|inv|inv|js/inventory.js:11",
-   "sc": "крафт: отмена",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "2",
-   "to": "-1 scrap",
-   "t": 179.4,
-   "at": [
-    "js/inventory.js:11 ← js/inventory.js:28 ← js/actions.js:847"
-   ],
-   "why": [
-    "C1 действие «craft» шло 0.02 с < 0.3"
-   ],
-   "act": "craft@0.02",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "упряжка|veh|appear|js/transport.js:63",
-   "sc": "упряжка",
-   "cat": "veh",
-   "ev": "appear",
-   "from": "—",
-   "to": "упряжка",
-   "t": 192.77,
-   "at": [
-    "js/transport.js:63 ← js/transport.js:57"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "упряжка|inv|inv|js/inventory.js:11",
-   "sc": "упряжка",
-   "cat": "inv",
-   "ev": "inv",
-   "from": "9",
-   "to": "-3 meat",
-   "t": 192.77,
-   "at": [
-    "js/inventory.js:11 ← js/inventory.js:28 ← js/transport.js:62"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "упряжка: в нарты|hero|jump|js/transport.js:73",
-   "sc": "упряжка: в нарты",
-   "cat": "hero",
-   "ev": "jump",
-   "from": "6710,5929",
-   "to": "+34 px",
-   "t": 193.78,
-   "at": [
-    "js/transport.js:73"
-   ],
-   "why": [
-    "C3 скачок +34 px за кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "упряжка: в нарты|hero|jump|js/transport.js:80",
-   "sc": "упряжка: в нарты",
-   "cat": "hero",
-   "ev": "jump",
-   "from": "6744,5929",
-   "to": "+24 px",
-   "t": 194.78,
-   "at": [
-    "js/transport.js:80"
-   ],
-   "why": [
-    "C3 скачок +24 px за кадр"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "посёлок: стройка|build|appear|js/colony.js:358",
-   "sc": "посёлок: стройка",
-   "cat": "build",
-   "ev": "appear",
-   "from": "—",
-   "to": "стройка 0",
-   "t": 212.28,
-   "at": [
-    "js/colony.js:358"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "посёлок: найм|unit|appear|js/colony.js:53",
-   "sc": "посёлок: найм",
-   "cat": "unit",
-   "ev": "appear",
-   "from": "—",
-   "to": "человек:bich",
-   "t": 265.3,
-   "at": [
-    "js/colony.js:53 ← js/colony.js:252 ← js/game.js:66"
-   ],
-   "why": [
-    "C2 нет контакта с «работа:chop»: инструмент в 405 px",
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
-   ],
-   "act": "работа:chop@9.38",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "пень → поросль|tree|morph|js/world.js:251",
-   "sc": "пень → поросль",
-   "cat": "tree",
-   "ev": "morph",
-   "from": "пень w0",
-   "to": "молодое w1",
-   "t": 266.33,
-   "at": [
-    "js/world.js:251 ← js/game.js:74"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 сменил вид «пень w0» → «молодое w1» в один кадр (ни преемника с анимацией, ни постепенно)"
-   ],
-   "act": "—",
-   "n": 1,
-   "pri": 3
-  },
-  {
-   "key": "пень → поросль|tree|morph|js/world.js:253",
-   "sc": "пень → поросль",
-   "cat": "tree",
-   "ev": "morph",
-   "from": "молодое w1",
-   "to": "стоит w3",
-   "t": 266.85,
-   "at": [
-    "js/world.js:253 ← js/game.js:74"
-   ],
-   "why": [
-    "C1 нет исполнителя (ни действия героя, ни работы людей)",
-    "C3 сменил вид «молодое w1» → «стоит w3» в один кадр (ни преемника с анимацией, ни постепенно)"
-   ],
-   "act": "—",
    "n": 1,
    "pri": 3
   }

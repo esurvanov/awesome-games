@@ -16,6 +16,8 @@ const URL = process.env.SIBIR_URL || 'file://' + path.resolve(__dirname, '../ind
 function page() {
   const out = [], ok = (c, w) => out.push((c ? 'ok   ' : 'FAIL ') + w);
   const fresh = seed => { Math.random = mulberry(seed); newGame(); state = 'play'; G.s.food = 100; G.s.warm = 90; };
+  // T: яма копается по горстям (js/actions.js stashDig) — ждём конца работы, потом открыта панель
+  const dig = () => { const s = Actions.stashKey(); for (let i = 0; i < 400 && G.p.action; i++) update(1 / 60); return s; };
   const farTree = () => G.trees.find(t => !t.wall && Math.hypot(t.x - HUT.x, t.y - HUT.y) > 500 && Math.hypot(t.x - riverX(t.y), 0) > 200);
   const T = TUNE.world;
 
@@ -67,7 +69,7 @@ function page() {
     fresh(204);
     G.p.x = HUT.x + 900; G.p.y = HUT.y; G.p.inside = false;
     G.inv.wood = 5; G.inv.meat = 2;
-    const s = Actions.stashKey();
+    const s = dig();
     ok(!!s && G.stashes.length === 1, `📦 тайник создан у (${s && s.x},${s && s.y})`);
     ok(UI.kind === 'stash', '📦 панель тайника открыта (E/T)');
     // положить дрова через настоящую кнопку панели (как игрок)
@@ -80,18 +82,18 @@ function page() {
     ok(s.inv.wood === 0 && G.inv.wood === w0, `📦 «Взять» обратно: рюкзак ${G.inv.wood}, тайник ${s.inv.wood}`);
     UI.closePanel();
     // рядом — открывает тот же тайник, не создаёт новый
-    G.p.x += 30; const s2 = Actions.stashKey();
+    G.p.x += 30; const s2 = dig();
     ok(s2 === s && G.stashes.length === 1, '📦 рядом с тайником — открывает существующий, не плодит новые');
     UI.closePanel();
     // лимит — не больше stashMax штук
     for (let k = 0; k < 10 && G.stashes.length < T.stashMax; k++) {
       G.p.x += 300; G.inv.wood = 1;
-      Actions.stashKey();
+      dig();
       UI.closePanel();
     }
     ok(G.stashes.length === T.stashMax, `📦 набралось ${G.stashes.length}/${T.stashMax} тайников`);
     G.p.x += 300; G.inv.wood = 1;
-    const over = Actions.stashKey();
+    const over = dig();
     ok(!over && G.stashes.length === T.stashMax, '📦 лимит держится — новый тайник не создаётся');
     UI.closePanel();
     // сейв/лоад — содержимое не теряется
@@ -106,7 +108,7 @@ function page() {
   {
     fresh(305);
     G.p.x = HUT.x + 900; G.p.y = HUT.y; G.p.inside = false; G.inv.meat = 3;
-    const s = Actions.stashKey(); UI.closePanel();
+    const s = dig(); UI.closePanel();
     s.inv.meat = 3; delete s.raidNight;
     G.bear = { x: s.x + 40, y: s.y, st: 'wander', hp: 20 };
     const r0 = Math.random; Math.random = () => 0; // гарантируем срабатывание шанса
@@ -115,7 +117,7 @@ function page() {
     ok(s.raidNight != null && s.inv.meat < 3, `🐻 шатун разорил тайник с едой (:meat: ${s.inv.meat})`);
     // без хищника рядом — тайник цел
     G.p.x += 400; G.inv.meat = 2;
-    const s2 = Actions.stashKey(); UI.closePanel();
+    const s2 = dig(); UI.closePanel();
     if (s2) { s2.inv.meat = 2; delete s2.raidNight; G.bear = null; G.wolves = [];
       World.tickStashRaids(0.05, 1);
       ok(s2.inv.meat === 2, '🐻 без хищника рядом — тайник цел');

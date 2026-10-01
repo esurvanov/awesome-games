@@ -106,7 +106,7 @@ var NoInstant = (() => {
     };
     for (const t of G.trees) if (!t.wall && Math.abs(t.x - p.x) < VW + 200 && Math.abs(t.y - p.y) < VH + 200) {
       const cls = t.wood > 0 ? (t.stage === 1 ? 'молодое' : 'стоит') : 'пень';
-      add('tree', t, t.x, t.y, cls, cls + ' w' + t.wood, t.wood, 'trees');
+      add('tree', t, t.x, t.y, cls, cls + ' w' + t.wood, World.growWood ? World.growWood(t) : t.wood, 'trees');   // отрастание — непрерывная мера (js/world.js growWood)
     }
     for (const L of G.logs || []) { const cls = L.f && !L.f.hit ? 'падает' : L.done != null ? 'разделан' : 'лежит'; add('log', L, L.x, L.y, cls, cls + ' сучья' + Actions.logCut(L).toFixed(2) + ' n' + L.n, L.n, 'logs'); }
     for (const c of G.chunks || []) add('chunk', c, c.x, c.y, 'чурка', null, 0, 'chunks');
@@ -115,8 +115,10 @@ var NoInstant = (() => {
     for (const t of G.traps || []) add('trap', t, t.x, t.y, 'ловушка', t.kind + ':' + (t.catch || 'пусто'), 0, 'traps');
     for (const h of G.holes || []) add('hole', h, h.x, h.y, 'лунка', 'лунка', h.fish, 'holes');
     for (const h of G.iceHoles || []) add('icehole', h, h.x, h.y, 'пролом', null, 0, 'iceHoles');
-    for (const f of G.fires || []) add('fire', f, f.x, f.y, f.fuel > 0 ? 'горит' : 'погас', null, f.fuel, 'fires');
-    for (const s of G.stacks || []) add('stack', s, s.x, s.y, s.lit > 0 ? 'горит' : 'куча', (s.lit > 0 ? 'горит' : 'куча') + ' w' + s.wood, s.lit > 0 ? s.lit : s.wood, 'stacks');
+    // огонь — по тому, что видно (f.fl / s.fl / G.hut.fl: разгорается и гаснет плавно, js/fire.js); поленья в кострище — в подписи
+    const lit = (o, on) => (o.fl == null ? on : o.fl > 0.5);
+    for (const f of G.fires || []) { const c = lit(f, f.fuel > 0) ? 'горит' : 'погас'; add('fire', f, f.x, f.y, c, c + (f.lay ? ' пол.' + f.lay : ''), f.fuel, 'fires'); }
+    for (const s of G.stacks || []) { const c = lit(s, s.lit > 0) ? 'горит' : 'куча'; add('stack', s, s.x, s.y, c, c + ' w' + s.wood, s.lit > 0 ? s.lit : s.wood, 'stacks'); }
     for (const s of G.stashes || []) add('stash', s, s.x, s.y, 'тайник', null, 0, 'stashes');
     for (const c of G.corpses || []) add('corpse', c, c.x, c.y, 'туша:' + c.kind, null, 0, 'corpses');
     for (const f of G.fallen || []) add('fallen', f, f.x, f.y, 'бурелом', null, 0, 'fallen');
@@ -132,9 +134,10 @@ var NoInstant = (() => {
     if (!G.flags.tube || Actions.grabbing(TUBE_POS)) add('tube', TUBE_POS, TUBE_POS.x, TUBE_POS.y, 'лампа', null, 0, 'flags.tube');
     if (typeof Trail !== 'undefined' && !G.flags.shovel) add('shovel', Trail.SHOVEL, Trail.SHOVEL.x, Trail.SHOVEL.y, 'лопата', null, 0, 'flags.shovel');
     if (!G.labaz) add('labaz', POI.labaz, POI.labaz.x, POI.labaz.y, 'мясо на лабазе', null, 0, 'labaz');
-    for (const k of ['walls', 'door', 'bench', 'damper']) if (G.hut[k]) add('hut', HUTP[k], HUT.x, HUT.y, 'изба:' + k, null, 0, 'hut.' + k);
+    // части избы: с первого шага работы (G.hut.prog — растут по ходу), объект — цель шага (Actions.HUTO)
+    for (const k of ['walls', 'door', 'bench', 'damper']) { const pr = G.hut.prog && G.hut.prog[k] || 0; if (G.hut[k] || pr > 0) add('hut', (Actions.HUTO || HUTP)[k], HUT.x, HUT.y, 'изба:' + k, 'изба:' + k + (G.hut[k] ? '' : ' ' + Math.floor(pr * 10)), pr, 'hut.' + k); }
     if (G.veh) for (const k of ['deer', 'buran']) { const v = G.veh[k]; if (v) add('veh', v, v.x, v.y, k === 'deer' ? 'упряжка' : 'Буран', null, 0, 'veh.' + k); }
-    { const n = Math.ceil(G.hut.fuel / Stove.secPerLog() - 1e-6), cls = G.hut.fuel > 0 ? 'печь горит' : 'печь холодная'; add('stove', SPOT.stove, SPOT.stove.x, SPOT.stove.y, cls, cls + ' ~' + n + ' пол.', G.hut.fuel, 'hut.fuel'); }
+    { const n = Math.ceil(G.hut.fuel / Stove.secPerLog() - 1e-6), cls = (G.hut.fl == null ? G.hut.fuel > 0 : G.hut.fl > 0.5) ? 'печь горит' : 'печь холодная'; add('stove', SPOT.stove, SPOT.stove.x, SPOT.stove.y, cls, cls + ' ~' + n + ' пол.', G.hut.fuel, 'hut.fuel'); }
     for (const k of ['sled', 'shovel']) if (G.gear[k]) add('gear', GEARP[k], p.x, p.y, 'снаряжение:' + k, null, 0, 'gear.' + k);
     for (const f of NFALL) { const el = now - f.t0; if (el < f.end) add('npcfall', f, f.x, f.y, el < f.fall ? 'падает' : 'лежит', null, 0, 'gfx FALL'); }
     const a = p.action; if (handVis(a)) add('hand', a, p.x, p.y, 'в руке:' + a.item, null, 0, 'p.action.item');
@@ -160,6 +163,11 @@ var NoInstant = (() => {
     npcfall: o => now - o.t0 < o.fall,                  // js/gfx.js:556 — ствол людей посёлка падает (только рисунок)
     chunk: o => o.fx != null,                          // js/gfx.js:881 — откатывается от места реза 0.45 с
     log: o => !!(o.f && !o.f.hit),                      // js/gfx.js:411 — надлом, падение маятником, отскок
+    fire: o => !!o.b && (o.site || 0) < 1,              // js/art-world.js fire — место утаптывают по горстям (site), поленья по одному
+    hole: o => o.dg != null && o.dg < 1,                // js/art-world.js hole — выемка растёт по ударам пешни
+    stash: o => o.dg != null && o.dg < 1,               // js/art-world.js stashPit — яму копают по горстям
+    hut: o => !G.hut[o.k],                              // js/art-world.js hutFront/hutBench/hutStove — часть растёт по шагам (G.hut.prog)
+    build: o => !o.done && o.t0 != null && G.time - o.t0 < 0.8,   // js/art-world.js construct — план проступает за 0,8 с, дальше растёт работой
   };
   // класс-«переход»: выход из него — конец анимации, не скачок
   const TRANS = { log: 'падает', npcfall: 'падает' };
@@ -171,6 +179,8 @@ var NoInstant = (() => {
     lap: o => (G.time - o.t) / (CYCLE * Actions.FELL.bury),               // js/gfx.js:879 — лапник уходит под снег
     corpse: o => (G.time - o.t0) / 90,                                     // js/art-animals.js:612 — бледнеет за 90 с (только alpha до 0.55)
     fire: o => 0,
+    hole: o => o.ice || 0,                                                 // js/art-world.js hole — выловленная лунка затягивается льдом
+    litter: o => (G.time - o.t) / (CYCLE * Actions.CAN_LIFE),               // js/art-world.js emptyCan — банку присыпает и скрывает снег
   };
 
   // ---------- состояние прогона ----------
@@ -282,7 +292,7 @@ var NoInstant = (() => {
       if (!ev.cls) { if (!actor && gradual(ev.o, r)) return report(ev, [], null); return report(ev, actor ? [] : fails, actor); }
       if (TRANS[r.cat] && TRANS[r.cat] === ev.q.cls) return report(ev, [], actor); // конец своей анимации перехода
       const s = successor(ev); if (s && (actor || natural)) return report(ev, actor ? [] : fails.filter(f => !f.startsWith('C1 нет')), actor);
-      if (gradual(ev.o, r)) return report(ev, actor ? [] : (natural ? [] : fails), actor);
+      if (gradual(ev.o, r)) return report(ev, [], actor);   // «или постепенно» — процесс сам по себе (огонь разгорается, пока герой занят другим)
       fails.push('C3 сменил вид «' + ev.from + '» → «' + ev.to + '» в один кадр (ни преемника с анимацией, ни постепенно)');
       return report(ev, fails, actor);
     }
@@ -313,6 +323,11 @@ var NoInstant = (() => {
         const from = ev.all.find(e => e.type === 'vanish' && e.r.cat !== 'hand');
         if (from) return report(ev, [], actor);
         const bag = ev.all.find(e => e.type === 'inv' && e.dv < 0);
+        // достал из рюкзака движением (шаг «достать» шёл ≥ T_MIN, вещь ушла из рюкзака в этот же кадр) — процесс
+        if (bag && actor) return report(ev, [], actor);
+        // вынул из вещи-вместилища (кострище: полено) — цель действия сменила вид в этот же кадр
+        const box = ev.ac.find(q => q.a && q.a.o && ev.all.some(e => e.type === 'morph' && e.o === q.a.o));
+        if (box && actor) return report(ev, [], actor);
         return report(ev, ['C3 вещь «' + r.cls.replace('в руке:', '') + '» появилась в руке на ' + ev.o.t.toFixed(2) + ' с жеста, ' + (bag ? 'а из рюкзака ушла в кадр нажатия (без движения «достать»)' : 'а в мире её в этот кадр не было (исчезла раньше или не лежала вовсе)')], null);
       }
       const sa = SPAWN[r.cat] && SPAWN[r.cat](ev.o);
@@ -388,7 +403,7 @@ var NoInstant = (() => {
       phase('обрубка'); run(30, () => !L || Actions.logCut(L) >= 1);
       phase('разделка'); run(80, () => !L || L.n <= 0); hold.act = false; run(1);
       phase('подбор чурок'); hold.act = true; run(40, () => !(G.chunks || []).some(c => dist2(c, P()) < 80 * 80)); hold.act = false; run(2.5);
-      phase('отдых на пне'); { const p = P(); at(t.x + 30, t.y + 2, -1); rebase(); E(); run(1.5); hold.mx = 1; run(0.5); hold.mx = 0; run(1); }
+      phase('отдых на пне'); { const p = P(); at(t.x + 30, t.y + 2, -1); rebase(); E(); run(2.5); hold.mx = 1; run(0.5); hold.mx = 0; run(1); }
     },
     звери() {
       fresh('заяц руками', 5);
@@ -411,16 +426,17 @@ var NoInstant = (() => {
       phase('лопата'); { at(Trail.SHOVEL.x + 20, Trail.SHOVEL.y + 6, -1); rebase(); E(); run(2.5); }
       phase('лопата: тропа'); { at(HUT.x + 260, HUT.y + 260, 1); rebase(); hold.act = true; E(); run(3); hold.act = false; run(0.5); }
       phase('обломки'); { at(POI.cockpit.x, POI.cockpit.y + 60, 1); rebase(); E(); run(6); }
-      phase('тайник'); { at(HUT.x + 300, HUT.y + 300); G.inv.wood = 3; rebase(); Actions.stashKey(); run(1); }
+      phase('тайник'); { at(HUT.x + 300, HUT.y + 300); G.inv.wood = 3; rebase(); Actions.stashKey(); run(4); }
       phase('пинок сугроба'); { const d = G.drifts.find(d => !onIce(d.x, d.y) && Math.abs(d.x - HUT.x) > 300 && !Space.nearest(Space.trees, d.x, d.y, 70, t => t.wood > 0 && !t.wall)); if (d) { at(d.x, d.y); rebase(); const r0 = Math.random; Math.random = () => 0.01; E(); run(2.5); Math.random = r0; } }
     },
     огонь() {
       fresh('костёр', 10);
-      { at(HUT.x + 320, HUT.y + 320, 1); G.inv.wood = 12; rebase(); Actions.fireKey(); run(1.5); Actions.fireKey(); run(1.5);
-        const f = G.fires[G.fires.length - 1]; if (f) { at(f.x - 40, f.y, 1); rebase(); P().cd = 0; Actions.alt(); run(4); P().cd = 0; Actions.fireKey(); run(1); } }
-      phase('костёр догорел'); { const f = G.fires[G.fires.length - 1]; if (f) { f.fuel = 0.4; rebase(); run(1.5); } }
-      phase('сигнальная куча'); { const s = G.stacks[0]; at(s.x - 50, s.y, 1); G.inv.wood = 6; G.inv.kero = 0; rebase(); for (let k = 0; k < 4; k++) { P().cd = 0; Actions.fireKey(); run(0.4); } E(); run(2.5); }
-      phase('печь'); { at(SPOT.stove.x + 20, SPOT.stove.y + 10, -1); G.chest.wood = 4; G.hut.fuel = 0; rebase(); E(); run(1); P().cd = 0; E(); run(1.5); }
+      // костёр: разложить (≈ 8 с) → подкинуть → засыпать (3 горсти + вынуть поленья) → разжечь снова
+      { at(HUT.x + 320, HUT.y + 320, 1); G.inv.wood = 12; rebase(); Actions.fireKey(); run(12, () => !P().action && G.fires.some(f => f.fl > 0.9)); Actions.fireKey(); run(1.5);
+        const f = G.fires[G.fires.length - 1]; if (f) { at(f.x - 40, f.y, 1); rebase(); P().cd = 0; Actions.alt(); run(10, () => !P().action); run(1); P().cd = 0; Actions.fireKey(); run(10, () => !P().action); run(3); } }
+      phase('костёр догорел'); { const f = G.fires[G.fires.length - 1]; if (f) { f.fuel = 0.4; rebase(); run(3.5); } }
+      phase('сигнальная куча'); { const s = G.stacks[0]; at(s.x - 50, s.y, 1); G.inv.wood = 6; G.inv.kero = 0; rebase(); for (let k = 0; k < 4; k++) { P().cd = 0; Actions.fireKey(); run(1.3); } E(); run(5); }
+      phase('печь'); { at(SPOT.stove.x + 20, SPOT.stove.y + 10, -1); G.chest.wood = 4; G.hut.fuel = 0; rebase(); E(); run(2.5); P().cd = 0; E(); run(3.5); }
     },
     вода() {
       fresh('лунка', 12);
@@ -430,15 +446,16 @@ var NoInstant = (() => {
     },
     ловушки() {
       fresh('ловушка: поставить', 13);
-      { at(HUT.x + 340, HUT.y + 300, 1); G.inv.snare = 2; rebase(); Actions.placeKey(); run(3); }
-      phase('ловушка: улов на рассвете'); { const r0 = Math.random; Math.random = () => 0.01; for (const t of G.traps) t.t = G.time - 1e5; Fauna.dawnTraps(); Math.random = r0; run(0.5); }
+      { at(HUT.x + 340, HUT.y + 300, 1); G.inv.snare = 2; rebase(); Actions.placeKey(); run(5); }
+      // улов на глазах не появляется: ждёт, пока ловушка вне кадра (герой отошёл — попался)
+      phase('ловушка: улов на рассвете'); { const r0 = Math.random; Math.random = () => 0.01; for (const t of G.traps) t.t = G.time - 1e5; Fauna.dawnTraps(); Math.random = r0; run(0.5); const q = { x: P().x, y: P().y }; at(q.x + 1200, q.y); rebase(); run(0.3); at(q.x, q.y); rebase(); run(0.3); }
       phase('ловушка: забрать улов'); { const t = G.traps[0]; if (t) { at(t.x - 24, t.y, 1); rebase(); E(); run(3); P().action = null; run(0.3); P().cd = 0; E(); run(3); } }
     },
     крафт() {
       fresh('крафт', 14);
-      { G.hut.bench = 1; G.hut.fuel = 900; at(SPOT.bench.x, SPOT.bench.y + 20, 1); G.inv.scrap = 4; rebase(); trace('craft:snare'); Actions.craft(RECIPES.find(r => r.id === 'snare')); run(4); G.inv.wood = 6; G.inv.scrap = 2; trace('craft:sled'); Actions.craft(RECIPES.find(r => r.id === 'sled')); run(9); }
+      { G.hut.bench = 1; G.hut.fuel = 900; at(SPOT.bench.x, SPOT.bench.y + 20, 1); G.inv.scrap = 4; rebase(); trace('craft:snare'); Actions.craft(RECIPES.find(r => r.id === 'snare')); run(4); G.inv.wood = 6; G.inv.scrap = 2; rebase(); trace('craft:sled'); Actions.craft(RECIPES.find(r => r.id === 'sled')); run(9); }
       phase('крафт: отмена'); { G.inv.scrap = 2; rebase(); Actions.craft(RECIPES.find(r => r.id === 'snare')); run(1); hold.mx = 1; run(0.4); hold.mx = 0; run(0.5); }
-      phase('изба: стройка'); { at(HUT.x + 40, HUT.y + 80, 1); G.inv.wood = 20; G.inv.scrap = 4; rebase(); Actions.buildHut(HUT_UPG[0]); run(0.5); Actions.buildHut(HUT_UPG[1]); run(0.5); }
+      phase('изба: стройка'); { at(HUT.x + 40, HUT.y + 80, 1); G.inv.wood = 20; G.inv.scrap = 4; rebase(); trace('walls:' + Actions.buildHut(HUT_UPG[0])); run(20, () => G.hut.walls); trace('door:' + Actions.buildHut(HUT_UPG[1])); run(16, () => G.hut.door); run(0.5); }
     },
     сон() {
       fresh('сон', 15, { hour: 21 });
@@ -448,9 +465,9 @@ var NoInstant = (() => {
     транспорт() {
       fresh('Буран', 16);
       { const p = P(); at(HUT.x + 300, HUT.y + 300, 1); const v = G.veh.buran || (G.veh.buran = { x: 0, y: 0, face: 1, fixed: 1, fuel: 0 }); v.x = p.x + 30; v.y = p.y + 4; v.fixed = 1; v.fuel = 5000; rebase();
-        E(); run(0.5); hold.mx = 1; run(2); hold.mx = 0; run(0.5); E(); run(1); }
-      phase('упряжка'); { G.inv.meat = 9; G.inv.hare = 9; G.inv.wood = 9; G.inv.can = 9; G.inv.scrap = 9; G.veh.deer = null; rebase(); Transport.act({ k: 'rent', o: { x: P().x - 60, y: P().y - 50 } }); run(1); }
-      phase('упряжка: в нарты'); { const d = G.veh.deer; if (d) { at(d.x - 20, d.y, 1); rebase(); Transport.mount('deer'); run(1); Transport.dismount(); run(1); } }
+        E(); run(2.5, () => P().ride); run(0.3); hold.mx = 1; run(2); hold.mx = 0; run(0.5); E(); run(1.2); }
+      phase('упряжка'); { G.inv.meat = 9; G.inv.hare = 9; G.inv.wood = 9; G.inv.can = 9; G.inv.scrap = 9; G.veh.deer = null; rebase(); Transport.act({ k: 'rent', o: { x: P().x - 60, y: P().y - 50 } }); run(12, () => G.veh.deer && !G.veh.deer.to); run(0.5); }
+      phase('упряжка: в нарты'); { const d = G.veh.deer; if (d) { at(d.x - 30, d.y, 1); rebase(); Transport.mount('deer'); run(2.5, () => P().ride); run(0.3); Transport.dismount(); run(1); } }
     },
     посёлок() {
       fresh('посёлок', 17, { colony: 1 });
@@ -465,7 +482,10 @@ var NoInstant = (() => {
     },
     природа() {
       fresh('пень → поросль', 18);
-      { const p = P(); const t = G.trees.filter(t => t.wood > 0 && !t.wall).sort((a, b) => dist2(a, p) - dist2(b, p))[0]; World.felled(t); t.wood = 0; at(t.x + 60, t.y + 20); rebase(); t.cutAt = G.time - TUNE.world.regrowStumpDays * CYCLE - 1; run(0.5); t.cutAt = G.time - TUNE.world.regrowYoungDays * CYCLE - 1; run(0.5); }
+      // покадровая перемотка суток (time-lapse): пень → росток → деревце → ёлка — без скачка на смене стадий
+      { const p = P(); const t = G.trees.filter(t => t.wood > 0 && !t.wall).sort((a, b) => dist2(a, p) - dist2(b, p))[0]; World.felled(t); t.wood = 0; at(t.x + 60, t.y + 20); rebase();
+        const R = TUNE.world, ff = (days, sec) => { const n = Math.round(sec / DT), d = days * CYCLE / n; for (let i = 0; i < n; i++) { if (t.cutAt != null) t.cutAt -= d; else if (t.gAt != null) t.gAt -= d; tick(); } };
+        ff(R.regrowStumpDays * 1.02, 2); ff(R.regrowYoungDays * 1.02, 2); ff(2.1, 1); }
       phase('ствол заметает'); { const p = P(); const L = { x: p.x + 40, y: p.y + 30, a: 0, len: 120, s: 1, kind: 0, v: 0, n: 0, n0: 4, t0: G.time, id: 999, done: G.time - CYCLE * Actions.FELL.bury + 0.3 }; G.logs = G.logs || []; G.logs.push(L); rebase(); run(1); }
       phase('лапник заметает'); { const p = P(); G.lap = G.lap || []; G.lap.push({ x: p.x + 30, y: p.y, a: 0, s: 1, t: G.time - CYCLE * Actions.FELL.bury + 0.3 }); rebase(); run(1); }
     },

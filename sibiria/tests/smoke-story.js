@@ -72,7 +72,8 @@ function lib() {
   S.untilH = h => { let t = tAt(dayOf(), h); if (t <= G.time) t += CYCLE; return S.run(t - G.time + 1, () => G.time >= t); }; // ближайшее h:00 впереди
   S.tp = (x, y) => { const p = G.p; p.x = x; p.y = y; p.vx = p.vy = 0; p.action = null; p.lx = x; p.ly = y; p.sx = x - 30; p.sy = y; input.mx = input.my = 0; };
   S.act = () => { Actions.interact(true); S.run(8, () => !G.p.action && G.p.cd <= 0 && !input.auto); };   // E у дерева/ствола — сам подходит (автопуть)
-  S.talk = (prefer) => { S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
+  // заговорить — когда руки свободны (забота подкидывает в печь — это теперь шаги ≈2 с, js/actions.js stoveFeed)
+  S.talk = (prefer) => { if (G.p.action) { const c0 = S.care; S.care = false; S.run(5, () => !G.p.action); S.care = c0; } S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
   const IN = () => S.tp(HUT.x + 20, HUT.y - 30); // середина избы (не у печи/верстака/кровати)
   S.IN = IN;
 
@@ -96,7 +97,8 @@ function lib() {
     S.tp(x, y); S.care = true;
   }
   // печь до «полна» (клавиша F внутри избы)
-  function stoke() { for (let i = 0; i < 12; i++) { const f = G.hut.fuel; Actions.fireKey(); if (G.hut.fuel <= f) break; } }
+  // F у печи — процесс (дверца → полено → прикрыть, ≈2 с): ждём конца каждого
+  function stoke() { for (let i = 0; i < 12; i++) { const f = G.hut.fuel; Actions.fireKey(); S.run(4, () => !G.p.action); if (G.hut.fuel <= f) break; } }
   S.stoke = stoke;
 
   // ---------- панели: открыть вкладку и нажать кнопку, как мышью ----------
@@ -108,6 +110,7 @@ function lib() {
       if (!b || b.disabled) break;
       b.click(); n++;
       if (G.p.action && G.p.action.k === 'craft') S.run(15, () => !G.p.action || G.p.action.k !== 'craft'); // крафт идёт в мире (этап 4)
+      else if (G.p.action || input.auto) S.run(40, () => !G.p.action && !input.auto); // изба — работа в мире: идёт к месту, шаги (js/actions.js hutStep)
     }
     if (vis('panel')) $$('#panel-close').click();
     return n;
@@ -162,7 +165,7 @@ function lib() {
     for (const s of G.stacks) {
       if (s.lit > 0) continue;
       S.tp(s.x, s.y + 34); S.tick();
-      for (let i = 0; i < 8 && s.wood < 4; i++) { Actions.interact(true); S.run(0.3); }
+      for (let i = 0; i < 8 && s.wood < 4; i++) { Actions.interact(true); S.run(1.6, () => !G.p.action); S.run(0.1); }   // полено за поленом из рук (≈1 с каждое)
       // рядом может оказаться заяц/сугроб (первое E — «поймать»/«пнуть») — жмём ещё, как игрок
       if (light) for (let i = 0; i < 4 && !(s.lit > 0); i++) { S.tp(s.x, s.y + 34); S.tick(); S.act(); S.run(0.3); }
     }
