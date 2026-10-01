@@ -2,11 +2,15 @@
 // Вещи с массой и объёмом (js/inventory.js, js/carry.js). Детерминированно (сид), главный цикл на паузе, сценарии — тем же update().
 //   cd tests && node items-check.js
 //   1. масса сохраняется: дерево → части (= целое) → чурки в руки → рюкзак / нарты / поленница → печь (огонь = кг × secPerKg)
-//   2. рюкзак не берёт сверх объёма/веса; дров — не больше packWood мелких; остальное остаётся в руках
+//   2. рюкзак не берёт сверх объёма/веса; дрова — внутрь по объёму (короткие), снаружи ещё packWood; остальное остаётся в руках
 //   3. охапка занимает руки: не рубит, не бьёт, X — кладёт (не бросает палку), идёт медленнее
 //   4. нарты возят: ёмкость по кг/л, груз тормозит, в глубоком снегу — сильнее; груз виден (G.sled)
 //   5. сейв: руки/нарты/вещи на снегу/туши — туда-обратно; миграция старого сейва (числа «дрова» по 6 кг → вещи)
 //   6. баланс ночи: кг и деревьев на ночь / сутки — до (v1.2.0, интеграция) и после; разумные пределы
+//   7. рюкзак — процесс: снять (на снег перед собой) → развязать → внутрь сверху / приторочить снаружи → затянуть → надеть; в касание рука
+//      у горловины снятого рюкзака, вещь ни разу не за спиной; несколько вещей — снят один раз; нарисовано снаружи = приторочено; отказ с причиной
+//   8. прерывания (пошёл, отскок, укус, другое дело) в каждой фазе: рюкзак на спине, масса цела, что в руках = что нарисовано; с охапкой не спит
+//   9. вес: длительность подъёма/надевания и глубина приседа монотонно растут с массой; усталость замедляет
 const { chromium } = require('playwright');
 const path = require('path');
 const URL = process.env.SIBIR_URL || 'file://' + path.resolve(__dirname, '../index.html');
@@ -39,11 +43,11 @@ function page() {
     for (const q of W.slice().sort((a, b) => a.mass - b.mass)) {
       if (Carry.cantTake(q)) { at(G.p.x, G.p.y); G.p.sx = G.p.x - 30; G.p.sy = G.p.y + 4; Carry.put('sled', []); run(8, idle); }
       at(q.x - 22, q.y, 1); G.p.sx = G.p.x - 30; G.p.sy = G.p.y + 4; Carry.pick('part', q, []); run(3, idle); n += Carry.parts().includes(q) ? 1 : 0;
-      if (n === 2 && guard++ === 0) { Carry.stow([]); run(6, idle); }
+      if (n === 2 && guard++ === 0) { Carry.stow([]); run(12, idle); }
     }
     ok(!G.chunks.some(q => W.includes(q)), `🪵 все ${W.length} чурок подняты (руки ${Carry.parts().length}, рюкзак ${G.inv.wood || 0}, нарты ${G.sled.wood || 0})`);
     ok(Math.abs(wkgAll() - Mw) < 1e-3, `⚖️ руки + рюкзак + нарты + поленница = ${f2(wkgAll())} кг из ${f2(Mw)}`);
-    ok((G.inv.wood || 0) <= TUNE.load.packWood, `🎒 дров в рюкзаке ${G.inv.wood || 0} ≤ ${TUNE.load.packWood}, ${f2(Inv.wkg(G.inv))} кг`);
+    ok(Inv.packL() <= TUNE.load.packL && Inv.packOut() <= TUNE.load.packWood, `🎒 дров в рюкзаке ${G.inv.wood || 0} (внутри ${Inv.packL()} л ≤ ${TUNE.load.packL}, снаружи ${Inv.packOut()} ≤ ${TUNE.load.packWood}), ${f2(Inv.wkg(G.inv))} кг`);
     // к избе: руки → поленница, нарты → поленница
     const P0 = Carry.PILE(); at(P0.x - 26, P0.y + 16, 1); G.p.sx = G.p.x - 30; G.p.sy = G.p.y + 8;
     if (Carry.busy()) { Carry.put('pile', []); run(10, idle); }
@@ -64,8 +68,8 @@ function page() {
     G.inv = { battery: 4, kero: 2 }; Carry.hand().t = null;   // 32 + 6 = 38 кг
     ok(!Inv.fits('scrap', 3).ok && Inv.fits('scrap', 1).ok, `🎒 вес: ${Inv.packKg()} кг — ещё 3 кг не поднять (предел ${TUNE.load.packMax}), 1 кг — можно`);
     G.inv = {}; for (const m of [3, 3.2, 3.4]) Carry.parts().push(Carry.partOf({ kg: m, l: m / 0.79 }));
-    Carry.stow([]); run(6, idle);
-    ok(G.inv.wood === 2 && Carry.parts().length === 1, `🪵 дров в рюкзак — ${G.inv.wood} из 3 (третье в руках)`);
+    Carry.stow([]); run(12, idle);
+    ok(G.inv.wood === 3 && !Carry.parts().length && Inv.packOut() === 0, `🪵 дрова внутрь по объёму — ${G.inv.wood} из 3 (${Inv.packL()} л)`);
     Carry.hand().p = [Carry.partOf({ kg: 12, l: 15 })]; const w0 = G.inv.wood; Carry.stow([]); run(4, idle);
     ok(G.inv.wood === w0 && Carry.parts().length === 1, '🪵 комель 12 кг в рюкзак не кладут — в руках');
     Carry.hand().p = []; G.inv = { meat: 1 }; G.s.food = 40; Actions.eat(); const got = run(1.2, () => Carry.thing() && Carry.thing().id === 'meat');
@@ -133,6 +137,111 @@ function page() {
     ok(kW / tw > 0.4 && kW / tw < 1.5, `🌲 ночь в утеплённой избе ≈ ${f2(kW / tw)} ели (${f1(kW)} кг; разумно: 0,4–1,5)`);
     ok(Math.abs(kW * Stove.secPerKg() - logs * Stove.secPerLog()) < 1, `🔥 кг и прежние «поленья» сходятся: ${f1(logs)} поленьев по ${K} кг`);
   } catch (e) { ok(false, 'ERR ' + (e.stack || e).toString().split('\n').slice(0, 2).join(' ')); }
+
+  // ---------- 7. рюкзак: процесс «снять → внутрь/снаружи → надеть», видимое = фактическое, отказ с причиной ----------
+  // рисунок героя снимаем с настоящего кадра (GFX.render): после ArtPeople.draw героя — что в руках, снят ли рюкзак, сколько чурок снаружи
+  let SNAP = null; const D0 = ArtPeople.draw;
+  ArtPeople.draw = function (g, o) {
+    const r = D0.apply(this, arguments);
+    if (o && o.key === G.p) { const Q = ArtPeople.H.P, d = ArtPeople.dbg; SNAP = { anim: o.anim, a: o.animT, pko: Q.pko ? Object.assign({}, Q.pko) : null, held: Q.held ? Q.held.slice() : null, lon: Q.lo ? Q.lon : 0, lsh: Q.lsh, h0: [Q.h0x, Q.h0y], sx: Q.sx, hx: Q.hx, logs: d.logs, off: d.off, fill: d.fill, Hb: ArtPeople.H.pack().Hb }; }
+    return r;
+  };
+  const frame = () => { SNAP = null; update(DT); now += DT; GFX.lookAt(G.p.x, G.p.y); GFX.render(DT, null); return SNAP || {}; };
+  const PACK = ['doff', 'open', 'stow', 'lash', 'close', 'don'];
+  const toasts = []; const T0 = Fx.toast; Fx.toast = m => { toasts.push(m); };
+  const chunk = kg => Carry.partOf({ kg, l: kg / 0.79 });
+  const field = () => { fresh(12, 7); at(HUT.x + 420, HUT.y + 260, 1); G.chunks = []; G.logs = []; G.hares = []; if (G.col) for (const u of G.col.units) u.hidden = true; };
+  // прогон процесса: шаги, кадры
+  function film(sec, each) {
+    const seq = []; let i = 0, la = null;
+    for (; i < sec * 60; i++) { const a = G.p.action, s = a && a.j === 'carry' ? a.s : null; if (s && a !== la) seq.push(s); la = a; const S = frame(); if (each) each(S, s, a); if (!G.p.action && !Carry.off() && i > 20) break; }
+    return seq;
+  }
+  const inOrder = (seq, want) => { let k = 0; for (const s of seq) if (s === want[k]) k++; return k === want.length; };
+  try {
+    // 7a. одна чурка: снял на снег перед собой → развязал → внутрь сверху → затянул → надел; в касание рука с чуркой — в горловине снятого рюкзака
+    field(); G.inv = {}; Carry.parts().push(chunk(4.5)); const t0 = G.time;
+    ok(Carry.stow([]) && G.p.action.s === 'doff', '🎒 E «в рюкзак» — сначала снять рюкзак');
+    let midOff = 0, touch = null, behind = 0, w0 = 0;
+    const seq = film(8, (S, s) => {
+      if (s === 'stow' && S.pko && Carry.off()) midOff++;
+      if (S.held && S.held[1] < S.hx - 2) behind++;   // вещь в руке позади таза — «через спину»
+      if (!touch && (G.inv.wood || 0) > w0) touch = S;
+    });
+    const T = (G.time - t0);
+    ok(inOrder(seq, ['doff', 'open', 'stow', 'close', 'don']), `🎒 фазы: ${seq.join(' → ')} · ${f1(T)} с`);
+    ok(midOff > 5, `🎒 пока кладёт — рюкзак снят и стоит на снегу (кадров ${midOff})`);
+    const op = touch && touch.pko ? [touch.pko.x, touch.pko.y - touch.Hb] : null, dh = op ? Math.hypot(touch.h0[0] - op[0], touch.h0[1] - op[1]) : 99;
+    ok(touch && touch.pko && dh < 6 && touch.h0[0] > touch.sx + 4, `✋ в касание рука — у горловины снятого рюкзака перед собой (${f1(dh)} ед. от горловины, впереди плеча на ${touch ? f1(touch.h0[0] - touch.sx) : '?'})`);
+    ok(behind === 0, `🚫 вещь ни разу не уходит за спину (кадров позади таза: ${behind})`);
+    ok(!Carry.off() && !Carry.busy() && G.inv.wood === 1 && Inv.packOut() === 0, `🎒 надет, чурка внутри (внутри ${Inv.packL()} л, снаружи ${Inv.packOut()})`);
+    const D = TUNE.load.t, wd = k => Carry.dur(k, k === 'doff' || k === 'don' ? Inv.kgOf(G.inv) : 4.5);
+    info(`длительности (рюкзак ${f1(Inv.kgOf(G.inv))} кг, чурка 4,5 кг): снять ${f2(wd('doff'))} · развязать ${f2(Carry.dur('open', 1))} · внутрь ${f2(wd('stow'))} · приторочить ${f2(wd('lash'))} · затянуть ${f2(Carry.dur('close', 1))} · надеть ${f2(wd('don'))} с (база ${D.doff}/${D.don})`);
+
+    // 7b. три подряд: рюкзак снимается один раз, остаётся снятым, надевается в конце
+    field(); G.inv = {}; for (const m of [4, 4.5, 5]) Carry.parts().push(chunk(m)); Carry.stow([]);
+    let gap = 0, stows = 0; const sq = film(14, (S, s, a) => { if (a && a.s === 'stow' && a.got && !a.cnt) { a.cnt = 1; stows++; } if (stows > 0 && stows < 3 && !Carry.off()) gap++; });
+    ok(sq.filter(s => s === 'doff').length === 1 && sq.filter(s => s === 'don').length === 1 && G.inv.wood === 3 && !Carry.busy() && gap === 0, `🎒 три подряд: снял 1 раз, ${stows} внутрь, надел 1 раз (${sq.join(' → ')})`);
+    const Sf = frame(); ok(!Carry.off() && Inv.packOut() === 0 && Inv.packL() > 20 && Math.abs(Sf.fill - Inv.fill()) < 0.01, `🎒 набит: внутри ${Inv.packL()}/${TUNE.load.packL} л, нарисован набитым на ${f2(Sf.fill)} (= ${f2(Inv.fill())})`);
+
+    // 7c. внутри полно — снаружи под ремни клапана (видно ровно столько, сколько приторочено), третья — отказ с причиной
+    field(); G.inv = { wpelt: 6 }; for (const m of [4, 4.5]) Carry.parts().push(chunk(m)); Carry.stow([]);
+    let bad = 0, maxLogs = 0; const sl = film(14, S => { if (S.logs != null) { maxLogs = Math.max(maxLogs, S.logs); if (S.logs !== Inv.packOut()) bad++; } });
+    ok(inOrder(sl, ['doff', 'lash', 'lash', 'don']) && G.inv.wood === 2 && Inv.packOut() === 2, `🪵 снаружи: ${sl.join(' → ')} · притороченных ${Inv.packOut()}`);
+    const S2 = frame();
+    ok(bad === 0 && S2.logs === 2 && maxLogs <= TUNE.load.packWood, `🪵 нарисовано снаружи = приторочено в каждом кадре (сейчас ${S2.logs}, макс. ${maxLogs}, расхождений ${bad})`);
+    toasts.length = 0; Carry.parts().push(chunk(4)); const r3 = Carry.stow([]);
+    const tx = toasts.join(' | ');
+    ok(!r3 && !G.p.action && Carry.parts().length === 1 && /:pack: полон/.test(tx) && /снаружи 2\/2/.test(tx) && /в охапке/.test(tx), `🚫 третья не влезла: «${tx}»`);
+    ok(/полон/.test((Actions.context() || {}).label || ''), `💬 подпись E с охапкой: «${(Actions.context() || {}).label}»`);
+    // тяжело: рюкзак 38 кг
+    toasts.length = 0; G.inv = { battery: 4, kero: 2 }; Carry.stow([]);
+    ok(/:weight: тяжело/.test(toasts.join(' ')), `🚫 по весу: «${toasts[0] || ''}»`);
+    // лёгкое — в поясной карман, не снимая
+    field(); G.inv = {}; Carry.hand().t = { id: 'can', n: 1 }; Carry.stow([]); const sc = film(3);
+    ok(sc.join() === 'pocket' && G.inv.can === 1, `🥫 банка — в поясной карман, рюкзак не снимает (${sc.join(' → ')})`);
+  } catch (e) { ok(false, 'ERR ' + (e.stack || e).toString().split('\n').slice(0, 2).join(' ')); }
+
+  // ---------- 8. прерывания: вещь не «зависает» — после любого прерывания она в мире / в рюкзаке / в руках, и рисунок совпадает ----------
+  try {
+    const kgAll = () => Inv.wkg(G.inv) + Carry.parts().reduce((s, q) => s + q.mass, 0) + (G.chunks || []).reduce((s, q) => s + q.mass, 0);
+    const BREAK = {
+      'пошёл': () => { input.mx = 1; for (let i = 0; i < 24; i++) frame(); input.mx = 0; },
+      'отскок': () => { Hero.dodge(-1, 0); },
+      'укус волка': () => { G.p.x -= 18; G.p.action = null; G.hurt = 1; },
+      'другое дело': () => { G.p.action = { k: 'inspect', t: 0, dur: 0.8, pose: 'inspect', fb: 'idle' }; },
+    };
+    const AT = [['doff', 0.5], ['stow', 0.3], ['stow', 0.75], ['close', 0.4], ['don', 0.5], ['don', 0.9]];
+    let n = 0, fails = [];
+    for (const [nm, fn] of Object.entries(BREAK)) for (const [st, fr] of AT) {
+      field(); G.inv = {}; for (const m of [4, 4.5]) Carry.parts().push(chunk(m)); const m0 = kgAll(); Carry.stow([]);
+      let hit = false; for (let i = 0; i < 60 * 10 && !hit; i++) { const a = G.p.action; if (a && a.s === st && a.t / a.dur >= fr) hit = true; else frame(); }
+      if (!hit) { fails.push(`${nm}@${st}${fr}: шаг не наступил`); continue; }
+      fn(); let S = {}; for (let i = 0; i < 90; i++) S = frame();
+      const ps = Carry.parts().length, th = Carry.thing(), stuck = G.p.action && G.p.action.j === 'carry' && PACK.includes(G.p.action.s);
+      const drawOk = ps ? S.lon === ps : th ? S.held && S.held[0] : !S.held && !S.lon;
+      const okk = !Carry.off() && !S.pko && !stuck && Math.abs(kgAll() - m0) < 1e-6 && drawOk;
+      n++; if (!okk) fails.push(`${nm}@${st}${fr}: снят ${!!Carry.off()} рисунок ${S.pko ? 'снят' : 'на спине'} шаг ${G.p.action && G.p.action.s} кг ${f2(kgAll())}/${f2(m0)} в руках ${ps} нарисовано ${S.lon || (S.held && S.held[0]) || 0}`);
+    }
+    ok(!fails.length, `🧷 прерывания (${Object.keys(BREAK).join(', ')}) × ${AT.length} моментов = ${n}: рюкзак на спине, масса цела, в руках = нарисовано` + (fails.length ? ' · ' + fails.slice(0, 3).join(' · ') : ''));
+    // сон с охапкой — не ложится (в руках не «висит» во сне)
+    field(); Carry.parts().push(chunk(4)); at(SPOT.bed.x + 20, SPOT.bed.y + 6); G.time = tAt(2, 21); G.hut.fuel = 600; toasts.length = 0; Actions.trySleep(); for (let i = 0; i < 120; i++) frame();
+    ok(!G.p.sleeping && /Руки заняты/.test(toasts.join(' ')), `🛏 с охапкой не спит: «${toasts[0] || ''}»`);
+  } catch (e) { ok(false, 'ERR ' + (e.stack || e).toString().split('\n').slice(0, 2).join(' ')); }
+
+  // ---------- 9. вес: длительность и присед растут с массой (непрерывно), усталость замедляет ----------
+  try {
+    const KGS = [0.4, 1, 3, 5, 8, 12, 20], d = KGS.map(k => Carry.dur('pick', k)), mono = a => a.every((v, i) => !i || v > a[i - 1]);
+    G.s.tire = 80; const dT = Carry.dur('pick', 5); G.s.tire = 0;
+    ok(mono(d) && dT > d[3], `⏱ подъём: ${KGS.map((k, i) => `${k} кг ${f2(d[i])}`).join(' · ')} с; усталый (80) чурка ${f2(dT)} с`);
+    const dd = [5, 15, 25, 35].map(k => Carry.dur('don', k));
+    ok(mono(dd), `⏱ надеть рюкзак 5/15/25/35 кг: ${dd.map(f2).join(' / ')} с`);
+    // глубина приседа в касание (a 0.34): таз ниже у тяжёлого
+    const cv = document.createElement('canvas'), g = cv.getContext('2d'), hip = kg => { ArtPeople.draw(g, { x: 0, y: 0, face: 1, anim: 'pickKeep', animT: 0.34, load: { mode: null, n: 0, kg }, target: { x: 8, y: -2 }, look: 'anorak', t: 1 }); return ArtPeople.H.P.hy; };
+    const hy = KGS.map(hip);
+    ok(mono(hy.slice(0, 6)) && hy[6] >= hy[5] - 1e-9, `🏋 присед в касание (таз, ниже = больше; с 12 кг — полный): ${KGS.map((k, i) => `${k} кг ${f1(hy[i])}`).join(' · ')}`);
+  } catch (e) { ok(false, 'ERR ' + (e.stack || e).toString().split('\n').slice(0, 2).join(' ')); }
+  ArtPeople.draw = D0; Fx.toast = T0;
   UI.openChest();
   return out;
 }

@@ -1,7 +1,10 @@
 'use strict';
 // Ноша: что в руках (G.hand), нарты (G.sled), поленница у избы (дрова G.chest), вещи на снегу (G.loose), туши (G.carcs).
-// Всё, что берут, уходит из мира в момент касания рукой и дальше видно в руках; убрать — процесс: снять лямку/открыть клапан →
-// уложить из руки → затянуть; на нарты и в поленницу — по одной; туша — разделка ножом по шагам (шкура, мясо), куски — на снег.
+// Всё, что берут, уходит из мира в момент касания рукой и дальше видно в руках; убрать в рюкзак — процесс: снять рюкзак (на снег перед
+// собой) → развязать клапан → положить внутрь сверху / приторочить снаружи под ремни (по одной, пока в руках есть что) → затянуть →
+// надеть (две лямки); мелочь — в поясной карман, не снимая. Длительность и поза — от массы (wt: лёгкое быстро, тяжёлое — с усилием).
+// Рюкзак снят: G.hand.off = {x, y, f, open}; прервали (шаг, удар, отскок) — подхватил за лямку и надел на ходу (G.hand.sl — рисунок);
+// на нарты и в поленницу — по одной; туша — разделка ножом по шагам (шкура, мясо), куски — на снег.
 // Руки: охапка дров (≤ armsN шт, ≤ armsKg кг) — заняты: не рубить, не бить, не бросать, идёт медленнее; вершина — на плече;
 // мелочь — в кулаке. Цепочки шагов — очередь задач Q (pick → stow → pick…), переживает сейв (в действии — только данные).
 // G.hand = { p: [части дерева как объекты мира], t: { id, n, kg?, kind? } | null } · G.loose: { id, it, n, kg?, x, y, t, fx?, fy?, src? }
@@ -25,6 +28,11 @@ const Carry = (() => {
   const busy = () => count() > 0;
   const long = q => q.kind === 'top' || (q.len || 0) > 0.8;
   const woodN = () => (G && G.hand ? parts().filter(isWoodP).length : 0);
+  // длительность процесса k для вещи массой kg (TUNE.load.wt): непрерывно растёт с массой, усталость замедляет
+  const wt = kg => { const W = LD().wt, ti = G && G.s ? G.s.tire || 0 : 0; kg = Math.max(0, kg || 0); return (W[0] + W[1] * kg / (kg + W[2])) * (1 + W[3] * ti / 100); };
+  const dur = (k, kg) => +(LD().t[k] * wt(kg)).toFixed(3);
+  const off = () => (G && G.hand && G.hand.off) || null;
+  const packKg = () => Inv.kgOf(G.inv);
   function mode() {
     if (!G || !G.hand) return null; const ps = parts(), t = thing();
     if (G.hand.drag != null) return 'drag';
@@ -93,6 +101,13 @@ const Carry = (() => {
   }
   function tick(dt) {
     if (G.hand && G.hand.drag != null) dragTick();
+    // рюкзак снят, а процесса нет: пошёл — подхватил на ходу; стоит — затянуть и надеть (удержание E — ждёт следующую вещь)
+    if (off()) {
+      const p = P(), a = p.action, mine = a && a.k === 'job' && a.j === 'carry';
+      if (p.moving || p.dash || p.ko || p.sleeping || p.ride) { if (!mine) grab(); }
+      else if (!a) { G.hand.offT = (G.hand.offT || 0) + dt; if (G.hand.offT > (input.act ? 0.6 : 0.12)) { G.hand.offT = 0; closeDon([]); } }
+      else G.hand.offT = 0;
+    }
     if (G.carcs) for (let i = G.carcs.length - 1; i >= 0; i--) {
       const c = G.carcs[i];
       if (c.vx || c.vy) { const e = Math.exp(-dt * 7); c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= e; c.vy *= e; if (Math.hypot(c.vx, c.vy) < 4) { c.vx = 0; c.vy = 0; c.x = Math.round(c.x); c.y = Math.round(c.y); } }
@@ -104,7 +119,8 @@ const Carry = (() => {
 
   // ---------- процессы ----------
   const K = () => Actions.jobs, D = () => ArtPeople.DUR;
-  const job = (s, o) => K().job('carry', s, o);
+  // касание не раньше 0,32 с от начала (лёгкая вещь — короткий процесс, но рука сперва дотягивается): c0 — задуманная доля позы
+  const job = (s, o) => { if (o.at && o.at.length === 1 && o.dur) { o.c0 = o.at[0]; o.at = [Math.min(0.85, Math.max(o.c0, 0.32 / o.dur))]; } return K().job('carry', s, o); };
   const P = () => G.p;
   const reach = (o, r = 60) => dist2(o, P()) < r * r;
   const at0 = o => ({ x: o.x, y: o.y });
@@ -140,33 +156,84 @@ const Carry = (() => {
     const p = P(); if (p.ride || p.sleeping) return false;
     const w = tg || (src === 'sled' || src === 'sledIt' ? sledPt() : src === 'pile' ? PILE() : src === 'labaz' ? { x: POI.labaz.x - 8, y: POI.labaz.y } : src === 'tube' ? TUBE_POS : at0(o));
     K().faceTo(w); p.cd = Math.max(p.cd, 0.1);
-    job('pick', { dur: LD().t.pick, pose: 'pickKeep', tg: { x: w.x, y: w.y }, th: PICK_TH[src] || -2, o: o || null, src, at: [0.34], Q: Q || [], fb: 'pickUp' });
+    const kg = srcKg(src, o);
+    job('pick', { dur: dur('pick', kg), kg, pose: 'pickKeep', tg: { x: w.x, y: w.y }, th: PICK_TH[src] || -2, o: o || null, src, at: [0.34], Q: Q || [], fb: 'pickUp' });
     return true;
   }
-  // убрать то, что в руках, в рюкзак: мелочь — в карман клапана (не снимая), остальное — снять лямку/открыть → уложить → затянуть
+  // масса того, что берут (для позы и длительности)
+  function srcKg(src, o) {
+    if (src === 'part' && o) return o.mass || 0;
+    if (src === 'loose' && o) return o.kg != null ? o.kg : ITEMS[o.it] ? ITEMS[o.it].kg * (o.n || 1) : 0.3;
+    if (src === 'sled' || src === 'pile') { const c = src === 'pile' ? G.chest : sled(); return c.wood > 0 ? Inv.wkg(c) / c.wood : LD().woodKg; }
+    if (src === 'labaz') return 2; if (src === 'hare' || src === 'trapc') return 2.5;
+    return 0.3;
+  }
+  // убрать то, что в руках, в рюкзак: мелочь — в поясной карман (не снимая), остальное — снять рюкзак → внутрь/снаружи → надеть
+  // что из рук уходит в рюкзак первым: { t | q, at: 'in' | 'out' | 'pocket', kg } | null
+  function stowPlan() {
+    const t = thing();
+    if (t) { if (t.id === 'carc') return null; if (NOINV[t.id]) return { t, at: off() ? 'in' : 'pocket', kg: tKg(t) }; const f = Inv.fits(t.id, t.n || 1); return f.ok ? { t, at: f.at, kg: tKg(t) } : null; }
+    for (const q of parts()) if (isWoodP(q)) { const f = Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len); if (f.ok) return { q, at: f.at, kg: q.mass }; }
+    return null;
+  }
+  // всё, что по отдельности влезло бы (подписи)
   function stowable() {
     const t = thing(), out = [];
     if (t && (NOINV[t.id] || t.id === 'carc' || Inv.fits(t.id, t.n || 1).ok)) out.push(t);
-    let w = 0; for (const q of parts()) if (isWoodP(q) && (G.inv.wood || 0) + w + 1 <= LD().packWood && Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len).ok) { out.push(q); w++; }
+    for (const q of parts()) if (isWoodP(q) && Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len).ok) out.push(q);
     return out;
   }
   const small = t => t && (NOINV[t.id] || tL(t) <= LD().pocketL);
+  // почему не кладётся (первое в руках): иконка + причина + куда ещё
+  function why() {
+    const t = thing(), q = parts().find(isWoodP) || parts()[0];
+    const f = t ? Inv.fits(t.id, t.n || 1) : q && isWoodP(q) ? Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len) : { why: 'len' };
+    const W = { l: ':pack: полон' + (q ? ` · :wood: снаружи ${Inv.packOut()}/${LD().packWood}` : ''), kg: ':weight: тяжело · рюкзак ' + Math.round(packKg()) + '/' + LD().packMax + ' кг', piece: ':wood: тяжёлое полено', len: ':wood: длинное' };
+    return { why: f.why || 'l', txt: W[f.why] || W.l, alt: (parts().length ? ' → :hand: в охапке' : ' → X — на снег') + (hasSled() ? ' · :sled: на нарты' : '') };
+  }
+  function refuse() {
+    const w = why(), p = P(); Fx.toast(w.txt + w.alt); Fx.floatText(p.x, p.y - 58, w.txt.split(' · ')[0]);
+    if (parts().length && !G.flags.tipArms) { G.flags.tipArms = 1; setTimeout(() => Fx.toast(':hand: Дрова носят охапкой — до ' + LD().armsN + ' шт · E у чурок · больше — нарты'), 1400); }
+    return false;
+  }
   function stow(Q) {
     const t = thing();
     if (t && t.id === 'carc') return lay(Q);
-    if (!busy()) return false;
-    if (t && small(t) && !parts().length) { job('pocket', { dur: LD().t.pocket, pose: 'packPut', at: [0.62], Q: Q || [], fb: 'idle' }); return true; }
-    const s = stowable();
-    if (!s.length) { const f = t ? Inv.fits(t.id, t.n || 1) : { why: 'wood' }; Fx.toast(f.why === 'wood' ? ':pack: Дров в рюкзак — не больше ' + LD().packWood + ' мелких (≤ ' + LD().packWoodKg + ' кг)' : f.why === 'kg' ? ':pack: Рюкзак тяжёл — не поднять' : ':pack: Не лезет · нарты, тайник или X — положить'); return false; }
-    job('open', { dur: LD().t.open, pose: 'packOpen', Q: Q || [], fb: 'idle' });
+    if (!busy() || G.hand.drag != null) return false;
+    if (t && small(t) && !parts().length && !off()) { job('pocket', { dur: dur('pocket', tKg(t)), kg: tKg(t), pose: 'packPut', at: [0.55], Q: Q || [], fb: 'idle' }); return true; }
+    if (!stowPlan()) return refuse();
+    if (off()) return stowStep(Q || []);
+    const pk = packKg(); job('doff', { dur: dur('doff', pk), kg: pk, pose: 'packDoff', tg: packSpot(), th: -3, at: [0.84], Q: Q || [], fb: 'idle' });
     return true;
   }
+  // куда ставит рюкзак: на снег перед собой (снят — где стоит)
+  const packSpot = () => { const o = off(), p = P(); return o ? { x: o.x, y: o.y } : { x: Math.round(p.x + p.face * 13), y: Math.round(p.y + 3) }; };
+  // одна вещь из рук — внутрь сверху или под ремни снаружи (рюкзак снят и развязан)
+  function stowStep(Q) {
+    const s = stowPlan(); if (!s) return closeDon(Q);
+    const out = s.at === 'out';
+    // внутрь — клапан открыт; снаружи — на закрытый клапан под его ремни
+    if (!out && !off().open) return job('open', { dur: dur('open', 1), kg: 1, pose: 'packOpen', tg: packSpot(), th: -3, at: [0.6], Q, fb: 'idle' }), true;
+    if (out && off().open) return job('close', { dur: dur('close', 1), kg: 1, pose: 'packTie', tg: packSpot(), th: -3, at: [0.7], Q, fb: 'idle' }), true;
+    job(out ? 'lash' : 'stow', { dur: dur(out ? 'lash' : 'stow', s.kg), kg: s.kg, pose: out ? 'packLash' : 'packIn', tg: packSpot(), th: -3, at: [out ? 0.5 : 0.55], Q, fb: 'idle' });
+    return true;
+  }
+  // затянуть → надеть (две лямки); потом — дальше по очереди
+  function closeDon(Q) {
+    if (!off()) return run(Q || []);
+    if (off().open) return job('close', { dur: dur('close', 1), kg: 1, pose: 'packTie', tg: packSpot(), th: -3, at: [0.7], Q: Q || [], fb: 'idle' }), true;
+    const pk = packKg(); job('don', { dur: dur('don', pk), kg: pk, pose: 'packDon', tg: packSpot(), th: -3, at: [0.84], Q: Q || [], fb: 'idle' });
+    return true;
+  }
+  // прервали со снятым рюкзаком — подхватил за лямку и надел на ходу (рисунок доводит G.hand.sl за ~0,6 с)
+  function grab() { const o = off(), p = P(); if (!o) return; G.hand.off = null; G.hand.sl = { t: G.time, x: o.x - p.x, y: o.y - p.y }; Sound.thud && Sound.thud(0.12, 1); }
   // положить из рук: dst — 'sled' | 'pile' | 'ground' | 'carc' (тушку на снег); all — всё по одной
   function put(dst, Q, all = 1) {
     if (!busy()) return false;
     const w = dst === 'sled' ? sledPt() : dst === 'pile' ? PILE() : { x: P().x + P().face * 16, y: P().y + 4 };
     K().faceTo(w);
-    job('put', { dur: LD().t.put, pose: 'putKeep', tg: { x: w.x, y: w.y }, th: dst === 'pile' ? -10 : dst === 'sled' ? -8 : -1, dst, all, at: [0.55], Q: Q || [], fb: 'build' });
+    const q = parts()[parts().length - 1], kg = q ? q.mass : tKg(thing());
+    job('put', { dur: dur('put', kg), kg, pose: 'putKeep', tg: { x: w.x, y: w.y }, th: dst === 'pile' ? -10 : dst === 'sled' ? -8 : -1, dst, all, at: [0.55], Q: Q || [], fb: 'build' });
     return true;
   }
   const lay = Q => put('carc', Q, 0);
@@ -197,7 +264,7 @@ const Carry = (() => {
   function get(id, from, Q) {
     if (busy()) return false;
     const tg = from === 'chest' ? SPOT.chest : null; if (tg) K().faceTo(tg);
-    job('get', { dur: LD().t.get, pose: from === 'chest' ? 'open' : 'packGet', tg: tg ? at0(tg) : null, th: -10, id, from, at: [0.55], Q: Q || [], fb: 'idle' });
+    job('get', { dur: dur('get', ITEMS[id] ? ITEMS[id].kg : 1), pose: from === 'chest' ? 'open' : 'packGet', tg: tg ? at0(tg) : null, th: -10, id, from, at: [0.55], Q: Q || [], fb: 'idle' });
     return true;
   }
   // нарты → поленница: взять с нарт → положить в поленницу, пока есть дрова и место
@@ -209,7 +276,7 @@ const Carry = (() => {
   }
   // очередь задач (цепочка шагов)
   const TASK = {
-    stow: (t, Q) => stow(Q), put: (t, Q) => put(t.dst, Q, t.all == null ? 1 : t.all), lay: (t, Q) => lay(Q), unload: () => unload(),
+    stow: (t, Q) => stow(Q), don: (t, Q) => closeDon(Q), put: (t, Q) => put(t.dst, Q, t.all == null ? 1 : t.all), lay: (t, Q) => lay(Q), unload: () => unload(),
     pick: (t, Q) => { if (t.src === 'loose' && !(G.loose || []).includes(t.o)) return false; if (t.o && t.o.x != null && !reach(t.o, 90)) return false; return pick(t.src, t.o, Q); },
     butcher: (t, Q) => butcher(t.o, Q), eat: () => Actions.eatHand(), strike: t => Actions.strike(t.o, t.kind),
     wait: (t, Q) => { if (t.o) K().faceTo(t.o); job('wait', { dur: t.t || 0.8, pose: 'inspect', loop: 1, tg: t.o ? at0(t.o) : null, th: -2, Q, fb: 'idle' }); return true; },   // посмотреть (рыба бьётся на льду)
@@ -224,7 +291,7 @@ const Carry = (() => {
     if (a.s === 'pick') {
       if (a.got) return;
       if (!GRAB[a.src] || !GRAB[a.src](a)) { a.miss = 1; if (a.src === 'hare') Fx.floatText(p.x, p.y - 40, 'Ушёл!'); return K().abort(a); }
-      a.got = 1;
+      a.got = 1; if (a.kg > 8) huff();
     } else if (a.s === 'grip') {
       if (!G.logs.includes(a.o) || a.o.n <= 0 || busy()) return K().abort(a);
       hand().drag = a.o.id; a.o.drag = 1; a.got = 1; Sound.thud && Sound.thud(0.15, 1);
@@ -234,16 +301,18 @@ const Carry = (() => {
       const many = a.s === 'drop' ? parts().length + (thing() ? 1 : 0) : 1;
       for (let k = 0; k < many; k++) if (!putOne(a)) return k ? null : K().abort(a);
       a.got = 1;
-    } else if (a.s === 'stow' || a.s === 'pocket') {
-      const t = thing();
-      if (a.s === 'pocket' || (t && (NOINV[t.id] || Inv.fits(t.id, t.n || 1).ok))) {
-        if (!t) return K().abort(a);
-        if (!NOINV[t.id]) Inv.add(t.id, t.n || 1);
-        hand().t = null; a.got = 1; Sound.pick(); return;
-      }
-      const q = parts().find(q => isWoodP(q) && Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len).ok);
-      if (!q) return K().abort(a);
-      parts().splice(parts().indexOf(q), 1); Inv.add('wood', 1, q.mass, (q.vol || 0) * 1000); a.got = 1; Sound.pick();
+    } else if (a.s === 'doff') {
+      const w = packSpot(); G.hand.off = { x: w.x, y: w.y, f: p.face, open: 0 }; G.hand.sl = null; Sound.thud && Sound.thud(0.12 + 0.01 * a.kg, 1);
+    } else if (a.s === 'open') { if (off()) off().open = 1; Sound.pick();
+    } else if (a.s === 'close') { if (off()) off().open = 0; Sound.pick();
+    } else if (a.s === 'don') { G.hand.off = null; G.hand.sl = null; a.got = 1; if (a.kg > 15) huff(); Sound.thud && Sound.thud(0.1, 1);
+    } else if (a.s === 'stow' || a.s === 'lash' || a.s === 'pocket') {
+      // в касание: рука с вещью в горловине (внутрь) / вещь под ремнём (снаружи) / в поясном кармане
+      const s = a.s === 'pocket' ? (thing() ? { t: thing(), at: 'pocket' } : null) : off() ? stowPlan() : null;
+      if (!s) return K().abort(a);
+      if (s.t) { if (!NOINV[s.t.id]) Inv.add(s.t.id, s.t.n || 1); hand().t = null; }
+      else { parts().splice(parts().indexOf(s.q), 1); Inv.add('wood', 1, s.q.mass, (s.q.vol || 0) * 1000); if (s.at === 'out') G.inv.wo = Math.min(G.inv.wood, Inv.outN(G.inv) + 1); }
+      a.got = 1; a.put = s.at; Sound.pick();
     } else if (a.s === 'get') {
       const src = a.from === 'chest' ? G.chest : G.inv;
       if (a.id === 'wood') { const r = Inv.pull(src, 'wood', 1); if (!r.n) return K().abort(a); parts().push(partOf(r)); }
@@ -288,16 +357,23 @@ const Carry = (() => {
   function tickJob(a) { }
   function end(a) {
     const p = P();
-    if (a.s === 'pick') { if (!a.got) return; return after(a); }
+    if (a.s === 'pick') { if (!a.got) return; if (off() && !(a.Q || []).length && stowPlan()) return stow([]); return after(a); }
     if (a.s === 'put') {
       if (a.dst === 'carc') { if (a.made) return butcher(a.made, a.Q) || after(a); return after(a); }
       if (a.all && busy() && a.got && (a.dst !== 'sled' || parts().length || (thing() && ITEMS[thing().id])) && (a.dst !== 'pile' || parts().length)) return put(a.dst, a.Q, 1);
       return after(a);
     }
     if (a.s === 'drop' || a.s === 'grip' || a.s === 'release' || a.s === 'wait') return after(a);
-    if (a.s === 'open') return job('stow', { dur: LD().t.stow, pose: 'packPut', at: [0.6], Q: a.Q, fb: 'idle' });
-    if (a.s === 'stow') { if (a.got && stowable().length) return job('stow', { dur: LD().t.stow, pose: 'packPut', at: [0.6], Q: a.Q, fb: 'idle' }); return job('close', { dur: LD().t.close, pose: 'packClose', Q: a.Q, fb: 'idle' }); }
-    if (a.s === 'close') { if (busy() && !stowable().length && parts().length) Fx.toast(':hand: Остальное — в руках · нарты, поленница, X — положить'); return after(a); }
+    if (a.s === 'doff' || a.s === 'open') return off() ? stowStep(a.Q) : after(a);
+    if (a.s === 'stow' || a.s === 'lash') {
+      if (a.got && stowPlan()) return stowStep(a.Q);
+      if (busy() && parts().length) { const w = why(); Fx.toast(':hand: Остальное — в охапке · ' + w.txt + (hasSled() ? ' · :sled: нарты' : '')); }
+      // дальше по очереди ещё берут (с туши, из сугроба) — рюкзак остаётся снятым; иначе — затянуть и надеть
+      if ((a.Q || []).some(t => t.k === 'pick' || t.k === 'loot')) return after(a);
+      return closeDon(a.Q);
+    }
+    if (a.s === 'close') return stowPlan() ? stowStep(a.Q) : closeDon(a.Q);
+    if (a.s === 'don') return after(a);
     if (a.s === 'pocket') return after(a);
     if (a.s === 'get') return after(a);
     if (a.s === 'cut') {
@@ -312,14 +388,23 @@ const Carry = (() => {
     }
   }
   // прервали: что не ушло в работу — остаётся (вещь в руках — в руках; взятое из рюкзака — в руке)
-  function cancel(a) { }
+  function cancel(a) { if (off()) grab(); }
+  // выдох с усилием: пар у лица
+  function huff() { const p = P(); for (let k = 0; k < 3; k++) G.parts.push({ type: 'breath', x: p.x + p.face * rnd(6, 10), y: p.y - rnd(30, 36), vx: p.face * rnd(6, 14), vy: rnd(-16, -8), life: 1.1, max: 1.1 }); }
 
   // ---------- контекст E ----------
   const nearPile = (p, r = 64) => !p.inside && dist2(PILE(), p) < r * r;
   const nearSled = (p, r = 62) => hasSled() && !p.inside && !p.ride && dist2(sledPt(), p) < r * r;
   // с ношей — куда её деть (раньше прочего: рядом нарты, поленница)
   function context(p) {
-    if (p.inside || p.ride) return null;
+    if (p.ride) return null;
+    if (off()) {
+      const s = busy() && stowPlan();
+      if (s) return { k: 'carry', what: 'stow', label: 'В рюкзак :pack:' + (s.at === 'out' ? ' · снаружи' : ''), soft: 1 };
+      if (!busy() && (G.chunks || []).some(q => isWoodP(q) && dist2(q, p) < 46 * 46 && Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len).ok)) return null;   // рядом чурка влезет — взять (дальше — в рюкзак)
+      return { k: 'carry', what: 'don', label: 'Надеть рюкзак :pack:' };
+    }
+    if (p.inside) return null;
     if (busy()) {
       if (woodN() && nearPile(p)) return { k: 'carry', what: 'pilePut', label: 'В поленницу :wood:' + woodN(), o: PILE() };
       return null;
@@ -345,8 +430,9 @@ const Carry = (() => {
     if (t && t.id === 'carc') return { k: 'carry', what: 'lay', label: 'Положить и разделать :hare:', soft: 1 };
     // нарты за спиной — когда рядом нет своего места (костёр, куча, печь, поленница — раньше) и больше не взять
     if (nearSled(p) && (parts().length || (t && ITEMS[t.id])) && (!t || sledFits(tKg(t), tL(t)))) return { k: 'carry', what: 'sledPut', label: 'На нарты :sled:', o: sledPt() };
-    if (stowable().length) return { k: 'carry', what: 'stow', label: 'В рюкзак :pack:', soft: 1 };
-    return { k: 'carry', what: 'full', label: ':hand: Руки полны · X — положить', soft: 1 };
+    const s = stowPlan();
+    if (s) return { k: 'carry', what: 'stow', label: 'В рюкзак :pack:' + (s.at === 'out' ? ' · снаружи' : s.at === 'pocket' ? ' · карман' : ''), soft: 1 };
+    const w = why(); return { k: 'carry', what: 'full', label: (parts().length ? `:hand: Охапка ${parts().length}/${LD().armsN} · ` : '') + w.txt.split(' · ')[0] + ' · X — положить', soft: 1 };
   }
   // с пустыми руками у нарт (лицом к ним): взять с нарт
   function sledCtx(p) {
@@ -370,18 +456,24 @@ const Carry = (() => {
       case 'lay': return lay([]), true;
       case 'stow': return stow([]), true;
       case 'release': return dragStop(), true;
-      case 'full': if (!silent) Fx.toast(':hand: Руки полны · нарты, поленница или X — положить'); p.cd = 0.4; return true;
+      case 'full': if (!silent) refuse(); p.cd = 0.4; return true;
+      case 'don': return closeDon([]), true;
     }
     return false;
   }
 
   // ---------- отладка/проверки: мгновенно сложить в руки (тесты) ----------
+  // для рисунка героя: что в руках + kg — масса того, с чем идёт работа (поза, усилие), pk — рюкзак, кг; null — ничего нет и не делает
   function art() {
-    if (!G || !G.hand || !busy()) return null;
-    const ps = parts(), t = thing();
-    if (G.hand.drag != null) return { mode: 'drag', n: 0 };
-    return { mode: mode(), n: ps.length, top: ps.some(long), w: ps.map(q => Math.max(0.6, Math.min(1.6, (q.diam || 0.13) / 0.13))), k: t ? (t.id === 'carc' ? 'hare' : ART[t.id] || 'bundle') : null, kind: t && t.kind };
+    if (!G || !G.hand) return null;
+    const a = G.p && G.p.action, kg = a && a.k === 'job' && a.j === 'carry' && a.kg != null ? a.kg : busy() ? kg0() : null;
+    if (!busy() && kg == null) return null;
+    const ps = parts(), t = thing(), cj = a && a.k === 'job' && a.j === 'carry' && a.at && a.c0, o = { kg: kg || 0, pk: +packKg().toFixed(2), c: cj ? a.at[0] : null, c0: cj ? a.c0 : null };
+    if (!busy()) return Object.assign(o, { mode: null, n: 0 });
+    if (G.hand.drag != null) return Object.assign(o, { mode: 'drag', n: 0 });
+    return Object.assign(o, { mode: mode(), n: ps.length, top: ps.some(long), w: ps.map(q => Math.max(0.6, Math.min(1.6, (q.diam || 0.13) / 0.13))), k: t ? (t.id === 'carc' ? 'hare' : ART[t.id] || 'bundle') : null, kind: t && t.kind });
   }
+  const kg0 = () => { const ps = parts(); return ps.length ? ps[ps.length - 1].mass || 0 : tKg(thing()); };
 
   // ---------- рисование: вещи на снегу, туши, поленница, груз нарт ----------
   function drawLoose(g, q) {
@@ -441,6 +533,7 @@ const Carry = (() => {
   }
 
   return { hand, parts, thing, kg, count, busy, mode, speedMul, cantTake, FULL, woodN, takeWood, partOf, sled, hasSled, sledPt, sledKg, sledMul, sledFits, PILE, pileCap, pileFits,
+    off, grab, closeDon, stowPlan, why, wt, dur, srcKg, packSpot,
     drop, carcass, carcFade, tick, pick, stow, put, lay, dropAll, butcher, get, unload, run, hit, end, cancel, tickJob, context, nearCtx, stowCtx, sledCtx, primary, art,
     drawLoose, drawCarc, drawPile, drawSledLoad, ART, NOINV, STEPS, isWoodP, dragL, dragStart, dragStop, logKg, dragMul };
 })();

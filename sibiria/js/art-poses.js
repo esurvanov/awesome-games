@@ -303,73 +303,250 @@
     P.tilt = 0.3 * dn - 0.12 * bump(a, 0.6, 0.86); P.hb = 0.3 * bump(a, 0.34, 0.6) + 0.25 * bump(a, 0.66, 0.86);
   } });
 
-  // ================= ноша (js/carry.js): взять в охапку, положить, рюкзак — снять/уложить/затянуть, достать =================
-  // o.load = Carry.art(): { mode, n — частей в руках, w — толщины, k — вещь (вид рисунка) }; охапка у груди — P.lo/P.lon (рисует ArtPeople)
+  // ================= ноша (js/carry.js): взять в охапку, положить, рюкзак — снять/развязать/внутрь/приторочить/затянуть/надеть =================
+  // o.load = Carry.art(): { mode, n — частей в руках, w — толщины, k — вещь (вид рисунка), kg — масса того, с чем работа, pk — рюкзак, кг };
+  // охапка у груди — P.lo/P.lon (рисует ArtPeople); снятый рюкзак — P.pko (ArtPeople drawPackOff: низ x,y, наклон, клапан, слой)
   const CH = () => [P.sx + 7, P.sy + 5.4];
+  // масса: dk — глубина приседа (0 — банка … 1 — от 12 кг), hv — тяжесть (спина прямая, пауза-рывок, противовес; с 2 кг, полная к ~14),
+  // tw — вторая рука (с ~1,5 кг); усталость (o.tire) усиливает. Непрерывно, без ступенек.
+  const KG = o => Math.max(0, (o.load && o.load.kg) || 0), TI = o => clamp(o.tire || 0, 0, 1);
+  const dep = o => clamp(sm(clamp(KG(o) / 12, 0, 1)) * (1 + 0.3 * TI(o)), 0, 1);
+  const hvy = o => clamp(sm(clamp((KG(o) - 2) / 12, 0, 1)) * (1 + 0.4 * TI(o)), 0, 1);
+  const twoH = o => sm(clamp((KG(o) - 1) / 2.5, 0, 1));
+  // касание позже задуманного (Carry: лёгкая вещь — короткий процесс, но до касания ≥ 0,3 с): до касания поза растянута, после — сжата
+  const warp = (o, a) => { const L = o.load, c = L && L.c, c0 = L && L.c0; if (!c || !c0 || Math.abs(c - c0) < 1e-3) return a; return a < c ? a * c0 / c : c0 + (a - c) * (1 - c0) / (1 - c); };
+  // рюкзак (снять/надеть): своя шкала — 5 кг легко, 25+ кг — тяжело (присед, упор на колено, рывок)
+  const depPk = o => clamp(sm(clamp((KG(o) - 3) / 24, 0, 1)) * (1 + 0.3 * TI(o)), 0, 1);
+  const hvPk = o => clamp(sm(clamp((KG(o) - 8) / 20, 0, 1)) * (1 + 0.4 * TI(o)), 0, 1);
+  // к горловине/клапану снятого рюкзака: наклон корпусом, ноги чуть согнуты (не присед); dn — доля
+  function leanTo(Tp, dn, d) {
+    const cap = lerp(0.22, 0.8, clamp((Tp[1] + 27) / 9, 0, 1)), l = Math.min(cap, reachLean(Tp, 0, -17.2, 0.04, d || 13.6)), kb = clamp((l - 0.45) / 0.35, 0, 1);   // высоко — не клонится (руки тянутся сами)
+    body(lerp(0.04, l, dn), -17.2 + (0.6 + 1.8 * kb) * dn, -0.8 * kb * dn); P.f0x = lerp(1.3, 2.2, dn); P.f1x = lerp(-1.6, -2.6, dn);
+  }
   // дальняя рука держит охапку у груди (n частей), иначе — вес/помощь
   function hugLoad(n) { const C = CH(); if (n > 0) { handAt(1, C[0] - 1.6, C[1] + 1.8, 1); P.hl1 = 2.6; P.lo = [C[0], C[1] + 0.6, 0]; P.lon = n; return true; } return false; }
-  // наклон → взять (0.34 — касание, вещь уже в руках) → к груди (0.66) → держит
+  // занята ли дальняя рука ношей (охапка — у груди, вещь — в кулаке у груди): тогда с рюкзаком работает одна ближняя
+  function farHold(L, n) { if (hugLoad(n)) return true; if (L && L.k && !L.n) { const C = CH(); handAt(1, C[0] - 1, C[1] + 0.5, 1); P.hl1 = 3; P.held2 = [L.k, P.h1x + 0.2, P.h1y - 0.8, -0.3]; return true; } return false; }
+  // присед по массе: k — не меньше, чем нужно достать T, и глубже от массы; спина прямее у тяжёлого
+  // лёгкое — наклон корпусом почти без приседа; тяжелее — присед глубже, спина прямее (наклон добирает только недостающее)
+  function liftBend(o, T, reach, dn) {
+    const d = dep(o), hv = hvy(o), k0 = T.y > -16 ? bendK(T, reach, 0) : 0, k = k0 * (0.35 + 0.65 * d) + (1 - k0) * 0.6 * d;
+    const hy = by(k), hx = bx(k), l = Math.max(bl(k) - 0.26 * hv, Math.min(1.15, reachLean(T, hx, hy, 0.04, reach)) - 0.26 * hv * (1 - d));
+    body(lerp(0.04, l, dn), lerp(-17.2, hy, dn), lerp(0, hx, dn)); return k;
+  }
+  // наклон → взять (0.34 — касание, вещь уже в руках) → тяжёлое: держит, рывок, выпрямился с противовесом → к груди → держит
   R('pickKeep', { dur: 1.0, own: true, fn(o, t, a) {
+    a = warp(o, a);
     stow(o);
-    const L = o.load, T = tgt(o, 8, -2), k = T.y > -16 ? bendK(T, 12.6, 0) : 0, dn = a < 0.3 ? sm(a / 0.3) : a < 0.4 ? 1 : 1 - sm(seg(a, 0.4, 0.66));
-    bend(k, dn); P.f0x = lerp(1.6, 2.6, dn); P.f1x = lerp(-1.6, -2.4, dn);
+    const L = o.load, T = tgt(o, 8, -2), hv = hvy(o), tw = twoH(o), g1 = 0.4 + 0.14 * hv, r1 = Math.min(0.9, 0.66 + 0.14 * hv);
+    const dn = a < 0.3 ? sm(a / 0.3) : a < g1 ? 1 : 1 - sm(seg(a, g1, r1));
+    liftBend(o, T, 12.6, dn);
+    const jerk = bump(a, g1 - 0.05, g1 + 0.09) * hv, back = sm(seg(a, g1, r1)) * hv;   // рывок: таз чуть ниже и вверх; потом — корпус назад (противовес)
+    if (hv > 0) body(P.lean - 0.12 * back + 0.05 * jerk, P.hy + 1.1 * jerk, P.hx - 0.7 * back);
+    P.f0x = lerp(1.6, 2.6 + 0.9 * hv, dn); P.f1x = lerp(-1.6, -2.4 - 0.9 * hv, dn);
     const C = CH(), rx = P.sx + R0[0], ry = P.sy + R0[1];
     let x, y;
     if (a < 0.3) { const e = sm(a / 0.3); x = lerp(rx, T.x, e); y = lerp(ry, T.y, e); }
-    else if (a < 0.4) { x = T.x; y = T.y; }
-    else if (a < 0.66) { const e = sm(seg(a, 0.4, 0.66)); x = lerp(T.x, C[0] + 0.5, e); y = lerp(T.y, C[1] - 2.2, e); }
+    else if (a < g1) { x = T.x; y = T.y + 0.4 * jerk; }
+    else if (a < r1) { const e = sm(seg(a, g1, r1)); x = lerp(T.x, C[0] + 0.5, e); y = lerp(T.y, C[1] - 2.2, e); }
     else { x = C[0] + 0.5; y = C[1] - 2.2; }
     P.h0x = x; P.h0y = y; P.hl0 = 3;
-    const got = a >= 0.34, n = L ? L.n : 0, moving = got && a < 0.66 && n > 0;
-    if (!hugLoad(moving ? n - 1 : n)) { const two = env(a, 0.34, 0.42, 0.6, 0.7); handAt(1, lerp(lerp(P.sx + R1[0], P.hx + 5.5, dn), x - 1.6, two), lerp(lerp(P.sy + R1[1], hip() - 1.5, dn), y + 1, two), 1); P.hl1 = lerp(lerp(6.6, 4, dn), 3, two); }
+    const got = a >= 0.34, n = L ? L.n : 0, moving = got && a < r1 && n > 0;
+    if (!hugLoad(moving ? n - 1 : n)) { const two = Math.max(env(a, 0.34, 0.42, 0.6, 0.7), env(a, 0.24, 0.32, r1 - 0.04, r1 + 0.06) * tw) * Math.max(tw, 0.35 * (1 - hv)); handAt(1, lerp(lerp(P.sx + R1[0], P.hx + 5.5, dn), x - 1.6, two), lerp(lerp(P.sy + R1[1], hip() - 1.5, dn), y + 1, two), 1); P.hl1 = lerp(lerp(6.6, 4, dn), 3, two); }
     if (moving) P.held = ['chunk', x - 0.3, y - 0.2, -0.15];
     else if (got && L && L.k && !n) P.held = [L.k, x - 0.3, y + (L.k === 'hare' ? 0.6 : -0.6), L.k === 'hare' ? PI / 2 - 0.15 : -0.3];
-    P.tilt = 0.3 * dn; P.hb = 0.3 * bump(a, 0.34, 0.6);
+    P.tilt = 0.3 * dn * (1 - 0.4 * hv) - 0.12 * jerk; P.hb = 0.3 * bump(a, 0.34, 0.6) + 0.6 * jerk;
   } });
-  // положить из рук: от груди → наклон к T → отпустил (0.55) → выпрямился
+  // положить из рук: от груди → присед к T (тяжёлое — глубже, медленнее опускает) → отпустил (0.55) → выпрямился
   R('putKeep', { dur: 0.75, own: true, fn(o, t, a) {
+    a = warp(o, a);
     stow(o);
-    const L = o.load, T = tgt(o, 9, -3), k = T.y > -16 ? bendK(T, 12.4, 0) : 0, dn = env(a, 0, 0.4, 0.62, 0.95);
-    bend(k, dn); P.f0x = 2.6; P.f1x = -2.4;
+    const L = o.load, T = tgt(o, 9, -3), hv = hvy(o), dn = env(a, 0, 0.4, 0.62, 0.95);
+    liftBend(o, T, 12.4, dn); P.f0x = 2.6 + 0.8 * hv; P.f1x = -2.4 - 0.8 * hv;
     const C = CH(), rx = P.sx + R0[0], ry = P.sy + R0[1], before = a < 0.55;
     let x, y;
-    if (a < 0.5) { const e = sm(a / 0.5); x = lerp(C[0] + 0.5, T.x, e); y = lerp(C[1] - 2.2, T.y, e); }
+    if (a < 0.5) { const e = sm(a / 0.5), e2 = lerp(e, e * e, hv); x = lerp(C[0] + 0.5, T.x, e); y = lerp(C[1] - 2.2, T.y, e2); }   // тяжёлое — опускает, придерживая
     else if (a < 0.6) { x = T.x; y = T.y; }
     else { const e = sm(seg(a, 0.6, 1)); x = lerp(T.x, L && L.n ? C[0] + 0.5 : rx, e); y = lerp(T.y, L && L.n ? C[1] - 2.2 : ry, e); }
     P.h0x = x; P.h0y = y; P.hl0 = 3;
     const n = L ? L.n : 0, moving = before && n > 0;
-    if (!hugLoad(moving ? n - 1 : n)) { handAt(1, lerp(P.sx + R1[0], P.hx + 5.5, dn), lerp(P.sy + R1[1], hip() - 1.5, dn), 1); P.hl1 = lerp(6.6, 4, dn); }
+    if (!hugLoad(moving ? n - 1 : n)) { const tw = twoH(o) * env(a, 0, 0.2, 0.55, 0.7); handAt(1, lerp(lerp(P.sx + R1[0], P.hx + 5.5, dn), x - 1.6, tw), lerp(lerp(P.sy + R1[1], hip() - 1.5, dn), y + 1, tw), 1); P.hl1 = lerp(lerp(6.6, 4, dn), 3, tw); }
     if (moving) P.held = ['chunk', x - 0.3, y - 0.2, -0.15];
     else if (before && L && L.k) P.held = [L.k, x - 0.3, y + (L.k === 'hare' ? 0.6 : -0.5), L.k === 'hare' ? PI / 2 - 0.15 : -0.3];
     P.tilt = 0.3 * dn; P.hb = 0.3 * bump(a, 0.45, 0.65);
   } });
-  // снять лямку и открыть клапан: плечо дёрнулось (лямка сползла), ближняя рука за спину к клапану; ноша — в дальней у груди
-  R('packOpen', { dur: 0.9, own: true, fn(o, t, a) {
+
+  // ---------- рюкзак снят: стоит на снегу перед героем (низ — T), лямками от него; поза ведёт P.pko ----------
+  const PKT = o => tgt(o, 15, -1.8);
+  const topOf = (B, rot, Hb) => [B[0] + Hb * sin(rot), B[1] - Hb * cos(rot)];   // ручка (верх клапана) при наклоне rot
+  const pko = (B, rot, o2) => (P.pko = Object.assign({ x: B[0], y: B[1], rot, open: 0, st: 0, z: 1, gnd: 0, f: 1 }, o2));
+  // на спине: низ у таза за спиной (как рисует рюкзак на спине)
+  const onBack = g => [P.hx - 3.1 - g.d, hip() + 0.3];
+  // снять: пряжки (пояс, грудь) → ближняя лямка с плеча → рюкзак на дальней лямке перекинут вперёд под ближней рукой → опустил на снег
+  // перед собой (тяжёлый — присев с прямой спиной, опускает медленнее) → 0.84 стоит → выпрямился. Ноша — в дальней руке у груди.
+  R('packDoff', { dur: 1.0, own: true, fn(o, t, a) {
+    a = warp(o, a);
     H.idle(o, t); stow(o);
-    const L = o.load, shrug = bump(a, 0.05, 0.4), w = env(a, 0, 0.25, 0.8, 1), BK = [P.hx - 4.4, P.sy - 3.5], UP = [P.sx + 1.5, P.sy - 6];
-    body(0.04 - 0.08 * shrug + 0.06 * w, -17.2 - 0.9 * shrug);
-    const e1 = sm(seg(a, 0.1, 0.45)), e2 = sm(seg(a, 0.45, 0.75)), e3 = sm(seg(a, 0.8, 1));
-    const x = lerp(lerp(lerp(P.sx + R0[0], UP[0], e1), BK[0], e2), P.sx + R0[0], e3), y = lerp(lerp(lerp(P.sy + R0[1], UP[1], e1), BK[1] - 2 * bump(a, 0.55, 0.75), e2), P.sy + R0[1], e3);
-    P.h0x = x; P.h0y = y; P.hl0 = lerp(3, 7.5, e2 * (1 - e3));
-    if (L && !hugLoad(L.n) && L.k) { const C = CH(); handAt(1, C[0] - 1, C[1] + 0.5, 1); P.hl1 = 3; P.held2 = [L.k, P.h1x + 0.2, P.h1y - 0.8, -0.3]; }
-    P.tilt = -0.08 * shrug + 0.1 * w; P.hb = -shrug * 0.8;
+    const L = o.load, n = L ? L.n : 0, g = H.pack(), T = PKT(o), hv = hvPk(o), dk = depPk(o), Hb = g.Hb + 2.2;
+    const shrug = bump(a, 0.18, 0.4);
+    if (a < 0.34) {
+      // пряжки и лямка: обе (свободные) руки к поясу → ближняя к лямке на груди; плечо уходит назад
+      body(0.04 - 0.06 * shrug, -17.2 - 0.5 * shrug); P.hb = -shrug * 0.6; P.tilt = -0.05 * shrug;
+      const busy1 = farHold(L, n), e1 = sm(seg(a, 0, 0.16)), e2 = sm(seg(a, 0.16, 0.32));
+      handAt(0, lerp(lerp(P.sx + R0[0], P.hx + 4.2, e1), P.sx + 2.4, e2), lerp(lerp(P.sy + R0[1], hip() - 1, e1), P.sy + 2.2, e2), 1); P.hl0 = lerp(6.6, 3, e1);
+      if (!busy1) { handAt(1, lerp(P.sx + R1[0], P.hx + 3.6, e1 * (1 - e2)), lerp(P.sy + R1[1], hip() - 0.6, e1 * (1 - e2)), 1); P.hl1 = lerp(6.6, 3, e1 * (1 - e2)); }
+      return;
+    }
+    // рюкзак в руке: 0.34–0.6 с плеча вперёд по дуге под ближней рукой, 0.6–0.84 вниз на снег, дальше стоит
+    const Bb = onBack(g), Bm = [T.x - 3, hip() + 2.5], e = sm(seg(a, 0.34, 0.6)), f = sm(seg(a, 0.6, 0.84));
+    let B, rot;
+    if (a < 0.6) { B = [lerp(Bb[0], Bm[0], e), lerp(Bb[1], Bm[1], e) + 3 * sin(PI * e)]; rot = -0.35 * sin(PI * e) + 0.15 * e; }
+    else { const fy = lerp(f, f * f, hv); B = [lerp(Bm[0], T.x, f), lerp(Bm[1], T.y, fy)]; rot = lerp(0.15, 0, f); }   // тяжёлый — опускает, придерживая
+    if (a >= 0.84) { B = [T.x, T.y]; rot = 0; }
+    const Tp = topOf(B, rot, Hb), lowDn = env(a, 0.56, 0.8, 0.88, 1.08);
+    leanTo([Tp[0], Tp[1] + 1], lowDn, 13.2);
+    if (dk > 0.02) body(P.lean - 0.22 * dk * lowDn, P.hy + 5 * dk * lowDn, P.hx - 1.4 * dk * lowDn);   // присед, спина прямая
+    if (a < 0.6) body(P.lean - 0.06 * bump(a, 0.34, 0.6), P.hy);
+    const busy1 = farHold(L, n);
+    pko(B, rot, { z: e > 0.45 ? 1 : 0, st: 1 - sm(seg(a, 0.42, 0.62)), gnd: a >= 0.84 ? 1 : 0, keep: 1 });
+    const rel = a >= 0.86 ? sm(seg(a, 0.86, 1)) : 0;
+    handAt(0, lerp(Tp[0] + 0.6, P.sx + R0[0], rel), lerp(Tp[1] + 0.4, P.sy + R0[1], rel), 1); P.hl0 = 2.6;
+    if (!busy1) { const w2 = env(a, 0.6, 0.7, 0.86, 1); handAt(1, lerp(P.sx + R1[0], Tp[0] - 1.2, w2), lerp(P.sy + R1[1], Tp[1] + 0.8, w2), 1); P.hl1 = lerp(6.6, 3, w2); }
+    P.tilt = 0.18 * lowDn; P.hb = 0.4 * bump(a, 0.78, 0.9) * (0.4 + hv);
   } });
-  // уложить: вещь от груди — вверх к плечу — за спину в рюкзак (0.6 — отпустил), рука назад; ноша — дальняя рука
-  R('packPut', { dur: 0.75, own: true, fn(o, t, a) {
+  // развязать: наклон к горловине, ближняя рука откидывает клапан от себя, дальняя (свободна) ослабляет шнур
+  R('packOpen', { dur: 0.5, own: true, fn(o, t, a) {
+    a = warp(o, a);
     H.idle(o, t); stow(o);
-    const L = o.load, C = CH(), UP = [P.sx + 1.5, P.sy - 8], BK = [P.hx - 4.8, P.sy - 4], rx = P.sx + R0[0], ry = P.sy + R0[1];
-    let x, y, lat = 3;
-    if (a < 0.15) { const e = sm(a / 0.15); x = lerp(rx, C[0] + 0.5, e); y = lerp(ry, C[1] - 2, e); }
-    else if (a < 0.4) { const e = sm(seg(a, 0.15, 0.4)); x = lerp(C[0] + 0.5, UP[0], e); y = lerp(C[1] - 2, UP[1], e); }
-    else if (a < 0.62) { const e = sm(seg(a, 0.4, 0.62)); x = lerp(UP[0], BK[0], e); y = lerp(UP[1], BK[1], e); lat = lerp(3, 7, e); }
-    else { const e = sm(seg(a, 0.62, 1)); x = lerp(BK[0], rx, e); y = lerp(BK[1], ry, e); lat = lerp(7, 6.6, e); }
-    P.h0x = x; P.h0y = y; P.hl0 = lat;
-    const before = a < 0.6, n = L ? L.n : 0, isT = L && L.k, movP = before && a > 0.12 && !isT && n > 0;
-    hugLoad(movP ? n - 1 : n) || (handAt(1, P.sx + R1[0], P.sy + R1[1], 1), 0);
-    if (before && a > 0.12) P.held = isT ? [L.k, x - 0.3, y - 0.5, -0.3 - a] : n ? ['chunk', x - 0.3, y - 0.2, -0.2 - a * 1.2] : null;
-    body(0.04 - 0.05 * bump(a, 0.3, 0.7), -17.2 - 0.4 * bump(a, 0.35, 0.65)); P.tilt = -0.06 * bump(a, 0.35, 0.65); P.hb = 0.25 * bump(a, 0.4, 0.66);
+    const L = o.load, n = L ? L.n : 0, g = H.pack(), T = PKT(o), O = [T.x, T.y - g.Hb], dn = env(a, -0.3, 0.2, 0.85, 1.3), op = sm(seg(a, 0.15, 0.7));
+    leanTo([O[0], O[1] - 1.5], dn);
+    const busy1 = farHold(L, n);
+    pko([T.x, T.y], 0, { open: op, gnd: 1, keep: 1 });
+    handAt(0, lerp(O[0] - g.d * 0.6, O[0] + g.d + 2, op), O[1] - 2.2 - 2.5 * sin(PI * op), 1); P.hl0 = 2.4;
+    if (!busy1) { handAt(1, O[0] - 1.2 + 0.6 * sin(a * 40) * env(a, 0.4, 0.5, 0.8, 0.95), O[1] - 0.8, env(a, 0, 0.3, 0.85, 1)); P.hl1 = 3.4; }
+    P.tilt = 0.25 * dn;
   } });
-  // затянуть: обе руки тянут лямки вниз, плечи подали вверх-вперёд, рюкзак сел
+  // затянуть: клапан на место, шнур и ремни клапана — рывками вниз
+  R('packTie', { dur: 0.5, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load, n = L ? L.n : 0, g = H.pack(), T = PKT(o), O = [T.x, T.y - g.Hb], dn = env(a, -0.3, 0.15, 0.8, 1.15);
+    const op = 1 - sm(seg(a, 0, 0.45)), tug = bump(a, 0.5, 0.68) + bump(a, 0.7, 0.88);
+    leanTo([O[0], O[1] - 1.5], dn);
+    const busy1 = farHold(L, n);
+    pko([T.x, T.y], 0, { open: op, gnd: 1, keep: 1 });
+    handAt(0, lerp(O[0] + g.d + 2, O[0] - g.d * 0.4, 1 - op), O[1] - 2.4 - 2.5 * sin(PI * op) + 1.6 * tug, 1); P.hl0 = 2.4;
+    if (!busy1) { handAt(1, O[0] + 0.8, O[1] - 1.2 + 1.4 * tug, env(a, 0.1, 0.4, 0.85, 1)); P.hl1 = 3.4; }
+    P.tilt = 0.25 * dn; P.hb = 0.3 * tug;
+  } });
+  // внутрь: вещь от груди — над горловиной — вниз в горловину (рука уходит внутрь), 0.55 отпустил — рука наверх и к груди/в покой.
+  // Что ниже кромки, закрыт рюкзаком (он рисуется поверх вещи): вещь уходит внутрь, а не за спину. Тяжёлое — двумя руками, ниже наклон.
+  R('packIn', { dur: 0.7, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load, n = L ? L.n : 0, g = H.pack(), T = PKT(o), O = [T.x, T.y - g.Hb], C0 = CH(), hv = hvy(o), tw = twoH(o);
+    const more = n > 1, dn = env(a, -0.1, 0.3, 0.75, 1.1);
+    leanTo([O[0], O[1] - 1], dn); if (hv > 0) body(P.lean - 0.1 * hv * dn, P.hy + 2.5 * hv * dn, P.hx - 0.8 * hv * dn);
+    pko([T.x, T.y], 0, { open: 1, gnd: 1, keep: 1 });
+    const C = CH(), rx = P.sx + R0[0], ry = P.sy + R0[1], AB = [O[0] - 0.4, O[1] - 5.5], IN = [O[0] + 0.2, O[1] + 3];
+    let x, y;
+    if (a < 0.24) { const e = sm(a / 0.24); x = lerp(C[0] + 0.5, AB[0], e); y = lerp(C[1] - 2, AB[1], e); }
+    else if (a < 0.5) { const e = sm(seg(a, 0.24, 0.5)); x = lerp(AB[0], IN[0], e); y = lerp(AB[1], IN[1], e); }
+    else if (a < 0.58) { x = IN[0]; y = IN[1]; }
+    else if (a < 0.78) { const e = sm(seg(a, 0.58, 0.78)); x = lerp(IN[0], AB[0] + 0.6, e); y = lerp(IN[1], AB[1] + 1.5, e); }
+    else { const e = sm(seg(a, 0.78, 1)); x = lerp(AB[0] + 0.6, more ? C[0] + 0.5 : rx, e); y = lerp(AB[1] + 1.5, more ? C[1] - 2.2 : ry, e); }
+    P.h0x = x; P.h0y = y; P.hl0 = 2.2; void C0;
+    const before = a < 0.55, isT = L && L.k && !n, movP = before && n > 0;
+    if (!hugLoad(movP ? n - 1 : n)) { const w2 = tw * env(a, 0, 0.12, 0.5, 0.62); handAt(1, lerp(P.sx + R1[0], x - 1.4, w2), lerp(P.sy + R1[1], y + 0.8, w2), 1); P.hl1 = lerp(6.6, 3, w2); }
+    if (before) P.held = isT ? [L.k, x - 0.3, y - 0.3, -0.3 - 1.1 * sm(seg(a, 0.2, 0.45))] : n ? ['chunk', x, y + 0.3, -0.15 - 1.3 * sm(seg(a, 0.18, 0.45))] : null;   // чурка — торцом вниз в горловину
+    P.tilt = 0.3 * dn; P.hb = 0.2 * bump(a, 0.45, 0.62);
+  } });
+  // приторочить снаружи: чурку поперёк (торцом к взгляду) обеими руками — на клапан (0.5 — легла), ближняя рука тянет ремень клапана
+  // через неё к пряжке (два рывка), дальняя прижимает; потом — к груди (ещё есть) или в покой
+  R('packLash', { dur: 1.1, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load, n = L ? L.n : 0, g = H.pack(), T = PKT(o), CR = 1.6;
+    const lt = [T.x, T.y - g.Hb - 2.2 - (H.look() && H.look().packType === 'frame' ? 2.6 : 0)], ON = [lt[0], lt[1] - CR];
+    const dn = env(a, -0.2, 0.3, 0.85, 1.15), more = n > 1;
+    leanTo([ON[0], ON[1]], dn);
+    pko([T.x, T.y], 0, { gnd: 1, keep: 1 });
+    const C = CH(), rx = P.sx + R0[0], ry = P.sy + R0[1], tug = bump(a, 0.58, 0.7) + bump(a, 0.72, 0.84);
+    let x, y;
+    if (a < 0.4) { const e = sm(a / 0.4); x = lerp(C[0] + 0.5, ON[0] - 0.5, e); y = lerp(C[1] - 2.2, ON[1] - 1.2, e); }
+    else if (a < 0.52) { const e = sm(seg(a, 0.4, 0.52)); x = ON[0] - 0.5; y = lerp(ON[1] - 1.2, ON[1], e); }
+    else if (a < 0.88) { const e = sm(seg(a, 0.52, 0.62)); x = lerp(ON[0] - 0.5, ON[0] + g.d + 0.5, e) - 1.6 * tug; y = lerp(ON[1], lt[1] + 0.6, e) - 2.4 * (1 - Math.abs(2 * e - 1)) + 1.2 * tug; }
+    else { const e = sm(seg(a, 0.88, 1)); x = lerp(ON[0] + g.d - 1, more ? C[0] + 0.5 : rx, e); y = lerp(lt[1] + 0.6, more ? C[1] - 2.2 : ry, e); }
+    P.h0x = x; P.h0y = y; P.hl0 = 2.2;
+    const before = a < 0.5, movP = before && n > 0;
+    if (!hugLoad(movP ? n - 1 : n)) { const w2 = env(a, 0, 0.15, 0.82, 0.95); handAt(1, lerp(P.sx + R1[0], before ? x - 0.6 : ON[0] - 1, w2), lerp(P.sy + R1[1], before ? y + 0.6 : ON[1] + 0.3, w2), 1); P.hl1 = lerp(6.6, 3, w2); }
+    if (before && n > 0) P.held = ['chunkE', x + 0.5, y, 0];
+    P.tilt = 0.28 * dn; P.hb = 0.3 * tug;
+  } });
+  // надеть: наклон/присед к рюкзаку, ручка → поднял на бедро (тяжёлый — упор на колено, пауза) → дальняя рука в лямку, рюкзак
+  // перекинут за спину (0.84 — сел на спину) → ближняя рука в лямку, подкинул плечами, пряжки. Ноша — в дальней руке.
+  R('packDon', { dur: 1.2, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load, n = L ? L.n : 0, g = H.pack(), T = PKT(o), hv = hvPk(o), dk = depPk(o), Hb = g.Hb + 2.2;
+    const kp = 0.2 + 0.12 * hv, k1 = 0.42 + 0.12 * hv;   // kp — поднял на бедро, k1 — пауза на колене кончилась
+    const knee = env(a, kp - 0.04, kp + 0.04, k1, k1 + 0.08) * hv;   // упор на колено: ближняя нога вперёд-вверх
+    const Bk = [T.x - 4, hip() + 5 - 3 * knee], Bb = onBack(g), e1 = sm(seg(a, 0.08, kp)), e2 = sm(seg(a, k1, 0.84));
+    let B, rot;
+    if (a < kp) { B = [lerp(T.x, Bk[0], e1), lerp(T.y, Bk[1], e1)]; rot = -0.1 * e1; }
+    else if (a < k1) { B = [Bk[0], Bk[1]]; rot = -0.1; }
+    else { B = [lerp(Bk[0], Bb[0], e2), lerp(Bk[1], Bb[1], e2) - 3 * sin(PI * e2) * (1 + hv)]; rot = -0.1 + (0.1 + 0.35 * (1 + 0.6 * hv)) * sin(PI * e2); }   // закинул: дуга вверх-назад
+    const Tp = topOf(B, rot, Hb), dn = env(a, -0.1, 0.1, kp, k1 + 0.14);
+    leanTo([Tp[0], Tp[1] + 1], dn, 13.2);
+    if (dk > 0.02) body(P.lean - 0.22 * dk * dn, P.hy + 5 * dk * dn, P.hx - 1.4 * dk * dn);
+    if (knee > 0) { P.f0x += 3.2 * knee; P.f0y = -2 - 3.6 * knee; P.f0a = 0.3 * knee; }
+    const hitch = bump(a, 0.8, 0.94);
+    if (a >= 0.84) body(P.lean - 0.04 * hitch, P.hy - 1.4 * hitch);
+    const busy1 = farHold(L, n);
+    if (a < 0.84) {
+      pko(B, rot, { z: e2 > 0.5 ? 0 : 1, st: sm(seg(a, k1 + 0.04, 0.8)), gnd: a < 0.08 ? 1 : 0, keep: 1 });
+      // ближняя рука: ручка (поднять) → лямка (перекинуть: точка лямки на спинке, ~¾ высоты)
+      const cs = cos(rot), sn = sin(rot), v = Hb * 0.72, SP = [B[0] + g.d * cs + v * sn, B[1] + g.d * sn - v * cs], s2 = sm(seg(a, k1 - 0.06, k1 + 0.1));
+      handAt(0, lerp(Tp[0] + 0.6, SP[0], s2), lerp(Tp[1] + 0.6, SP[1], s2), 1); P.hl0 = 2.6;
+      if (!busy1) { const w2 = env(a, 0.04, 0.14, k1 + 0.1, 0.7); handAt(1, lerp(P.sx + R1[0], lerp(B[0] + 1, P.sx + 1.5, e2), w2), lerp(P.sy + R1[1], lerp(B[1] - 4, P.sy + 1.5, e2), w2), 1); P.hl1 = lerp(6.6, 3.2, w2); }
+    } else {
+      // на спине: ближняя рука — в лямку (из-за спины вперёд к груди), подкинул плечами, пряжка на поясе
+      const e3 = sm(seg(a, 0.84, 0.94)), e4 = sm(seg(a, 0.92, 1));
+      handAt(0, lerp(lerp(P.hx - 3, P.sx + 2.4, e3), P.hx + 4.2, e4), lerp(lerp(hip() - 6, P.sy + 2.4, e3), hip() - 1, e4), 1); P.hl0 = 3;
+      if (!busy1) { handAt(1, lerp(P.sx + 1.6, P.hx + 3.6, e4), lerp(P.sy + 2, hip() - 0.6, e4), 1); P.hl1 = 3; }
+    }
+    P.tilt = 0.2 * dn - 0.08 * hitch; P.hb = -0.8 * hitch + 0.4 * knee;
+  } });
+  // мелочь — в поясной карман рюкзака у ближнего бедра (рюкзак не снимает): рука с вещью к карману, внутрь (0.55), застегнул
+  R('packPut', { dur: 0.7, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load, PB = [P.hx + 3.6, hip() + 0.6], rx = P.sx + R0[0], ry = P.sy + R0[1];
+    let x, y;
+    if (a < 0.35) { const e = sm(a / 0.35); x = lerp(rx + 1.5, PB[0] + 0.6, e); y = lerp(ry - 1, PB[1] - 2.2, e); }
+    else if (a < 0.55) { const e = sm(seg(a, 0.35, 0.55)); x = PB[0] + 0.6 - 0.4 * e; y = lerp(PB[1] - 2.2, PB[1], e); }
+    else if (a < 0.72) { x = PB[0] + 0.2 + 1.4 * sm(seg(a, 0.56, 0.7)); y = PB[1] - 0.6; }   // молния
+    else { const e = sm(seg(a, 0.72, 1)); x = lerp(PB[0] + 1.6, rx, e); y = lerp(PB[1] - 0.6, ry, e); }
+    P.h0x = x; P.h0y = y; P.hl0 = lerp(6.6, 3.4, env(a, 0, 0.3, 0.75, 1));
+    farHold(L && L.n ? L : null, L ? L.n : 0) || handAt(1, P.sx + R1[0], P.sy + R1[1], 1);
+    if (a < 0.55 && L && L.k) P.held = [L.k, x - 0.2, y - 0.4, -0.3];
+    body(0.08 * env(a, 0, 0.3, 0.75, 1), -17.2); P.tilt = 0.22 * env(a, 0, 0.3, 0.75, 1);
+  } });
+  // достать из поясного кармана (еда): рука к карману (0.45), взял (0.55), к груди
+  R('packGet', { dur: 0.9, own: true, fn(o, t, a) {
+    a = warp(o, a);
+    H.idle(o, t); stow(o);
+    const L = o.load, C = CH(), PB = [P.hx + 3.6, hip() + 0.6], rx = P.sx + R0[0], ry = P.sy + R0[1];
+    let x, y;
+    if (a < 0.4) { const e = sm(a / 0.4); x = lerp(rx, PB[0] + 0.6, e); y = lerp(ry, PB[1] - 1.6, e); }
+    else if (a < 0.58) { x = PB[0] + 0.4 + 0.3 * sin(a * 60); y = PB[1] - 0.4; }
+    else { const e = sm(seg(a, 0.58, 1)); x = lerp(PB[0] + 0.6, C[0] + 0.5, e); y = lerp(PB[1] - 0.6, C[1] - 2, e); }
+    P.h0x = x; P.h0y = y; P.hl0 = 3.4;
+    handAt(1, P.sx + R1[0], P.sy + R1[1], 1);
+    if (a >= 0.55 && L) P.held = L.k ? [L.k, x - 0.3, y - 0.5, -0.3] : L.n ? ['chunk', x - 0.3, y - 0.2, -0.2] : null;
+    body(0.08 * env(a, 0, 0.3, 0.6, 0.9), -17.2); P.tilt = 0.22 * env(a, 0, 0.3, 0.6, 0.9);
+  } });
+  // (прежнее «затянуть лямки» — для совместимости сейвов со старым шагом)
   R('packClose', { dur: 0.6, own: true, fn(o, t, a) {
     H.idle(o, t); stow(o);
     const L = o.load, w = env(a, 0, 0.25, 0.7, 1), pull = bump(a, 0.25, 0.7);
@@ -377,21 +554,6 @@
     hand(0, 2.6, 5.5 + 3 * pull, w); P.hl0 = lerp(6.6, 3.6, w);
     if (!(L && hugLoad(L.n))) { hand(1, 2.2, 5.2 + 3 * pull, w); P.hl1 = lerp(6.6, 3.2, w); }
     P.hb = -0.6 * pull; P.tilt = 0.05 * pull;
-  } });
-  // достать из рюкзака: рука за спину (0.5), взял (0.55), к груди
-  R('packGet', { dur: 0.9, own: true, fn(o, t, a) {
-    H.idle(o, t); stow(o);
-    const L = o.load, C = CH(), UP = [P.sx + 1.5, P.sy - 8], BK = [P.hx - 4.6, P.sy - 4], rx = P.sx + R0[0], ry = P.sy + R0[1];
-    let x, y, lat = 3;
-    if (a < 0.25) { const e = sm(a / 0.25); x = lerp(rx, UP[0], e); y = lerp(ry, UP[1], e); }
-    else if (a < 0.5) { const e = sm(seg(a, 0.25, 0.5)); x = lerp(UP[0], BK[0], e); y = lerp(UP[1], BK[1], e); lat = lerp(3, 7, e); }
-    else if (a < 0.6) { x = BK[0] + 0.4 * sin(a * 60); y = BK[1]; lat = 7; }
-    else if (a < 0.8) { const e = sm(seg(a, 0.6, 0.8)); x = lerp(BK[0], UP[0], e); y = lerp(BK[1], UP[1], e); lat = lerp(7, 3, e); }
-    else { const e = sm(seg(a, 0.8, 1)); x = lerp(UP[0], C[0] + 0.5, e); y = lerp(UP[1], C[1] - 2, e); }
-    P.h0x = x; P.h0y = y; P.hl0 = lat;
-    handAt(1, P.sx + R1[0], P.sy + R1[1], 1);
-    if (a >= 0.55 && L) P.held = L.k ? [L.k, x - 0.3, y - 0.5, -0.3] : L.n ? ['chunk', x - 0.3, y - 0.2, -0.2] : null;
-    body(0.04 - 0.06 * bump(a, 0.25, 0.75), -17.2 - 0.5 * bump(a, 0.3, 0.7)); P.tilt = -0.08 * bump(a, 0.3, 0.7);
   } });
   // разделка: на корточках у туши, дальняя рука держит/оттягивает шкуру, ближняя — нож, короткие резы
   R('butcher', { loop: true, dur: 1.0, fn(o, t) {
