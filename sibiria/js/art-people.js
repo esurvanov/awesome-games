@@ -613,6 +613,10 @@ var ArtPeople = (function () {
       g.strokeStyle = C(W); g.lineWidth = 2.2; g.beginPath(); tM(g, -5, 0); tL(g, 16, 0); g.stroke();
       g.fillStyle = C('#919dac'); g.beginPath(); tM(g, 11.5, -2.2); tL(g, 16, -2.2); tL(g, 18.6, 6); tL(g, 10.5, 5.6); tL(g, 12.6, 1.5); g.closePath(); g.fill();
       g.strokeStyle = '#dde6ee'; g.lineWidth = 1; g.beginPath(); tM(g, 18.4, 5.6); tL(g, 10.8, 5.2); g.stroke();
+    } else if (kind === 'chunk') {   // чурка с разделки: короткий толстый кругляк, светлый торец
+      g.lineCap = 'butt'; g.strokeStyle = C('#5b3d27'); g.lineWidth = 5; g.beginPath(); tM(g, -2.6, 0); tL(g, 2.4, 0); g.stroke();
+      g.strokeStyle = C('#765436'); g.lineWidth = 2; g.beginPath(); tM(g, -2.6, -1.2); tL(g, 2.4, -1.2); g.stroke(); g.lineCap = 'round';
+      tp(2.4, 0); ell(g, QX, QY, 1.5, 2.5, C('#e0b47a')); ell(g, QX, QY, 0.6, 1, C('#c79a62'));
     } else if (kind === 'log') {   // полено в руках (печь)
       g.strokeStyle = C('#765436'); g.lineWidth = 3.6; g.beginPath(); tM(g, -3, 0); tL(g, 6, 0); g.stroke();
       tp(6, 0); ell(g, QX, QY, 1.7, 1.7, C('#c79a62'));
@@ -1375,6 +1379,21 @@ var ArtPeople = (function () {
     g.strokeStyle = sc; g.lineWidth = pk === 'frame' ? (POL ? 1.5 : 1.3) : 1.1; straps(0, 0);
     if (POL && s > 0.6 && !LQ) { const c1 = pt(Nb, -4.2, (F - B) * 0.25); g.fillStyle = '#1a1d22'; g.fillRect(c1[0] - 0.7, c1[1] - 0.55, 1.4, 1.1); }   // пряжка нагрудной стяжки
   }
+  let HERO = false, HWOOD = 0;
+  // связка чурок на рюкзаке героя (дрова > 0): боком — торцы стопкой на внешней стороне, со спины — поперёк под стяжками
+  function woodBundle(g, q, of, w, ctr) {
+    const n = Math.min(4, Math.ceil(HWOOD / 3)), bark = C('#5b3d27'), face = C('#e0b47a'), ring = C('#b8925e');
+    if (!ctr) {
+      for (let i = 0; i < n; i++) { const c = q(0.3 + i * 0.2, of - w - 1.6 + (i % 2) * 0.5); ell(g, c[0], c[1], 2.1, 2.3, bark, 0); ell(g, c[0] - 0.3, c[1], 1.6, 1.8, face, 0); if (!LQ) ell(g, c[0] - 0.3, c[1], 0.6, 0.7, ring, 0); }
+    } else {
+      g.lineCap = 'butt';
+      for (let i = 0; i < n; i++) { const a = 0.3 + i * 0.2, l = q(a, of - w * 0.95), r = q(a, of + w * 0.95); g.strokeStyle = bark; g.lineWidth = 3.6; g.beginPath(); g.moveTo(l[0], l[1]); g.lineTo(r[0], r[1]); g.stroke();
+        ell(g, r[0], r[1], 0.9, 1.7, face, 0); }
+      g.strokeStyle = C('#2a2e34'); g.lineWidth = 0.7; g.beginPath(); for (const d of [-0.45, 0.45]) { const a1 = q(0.22, of + d * w * 2), a2 = q(0.3 + n * 0.2, of + d * w * 2); g.moveTo(a1[0], a1[1]); g.lineTo(a2[0], a2[1]); } g.stroke();
+      g.lineCap = 'round';
+    }
+    if (!ctr && !LQ) { g.strokeStyle = C('#2a2e34'); g.lineWidth = 0.7; g.beginPath(); const a1 = q(0.22, of - w - 3.2), a2 = q(0.3 + n * 0.2, of - w - 3.2); g.moveTo(a1[0], a1[1]); g.lineTo(a2[0], a2[1]); g.stroke(); }   // стяжка
+  }
   // варианты героя: сидор (мешок), каркасный рюкзак со скаткой, сумка на бедре. back — вид со спины (после корпуса)
   function drawPackV(g, L, T, back) {
     const { Hx, Hy, Nx, Ny, ux, uy, fnx, fny, B } = T, pk = L.packType, col = C(L.pack), dk = C(mix(L.pack, '#10141c', 0.35));
@@ -1396,8 +1415,9 @@ var ArtPeople = (function () {
       return;
     }
     if (pk === 'frame') {
-      const w = ctr ? 4.6 : 2.4, of = ctr ? 0 : -B - 2.5;
-      const top = ctr ? 1.12 : 1.16, p1 = q(top, of - w), p2 = q(top, of + w), p3 = q(0.06, of + w + 0.3 * ow), p4 = q(0.06, of - w - 0.3 * ow);
+      // у героя — экспедиционный 80 л: глубже (×1.7) и выше (над головой вместе со скаткой); NPC — прежний
+      const w = ctr ? (HERO ? 5.2 : 4.6) : HERO ? 4.1 : 2.4, of = ctr ? 0 : -B - 0.1 - w, bot = HERO ? 0 : 0.06;
+      const top = HERO ? 1.62 : ctr ? 1.12 : 1.16, p1 = q(top, of - w), p2 = q(top, of + w), p3 = q(bot, of + w + 0.3 * ow), p4 = q(bot, of - w - 0.3 * ow);
       if (POL && back && !LQ) { g.globalAlpha = 0.3; g.fillStyle = C(L.dark); g.beginPath(); g.moveTo(p1[0] + 1, p1[1] + 1.4); g.lineTo(p2[0] + 1, p2[1] + 1.4); g.lineTo(p3[0] + 1, p3[1] + 1.6); g.lineTo(p4[0] + 1, p4[1] + 1.6); g.closePath(); g.fill(); g.globalAlpha = 1; }   // тень рюкзака на анорак
       g.fillStyle = col; g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
       if (POL && !LQ && !(ctr && !back)) polPack(g, L, q, of, w, top);
@@ -1409,7 +1429,7 @@ var ArtPeople = (function () {
       // каркас: тёмные стойки по краям (со спины) или одна у спины (боком), ниже мешка
       if (!back && ctr) return;   // к камере рюкзак за спиной: виден только верх над плечами
       g.strokeStyle = C('#2a2e34'); g.lineWidth = 0.9; g.beginPath();
-      for (const sd of ctr ? [-1, 1] : [1]) { const f1 = q(1.28, of + sd * (w + 0.2)), f2 = q(-0.08, of + sd * (w + 0.4)); g.moveTo(f1[0], f1[1]); g.lineTo(f2[0], f2[1]); }
+      for (const sd of ctr ? [-1, 1] : [1]) { const f1 = q(top + 0.12, of + sd * (w + 0.2)), f2 = q(bot - 0.14, of + sd * (w + 0.4)); g.moveTo(f1[0], f1[1]); g.lineTo(f2[0], f2[1]); }
       g.stroke();
       const r = q(top + 0.06, of), rw = ctr ? w + 1.2 : 2, rh = ctr ? 1.6 : 1.8;   // скатка сверху: со спины — поперёк, боком — торцом
       ell(g, r[0], r[1] - 0.5, rw, rh, C(L.roll || '#7a4034'), 0);
@@ -1417,6 +1437,7 @@ var ArtPeople = (function () {
         shadeEll(g, r[0], r[1] - 0.5, rw, rh, 0, 0.1, C('#1a1e14'), 0.35); g.globalAlpha = 0.4; ell(g, r[0] - rw * 0.3, r[1] - 0.5 - rh * 0.45, rw * 0.5, rh * 0.3, C('#e8ecd8'), 0); g.globalAlpha = 1;
         if (ctr && DET) { g.strokeStyle = C(L.packD); g.lineWidth = 0.6; g.beginPath(); for (const d of [-0.5, 0.5]) { g.moveTo(r[0] + d * rw, r[1] - 0.5 - rh); g.lineTo(r[0] + d * rw, r[1] - 0.5 + rh); } g.stroke(); }
       }
+      if (HWOOD > 0) woodBundle(g, q, of, w, ctr);
       return;
     }
     // bag: кожаная сумка у бедра за спиной
@@ -1443,15 +1464,17 @@ var ArtPeople = (function () {
     g.fillStyle = C(L.pack); g.beginPath();
     if (back) {
       const px = (a, b) => [lerp(Hx, Nx, a) - fny * 0 + (-uy) * b, lerp(Hy, Ny, a) + ux * b];
-      const p1 = px(0.95, -4.6), p2 = px(0.95, 4.6), p3 = px(0.12, 5), p4 = px(0.12, -5);
+      const tp = HERO ? 1.5 : 0.95, p1 = px(tp, -4.6), p2 = px(tp, 4.6), p3 = px(0.12, 5), p4 = px(0.12, -5);
       g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
       g.fillStyle = C(mix(L.pack, '#000000', 0.25)); g.fillRect(lerp(Hx, Nx, 0.5) - 3.5, lerp(Hy, Ny, 0.5), 7, 3);
-      ell(g, lerp(Hx, Nx, 1.05), lerp(Hy, Ny, 1.05), 5.2, 1.7, C('#56646e'));
+      ell(g, lerp(Hx, Nx, tp + 0.1), lerp(Hy, Ny, tp + 0.1), 5.2, 1.7, C('#56646e'));
+      if (HWOOD > 0) woodBundle(g, (a, of) => px(a, of), 0, 4.6, true);
     } else {
-      const q = (a, of) => [lerp(Hx, Nx, a) + fnx * of, lerp(Hy, Ny, a) + fny * of];
-      const p1 = q(0.92, -B + 0.8), p2 = q(0.92, -B - 4.2), p3 = q(0.1, -B - 4.6), p4 = q(0.1, -B + 0.4);
+      const q = (a, of) => [lerp(Hx, Nx, a) + fnx * of, lerp(Hy, Ny, a) + fny * of], D = HERO ? 8.4 : 5, tp = HERO ? 1.5 : 0.92;   // герой — глубже и выше
+      const p1 = q(tp, -B + 0.8), p2 = q(tp, -B + 0.8 - D), p3 = q(0.1, -B + 0.4 - D), p4 = q(0.1, -B + 0.4);
       g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
-      const r = q(1.02, -B - 1.8); ell(g, r[0], r[1], 3, 1.7, C('#56646e'));
+      const r = q(tp + 0.1, -B + 0.8 - D / 2); ell(g, r[0], r[1], D * 0.6, 1.7, C('#56646e'));
+      if (HWOOD > 0) woodBundle(g, q, -B + 0.6 - D / 2, D / 2, false);
     }
   }
 
@@ -1886,6 +1909,7 @@ var ArtPeople = (function () {
     if (o.wet) { TC = '#27394a'; TA = 0.2; }
     reset(); CL = L; VAR = L.hem != null; POL = !!L.pol;
     TIRE = clamp(o.tire || 0, 0, 1); SHX = SHY = 0; BRV = null; if (mm) dynPre(mm, o, anim, t, ph);
+    HERO = !!(o.key && typeof G !== 'undefined' && G && G.p === o.key); HWOOD = HERO && G.inv ? G.inv.wood || 0 : 0;   // рюкзак героя крупнее, дрова — связкой на нём
     if (POL) { const tf = g.getTransform ? g.getTransform() : null; DET = !LQ && (tf ? Math.hypot(tf.a, tf.b) : 1) >= 2.8; DETN = false; }
     else { DET = false; const tf = !LQ && g.getTransform ? g.getTransform() : null, sc = tf ? Math.hypot(tf.a, tf.b) : 1; DETN = sc >= 2.2; DETF = sc >= 2.8; }
     if (o.sel) { g.strokeStyle = '#ffd27a'; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, anim === 'sleep' || anim === 'dead' ? 24 : 15, 6, 0, 0, PI * 2); g.stroke(); }

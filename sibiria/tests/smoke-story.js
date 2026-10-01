@@ -71,7 +71,7 @@ function lib() {
   S.until = (day, h) => { const t = tAt(day, h); return S.run(Math.max(0, t - G.time) + 1, () => G.time >= t); };
   S.untilH = h => { let t = tAt(dayOf(), h); if (t <= G.time) t += CYCLE; return S.run(t - G.time + 1, () => G.time >= t); }; // ближайшее h:00 впереди
   S.tp = (x, y) => { const p = G.p; p.x = x; p.y = y; p.vx = p.vy = 0; p.action = null; p.lx = x; p.ly = y; p.sx = x - 30; p.sy = y; input.mx = input.my = 0; };
-  S.act = () => { Actions.interact(true); S.run(8, () => !G.p.action && G.p.cd <= 0); };
+  S.act = () => { Actions.interact(true); S.run(8, () => !G.p.action && G.p.cd <= 0 && !input.auto); };   // E у дерева/ствола — сам подходит (автопуть)
   S.talk = (prefer) => { S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
   const IN = () => S.tp(HUT.x + 20, HUT.y - 30); // середина избы (не у печи/верстака/кровати)
   S.IN = IN;
@@ -128,9 +128,10 @@ function lib() {
       const t = Space.nearest(Space.trees, HUT.x, HUT.y + 260, 900, t => t.wood > 0 && !t.wall);
       if (!t) break;
       S.tp(t.x + 26, t.y + 4); S.tick();
-      const before = G.stats.wood; S.act();
+      const before = G.stats.wood; S.act(); S.act();
+      S.run(4, () => !(G.logs || []).some(L => L.f));   // валка: надлом и падение, ствол ложится
       // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки)
-      for (let j = 0; j < 12; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) break; S.act(); }
+      for (let j = 0; j < 40; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) break; S.act(); }   // обрубка, чурки, подбор по одной
       if (G.stats.wood === before && t.wood > 0 && Inv.weight() > Inv.capKg() + 6) break;
     }
     return G.stats.wood - w0;

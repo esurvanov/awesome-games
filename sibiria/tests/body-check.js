@@ -60,6 +60,7 @@ var BodyCheck = (() => {
     dismount: () => { if (P().ride) Transport.dismount(); },
     sleep: () => { const p = P(); p.sleeping = true; p.action = null; Hero.snap(); },
     wake: () => { if (P().sleeping) Actions.wake(false, 'проверка'); },
+    dodge: () => { P().dashCd = 0; Hero.dodge(); },   // отскок (Shift): рывок и поза dodge
   };
   // кадр как в игре: ввод (в панели — нулевой, как syncMove), шаг мира или «дыхание» панели, время, рисование
   function frame(render) {

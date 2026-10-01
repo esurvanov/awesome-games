@@ -36,7 +36,7 @@ const Actions = (() => {
   // вещь ещё лежит, пока рука до неё не дотянулась (для рисования: лампа, сэвэки, записка на земле)
   function grabbing(o) {
     const a = G.p.action; if (!a || a.o !== o) return false;
-    if (a.k === 'take') return a.t / a.dur < 0.21;
+    if (a.k === 'take') return a.t / a.dur < (a.grab || 0.21);
     return false;
   }
   const notePos = (id, out) => typeof Live !== 'undefined' && Live.notePos ? Live.notePos(id, out) : NOTES[id];
@@ -72,8 +72,13 @@ const Actions = (() => {
     G.litter.push({ x: Math.round(p.x + p.face * 13), y: Math.round(p.y + 5), k, t: G.time, a: +(Math.random() * 3).toFixed(2) });
   }
   // ---------- срубленная ель: лежит, пока не разделают (чурки на снегу — это и есть дрова) ----------
-  // Падает от героя; если по пути ствола другой ствол, изба, обломки, куча, бревно — пробуем другой угол (±0.4…1.2), затем обратную сторону.
-  function logLen(t) { return Math.round(150 * t.s / (ArtWorld.treeK ? ArtWorld.treeK(t.s) : 1)); }
+  // Валка: надлом (качание и треск, warn с) → падение маятником (медленный старт, fall с) → удар о землю (урон, преграда) → отскок и перекат.
+  // Направление — от зарубки (стороны, где стоял герой) ± spread; изредка (risk, в ветер/пургу чаще) — на героя или вбок.
+  // Если по пути ствола другой ствол, изба, обломки, куча, бревно — пробуем другой угол (±0.4…1.2), затем обратную сторону.
+  // Разделка: обрубка сучьев (крона снимается от вершины по ударам, лапник на снег), затем чурки; остаток ствола и лапник заметает (bury сут).
+  const FELL = { warn: [0.35, 0.55], fall: [0.8, 1.4], settle: 0.9, spread: 0.3, risk: 0.1, riskWind: 0.05, riskStorm: 0.08, dmg: 14, hitR: 17, bury: 0.75, buryOld: 0.25, logMax: 8, lapMax: 48 };
+  const chopDX = t => World.trunkR(t) + 10.5;   // где стоит герой у ствола: вплотную к преграде ствола, лезвие — в ствол
+  function logLen(t) { return Math.round(150 * t.s / (ArtWorld.treeK ? ArtWorld.treeK(t.s) : 1) * (typeof GFX !== 'undefined' && GFX.tjit ? GFX.tjit(t) : 1)); }
   function fallBlocked(t, a, len) {
     const cs = Math.cos(a), sn = Math.sin(a) * 0.6;
     for (let d = 24; d <= len; d += 12) {
@@ -95,31 +100,133 @@ const Actions = (() => {
     for (const da of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, Math.PI, Math.PI + 0.5, Math.PI - 0.5]) if (!fallBlocked(t, a0 + da, len)) return a0 + da;
     return null;
   }
+  const rr = (a, b) => a + Math.random() * (b - a);
   function fell(t) {
-    const p = G.p, len = logLen(t), a0 = Math.atan2(t.y - p.y, t.x - p.x);
+    const p = G.p, len = logLen(t), side = t.nside || Math.sign(p.x - t.x) || -p.face || 1, toHero = Math.atan2(p.y - t.y, p.x - t.x);
+    let a0 = (side > 0 ? Math.PI : 0) + rr(-FELL.spread, FELL.spread), risk = 0;
+    const w = typeof Wind !== 'undefined' ? Wind.at(t.x, t.y) : { ms: 0 };
+    if (Math.random() < FELL.risk + FELL.riskWind * clamp((w.ms - 4) / 8, 0, 1) + (stormOn() ? FELL.riskStorm : 0)) {
+      risk = Math.random() < 0.6 ? 1 : 2;   // 1 — на героя, 2 — вбок
+      a0 = risk === 1 ? toHero + rr(-0.2, 0.2) : a0 + (Math.random() < 0.5 ? 1 : -1) * (Math.PI / 2 + rr(-0.25, 0.25));
+    }
     let a = fallDir(t, a0); const blocked = a == null; if (blocked) a = a0;
     G.logs = G.logs || [];
-    if (G.logs.length >= 8) G.logs.shift();
+    // лишние старые стволы не исчезают — их заметает (bury), исчезают, когда скроет целиком (tickLogs)
+    const live = G.logs.filter(L => !L.bury && !L.done);
+    if (live.length >= FELL.logMax) live[0].bury = G.time;
     const n = World.wood0(t);
-    const L = { x: t.x, y: t.y, a: +a.toFixed(3), len: blocked ? Math.round(len * 0.55) : len, s: t.s, kind: t.kind, n, n0: n, t0: G.time, id: (G.logN = (G.logN || 0) + 1) };
+    const L = { x: t.x, y: t.y, a: +a.toFixed(3), len: blocked ? Math.round(len * 0.55) : len, s: t.s, kind: t.kind, v: t.v, n, n0: n, t0: G.time, id: (G.logN = (G.logN || 0) + 1),
+      f: { t: 0, w: +rr(FELL.warn[0], FELL.warn[1]).toFixed(2), T: +rr(FELL.fall[0], FELL.fall[1]).toFixed(2), r: +rr(0.035, 0.1).toFixed(3) * (Math.random() < 0.5 ? 1 : -1), risk } };
     G.logs.push(L);
+    World.shakeTree(t, L.f.w);
+    Barks.say(p, 'Па-адает!', { h: 60 });
+    if (inPath(L, p)) Fx.toast(document.body.classList.contains('has-touch') ? ':tree: Падает на тебя! Кнопка отскока' : ':tree: Падает на тебя! Shift — отскок');
     return L;
   }
   const logEnd = (L, k) => ({ x: L.x + Math.cos(L.a) * L.len * k, y: L.y + Math.sin(L.a) * L.len * 0.6 * k });
+  // герой под стволом: отрезок от 0.1 длины до вершины, ближе hitR (по образцу сухостоя гари)
+  function inPath(L, q, k0 = 0.1, m = 0) {
+    const e = logEnd(L, 1), vx = e.x - L.x, vy = e.y - L.y, k = ((q.x - L.x) * vx + (q.y - L.y) * vy) / (vx * vx + vy * vy || 1);
+    return k >= k0 && k <= 1.05 && Math.hypot(q.x - L.x - vx * k, q.y - L.y - vy * k) < FELL.hitR * (L.s || 1) + m;
+  }
+  const near = (L, q) => inPath(L, q, -0.15, 12);   // рядом с линией падения (для отскока — поперёк, не вдоль)
+  // падает ли ствол (ещё не ударился): не преграда, не разделать; danger — куда отскочить (поперёк ствола, от линии)
+  const falling = L => !!(L.f && !L.f.hit);
+  function danger(q = G.p) {
+    for (const L of G.logs || []) if (falling(L) && near(L, q)) {
+      const c = Math.cos(L.a), s = Math.sin(L.a) * 0.6, l = Math.hypot(c, s) || 1, nx = -s / l, ny = c / l, sd = (q.x - L.x) * nx + (q.y - L.y) * ny >= 0 ? 1 : -1;
+      return { L, x: nx * sd, y: ny * sd, t: L.f.w + L.f.T - L.f.t };
+    }
+    return null;
+  }
+  // удар о землю: урон тому, кто под стволом (герой), тряска, звук
+  function impact(L) {
+    const p = G.p, e = logEnd(L, 1);
+    Fx.shake(dist2(L, p) < 260 * 260 ? 5 : 2); Sound.src(e.x, e.y).thud ? Sound.src(e.x, e.y).thud(0.9, 1) : Sound.src(e.x, e.y).hit();
+    if (!p.inside && !p.ride && inPath(L, p)) {
+      G.s.hp -= FELL.dmg; G.hurt = 1; p.action = null; Fx.shake(8); Fx.toast(':hp: Придавило стволом');
+      Interact.emit('fellHit', { who: 'p', x: p.x, y: p.y, log: L });
+    }
+  }
+  // ход валки и заметание: остаток ствола и лапник уходят под снег за bury суток
+  function tickLogs(dt) {
+    const Ls = G.logs; if (!Ls) return;
+    for (let i = Ls.length - 1; i >= 0; i--) {
+      const L = Ls[i], f = L.f;
+      if (f) { f.t += dt; if (!f.hit && f.t >= f.w + f.T) { f.hit = 1; impact(L); } if (f.t >= f.w + f.T + FELL.settle) delete L.f; }
+      if (logSnow(L) >= 1) Ls.splice(i, 1);
+    }
+    if (G.lap) for (let i = G.lap.length - 1; i >= 0; i--) if (G.time - G.lap[i].t > CYCLE * FELL.bury) G.lap.splice(i, 1);
+  }
+  // 0..1 — насколько ствол заметён: разделан (done) — за bury суток, лишний старый (bury) — за buryOld
+  const logSnow = L => Math.max(L.done != null ? (G.time - L.done) / (CYCLE * FELL.bury) : 0, L.bury != null ? (G.time - L.bury) / (CYCLE * FELL.buryOld) : 0);
+  // лапник на снегу (G.lap): {x, y, a, s, t} — куча веток с обрубленной кроны; заметает за bury суток
+  function lapnik(x, y, a, s) {
+    G.lap = G.lap || []; if (G.lap.length >= FELL.lapMax) G.lap.shift();
+    G.lap.push({ x: Math.round(x), y: Math.round(y), a: +a.toFixed(2), s: +(s || 1).toFixed(2), t: G.time });
+  }
+  // снятый кусок кроны (доли c0→c1 от вершины): ветки отлетают, по обе стороны ствола — лапник
+  function limbFx(L, c0, c1) {
+    const s = L.s || 1, c = Math.cos(L.a), sn = Math.sin(L.a) * 0.6, l = Math.hypot(c, sn) || 1, nx = -sn / l, ny = c / l;
+    const k0 = 1 - c1 * 0.9, k1 = 1 - c0 * 0.9, m = (k0 + k1) / 2, q = logEnd(L, m), w = (1 - m) * 26 * s + 8;
+    for (const sd of [1, -1]) lapnik(q.x + nx * sd * w * 0.55 + rnd(-4, 4), q.y + ny * sd * w * 0.4 + rnd(-2, 2), L.a + sd * 0.5 + rnd(-0.3, 0.3), s * (0.7 + (1 - m) * 0.5));
+    if (ArtWorld.fx.twigs) for (const k of [k0, m, k1]) { const e = logEnd(L, k); ArtWorld.fx.twigs(G.parts, e.x, e.y, 10 + (1 - k) * 20, s); }
+    const e = logEnd(L, m); ArtWorld.fx.snowPuff(G.parts, e.x, e.y - 4, 0.5);
+  }
   // ближайшее место ствола к герою (разделка идёт с того конца, что ближе к вершине: сначала сучья, потом чурки)
-  // сколько ствола осталось (доля длины от комля): разделка идёт от вершины — первый рез снимает крону (сучья), дальше чурки
+  // сколько ствола осталось (доля длины от комля): разделка идёт от вершины — обрубка снимает крону (сучья), дальше чурки
   const logK = L => (L.n0 ? 0.12 + 0.88 * L.n / L.n0 : 1);
+  // сколько кроны снято (0..1): старые сейвы — lim = 1 (обрублена целиком)
+  const logCut = L => (L.cut != null ? L.cut : L.lim ? 1 : 0);
   // точка ствола, ближайшая к q (на оставшейся части)
   function logPt(L, q) {
     const e = logEnd(L, logK(L)), vx = e.x - L.x, vy = e.y - L.y, k = clamp(((q.x - L.x) * vx + (q.y - L.y) * vy) / (vx * vx + vy * vy || 1), 0.08, 1);
     return { x: L.x + vx * k, y: L.y + vy * k, k };
   }
-  function nearLog(r) {
-    const p = G.p; let best = null, bd = r * r;
-    for (const L of G.logs || []) { if (L.n <= 0) continue; const q = logPt(L, p), d = dist2(q, p); if (d < bd) { bd = d; best = L; } }
+  // где работать топором: обрубка — у края оставшейся кроны, разделка — у конца ствола (чурка за чуркой к комлю)
+  function workPt(L) {
+    const c = logCut(L), k = c < 1 ? 1 - (c + 0.5 / LIMB_N) * 0.88 : logK(L) - 0.06;
+    return logEnd(L, clamp(k, 0.1, 1));
+  }
+  // куда встать: сбоку от точки работы (x ± 18), не в стволе; ближняя к герою сторона
+  function workSpot(L, w) {
+    const p = G.p, c = Math.cos(L.a), s = Math.sin(L.a) * 0.6, l = Math.hypot(c, s) || 1, nx = -s / l, ny = c / l, R = 4.2 * (L.s || 1) + 11;
+    let best = null, bd = 1e9; const hs = (p.x - L.x) * nx + (p.y - L.y) * ny >= 0 ? 1 : -1;   // та сторона ствола, где герой
+    for (const sd of [1, -1]) {
+      const q = { x: w.x + sd * 18, y: w.y + 4 }, o = (q.x - L.x) * nx + (q.y - L.y) * ny;
+      if (o * hs < R) { const k = hs * R - o; q.x += nx * k; q.y += ny * k; }
+      if (World.blocked(q.x, q.y, 8)) continue;
+      const d = dist2(q, p); if (d < bd) { bd = d; best = q; }
+    }
     return best;
   }
+  function nearLog(r) {
+    const p = G.p; let best = null, bd = r * r;
+    for (const L of G.logs || []) { if (L.n <= 0 || L.f || logSnow(L) > 0.5) continue; const q = logPt(L, p), d = dist2(q, p); if (d < bd) { bd = d; best = L; } }
+    return best;
+  }
+  const LIMB_N = 3;   // ударов на обрубку кроны (за одно действие — время и дрова прежние)
   function nearChunks(r) { const p = G.p; return (G.chunks || []).filter(c => dist2(c, p) < r * r); }
+
+  // боковая точка у ствола: x ± (преграда ствола + тело), чуть ниже комля; сперва сторона героя, занята — другая
+  function chopSpot(t) {
+    const p = G.p, s0 = Math.sign(p.x - t.x) || -p.face || 1, dx = chopDX(t);
+    for (const sd of [s0, -s0]) { const q = { x: t.x + sd * dx, y: t.y + 3 }; if (!onIce(q.x, q.y) && !World.blocked(q.x, q.y, 9.5)) return q; }
+    return null;
+  }
+  // рубка только у ствола: герой в точке сбоку (|dx| ≈ chopDX, |dy| ≤ 7)
+  const atTrunk = t => { const p = G.p, dx = Math.abs(p.x - t.x); return dx > chopDX(t) - 5 && dx < chopDX(t) + 5 && Math.abs(p.y - t.y - 3) <= 7; };
+  function startChop(t) {
+    const p = G.p; if (!atTrunk(t)) return false;
+    const pose = Hero.chopPose(), sd = Math.sign(p.x - t.x) || 1; t.nside = sd; p.face = -sd;
+    p.action = { k: 'chop', t: 0, dur: Hero.chopTime() * 0.5 * (t.kind === 3 ? TUNE.zone.garChop : 1) * (A.chopK[pose] || 1), o: t, pose, tg: { x: t.x + sd * 4 * t.s, y: t.y }, th: -10 };
+    return true;
+  }
+  function startBuck(L) {
+    const p = G.p, pose = Hero.chopPose(), w = workPt(L); faceTo(w);
+    const a = { k: 'buck', t: 0, dur: Hero.chopTime() * 0.5 * (A.chopK[pose] || 1), o: L, pose, fb: 'chop', tg: { x: w.x, y: w.y }, th: -3, limb: logCut(L) < 1 ? 1 : 0 };
+    a.per = Hero.chopCycle(a).cl; p.action = a;
+  }
 
   // Тексты с числами (':fire: +25 с', 'Костёр: :wood:3', 'Спать — после 19:00') — литералы контента
   // (сверяются tests/content-snapshot.js); меняя TUNE, поправь и их.
@@ -169,6 +276,11 @@ const Actions = (() => {
     }
     for (const w of ['cockpit', 'tail']) if (G.wreck[w].length && dist2(POI[w], p) < 120 * 120) return { k: 'wreck', label: `Разбирать · ${G.wreck[w].length}`, o: w };
     if (!G.flags.tube && dist2(TUBE_POS, p) < 44 * 44) return { k: 'tube', label: 'Взять :tube:' };
+    // работа с деревом (чурки, ствол) — раньше следов и сугробов: удержание E не упирается в «мягкий» жест
+    if (!p.inside) {
+      const ch = nearChunks(46); if (ch.length) return { k: 'chunks', label: `Взять чурки · +${ch.length} :wood:`, o: ch };
+      const lg = nearLog(44); if (lg) return { k: 'log', label: logCut(lg) < 1 ? 'Обрубить сучья' : `Разделать · ${lg.n}`, rep: 1, o: lg };
+    }
     if (!p.inside && !onIce(p.x, p.y)) {
       // сугроб под ногами не перехватывает «Рубить»: дерево рядом, герой к нему лицом или оно ближе середины сугроба — дерево (ниже)
       // увяз глубже пояса (js/depth.js) — разгрести снег вокруг себя (утоптать и выбраться)
@@ -184,8 +296,6 @@ const Actions = (() => {
       if (pr) return { k: 'tracks', label: 'Читать след', o: pr, soft: 1 };
     }
     if (!p.inside) {
-      const ch = nearChunks(46); if (ch.length) return { k: 'chunks', label: `Взять чурки · +${ch.length} :wood:`, o: ch };
-      const lg = nearLog(44); if (lg) return { k: 'log', label: lg.n === lg.n0 ? 'Обрубить сучья' : `Разделать · ${lg.n}`, rep: 1, o: lg };
       const lt = (G.litter || []).find(q => dist2(q, p) < 34 * 34); if (lt) return { k: 'litter', label: 'Подобрать банку', o: lt, soft: 1 };
     }
     const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall); if (t) return { k: 'tree', label: 'Рубить', alt: 'Трясти', rep: 1, o: t };
@@ -253,13 +363,16 @@ const Actions = (() => {
       case 'bench': if (!silent) { faceTo(SPOT.bench); UI.openCraft(G.hut.bench ? 'craft' : 'hut'); } break;
       case 'chest': if (!silent) { faceTo(SPOT.chest); Hero.play('open', { react: 1, tg: SPOT.chest }); UI.openChest(); } break;
       case 'bed': if (!silent) trySleep(); break;
-      case 'chunks': { const n = c.o.length; for (const q of c.o) G.chunks.splice(G.chunks.indexOf(q), 1); Inv.add('wood', n); G.stats.wood += n; Fx.floatText(p.x, p.y - 50, `+${n} :wood:`); Sound.pick(); take('log', c.o[0], -2); p.cd = 0.3; } break;
+      // чурки — по одной за жест: с земли уходит в момент касания рукой (contacts), удержание E собирает кучу
+      case 'chunks': { const q = c.o.slice().sort((a, b) => dist2(a, p) - dist2(b, p))[0]; faceTo(q);
+        p.action = { k: 'take', t: 0, dur: D().takeChunk || 1, pose: 'takeChunk', item: 'chunk', tg: { x: q.x, y: q.y }, th: -2, o: q, grab: 0.34, chunk: 1, fb: 'pickUp' }; p.cd = 0.1; } break;
       case 'litter': G.litter.splice(G.litter.indexOf(c.o), 1); take('canE', c.o, -1); Sound.tone && Sound.tone('triangle', 1300, 900, 0.08, 0.03); break;
       case 'log': {
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
-        const L = c.o, pose = Hero.chopPose(), tg = logPt(L, p); faceTo(tg);
-        const a = { k: 'buck', t: 0, dur: Hero.chopTime() * 0.5 * (A.chopK[pose] || 1), o: L, pose, fb: 'chop', tg: { x: tg.x, y: tg.y }, th: -3 };
-        a.per = Hero.chopCycle(a).cl; p.action = a;
+        // сам подходит сбоку к месту работы (край кроны / конец ствола) и рубит туда
+        const L = c.o, q = workSpot(L, workPt(L));
+        if (q && Math.hypot(q.x - p.x, q.y - p.y) > 6) { autoTo(q.x, q.y, 2, () => { if (G.logs && G.logs.includes(L) && L.n > 0 && !G.p.action) startBuck(L); }); p.cd = 0.2; break; }
+        startBuck(L);
       } break;
       case 'trap': {
         const t = c.o; p.cd = 0.4; faceTo(t); if (t.catch === 'hare') take('hare', t, -2); else Hero.play('pickUp', { react: 1, tg: t });
@@ -279,11 +392,14 @@ const Actions = (() => {
       // обломки: отжимает листы руками (поза pry, без топора) лицом к корпусу; нет позы — запасная рубка
       case 'wreck': { const pose = Hero.chopPose(), tg = wreckPt(c.o); faceTo(tg); p.action = { k: 'wreck', t: 0, dur: A.wreckT * (A.chopK[pose] || 1), o: c.o, pose: 'pry', fb: pose, loop: 1, tg, th: -30 }; } break;
       case 'tube': take('tube', TUBE_POS, -2); G.flags.tube = 1; Inv.add('tube'); Fx.toast(':tube: Радиолампа Гоши'); Sound.ok2(); break;
-      case 'tree':
+      case 'tree': {
         if (Inv.weight() > Inv.capKg() + TUNE.hero.overChop) { if (!silent) Fx.toast(':pack: Перегруз — оставь часть в тайнике'); p.cd = 0.5; break; }
-        // валка: удары без дров (полдлины прежней рубки на каждый); дрова — от разделки лежачего ствола
-        { const pose = Hero.chopPose(); p.action = { k: 'chop', t: 0, dur: Hero.chopTime() * 0.5 * (c.o.kind === 3 ? TUNE.zone.garChop : 1) * (A.chopK[pose] || 1), o: c.o, pose, tg: c.o, th: -10 }; faceTo(c.o); }
-        break;
+        // прицел: герой сам подходит к боковой точке у ствола (ближняя свободная сторона) — лезвие в ствол; издалека и из-за дерева не рубит
+        const t = c.o, q = chopSpot(t);
+        if (!q) { if (!silent) Fx.toast(':close: Не подойти к стволу'); p.cd = 0.5; break; }
+        if (Math.hypot(q.x - p.x, q.y - p.y) > 4) { autoTo(q.x, q.y, 1.5, () => { if (t.wood > 0 && !G.p.action) startChop(t); }); p.cd = 0.2; break; }
+        startChop(t);
+      } break;
       case 'fish': p.action = { k: 'fish', ph: 'wait', t: 0, dur: rnd(1.5, 4) - 0.2 * (Hero.lvl('fish') - 1), o: c.o }; break;
       case 'dig': p.action = { k: 'dig', t: 0, dur: A.digT }; break;
     }
@@ -302,20 +418,27 @@ const Actions = (() => {
         Interact.emit('fell', { who: 'p', target: t, x: t.x, y: t.y, dir: L.a, log: L });
       }
     } else if (a.k === 'buck') {
-      // рез по лежачему стволу: первый снимает крону (сучья остаются на снегу), каждый — чурка у места реза
+      // обрубка: каждый удар снимает треть кроны от вершины (ветки летят, лапник на снег); последний — и верхушку чуркой.
+      // разделка: каждый рез — чурка у места реза, откатывается от ствола; остаток ствола лежит и заметается (done)
       const L = a.o; if (!G.logs || !G.logs.includes(L) || L.n <= 0) return;
-      const at = logPt(L, a.tg || p), first = L.n === L.n0;
-      L.n--; if (first) L.lim = 1;
+      const c0 = logCut(L);
+      if (c0 < 1) {
+        const c1 = c0 + 1 / LIMB_N > 0.99 ? 1 : +(c0 + 1 / LIMB_N).toFixed(3); L.cut = c1; delete L.lim;
+        limbFx(L, c0, c1); Sound.chop();
+        const w = a.tg || workPt(L); Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: w.x, y: w.y });
+        if (c1 < 1) { Fx.floatText(w.x, w.y - 20, ':tree: сучья'); return; }
+      }
+      const at = logEnd(L, logK(L)), first = L.n === L.n0;
+      L.n--;
       let n = 1; if (Hero.lvl('chop') >= 5 && Math.random() < 0.25) n = 2;
       G.chunks = G.chunks || [];
       const nx = -Math.sin(L.a) * 0.6, ny = Math.cos(L.a), nl = Math.hypot(nx, ny) || 1;
-      for (let i = 0; i < n; i++) { const sd = (G.chunks.length % 2 ? 1 : -1) * (9 + 4 * i); G.chunks.push({ x: Math.round(at.x + nx / nl * sd + rnd(-3, 3)), y: Math.round(at.y + ny / nl * sd * 0.6 + rnd(-2, 2) + 3), a: +rnd(-0.6, 0.6).toFixed(2), t: G.time }); }
-      if (G.chunks.length > 40) G.chunks.splice(0, G.chunks.length - 40);
+      for (let i = 0; i < n; i++) { const sd = (G.chunks.length % 2 ? 1 : -1) * (9 + 4 * i); G.chunks.push({ x: Math.round(at.x + nx / nl * sd + rnd(-3, 3)), y: Math.round(at.y + ny / nl * sd * 0.6 + rnd(-2, 2) + 3), a: +rnd(-0.6, 0.6).toFixed(2), t: G.time, fx: Math.round(at.x), fy: Math.round(at.y) }); }
+      if (G.chunks.length > 60) G.chunks.splice(0, G.chunks.length - 60);
       Hero.xp('chop'); G.s.food = Math.max(0, G.s.food - A.chopFood * 0.5);
       Interact.emit('work', { who: 'p', what: 'buck', obj: 'dead', x: at.x, y: at.y }); Sound.chop(); ArtWorld.fx.snowPuff(G.parts, at.x, at.y, 0.35);
-      if (first) for (let i = 0; i < 3; i++) { const q = logEnd(L, 0.55 + i * 0.15); ArtWorld.fx.snowPuff(G.parts, q.x, q.y - 4, 0.4); }
       Fx.floatText(at.x, at.y - 20, first ? ':tree: сучья' : `чурка ×${n}`);
-      if (L.n <= 0) G.logs.splice(G.logs.indexOf(L), 1);
+      if (L.n <= 0) L.done = G.time;   // остаток ствола (комель) не исчезает — заметает за FELL.bury суток
     } else if (a.k === 'fish') {
       if (a.ph === 'wait') {
         // клюёт! полоса с зелёной зоной — жми E вовремя
@@ -387,7 +510,7 @@ const Actions = (() => {
     }
     if (p.action) during(p.action, dt);
     if (p.action && p.action.k === 'fish' && p.action.ph === 'bite' && p.action.t >= p.action.dur) { Fx.floatText(p.action.o.x, p.action.o.y - 30, 'ушла'); p.action = null; }
-    tickFly(dt);
+    tickFly(dt); tickLogs(dt);
     // долгое E: второе действие цели (жест, начатый нажатием, отменяется); рубку удержание по-прежнему повторяет
     if (input.act) {
       HOLD.t += dt;
@@ -463,6 +586,11 @@ const Actions = (() => {
   // касание в нужный момент позы: удары рубки, толчки дерева, пинок, горсти снега, бросок, свист
   function contacts(a, t0) {
     const p = G.p;
+    // чурка: с земли — в руку в момент касания (до него лежит; шаг/отмена до касания — чурка остаётся)
+    if (a.chunk && !a.got && a.t >= a.grab * a.dur) {
+      a.got = 1; const i = G.chunks ? G.chunks.indexOf(a.o) : -1;
+      if (i >= 0) { G.chunks.splice(i, 1); Inv.add('wood', 1); G.stats.wood++; Fx.floatText(p.x, p.y - 50, '+1 :wood:'); Sound.pick(); } else a.item = null;
+    }
     if ((a.k === 'chop' && !G.gear.saw) || a.k === 'wreck' || a.k === 'buck') {
       const c = Hero.chopCycle(a), i0 = Math.floor(t0 / c.cl - c.ia), i1 = Math.floor(a.t / c.cl - c.ia);
       if (i1 > i0 && i1 >= 0 && a.t < a.dur - 1e-3) {
@@ -864,7 +992,7 @@ const Actions = (() => {
   return { nearest, liveHare, context, interact, alt, altLabel, finish, tick, fishStrike, sniff, fireKey, eat, placeKey, stashKey,
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession,
     nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
-    knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, get plate() { return PLATE; },
+    knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, logCut, logSnow, falling, danger, inPath, chopSpot, atTrunk, FELL, get plate() { return PLATE; },
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),
     reading: () => !!PLATE };
 })();

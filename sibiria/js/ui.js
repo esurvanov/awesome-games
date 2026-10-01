@@ -926,6 +926,7 @@ const UI = (() => {
     keys.add(e.code);
     if (e.repeat) return;
     if (e.code === 'KeyE' || e.code === 'Space') { input.act = true; keyAction('E'); }
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !G.col.sel.length) Hero.dodge();   // отскок (рывок по направлению / от угрозы); с выделенными людьми Shift — добавить к выделению
     if (e.code === 'KeyF') keyAction('F');
     if (e.code === 'KeyX') keyAction('X');
     if (e.code === 'KeyQ') keyAction('Q');
@@ -977,6 +978,7 @@ const UI = (() => {
   act.addEventListener('pointerdown', e => { e.preventDefault(); if (kind === 'dialog') { if (typeN < dlg.t.length || (dlg.opts || [0]).length === 1) choose(0); return; } if (kind) return closePanel(); input.act = true; keyAction('E'); });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) act.addEventListener(ev, () => { input.act = false; });
   $('t-fire').addEventListener('pointerdown', e => { e.preventDefault(); keyAction('F'); });
+  $('t-dodge').addEventListener('pointerdown', e => { e.preventDefault(); if (!kind) Hero.dodge(joy.x, joy.y); });   // отскок: по джойстику, без него — от угрозы
   $('t-eat').addEventListener('pointerdown', e => { e.preventDefault(); keyAction('Q'); });
   $('t-craft').addEventListener('pointerdown', e => { e.preventDefault(); keyAction('C'); });
   $('craft-btn').addEventListener('click', () => keyAction('C'));
