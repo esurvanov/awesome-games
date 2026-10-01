@@ -21,17 +21,19 @@ const Fire = (() => {
     return null;
   }
   function lightStack(s, sec) { s.lit = sec; s.wood = 0; Fx.toast(':fire: Куча горит'); Sound.ok2(); Fx.burst(s.x, s.y - 20, 20, '#ffb347', 140); }
-  // тепло от ближайшего огня (0 — нет)
-  function heatAt(p, heat) {
-    for (const f of burning()) {
+  // тепло от ближайшего огня (0 — нет); list — свой список огней (прогноз ночи), по умолчанию — горящие сейчас
+  function heatAt(p, heat, list = burning()) {
+    for (const f of list) { if (!(f.fuel > 0)) continue;
       const r = f.stack ? F.stackHeatR : F.heatR, dd = dist(f, p);
       if (dd < r) heat = Math.max(heat, F.heatBase + F.heatK * (1 - dd / r));
     }
     return heat;
   }
+  // расход топлива костра, с/с (тик и прогноз ночи — одна формула)
+  const burn = (f, night, storm) => (storm ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn')));
   function tick(dt, night, storm) {
     for (const f of G.fires) if (f.fuel > 0) {
-      f.fuel = Math.max(0, f.fuel - dt * (storm ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn'))));
+      f.fuel = Math.max(0, f.fuel - dt * burn(f, night, storm));
       if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
       if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: f.x, y: f.y - 24, vx: rnd(-6, 6), vy: rnd(-30, -18), life: 2.5, max: 2.5 });
     }
@@ -43,7 +45,7 @@ const Fire = (() => {
   }
   // на рассвете гаснут забытые далёкие костры
   function dawn() { G.fires = G.fires.filter(f => f.fuel > 0 || dist2(f, G.p) < TUNE.r.fireKeep * TUNE.r.fireKeep); }
-  return { fearR, burning, near, protection, lightStack, heatAt, tick, dawn };
+  return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn };
 })();
 
 // Печь: полено даёт secPerLog() секунд огня (щели и заслонка — дольше); ночью горит быстрее.
@@ -65,10 +67,12 @@ const Stove = (() => {
     if (!Inv.takeStock('wood', 1)) return Fx.toast(':close: Не хватает: :wood:1 (в руках или в лабазе)');
     G.hut.fuel += secPerLog(); G.flags.stoveLit = 1; Fx.floatText(SPOT.stove.x, SPOT.stove.y - 30, `:fire: +${secPerLog()} с`); Sound.chop();
   }
+  // расход печи, с/с (тик и прогноз ночи — одна формула)
+  const burn = (night, storm) => (storm && !G.hut.walls ? S.stormDraft : 1) * (1 + S.nightBurn * night);
   function tick(dt, night, storm) {
     if (!(G.hut.fuel > 0)) return;
     const p = G.p;
-    G.hut.fuel = Math.max(0, G.hut.fuel - dt * (storm && !G.hut.walls ? S.stormDraft : 1) * (1 + S.nightBurn * night));
+    G.hut.fuel = Math.max(0, G.hut.fuel - dt * burn(night, storm));
     if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: HUT.x - 70 + rnd(-2, 2), y: HUT.y - 150, vx: rnd(-5, 5), vy: rnd(-30, -20), life: 3, max: 3 });
     // аккумулятор заряжается у горящей печи (в руках в избе или в лабазе)
     const battHere = p.inside ? Inv.cnt('battery', true) > 0 : (G.chest.battery || 0) > 0;
@@ -77,5 +81,5 @@ const Stove = (() => {
       if (G.charge >= 100) Fx.toast(':battery: Аккумулятор заряжен');
     }
   }
-  return { secPerLog, maxLogs, max, add, tick };
+  return { secPerLog, maxLogs, max, add, burn, tick };
 })();

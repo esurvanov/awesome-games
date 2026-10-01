@@ -726,19 +726,24 @@ const Actions = (() => {
   function readNote(id) { G.notes[id] = 1; if (id === 'pilot') { G.known.tail = 1; G.known.polynya = 1; } }
 
   // ---------- сон ----------
+  const nightNow = (h = hourOf()) => h >= TUNE.time.sleepFrom || h < TUNE.time.sleepTo;
+  // почему не уснуть на лежанке (null — можно)
+  function sleepWhy() {
+    if (!nightNow()) return ':sleep: Спать — после 19:00';
+    if (G.hut.fuel <= 0) return ':close: Сначала растопи печь';
+    if (G.wolves.some(w => insideHut(w.x, w.y))) return ':wolf: Волк в избе — не до сна!';
+    if (!G.hut.door && G.wolves.some(w => w.st !== 'retreat' && dist2(w, HUT) < TUNE.r.hutWolves * TUNE.r.hutWolves)) return ':wolf: Волки у избы — без двери не уснуть';
+    if (G.bear && G.bear.st !== 'flee' && dist2(G.bear, HUT) < A.bearSleepR * A.bearSleepR) return ':bear: Шатун рядом — не уснуть';
+    return null;
+  }
   function trySleep() {
-    const h = hourOf(), T = TUNE.time;
-    if (!(h >= T.sleepFrom || h < T.sleepTo)) return Fx.toast(':sleep: Спать — после 19:00');
-    if (G.hut.fuel <= 0) return Fx.toast(':close: Сначала растопи печь');
-    if (G.wolves.some(w => insideHut(w.x, w.y))) return Fx.toast(':wolf: Волк в избе — не до сна!');
-    if (!G.hut.door && G.wolves.some(w => w.st !== 'retreat' && dist2(w, HUT) < TUNE.r.hutWolves * TUNE.r.hutWolves)) return Fx.toast(':wolf: Волки у избы — без двери не уснуть');
-    if (G.bear && G.bear.st !== 'flee' && dist2(G.bear, HUT) < A.bearSleepR * A.bearSleepR) return Fx.toast(':bear: Шатун рядом — не уснуть');
+    const why = sleepWhy(); if (why) return Fx.toast(why);
     // к лежанке своими ногами (путь), лечь (поза), затемнение и ускорение времени — пока спит
     const p = G.p; if (p.action) p.action = null;
     autoTo(SPOT.bed.x, SPOT.bed.y + 4, 3, () => { p.face = p.x > SPOT.bed.x ? -1 : 1; p.x = SPOT.bed.x; p.y = SPOT.bed.y + 4; Hero.snap(); p.action = { k: 'lie', t: 0, dur: D().lieDown || 1.4, pose: 'lieDown', fb: 'idle' }; });
   }
   function wake(good, msg) {
-    const p = G.p; p.sleeping = false;
+    const p = G.p; p.sleeping = false; SKIP = null;
     if (!p.ko) p.action = { k: 'getUp', t: 0, dur: D().getUp || 1.4, pose: 'getUp', fb: 'idle', cx: 1 };
     if (good) {
       G.flags.slept = 1; if (G.s.frost > 0) G.s.frost--;
@@ -749,11 +754,62 @@ const Actions = (() => {
   function tickSleep(h, dt) {
     autoStep(dt || 0);
     if (G.p.ko) return koStep(dt || 0);
+    if (skipping()) skipTick(h);
     if (!G.p.sleeping) return;
     if (h >= TUNE.time.wakeAt && h < 12) wake(true);
     else if (G.hut.fuel <= 0) wake(false, ':frost: Печь погасла');
     else if (G.wolves.some(w => insideHut(w.x, w.y))) wake(false, ':wolf: Волк в избе!');
   }
+
+  // ---------- «До утра» (Z): промотка ночи ----------
+  // Исход — не формулой: UI крутит тот же update() пачками (TUNE.time.skipDt), пока не утро или не разбудит.
+  // В избе при горящей печи — сон на лежанке (trySleep: сонный голод, будят утро/печь/волк/шатун — как обычный сон),
+  // иначе — «переждать» стоя, бодрствуя: мороз, костёр, голод честные; будят утро, зверь ближе skipThreatR, удар.
+  let SKIP = null;
+  const skipping = () => !!(SKIP && SKIP.g === G);
+  const skipMode = () => G.p.sleeping || (G.p.inside && !sleepWhy()) ? 'sleep' : 'wait';
+  // угроза рядом: волк (не уходящий) или шатун ближе skipThreatR — не мотать / разбудить
+  function threatNear() {
+    const p = G.p, R2 = TUNE.time.skipThreatR ** 2;
+    if (G.wolves.some(w => w.st !== 'retreat' && dist2(w, p) < R2)) return ':wolf: Волки рядом';
+    if (G.bear && G.bear.st !== 'flee' && dist2(G.bear, p) < R2) return ':bear: Шатун рядом';
+    return null;
+  }
+  // почему нельзя мотать (null — можно)
+  function skipWhy() {
+    const p = G.p;
+    if (!nightNow()) return ':sleep: До утра — после 19:00';
+    if (p.ko || p.ride || (typeof Ice !== 'undefined' && Ice.active())) return ':close: Не сейчас';
+    if (p.sleeping) return null;
+    return skipMode() === 'sleep' ? sleepWhy() : threatNear();
+  }
+  // окно прогноза (UI) — или отказ тостом; во время промотки Z — стоп
+  function skipKey() {
+    if (skipping()) return skipStop();
+    const why = skipWhy(); if (why) return Fx.toast(why);
+    const mode = skipMode(); UI.openSkip(mode, Survival.forecast(mode === 'sleep'));
+  }
+  function skipStart() {
+    const why = skipWhy(); if (why) return Fx.toast(why);
+    const p = G.p, mode = skipMode();
+    SKIP = { g: G, mode };
+    if (mode === 'sleep') { if (!p.sleeping) trySleep(); }   // к лежанке и лечь; мотать начнёт, когда уснёт
+    else { p.action = null; AUTO = null; input.auto = 0; }
+  }
+  // стоп по Z: сон продолжается как обычно (×4), «переждать» — просто встал
+  function skipStop() { SKIP = null; Fx.toast(':timer: Стоп'); }
+  // каждый шаг промотки (из tickSleep): утро, угрозы, ввод
+  function skipTick(h) {
+    const p = G.p, S = SKIP;
+    if (p.ko) { SKIP = null; return; }
+    if (S.mode === 'sleep') { if (!p.sleeping && !AUTO && !(p.action && p.action.k === 'lie')) SKIP = null; return; } // не дошёл / передумал
+    if (Math.hypot(input.mx, input.my) > 0.15) { SKIP = null; return; }   // свой шаг игрока — стоп
+    if (h >= TUNE.time.wakeAt && h < 12) { SKIP = null; Fx.toast(':day: Утро · сохранено'); SaveGame.checkpoint(); return; }
+    const th = threatNear(); if (th) { SKIP = null; Fx.toast(th + '!'); return; }
+    if (G.hurt > 0.5) { SKIP = null; Fx.toast(':hp: Удар!'); }
+  }
+  // идёт быстрая прокрутка (UI: пачка шагов за кадр): «переждать» — сразу, сон — когда уже лёг
+  const skipFast = () => skipping() && (SKIP.mode === 'wait' || G.p.sleeping) && !G.p.ko;
 
   // ---------- автопуть: герой сам идёт к точке (лежанка) — тем же движением, что от ввода; ввод игрока — отмена ----------
   function autoTo(x, y, stop, then) { syncG(); AUTO = { x, y, stop, then, t: 0 }; input.auto = 1; }
@@ -806,6 +862,7 @@ const Actions = (() => {
 
   return { nearest, liveHare, context, interact, alt, altLabel, finish, tick, fishStrike, sniff, fireKey, eat, placeKey, stashKey,
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession,
+    nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
     knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, get plate() { return PLATE; },
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),
     reading: () => !!PLATE };
