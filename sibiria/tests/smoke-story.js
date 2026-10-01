@@ -152,7 +152,7 @@ function lib() {
       stoke(); S.tp(SPOT.bed.x, SPOT.bed.y); S.tick();
       Actions.interact(false); S.run(4, () => G.p.sleeping || !Actions.busy());
       if (!G.p.sleeping) { S.run(5); continue; } // не дают уснуть (шатун/волки рядом) — бодрствуем в избе
-      S.run(400, () => !G.p.sleeping);
+      S.run(CYCLE * 0.8, () => !G.p.sleeping);
       if (!morning() && wakes++ < 3) L('проснулся ночью: ' + S.toasts.slice(-2).join(' / ') + ` · дверь ${G.hut.door}`);
     }
     return morning();
@@ -210,8 +210,8 @@ function phases() {
     ok(S.note('log') && G.notes.log, '📓 бортжурнал прочитан');
     // мягкий проигрыш в главе I: замёрз у обломков → «Уркачан дотащил»
     S.tp(POI.cockpit.x + 200, POI.cockpit.y + 200); G.s.warm = 0; G.s.hp = 6; const t0 = G.time, wood = G.inv.wood || 0;
-    S.care = false; S.run(10, () => G.s.hp >= 40); S.run(14, () => !G.p.ko && !G.p.action); S.care = true; // этап 4: упал → затемнение → очнулся в избе → встал
-    ok(state === 'play' && G.chapter === 0 && insideHut(G.p.x, G.p.y) && Math.abs(G.s.hp - 50) < 3 && G.time - t0 >= CYCLE / 8,
+    S.care = false; S.run(10, () => G.s.hp >= 40); S.run(40, () => !G.p.ko && !G.p.action); S.care = true; // этап 4: упал → затемнение → очнулся в избе → встал
+    ok(state === 'play' && G.chapter === 0 && insideHut(G.p.x, G.p.y) && !G.p.ko && G.s.hp >= 48 && G.s.hp < 60 && G.time - t0 >= CYCLE / 8, // 50 + отлежался в темноте (KO_DARK, ×sleepX)
       `💀→🛖 смерть в гл. I мягкая: жив в избе, hp ${G.s.hp | 0}, время +${(G.time - t0).toFixed(0)} с`);
     ok(/Уркачан дотащил/.test($('ch-title').textContent) && !$('chapter').hidden && $('over').hidden, '🪪 карточка «Уркачан дотащил», экрана гибели нет');
     ok(!deathLog[0], '📉 счётчик смертей главы I не тронут');
@@ -353,6 +353,8 @@ function phases() {
     // + склад посёлка (ускорение); + без пурги 5-го дня: сценарий — «посёлок за день», в пургу люди прячутся
     // (пурга на 5-й день выпадает или нет в зависимости от всей предыдущей партии — стройка не должна от неё зависеть)
     G.storm = null;
+    // + сигнальные кучи на мари сложены: иначе свободные бичи уходят их докладывать (сутки ×3 — кучи успевают прогореть за ночь)
+    for (const st of G.stacks) if (!(st.lit > 0)) st.wood = 4;
     Object.assign(G.chest, { wood: (G.chest.wood || 0) + 200, meat: (G.chest.meat || 0) + 60, scrap: (G.chest.scrap || 0) + 10, hare: (G.chest.hare || 0) + 6 });
     S.prefer = ['Остаться', 'Остаёмся', 'Бегу'];
     const at = HUT.x + 40, ay = HUT_IN.y1 + 90; S.tp(at, ay); S.tick();

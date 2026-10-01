@@ -866,7 +866,7 @@ const ArtWorld = (() => {
       logSide(g, x + ex * 9, y - 2 + ey * 9, Math.atan2(ey, ex), 20, 2.8, 0.45 + (lit ? 0 : 0.2));
     }
     if (lit) {
-      const k = clamp(f.fuel / 60, 0.45, 1.25);
+      const fh = f.fuel * 20 / (typeof HOUR === 'number' ? HOUR : 20), k = clamp(fh / 60, 0.45, 1.25); // fh — топливо в «прежних» с (игровой час = 20): 3 ч огня — полный костёр
       // угли
       const pul = 0.5 + 0.5 * Math.sin(t * 5 + x);
       el(g, x, y - 2, 9 * k + 2, 3.6, '#ff6a1a');
@@ -879,7 +879,7 @@ const ArtWorld = (() => {
       flame(g, x, y - 2, k, t + x * 0.01, env.wind, env.wx == null ? 1 : env.wx, 1);
       wisp(g, x, y - 32 * k - 6, env, 0.9 + k * 0.4, 4);
       // свет: один мягкий источник ('f' — спад без края), чуть шире прежнего; дрожь ±3 %
-      env.light(x, y - 10, (140 + Math.min(f.fuel, 120) * 1.6) * (1 + Math.sin(t * 11 + x) * 0.03), 'f', 1);
+      env.light(x, y - 10, (140 + Math.min(fh, 120) * 1.6) * (1 + Math.sin(t * 11 + x) * 0.03), 'f', 1);
       env.glow(x, y - 12, 1.2);
     } else {
       g.fillStyle = '#93979f'; g.beginPath(); g.ellipse(x - 2, y - 2, 6, 2, 0, 0, TAU); g.ellipse(x + 4, y - 1, 4, 1.5, 0, 0, TAU); g.fill();
