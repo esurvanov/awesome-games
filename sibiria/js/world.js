@@ -158,6 +158,8 @@ const World = (() => {
       const d = { x: r() * W | 0, y: r() * H | 0, rx: 30 + r() * 90 | 0, ry: 8 + r() * 18 | 0 };
       // на колее — сдвигаем на обочину (число сугробов и поток r те же)
       for (let k = 0; k < 8 && onTrail(d); k++) d.x = (d.x + (d.x >= riverX(d.y) ? 1 : -1) * (d.rx + 24)) | 0;
+      // на льду реки сугробов нет (выдувает) — на свой берег, гребнем за кромку (наддув у берега)
+      const rv = d.x - riverX(d.y); if (Math.abs(rv) < RW + d.rx * 0.6) d.x = (riverX(d.y) + (rv >= 0 ? 1 : -1) * (RW + d.rx * 0.6)) | 0;
       G.drifts.push(d);
     }
     for (let i = 0, n = WORLD.count('cracks'); i < n; i++) G.cracks.push({ y: r() * H | 0, off: (r() - 0.5) * 110 | 0, len: 18 + r() * 50 | 0, a: +((r() - 0.5) * 1.2).toFixed(2) });

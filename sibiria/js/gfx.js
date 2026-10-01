@@ -578,11 +578,23 @@ const GFX = (() => {
     try { fn(); } finally { g.restore(); }
     if (!ghost) Depth.art.front(g, L);
   }
+  // снег на одежде героя после провала (Depth.heroSnow 0..1): налёт по ногам и полам — по нарисованному ригу (ArtPeople.H.P.lg*)
+  function snowCoat(g) {
+    const k = Depth.heroSnow; if (!(k > 0.03) || !window.ArtPeople) return;
+    const P = ArtPeople.H.P; g.save(); g.lineCap = 'round'; g.strokeStyle = '#eef3f8';
+    for (const [L, a] of [[P.lg1, 0.3], [P.lg0, 0.42]]) { // налёт пятнами (штрих), гуще к голенищу
+      g.setLineDash([1.6, 1.1]); g.globalAlpha = a * k; g.lineWidth = 3; g.beginPath(); g.moveTo(L[0], L[1] + 2); g.lineTo(L[2], L[3]); g.lineTo(L[4], L[5]); g.stroke(); g.setLineDash([]);
+      g.globalAlpha = 0.6 * a * k; g.lineWidth = 1.3; g.beginPath(); g.moveTo(L[2] - 1.2, L[3] + 0.4); g.lineTo(L[2] + 1, L[3]); g.moveTo(L[4] - 1.4, L[5] - 1); g.lineTo(L[4] + 1, L[5] - 1.2); g.stroke(); // комья у колена и голенища
+    }
+    const hx = (P.lg0[0] + P.lg1[0] + P.lg0[2] + P.lg1[2]) / 4, hy = (P.lg0[1] + P.lg1[1]) * 0.33 + (P.lg0[3] + P.lg1[3]) * 0.17;
+    g.globalAlpha = 0.3 * k; g.fillStyle = '#eef3f8'; g.beginPath(); g.ellipse(hx, hy, 4.6, 1.1, 0, 0, Math.PI * 2); g.fill(); // кромка пол
+    g.restore();
+  }
   function sunk(g, o, kind, fn) {
     if (typeof Depth === 'undefined' || !o || insideHut(o.x, o.y)) return fn();
-    const L = Depth.look(o, kind);
-    if (!L || L.mode === 'none' || (L.mode !== 'hole' && L.px < 0.8)) return fn();
-    sunkL(g, L, fn);
+    const L = Depth.look(o, kind), f = o === G.p && !ghost ? () => { fn(); snowCoat(g); } : fn;
+    if (!L || L.mode === 'none' || (L.mode !== 'hole' && L.px < 2.5)) return f(); // тонкий снег (≲ 11 см) — без воронки
+    sunkL(g, L, f);
   }
   // походка людей по провалу: глубже колена — trudge, глубже пояса — «плывёт» (wade)
   function deepWalk(o, anim, moving, kind = 'n') {

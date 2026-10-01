@@ -7,6 +7,9 @@
 //   5. звери вязнут: олень глубоко, заяц почти нет, волк по насту — меньше оленя; ИИ обходит глубокое (steer)
 //   6. провал в полынью: герой на месте дыры (не телепорт), фазы по порядку (drop → water → grab → crawl → roll → up), кромка
 //      обламывается, выползает в сторону, откуда пришёл; мокрый; дыра остаётся; шатун — та же схема (дыра под ним)
+//   7. своя колея не держит, пока в ней стоишь (стоя по грудь 6 с — провал тот же); выход на мелкое — поза climbOut ≥ её длительности,
+//      провал убывает по ходу позы, без ввода — замирает; яма на месте провала живёт и заметается; снег на одежде тает; по грудь — без возни;
+//      лёд реки по всей длине: максимум ≤ 12 см, 95 % ≤ 10, сугробов на русле нет, воронки нет; скользко только на голом льду (< 3 см)
 //   cd tests && node snowdepth.js
 const { chromium } = require('playwright');
 const path = require('path');
@@ -102,6 +105,57 @@ function page() {
     const v = Depth.steer(u, 0, -1, 'n'), ah = Depth.sinkAt(u.x, u.y - 34, 'n'), sd2 = v ? Depth.sinkAt(u.x + v.x * 34, u.y + v.y * 34, 'n') : ah;
     const dbg = [0, 0.45, 0.9, 1.35, -0.45, -0.9, -1.35].map(a => r1(Depth.sinkAt(u.x + Math.sin(a) * 34, u.y - Math.cos(a) * 34, 'n'))).join('/');
     ok(!!v && Math.abs(v.x) > 0.3 && sd2 < ah * 0.7, `🧭 ИИ обходит сугроб (rx ${bd2.rx}, ${dbg}): прямо ${r1(ah)} см → курс ${v ? `(${r1(v.x)}, ${r1(v.y)}) ${r1(sd2)} см` : 'прямо'}`); }
+
+  // ---------- 7. стоя не всплывает, выкарабкивание, яма, снег на одежде, возня, лёд ----------
+  { fresh(4242); let q = find(128, 142), k = 0;
+    while (k++ < 40 && Depth.sinkAt(q.x - 40, q.y, 'p') < 110) q = find(128, 142); // заход тоже глубокий: колея позади — по пояс и глубже
+    put(q.x - 40, q.y); settle();
+    const walk = (dir, dt = 1 / 60) => { G.p.moving = true; G.p.x += dir * Hero.speed() * dt; G.time += dt; Depth.tickHero(dt); };
+    for (let i = 0; i < 600 && G.p.x < q.x; i++) walk(1); G.p.moving = false;
+    for (let i = 0; i < 20; i++) { G.time += 1 / 60; Depth.tickHero(1 / 60); }
+    const s0 = Depth.heroSink; let lo = s0, hi = s0;
+    for (let i = 0; i < 360; i++) { G.time += 1 / 60; Depth.tickHero(1 / 60); lo = Math.min(lo, Depth.heroSink); hi = Math.max(hi, Depth.heroSink); }
+    ok(s0 > 95 && hi - lo < 2, `🧍 стоит по грудь 6 с — не всплывает: ${r1(s0)} см, разброс ${r1(hi - lo)} см (было: 142 → 45 за 2.8 с)`);
+    ok(Depth.pits.length >= 1 && Depth.pits[0].d > 90, `🕳 яма на месте провала: ${Depth.pits.length} шт., ${Depth.pits[0] ? r1(Depth.pits[0].d) : '—'} см, r ${Depth.pits[0] ? r1(Depth.pits[0].r) : '—'} px`);
+    ok(Depth.heroSnow > 0.9, `❄ снег на одежде после провала: ${r1(Depth.heroSnow)}`);
+    // возня по грудь в снегу запрещена; контроль — на мелком возится
+    const fid = () => { UI.closePanel(); let n = 0; const b = Hero.body; b.one = null; for (let i = 0; i < 300; i++) { now += 0.1; G.time += 0.1; Depth.tickHero(0.1); Hero.tickLife(0.1); if (b.one && b.one.kind === 'gesture') { n++; b.one = null; } } UI.openChest(); return n; };
+    const fDeep = fid(), sDeep = Depth.heroSink;
+    // выход назад по своей колее (за 15 px она уже держит): выкарабкивается, а не всплывает
+    let t = 0, seen = 0, t0 = -1, tEnd = -1, mono = true, prev = Depth.heroSink;
+    for (let i = 0; i < 400 && tEnd < 0; i++) { walk(-1); t += 1 / 60; const c = Depth.climb; if (c >= 0) { seen = 1; if (t0 < 0) t0 = t - 1 / 60; if (Depth.heroSink > prev + 0.01) mono = false; } else if (seen && tEnd < 0) tEnd = t; prev = Depth.heroSink; }
+    G.p.moving = false;
+    const dur = tEnd - t0;
+    ok(seen && dur >= Depth.CLB.dur - 0.02 && dur >= ArtPeople.DUR.climbOut - 0.02 && mono && Depth.heroSink < 40, `🧗 выкарабкался: поза climbOut ${r1(dur)} с (≥ ${ArtPeople.DUR.climbOut} с), провал убывал по ходу позы ${mono}, после — ${r1(Depth.heroSink)} см`);
+    // снег на одежде тает ~45 с
+    const sn = [0, 0]; for (let i = 0; i < 600; i++) { G.time += 0.1; Depth.tickHero(0.1); if (i === 249) sn[0] = Depth.heroSnow; } sn[1] = Depth.heroSnow;
+    ok(sn[0] > 0.2 && sn[0] < 0.7 && sn[1] < 0.02, `💧 снег на одежде тает: 25 с — ${r1(sn[0])}, 60 с — ${r1(sn[1])}`);
+    { // отпустил ввод посреди выхода (на свежем месте: старые колеи замело)
+      for (let i = 0; i < 40; i++) Depth.tick(3, true); // провал на месте, поза замерла
+      put(q.x, q.y); settle(30); for (let i = 0; i < 40; i++) walk(1); G.p.moving = false; for (let i = 0; i < 60; i++) { G.time += 1 / 60; Depth.tickHero(1 / 60); }
+      let c1 = -1; for (let i = 0; i < 200 && c1 < 0.3; i++) { walk(-1); c1 = Depth.climb; }
+      G.p.moving = false; const s1 = Depth.heroSink; for (let i = 0; i < 120; i++) { G.time += 1 / 60; Depth.tickHero(1 / 60); }
+      ok(c1 >= 0.3 && Math.abs(Depth.heroSink - s1) < 0.5 && Math.abs(Depth.climb - c1) < 0.02, `⏸ без ввода выход замер: ${r1(s1)} → ${r1(Depth.heroSink)} см, поза ${r1(c1 * 100)} → ${r1(Depth.climb * 100)} %`); }
+    const fShal = (() => { put(qA.x, qA.y); settle(30); return fid(); })();
+    ok(sDeep > 60 && fDeep === 0 && fShal > 0, `🤧 возни по грудь в снегу нет: ${fDeep} за 30 с (${r1(sDeep)} см); на мелком — ${fShal}`);
+    // яма живёт в штиль и заметается пургой (темп — как следы)
+    const pn = Depth.pits.length; for (let i = 0; i < 10; i++) Depth.tick(3, false); const live = Depth.pits.length;
+    for (let i = 0; i < 40; i++) Depth.tick(3, true);
+    ok(pn >= 1 && live === pn && Depth.pits.length === 0, `🌬 яма: ${pn} → через 30 с штиля ${live} → пурга замела ${Depth.pits.length}`); }
+  { // лёд реки по всей длине: снега мало (после сугробов, наносов, берега), воронки нет, скользко только на голом
+    fresh(4242); const ds = [], ss = []; let bare = 0, wrong = 0;
+    for (let y = 60; y < H - 60; y += 11) for (let o = -(RW - 9); o <= RW - 9; o += 7) { const x = riverX(y) + o; if (!onIce(x, y)) continue; const d = Depth.depthAt(x, y); ds.push(d); ss.push(Depth.sinkAt(x, y, 'p')); if (Depth.bareIce(x, y)) { bare++; if (d >= 3) wrong++; } }
+    ds.sort((a, b) => a - b); ss.sort((a, b) => a - b);
+    const mx = ds[ds.length - 1], p95 = ds[Math.floor(ds.length * 0.95)], ring = ss[ss.length - 1] * Depth.PX;
+    const onRiver = G.drifts.filter(d => Math.abs(d.x - riverX(d.y)) < RW + d.rx * 0.5).length;
+    ok(mx <= 12 && p95 <= 10 && onRiver === 0, `🧊 лёд (${ds.length} точек): максимум ${r1(mx)} см (≤ 12), 95 % ≤ ${r1(p95)} см (≤ 10); сугробов на русле ${onRiver} (было 39, до 116 см)`);
+    ok(ring < 2.5, `⭕ на льду воронки нет: провал ≤ ${r1(ring)} px (порог кольца 2.5 px)`);
+    ok(bare / ds.length > 0.1 && bare / ds.length < 0.6 && !wrong, `⛸ голый лёд (< 3 см): ${Math.round(bare / ds.length * 100)} % реки`);
+    // скольжение: на голом — едет по инерции, под снегом — стоит
+    const glide = (x, y) => { put(x, y); G.p.vx = 170; input.mx = input.my = 0; for (let i = 0; i < 12; i++) Hero.move(1 / 60, false); return Hero.body.glide; };
+    let pb = null, ps = null; for (let y = 400; y < H - 400 && !(pb && ps); y += 13) for (let o = -40; o <= 40; o += 10) { const x = riverX(y) + o; if (!onIce(x, y) || !onIce(x + 30, y)) continue; const d = Depth.depthAt(x, y), d2 = Depth.depthAt(x + 30, y); if (!pb && d < 1.5 && d2 < 3) pb = { x, y }; if (!ps && d > 6 && d2 > 5) ps = { x, y }; }
+    const gB = glide(pb.x, pb.y), gS = glide(ps.x, ps.y);
+    ok(gB && !gS, `🛷 скользит на голом льду: ${gB}; под снегом (${r1(Depth.depthAt(ps.x, ps.y))} см) — сцепление: ${!gS}`); }
 
   // ---------- 6. полынья ----------
   { fresh(4242); const P = POI.polynya, ent = { x: P.x - 20, y: P.y + 140 };
