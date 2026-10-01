@@ -5,7 +5,9 @@
 //   2. заметание: штиль сутки ≤ 0.35; пурга 2 ч — заметено; после пурги расчищенное лопатой — одним проходом ≥ 0.7, протоптанное — нужно ≥ 2
 //   3. промотка ≈ шаги; «прошёл раз в день» — держится
 //   4. сейв → загрузка (pack, основа, отвал); сейв без поля; старый сейв (сетка 12 px) — тропы есть, отвалов нет
-//   5. лопата: взять у двери; «кидать» в 60 см — темп 15–20 бросков/мин, шаг каждые 2–3, ком 2–7 кг, ширина 12–17 px, второй проход 28–34;
+//   5. лопата: взять у двери; «кидать» в 60 см — темп 42–52 броска/мин, шаг после каждого броска, ком ≤ 9 кг, ширина 12–17 px, второй проход 28–34;
+//      ОСОЗНАННОЕ ОТСТУПЛЕНИЕ ОТ РЕАЛЬНОСТИ: в жизни 15–20 бросков/мин по 5–7 кг (CCOHS) — 50 м тропы в 60 см ≈ 15 мин; в игре это оверхед,
+//      поэтому бросок 1.25 с без передышки и ком крупнее: 50 м в 60 см ≈ 3 мин, в 30 см ≈ 1.5–2 мин, силы ≈ 40 на 50 м в 60 см
 //      снятый объём = отвалы (≤ 10 %); силы 0.15 + 0.05·кг за бросок; «толкать» ≤ 25 см — шаг ×0.4, вал вбок; пот после 30 с на тепле > 85
 //   6. дверь избы после пурги: нанос ≥ 80 см; откопать лопатой 40–60 с, руками — дольше, без расчистки выйти можно (тупика нет)
 //   7. костёр: на расчищенном КПД 1, на рыхлом снегу > 30 см за час — 0.7 и радиус 0.6
@@ -88,7 +90,10 @@ function page1() {
     fresh(11); G.gear.shovel = 1; T.spot(q6); G.p.face = 1;
     const x6 = G.p.x, r = T.dig(90, 1, 0); out.push(`info 60 см: E «${r.c && r.c.k}»`); const len = G.p.x - x6, per50 = r.t / Math.max(1, len) * 1150, v = mid({ x: x6 - 30, y: q6.y }, Trail.at, Math.max(120, len));
     ok(fmax < 0.7 && v >= 0.85, `🪏 60 см (${d6.toFixed(0)} см): ногами 8 проходов → макс ${r2(fmax)} (траншея, за ${tf.toFixed(0)} с); лопатой ${len.toFixed(0)} px за ${r.t.toFixed(0)} с → ${r2(v)} (тропа)`);
-    ok(fmax < 0.7 || per50 <= tf * 1150 / 300, `⏳ 50 м в 60 см: лопатой ≈ ${(per50 / 60).toFixed(1)} мин; ногами тропы ≥ 0.7 нет — лопата не дольше`); }
+    ok(fmax < 0.7 && per50 >= 120 && per50 <= 240, `⏳ 50 м в 60 см: лопатой ≈ ${(per50 / 60).toFixed(1)} мин (2–4); ногами тропы ≥ 0.7 нет — лопата не дольше`); }
+  // мелко (≈ 30–40 см): 50 м лопатой ≈ 1.5–2 мин
+  { fresh(11); G.gear.shovel = 1; T.spot(q); G.p.face = 1; const xs = G.p.x, r = T.dig(30, 1, 0), per50 = r.t / Math.max(1, G.p.x - xs) * 1150;
+    ok(per50 >= 60 && per50 <= 130, `⏳ 50 м в ${d0.toFixed(0)} см: лопатой ≈ ${(per50 / 60).toFixed(1)} мин (1–2)`); }
   // ---------- 2. заметание ----------
   fresh(11); calm(() => { for (let i = 0; i < 3; i++) pass(q, i % 2 ? -1 : 1); });
   const v0 = mid(q, Trail.at);
@@ -140,19 +145,19 @@ function page2() {
     ok(!!G.gear.shovel && (Actions.context() || {}).k !== 'shovel', `🪏 лопата взята: снаряжение ${!!G.gear.shovel}`); }
   { fresh(12); G.gear.shovel = 1; const q = row(['taiga', 'gar', 'core', 'stlanik'], 52, 70), d0 = mid(q, (x, y) => Depth.depthAt(x, y)); put(q.x, q.y); G.p.face = 1; for (let i = 0; i < 10; i++) update(DT);
     const snap = SaveGame.snapshot(); const b0 = G.s.tire; for (let t = 0; t < 60; t += DT) { update(DT); now += DT; } const idle = G.s.tire - b0; SaveGame.load(snap); state = 'play'; Fx.toast = () => {};
-    T.spot(q); G.p.face = 1; const t0 = G.s.tire; G.s.warm = 60; const r = T.dig(90, 1, 0), a = r.a, n = a.cuts || 0, st = a.steps || 0, tire = G.s.tire - t0 - idle * r.t / 60;
+    T.spot(q); G.p.face = 1; const t0 = G.s.tire; G.s.warm = 60; const r = T.dig(40, 1, 0), a = r.a, n = a.cuts || 0, st = a.steps || 0, tire = G.s.tire - t0 - idle * r.t / 60;
     const rate = n / r.t * 60, per = n / Math.max(1, st);
-    ok(r.c && r.c.k === 'clear' && rate >= 15 && rate <= 20, `🪏 кидать (${d0.toFixed(0)} см): ${n} бросков за ${r.t.toFixed(0)} с — ${rate.toFixed(1)}/мин`);
-    ok(per >= 2 && per <= 3.2, `👣 шаг 0.4 м каждые ${per.toFixed(1)} броска (${st} шагов), прошёл ${(G.p.x - q.x).toFixed(0)} px`);
-    const cut = Trail.stats().cut, berm = Trail.bermVol(), kg = cut / n * (100 + 0);
+    ok(r.c && r.c.k === 'clear' && rate >= 42 && rate <= 52, `🪏 кидать (${d0.toFixed(0)} см): ${n} бросков за ${r.t.toFixed(0)} с — ${rate.toFixed(1)}/мин`);
+    ok(per >= 1 && per <= 1.6, `👣 шаг 0.4 м каждые ${per.toFixed(1)} броска (${st} шагов), прошёл ${(G.p.x - q.x).toFixed(0)} px`);
+    const cut = Trail.stats().cut, berm = Trail.bermVol(), kg = cut / n * 70;
     ok(Math.abs(cut - berm) / cut <= 0.1, `⚖ снято ${cut.toFixed(3)} м³ → в отвалах ${berm.toFixed(3)} м³ (${(Math.abs(cut - berm) / cut * 100).toFixed(1)} %)`);
-    ok(kg >= 2 && kg <= 7.5, `🧱 ком ≈ ${kg.toFixed(1)} кг (0.03 м³ × глубина/25, ≤ 7 кг; свежий 100 кг/м³)`);
-    const tw = 0.15 * n + 0.05 * cut * 100;
-    ok(Math.abs(tire - tw) / tw < 0.15, `⚡ силы за ${n} бросков −${tire.toFixed(1)} сверх стояния (формула 0.15 + 0.05·кг: −${tw.toFixed(1)})`);
+    ok(kg >= 4 && kg <= 9.3, `🧱 ком ≈ ${kg.toFixed(1)} кг (0.1 м³ × глубина/30, ≤ 9 кг; свежий 70 кг/м³)`);
+    const tw = 0.05 * n + 0.02 * cut * 70;
+    ok(Math.abs(tire - tw) / tw < 0.15, `⚡ силы за ${n} бросков −${tire.toFixed(1)} сверх стояния (формула 0.05 + 0.02·кг: −${tw.toFixed(1)})`);
     // ширина за проход и второй проход рядом
     const W1 = []; for (let x = q.x + 40 + (G.p.x - G.p.x); x < G.p.x - 30; x += 8) { let n0 = 0; for (let dy = -30; dy <= 30; dy += 1) if (Trail.at(x, q.y + dy) >= 0.5) n0++; W1.push(n0); }
     const w1 = W1.reduce((a, b) => a + b, 0) / Math.max(1, W1.length);
-    const xs = G.p.x; put(xs, q.y - 15); for (let i = 0; i < 5; i++) update(DT); T.dig(90, -1, 0);
+    const xs = G.p.x; put(xs, q.y - 15); for (let i = 0; i < 5; i++) update(DT); T.dig(40, -1, 0);
     const W2 = []; for (let x = Math.max(q.x + 40, G.p.x + 30); x < xs - 24; x += 8) { let n0 = 0; for (let dy = -50; dy <= 30; dy += 1) if (Trail.at(x, q.y + dy) >= 0.5) n0++; W2.push(n0); }
     const w2 = W2.reduce((a, b) => a + b, 0) / Math.max(1, W2.length);
     ok(w1 >= 12 && w1 <= 17 && w2 >= 28 && w2 <= 34, `📏 ширина: проход ${w1.toFixed(1)} px (12–17), второй рядом → ${w2.toFixed(1)} px (28–34)`);
@@ -172,7 +177,7 @@ function page2() {
     for (; t < 4; t += DT) { update(DT); now += DT; G.p.y = y0; if (G.p.action) mode = mode || G.p.action.mode; }
     input.mx = 0; for (let i = 0; i < 30; i++) { update(DT); now += DT; } input.act = false; update(DT);
     const v = (G.p.x - x0) / t, cl = mid({ x: x0 - 30, y: y0 }, Trail.at, 120), bv = Trail.bermVol();
-    ok(dd <= 25 && v <= TUNE.hero.speed * ter.walk * 0.45 && v > 10 && cl >= 0.8 && bv > 0.01, `🧹 толкать (${dd.toFixed(0)} см): ${v.toFixed(0)} px/с (обычно ${(TUNE.hero.speed * ter.walk).toFixed(0)}), полоса ${r2(cl)}, вал вбок ${bv.toFixed(3)} м³`); }
+    ok(dd <= 25 && v <= TUNE.hero.speed * ter.walk * 0.65 && v > 30 && cl >= 0.8 && bv > 0.01, `🧹 толкать (${dd.toFixed(0)} см): ${v.toFixed(0)} px/с (обычно ${(TUNE.hero.speed * ter.walk).toFixed(0)}), полоса ${r2(cl)}, вал вбок ${bv.toFixed(3)} м³`); }
   // ---------- 6. дверь избы после пурги ----------
   { fresh(16); const g0 = Trail.doorDepth();
     G.storm = { a: G.time - 1, b: G.time + 2 * HOUR }; for (let i = 0; i < 2 * HOUR; i++) Depth.tick(1, true); G.storm.b = G.time;
@@ -188,8 +193,8 @@ function page2() {
       for (; t < 240 && G.p.action === a && open() > 30; t += DT) { update(DT); now += DT; }
       input.act = false; update(DT); return { t, c: c && c.k, left: open(), done: open() <= 30 }; };
     const sh = dig(false), hd = dig(true);
-    ok(sh.c === 'clear' && sh.done && sh.t >= 35 && sh.t <= 65, `🪏 откопать дверь лопатой: ${sh.t.toFixed(0)} с (40–60), проход ≤ ${sh.left.toFixed(0)} см`);
-    ok(hd.c === 'digout' && hd.done && hd.t > sh.t * 1.8, `✋ руками: ${hd.t.toFixed(0)} с (дольше лопаты в ${(hd.t / sh.t).toFixed(1)} раза)`);
+    ok(sh.c === 'clear' && sh.done && sh.t >= 18 && sh.t <= 32, `🪏 откопать дверь лопатой: ${sh.t.toFixed(0)} с (20–30), проход ≤ ${sh.left.toFixed(0)} см`);
+    ok(hd.c === 'digout' && hd.done && hd.t >= 65 && hd.t <= 95, `✋ руками: ${hd.t.toFixed(0)} с (70–90; дольше лопаты в ${(hd.t / sh.t).toFixed(1)} раза)`);
     ok(out0.t < 30, `🚶 без расчистки выйти можно: 3 м наноса за ${out0.t.toFixed(1)} с, провал ${out0.s.toFixed(0)} см (тупика нет)`); }
   // ---------- 7. костёр на рыхлом снегу и на расчищенном ----------
   { fresh(16); const q = row(['taiga', 'gar', 'core'], 55, 70); Trail.cut(q.x - 20, q.y, q.x + 20, q.y, 14);

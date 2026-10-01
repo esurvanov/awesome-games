@@ -30,7 +30,7 @@ const Hero = (() => {
       if (p.creaked && World.onThinIce(p)) s *= 0.5; // лёд трещит — ступает осторожно
     } else if (typeof Depth !== 'undefined' && Depth.rideMul) s *= Depth.rideMul(p.ride); // верхом: глубокий снег вязнет, тропа быстрее (js/depth.js)
     if (stormOn() && !p.inside) s *= H.storm;
-    if (p.action && p.action.walk) s *= 0.4; // с лопатой толкает снег перед собой (мелко) — шаг ×0.4
+    if (p.action && p.action.walk) s *= 0.6; // с лопатой толкает снег перед собой (мелко) — шаг ×0.6
     s *= 1 - TI.speed * smooth(TI.speedFrom, 100, tire()); // нет сил — плетётся
     return s;
   }

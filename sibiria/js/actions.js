@@ -785,14 +785,15 @@ const Actions = (() => {
     }
   }
   // ---------- лопата и руки: расчистка (js/trail.js cut/dump) ----------
-  // Режимы (выбор каждый кадр): «толкать» — снег у совка ≤ 25 см и есть ход: шаг ×0.4, перед совком растёт вал (a.load, м³),
-  //   полный (≥ 0.12 м³) или остановился/повернул — сброс вбок; «кидать» — глубже или стоя: бросок SH.act = 1.8 с (фазы позы
-  //   shovelThrow) + передышка до SH.per = 3.2 с → 18–19 бросков/мин: 0.25 — совок в снег (срез у фронта под один ком), 0.65 — бросок:
-  //   ком (V × ρ) дугой вбок перпендикулярно ходу, ложится в отвал; в передышке — шаг вперёд 0.4 м, когда фронт ушёл на длину черенка.
-  //   V = 0.03 м³ × (глубина/25, 1…2), не тяжелее 7 кг; ρ: свежий 100 кг/м³, слежалый/натоптанный до 250; руками — втрое меньше.
-  //   Силы: 0.15 + 0.05·кг за бросок; работа на тепле > 85 дольше 30 с — пот (p.wetT: «греет сейчас, холодит потом»).
-  const SH = { hw: 7, per: 3.2, act: 1.8, reach: 12, stepPx: 9.2, pushMax: 0.12, side: 22, sweatWarm: 85, sweatT: 30 };
-  const shRho = (x, y) => 100 + 150 * Trail.at(x, y);
+  // Режимы (выбор каждый кадр): «толкать» — снег у совка ≤ 25 см и есть ход: шаг ×0.6, перед совком растёт вал (a.load, м³),
+  //   полный (≥ 0.16 м³) или остановился/повернул — сброс вбок; «кидать» — глубже или стоя: бросок SH.per = 1.25 с без передышки
+  //   (≈ 48 бросков/мин — игровой компромисс: в жизни 15–20/мин и 5–7 кг, 50 м в 60 см ≈ 15 мин; здесь ≈ 3 мин):
+  //   0.25 — совок в снег (срез у фронта под один ком), 0.65 — бросок: ком (V × ρ) дугой вбок перпендикулярно ходу, ложится в отвал;
+  //   0.72–1 — шаг вперёд 0.4–0.8 м, когда фронт ушёл на длину черенка (почти каждый бросок; мелко — шире).
+  //   V = 0.1 м³ × (глубина/30, 1…2.2), не тяжелее 9 кг; ρ: свежий 70 кг/м³, натоптанный до 250, нанос 170; руками — впятеро меньше.
+  //   Силы: 0.05 + 0.02·кг за бросок (50 м в 60 см ≈ 40 сил); работа на тепле > 85 дольше 30 с — пот (p.wetT: «греет сейчас, холодит потом»).
+  const SH = { hw: 7, per: 1.25, act: 1.25, reach: 12, stepPx: 9.2, pushMax: 0.16, side: 22, sweatWarm: 85, sweatT: 30 };
+  const shRho = (x, y) => 70 + 180 * Trail.at(x, y);
   function clearStart(hands) {
     const p = G.p, l = Math.hypot(input.mx, input.my);
     const ux = l > 0.15 ? input.mx / l : p.face, uy = l > 0.15 ? input.my / l : 0;
@@ -850,8 +851,8 @@ const Actions = (() => {
     if (!a.cutD && u >= 0.25) {
       a.cutD = 1;
       const fx = a.sx + a.ux * a.front, fy = a.sy + a.uy * a.front, qx = fx + a.ux * 14, qy = fy + a.uy * 14, dE = Math.max(0, Depth.depthAt(qx, qy));   // стенка впереди — за краем среза
-      const rho = Trail.berm(qx, qy) > 20 ? 110 : shRho(qx, qy);
-      let V = Math.min(7 / rho, 0.03 * clamp(dE / 25, 1, 2.33)); if (hands) V /= 3;
+      const rho = Trail.berm(qx, qy) > 20 ? 170 : shRho(qx, qy);   // нанос/отвал — ветром сбит плотнее (150–300 кг/м³)
+      let V = Math.min(9 / rho, 0.1 * clamp(dE / 30, 1, 2.2)); if (hands) V /= 5;
       // ход фронта под один ком: примерка среза (объём по клеткам) — подбор делением пополам
       const hw = hands ? SH.hw - 1 : SH.hw, b0 = Math.max(along + 8, a.front - 20), X = f => a.sx + a.ux * f, Y = f => a.sy + a.uy * f;
       let lo = 0.2, hi = 14;
@@ -859,7 +860,7 @@ const Actions = (() => {
       const f1 = a.front + (lo + hi) / 2;
       a.vol = Trail.cut(X(b0), Y(b0), X(f1), Y(f1), hw, 1); a.front = f1;
       a.kg = a.vol * rho; Trail.touch(fx, fy); if (Depth.dug) Depth.dug();
-      G.s.tire = Math.min(100, (G.s.tire || 0) + (0.15 + 0.05 * a.kg) * (Settings.diff().tire || 1));
+      G.s.tire = Math.min(100, (G.s.tire || 0) + (0.05 + 0.02 * a.kg) * (Settings.diff().tire || 1));
       if (Sound.ok() && Sound.shovel) Sound.shovel();
       a.cuts = (a.cuts || 0) + 1;
     }
@@ -873,9 +874,9 @@ const Actions = (() => {
       a.vol = 0;
     }
     // передышка — шаг вперёд 0.4 м, когда фронт ушёл на длину черенка
-    if (!a.stepD && tc >= a.act + 0.2 && a.front - along > SH.reach + SH.stepPx * 0.6) { a.stepD = 1; a.stepT = 0; a.steps = (a.steps || 0) + 1; }
+    if (!a.stepD && u >= 0.72 && a.front - along > SH.reach + SH.stepPx * 0.5) { a.stepD = 1; a.stepT = 0; a.steps = (a.steps || 0) + 1; a.stepL = clamp(a.front - along - SH.reach, SH.stepPx, 2 * SH.stepPx); }   // мелко — шаг шире (до 0.8 м)
     if (a.stepD === 1) {
-      const T = 0.6, k0 = clamp(a.stepT / T, 0, 1); a.stepT += dt; const k1 = clamp(a.stepT / T, 0, 1), d = (sm01(k1) - sm01(k0)) * SH.stepPx;
+      const T = 0.3, k0 = clamp(a.stepT / T, 0, 1); a.stepT += dt; const k1 = clamp(a.stepT / T, 0, 1), d = (sm01(k1) - sm01(k0)) * (a.stepL || SH.stepPx);
       p.x += a.ux * d; p.y += a.uy * d; World.solid(p, 10, 'p'); if (k1 >= 1) a.stepD = 2;
     }
     sweat(a, dt);
@@ -884,7 +885,7 @@ const Actions = (() => {
   function pushDump(a) {
     const p = G.p, nx = -a.uy * a.side, ny = a.ux * a.side, L = { x: p.x + a.ux * 16 + nx * 16, y: p.y + 2 + a.uy * 8 + ny * 14 };
     Trail.dump(L.x, L.y, a.load, 10); Trail.touch(L.x, L.y);
-    G.s.tire = Math.min(100, (G.s.tire || 0) + (0.15 + 0.05 * a.load * 110) * (Settings.diff().tire || 1));
+    G.s.tire = Math.min(100, (G.s.tire || 0) + (0.05 + 0.02 * a.load * 80) * (Settings.diff().tire || 1));
     if (window.QUALITY !== 'low') ArtWorld.fx.snowPuff(G.parts, L.x, L.y - 2, 0.3);
     if (Sound.ok() && Sound.shovel) Sound.shovel();
     a.load = 0;
