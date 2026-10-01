@@ -860,10 +860,16 @@ const GFX = (() => {
   function drawBear(b) { sunk(cx, b, 'bear', () => ArtAnimals.bear(cx, b, ENV)); }
   // зверь уходит под лёд (Ice.animal): провал в воду по дыре, брызги — рисует Ice/Depth
   function drawSinker(s) { sunkL(cx, { px: Ice.sinkPx(s), rx: 20, ry: 6, mode: 'water', cx: s.x, cy: s.y }, () => ArtAnimals.bear(cx, s.o, ENV)); }
+  // брошенная палка на снегу/льду (Actions: G.litter, k 'stick'): тень, кора, светлый торец; в снегу — присыпана с концов
+  function drawStick(q) {
+    const c = Math.cos(q.a) * 11, sn = Math.sin(q.a) * 4, onI = typeof Depth !== 'undefined' && Depth.bareIce(q.x, q.y);
+    cx.lineCap = 'round'; cx.globalAlpha = 0.25; cx.strokeStyle = '#5d7a96'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(q.x - c, q.y - sn + 1.5); cx.lineTo(q.x + c, q.y + sn + 1.5); cx.stroke();
+    cx.globalAlpha = 1; cx.strokeStyle = '#5a3d22'; cx.lineWidth = 2.2; cx.beginPath(); cx.moveTo(q.x - c, q.y - sn); cx.lineTo(q.x + c, q.y + sn); cx.stroke();
+    cx.strokeStyle = '#8a6a48'; cx.lineWidth = 0.8; cx.beginPath(); cx.moveTo(q.x - c * 0.8, q.y - sn * 0.8 - 0.7); cx.lineTo(q.x + c * 0.6, q.y + sn * 0.6 - 0.7); cx.stroke();
+    if (!onI) { cx.globalAlpha = 0.9; ell(q.x - c * 0.85, q.y - sn * 0.85, 3, 1.4, '#f4f7fa'); ell(q.x + c * 0.9, q.y + sn * 0.9, 2.6, 1.2, '#f4f7fa'); cx.globalAlpha = 1; }
+  }
   function drawFire(f) {
-    // подтаявший снег вокруг: кольцо растёт со временем горения (t0 — когда разожгли; потухший — кольцо остаётся, подмёрзшее)
-    if (f.t0 == null) f.t0 = G.time;
-    f.melt = clamp(((f.fuel > 0 ? G.time : f.t1 != null ? f.t1 : G.time) - f.t0) / 150, 0, 1); if (f.fuel > 0) f.t1 = null; else if (f.t1 == null) f.t1 = G.time;
+    // подтаявший снег вокруг: f.melt считает Fire.tick (логика мира), здесь — только рисунок
     ArtWorld.fire(cx, f, ENV); if (!(f.fuel > 0)) return;
     const fl = Math.max(0, 1 - (now - (FLARE.get(f) || -9)) / 0.8); // руки у огня — угли ярче (свет самого костра — в ArtWorld.fire, один)
     if (fl > 0) light(f.x, f.y - 10, 120 * (1 + 0.3 * fl), 'f', 0.35 * fl);
@@ -932,8 +938,8 @@ const GFX = (() => {
     // чурка отваливается от ствола и откатывается (fx,fy — где отрезана, 0.45 с)
     if (typeof Tree === 'undefined') for (const c of G.chunks || []) if (near(c.x, c.y, 30)) { const e = c.fx != null ? clamp((G.time - c.t) / 0.45, 0, 1) : 1, k = 1 - (1 - e) * (1 - e);
       if (e >= 1) ArtWorld.chunk(cx, c.x, c.y, c.a); else ArtWorld.chunk(cx, c.fx + (c.x - c.fx) * k, c.fy + (c.y - c.fy) * k - 4 * Math.sin(Math.PI * Math.min(1, e * 1.6)) * (1 - e), c.a + (1 - k) * 3 * Math.sign(c.x - c.fx || 1)); }
-    // пустая банка: со временем присыпает снегом и уходит под него (удаляет логика — Actions.tickWorld, по возрасту)
-    if (G.litter) for (const q of G.litter) if (near(q.x, q.y, 20)) ArtWorld.emptyCan(cx, q.x, q.y, q.a, clamp((G.time - q.t) / (CYCLE * Actions.CAN_LIFE), 0, 1));
+    // брошенная палка и пустая банка: со временем присыпает снегом и уходит под него (удаляет логика — Actions.tickWorld, по возрасту)
+    if (G.litter) for (const q of G.litter) if (near(q.x, q.y, 20)) { if (q.k === 'stick') drawStick(q); else ArtWorld.emptyCan(cx, q.x, q.y, q.a, clamp((G.time - q.t) / (CYCLE * Actions.CAN_LIFE), 0, 1)); }
   }
 
   // ---------- тени по солнцу: единственный источник направленной тени ----------

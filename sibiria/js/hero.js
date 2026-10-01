@@ -27,7 +27,7 @@ const Hero = (() => {
       // снег: по колено ×0.7 · по пояс ×0.35 · по грудь ×0.2, рывками (js/depth.js; поверхность — уже в TERRAIN.walk); без поля — сугроб ×H.drift
       if (typeof Depth !== 'undefined') s *= Depth.heroMul(); else if (driftAt(p.x, p.y)) s *= H.drift;
       if (p.creaked && World.onThinIce(p)) s *= 0.5; // лёд трещит — ступает осторожно
-    }
+    } else if (typeof Depth !== 'undefined' && Depth.rideMul) s *= Depth.rideMul(p.ride); // верхом: глубокий снег вязнет, тропа быстрее (js/depth.js)
     if (stormOn() && !p.inside) s *= H.storm;
     if (p.action && p.action.walk) s *= (p.action.ahead || 0) > 0.95 ? 0.33 : 0.11; // с лопатой: по расчищенному — втрое медленнее, целину — пробивает (≈ 1 м² за 1.5 с)
     s *= 1 - TI.speed * smooth(TI.speedFrom, 100, tire()); // нет сил — плетётся

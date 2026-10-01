@@ -64,7 +64,8 @@ const World = (() => {
   const trunkR = t => 4 + 8 * t.s;
   const nearHut = (r = TUNE.r.nearHut) => Math.hypot(G.p.x - HUT.x, G.p.y - (HUT.y - 30)) < r;
   const inCedar = (x, y) => Math.hypot(x - POI.cedar.x, y - POI.cedar.y) < POI.cedar.r;
-  const onThinIce = o => Math.hypot(o.x - POI.polynya.x, o.y - POI.polynya.y) < POI.polynya.r - 20;
+  // тонкий лёд: у переката и в луже под костром на льду (js/ice.js weakAt)
+  const onThinIce = o => Math.hypot(o.x - POI.polynya.x, o.y - POI.polynya.y) < POI.polynya.r - 20 || (typeof Ice !== 'undefined' && G && G.fires && G.fires.length > 0 && Ice.weakAt(o.x, o.y));
 
   // ---------- генерация ----------
   // Статичный мир — только из seed (r): деревья, стена, сугробы, трещины, кочки. В сейв не идёт (см. SaveGame).
@@ -318,6 +319,63 @@ const World = (() => {
     const vx = ex - L.x, vy = ey - L.y, u = clamp(((o.x - L.x) * vx + (o.y - L.y) * vy) / (vx * vx + vy * vy || 1), 0, 1);
     return pushCircle(o, r, L.x + vx * u, L.y + vy * u, (4.2 + (1.6 - 4.2) * u * k) * s);
   }
+  // высота ствола над снегом у тела, см: диаметр в ближайшей точке (вид 3/4 — как pushLog), заметённый — ниже
+  function logH(L, o) {
+    const s = L.s || 1, k = Actions.logK(L), ex = L.x + Math.cos(L.a) * L.len * k, ey = L.y + Math.sin(L.a) * L.len * 0.6 * k, vx = ex - L.x, vy = ey - L.y;
+    const u = clamp(((o.x - L.x) * vx + (o.y - L.y) * vy) / (vx * vx + vy * vy || 1), 0, 1), rad = (4.2 + (1.6 - 4.2) * u * k) * s;
+    const bury = Actions.logSnow ? Actions.logSnow(L) : 0;
+    return 2 * rad / 0.23 * (1 - 0.7 * bury);
+  }
+  // тело над стволом (перелезает): ближе к оси, чем радиус ствола + своего тела
+  function onLog(o, r, L) {
+    const s = L.s || 1, k = Actions.logK(L), ex = L.x + Math.cos(L.a) * L.len * k, ey = L.y + Math.sin(L.a) * L.len * 0.6 * k, vx = ex - L.x, vy = ey - L.y;
+    if (o.x < Math.min(L.x, ex) - 30 || o.x > Math.max(L.x, ex) + 30 || o.y < Math.min(L.y, ey) - 30 || o.y > Math.max(L.y, ey) + 30) return false;
+    const u = clamp(((o.x - L.x) * vx + (o.y - L.y) * vy) / (vx * vx + vy * vy || 1), 0, 1), px = L.x + vx * u - o.x, py = L.y + vy * u - o.y, rad = (4.2 + (1.6 - 4.2) * u * k) * s + r * 0.7;
+    return px * px + py * py < rad * rad;
+  }
+  // ---------- среда под ИИ-телом (World.solid, не герой): ствол поперёк, тонкий лёд, голый лёд ----------
+  // m — масса, кг (тонкий лёд ломается раньше под тяжёлым: время ×(80/m)^0.7, легче 20 кг — держит); grip — сцепление на голом льду, 1/с
+  // (герой — iceGrip 2.2); ice — осторожность на голом льду (копыта); over — ход через ствол; jump — выше какого ствола перешагивает, см
+  const BK = {
+    n: { m: 80, grip: 4 }, dog: { m: 25, grip: 3.5, over: 0.7, jump: 55 }, wolf: { m: 40, grip: 3, over: 0.8, jump: 100 },
+    deer: { m: 120, grip: 1.6, ice: 0.75, over: 0.65, jump: 110 }, hare: { m: 3, grip: 3.5, over: 0.85, jump: 60 }, bear: { m: 250, grip: 2.5, over: 0.45, jump: 75 },
+  };
+  const bodyKind = (o, who, r) => who === 'a' ? (r <= 6 ? 'hare' : 'deer') : who === 'w' ? 'wolf' : who === 'b' ? 'bear' : who === 'u' ? (o.type === 'laika' ? 'dog' : 'n') : 'n';
+  // память шага — рантайм (WeakMap, в сейв не идёт); dt — по G.time: повторные solid в том же кадре (crowd) не считаются
+  const ENV = new WeakMap();
+  function env(o, who, r) {
+    const kind = bodyKind(o, who, r), K = BK[kind];
+    let s = ENV.get(o); if (!s) { ENV.set(o, { x: o.x, y: o.y, t: G.time, vx: 0, vy: 0, thin: 0, cr: 0, safe: 0, ix: o.x, iy: o.y }); return; }
+    const dt = G.time - s.t; if (dt <= 0) return; s.t = G.time; s.dt = dt; s.px = s.x; s.py = s.y;
+    const dx = o.x - s.x, dy = o.y - s.y;
+    if (dx * dx + dy * dy > 90 * 90 || dt > 1 || Math.abs(o.x - G.p.x) + Math.abs(o.y - G.p.y) > 1600) { s.vx = s.vy = 0; s.thin = 0; return; } // телепорт / далеко — не считаем
+    let m = 1;
+    if (K.over && G.logs && G.logs.length) for (const L of G.logs) if (L.n > 0 && onLog(o, r, L)) { m = K.over; o.hop = G.time; break; } // перелезает через ствол
+    // тонкий лёд: идёт осторожно; тяжёлый — трещит и проваливается (шатун — сразу, js/bear.js), выбирается назад мокрым
+    s.safe = Math.max(0, s.safe - dt);
+    const thin = kind !== 'bear' && onThinIce(o);
+    if (thin && !(s.safe > 0)) {
+      m *= 0.6; s.thin += dt;
+      const I = TUNE.ice, sc = Math.pow(80 / K.m, 0.7);
+      if (K.m >= 20 && s.thin > I.creakT * sc && !s.cr) { s.cr = 1; if (Math.abs(o.x - G.p.x) + Math.abs(o.y - G.p.y) < 900 && typeof Sound !== 'undefined' && Sound.src) Sound.src(o).creak(); }
+      if (K.m >= 20 && s.thin > I.breakT * sc) {
+        const h = Ice.fallBody(o, kind, s.ix, s.iy); s.thin = 0; s.cr = 0; s.safe = 6; s.vx = s.vy = 0; s.x = o.x; s.y = o.y;
+        if (kind === 'wolf' && o.st) { o.st = 'retreat'; o.vx = o.vy = 0; }        // мокрый волк уходит
+        else if (kind === 'deer') { const a = Math.atan2(o.y - h.y, o.x - h.x); o.vx = Math.cos(a) * 150; o.vy = Math.sin(a) * 150; o.t = 1.2; } // олень — прочь от дыры
+        else { if (o.hp != null) o.hp -= 4; if (Math.abs(o.x - G.p.x) + Math.abs(o.y - G.p.y) < 700) Fx.toast(':frost: Провалился под лёд у переката — выбрался мокрым'); }
+        return;
+      }
+    } else { s.thin = Math.max(0, s.thin - dt * 2); if (!s.thin) s.cr = 0; if (!thin) { s.ix = s.x; s.iy = s.y; } }
+    // голый лёд: тело несёт по инерции (разгон и торможение — по сцеплению вида), копыта — осторожнее; на снегу — сразу
+    let wx = dx * m / dt, wy = dy * m / dt;
+    if (Depth.bareIce(o.x, o.y) || Depth.bareIce(s.x, s.y)) {
+      if (K.ice) { wx *= K.ice; wy *= K.ice; }
+      const e = 1 - Math.exp(-dt * K.grip); s.vx += (wx - s.vx) * e; s.vy += (wy - s.vy) * e;
+    } else { s.vx = wx; s.vy = wy; }
+    o.x = s.x + s.vx * dt; o.y = s.y + s.vy * dt;
+  }
+  // конец шага: где тело встало (после упоров); упёрлось — скорость по факту
+  function envEnd(o, hit) { const s = ENV.get(o); if (!s) return; if (hit && s.t === G.time && s.dt > 0) { s.vx = (o.x - s.px) / s.dt; s.vy = (o.y - s.py) / s.dt; } s.x = o.x; s.y = o.y; }
   // фигуры подножия c → выталкивание (рамка c — быстрый отсев)
   function pushFoot(o, r, c) {
     if (o.x + r < c.x0 || o.x - r > c.x1 || o.y + r < c.y0 || o.y - r > c.y1) return false;
@@ -330,7 +388,12 @@ const World = (() => {
   function pushAll(o, r, who) {
     NB.length = 0; for (const t of treesNear(o.x, o.y, 40, NB)) if (t.wood > 0 && pushCircle(o, r, t.x, t.y, trunkR(t))) touch('tree', t);
     NB.length = 0; for (const q of Space.rocks.near(o.x, o.y, 50, NB)) if (pushFoot(o, r, rockFoot(q))) touch('rock', q);
-    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю
+    const bk = who === 'p' || who === 'n' ? null : BK[bodyKind(o, who, r)]; // зверь: через лежачий ствол перешагивает/перепрыгивает (ниже своего прыжка)
+    if (G.logs) for (const L of G.logs) if (L.n > 0 && !(L.f && !L.f.hit) && !(bk && bk.jump && logH(L, o) < bk.jump) && pushLog(o, r, L)) touch('log', L);   // падающий ствол — преграда только после удара о землю
+    // открытая вода (перекат, дыры) — ИИ обходит; герой в неё проваливается (thinIce)
+    if (who !== 'p' && typeof Ice !== 'undefined' && Ice.pushWater(o, r)) touch('water', null);
+    // горящий костёр: тела держатся от огня (keepR), герой — упор и ожог при шаге в огонь; World.blocked (q — не герой) огонь не видит
+    if (G.fires.length && (who !== 'p' || o === G.p)) for (const f of G.fires) if (f.fuel > 0 && Math.abs(o.x - f.x) < 80 && Math.abs(o.y - f.y) < 80 && pushCircle(o, r, f.x, f.y, Fire.keepR(o, who, r))) { touch('fire', f); if (o === G.p) Fire.burnHero(f); }
     if (Math.abs(o.x - HUT.x) < 180 && Math.abs(o.y - HUT.y) < 160) {
       for (const R of HUT_WALLS) if (pushRect(o, r, R.x0, R.x1, R.y0, R.y1)) touch('wall', null);
       if (who !== 'p' && who !== 'n' && G.hut.door) pushRect(o, r, DOOR_RECT.x0, DOOR_RECT.x1, DOOR_RECT.y0, DOOR_RECT.y1);
@@ -356,7 +419,7 @@ const World = (() => {
   // обход для ИИ: упёрся — шаг вдоль преграды (в ту сторону, куда шёл; лоб в лоб — своя сторона на ходока), чтобы не встать у ствола
   const LAST = new WeakMap();
   function solid(o, r, who) {
-    if (o !== G.p && typeof Depth !== 'undefined') Depth.drag(o, who, r); // в снегу по брюхо/пояс — шаг короче (js/depth.js)
+    if (o !== G.p && typeof Depth !== 'undefined') { Depth.drag(o, who, r); if (typeof Ice !== 'undefined') env(o, who, r); } // в снегу по брюхо/пояс — шаг короче (js/depth.js); ствол, тонкий и голый лёд
     const x0 = o.x, y0 = o.y; CONTACT.k = CONTACT.o = null;
     pushAll(o, r, who);
     if (CONTACT.k) { const k = CONTACT.k, ob = CONTACT.o; pushAll(o, r, who); CONTACT.k = k; CONTACT.o = ob; } // вытолкнуло в соседнюю вещь (два ствола рядом) — ещё проход
@@ -374,6 +437,7 @@ const World = (() => {
     const cx = o.x, cy = o.y; o.x = clamp(o.x, 40, W - 40); o.y = clamp(o.y, 50, H - 40);
     if ((cx !== o.x || cy !== o.y) && !CONTACT.k) touch('edge', null);
     if (CONTACT.k) { const dx = o.x - x0, dy = o.y - y0, d = Math.hypot(dx, dy); if (d > 1e-4) { CONTACT.nx = dx / d; CONTACT.ny = dy / d; } else CONTACT.k = null; }
+    if (o !== G.p) { envEnd(o, !!CONTACT.k); if (typeof Depth !== 'undefined' && Depth.settle) Depth.settle(o); }
     return CONTACT.k ? CONTACT : null;
   }
   // точка внутри подножия/ствола/стены? (цель ходока, проверки)
@@ -465,20 +529,31 @@ const World = (() => {
 
   // ---------- опасности места: тонкий лёд у переката ----------
   // провал — эпизод Ice (js/ice.js): на месте, без телепорта; после вылаза — 5 с «форы» (отползает), открытая дыра — не пройти
+  // верхом: «Буран» (~350 кг с седоком) ломает быстрее всех, упряжка (~300 кг) — тоже; олени сами на тонкий лёд не идут (Transport.moved)
+  const RIDE_K = { buran: 0.35, deer: 0.55 };
   function thinIce(dt) {
     const p = G.p, I = TUNE.ice, ice = typeof Ice !== 'undefined';
     if (ice) { Ice.tick(dt); if (Ice.active()) return; }
     if (!onThinIce(p)) { p.iceInX = p.x; p.iceInY = p.y; } // откуда пришёл на тонкий лёд — туда и выползать
-    if (onThinIce(p) && !(p.iceSafe > 0) && !p.ride) {
-      p.iceT += dt;
-      if (p.iceT > I.creakT && !p.creaked) { p.creaked = 1; Sound.creak(); Fx.shake(3); Fx.toast(':frost: Лёд трещит!'); if (typeof Hero !== 'undefined') Hero.play('flinch', { react: 1 }); }
-      if (ice && (p.iceT > I.breakT || Ice.inWater(p.x, p.y))) { Ice.start(p); return; } // шагнул в открытую воду — сразу
+    if ((onThinIce(p) || (p.ride && ice && Ice.inWater(p.x, p.y))) && !(p.iceSafe > 0)) {
+      p.iceT += dt / (RIDE_K[p.ride] || 1);
+      if (p.iceT > I.creakT && !p.creaked) { p.creaked = 1; Sound.creak(); Fx.shake(3); Fx.toast(p.ride === 'buran' ? ':frost: Лёд трещит под «Бураном»!' : ':frost: Лёд трещит!'); if (typeof Hero !== 'undefined' && !p.ride) Hero.play('flinch', { react: 1 }); }
+      if (ice && (p.iceT > I.breakT || Ice.inWater(p.x, p.y))) { const v = p.ride ? rideSink(p) : null; Ice.start(p); if (v) Fx.toast(v); return; } // шагнул в открытую воду — сразу
       if (p.iceT > I.breakT) {
         p.iceT = 0; p.creaked = 0; G.s.warm = Math.min(G.s.warm, I.warm); p.wetT = I.wetT; p.action = null;
         p.x = POI.polynya.x - 140; Hero.snap(); Sound.splash(); Fx.shake(10); Fx.toast(':frost: Провалился! Сушись у огня');
         Fx.burst(POI.polynya.x, POI.polynya.y, 20, '#9fd0ee', 160);
       }
     } else { p.iceT = Math.max(0, p.iceT - dt * 2); if (p.iceT === 0) p.creaked = 0; }
+  }
+  // провал верхом: герой — в воду (эпизод Ice), транспорт — у кромки, откуда въехал (в 40 px дальше от дыры)
+  // «Буран» провалился передком: мотор залит — чинить и заправлять заново; олени рванули назад и вытащили нарты
+  function rideSink(p) {
+    const k = p.ride, v = G.veh[k]; p.ride = null; if (!v) return null;
+    let ex = (p.iceInX != null ? p.iceInX : p.x - 80) - p.x, ey = (p.iceInY != null ? p.iceInY : p.y) - p.y; const l = Math.hypot(ex, ey) || 1;
+    v.x = p.x + ex / l * (l + 40); v.y = p.y + ey / l * (l + 40); v.face = ex < 0 ? -1 : 1;
+    if (k === 'buran') { v.fixed = 0; v.fuel = 0; return ':sled: «Буран» провалился передком — мотор залит, нужна починка'; }
+    return ':deer: Олени рванули назад и вытащили нарты на крепкий лёд';
   }
 
   return { walk, crowd, FOG, COLL, FOOT_BY, footShapes, addFoot, vehFoot, rockFoot, trunkR, blocked, freeNear, GEN_V, TREE_I, wood0, regrowK, adultK, growWood, ADULT_K0, nearHut, inCedar, onThinIce, gen, genLiving, buildGrid, shakeTree, tickTrees,

@@ -33,17 +33,26 @@ const Fire = (() => {
     }
     return heat;
   }
-  // расход топлива костра, с/с (тик и прогноз ночи — одна формула)
-  const burn = (f, night, storm) => (storm ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn')));
+  // расход топлива костра, с/с (тик и прогноз ночи — одна формула); на льду лужа под костром гасит быстрее
+  const burn = (f, night, storm) => (storm ? F.stormBurn : 1) * (1 + F.nightBurn * night) * (f.burn || (f.burn = Zones.ruleAt(f.x, f.y, 'burn'))) * (1 + F.iceThaw.wet * (f.thaw || 0));
+  const R = mulberry(0xF12E), rr = (a, b) => a + R() * (b - a); // свой поток: Math.random игры не тратим
   function tick(dt, night, storm) {
     for (const f of G.fires) {
+      // видимое пламя (процесс разжигания/засыпания: f.sn — сколько горстей снега): разгорается/гаснет плавно
       const tg = f.fuel > 0 ? 1 - (f.sn || 0) : 0;
       f.fl = f.fl == null ? tg : toward(f.fl, tg, dt);
+      // проталина: кольцо растёт со временем горения (t0 — впервые разгорелся; складывают — ещё не тает; потух — кольцо остаётся); рисунок и Depth читают f.melt
+      if (f.t0 == null && f.fuel > 0) f.t0 = G.time;
+      if (f.fuel > 0) f.t1 = null; else if (f.t1 == null) f.t1 = G.time;
+      f.melt = f.t0 == null ? 0 : clamp(((f.fuel > 0 ? G.time : f.t1) - f.t0) / 150, 0, 1);
+      if (typeof Ice !== 'undefined') Ice.fireTick(f, dt); // на льду — протаивает лужу, насквозь — уходит под воду (js/ice.js)
       if (!(f.fuel > 0)) { if (f.fl > 0.05 && Math.random() < dt * 2) G.parts.push({ type: 'smoke', x: f.x, y: f.y - 12, vx: rnd(-6, 6), vy: rnd(-26, -14), life: 2.2, max: 2.2 }); continue; }
       f.fuel = Math.max(0, f.fuel - dt * burn(f, night, storm));
+      treeSnow(f, dt);
       if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
       if (Math.random() < dt * 3) G.parts.push({ type: 'smoke', x: f.x, y: f.y - 24, vx: rnd(-6, 6), vy: rnd(-30, -18), life: 2.5, max: 2.5 });
     }
+    for (let i = G.fires.length - 1; i >= 0; i--) if (G.fires[i].sunk) G.fires.splice(i, 1); // провалился под лёд
     for (const st of G.stacks) {
       st.fl = st.fl == null ? (st.lit > 0 ? 1 : 0) : toward(st.fl, st.lit > 0 ? 1 : 0, dt);
       if (!(st.lit > 0)) continue;
@@ -53,9 +62,51 @@ const Fire = (() => {
       if (Math.random() < dt * 8) G.parts.push({ type: 'smoke', x: st.x, y: st.y - 40, vx: rnd(-8, 8), vy: rnd(-45, -25), life: 3.5, max: 3.5, big: 1 });
     }
   }
+  // снег с ели над костром: тепло копится в кроне → ком снега срывается (дрожь ветвей, снег вниз), падает в огонь — шипит, иногда гасит слабый
+  // память — рантайм (WeakMap), в сейв не идёт; хвойные (ель, кедр) — снег на лапах, берёза и сухостой — нет
+  const TH = new WeakMap(), NT = [];
+  function treeSnow(f, dt) {
+    const T = F.treeSnow; NT.length = 0;
+    for (const t of treesNear(f.x, f.y, T.r + T.rk * 1.5, NT)) {
+      if (!(t.wood > 0) || (t.kind !== 0 && t.kind !== 2) || t.stage === 1) continue;
+      const cr = T.r + T.rk * (t.s || 1), d = Math.hypot(t.x - f.x, (t.y - f.y) * 1.4); if (d > cr) continue; // крона над огнём
+      let q = TH.get(t); if (!q) TH.set(t, q = { h: 0, n: 0, next: rr(T.first[0], T.first[1]) });
+      if (q.n >= T.max) continue;
+      q.h += dt * (1 - d / cr * 0.6);
+      if (q.h < q.next) continue;
+      q.h = 0; q.n++; q.next = rr(T.next[0], T.next[1]);
+      if (typeof World !== 'undefined') World.shakeTree(t, 0.6);
+      if (typeof Interact !== 'undefined') Interact.emit('thaw', { who: 'f', obj: 'tree', target: t, x: t.x, y: t.y });
+      // ком падает в огонь: шипит, пар; слабый костёр — бывает, гаснет
+      f.fuel = Math.max(0, f.fuel - T.fuelHit); f.hiss = G.time;
+      for (let i = 0; i < 5; i++) G.parts.push({ type: 'steam', x: f.x + rr(-8, 8), y: f.y - rr(6, 14), vx: rr(-6, 6), vy: -rr(14, 26), life: rr(1.2, 2), max: 2 });
+      if (typeof Sound !== 'undefined' && Sound.hiss && dist2(f, G.p) < 500 * 500) Sound.hiss();
+      if (f.fuel > 0 && f.fuel < T.outFuel && R() < T.outP) { f.fuel = 0; if (dist2(f, G.p) < 400 * 400) Fx.toast(':frost: Снег с ели загасил костёр'); }
+    }
+  }
+  // кто сколько держится от огня (px сверх своего радиуса): герой — почти вплотную, звери — дальше; верхом — упряжка шарахается
+  function keepR(o, who, r) {
+    const K = F.keep;
+    if (o === G.p) return o.ride === 'deer' ? K.ride : o.ride === 'buran' ? K.buran : K.p;
+    if (who === 'a') return r <= 6 ? K.hare : K.deer;
+    if (who === 'u') return o.type === 'laika' ? K.dog : K.n;
+    return K[who] || K.n;
+  }
+  // ожог: герой шагнул в костёр — больно, отдёрнулся (раз в burnCd с; от огня не умирают сразу: не ниже burnFloor)
+  let burnT = -99;
+  function burnHero(f) {
+    const p = G.p; if (Math.abs(G.time - burnT) < F.burnCd || p.ride) return false;
+    burnT = G.time;
+    G.s.hp = Math.max(Math.min(G.s.hp, F.burnFloor), G.s.hp - F.burnDmg); G.hurt = Math.max(G.hurt || 0, 0.6);
+    const a = Math.atan2(p.y - f.y, p.x - f.x); p.x += Math.cos(a) * 8; p.y += Math.sin(a) * 8; p.vx = p.vy = 0; // отдёрнулся
+    if (typeof Hero !== 'undefined') Hero.play('flinch', { react: 1 });
+    Fx.toast(':fire: Обжёгся! В огонь не лезь'); if (Sound.hiss) Sound.hiss();
+    for (let i = 0; i < 6; i++) G.parts.push({ type: 'spark', x: f.x + rr(-6, 6), y: f.y - 8, vx: rr(-40, 40), vy: rr(-110, -50), life: rr(0.5, 0.9), max: 1, g: -10 });
+    return true;
+  }
   // на рассвете гаснут забытые далёкие костры
   function dawn() { G.fires = G.fires.filter(f => f.fuel > 0 || dist2(f, G.p) < TUNE.r.fireKeep * TUNE.r.fireKeep); }
-  return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn, toward };
+  return { fearR, burning, near, protection, lightStack, heatAt, burn, tick, dawn, toward, keepR, burnHero, treeSnow };
 })();
 
 // Печь: полено даёт secPerLog() игровых секунд огня (1,25–2,25 игр. ч) (щели и заслонка — дольше); ночью горит быстрее.

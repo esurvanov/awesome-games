@@ -19,6 +19,18 @@ const Ice = (() => {
   const POSE = { drop: 'iceFall', water: 'iceSlap', grab: 'iceGrab', crawl: 'iceCrawl', roll: 'iceRoll', up: 'iceUp' };
   let F = null, lastEnd = -99, log = [];
   const holes = () => (G.iceHoles || (G.iceHoles = []));
+  // ОДИН механизм дыры во льду для всех причин (герой, шатун, зверь/человек ИИ, дерево, костёр протаял): плиты кренятся и тонут, обломки плавают,
+  // дыра — открытая вода (water/pushWater/keepOut), тонкий молодой лёд (thick), затягивается за ~сутки (frozen). o: { ns — плит, sr — [r0,r1] плит,
+  // nb — обломков, bs — [s0,s1] обломков, bd — разброс обломков, why — причина (лог/тесты) }
+  function makeHole(x, y, r, o = {}) {
+    const h = { x: Math.round(x), y: Math.round(y), r: Math.round(r), t0: G.time, sd: (R() * 1e6) | 0, br: [], nb: 0, slabs: [], bits: [], why: o.why || 'hero' };
+    if (o.why === 'tree') h.tree = 1;
+    const ns = o.ns != null ? o.ns : 6, sr = o.sr || [8, 12], nb = o.nb != null ? o.nb : 5, bs = o.bs || [2, 4.2], bd = o.bd || 0.75;
+    for (let i = 0; i < ns; i++) h.slabs.push({ a: i / ns * TAU + rr(-0.3, 0.3), w: rr(0.5, 0.9), r: rr(sr[0], sr[1]), tilt: rr(0.6, 1), dir: R() < 0.5 ? -1 : 1 });
+    for (let i = 0; i < nb; i++) h.bits.push({ a: rr(0, TAU), d: rr(0.2, bd), s: rr(bs[0], bs[1]), ph: rr(0, TAU) });
+    holes().push(h); if (holes().length > 8) holes().shift();
+    return h;
+  }
   // открытая вода переката (рисунок ArtWorld.polynya: центр +10,+4, полуоси ≈ 28 × 11): шаг туда — сразу провал
   const inWater = (x, y) => { const P = POI.polynya, dx = (x - P.x - 10) / 27, dy = (y - P.y - 4.5) / 10.5; return dx * dx + dy * dy < 1; };
   const active = () => !!(F && F.g === G);
@@ -38,15 +50,11 @@ const Ice = (() => {
       let ok = true; for (let d = 20; d <= 70; d += 10) if (inWater(p.x + vx * d, p.y + vy * d)) { ok = false; break; }
       if (ok) { ex = vx; ey = vy; break; }
     }
-    const hole = { x: Math.round(p.x), y: Math.round(p.y + 1), r: 13, t0: G.time, sd: (R() * 1e6) | 0, br: [], nb: 0 };
-    holes().push(hole); if (holes().length > 8) holes().shift();
+    const hole = makeHole(p.x, p.y + 1, 13, { why: 'hero' });
     F = { g: G, ph: 'drop', t: 0, hole, ex, ey, u: 0, breaks: R() < 0.5 ? 1 : 2, nb: 0, prog: 0, idle: 0, warm0: G.s.warm, zoom0: null, zt: null, jolt: 0, sp: 0, br: 0 };
     log = [{ ph: 'drop', t: G.time, x: p.x, y: p.y, ex, ey, inX: p.iceInX, inY: p.iceInY }];
     p.action = null; p.vx = p.vy = 0; p.moving = false; p.iceT = 0; p.creaked = 0; p.torch = 0;
     if (typeof Hero !== 'undefined') Hero.snap();
-    // плиты вокруг: кренятся и уходят в воду (рисунок — drawHoles)
-    hole.slabs = []; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + rr(-0.3, 0.3); hole.slabs.push({ a, w: rr(0.5, 0.9), r: rr(8, 12), tilt: rr(0.6, 1), dir: R() < 0.5 ? -1 : 1 }); }
-    hole.bits = []; for (let i = 0; i < 5; i++) hole.bits.push({ a: rr(0, TAU), d: rr(0.2, 0.75), s: rr(2, 4.2), ph: rr(0, TAU) });
     if (typeof ArtWorld !== 'undefined' && G.parts) { ArtWorld.fx.splash(G.parts, p.x, p.y); ArtWorld.fx.splash(G.parts, p.x + 4, p.y - 2); steam(p.x, p.y, 6); }
     if (typeof Sound !== 'undefined') { Sound.creak(); Sound.splash(); }
     Fx.shake(10); Fx.toast(':frost: Провалился! К берегу — ползком, откуда пришёл');
@@ -168,10 +176,7 @@ const Ice = (() => {
   // ---------- зверь под лёд (шатун): дыра, брызги, уходит в воду ----------
   const SINK = [];
   function animal(o, kind) {
-    const h = { x: Math.round(o.x), y: Math.round(o.y + 2), r: kind === 'bear' ? 22 : 14, t0: G.time, sd: (R() * 1e6) | 0, br: [], nb: 0, slabs: [], bits: [] };
-    for (let i = 0; i < 7; i++) h.slabs.push({ a: i / 7 * TAU + rr(-0.3, 0.3), w: rr(0.5, 0.9), r: rr(10, 16), tilt: rr(0.6, 1), dir: R() < 0.5 ? -1 : 1 });
-    for (let i = 0; i < 6; i++) h.bits.push({ a: rr(0, TAU), d: rr(0.2, 0.75), s: rr(2.4, 5), ph: rr(0, TAU) });
-    holes().push(h); if (holes().length > 8) holes().shift();
+    const h = makeHole(o.x, o.y + 2, kind === 'bear' ? 22 : 14, { ns: 7, sr: [10, 16], nb: 6, bs: [2.4, 5], why: kind });
     SINK.push({ o: Object.assign({}, o), kind, t0: G.time, x: h.x, y: h.y });
     splashAt(o.x, o.y, 2); splashAt(o.x + 8, o.y - 3, 2); steam(o.x, o.y, 8);
   }
@@ -193,14 +198,12 @@ const Ice = (() => {
     let h = 0.38 + 0.05 * Math.sin(y * 0.011 + x * 0.003);
     h = Math.min(h, 0.03 + 0.37 * sm(28, 230, d));
     for (const q of G && G.iceHoles || []) { const dd = Math.hypot(x - q.x, (y - q.y) * 1.6); if (dd < q.r + 6) h = Math.min(h, 0.005 + 0.12 * frozen(q)); }
+    for (const f of G && G.fires || []) if (f.ice && f.thaw > 0) { const r = puddleR(f), dx = x - f.x, dy = (y - f.y) * 2; if (dx * dx + dy * dy < r * r) h *= 1 - 0.95 * f.thaw; } // лужа костра — лёд проеден
     return h;
   }
   // пролом от удара (дерево упало на лёд): дыра, плиты кренятся, брызги, шуга, пар — та же дыра, что у провала героя
   function breakAt(x, y, r, a) {
-    const h = { x: Math.round(x), y: Math.round(y), r: Math.round(r), t0: G.time, sd: (R() * 1e6) | 0, br: [], nb: 0, slabs: [], bits: [], tree: 1 };
-    const n = Math.max(6, Math.round(r / 3)); for (let i = 0; i < n; i++) h.slabs.push({ a: i / n * TAU + rr(-0.3, 0.3), w: rr(0.5, 0.9), r: rr(r * 0.6, r * 0.95), tilt: rr(0.6, 1), dir: R() < 0.5 ? -1 : 1 });
-    for (let i = 0; i < Math.round(r / 2.5); i++) h.bits.push({ a: rr(0, TAU), d: rr(0.2, 0.85), s: rr(2, 4.5), ph: rr(0, TAU) });
-    holes().push(h); if (holes().length > 8) holes().shift();
+    const h = makeHole(x, y, r, { ns: Math.max(6, Math.round(r / 3)), sr: [r * 0.6, r * 0.95], nb: Math.round(r / 2.5), bs: [2, 4.5], bd: 0.85, why: 'tree' });
     for (let i = -1; i <= 1; i++) splashAt(x + Math.cos(a || 0) * r * 0.6 * i, y + Math.sin(a || 0) * r * 0.36 * i, 2);
     steam(x, y, 8);
     if (typeof Sound !== 'undefined') { Sound.creak && Sound.creak(); Sound.splash && Sound.splash(); }
@@ -208,6 +211,68 @@ const Ice = (() => {
     log.push({ ph: 'treeBreak', t: G.time, x, y });
     return h;
   }
+  // ---------- люди и звери у воды (World.solid → pushAll / env): открытую воду обходят, на тонком льду — проваливаются по массе ----------
+  // открытая вода (перекат + незатянутые дыры) — преграда для ИИ-тел: выталкиваем по эллипсу/кругу, расширенному на радиус тела
+  const holeOpen = h => frozen(h) < 0.7;
+  function pushWater(o, r) {
+    const P = POI.polynya; let hit = false;
+    if (Math.abs(o.x - P.x) < 120 && Math.abs(o.y - P.y) < 80) {
+      const cx = P.x + 10, cy = P.y + 4.5, ax = 27 + r, ay = 10.5 + r * 0.6, dx = (o.x - cx) / ax, dy = (o.y - cy) / ay, e = dx * dx + dy * dy;
+      if (e < 1) { if (e > 1e-6) { const k = 1 / Math.sqrt(e); o.x = cx + dx * k * ax; o.y = cy + dy * k * ay; } else o.x = cx - ax; hit = true; }
+    }
+    if (G.iceHoles) for (const h of G.iceHoles) {
+      const dx = o.x - h.x, dy = o.y - h.y, m = h.r * 0.9 + r; if (dx > m || dx < -m || dy > m || dy < -m || !holeOpen(h)) continue;
+      const d = Math.hypot(dx, dy); if (d < m && d > 0.01) { o.x = h.x + dx / d * m; o.y = h.y + dy / d * m; hit = true; }
+    }
+    return hit;
+  }
+  // вода в точке: перекат или открытая дыра (костёр не развести, палка — всплеск)
+  const water = (x, y) => inWater(x, y) || (G.iceHoles || []).some(h => holeOpen(h) && (x - h.x) ** 2 + ((y - h.y) * 2) ** 2 < h.r * h.r);
+  // тело ИИ проломило тонкий лёд: дыра, брызги, пар; выбирается назад — откуда пришёл (ix, iy), мокрое
+  function fallBody(o, kind, ix, iy) {
+    const big = kind === 'deer' || kind === 'n', h = makeHole(o.x, o.y + 2, big ? 15 : 12, { sr: [8, 13], why: kind });
+    splashAt(o.x, o.y, 2); steam(o.x, o.y, 5);
+    if ((o.x - G.p.x) ** 2 + (o.y - G.p.y) ** 2 < 700 * 700) { snd(S => { S.src(o).creak(); S.src(o).splash(); }); }
+    let ex = (ix != null ? ix : o.x - 60) - o.x, ey = (iy != null ? iy : o.y) - o.y, l = Math.hypot(ex, ey);
+    if (l < 4) { const P = POI.polynya; ex = o.x - P.x; ey = o.y - P.y; l = Math.hypot(ex, ey) || 1; }
+    ex /= l; ey /= l; let d = h.r + 16; o.x = h.x + ex * d; o.y = h.y + ey * d;
+    while (d < 160 && World.onThinIce(o)) { d += 8; o.x = h.x + ex * d; o.y = h.y + ey * d; } // ползком — до крепкого льда
+    o.wetT = 30;
+    return h;
+  }
+  function splash(x, y) { splashAt(x, y, 2); steam(x, y, 2); }
+  // ---------- костёр на льду (Fire.tick): протаивает лунку-лужу; тонкий лёд — быстро насквозь, толстый — часы; насквозь — костёр уходит в воду ----------
+  // f.ice — лёд под костром (1 тонкий, 2 голый, 3 под снегом), f.thaw 0..1 — протаяло; лужа ≥ 0.4 — лёд под ней слабый (World.onThinIce → weakAt)
+  function fireTick(f, dt) {
+    if (f.ice == null) f.ice = !onIce(f.x, f.y) ? 0 : Math.hypot(f.x - POI.polynya.x, f.y - POI.polynya.y) < POI.polynya.r - 20 ? 1 : (typeof Depth !== 'undefined' && [[28, 0], [-28, 0], [0, 14], [0, -14]].reduce((a, q) => a + Depth.depthAt(f.x + q[0], f.y + q[1]), 0) / 4 >= 3) ? 3 : 2; // снег — вне проталины самого костра
+    if (!f.ice) return;
+    const T = TUNE.fire.iceThaw;
+    if (!(f.fuel > 0)) { if (f.thaw > 0) f.thaw = Math.max(0, f.thaw - dt * T.refreeze); return; } // потух — лужа подмерзает
+    f.thaw = Math.min(1, (f.thaw || 0) + dt * (f.ice === 1 ? T.thin : f.ice === 2 ? T.bare : T.snowy));
+    if (!low() && G.parts && f.thaw > 0.3 && R() < dt * 2) steam(f.x + rr(-8, 8), f.y + 2, 1); // лужа парит
+    if (f.thaw >= 1) { // протаял насквозь: костёр проваливается, на месте — открытая дыра
+      makeHole(f.x, f.y + 1, 15, { ns: 0, bs: [2, 4], why: 'fire' });
+      f.fuel = 0; f.sunk = 1; splashAt(f.x, f.y, 2); steam(f.x, f.y, 10);
+      if ((f.x - G.p.x) ** 2 + (f.y - G.p.y) ** 2 < 600 * 600) { snd(S => { S.hiss && S.hiss(); S.src(f).splash(); }); Fx.toast(':frost: Костёр протаял лёд и ушёл под воду'); }
+    }
+  }
+  const puddleR = f => 8 + 22 * (f.thaw || 0);
+  // слабый лёд у лужи костра (тонкий лёд — World.onThinIce)
+  function weakAt(x, y) {
+    for (const f of G.fires) if (f.ice && f.thaw > 0.4) { const r = puddleR(f) * 0.8, dx = x - f.x, dy = (y - f.y) * 2; if (dx * dx + dy * dy < r * r) return true; }
+    return false;
+  }
+  function drawPuddles(g, view) {
+    const [x0, y0, x1, y1] = view;
+    for (const f of G.fires) if (f.ice && f.thaw > 0.03 && f.x > x0 - 60 && f.x < x1 + 60 && f.y > y0 - 40 && f.y < y1 + 40) {
+      const r = puddleR(f), k = f.thaw;
+      g.globalAlpha = 0.25 + 0.4 * k; g.fillStyle = '#5f8196'; g.beginPath(); g.ellipse(f.x, f.y + 2, r, r * 0.42, 0, 0, TAU); g.fill();       // мокрый лёд
+      g.globalAlpha = 0.3 + 0.45 * k; g.fillStyle = '#2f4f60'; g.beginPath(); g.ellipse(f.x, f.y + 2.5, r * 0.72, r * 0.3, 0, 0, TAU); g.fill(); // вода в лунке
+      g.globalAlpha = 0.35 * k; g.fillStyle = '#9fc2d4'; g.beginPath(); g.ellipse(f.x - r * 0.25, f.y + 1, r * 0.3, r * 0.08, 0, 0, TAU); g.fill(); // отсвет
+    }
+    g.globalAlpha = 1;
+  }
+
   // ---------- рисунок: трещины перед провалом, дыры (вода, обломанная кромка, обломки, рябь, затягивается), мокрый след ----------
   function drawCracks(g) {
     const p = G.p; if (active() || !(p.iceT > 0.5) || !World.onThinIce(p)) return;
@@ -265,8 +330,9 @@ const Ice = (() => {
     const [x0, y0, x1, y1] = view;
     for (const w of WET) if (w.x > x0 && w.x < x1 && w.y > y0 && w.y < y1) { g.globalAlpha = 0.4 * Math.min(1, w.life / w.max * 1.5) * (0.4 + 0.6 * w.k); g.fillStyle = '#5f7488'; g.beginPath(); g.ellipse(w.x, w.y, 3.2, 1.5, w.a, 0, TAU); g.fill(); }
     g.globalAlpha = 1;
+    drawPuddles(g, view);
     if (G.iceHoles) for (const h of G.iceHoles) if (h.x > x0 - 40 && h.x < x1 + 40 && h.y > y0 - 30 && h.y < y1 + 30) drawHole(g, h);
     drawCracks(g);
   }
-  return { thick, breakAt, start, tick, inWater, active, pose, look, keepOut, rime, animal, sinkers, sinkPx, drawHoles, get phase() { return F ? F.ph : null; }, get log() { return log; }, get ep() { return F; }, DUR, PH, reset() { F = null; SINK.length = 0; WET.length = 0; } };
+  return { thick, breakAt, start, tick, inWater, water, pushWater, fallBody, splash, fireTick, weakAt, frozen, active, pose, look, keepOut, rime, animal, sinkers, sinkPx, drawHoles, get phase() { return F ? F.ph : null; }, get log() { return log; }, get ep() { return F; }, DUR, PH, reset() { F = null; SINK.length = 0; WET.length = 0; } };
 })();

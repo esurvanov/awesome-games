@@ -111,7 +111,7 @@ var NoInstant = (() => {
     for (const L of G.logs || []) { const cls = L.f && !L.f.hit ? 'падает' : L.done != null ? 'разделан' : 'лежит'; add('log', L, L.x, L.y, cls, cls + ' сучья' + Actions.logCut(L).toFixed(2) + ' n' + L.n, L.n, 'logs'); }
     for (const c of G.chunks || []) add('chunk', c, c.x, c.y, 'чурка', null, 0, 'chunks');
     for (const q of G.lap || []) add('lap', q, q.x, q.y, 'лапник', null, 0, 'lap');
-    for (const q of G.litter || []) add('litter', q, q.x, q.y, 'банка', null, 0, 'litter');
+    for (const q of G.litter || []) add('litter', q, q.x, q.y, q.k === 'stick' ? 'палка' : 'банка', null, 0, 'litter');   // палка — брошенная (js/actions.js dropStick)
     for (const t of G.traps || []) add('trap', t, t.x, t.y, 'ловушка', t.kind + ':' + (t.catch || 'пусто'), 0, 'traps');
     for (const h of G.holes || []) add('hole', h, h.x, h.y, 'лунка', 'лунка', h.fish, 'holes');
     for (const h of G.iceHoles || []) add('icehole', h, h.x, h.y, 'пролом', null, 0, 'iceHoles');

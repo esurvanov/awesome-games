@@ -955,11 +955,10 @@ const UI = (() => {
   addEventListener('keyup', e => {
     keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Space') input.act = false;
     if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && shiftTap) {
-      const tap = performance.now() - shiftTap < SHIFT_TAP && !e.metaKey && !e.ctrlKey && !e.altKey; shiftTap = 0;
+      const tap = performance.now() - shiftTap < SHIFT_TAP && !(input.downAt >= shiftTap) && !e.metaKey && !e.ctrlKey && !e.altKey; shiftTap = 0;
       if (tap && state === 'play' && !kind && !G.col.sel.length) Hero.dodge();
     }
   });
-  addEventListener('pointerdown', () => { shiftTap = 0; }, true);   // Shift+клик (выделение) — не отскок
   addEventListener('blur', () => { keys.clear(); input.act = false; shiftTap = 0; });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(true); });
 

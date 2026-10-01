@@ -115,6 +115,12 @@ const Transport = (() => {
     const p = G.p; if (!p.ride) return;
     const v = G.veh[p.ride];
     if (!speedOn(p.ride, Zones.terrainAt(p.x, p.y))) { p.x = ox; p.y = oy; dismount(ZONE_TXT.vehStop[v === G.veh.deer ? 'deer' : 'buran']); return; }
+    // олени чуют тонкий лёд и воду переката — встают у кромки (въехать нельзя; «Буран» не чует — js/world.js thinIce)
+    if (p.ride === 'deer' && (World.onThinIce(p) || Ice.inWater(p.x, p.y)) && !World.onThinIce({ x: ox, y: oy })) {
+      p.x = ox; p.y = oy; p.vx = p.vy = 0;
+      if (Math.abs(G.time - (p.deerBalk || -99)) > 4) { p.deerBalk = G.time; Fx.toast(':deer: Олени упёрлись — тонкий лёд'); }
+      return;
+    }
     const d = Math.hypot(p.x - ox, p.y - oy);
     v.x = p.x; v.y = p.y; v.face = p.face;
     if (p.ride === 'buran') { v.fuel = Math.max(0, v.fuel - d); if (v.fuel <= 0) dismount(ZONE_TXT.noFuel); }

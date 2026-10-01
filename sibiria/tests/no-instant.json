@@ -158,10 +158,11 @@
  },
  "cover": {
   "рубка": 5,
-  "обрубка": 10,
-  "разделка": 12,
+  "обрубка": 53,
+  "разделка": 52,
+  "подбор чурок": 4,
   "заяц руками": 5,
-  "заяц палкой": 18,
+  "заяц палкой": 24,
   "волк": 6,
   "шатун": 3,
   "банка": 7,
@@ -183,39 +184,39 @@
   "ловушка: забрать улов": 9,
   "крафт": 11,
   "изба: стройка": 30,
-  "посёлок": 8,
-  "посёлок: стройка": 11,
+  "посёлок": 4,
+  "посёлок: стройка": 7,
   "посёлок: найм": 1,
   "пень → поросль": 2,
   "ствол заметает": 1,
   "лапник заметает": 1
  },
  "errors": [],
- "frames": 20769,
+ "frames": 21561,
  "events": {
-  "morph": 62,
-  "appear": 48,
-  "vanish": 36,
-  "inv": 60,
+  "morph": 68,
+  "appear": 105,
+  "vanish": 53,
+  "inv": 65,
   "jump": 2
  },
  "violations": [
   {
-   "key": "обрубка|lap|appear|js/actions.js:164",
+   "key": "обрубка|chunk|appear|js/tree3d.js:172",
    "sc": "обрубка",
-   "cat": "lap",
+   "cat": "chunk",
    "ev": "appear",
    "from": "—",
-   "to": "лапник",
-   "t": 6.33,
+   "to": "чурка",
+   "t": 6.83,
    "at": [
-    "js/actions.js:164 ← js/actions.js:170 ← js/actions.js:440"
+    "js/tree3d.js:172 ← js/tree3d.js:190 ← js/actions.js:446"
    ],
    "why": [
-    "C3 появился сразу целым (нет анимации появления, не из руки)"
+    "C2 нет контакта с «buck»: инструмент в 63 px"
    ],
-   "act": "buck@0.80, buck@0.00",
-   "n": 6,
+   "act": "buck@0.80",
+   "n": 22,
    "pri": 1
   },
   {
@@ -225,9 +226,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 meat",
-   "t": 58.75,
+   "t": 71.98,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:351 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:372 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -237,33 +238,15 @@
    "pri": 1
   },
   {
-   "key": "обрубка|chunk|appear|js/actions.js:449",
-   "sc": "обрубка",
-   "cat": "chunk",
-   "ev": "appear",
-   "from": "—",
-   "to": "чурка",
-   "t": 8.32,
-   "at": [
-    "js/actions.js:449 ← js/actions.js:525 ← js/game.js:51"
-   ],
-   "why": [
-    "C2 нет контакта с «buck»: инструмент в 102 px"
-   ],
-   "act": "buck@0.80",
-   "n": 1,
-   "pri": 1
-  },
-  {
-   "key": "заяц руками|hare|vanish|js/actions.js:350",
+   "key": "заяц руками|hare|vanish|js/actions.js:371",
    "sc": "заяц руками",
    "cat": "hare",
    "ev": "vanish",
    "from": "заяц",
    "to": "—",
-   "t": 58.75,
+   "t": 71.98,
    "at": [
-    "js/actions.js:350 ← js/actions.js:328"
+    "js/actions.js:371 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3",
@@ -280,7 +263,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:hare",
-   "t": 59.23,
+   "t": 72.47,
    "at": [
     "p.action (take)"
    ],
@@ -298,7 +281,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:can",
-   "t": 80.55,
+   "t": 93.78,
    "at": [
     "p.action (eat)"
    ],
@@ -316,9 +299,9 @@
    "ev": "inv",
    "from": "2",
    "to": "-1 can",
-   "t": 80.55,
+   "t": 93.78,
    "at": [
-    "js/inventory.js:11 ← js/actions.js:1062"
+    "js/inventory.js:11 ← js/actions.js:1141"
    ],
    "why": [
     "C1 действие «eat» шло 0.02 с < 0.3"
@@ -328,15 +311,15 @@
    "pri": 1
   },
   {
-   "key": "банка|litter|vanish|js/actions.js:378",
+   "key": "банка|litter|vanish|js/actions.js:399",
    "sc": "банка",
    "cat": "litter",
    "ev": "vanish",
    "from": "банка",
    "to": "—",
-   "t": 83.58,
+   "t": 96.82,
    "at": [
-    "js/actions.js:378 ← js/actions.js:328"
+    "js/actions.js:399 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3",
@@ -353,7 +336,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:canE",
-   "t": 84.07,
+   "t": 97.3,
    "at": [
     "p.action (take)"
    ],
@@ -371,9 +354,9 @@
    "ev": "inv",
    "from": "1",
    "to": "+1 hare",
-   "t": 62.4,
+   "t": 75.63,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:608 ← js/actions.js:600"
+    "js/inventory.js:7 ← js/actions.js:681 ← js/actions.js:652"
    ],
    "why": [
     "C3 «hare» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
@@ -383,15 +366,33 @@
    "pri": 2
   },
   {
-   "key": "заяц палкой|hare|vanish|js/actions.js:608",
+   "key": "заяц палкой|litter|appear|js/actions.js:661",
+   "sc": "заяц палкой",
+   "cat": "litter",
+   "ev": "appear",
+   "from": "—",
+   "to": "палка",
+   "t": 75.63,
+   "at": [
+    "js/actions.js:661 ← js/actions.js:688 ← js/actions.js:652"
+   ],
+   "why": [
+    "C3 появился сразу целым (нет анимации появления, предшественник: hare (заяц), не из руки)"
+   ],
+   "act": "throw@0.65",
+   "n": 6,
+   "pri": 2
+  },
+  {
+   "key": "заяц палкой|hare|vanish|js/actions.js:681",
    "sc": "заяц палкой",
    "cat": "hare",
    "ev": "vanish",
    "from": "заяц",
    "to": "—",
-   "t": 62.4,
+   "t": 75.63,
    "at": [
-    "js/actions.js:608 ← js/actions.js:600 ← js/actions.js:529"
+    "js/actions.js:681 ← js/actions.js:652 ← js/actions.js:567"
    ],
    "why": [
     "C3 исчез «заяц» без передачи в руку/преемника (через 0.2 с в руке: пусто)"
@@ -407,9 +408,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+3 fish",
-   "t": 181.05,
+   "t": 194.28,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:778"
+    "js/inventory.js:7 ← js/actions.js:857"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)"
@@ -425,9 +426,9 @@
    "ev": "jump",
    "from": "5100,5970",
    "to": "+37 px",
-   "t": 71.48,
+   "t": 84.72,
    "at": [
-    "js/wolves.js:25 ← js/actions.js:347 ← js/actions.js:328"
+    "js/wolves.js:25 ← js/actions.js:368 ← js/actions.js:349"
    ],
    "why": [
     "C3 скачок +37 px за кадр"
@@ -443,9 +444,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 wpelt",
-   "t": 72.68,
+   "t": 85.92,
    "at": [
-    "js/inventory.js:7 ← js/wolves.js:31 ← js/actions.js:347"
+    "js/inventory.js:7 ← js/wolves.js:31 ← js/actions.js:368"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)"
@@ -461,9 +462,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 meat",
-   "t": 202.07,
+   "t": 215.27,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:392 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:413 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -479,9 +480,9 @@
    "ev": "appear",
    "from": "—",
    "to": "туша:wolf",
-   "t": 72.68,
+   "t": 85.92,
    "at": [
-    "js/fx.js:20 ← js/wolves.js:30 ← js/actions.js:347"
+    "js/fx.js:20 ← js/wolves.js:30 ← js/actions.js:368"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -498,9 +499,9 @@
    "ev": "vanish",
    "from": "волк",
    "to": "—",
-   "t": 72.68,
+   "t": 85.92,
    "at": [
-    "js/wolves.js:30 ← js/actions.js:347 ← js/actions.js:328"
+    "js/wolves.js:30 ← js/actions.js:368 ← js/actions.js:349"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -511,15 +512,15 @@
    "pri": 2
   },
   {
-   "key": "ловушка: забрать улов|trap|morph|js/actions.js:393",
+   "key": "ловушка: забрать улов|trap|morph|js/actions.js:414",
    "sc": "ловушка: забрать улов",
    "cat": "trap",
    "ev": "morph",
    "from": "snare:hare",
    "to": "snare:пусто",
-   "t": 202.07,
+   "t": 215.27,
    "at": [
-    "js/actions.js:393 ← js/actions.js:328"
+    "js/actions.js:414 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -535,7 +536,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:hare",
-   "t": 202.55,
+   "t": 215.75,
    "at": [
     "p.action (take)"
    ],
@@ -547,52 +548,15 @@
    "pri": 2
   },
   {
-   "key": "посёлок|lap|appear|js/gfx.js:565",
-   "sc": "посёлок",
-   "cat": "lap",
-   "ev": "appear",
-   "from": "—",
-   "to": "лапник",
-   "t": 283.03,
-   "at": [
-    "js/gfx.js:565 ← js/interact.js:106 ← js/colony.js:179"
-   ],
-   "why": [
-    "C2 нет контакта с «работа:chop»: инструмент в 102 px",
-    "C3 появился сразу целым (нет анимации появления, предшественник: tree (стоит w1), не из руки)"
-   ],
-   "act": "работа:chop@7.20",
-   "n": 4,
-   "pri": 3
-  },
-  {
-   "key": "посёлок: стройка|lap|appear|js/gfx.js:565",
-   "sc": "посёлок: стройка",
-   "cat": "lap",
-   "ev": "appear",
-   "from": "—",
-   "to": "лапник",
-   "t": 306.3,
-   "at": [
-    "js/gfx.js:565 ← js/interact.js:106 ← js/colony.js:179"
-   ],
-   "why": [
-    "C3 появился сразу целым (нет анимации появления, предшественник: tree (стоит w1), не из руки)"
-   ],
-   "act": "работа:chop@7.20",
-   "n": 4,
-   "pri": 3
-  },
-  {
    "key": "шатун|corpse|appear|js/fx.js:20",
    "sc": "шатун",
    "cat": "corpse",
    "ev": "appear",
    "from": "—",
    "to": "туша:bear",
-   "t": 76.92,
+   "t": 90.15,
    "at": [
-    "js/fx.js:20 ← js/bear.js:15 ← js/actions.js:348"
+    "js/fx.js:20 ← js/bear.js:15 ← js/actions.js:369"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -609,9 +573,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+4 meat",
-   "t": 76.92,
+   "t": 90.15,
    "at": [
-    "js/inventory.js:7 ← js/bear.js:15 ← js/actions.js:348"
+    "js/inventory.js:7 ← js/bear.js:15 ← js/actions.js:369"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)"
@@ -627,9 +591,9 @@
    "ev": "vanish",
    "from": "шатун",
    "to": "—",
-   "t": 76.92,
+   "t": 90.15,
    "at": [
-    "js/bear.js:15 ← js/actions.js:348 ← js/actions.js:328"
+    "js/bear.js:15 ← js/actions.js:369 ← js/actions.js:349"
    ],
    "why": [
     "C1 нет исполнителя (ни действия героя, ни работы людей)",
@@ -646,7 +610,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:amulet",
-   "t": 88.12,
+   "t": 101.35,
    "at": [
     "p.action (take)"
    ],
@@ -664,9 +628,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 tube",
-   "t": 90.67,
+   "t": 103.9,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:406 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:427 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -682,7 +646,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:tube",
-   "t": 91.15,
+   "t": 104.38,
    "at": [
     "p.action (take)"
    ],
@@ -700,9 +664,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+2 meat",
-   "t": 105,
+   "t": 118.23,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:356 ← js/actions.js:328"
+    "js/inventory.js:7 ← js/actions.js:377 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3"
@@ -712,15 +676,15 @@
    "pri": 3
   },
   {
-   "key": "лабаз|labaz|vanish|js/actions.js:356",
+   "key": "лабаз|labaz|vanish|js/actions.js:377",
    "sc": "лабаз",
    "cat": "labaz",
    "ev": "vanish",
    "from": "мясо на лабазе",
    "to": "—",
-   "t": 105,
+   "t": 118.23,
    "at": [
-    "js/actions.js:356 ← js/actions.js:328"
+    "js/actions.js:377 ← js/actions.js:349"
    ],
    "why": [
     "C1 действие «take» шло 0.02 с < 0.3",
@@ -737,7 +701,7 @@
    "ev": "appear",
    "from": "—",
    "to": "в руке:meat",
-   "t": 105.48,
+   "t": 118.72,
    "at": [
     "p.action (take)"
    ],
@@ -755,9 +719,9 @@
    "ev": "inv",
    "from": "0",
    "to": "+1 scrap",
-   "t": 118.52,
+   "t": 131.75,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:470 ← js/actions.js:525"
+    "js/inventory.js:7 ← js/actions.js:508 ← js/actions.js:563"
    ],
    "why": [
     "C3 «scrap» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
@@ -773,9 +737,9 @@
    "ev": "inv",
    "from": "3",
    "to": "+1 wood",
-   "t": 124.77,
+   "t": 138,
    "at": [
-    "js/inventory.js:7 ← js/actions.js:738 ← js/actions.js:491"
+    "js/inventory.js:7 ← js/actions.js:817 ← js/actions.js:529"
    ],
    "why": [
     "C3 «wood» попал в рюкзак, ни разу не показавшись в руке (±0.5 с)"
