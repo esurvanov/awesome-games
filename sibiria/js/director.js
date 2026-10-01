@@ -6,6 +6,13 @@
 // и после боя (padT). Весь цикл ровно ×K, появления в те же игровые часы — разведчиков и стай за ночь как при часе 20 с.
 const Director = (() => {
   const D0 = TUNE.director, K = TUNE.time.k;
+  // свои кости (G.D.rs, от G.seed): паузы и направления угроз не зависят от того, сколько раз игра бросила Math.random на
+  // брызги снега, искры, звук — при том же сиде темп k = 1 и k = 3 бросает одно и то же (сейв хранит rs — продолжение то же)
+  function roll() {
+    const D = G.D; if (D.rs == null) D.rs = ((G.seed | 0) ^ 0x5EED1E) | 0;
+    const s = D.rs = (D.rs + 0x6D2B79F5) | 0; let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
   // «далеко от укрытия»: изба или готовое укрытие посёлка дальше TUNE.r.farHome (на большой карте — не «от избы»)
   function farFromShelter() {
     const p = G.p, R2 = TUNE.r.farHome * TUNE.r.farHome;
@@ -30,10 +37,10 @@ const Director = (() => {
         if (!isNight || (p.sleeping && G.hut.door)) break;
         // задание деда «вожак»: вожак приходит сам, пока не отогнан
         if (G.urk.wolfQuest && !G.flags.leaderDone && !G.pack && !storm && G.fired.E5 && D.budget >= D0.cost.pack && !D.queued) {
-          D.dir = Math.random() * Math.PI * 2; howlFrom(D.dir, TUNE.wolf.leaderD, 0.22); Fx.toast(':wolf: Вожак с рваным ухом близко'); Wolves.spawnPack(3, true); D.budget -= D0.cost.pack; D.phase = 'peak'; break;
+          D.dir = roll() * Math.PI * 2; howlFrom(D.dir, TUNE.wolf.leaderD, 0.22); Fx.toast(':wolf: Вожак с рваным ухом близко'); Wolves.spawnPack(3, true); D.budget -= D0.cost.pack; D.phase = 'peak'; break;
         }
         if (!D.queued) D.queued = pick(ch, storm);
-        if (D.queued && D.omenT === 0) { D.dir = Math.random() * Math.PI * 2; D.omenAt = D.queued === 'pack' ? D0.omenPack : D0.omenScout; D.omenT = D.omenAt * K; if (K === 1) { omen(D.queued); D.omenAt = 0; } }
+        if (D.queued && D.omenT === 0) { D.dir = roll() * Math.PI * 2; D.omenAt = D.queued === 'pack' ? D0.omenPack : D0.omenScout; D.omenT = D.omenAt * K; if (K === 1) { omen(D.queued); D.omenAt = 0; } }
         else if (D.queued && D.omenT > 0) {
           D.omenT -= dt;
           if (D.omenAt > 0 && D.omenT <= D.omenAt) { omen(D.queued); D.omenAt = 0; } // вой — за omenAt реальных с до прихода
@@ -47,7 +54,7 @@ const Director = (() => {
           }
         }
         break;
-      case 'peak': if (G.wolves.length === 0 || D.tension > D0.peakOut) { relax(rnd(D0.calm[0], D0.calm[1])); } break;
+      case 'peak': if (G.wolves.length === 0 || D.tension > D0.peakOut) { relax(D0.calm[0] + roll() * (D0.calm[1] - D0.calm[0])); } break;
       case 'relax': D.calmT -= dt; if (D.calmT <= 0) D.phase = 'build'; break;
     }
   }
@@ -70,5 +77,5 @@ const Director = (() => {
       for (let i = -6; i < 6; i++) Fx.print(p.x + Math.cos(a) * 180 + Math.cos(a + 1.57) * i * 26, p.y + Math.sin(a) * 180 + Math.sin(a + 1.57) * i * 26, a + 1.57, 'w');
     }
   }
-  return { tick, pick, omen, farFromShelter };
+  return { tick, pick, omen, farFromShelter, roll };
 })();
