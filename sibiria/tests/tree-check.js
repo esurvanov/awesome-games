@@ -37,11 +37,7 @@ var TreeCheck = (() => {
     G.s.hp = G.s.food = G.s.warm = 100; G.s.tire = 0; G.logs = []; G.chunks = []; G.lap = []; G.inv.wood = 0; G.hand = { p: [], t: null }; Hero.bodyReset();
   }
   // почти дорублено: подруб готов, задний рез — до последнего удара (как после N−1 ударов)
-  function nearDone(t, d) {
-    const c = Actions.cutOf(t, true); if (d != null) c.d = d;
-    const goal = 1 - Actions.CHOP.nq - Actions.CHOP.hinge; c.h = c.N - 1; c.nq = Actions.CHOP.nq; c.bq = +(goal * (c.N - 1 - c.nN) / (c.N - c.nN)).toFixed(4); t.wood = World.wood0(t) / c.N;
-    return c;
-  }
+  function nearDone(t, d) { return Actions.prepCut(t, d); }
   // последний удар: герой у своей точки (задний рез), E — удар в касание топора, ель повалилась
   // площадка уже утоптана (проверка площадки — отдельно, §11)
   function tramp(t) { for (let k = 0; k < 6; k++) for (let i = 0; i < 12; i++) { const f = i / 12 * Math.PI * 2; Trail.stamp(t.x + Math.cos(f) * 26, t.y + 3 + Math.sin(f) * 18, { a: 0.9, r: 16 }); } }

@@ -171,6 +171,8 @@ const Actions = (() => {
     t.wood = c.h >= c.N ? 0 : +(World.wood0(t) * (1 - c.h / c.N)).toFixed(4);
   }
   const phaseOf = c => (c.h < c.nN ? 'n' : 'b');   // подруб / задний рез
+  // для проверок и сценариев: рубка начата в сторону d и доведена до h ударов (по умолчанию — до последнего)
+  function prepCut(t, d, h) { delete t.cut; t.wood = World.wood0(t); const c = cutOf(t, true); if (d != null) c.d = +d.toFixed(3); const n = h == null ? c.N - 1 : Math.min(h, c.N - 1); while (c.h < n) cutStep(t, c, 0); return c; }
   // где стоять: подруб — сбоку от линии падения (сторона sd), задний рез — сзади-сбоку (обошёл ствол)
   function chopSpot(t) {
     const c = cutOf(t), p = G.p;
@@ -450,14 +452,14 @@ const Actions = (() => {
     for (let j = 0; j < a.ids.length; j++) {
       const q = (G.chunks || []).find(c => c.id === a.ids[j]); if (!q) continue;
       const u = last ? 1 : clamp((a.t - j * RAKE_T) / 0.45, 0, 1); if (u <= 0) continue;
-      if (!q.rk) q.rk = { x0: q.x, y0: q.y };
+      if (!q.rk) q.rk = { x0: q.x, y0: q.y }; q.rk.u = +u.toFixed(3);   // u — доехала до кучи (1 — легла в неё)
       const e = u * u * (3 - 2 * u); q.x = Math.round(q.rk.x0 + (a.at.x - q.rk.x0) * e); q.y = Math.round(q.rk.y0 + (a.at.y - q.rk.y0) * e);
       if (u >= 1) toPile(a, q);
     }
   }
   function toPile(a, q) {
     let pl = a.pid != null ? (G.chunks || []).find(c => c.id === a.pid) : null;
-    if (!pl) { pl = { kind: 'pile', tk: q.tk, sk: q.sk, k: q.k, n: 0, mass: 0, vol: 0, bulk: 0, len: 0.8, diam: 0.5, x: a.at.x, y: a.at.y, ang: +(((a.at.x * 7.3 + a.at.y * 3.1) % 6.28)).toFixed(2), t: G.time, src: q.src, id: (G.partN = (G.partN || 0) + 1) }; G.chunks.push(pl); a.pid = pl.id; }
+    if (!pl) { pl = { kind: 'pile', tk: q.tk, sk: q.sk, k: q.k, n: 0, mass: 0, vol: 0, bulk: 0, len: 0.8, diam: 0.5, x: a.at.x, y: a.at.y, fx: a.at.x, fy: a.at.y, ang: +(((a.at.x * 7.3 + a.at.y * 3.1) % 6.28)).toFixed(2), t: G.time, src: q.src, id: (G.partN = (G.partN || 0) + 1) }; G.chunks.push(pl); a.pid = pl.id; }
     pl.n++; pl.mass = +(pl.mass + q.mass).toFixed(4); pl.vol = +(pl.vol + (q.vol || 0)).toFixed(6); pl.bulk = +(pl.bulk + (q.bulk || 0)).toFixed(4);
     const i = G.chunks.indexOf(q); if (i >= 0) G.chunks.splice(i, 1);
     Sound.thud && Sound.thud(0.08, 0); if (!(window.QUALITY === 'low')) ArtWorld.fx.snowPuff(G.parts, a.at.x, a.at.y, 0.15);
@@ -1674,7 +1676,7 @@ const Actions = (() => {
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession,
     nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
     fell, iceHit, knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, logCut, logSnow, falling, danger, inPath, chopSpot, atTrunk, FELL, get plate() { return PLATE; },
-    CHOP, cutOf, hitsFor, leanOf, trampleNeed, spotAt, PILE_KG, pileNear, boughsNear,
+    CHOP, cutOf, prepCut, hitsFor, leanOf, trampleNeed, spotAt, PILE_KG, pileNear, boughsNear,
     hutLeft, HUTO, CAN_LIFE, inView, walkTo: autoTo, get stoveDoor() { return stoveDoor; }, useWood, woodHave, strike, eatHand, dropStick, handsBusy,
     jobs: { job, JOB, jobAt, abort, faceTo, work },
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),

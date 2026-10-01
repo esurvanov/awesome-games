@@ -864,8 +864,8 @@ const Tree = (() => {
     for (let j = 0; j < np; j++) {
       const u = 0.1 + j / (np - 1) * 0.82, rt = AX(u), env = Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.08)), 0.65) * (1 - 0.35 * u), ls = L * fw * env + 0.02;
       for (const s of [1, -1]) {
-        const be = 0.95 + (hh(sd0, j * 2 + (s > 0 ? 1 : 0)) - 0.5) * 0.35, ga = 0.35 + 0.35 * hh(sd0, j * 2 + 40 + (s > 0 ? 1 : 0)), hd = [e[0] * Math.cos(be) + n[0] * s * Math.sin(be), e[1] * Math.cos(be) + n[1] * s * Math.sin(be)];
-        SH_.push({ u, s, rt, ls, hd, tg: Math.tan(ga) * ke + (1 - ke) * 0.1, d: 0.8 * (rt[1] + hd[1] * ls * 0.5) + 0.6 * rt[2], lit: 0.5 + 0.5 * (-0.35 * s * (n[0] * LD[0] + n[1] * LD[1]) + 0.94 * LD[2]) });
+        const be = 1.12 + (hh(sd0, j * 2 + (s > 0 ? 1 : 0)) - 0.5) * 0.35, ga = 0.35 + 0.35 * hh(sd0, j * 2 + 40 + (s > 0 ? 1 : 0)), hd = [e[0] * Math.cos(be) + n[0] * s * Math.sin(be), e[1] * Math.cos(be) + n[1] * s * Math.sin(be)];
+        SH_.push({ u, s, rt, ls: ls * (j % 2 ? 0.85 : 1), hd, up: !(j % 2), tg: Math.tan(ga) * ke + (1 - ke) * 0.1, d: 0.8 * (rt[1] + hd[1] * ls * 0.5) + 0.6 * rt[2], lit: 0.5 + 0.5 * (-0.35 * s * (n[0] * LD[0] + n[1] * LD[1]) + 0.94 * LD[2]) });
       }
     }
     const col = (k2, alt) => (SC ? (alt ? SP.ink : SP.pine) : tone(P.ndl, k2));
@@ -888,13 +888,15 @@ const Tree = (() => {
       }
       const r = q.rt; if (r[2] < -0.01) continue;
       // центральная линия побега: подъём γ у оси, дальше дугой к снегу; уходит под снег — режем по линии снега
-      const zt = t => r[2] * (1 - Math.pow(t, 1.4)) + q.ls * q.tg * t * (1 - t) * 0.95 - 0.03 * t;
+      // верхний ярус — вверх-вбок и лежит на нижних (кончик над снегом), нижний — дугой в снег (срез линией снега)
+      const zE = q.up ? Math.max(0.03, r[2] * 0.35) : -0.03, zt = t => r[2] + (zE - r[2]) * Math.pow(t, q.up ? 1.5 : 1.7) + q.ls * q.tg * t * (1 - t) * (q.up ? 0.9 : 0.6);
       let tEnd = 1; for (let i = 1; i <= 8; i++) { const t = i / 8; if (zt(t) < 0) { const t0 = (i - 1) / 8, z0 = zt(t0), z1 = zt(t); tEnd = t0 + (t - t0) * z0 / ((z0 - z1) || 1); break; } }
       if (tEnd < 0.12) continue;
-      const pp = [-q.hd[1], q.hd[0]], wd = t => (0.03 + 0.06 * q.ls) * (1 - 0.6 * t) * (t < 0.08 ? 0.5 + t / 0.16 : 1), pt = (t, sgn) => { const w = wd(t) * sgn; PX(r[0] + q.hd[0] * q.ls * t + pp[0] * w, r[1] + q.hd[1] * q.ls * t + pp[1] * w, Math.max(0, zt(t) + Math.abs(w) * 0.25)); };
-      g.beginPath(); for (let i = 0; i <= NS; i++) { const t = tEnd * i / NS; pt(t, 1); if (i) g.lineTo(SX, SY); else g.moveTo(SX, SY); }
-      for (let i = NS; i >= 0; i--) { pt(tEnd * i / NS, -1); g.lineTo(SX, SY); }
-      g.closePath(); g.fillStyle = col(0.14 + 0.5 * q.lit * q.lit, q.lit < 0.5); g.fill();
+      const pp = [-q.hd[1], q.hd[0]], wd = t => (0.035 + 0.08 * q.ls) * (1 - 0.6 * t) * (t < 0.08 ? 0.5 + t / 0.16 : 1), pt = (t, sgn) => { const w = wd(t) * sgn; PX(r[0] + q.hd[0] * q.ls * t + pp[0] * w, r[1] + q.hd[1] * q.ls * t + pp[1] * w, Math.max(0, zt(t) + Math.abs(w) * 0.25)); };
+      const NZ = NS * 2, zz = i => (i % 2 && i < NZ ? 1 : 0.55);   // край побега зубцами (пучки хвои), не гладкий лист
+      g.beginPath(); for (let i = 0; i <= NZ; i++) { const t = tEnd * i / NZ; pt(t, zz(i)); if (i) g.lineTo(SX, SY); else g.moveTo(SX, SY); }
+      for (let i = NZ; i >= 0; i--) { pt(tEnd * i / NZ, -zz(i + 1)); g.lineTo(SX, SY); }
+      g.closePath(); g.fillStyle = col(q.up ? 0.16 + 0.55 * q.lit * q.lit : 0.08 + 0.3 * q.lit * q.lit, !q.up || q.lit < 0.5); g.fill();
       if (!lq && !SC) {   // «ёлочка»: тёмная жилка и светлые кончики хвоинок
         g.strokeStyle = tone(P.ndl, 0.05 + 0.1 * q.lit); g.lineWidth = lw; g.beginPath(); pt(0, 0); g.moveTo(SX, SY); pt(tEnd * 0.9, 0); g.lineTo(SX, SY);
         for (let i = 1; i < 4; i++) { const t = tEnd * i / 4; pt(t, 0); const x0 = SX, y0 = SY; pt(t + 0.08, 1); g.moveTo(x0, y0); g.lineTo(SX, SY); pt(t, 0); pt(t + 0.08, -1); g.moveTo(x0, y0); g.lineTo(SX, SY); }
@@ -917,7 +919,8 @@ const Tree = (() => {
     const az = p.az || defAz(p), L = b.len * p.k, fw = (S.P.fw || 0.36) * 1.15, sd0 = (b.sd || 1) | 0; let up = 0, n = 0;
     for (let j = 0; j < 7; j++) {
       const u = 0.1 + j / 6 * 0.82, z0 = zAx(az, u), ls = L * fw * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.08)), 0.65) * (1 - 0.35 * u) + 0.02;
-      for (const s of [1, -1]) { const tg = Math.tan(0.35 + 0.35 * hh(sd0, j * 2 + 40 + (s > 0 ? 1 : 0))); for (let i = 0; i <= 8; i++) { const t = i / 8, z = z0 * (1 - Math.pow(t, 1.4)) + ls * tg * t * (1 - t) * 0.95 - 0.03 * t; n++; if (z > 0.005) up++; } }
+      for (const s of [1, -1]) { const tg = Math.tan(0.35 + 0.35 * hh(sd0, j * 2 + 40 + (s > 0 ? 1 : 0))), U = !(j % 2), l2 = ls * (U ? 1 : 0.85), zE = U ? Math.max(0.03, z0 * 0.35) : -0.03;
+        for (let i = 0; i <= 8; i++) { const t = i / 8, z = z0 + (zE - z0) * Math.pow(t, U ? 1.5 : 1.7) + l2 * tg * t * (1 - t) * (U ? 0.9 : 0.6); n++; if (z > 0.005) up++; } }
     }
     return { mid: az[2], tip: az[4], base: az[0], above: up / n, bare: !!(S.P.bare || b.dead) };
   }

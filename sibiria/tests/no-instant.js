@@ -189,6 +189,7 @@ var NoInstant = (() => {
     fire: o => 0,
     hole: o => o.ice || 0,                                                 // js/art-world.js hole — выловленная лунка затягивается льдом
     litter: o => (G.time - o.t) / (CYCLE * Actions.CAN_LIFE),               // js/art-world.js emptyCan — банку присыпает и скрывает снег
+    chunk: o => (o.rk ? o.rk.u || 0 : 0),                                   // js/actions.js rake — ветвь доехала до кучи лапника (u = 1) и легла в неё
   };
 
   // ---------- состояние прогона ----------
@@ -423,9 +424,11 @@ var NoInstant = (() => {
     лес() {
       fresh('рубка', 3); G.gear.saw = 0;
       const t = nearTree(); rebase();
-      hold.act = true; run(40, () => { const L = (G.logs || []).find(q => q.x === t.x && q.y === t.y); return L && !L.f; });
+      // рубка по-настоящему (js/actions.js): площадка в сугробе, подруб, обход, задний рез, ель падает, герой отходит — потом к стволу
+      hold.act = true; run(70, () => { const L = (G.logs || []).find(q => (q.cx != null ? q.cx : q.x) === t.x && (q.cy != null ? q.cy : q.y) === t.y); return L && !L.f; });
       const L = (G.logs || [])[0];
-      phase('обрубка'); run(30, () => !L || Actions.logCut(L) >= 1);
+      if (L) { hold.act = false; run(1); const e = Actions.logEnd(L, 0.25); at(e.x - Math.sin(L.a) * 26, e.y + Math.cos(L.a) * 16); rebase(); hold.act = true; }
+      phase('обрубка'); run(150, () => !L || (Actions.logCut(L) >= 1 && L.top));
       phase('разделка'); run(80, () => !L || L.n <= 0); hold.act = false; run(1);
       // охапка: удержание E — в руки до полной; X — на снег по одной; две мелких — в рюкзак (снять/уложить/затянуть);
       // с нартами удержание E набирает охапку и укладывает её на нарты; у избы — нарты → поленница
@@ -434,9 +437,11 @@ var NoInstant = (() => {
       phase('в рюкзак'); { const sm = (G.chunks || []).filter(c => Tree.isWood(c) && c.mass <= TUNE.load.packWoodKg && dist2(c, P()) < 200 * 200).sort((a, b) => a.mass - b.mass).slice(0, 2);
         for (const q of sm) { at(q.x - 20, q.y, 1); rebase(); trace('pick'); Carry.pick('part', q, []); run(2, () => !P().action); }
         trace('E:' + (Actions.context() || {}).what); E(); run(6, () => !P().action); run(0.3); }
-      phase('на нарты'); { G.gear.sled = 1; const q = (G.chunks || []).find(c => Tree.isWood(c)); if (q) at(q.x - 20, q.y, 1); P().sx = P().x - 30; P().sy = P().y + 4; rebase(); hold.act = true; run(14, () => !(G.chunks || []).some(c => Tree.isWood(c) && dist2(c, P()) < 60 * 60) && !Carry.busy() && !P().action); hold.act = false; run(0.4); if (Carry.busy()) { E(); run(8, () => !P().action); } run(0.3); }
+      phase('на нарты'); { G.gear.sled = 1; const q = (G.chunks || []).find(c => Tree.isWood(c)); if (q) at(q.x - 20, q.y, 1); P().sx = P().x - 30; P().sy = P().y + 4; rebase(); hold.act = true; run(30, () => !(G.chunks || []).some(c => Tree.isWood(c) && dist2(c, P()) < 60 * 60) && !Carry.busy() && !P().action); hold.act = false; run(0.4); if (Carry.busy()) { E(); run(8, () => !P().action); } run(0.3); }
       phase('нарты → поленница'); { const q = Carry.PILE(); at(q.x - 26, q.y + 16, 1); P().sx = P().x - 30; P().sy = P().y + 6; rebase(); E(); run(40, () => !P().action && !(G.sled.wood > 0)); run(0.5); }
       phase('отдых на пне'); { const p = P(); at(t.x + 30, t.y + 2, -1); rebase(); E(); run(2.5); hold.mx = 1; run(0.5); hold.mx = 0; run(1); }
+      // лапник: сгрести в кучу по одной ветви (куча растёт, ветвь — «в преемника»), кучу — охапкой в руки
+      phase('лапник в кучу'); { const b = (G.chunks || []).find(q => q.kind === 'bough'); if (b) { at(b.x + 18, b.y + 10, -1); rebase(); hold.act = true; run(25, () => { const c = Actions.context(); return !c || c.k !== 'rake'; }); hold.act = false; run(1); E(); run(4, () => !P().action); run(0.5); } }
     },
     звери() {
       fresh('заяц руками', 5);
@@ -558,7 +563,7 @@ if (typeof window === 'undefined' && typeof require === 'function') {
   const arg = k => { const a = process.argv.find(s => s.startsWith('--' + k)); return a ? (a.includes('=') ? a.split('=')[1] : true) : null; };
   const strict = !!arg('strict'), fast = !!arg('fast'), only = arg('only');
   // приоритет: что игрок заметит первым — частые действия у героя под носом
-  const PRI = { 'рубка': 1, 'обрубка': 1, 'разделка': 1, 'подбор чурок': 1, 'костёр': 1, 'заяц руками': 1, 'банка': 1, 'печь': 1,
+  const PRI = { 'рубка': 1, 'обрубка': 1, 'разделка': 1, 'подбор чурок': 1, 'лапник в кучу': 1, 'костёр': 1, 'заяц руками': 1, 'банка': 1, 'печь': 1,
     'волк': 2, 'заяц палкой': 2, 'лунка': 2, 'рыбалка': 2, 'ловушка: поставить': 2, 'ловушка: забрать улов': 2, 'крафт': 2, 'изба: стройка': 2, 'сигнальная куча': 2, 'лопата': 2, 'тайник': 2, 'Буран': 2, 'отдых на пне': 2, 'сон': 2,
     'шатун': 3 };
   (async () => {

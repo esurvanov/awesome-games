@@ -84,7 +84,7 @@ var InteractMatrix = (() => {
   const holes = () => (G.iceHoles || []).length;
   // ---------- валка: настоящий конец рубки (Actions.finish → World.felled + fell), направление — от стороны героя ----------
   function fellTree(t, side, onFrame) {
-    const p = P(); t.nside = side; t.wood = 1; if (!p._keep) put(t.x + side * 22, t.y + 3);
+    const p = P(); Actions.prepCut(t, side > 0 ? Math.PI : 0); if (!p._keep) put(t.x + side * 22, t.y + 3);   // рубка по-настоящему (t.cut): остался последний удар, валится от героя
     const rnd0 = Math.random; Math.random = () => 0.5; // без «риска» и разброса: падает от зарубки ровно
     p.action = { k: 'chop', t: 0, dur: 0.05, o: t, pose: Hero.chopPose(), tg: { x: t.x, y: t.y }, th: -10 };
     const n0 = (G.logs || []).length; for (let i = 0; i < 10 && p.action && p.action.k === 'chop'; i++) frame(); Math.random = rnd0;

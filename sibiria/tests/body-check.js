@@ -33,6 +33,10 @@ var BodyCheck = (() => {
     walk: [() => { hold = 1; }, 0.3],
     act: [() => { P().action = { k: 'bctest', t: 0, dur: 1, pose: 'craft', loop: 1, fb: 'build' }; }, 0.3],
     chop: [() => { nearTree(); Actions.interact(); }, 0.4],
+    // рубка по-настоящему (js/actions.js): вытаптывает площадку по кругу, перекатывает ствол, отходит от падающей ели
+    trample: [() => { const t = nearTree(), p = P(); p.action = { k: 'trample', t: 0, dur: 6, o: t, pose: 'trample', loop: 1, per: 1.24, fb: 'trudge', a0: Math.atan2((p.y - t.y - 3) / 0.7, p.x - t.x), R: 30, x0: p.x, y0: p.y, st: 0, dir: 1 }; }, 0.4],
+    roll: [() => { const t = nearTree(), p = P(); t.wood = 0; World.felled(t); const L = Actions.fell(t); delete L.f; L.a = 0; p.x = L.x + 30; p.y = L.y + 16; Hero.snap(); p.action = { k: 'roll', t: 0, dur: 2.4, o: L, pose: 'rollLog', fb: 'pry', tg: { x: L.x + 30, y: L.y + 5 }, th: -4, r0: 0, r1: 1.5, x0: L.x, y0: L.y, sx: 0, sy: -2 }; }, 0.4],
+    backoff: [() => { const p = P(); p.backoff = now + 3; Actions.walkTo(p.x + 70, p.y + 20, 3, () => {}); }, 0.2],
     gesture: [() => Hero.play('lookAround'), 0.1],
     react: [() => Hero.play('pickUp', { react: 1, tg: { x: P().x + 20, y: P().y } }), 0.1],
     hurt: [() => { G.hurt = 1; }, 0.05],
