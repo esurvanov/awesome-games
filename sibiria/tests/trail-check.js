@@ -98,7 +98,8 @@ function page() {
   // ---------- 5. лопата ----------
   { fresh(11); const p = G.p, S = Trail.SHOVEL; put(S.x + 4, S.y + 22);
     const c = Actions.context(); ok(c && c.k === 'shovel', `🪏 у двери избы: E «${c && c.label}»`);
-    Actions.interact(); ok(!!G.gear.shovel && !Actions.context() || (Actions.context() || {}).k !== 'shovel', `🪏 лопата взята: снаряжение ${!!G.gear.shovel}, у двери больше не предлагается`);
+    Actions.interact(); for (let i = 0; i < 200 && G.p.action; i++) update(1 / 60);   // взять — жест ≈1,8 с: в руку, рассмотрел, за спину
+    ok(!!G.gear.shovel && !Actions.context() || (Actions.context() || {}).k !== 'shovel', `🪏 лопата взята: снаряжение ${!!G.gear.shovel}, у двери больше не предлагается`);
     for (const [nm, x, y] of [['у избы', HUT.x + 150, HUT_IN.y1 + 90], ['в тайге', q.x + 150, q.y]]) {
       put(x, y); p.face = 1; for (let i = 0; i < 10; i++) update(DT);
       const d0 = Depth.depthAt(x + 12, y + 3), c2 = Actions.context();

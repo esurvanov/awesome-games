@@ -384,14 +384,27 @@ const GFX = (() => {
     cx.fillStyle = '#c79a62'; cx.beginPath(); cx.moveTo(x, y - h); cx.lineTo(x - sd * d, y); cx.lineTo(x, y); cx.closePath(); cx.fill(); // верхняя грань темнее
     cx.fillStyle = '#d9bd8a'; for (let i = 0; i < Math.min(n, 5); i++) cx.fillRect(x + sd * (4 + i * 3.3), t.y + 2 + (i % 2) * 2, 2.2, 1.2); // щепа у комля
   }
+  // отрастание (World.regrowK): росток из пня в последней трети, деревце растёт и к концу «переходит» в ёлочку
+  // малого роста, взрослая дорастает (World.adultK) — ни одной смены вида скачком; GROWK — масштаб ёлки при перерисовке
+  let GROWK = 0;
   function drawTree(t, wind) {
-    if (t.wood <= 0) { CUT.delete(t); return ArtWorld.stump(cx, t.x, t.y, t.s, t.cutAt != null && G.time - t.cutAt < CYCLE * 0.6 ? clamp((G.time - t.cutAt) / (CYCLE * 0.6), 0, 1) : 1); } // свежий срез без снега, снег нарастает за ~0.6 суток
-    if (t.stage === 1) return ArtWorld.sapling(cx, t.x, t.y, t.s, t.v);
+    if (t.wood <= 0) {
+      CUT.delete(t); ArtWorld.stump(cx, t.x, t.y, t.s, t.cutAt != null && G.time - t.cutAt < CYCLE * 0.6 ? clamp((G.time - t.cutAt) / (CYCLE * 0.6), 0, 1) : 1); // свежий срез без снега, снег нарастает за ~0.6 суток
+      const k = t.cutAt != null ? World.regrowK(t) : 0; if (k > 0.65) ArtWorld.sapling(cx, t.x, t.y, t.s * 0.5 * (k - 0.65) / 0.35, t.v);
+      return;
+    }
+    if (t.stage === 1 && !GROWK) {
+      const k = World.regrowK(t), sa = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+      if (k < 0.3) { cx.globalAlpha = 1 - k / 0.3; ArtWorld.stump(cx, t.x, t.y, t.s, 1); cx.globalAlpha = 1; }
+      if (sa > 0.01) { cx.globalAlpha = sa; ArtWorld.sapling(cx, t.x, t.y, t.s * (0.5 + 0.5 * k), t.v); cx.globalAlpha = 1; }
+      if (k > 0.75) { GROWK = World.ADULT_K0 * (0.7 + 0.3 * (k - 0.75) / 0.25); cx.globalAlpha = (k - 0.75) / 0.25; drawTree(t, wind); cx.globalAlpha = 1; GROWK = 0; }
+      return;
+    }
     const g = gustAt(t.x, t.y), ph = t.x * 0.013 + t.y * 0.007;
     const sway = wind * 0.05 * (0.12 + 0.88 * g) * (0.75 + 0.25 * Math.sin(now * 1.7 + ph)) * ENV.wx + (t.shake > 0 ? Math.sin(now * 60) * t.shake * 0.25 : 0); // гнутся по ветру (ENV.wx — знак и доля x)
     const fl = wind * (0.3 + g) * 0.9 * Math.sin(now * 7.3 + ph * 5); // дрожь верхушки, px
     if (g > 0.75 && GUSTY.length < 8 && dist2(t, G.p) < 340 * 340) GUSTY.push(t);
-    const S = treeSprite(t, treeV(t)), tw = ArtWorld.treeW(t.kind), k = t.s / ArtWorld.treeK(t.s), kd = k * dpr * tjit(t);
+    const S = treeSprite(t, treeV(t)), tw = ArtWorld.treeW(t.kind), k = t.s / ArtWorld.treeK(t.s), kd = k * dpr * tjit(t) * (GROWK || (t.gAt != null ? World.adultK(t) : 1));
     const X = (t.x - cam.x + shx) * dpr, Y = (t.y - cam.y + shy) * dpr;
     if (window.QUALITY === 'low' || Math.abs(sway * 160) + Math.abs(fl) < 1.5) { // штиль: изгиб < 0.4 px от наклона — один drawImage
       cx.setTransform(kd, 0, -sway * kd, kd, X, Y); cx.drawImage(S, -tw / 2, -160, tw, 170); WT(); const c = CUT.get(t); if (c) drawCut(t, c); return;
@@ -589,14 +602,16 @@ const GFX = (() => {
 
   // ---------- изба: модели из art-world.js, здесь — только состояние ----------
   const ROOM = () => ({ x0: HUT_IN.x0, y0: HUT_IN.y0 - 44, x1: HUT_IN.x1, y1: HUT_IN.y1 + WALL });
-  const hutH = () => ({ x: HUT.x, y: HUT.y, in: HUT_IN, wall: WALL, doorW: DOOR_W, walls: G.hut.walls, door: G.hut.door, bench: G.hut.bench, damper: G.hut.damper,
+  // щели: уровень 0..5 (конопатят шов за швом — G.hut.prog.walls), дверь собирают по доскам (doorP)
+  const hutP = k => (G.hut.prog && G.hut.prog[k]) || 0;
+  const hutH = () => ({ x: HUT.x, y: HUT.y, in: HUT_IN, wall: WALL, doorW: DOOR_W, walls: G.hut.walls, wallsLvl: Math.floor(hutP('walls') * 5 + 1e-6), door: G.hut.door, doorP: hutP('door'), bench: G.hut.bench, damper: G.hut.damper,
     radio: G.flags.radioBuilt, fuel: G.hut.fuel, open: dist2(G.p, { x: HUT.x, y: HUT_IN.y1 + WALL - 6 }) < 40 * 40, cut: 1 - roofA });
   function drawHutFloor() { ArtWorld.hutFloor(cx, hutH()); }
   function drawNorthWall() { ArtWorld.hutNorth(cx, hutH()); }
   function drawStove() {
     const s = SPOT.stove;
     // свет печи обрезан по комнате (L6): сквозь стены на снег не выходит
-    ArtWorld.hutStove(cx, s.x, s.y, { fuel: G.hut.fuel, damper: G.hut.damper, pipeTop: HUT.y - 150, lightK: 1 - roofA, room: ROOM() }, ENV);
+    ArtWorld.hutStove(cx, s.x, s.y, { fuel: G.hut.fuel, fl: G.hut.fl, door: Actions.stoveDoor, damper: G.hut.damper, damperP: G.hut.prog && G.hut.prog.damper, pipeTop: HUT.y - 150, lightK: 1 - roofA, room: ROOM() }, ENV);
     if (G.charge > 0 && !G.flags.radioBuilt && (G.chest.battery || (G.p.inside && G.inv.battery))) {
       // заряд аккумулятора: корпус №5, клемма №21, шкала №24
       const bx = s.x + 22, by = s.y - 16;
@@ -604,7 +619,7 @@ const GFX = (() => {
       rr(bx + 2, by + 2, 12 * G.charge / 100, 6, 1, '#9fe36b');
     }
   }
-  function drawBench() { const b = SPOT.bench; ArtWorld.hutBench(cx, b.x, b.y, { bench: G.hut.bench, radio: G.flags.radioBuilt }, ENV); }
+  function drawBench() { const b = SPOT.bench; ArtWorld.hutBench(cx, b.x, b.y, { bench: G.hut.bench, prog: hutP('bench'), radio: G.flags.radioBuilt }, ENV); }
   function drawChest() { const c = SPOT.chest; ArtWorld.hutChest(cx, c.x, c.y, UI.kind === 'chest' || now - (OPEN.get(SPOT.chest) || -9) < 1.2); } // крышка открыта, пока роется
   function drawBed() { const b = SPOT.bed; ArtWorld.hutBed(cx, b.x, b.y); }
   function drawSouthWall() { ArtWorld.hutFront(cx, hutH(), ENV); if (typeof Trail !== 'undefined') Trail.drawShovel(cx, roofA * 0.82 + 0.18); } // лопата у двери (пока не взяли)
@@ -818,7 +833,7 @@ const GFX = (() => {
     if (fl > 0) light(f.x, f.y - 10, 120 * (1 + 0.3 * fl), 'f', 0.35 * fl);
     if (fl > 0) ENV.spark(f.x + Math.sin(now * 9) * 4, f.y - 8, 0.5 * fl);
   }
-  function drawStack(s) { ArtWorld.stack(cx, s, ENV); if (s.lit > 0) light(s.x, s.y - 20, 380, 'w', 1); } // счётчик «x/4» — точками в самой модели
+  function drawStack(s) { ArtWorld.stack(cx, s, ENV); const fl = s.fl == null ? (s.lit > 0 ? 1 : 0) : s.fl; if (fl > 0.02) light(s.x, s.y - 20, 380 * (0.3 + 0.7 * fl), 'w', fl); } // счётчик «x/4» — точками в самой модели
   function drawNote(id) {
     const n = NOTES[id];
     if (id === 'labaz' && G.labaz) return;
@@ -833,6 +848,7 @@ const GFX = (() => {
   }
   function drawTrap(t) { ArtWorld.trap(cx, t); if (t.catch) mark('paw', t.x, t.y - 20, 13); }
   function drawStash(s) {
+    if (s.dg != null && s.dg < 1) return ArtWorld.stashPit(cx, s.x, s.y, s.dg);   // яму ещё копают
     const k = (now - (OPEN.get(s) || -9)) / 0.45, full = Object.values(s.inv || {}).some(n => n > 0);
     if (k < 0 || k >= 1) return ArtWorld.stashPile(cx, s.x, s.y, full);
     const u = Math.sin(k * Math.PI); // открыли: ветки/крышка приподнялись и легли
@@ -861,7 +877,7 @@ const GFX = (() => {
     }
     if (!G.flags.tube || Actions.grabbing(TUBE_POS)) { ArtWorld.tube(cx, TUBE_POS.x, TUBE_POS.y + 2); EYES.push({ x: TUBE_POS.x, y: TUBE_POS.y - 2, spark: 0.5 + Math.sin(now * 5) * 0.5 }); }
     const near = (x, y, mx, my = mx) => x > cam.x - mx && x < cam.x + vw + mx && y > cam.y - my && y < cam.y + vh + my;
-    for (const h of G.holes) if (near(h.x, h.y, 30)) ArtWorld.hole(cx, h.x, h.y);
+    for (const h of G.holes) if (near(h.x, h.y, 30)) ArtWorld.hole(cx, h.x, h.y, h.dg == null ? 1 : h.dg, h.ice || 0);
     // пятна и следы
     for (const d of G.decals || []) if (near(d.x, d.y, 60)) ArtWorld.decal(cx, d);
     for (const f of G.prints) if (near(f.x, f.y, 40)) ArtWorld.print(cx, f);
@@ -880,7 +896,8 @@ const GFX = (() => {
     // чурка отваливается от ствола и откатывается (fx,fy — где отрезана, 0.45 с)
     for (const c of G.chunks || []) if (near(c.x, c.y, 30)) { const e = c.fx != null ? clamp((G.time - c.t) / 0.45, 0, 1) : 1, k = 1 - (1 - e) * (1 - e);
       if (e >= 1) ArtWorld.chunk(cx, c.x, c.y, c.a); else ArtWorld.chunk(cx, c.fx + (c.x - c.fx) * k, c.fy + (c.y - c.fy) * k - 4 * Math.sin(Math.PI * Math.min(1, e * 1.6)) * (1 - e), c.a + (1 - k) * 3 * Math.sign(c.x - c.fx || 1)); }
-    if (G.litter) { for (let i = G.litter.length - 1; i >= 0; i--) if (G.time - G.litter[i].t > CYCLE * 0.5) G.litter.splice(i, 1); for (const q of G.litter) if (near(q.x, q.y, 20)) ArtWorld.emptyCan(cx, q.x, q.y, q.a); }
+    // пустая банка: со временем присыпает снегом и уходит под него (удаляет логика — Actions.tickWorld, по возрасту)
+    if (G.litter) for (const q of G.litter) if (near(q.x, q.y, 20)) ArtWorld.emptyCan(cx, q.x, q.y, q.a, clamp((G.time - q.t) / (CYCLE * Actions.CAN_LIFE), 0, 1));
   }
 
   // ---------- тени по солнцу: единственный источник направленной тени ----------

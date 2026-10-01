@@ -12,8 +12,6 @@ const Actions = (() => {
   // обломки длинные (Ми-8 — 320 px): работают у ближайшего к герою места корпуса, а не у центра
   const WRECK_W = { cockpit: 130, tail: 90 };
   const wreckPt = w => ({ x: clamp(G.p.x, POI[w].x - WRECK_W[w], POI[w].x + WRECK_W[w]), y: POI[w].y });
-  // подбросить в огонь/печь/кучу: жест «кинуть полено» к ней, если полено ушло
-  const feed = (o, f0, f1) => { if (f1 > f0) { faceTo(o); Hero.play('feedStove', { react: 1, tg: o }); } };
   // память жестов (не в G): пнутые сугробы, прочитанные следы, пауза «погладить» у собаки
   const KICKED = new WeakSet(), READ = new WeakSet(), PETCD = new WeakMap();
   let readXpT = -1e9;
@@ -246,7 +244,7 @@ const Actions = (() => {
     const npc = Npc.context(p); if (npc) return npc;
     const zc = Zones.context(p) || Transport.urkContext(p); if (zc) return zc;
     if (!G.labaz && dist2(POI.labaz, p) < 70 * 70) return { k: 'labaz', label: 'Лабаз · :meat:2' };
-    const stash = World.nearestStash(p, 50); if (stash) return { k: 'stash', label: 'Тайник', o: stash };
+    const stash = World.nearestStash(p, 50); if (stash) return { k: 'stash', label: stash.dg < 1 ? 'Копать тайник' : 'Тайник', o: stash };
     const am = G.amuletsAt && G.amuletsAt.find(a => !a.got && dist2(a, p) < 44 * 44); if (am) return { k: 'amulet', label: 'Сэвэки :sevek:', o: am };
     if (G.col) {
       const site = G.col.builds.find(b => !b.done && dist2(b, p) < (BUILDS[b.type].w / 2 + 30) ** 2); if (site) return { k: 'site', label: `Строить ${BUILDS[site.type].i} ${Math.floor(site.prog * 100)}%`, o: site };
@@ -267,7 +265,7 @@ const Actions = (() => {
     const dog = G.col && nearest(G.col.units, 44, u => u.type === 'laika' && !u.hidden && Math.sign(u.x - p.x) === p.face);
     if (dog) return { k: 'dog', label: 'Погладить :dog:', alt: dog.pet ? (dog.task.k === 'stay' ? 'Ко мне' : 'Сидеть') : null, o: dog, soft: 1 };
     const fr = !p.inside && nearest(G.fires, 64, f => f.fuel > 0); if (fr) return { k: 'fire', label: 'Греть руки', alt: 'Засыпать снегом', o: fr, soft: 1 };
-    const tr = nearest(G.traps, 44); if (tr) return { k: 'trap', label: tr.catch ? 'Забрать ' + ITEMS[tr.catch].i : 'Снять ' + ITEMS[tr.kind].i, o: tr };
+    const tr = nearest(G.traps, 44); if (tr) return { k: 'trap', label: tr.catch ? 'Забрать ' + ITEMS[tr.catch].i : (tr.set < 1 ? 'Насторожить ' : 'Снять ') + ITEMS[tr.kind].i, o: tr };
     const st = nearest(G.stacks, 56);
     if (st) {
       if (st.lit > 0) return null;
@@ -302,8 +300,10 @@ const Actions = (() => {
     const t = nearest(Space.trees, 56, t => t.wood > 0 && !t.wall); if (t) return { k: 'tree', label: 'Рубить', alt: 'Трясти', rep: 1, o: t };
     const sp = !p.inside && nearest(Space.trees, 40, t => t.wood <= 0 && !t.wall && t.stage !== 1); if (sp) return { k: 'rest', label: 'Присесть', o: sp, soft: 1 };
     if (onIce(p.x, p.y)) {
-      const hole = nearest(G.holes, 34);
+      const hole = nearest(G.holes, 34, h => holeOk(h) && h.fish > 0 && !(h.ice > 0.3));
       if (hole) return { k: 'fish', label: 'Рыбачить', o: hole };
+      const part = nearest(G.holes, 34, h => !holeOk(h));
+      if (part) return { k: 'dig', label: 'Долбить лунку', o: part };
       return { k: 'dig', label: 'Пробить лунку' };
     }
     // лопата: в поле, где нет другого действия — расчищать (держать E; идти можно, втрое медленнее)
@@ -334,12 +334,16 @@ const Actions = (() => {
       case 'throw': throwAt(c.o, 'wolf'); break;
       case 'dog': faceTo(c.o); p.action = { k: 'pet', t: 0, dur: A.petT, pose: 'pet', loop: 1, tg: c.o, th: -8, o: c.o }; break;
       case 'fire': faceTo(c.o); p.action = { k: 'warm', t: 0, dur: A.warmT, pose: G.s.warm < 30 ? 'warmHandsCold' : 'warmHands', loop: 1, tg: c.o, th: -8, o: c.o, fl: 0 }; break;
-      case 'shovel': faceTo(Trail.SHOVEL); G.flags.shovel = 1; G.gear.shovel = 1; Hero.play('pickUp', { react: 1, tg: Trail.SHOVEL, th: -14 }); Fx.toast(':shovel: Лопата · держи E в поле — расчищать снег'); Sound.ok2(); break;
+      // лопата у двери: дотянулся — в руке (со стены ушла в этот кадр), рассмотрел — за спину (снаряжение)
+      case 'shovel': faceTo(Trail.SHOVEL); job('shovel', 'take', { dur: 1.8, pose: 'takeItem', item: 'shovel', tg: at0(Trail.SHOVEL), th: -14, at: [0.2201, 0.84], fb: 'pickUp', o: Trail.SHOVEL }); break;
       case 'clear': p.action = { k: 'clear', t: 0, dur: 1e6, pose: 'scoop', per: D().scoop || 1, loop: 1, walk: 1, fb: 'dig', ph: 0 }; break;
       case 'digout': { const per = D().scoop || 1; p.action = { k: 'digout', t: 0, dur: 2.4, pose: 'scoop', per, loop: 1, fb: 'dig' }; } break;
       case 'drift': p.action = { k: 'kick', t: 0, dur: D().kick || A.kickT, pose: 'kick', tg: { x: p.x + p.face * 16, y: p.y + 2 }, o: c.o, marks: [0.45], fb: 'swing' }; break;
       case 'tracks': faceTo(c.o); p.action = { k: 'read', t: 0, dur: A.readT, pose: 'crouch', loop: 1, tg: c.o, o: c.o }; break;
-      case 'rest': p.x = c.o.x + p.face * 2; p.y = c.o.y + 3; Hero.snap(); p.action = { k: 'rest', t: 0, dur: 1e6, pose: 'rest', loop: 1, o: c.o, fb: 'sit' }; break;
+      // к пню своими ногами, последние шаги — опускается на него (сдвиг ≤ 1 px за кадр)
+      case 'rest': { const o = c.o, sd = Math.sign(p.x - o.x) || -p.face, q = { x: o.x + sd * 12, y: o.y + 3 };
+        const sit = () => { const P = G.p; P.face = -sd; P.action = { k: 'rest', t: 0, dur: 1e6, pose: 'rest', loop: 1, o, fb: 'sit', x0: P.x, y0: P.y, sx: o.x + P.face * 2, sy: o.y + 3 }; };
+        jobAt(q.x, q.y, sit, 2); } break;
       case 'wolf': Wolves.hit(c.o); break;
       case 'bear': Bear.hit(c.o); break;
       case 'hare': {
@@ -351,7 +355,7 @@ const Actions = (() => {
       case 'note': if (!silent) startNote(c.o); break;
       case 'labaz': { faceTo(POI.labaz); G.labaz = 1; Inv.add('meat', 2); G.notes.labaz = 1; Sound.pick(); take('meat', { x: POI.labaz.x - 8, y: POI.labaz.y }, -30);
         const n = NOTES.labaz; plate(n.t, n.i, { x: POI.labaz.x, y: POI.labaz.y - 78 }, { life: 7, obj: 1 }); } break;
-      case 'stash': if (!silent) { faceTo(c.o); Hero.play('open', { react: 1, tg: c.o }); Interact.emit('open', { who: 'p', obj: 'stash', target: c.o, x: c.o.x, y: c.o.y }); UI.openStash(c.o); } break;
+      case 'stash': if (c.o.dg < 1) { stashDig(c.o); break; } if (!silent) { faceTo(c.o); Hero.play('open', { react: 1, tg: c.o }); Interact.emit('open', { who: 'p', obj: 'stash', target: c.o, x: c.o.x, y: c.o.y }); UI.openStash(c.o); } break;
       case 'amulet': take('amulet', c.o, -2); c.o.got = 1; G.amulets++; Fx.toast(`:sevek: Сэвэки ${G.amulets}/12`); Sound.ok2(); Fx.burst(c.o.x, c.o.y - 10, 14, '#ffd27a');
         Quests.check('amulets');
         break;
@@ -364,7 +368,7 @@ const Actions = (() => {
       case 'forecast': if (!silent) { Fx.toast(Zones.forecast()); G.flags.forecast = G.day; p.cd = 1; } break;
       case 'loot': faceTo(c.o); p.action = { k: 'loot', t: 0, dur: TUNE.zone.lootT, o: c.o.id, pose: 'pry', loop: 1, fb: 'build', tg: { x: c.o.x, y: c.o.y }, th: -24 }; break;
       case 'deer': if (!silent) { Fx.toast(':deer: Олень Уркачана. Не трогай — дед обидится.'); p.cd = 1; } break;
-      case 'stove': { const f0 = G.hut.fuel; Stove.add(); feed(SPOT.stove, f0, G.hut.fuel); p.cd = 0.3; } break;
+      case 'stove': stoveFeed(); break;
       case 'bench': if (!silent) { faceTo(SPOT.bench); UI.openCraft(G.hut.bench ? 'craft' : 'hut'); } break;
       case 'chest': if (!silent) { faceTo(SPOT.chest); Hero.play('open', { react: 1, tg: SPOT.chest }); UI.openChest(); } break;
       case 'bed': if (!silent) trySleep(); break;
@@ -380,7 +384,10 @@ const Actions = (() => {
         startBuck(L);
       } break;
       case 'trap': {
-        const t = c.o; p.cd = 0.4; faceTo(t); if (t.catch === 'hare') take('hare', t, -2); else Hero.play('pickUp', { react: 1, tg: t });
+        const t = c.o; p.cd = 0.4; faceTo(t);
+        // пустую: сложить (пружину спустить/петлю снять) → в руку → в рюкзак; недонастороженную — настораживать дальше
+        if (!t.catch) { trapStep(t, t.set < 1 ? 'set' : 'unset'); break; }
+        if (t.catch === 'hare') take('hare', t, -2); else Hero.play('pickUp', { react: 1, tg: t });
         if (t.catch) {
           if (t.catch === 'hare') { Inv.add('meat'); Inv.add('hare'); Fx.floatText(t.x, t.y - 20, '+:meat: +:hare:'); } else { Inv.add(t.catch); Fx.floatText(t.x, t.y - 20, '+' + ITEMS[t.catch].i); }
           Hero.xp('hunt'); t.catch = null; t.t = G.time; Sound.pick();
@@ -389,9 +396,9 @@ const Actions = (() => {
       }
       case 'stack': {
         const s = c.o;
-        if (s.wood < 4) { if (!Inv.take('wood', 1, false)) { Fx.toast(':close: Не хватает: :wood:1'); p.cd = 0.3; } else { s.wood++; p.cd = 0.25; Sound.chop(); feed(s, 0, 1); } }
-        else if (Inv.has('kero', false)) { Inv.take('kero', 1, false); Fire.lightStack(s, A.stackKeroT); }
-        else { faceTo(s); p.action = { k: 'light', t: 0, dur: 1.5, o: s, tg: s }; }
+        faceTo(s); p.cd = 0.25;
+        if (s.wood < 4) { if (!Inv.has('wood', false)) Fx.toast(':close: Не хватает: :wood:1'); else stackStep(s, 'lay'); }
+        else stackStep(s, Inv.has('kero', false) ? 'kero' : 'light');
         break;
       }
       // обломки: отжимает листы руками (поза pry, без топора) лицом к корпусу; нет позы — запасная рубка
@@ -406,7 +413,8 @@ const Actions = (() => {
         startChop(t);
       } break;
       case 'fish': p.action = { k: 'fish', ph: 'wait', t: 0, dur: rnd(1.5, 4) - 0.2 * (Hero.lvl('fish') - 1), o: c.o }; break;
-      case 'dig': p.action = { k: 'dig', t: 0, dur: A.digT }; break;
+      // лунка растёт по ударам пешни (h.dg 0..1): начатую — додолбить
+      case 'dig': if (c.o) faceTo(c.o); p.action = { k: 'dig', t: 0, dur: Math.max(1, A.digT * (1 - (c.o ? c.o.dg || 0 : 0))), o: c.o || null, dg0: c.o ? c.o.dg || 0 : 0 }; break;
     }
   }
 
@@ -451,8 +459,10 @@ const Actions = (() => {
         G.p.action = { k: 'fish', ph: 'bite', t: 0, dur: 2.6, o: a.o, z: rnd(0.1, 0.9 - w), w, sp: rnd(1.3, 2.2) }; Sound.tone('sine', 1200, 1500, 0.08, 0.2);
       } else Fx.floatText(a.o.x, a.o.y - 30, 'ушла');
     } else if (a.k === 'dig') {
-      G.holes.push({ x: p.x + p.face * 24, y: p.y + 4, fish: A.holeFish }); ArtWorld.fx.splash(G.parts, p.x + p.face * 24, p.y + 4); Sound.hit();
-      Interact.emit('work', { who: 'p', what: 'dig', x: p.x + p.face * 24, y: p.y + 4 });
+      // последний удар — вода: лунка готова
+      const h = a.o && G.holes.includes(a.o) ? a.o : digHole(a); h.dg = 1; h.fish = A.holeFish;
+      ArtWorld.fx.splash(G.parts, h.x, h.y); Sound.hit();
+      Interact.emit('work', { who: 'p', what: 'dig', x: h.x, y: h.y });
     } else if (a.k === 'wreck') {
       const pool = G.wreck[a.o], id = pool.shift(); if (!id) return;
       if (id === 'saw') { G.gear.saw = 1; Fx.toast(':saw: Пила! Рубка быстрее'); }
@@ -476,7 +486,8 @@ const Actions = (() => {
       const o = Zones.surveyPoint(a.o); if (!o) return;
       Zones.survey(o.x, o.y); Fx.toast(ZONE_TXT.survey); Sound.ok2();
       if (o.t && !G.flags['sv_' + o.id]) { G.flags['sv_' + o.id] = 1; setTimeout(() => Fx.toast(ZONES[o.zone].ic + ' ' + o.t), 1600); }
-    } else if (END[a.k]) END[a.k](a);
+    } else if (a.k === 'job') { const J = JOB[a.j]; if (J && J.end) J.end(a); }
+    else if (END[a.k]) END[a.k](a);
     else if (GEST[a.k]) GEST[a.k](a);
     else if (a.k === 'vfix') Transport.fixDone();
     else if (a.k === 'light') Fire.lightStack(a.o, A.stackLightT);
@@ -515,7 +526,7 @@ const Actions = (() => {
     }
     if (p.action) during(p.action, dt);
     if (p.action && p.action.k === 'fish' && p.action.ph === 'bite' && p.action.t >= p.action.dur) { Fx.floatText(p.action.o.x, p.action.o.y - 30, 'ушла'); p.action = null; }
-    tickFly(dt); tickLogs(dt);
+    tickFly(dt); tickLogs(dt); tickWorld(dt);
     // долгое E: второе действие цели (жест, начатый нажатием, отменяется); рубку удержание по-прежнему повторяет
     if (input.act) {
       HOLD.t += dt;
@@ -523,6 +534,21 @@ const Actions = (() => {
     } else { HOLD.c = null; HOLD.done = false; }
     if (input.act && !p.action && p.cd <= 0 && !HOLD.done) interact(true);
     Hero.tickLife(dt);
+  }
+
+  // ---------- мир без исполнителя: всё постепенно ----------
+  // выловленная лунка затягивается льдом (≈ 0,2 суток), пустая банка уходит под снег (полсуток, рисование — по возрасту),
+  // улов в ловушке на глазах у героя не появляется: ждёт, пока ловушка вне кадра (t.pend — js/fauna.js)
+  const HOLE_ICE = 0.2, CAN_LIFE = 0.5, VIEW = { x: 760, y: 500 };
+  const inView = o => Math.abs(o.x - G.p.x) < VIEW.x && Math.abs(o.y - G.p.y) < VIEW.y;
+  function tickWorld(dt) {
+    stoveDoor += clamp(stoveDoorTg() - stoveDoor, -dt * 3, dt * 3);
+    for (let i = G.holes.length - 1; i >= 0; i--) {
+      const h = G.holes[i]; if (!(h.fish <= 0) || !holeOk(h) || (G.p.action && G.p.action.o === h)) continue;
+      h.ice = Math.min(1, (h.ice || 0) + dt / (CYCLE * HOLE_ICE)); if (h.ice >= 1) G.holes.splice(i, 1);
+    }
+    if (G.litter) for (let i = G.litter.length - 1; i >= 0; i--) if (G.time - G.litter[i].t > CYCLE * CAN_LIFE) G.litter.splice(i, 1);
+    for (const t of G.traps) if (t.pend && !inView(t)) { t.catch = t.pend; delete t.pend; }
   }
 
   // ---------- жесты: второе действие (X / долгое E), броски, отклики в момент касания ----------
@@ -551,7 +577,7 @@ const Actions = (() => {
     c = c || context();
     if (c && c.alt) switch (c.k) {
       case 'tree': faceTo(c.o); p.action = { k: 'shake', t: 0, dur: D().shakeTree || A.shakeT, pose: 'shakeTree', tg: c.o, th: -10, o: c.o, marks: [0.22, 0.5, 0.78] }; return;
-      case 'fire': faceTo(c.o); { const per = D().scoop || 1; p.action = { k: 'bury', t: 0, dur: A.buryT, pose: 'scoop', per, tg: c.o, th: -4, o: c.o, marks: [0.6 * per / A.buryT, (per + 0.6 * per) / A.buryT], fb: 'dig' }; } return;
+      case 'fire': faceTo(c.o); fireStep(c.o, 'bury'); return;   // три горсти снега — огонь садится по броскам
       case 'dog': callDog(c.o); return;
     }
     const t = throwTarget(); if (t) return throwAt(t.o, t.kind);
@@ -596,6 +622,15 @@ const Actions = (() => {
       a.got = 1; const i = G.chunks ? G.chunks.indexOf(a.o) : -1;
       if (i >= 0) { G.chunks.splice(i, 1); Inv.add('wood', 1); G.stats.wood++; Fx.floatText(p.x, p.y - 50, '+1 :wood:'); Sound.pick(); } else a.item = null;
     }
+    if (a.k === 'dig') {
+      // удар пешни: выемка растёт, крошка льда; первый удар — начало лунки
+      const per = D().dig || 1, i0 = Math.floor(t0 / per - 0.55), i1 = Math.floor(a.t / per - 0.55);
+      if (i1 > i0 && i1 >= 0 && a.t < a.dur - 1e-3) {
+        const h = a.o && G.holes.includes(a.o) ? a.o : (a.o = digHole(a)), n = Math.max(1, Math.round(a.dur / per));
+        h.dg = Math.min(0.95, (h.dg || 0) + (1 - (a.dg0 || 0)) / n); work(); Sound.hit();
+        for (let k = 0; k < 7; k++) G.parts.push({ type: 'dot', x: h.x + rnd(-5, 5), y: h.y - 2, vx: rnd(-60, 60), vy: rnd(-90, -40), g: 300, life: 0.45, max: 0.45, color: k % 2 ? '#dbe9f4' : '#9fc3dc' });
+      }
+    }
     if ((a.k === 'chop' && !G.gear.saw) || a.k === 'wreck' || a.k === 'buck') {
       const c = Hero.chopCycle(a), i0 = Math.floor(t0 / c.cl - c.ia), i1 = Math.floor(a.t / c.cl - c.ia);
       if (i1 > i0 && i1 >= 0 && a.t < a.dur - 1e-3) {
@@ -604,6 +639,12 @@ const Actions = (() => {
         else { const at = toward(a.tg || POI[a.o], 20); Interact.emit('work', { who: 'p', what: 'wreck', obj: 'wreck', x: at.x, y: at.y }); }
       }
     }
+    if (a.k === 'craft' && a.units) while (a.got < a.units.length && a.t >= craftAt(a, a.got)) {
+      const id = a.units[a.got];
+      if (!Inv.take(id, 1, !!a.wc)) { Fx.toast(':close: Не хватает: ' + ITEMS[id].i + '1'); G.p.action = null; return; }
+      a.got++; Sound.tone && Sound.tone('triangle', 700 + 60 * a.got, 500, 0.04, 0.02);
+    }
+    if (a.k === 'job' && a.at) { const J = JOB[a.j]; for (let i = 0; i < a.at.length; i++) { const m = a.at[i] * a.dur; if (t0 < m && a.t >= m) { J.hit(a, i); if (G.p.action !== a) return; } } }
     if (!a.marks) return;
     for (let i = 0; i < a.marks.length; i++) {
       const m = a.marks[i] * a.dur; if (!(t0 < m && a.t >= m)) continue;
@@ -635,6 +676,8 @@ const Actions = (() => {
   // пока длится: тепло у огня, отдых на пне; огонь погас — греться нечем
   function during(a, dt) {
     const p = G.p;
+    if (a.k === 'job') { const J = JOB[a.j]; if (J && J.tick) J.tick(a, dt); return; }
+    if (a.k === 'mount' || a.k === 'unmount') { Transport.boardStep(a); return; }
     if (a.k === 'digout') { Depth.dig(p.x, p.y, dt); return; }
     if (a.k === 'clear') { clearStep(a, dt); return; }
     if (a.k === 'warm') {
@@ -645,6 +688,7 @@ const Actions = (() => {
       // горячее — пар от банки/миски/куска у груди
       if (a.hot && (a.st = (a.st || 0) - dt) <= 0) { a.st = 0.12; G.parts.push({ type: 'breath', x: p.x + p.face * rnd(5, 9), y: p.y - rnd(26, 30), vx: rnd(-4, 4) + p.face * 2, vy: rnd(-18, -10), life: 1.2, max: 1.2 }); }
     } else if (a.k === 'rest') {
+      if (a.sx != null && a.t < 0.6) { const e = a.t / 0.6, k = e * e * (3 - 2 * e); p.x = a.x0 + (a.sx - a.x0) * k; p.y = a.y0 + (a.sy - a.y0) * k; }
       G.s.food = Math.min(100, G.s.food + TUNE.body.hunger * A.restFood * Settings.diff().hunger * dt);
       if (G.s.warm > TUNE.body.regenWarm * 0.5) G.s.hp = Math.min(100, G.s.hp + A.restRegen * dt);
     }
@@ -656,13 +700,22 @@ const Actions = (() => {
     take() {},
     inspect(a) { if (PLATE && PLATE.a === a) PLATE = null; },
     eat(a) { if (a.o === 'can') litter('can'); },
-    craft(a) { craftDone(a.r); },
+    craft(a) { if (a.units) { while (a.got < a.units.length) { if (!Inv.take(a.units[a.got], 1, !!a.wc)) return; a.got++; } } craftDone(a.r); },
     lie() { const p = G.p; p.sleeping = true; p.x = SPOT.bed.x; p.y = SPOT.bed.y + 4; Hero.snap(); },
     getUp() {},
+    mount(a) { Transport.boarded(a); },
+    unmount() { G.p.board = null; },
+    pay(a) { Transport.rentPaid(a.o); },
   };
   const CANCEL = {
+    job(a) { const J = JOB[a.j]; if (J && J.cancel) J.cancel(a); },
+    mount() { G.p.board = null; }, unmount() { G.p.board = null; },
     eat(a) { if (a.o === 'can') litter('can'); },
-    craft(a) { for (const [k, v] of Object.entries(a.r.in)) Inv.add(k, v); Fx.toast(':close: ' + a.r.n + ' — брошено, материалы целы'); },
+    craft(a) {
+      if (!a.units) { for (const [k, v] of Object.entries(a.r.in)) Inv.add(k, v); Fx.toast(':close: ' + a.r.n + ' — брошено, материалы целы'); return; }   // старый сейв: всё было взято сразу
+      for (let i = 0; i < a.got; i++) Inv.add(a.units[i]);
+      Fx.toast(':close: ' + a.r.n + ' — брошено, материалы целы');
+    },
     noteRead() { if (PLATE && PLATE.note) PLATE = null; },
     inspect(a) { if (PLATE && PLATE.a === a) PLATE = null; },
   };
@@ -725,7 +778,7 @@ const Actions = (() => {
       Inv.add('fish', n); G.stats.fish++; G.stats.bestKg = Math.max(G.stats.bestKg || 0, kg); ArtWorld.fx.splash(G.parts, h.x, h.y);
       Fx.floatText(h.x, h.y - 30, `:fish: ${f.n} · ${kg.toFixed(2).replace('.', ',')} кг`); Fx.burst(h.x, h.y, 10, '#b9e2ff'); Sound.splash(); Interact.emit('work', { who: 'p', what: 'fish', x: h.x, y: h.y });
       if (f.big) Fx.toast(`:fish: Таймень! ${kg.toFixed(1).replace('.', ',')} кг`);
-      if (--h.fish <= 0) { G.holes.splice(G.holes.indexOf(h), 1); Fx.toast(':fish: Лунка пуста'); }
+      if (--h.fish <= 0) Fx.toast(':fish: Лунка пуста');   // лунка остаётся и затягивается льдом (tickHoles)
     } else { Fx.floatText(h.x, h.y - 30, 'Сорвалась'); Sound.tone('triangle', 400, 200, 0.2, 0.15); }
     return true;
   }
@@ -743,29 +796,260 @@ const Actions = (() => {
     Sound.tone('sine', 300, 900, 0.5, 0.12);
   }
 
+  // ---------- процессы: работа шагами (docs: «везде процесс») ----------
+  // Шаг — обычное действие p.action { k: 'job', j: вид работы, s: шаг, t, dur, pose, tg, th, o, at: [доли касаний] }.
+  // JOB[j].hit(a, i) — касание (рука/инструмент дошли: доля a.at[i]); tick(a, dt) — пока идёт; end(a) — следующий шаг;
+  // cancel(a) — прервали (шаг, удар, другое действие): что ещё не ушло в работу, остаётся/возвращается.
+  // Логика меняется ровно в касание; в действии — только данные (сейв переживает), шаги — по имени.
+  const work = () => { G.s.tire = Math.min(100, (G.s.tire || 0) + TUNE.tire.hit * (Settings.diff().tire || 1)); };
+  const job = (j, s, o) => (G.p.action = Object.assign({ k: 'job', j, s, t: 0 }, o));
+  const at0 = o => ({ x: o.x, y: o.y });
+  // встать к месту работы своими ногами (автопуть), рядом — сразу
+  function jobAt(x, y, fn, stop = 3) {
+    const p = G.p;
+    if (Math.hypot(x - p.x, y - p.y) > stop + 4) { autoTo(x, y, stop, () => { if (!G.p.action) fn(); }); return; }
+    fn();
+  }
+  const abort = a => { a.done = true; if (G.p.action === a) G.p.action = null; };
+  const puff = (x, y, k = 0.35) => ArtWorld.fx.snowPuff(G.parts, x, y, k);
+  function sparks(x, y, n = 6) { for (let i = 0; i < n; i++) G.parts.push({ type: 'spark', x: x + rnd(-3, 3), y: y - 3, vx: rnd(-40, 40), vy: rnd(-90, -30), life: rnd(0.3, 0.6), max: 0.6, g: 60 }); }
+  function steam(x, y, n = 5) { for (let i = 0; i < n; i++) G.parts.push({ type: 'smoke', x: x + rnd(-8, 8), y: y - 8, vx: rnd(-10, 10), vy: rnd(-40, -22), life: rnd(1.6, 2.6), max: 2.6 }); }
+  const JOB = {};
+  // лунка: dg 0..1 — пробита (нет поля — готова: старые сейвы, лунки посёлка); ice 0..1 — затянулась
+  const holeOk = h => !(h.dg < 1);
+  function digHole(a) { const p = G.p, h = { x: Math.round(p.x + p.face * 24), y: Math.round(p.y + 4), fish: 0, dg: 0 }; a.dg0 = 0; G.holes.push(h); return h; }
+
+  // ---------- огонь: разложить (расчистить → поленья по одному → растопка → поджиг), подкинуть, засыпать ----------
+  // Костёр f: { x, y, fuel, lay (поленьев лежит, не горят), b (кладут новый), site 0..1 (утоптано), kd 0..1 (растопка),
+  //   sn 0..1 (засыпан снегом), fl 0..1 (сколько огня видно: растёт/гаснет плавно, js/fire.js) }
+  const fireNeed = f => (f.b ? TUNE.fire.buildCost : TUNE.fire.relightCost);
+  const fireStep = (f, s, o) => job('fire', s, Object.assign(FIRE_S[s](f), { o: f }, o));
+  const FIRE_S = {
+    clear: f => ({ dur: 2, pose: 'scoop', per: 1, tg: at0(f), th: -3, at: [0.22, 0.72], fb: 'dig' }),
+    lay: f => ({ dur: 1, pose: 'feedStove', tg: at0(f), th: -6, at: [0.5], fb: 'build' }),
+    kindle: f => ({ dur: 1.6, pose: 'crouch', loop: 1, tg: at0(f), th: -4, fb: 'build' }),
+    ignite: f => ({ dur: 1.4, pose: 'crouch', loop: 1, tg: at0(f), th: -4, at: [0.25, 0.5, 0.78], fb: 'build' }),
+    bury: f => ({ dur: 3, pose: 'scoop', per: D().scoop || 1, tg: at0(f), th: -4, at: [0.15, 0.48, 0.82], fb: 'dig' }),
+    pull: f => ({ dur: D().takeChunk || 1, pose: 'takeChunk', item: 'log', tg: at0(f), th: -2, at: [0.3401], fb: 'pickUp' }),
+  };
+  JOB.fire = {
+    hit(a, i) {
+      const f = a.o, F = TUNE.fire;
+      if (a.s === 'clear') {
+        // первая горсть: место под костёр (видно, как утаптывается — f.site растёт до конца шага)
+        if (!a.made) { a.made = 1; f.site = 0.05; G.fires.push(f); }
+        puff(f.x + rnd(-6, 6), f.y - 2, 0.4); work(); Sound.ok() && Sound.shovel && Sound.shovel();
+      } else if (a.s === 'lay') {
+        // полено из рук — в костёр в момент касания
+        if (!Inv.take('wood', 1, false)) { Fx.toast(':close: Не хватает: :wood:1'); return abort(a); }
+        Sound.chop();
+        if (a.feed && f.fuel > 0) { f.fuel = Math.min(f.fuel + F.fuelAdd, F.fuelMax); Fx.floatText(f.x, f.y - 40, ':fire: +' + gameDur(F.fuelAdd)); Fx.burst(f.x, f.y - 10, 10, '#ffb347', 120); FLARE(f); }
+        else f.lay = (f.lay || 0) + 1;
+      } else if (a.s === 'ignite') {
+        // чирк — искры; на третьем занялось: растопка → огонь (дальше разгорается сам, f.fl)
+        sparks(f.x, f.y - 2, i < 2 ? 5 : 9); Sound.tone && Sound.tone('square', 1800 + i * 300, 900, 0.05, 0.03);
+        if (i === 2) {
+          const extra = Math.max(0, (f.lay || 0) - fireNeed(f));
+          f.fuel = (f.b ? F.buildFuel : F.relightFuel) + extra * F.fuelAdd; f.lay = 0; f.kd = 0; f.sn = 0; f.fl = f.fl || 0; delete f.b;
+          Fx.toast(a.fresh ? ':fire: Костёр' : ':fire: Огонь горит'); Sound.ok2(); steam(f.x, f.y, 2);
+        }
+      } else if (a.s === 'bury') {
+        // горсть снега: шипит, пар; огонь садится по броскам (f.sn), на последней — погас
+        Interact.emit('bury', { who: 'p', obj: 'fire', target: f, x: f.x, y: f.y }); work();
+        f.sn = Math.max(f.sn || 0, (i + 1) / 3); steam(f.x, f.y, 6); puff(f.x, f.y - 4, 0.3); Sound.tone('sine', 700 - i * 150, 200, 0.3, 0.03);
+        if (i === 2) {
+          const n = f.fuel > 0 ? Math.min(A.buryMax, Math.floor(f.fuel / F.fuelAdd)) : 0;
+          f.fuel = 0; f.lay = (f.lay || 0) + n; f.sn = 1;
+          Fx.floatText(f.x, f.y - 40, n ? `:fire: погашен · +${n} :wood:` : ':fire: погашен');
+        }
+      } else if (a.s === 'pull') {
+        // недогоревшее полено — из кострища в руку (дальше через плечо в рюкзак)
+        if ((f.lay || 0) > 0) { f.lay--; Inv.add('wood', 1); Sound.pick(); } else a.item = null;
+      }
+    },
+    tick(a) {
+      const f = a.o, e = clamp(a.t / a.dur, 0, 1);
+      if (a.s === 'clear' && a.made) f.site = Math.max(f.site || 0, clamp(0.05 + e * 1.05, 0, 1));
+      else if (a.s === 'kindle') f.kd = Math.max(f.kd || 0, e);
+    },
+    end(a) {
+      const f = a.o; if (!G.fires.includes(f)) return;
+      if (a.s === 'clear') { f.site = 1; return fireStep(f, 'lay', { fresh: 1 }); }
+      if (a.s === 'lay') { if (a.feed) return; return (f.lay || 0) < fireNeed(f) ? fireStep(f, 'lay', { fresh: a.fresh }) : fireStep(f, 'kindle', { fresh: a.fresh }); }
+      if (a.s === 'kindle') { f.kd = 1; return fireStep(f, 'ignite', { fresh: a.fresh }); }
+      if ((a.s === 'bury' || a.s === 'pull') && (f.lay || 0) > 0 && !(f.fuel > 0)) return fireStep(f, 'pull');
+    },
+  };
+  const FLARE = f => { f.flare = G.time; };
+
+  // ---------- печь: открыть дверцу → полено внутрь → прикрыть; огонь в топке разгорается (G.hut.fl, js/fire.js) ----------
+  let stoveDoor = 0;
+  const STOVE_TG = () => ({ x: SPOT.stove.x, y: SPOT.stove.y });
+  function stoveFeed() {
+    const p = G.p;
+    if (!Stove.room()) return Fx.toast(':stove: Печь полна');
+    if (!Inv.cnt('wood', true)) return Fx.toast(':close: Не хватает: :wood:1 (в руках или в лабазе)');
+    faceTo(SPOT.stove); p.cd = 0.3;
+    job('stove', 'open', { dur: D().open || 0.9, pose: 'open', tg: STOVE_TG(), th: -8, fb: 'build' });
+  }
+  JOB.stove = {
+    hit(a) { if (!Stove.add()) abort(a); },
+    end(a) { if (a.s === 'open') job('stove', 'feed', { dur: D().feedStove || 1, pose: 'feedStove', tg: STOVE_TG(), th: -8, at: [0.55], fb: 'build' }); },
+  };
+  // насколько открыта дверца топки (рисование): по ходу шагов, после — прикрывается плавно
+  function stoveDoorTg() {
+    const a = G.p.action; if (!a || a.j !== 'stove') return 0;
+    const e = clamp(a.t / a.dur, 0, 1);
+    return a.s === 'open' ? clamp((e - 0.35) / 0.4, 0, 1) : e < 0.72 ? 1 : 1 - clamp((e - 0.72) / 0.12, 0, 1);
+  }
+
+  // ---------- сигнальная куча: полено за поленом из рук, керосин, поджиг ----------
+  const stackStep = (s, st, o) => job('stack', st, Object.assign({ o: s, tg: at0(s), fb: 'build' }, STACK_S[st], o));
+  const STACK_S = {
+    lay: { dur: 1, pose: 'feedStove', th: -10, at: [0.5] },
+    kero: { dur: 1.3, pose: 'place', th: -12, at: [0.45] },
+    light: { dur: 1.6, pose: 'crouch', loop: 1, th: -4, at: [0.3, 0.58, 0.85] },
+  };
+  JOB.stack = {
+    hit(a, i) {
+      const s = a.o;
+      if (a.s === 'lay') { if (s.wood >= 4 || s.lit > 0) return abort(a); if (!Inv.take('wood', 1, false)) { Fx.toast(':close: Не хватает: :wood:1'); return abort(a); } s.wood++; Sound.chop(); }
+      else if (a.s === 'kero') { if (!Inv.take('kero', 1, false)) return abort(a); a.kero = 1; for (let k = 0; k < 6; k++) G.parts.push({ type: 'dot', x: s.x + rnd(-10, 10), y: s.y - 24, vx: rnd(-20, 20), vy: rnd(0, 30), g: 200, life: 0.5, max: 0.5, color: '#c9b06a' }); }
+      else if (a.s === 'light') { sparks(s.x, s.y - 4, i < 2 ? 5 : 10); if (i === 2) Fire.lightStack(s, a.kero ? A.stackKeroT : A.stackLightT); }
+    },
+    end(a) { if (a.s === 'kero') stackStep(a.o, 'light', { kero: a.kero }); },
+  };
+
+  // ---------- ловушки: из рюкзака в руку → на снег → настораживает; снять — спустить, в руку, в рюкзак ----------
+  // ловушка t: { x, y, kind, catch, t, set 0..1 (насторожена; нет поля — да) }
+  const TRAP_ART = k => (k === 'trap' ? 'trap' : 'coil');
+  const trapStep = (t, s) => job('trap', s, s === 'set' ? { dur: 1.6 * (1 - (t.set || 0)) + 0.4, pose: 'crouch', loop: 1, tg: at0(t), th: -2, o: t, s0: t.set || 0, at: [0.6], fb: 'build' }
+    : s === 'unset' ? { dur: 1.2, pose: 'crouch', loop: 1, tg: at0(t), th: -2, o: t, at: [0.5], fb: 'build' }
+    : { dur: 2, pose: 'takeItem', item: TRAP_ART(t.kind), tg: at0(t), th: -2, o: t, at: [0.2201], fb: 'pickUp' });
+  JOB.trap = {
+    hit(a) {
+      const p = G.p;
+      if (a.s === 'put') {
+        // рука на снегу — ловушка легла (сложенная), дальше её настораживают
+        const t = { x: a.spot.x, y: a.spot.y, kind: a.kind, catch: null, t: G.time, set: 0 }; G.traps.push(t); a.o = t; a.got = 1; Sound.hit();
+      } else if (a.s === 'set' || a.s === 'unset') Sound.tone && Sound.tone('square', a.s === 'set' ? 1400 : 900, 500, 0.04, 0.03);
+      else if (a.s === 'lift') { const i = G.traps.indexOf(a.o); if (i >= 0) { G.traps.splice(i, 1); Inv.add(a.o.kind); Sound.pick(); } else a.item = null; }
+    },
+    tick(a) {
+      const e = clamp(a.t / a.dur, 0, 1);
+      if (a.s === 'set') a.o.set = Math.max(a.o.set || 0, a.s0 + (1 - a.s0) * e);
+      else if (a.s === 'unset') a.o.set = Math.min(a.o.set == null ? 1 : a.o.set, 1 - e);
+    },
+    end(a) {
+      if (a.s === 'pack') {
+        // достал: вещь в руке с этого кадра (и из рюкзака — в этот же кадр)
+        if (!Inv.take(a.kind, 1, false)) return;
+        faceTo(a.spot); return job('trap', 'put', { t: 1e-3, dur: D().place || 0.9, pose: 'place', item: TRAP_ART(a.kind), tg: a.spot, th: 0, kind: a.kind, spot: a.spot, at: [0.45], fb: 'build' });
+      }
+      if (a.s === 'put' && a.o) return trapStep(a.o, 'set');
+      if (a.s === 'set') { a.o.set = 1; Fx.toast(a.o.kind === 'trap' ? (World.inCedar(a.o.x, a.o.y) ? ':trap: Капкан в кедраче' : ':trap: Капкан (соболь — только в кедраче)') : ':snare: Силок стоит'); return; }
+      if (a.s === 'unset') { a.o.set = 0; return trapStep(a.o, 'lift'); }
+    },
+    // положить не успел — вещь из руки обратно в рюкзак
+    cancel(a) { if (a.s === 'put' && !a.got) Inv.add(a.kind); },
+  };
+
+  // ---------- тайник T: выкопать яму в снегу (по горстям) → открыть, класть добро ----------
+  function stashDig(s) {
+    const p = G.p; faceTo(s);
+    job('stash', 'dig', { dur: 2.2 * (1 - (s.dg || 0)) + 0.4, pose: 'scoop', per: D().scoop || 1, tg: at0(s), th: -3, o: s, d0: s.dg || 0, at: [0.2, 0.65], fb: 'dig' });
+  }
+  JOB.stash = {
+    hit(a) { const s = a.o; if (!G.stashes.includes(s)) G.stashes.push(s); puff(s.x + rnd(-6, 6), s.y - 3, 0.45); work(); Sound.ok() && Sound.shovel && Sound.shovel(); },
+    tick(a) { if (G.stashes.includes(a.o)) a.o.dg = Math.max(a.o.dg || 0, Math.min(0.99, a.d0 + (1 - a.d0) * a.t / a.dur)); },
+    end(a) { const s = a.o; if (!G.stashes.includes(s)) G.stashes.push(s); delete s.dg; Fx.toast(':cache: Тайник — клади добро'); Sound.hit(); UI.openStash(s); },
+  };
+
+  // ---------- изба: щели, дверь, верстак, заслонка — работа на месте, часть растёт по ходу (G.hut.prog[id] 0..1) ----------
+  // материалы уходят по шагам (доля цены в начале шага); прервал — сделанное и потраченное остаются, продолжить можно
+  const HUTO = { walls: { k: 'walls' }, door: { k: 'door' }, bench: { k: 'bench' }, damper: { k: 'damper' } };
+  const HUT_N = { walls: 3, door: 3, bench: 3, damper: 2 }, HUT_T = { walls: 3, door: 2.5, bench: 2.5, damper: 2 };
+  function hutSpots(id) {
+    const ins = G.p.inside, yo = HUT_IN.y1 + WALL + 12;
+    if (id === 'walls') return ins ? [{ x: HUT.x - 22, y: HUT_IN.y0 + 24, f: -1 }, { x: HUT.x, y: HUT_IN.y0 + 24, f: 1 }, { x: HUT.x + 20, y: HUT_IN.y0 + 24, f: 1 }]   // между печью и верстаком
+      : [{ x: HUT.x - 72, y: yo, f: -1 }, { x: HUT.x - 34, y: yo, f: 1 }, { x: HUT.x + 40, y: yo, f: 1 }];
+    if (id === 'door') { const q = ins ? { x: HUT.x + 30, y: HUT_IN.y1 - 12, f: -1 } : { x: HUT.x + 30, y: yo, f: -1 }; return [q, q, q]; }   // навешивают с той стороны, где стоит
+    if (id === 'bench') { const q = { x: SPOT.bench.x - 4, y: SPOT.bench.y + 20, f: 1 }; return [q, q, q]; }
+    const q = { x: SPOT.stove.x + 22, y: SPOT.stove.y + 10, f: -1 }; return [q, q];
+  }
+  // сколько стоит оставшаяся работа (по шагам): шаг i платит units[i*U/n .. (i+1)*U/n)
+  function hutUnits(u) { const out = []; for (const [k, v] of Object.entries(u.in)) for (let i = 0; i < v; i++) out.push(k); return out; }
+  function hutLeft(u) {
+    const U = hutUnits(u), n = HUT_N[u.id], i0 = G.hut.paid && G.hut.paid[u.id] || 0, left = {};
+    for (let i = Math.floor(i0 * U.length / n); i < U.length; i++) left[U[i]] = (left[U[i]] || 0) + 1;
+    return left;
+  }
+  function hutStep(u, i) {
+    const sp = hutSpots(u.id)[i], n = HUT_N[u.id];
+    jobAt(sp.x, sp.y, () => {
+      const p = G.p; p.face = sp.f;
+      const tg = u.id === 'walls' ? { x: sp.x + sp.f * 10, y: sp.y - (p.inside ? 6 : 2) } : u.id === 'door' ? { x: HUT.x + 4, y: HUT_IN.y1 + WALL / 2 } : u.id === 'bench' ? { x: SPOT.bench.x, y: SPOT.bench.y } : { x: SPOT.stove.x, y: SPOT.stove.y };
+      const last = u.id === 'door' && i === n - 1;   // дверь: последний шаг — навесить на петли (потянуть створку)
+      job('hut', 'w', { id: u.id, i, n, dur: HUT_T[u.id], pose: last ? 'open' : 'craft', loop: last ? 0 : 1, fb: 'build', tg, th: u.id === 'walls' ? -26 : u.id === 'door' ? -18 : u.id === 'bench' ? -20 : -40, o: HUTO[u.id], at: [0.12, 0.5, 0.85] });
+    });
+  }
+  JOB.hut = {
+    hit(a, k) {
+      const u = HUT_UPG.find(q => q.id === a.id);
+      if (k === 0 && !(G.hut.paid && G.hut.paid[a.id] > a.i)) {
+        // доля материалов этого шага — из рюкзака/лабаза в руки (в начале шага)
+        const U = hutUnits(u), n = a.n;
+        for (let j = Math.floor(a.i * U.length / n); j < Math.floor((a.i + 1) * U.length / n); j++) if (!Inv.take(U[j], 1, true)) { Fx.toast(':close: Не хватает: ' + ITEMS[U[j]].i + '1'); return abort(a); }
+        G.hut.paid = G.hut.paid || {}; G.hut.paid[a.id] = a.i + 1;
+      }
+      work(); Sound.chop();
+    },
+    tick(a) { G.hut.prog = G.hut.prog || {}; if (G.hut.paid && G.hut.paid[a.id] > a.i) G.hut.prog[a.id] = Math.max(G.hut.prog[a.id] || 0, Math.min(0.999, (a.i + clamp(a.t / a.dur, 0, 1)) / a.n)); },
+    end(a) {
+      const u = HUT_UPG.find(q => q.id === a.id);
+      if (a.i + 1 < a.n) return hutStep(u, a.i + 1);
+      G.hut[a.id] = 1; if (a.id === 'door') G.hut.doorHp = 100;
+      if (G.hut.prog) delete G.hut.prog[a.id]; if (G.hut.paid) delete G.hut.paid[a.id];
+      Fx.toast(`${u.i} ${u.n} :ok:`); Sound.ok2();
+    },
+  };
+
+  JOB.shovel = {
+    hit(a, i) {
+      if (i === 0) { G.flags.shovel = 1; Sound.pick(); }
+      else { G.gear.shovel = 1; Fx.toast(':shovel: Лопата · держи E в поле — расчищать снег'); Sound.ok2(); }
+    },
+    // не донёс до спины — прислонить обратно к стене (рука отпускает) — шагнул, значит поставил
+    cancel(a) { if (G.flags.shovel && !G.gear.shovel) G.flags.shovel = 0; },
+  };
+
   // ---------- F: огонь ----------
   function fireKey() {
     if (state !== 'play' || UI.modal() || G.p.sleeping || G.p.ko) return;
     const p = G.p, F = TUNE.fire;
-    if (p.inside) { const f0 = G.hut.fuel; Stove.add(); return feed(SPOT.stove, f0, G.hut.fuel); }
+    if (p.action && p.action.cx) { p.action = null; watch(); }
+    if (p.action || p.ride || AUTO) return;
+    if (p.inside) return stoveFeed();
     const f = nearest(G.fires, 70);
     if (f) {
+      faceTo(f);
       if (f.fuel > 0) {
-        if (!Inv.take('wood', 1, false)) return Fx.toast(':close: Не хватает: :wood:1');
-        f.fuel = Math.min(f.fuel + F.fuelAdd, F.fuelMax); feed(f, 0, 1); Fx.floatText(f.x, f.y - 40, ':fire: +' + gameDur(F.fuelAdd)); Fx.burst(f.x, f.y - 10, 10, '#ffb347', 120);
-      } else {
-        if (Inv.cnt('wood', false) < F.relightCost) return Fx.toast(':close: Разжечь: :wood:2');
-        Inv.take('wood', F.relightCost, false); f.fuel = F.relightFuel; Fx.toast(':fire: Огонь горит');
+        if (!Inv.has('wood', false)) return Fx.toast(':close: Не хватает: :wood:1');
+        return fireStep(f, 'lay', { feed: 1 });
       }
-      return;
+      const need = Math.max(0, fireNeed(f) - (f.lay || 0));
+      if (Inv.cnt('wood', false) < need) return Fx.toast(need === 2 ? ':close: Разжечь: :wood:2' : ':close: Разжечь: :wood:' + need);
+      return need ? fireStep(f, 'lay', { fresh: !!f.b }) : fireStep(f, 'kindle', { fresh: !!f.b });
     }
     const s = nearest(G.stacks, 56);
-    if (s && s.wood < 4 && !s.lit) { if (Inv.take('wood', 1, false)) { s.wood++; Sound.chop(); feed(s, 0, 1); } else Fx.toast(':close: Не хватает: :wood:1'); return; }
+    if (s && s.wood < 4 && !s.lit) { if (!Inv.has('wood', false)) return Fx.toast(':close: Не хватает: :wood:1'); faceTo(s); return stackStep(s, 'lay'); }
     if (Inv.cnt('wood', false) < F.buildCost) return Fx.toast(':close: Костёр: :wood:3');
-    const x = clamp(p.x + p.face * 30, 60, W - 60), y = p.y + 8;
+    const x = clamp(p.x + p.face * 26, 60, W - 60), y = p.y + 8;
     if (onIce(x, y)) return Fx.toast(':close: На льду не разжечь');
     if (Math.abs(x - HUT.x) < 130 && Math.abs(y - HUT.y) < 110) return Fx.toast(':close: Слишком близко к избе');
-    Inv.take('wood', F.buildCost, false); G.fires.push({ x, y, fuel: F.buildFuel }); Fx.toast(':fire: Костёр'); Sound.ok2();
+    // место: утоптать и расчистить (2 горсти) → три полена по одному → растопка → огниво
+    const nf = { x: Math.round(x), y: Math.round(y), fuel: 0, lay: 0, b: 1, site: 0, fl: 0 };
+    fireStep(nf, 'clear');
   }
 
   // еда: сытость — сразу (как раньше), тело — поза еды 1–2 с (банка с ложкой, миска, кусок), пар от горячего; банка остаётся на снегу
@@ -796,7 +1080,8 @@ const Actions = (() => {
     else if (Inv.has('snare', false)) k = 'snare';
     else if (Inv.has('trap', false)) k = 'trap';
     if (!k) return Fx.toast(':close: Нет :snare: / :trap: · верстак');
-    p.action = { k: 'place', t: 0, dur: 2, o: k };
+    // достать из рюкзака → положить на снег → насторожить (раскладывается по ходу)
+    job('trap', 'pack', { dur: D().adjustPack || 1, pose: 'adjustPack', fb: 'idle', kind: k, spot: { x: Math.round(p.x + p.face * 20), y: Math.round(p.y + 6) } });
   }
 
   // ---------- T: тайник в поле («Оставить здесь») — рядом открывает свой, иначе создаёт новый ----------
@@ -805,14 +1090,13 @@ const Actions = (() => {
     const p = G.p;
     if (p.inside || onIce(p.x, p.y)) { Fx.toast(':close: Здесь не оставить'); return null; }
     const near = World.nearestStash(p, 70);
-    if (near) { UI.openStash(near); return near; }
+    if (near) { if (near.dg != null && near.dg < 1) stashDig(near); else UI.openStash(near); return near; }
     if (!Inv.weight()) { Fx.toast(':close: Нечего оставить'); return null; }
     G.stashes = G.stashes || [];
     if (G.stashes.length >= TUNE.world.stashMax) { Fx.toast(':close: Тайников уже ' + TUNE.world.stashMax + ' — забери что-нибудь'); return null; }
-    const s = { id: (G.stashN = (G.stashN || 0) + 1), x: Math.round(p.x + p.face * 22), y: Math.round(p.y + 10), inv: {} };
-    G.stashes.push(s);
-    Fx.toast(':cache: Тайник — клади добро'); Sound.hit();
-    UI.openStash(s);
+    // яма в снегу: появляется с первой горстью и углубляется (s.dg), готова — окно «положить»
+    const s = { id: (G.stashN = (G.stashN || 0) + 1), x: Math.round(p.x + p.face * 22), y: Math.round(p.y + 10), inv: {}, dg: 0 };
+    stashDig(s);
     return s;
   }
 
@@ -840,15 +1124,18 @@ const Actions = (() => {
     if (r.at === 'fire') return Fire.near(TUNE.fire.heatR) || { x: p.x + p.face * 18, y: p.y + 4 };
     return { x: p.x + p.face * 18, y: p.y + 4 };
   }
-  // крафт: окно — меню выбора; сама работа — в мире: материалы уходят сразу, вещь — по прогрессу над героем (шаг — отмена, материалы назад)
+  // крафт: окно — меню выбора; сама работа — в мире: материалы уходят по ходу (по штуке: из рюкзака в руки → в изделие,
+  // к 3/4 работы — все), вещь — по прогрессу над героем. Шаг — отмена: взятое возвращается (недоделку разобрал), остальное и не уходило
   function craft(r) {
     if (recipeState(r) !== 'ok') return false;
     const p = G.p; if (p.ko || p.sleeping || (p.action && p.action.k === 'craft')) return false;
-    Inv.pay(r.in, p.inside);
     const at = stationPt(r); faceTo(at); if (p.action) p.action = null; watch();
-    p.action = { k: 'craft', t: 0, dur: CRAFT_T[r.id] || 3, r, pose: 'craft', loop: 1, fb: 'build', tg: { x: at.x, y: at.y }, th: r.at === 'bench' ? -24 : -8, ic: r.i };
+    const units = hutUnits(r), dur = CRAFT_T[r.id] || 3;
+    p.action = { k: 'craft', t: 0, dur, r, pose: 'craft', loop: 1, fb: 'build', tg: { x: at.x, y: at.y }, th: r.at === 'bench' ? -24 : -8, ic: r.i, units, got: 0, wc: p.inside ? 1 : 0 };
     return true;
   }
+  // доля работы, к которой уходит i-я штука материала (не раньше 0.3 с — рука успевает дотянуться)
+  const craftAt = (a, i) => Math.max(0.3, a.dur * 0.75 * (i + 0.5) / a.units.length);
   function craftDone(r) {
     if (r.out) for (const [k, v] of Object.entries(r.out)) Inv.add(k, v);
     if (r.gear) G.gear[r.gear] = 1;
@@ -863,13 +1150,16 @@ const Actions = (() => {
     if (G.hut[u.id]) return 'owned';
     if (u.id === 'damper' && !G.hut.walls) return 'need';
     if (!World.nearHut()) return 'station';
-    if (!Inv.canPay(u.in, true)) return 'cost';
+    if (!Inv.canPay(hutLeft(u), true)) return 'cost';
     return 'ok';
   }
+  // работа над избой — в мире: к месту, шаги с молотком/конопаткой; часть растёт по ходу (окно закрывается)
   function buildHut(u) {
     if (hutUpgState(u) !== 'ok') return false;
-    Inv.pay(u.in, true); G.hut[u.id] = 1; if (u.id === 'door') G.hut.doorHp = 100;
-    Fx.toast(`${u.i} ${u.n} :ok:`); Sound.ok2(); return true;
+    const p = G.p; if (p.ko || p.sleeping || p.ride) return false;
+    if (p.action) { p.action = null; watch(); }
+    const i = Math.min(HUT_N[u.id] - 1, Math.floor(((G.hut.prog && G.hut.prog[u.id]) || 0) * HUT_N[u.id] + 1e-6));
+    hutStep(u, i); return true;
   }
 
   // записка прочитана: в журнал (G.notes → пауза «Записки»), сюжетные последствия. Показ — плашкой в мире (startNote)
@@ -1014,6 +1304,7 @@ const Actions = (() => {
     stationOk, recipeState, craft, hutUpgState, buildHut, readNote, trySleep, wake, tickSleep, radioSession,
     nightNow, skipWhy, skipMode, skipKey, skipStart, skipStop, skipping, skipFast, get skipKind() { return skipping() ? SKIP.mode : null; },
     knockout, grabbing, noteInHand, plateNext, plateClose, logEnd, logK, logCut, logSnow, falling, danger, inPath, chopSpot, atTrunk, FELL, get plate() { return PLATE; },
+    hutLeft, HUTO, CAN_LIFE, inView, walkTo: autoTo, get stoveDoor() { return stoveDoor; },
     busy: () => !!(AUTO || G.p.ko || (G.p.action && (G.p.action.k === 'lie' || G.p.action.k === 'craft' || G.p.action.k === 'notePick'))),
     reading: () => !!PLATE };
 })();

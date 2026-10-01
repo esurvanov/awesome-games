@@ -359,7 +359,7 @@ const UI = (() => {
         html += `<div class="chain">${HUT_UPG.map(u => `<span class="${G.hut[u.id] ? 'on' : ''}" title="${u.n}">${ic(u.i)}</span>`).join('<i></i>')}</div>`;
         for (const u of HUT_UPG) {
           const st = Actions.hutUpgState(u);
-          html += row(st === 'owned' ? 'done' : st === 'ok' ? '' : 'is-off', st === 'owned' ? 'ok' : u.i, u.n, u.d, st === 'owned' ? '' : st === 'need' ? bdg('miss', ic('wall', 's') + 'сначала щели') : costHtml(u.in, true), st === 'owned' ? doneB() : mkBtn(`data-u="${u.id}"`, st === 'ok', 'Построить'));
+          html += row(st === 'owned' ? 'done' : st === 'ok' ? '' : 'is-off', st === 'owned' ? 'ok' : u.i, u.n, u.d, st === 'owned' ? '' : st === 'need' ? bdg('miss', ic('wall', 's') + 'сначала щели') : costHtml(Actions.hutLeft(u), true) + (G.hut.prog && G.hut.prog[u.id] ? bdg('', Math.round(G.hut.prog[u.id] * 100) + '%') : ''), st === 'owned' ? doneB() : mkBtn(`data-u="${u.id}"`, st === 'ok', G.hut.prog && G.hut.prog[u.id] ? 'Доделать' : 'Построить'));
         }
         if (!World.nearHut()) html += `<p class="hint">${ic('hut', 's')}Только у избы</p>`;
       }
@@ -414,7 +414,7 @@ const UI = (() => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.tab) { panelTab = b.dataset.tab; }
     else if (b.dataset.r) { if (Actions.craft(RECIPES.find(r => r.id === b.dataset.r))) { closePanel(); hud(true); return; } } // работа — в мире: окно закрывается, прогресс над героем
-    else if (b.dataset.u) Actions.buildHut(HUT_UPG.find(u => u.id === b.dataset.u));
+    else if (b.dataset.u) { if (Actions.buildHut(HUT_UPG.find(u => u.id === b.dataset.u))) { closePanel(); hud(true); return; } } // изба — тоже работа в мире: идёт к месту, часть растёт по ходу
     else if (b.dataset.t) Npc.buy(NPCS[tradeWho].trade.goods.find(t => t.id === b.dataset.t), tradeWho);
     else if (b.dataset.radio) { closePanel(); return Actions.radioSession(); }
     else if (b.dataset.place) { closePanel(); Colony.startPlace(b.dataset.place); return; }

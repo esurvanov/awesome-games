@@ -51,7 +51,7 @@ const World = (() => {
     const out = [];
     if (!G || !G.veh) return out;
     for (const k in VEH_FOOT) {
-      const v = G.veh[k]; if (!v || G.p.ride === k) continue;
+      const v = G.veh[k]; if (!v || G.p.ride === k || G.p.board === k) continue;   // board — садится/сходит (js/transport.js)
       const f = (v.face || 1) < 0 ? -1 : 1, c = VC[k];
       if (!c || c.vx !== v.x || c.vy !== v.y || c.f !== f) { VC[k] = Object.assign(footShapes(VEH_FOOT[k], v.x, v.y, f), { vx: v.x, vy: v.y, f, o: v }); }
       out.push(VC[k]);
@@ -238,21 +238,31 @@ const World = (() => {
   }
   // дерево срублено «в ноль» — пуск отсчёта до молодого деревца (снова, если рубили повторно)
   function felled(t) {
-    t.stage = 0; t.cutAt = G.time; REGROW.add(t);
+    t.stage = 0; t.cutAt = G.time; delete t.gAt; REGROW.add(t);
   }
   function tickRegrow(dt) {
     if (!REGROW.size) return;
     const R = TUNE.world;
     for (const t of REGROW) {
-      if (t.cutAt == null) { REGROW.delete(t); continue; }
+      if (t.cutAt == null) { if (t.gAt == null || adultK(t) >= 1) { delete t.gAt; REGROW.delete(t); } continue; }   // взрослое дорастает (gAt)
       if (!canRegrow(t.x, t.y)) continue; // постройка/тропа у избы — ждём, пока освободится
       const age = G.time - t.cutAt;
       if (!t.stage) {
         if (age >= R.regrowStumpDays * CYCLE) { t.stage = 1; t.wood = R.regrowYoungWood; t.cutAt = G.time; }
       } else if (t.stage === 1) {
-        if (age >= R.regrowYoungDays * CYCLE) { t.stage = 0; t.wood = wood0(t); delete t.cutAt; REGROW.delete(t); }
+        if (age >= R.regrowYoungDays * CYCLE) { t.stage = 0; t.wood = wood0(t); delete t.cutAt; t.gAt = G.time; }
       }
     }
+  }
+  // отрастание без скачков: доля фазы 0..1 (пень → росток в последней трети, деревце растёт, к концу — в ёлочку),
+  // взрослое ещё ADULT_D суток дорастает от 0,45 до полного размера (рисование: js/gfx.js drawTree)
+  const ADULT_D = 2, ADULT_K0 = 0.45;
+  function regrowK(t) { if (t.cutAt == null) return 1; const R = TUNE.world; return clamp((G.time - t.cutAt) / ((t.stage === 1 ? R.regrowYoungDays : R.regrowStumpDays) * CYCLE), 0, 1); }
+  const adultK = t => (t.gAt == null ? 1 : clamp(ADULT_K0 + (1 - ADULT_K0) * (G.time - t.gAt) / (ADULT_D * CYCLE), ADULT_K0, 1));
+  // «сколько дерева» непрерывно (перепись, js/tests/no-instant.js): пень 0 → деревце regrowYoungWood → взрослое wood0
+  function growWood(t) {
+    if (t.cutAt == null) return t.wood; const R = TUNE.world, k = regrowK(t);
+    return t.stage === 1 ? R.regrowYoungWood + (wood0(t) - R.regrowYoungWood) * k : t.wood > 0 ? t.wood : R.regrowYoungWood * k;
   }
   // ---------- тайники в поле: до TUNE.world.stashMax штук, хранятся в G.stashes (сейв — как есть) ----------
   function nearestStash(p, r) {
@@ -471,7 +481,7 @@ const World = (() => {
     } else { p.iceT = Math.max(0, p.iceT - dt * 2); if (p.iceT === 0) p.creaked = 0; }
   }
 
-  return { walk, crowd, FOG, COLL, FOOT_BY, footShapes, addFoot, vehFoot, rockFoot, trunkR, blocked, freeNear, GEN_V, TREE_I, wood0, nearHut, inCedar, onThinIce, gen, genLiving, buildGrid, shakeTree, tickTrees,
+  return { walk, crowd, FOG, COLL, FOOT_BY, footShapes, addFoot, vehFoot, rockFoot, trunkR, blocked, freeNear, GEN_V, TREE_I, wood0, regrowK, adultK, growWood, ADULT_K0, nearHut, inCedar, onThinIce, gen, genLiving, buildGrid, shakeTree, tickTrees,
     solid, reveal, tickFog, thinIce, felled, tickRegrow, nearestStash, tickStashRaids };
 })();
 

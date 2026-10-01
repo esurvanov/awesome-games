@@ -57,7 +57,7 @@ function update(dt) {
   Story.tick(dt, h, night);
   World.thinIce(dt);
   Zones.tick(dt);
-  Transport.tick();
+  Transport.tick(dt);
   if (state === 'play') Weather.tick();
   Director.tick(dt, night, storm);
   Wolves.tick(dt, night);

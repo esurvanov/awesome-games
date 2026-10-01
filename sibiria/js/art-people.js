@@ -617,6 +617,9 @@ var ArtPeople = (function () {
       g.lineCap = 'butt'; g.strokeStyle = C('#5b3d27'); g.lineWidth = 5; g.beginPath(); tM(g, -2.6, 0); tL(g, 2.4, 0); g.stroke();
       g.strokeStyle = C('#765436'); g.lineWidth = 2; g.beginPath(); tM(g, -2.6, -1.2); tL(g, 2.4, -1.2); g.stroke(); g.lineCap = 'round';
       tp(2.4, 0); ell(g, QX, QY, 1.5, 2.5, C('#e0b47a')); ell(g, QX, QY, 0.6, 1, C('#c79a62'));
+    } else if (kind === 'shovel') {   // лопата (взял у двери): черенок, деревянный совок на конце
+      g.strokeStyle = C(W); g.lineWidth = 2; g.beginPath(); tM(g, -6, 0); tL(g, 14, 0); g.stroke();
+      g.fillStyle = C('#76593a'); g.beginPath(); tM(g, 13, -3.2); tL(g, 20, -3.8); tL(g, 20.5, 3.8); tL(g, 13, 3.2); g.closePath(); g.fill();
     } else if (kind === 'log') {   // полено в руках (печь)
       g.strokeStyle = C('#765436'); g.lineWidth = 3.6; g.beginPath(); tM(g, -3, 0); tL(g, 6, 0); g.stroke();
       tp(6, 0); ell(g, QX, QY, 1.7, 1.7, C('#c79a62'));
