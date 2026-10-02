@@ -226,11 +226,11 @@ var ArtPeople = (function () {
   }
   // разворот (TW — 0…1…0 за TURN): ось хода ног поворачивается по земле через камеру (лицом — вниз, спиной — вверх),
   // а не зеркалится мгновенно в момент смены стороны
-  let TW = 0, TK = -1, VD = 0, LSIDE = -1, REAL = false;   // LSIDE — плечо длинной ноши текущей фигуры (−1 дальнее, +1 ближнее; после разворота — другое)
+  let TW = 0, TK = -1, VD = 0, LSIDE = -1, REAL = false, TB = false;   // LSIDE — плечо длинной ноши текущей фигуры (−1 дальнее, +1 ближнее; после разворота — другое); TB — разворот через спину (на весь разворот)
   function legAxes(vyv) {
     const w = WL, mx = Math.sqrt(Math.max(0, 1 - vyv * vyv));
     let hx = FCL * mx, hy = vyv;
-    if (TWL > 0) { hx *= 1 - TWL; hy = hy * (1 - TWL) + TWL * (BACK ? -1 : 1); const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l; }
+    if (TWL > 0) { hx *= 1 - TWL; hy = hy * (1 - TWL) + TWL * (TB ? -1 : 1); const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l; }
     GFX = lerp(FCL * KL2, hx, w); GFY = lerp(SYL, hy, w); GLX = FCL * SL * LSL; GLY = LZL;
   }
   function prL(fx, y, lat) { const f = FC; FC = FCL; pr(fx, y, lat); FC = f; }   // точка ноги (тазобедренный сустав) — сторона ног
@@ -2035,17 +2035,20 @@ var ArtPeople = (function () {
     else { BACK = vyv < -0.35; FRONT = vyv > 0.35; }
     g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
     // поворот: через лицо к камере (со спины — через спину), а не сжатием в полоску; ноги — сразу, корпус — на TLAG позже
-    TK = -1;   // TK — доля разворота корпуса (ноша на плече поворачивается с корпусом)
+    TK = -1; TB = BACK;   // TK — доля разворота корпуса (ноша на плече поворачивается с корпусом)
     if (mm) {
-      if (FC !== mm.face) { mm.fromFace = mm.face; mm.face = FC; mm.turnT = t; }
+      // сторона разворота (через лицо / через спину) — одна на весь разворот: корпус догоняет пружиной, и его «спиной» может смениться
+      // посреди разворота — тогда ноги и корпус перескочили бы на другой бок (скачок кисти/комля на ~10 px)
+      if (FC !== mm.face) { mm.fromFace = mm.face; mm.face = FC; mm.turnT = t; mm.tb = BACK; }
+      TB = mm.tb != null ? mm.tb : BACK;
       const tw = k => (k >= 0 && k < 1 ? 1 - Math.abs(1 - 2 * k) : 0), kl = (t - mm.turnT) / TURN, kt = (t - mm.turnT - TLAG) / TURN;
-      if (kl >= 0 && kl < 1) { const w = tw(kl); TWL = w; if (kl < 0.5) FCL = mm.fromFace; if (SL < w) { SL = w; KL2 = kOf(SL); LSL = BACK ? 1 : -1; LZL = 0.36 * (1 - SL); } }
+      if (kl >= 0 && kl < 1) { const w = tw(kl); TWL = w; if (kl < 0.5) FCL = mm.fromFace; if (SL < w) { SL = w; KL2 = kOf(SL); LSL = TB ? 1 : -1; LZL = 0.36 * (1 - SL); } }
       if (kt >= 0 && kt < 1) TK = kt;
       if (kt < 1 && kl >= 0) {
         const w = tw(kt); TW = w;
         if (kt < 0.5) FC = mm.fromFace;
-        if (S < w) { S = w; K = kOf(S); LS = BACK ? 1 : -1; LZ = 0.36 * (1 - S); }
-        if (!BACK && w > 0.45) FRONT = true;
+        if (S < w) { S = w; K = kOf(S); LS = TB ? 1 : -1; LZ = 0.36 * (1 - S); }
+        if (!TB && w > 0.45) FRONT = true;
       }
     }
     VSPL = FCL !== FC || Math.abs(SL - S) > 1e-3 || LSL !== LS;
@@ -2134,7 +2137,7 @@ var ArtPeople = (function () {
         // волоком: комель в ближней кисти у бедра чуть позади, сбоку (ствол идёт мимо ног); дальняя рука — для равновесия, мах ×0.6
         const R = REST[1]; if (loco) { P.h1x = P.sx + R[0] + 0.6 * (P.h1x - P.sx - R[0]); P.h1y = P.sy + R[1] + 0.6 * (P.h1y - P.sy - R[1]); }
         const tw = TK >= 0 && TK < 1 ? Math.abs(1 - 2 * TK) : 1; P.ldr = 1; P.ldw = tw;   // разворот: кисть с комлем проходит за спиной (сбоку → к центру → на другой бок), без скачка
-        handR(0, -3.2, 11.6); P.hl0 = 8.6 * tw; P.carry = 1;
+        handR(0, -3.2, 11.6); P.h0x = P.hx + (P.h0x - P.hx) * tw; P.hl0 = 8.6 * tw; P.carry = 1;   // и вперёд от оси таза — к ней же: корпус меняет сторону, когда кисть на оси (без скачка зеркалом)
       } else if (LDo.k) { const hh = LDo.k === 'hare'; P.held = [LDo.k, P.h0x - 0.3, P.h0y + (hh ? 0.4 : -0.4), hh ? PI / 2 - 0.15 : -0.3]; }
     }
     if (anim === 'carry' || (o.carry && (anim === 'walk' || anim === 'idle'))) {

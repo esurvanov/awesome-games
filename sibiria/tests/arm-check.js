@@ -30,7 +30,7 @@ var ArmCheck = (() => {
       const s = v * DT; ph += ArtPeople.advance(s, gt); if (vy) y += s * vy; else x += s;
       const d = Object.assign({}, d0, { key, x, y, vy, t: 100 + t, phase: ph, gait: gt, speed: Math.min(1, v / 200), anim: 'walk', sel: false, onStep: null });
       ArtPeople.draw(g, d, { now: d.t, night: 0, light() {}, spark() {} });
-      if (t >= 1) fr.push({ y, anim: 'walk', vy, a0: P.ar0.slice(), a1: P.ar1.slice(), sx: P.sx, sy: P.sy, w0: P.h0y - P.sy, w1: P.h1y - P.sy });
+      if (t >= 1) fr.push({ y, anim: 'walk', vy, vt: P.vwT, a0: P.ar0.slice(), a1: P.ar1.slice(), sx: P.sx, sy: P.sy, w0: P.h0y - P.sy, w1: P.h1y - P.sy });
     }
     return fr;
   }
@@ -43,7 +43,7 @@ var ArmCheck = (() => {
     ArtPeople.draw = function (g, d) {
       if (d && d.key === p && force) { d = Object.assign({}, d, { anim: force }); if (vy != null) d.vy = vy; arguments[1] = d; }   // поза и ракурс — заданные (в снегу у кабины герой бредёт: trudge)
       const r = draw0.apply(this, arguments);
-      if (on && d && d.key === p) { fr.push({ y: d.y, anim: d.anim, vy: d.vy, a0: P.ar0.slice(), a1: P.ar1.slice(), sx: P.sx, sy: P.sy, w0: P.h0y - P.sy, w1: P.h1y - P.sy, v: d.gait ? d.gait.v : 0 }); if (d.gait) TPL = d; }
+      if (on && d && d.key === p) { fr.push({ y: d.y, anim: d.anim, vy: d.vy, vt: P.vwT, a0: P.ar0.slice(), a1: P.ar1.slice(), sx: P.sx, sy: P.sy, w0: P.h0y - P.sy, w1: P.h1y - P.sy, v: d.gait ? d.gait.v : 0 }); if (d.gait) TPL = d; }
       return r;
     };
     try {
@@ -54,8 +54,9 @@ var ArmCheck = (() => {
     return fr;
   }
   function stats(fr, i, flat) {
-    // спина/анфас: без кадров разворота (плечи сходятся в профиль; ракурс ещё не встал — упёрся в стену/трогается: vy рисунка не ±1)
-    if (flat) fr = fr.filter(f => Math.abs(f.a0[0] - f.a1[0]) > 6 && (f.vy == null || Math.abs(f.vy) > 0.95));
+    // спина/анфас: без кадров разворота (плечи сходятся в профиль; ракурс ещё не встал — упёрся в стену/трогается: vy рисунка не ±1).
+    // Руки — на корпусе, а корпус догоняет ноги по ракурсу пружиной (art-people VLAG): «встал» — по ракурсу корпуса (P.vwT), не ног (d.vy)
+    if (flat) fr = fr.filter(f => { const v = f.vt != null ? f.vt : f.vy; return Math.abs(f.a0[0] - f.a1[0]) > 6 && (v == null || Math.abs(v) > 0.95); });
     const k = i ? 'a1' : 'a0', th = fr.map(f => f[k][8] * D), fl = fr.map(f => wrap(f[k][9]) * D);
     // излом на экране: плечо→локоть против локоть→кончик варежки (крючок предплечья с варежкой вбок; в глубину — короче, не вбок)
     const kink = fr.map(f => { const a = f[k], l = Math.hypot(a[6] - a[2], a[7] - a[3]); return l < 2 ? 0 : Math.abs(wrap(Math.atan2(a[7] - a[3], a[6] - a[2]) - Math.atan2(a[3] - a[1], a[2] - a[0]))) * D * Math.min(1, l / 5); });
