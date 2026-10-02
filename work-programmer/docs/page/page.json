@@ -240,15 +240,6 @@
     "ru": "Аптайм: уровни по группам, английский",
     "en": "Uptime: levels by tier, English"
    }
-  },
-  {
-   "file": "docs/screenshots/mobile.png",
-   "w": 390,
-   "h": 844,
-   "alt": {
-    "ru": "Аптайм: телефон",
-    "en": "Uptime: phone"
-   }
   }
  ],
  "related": [
