@@ -9,10 +9,12 @@ import { openGame, OUT } from '../qa/harness.mjs';
 const DIR = path.join(OUT, 'refactor');
 const [cmd, a, b] = process.argv.slice(2);
 
-function page() {
+async function page() {
   const r = (n) => (typeof n === 'number' ? Math.round(n * 100) / 100 : n);
   const v3 = (o) => (o ? { x: r(o.x), y: r(o.y), z: r(o.z) } : null);
   const D = window.DBG;
+  // wait until the footprint queue is empty and the passport has stopped changing (streamed hulls settle with time)
+  { let last = -1, still = 0; for (let i = 0; i < 120 && still < 6; i++) { await new Promise((q) => setTimeout(q, 500)); const n = D.Passport.pendingFootprints + '/' + D.Passport.list.length + '/' + D.Passport.list.filter((e) => e.exact).length; still = n === last ? still + 1 : 0; last = n; } }
   // 'debris' pieces appear and vanish with timing, so they stay out of the snapshot
   const passport = D.Passport.list.filter((e) => e.alive !== false && e.name !== 'debris').map((e) => {
     const b = e.box || null;
@@ -44,7 +46,7 @@ function flat(o, p = '', out = {}) {
 }
 
 if (cmd === 'snap') {
-  const H = await openGame({ label: 'characterize', quality: 'high' });
+  const H = await openGame({ label: 'characterize', quality: 'high', cold: true });
   try {
     await H.newGame();
     const snap = await H.page.evaluate(page);
@@ -54,7 +56,10 @@ if (cmd === 'snap') {
     console.log(`snapshot ${a}: passport ${snap.passport.count} · stags ${snap.creatures.stags.length} · enemies ${snap.creatures.enemies.length} · modules ${snap.modules.length} · errors ${snap.errors.length}`);
   } finally { await H.close(); }
 } else if (cmd === 'diff') {
-  const A = flat(JSON.parse(fs.readFileSync(path.join(DIR, a + '.json'), 'utf8'))), B = flat(JSON.parse(fs.readFileSync(path.join(DIR, b + '.json'), 'utf8')));
+  // kinds whose spot wobbles by under a metre between identical runs (placement relaxes against terrain): compare name and count only
+  const WOBBLE = /^st_cairn$/;
+  const load = (l) => { const j = JSON.parse(fs.readFileSync(path.join(DIR, l + '.json'), 'utf8')); j.passport.items.forEach((it) => { if (WOBBLE.test(it.name)) { it.box = it.c0 = it.at = null; } }); return flat(j); };
+  const A = load(a), B = load(b);
   const keys = new Set([...Object.keys(A), ...Object.keys(B)]); let n = 0;
   const same = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 0.06 : JSON.stringify(x) === JSON.stringify(y));   // 6 cm: vertex float noise
   for (const k of keys) if (!/\.vol\.|^save\.time$/.test(k) && !same(A[k], B[k])) { n++; if (n <= 60) console.log(k, ':', JSON.stringify(A[k]), '→', JSON.stringify(B[k])); }

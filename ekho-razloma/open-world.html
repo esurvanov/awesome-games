@@ -561,6 +561,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 </script>
 <script type="module" src="qa-hooks.js"></script>
 <script src="style.js"></script>
+<script src="modules/store.js"></script>   <!-- Store: the one place that touches localStorage -->
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
 <script src="assets/pack/animlib-runtime.js"></script>
@@ -595,11 +596,7 @@ const wrapA = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI
 let seed = 20260925;
 const srand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
 const srange = (a, b) => a + srand() * (b - a);
-const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
-};
+const store = window.Store;   // modules/store.js
 const ICON = (id, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#${id}"/></svg>`;
 function fixIcons(root) {
   root.querySelectorAll('svg.i:not([viewBox])').forEach((s) => {
