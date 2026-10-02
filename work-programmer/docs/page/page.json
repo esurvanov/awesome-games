@@ -1,0 +1,261 @@
+{
+ "slug": "uptime",
+ "play": "/work-programmer/",
+ "repoDir": "work-programmer",
+ "name": {
+  "ru": "Аптайм",
+  "en": "Uptime"
+ },
+ "tagline": {
+  "ru": "Строишь сервис. Он ломается. Ты чинишь. Игра про работу инженера",
+  "en": "You build a service. It breaks. You fix it. A game about an engineer’s job"
+ },
+ "genre": {
+  "ru": "Головоломка, симулятор системного дизайна",
+  "en": "Puzzle, system design simulator"
+ },
+ "description": {
+  "ru": "Аптайм — игра в браузере про проектирование серверных систем: собери сервис из блоков, пусти поток пользователей, переживи аварии. 43 уровня от одного сервера до распила монолита.",
+  "en": "Uptime is a browser game about designing server systems: build a service from blocks, send a stream of users through it, survive the incidents. 43 levels from a single server to splitting a monolith."
+ },
+ "intro": {
+  "ru": [
+   "Поток пользователей идёт по трубам: толщина — объём, цвет — справляется ли блок. Ты ставишь серверы, кэши, очереди и базы, делаешь ставку, что сломается первым, и запускаешь.",
+   "После забега — разбор: решение с плюсами и минусами, путь запроса и где было тонко. Игра для тех, кто хочет понять, чем занят инженер, без опыта в программировании."
+  ],
+  "en": [
+   "A stream of users runs through pipes: thickness is volume, colour shows whether a block copes. You place servers, caches, queues and databases, bet on what breaks first and press start.",
+   "After the run comes a debrief: the decision with pros and cons, the request path and where it was thin. A game for anyone who wants to see what an engineer does, no coding needed."
+  ]
+ },
+ "features": {
+  "ru": [
+   "43 уровня в пяти группах: основы, нагрузка, наблюдаемость, платформа, архитектура",
+   "Кэши, брокеры, Kubernetes, сокеты, сертификаты, VPN, мультирегион и мультиоблако",
+   "Монолит, модульный монолит, распил, распределённый монолит, микросервисный ад, DDD и саги",
+   "27 видов аварий: всплеск, падение зоны, плохой выпуск, истёкший сертификат, утечка",
+   "Обучение за 3 минуты, прогноз перед стартом, разбор после",
+   "Задача дня, выживание, песочница; русский и английский"
+  ],
+  "en": [
+   "43 levels in five tiers: basics, load, observability, platform, architecture",
+   "Caches, brokers, Kubernetes, sockets, certificates, VPN, multi-region and multi-cloud",
+   "Monolith, modular monolith, splitting, distributed monolith, microservice hell, DDD and sagas",
+   "27 kinds of incidents: spike, zone outage, bad deploy, expired certificate, leak",
+   "A 3-minute tutorial, a prediction before the start, a debrief after",
+   "Daily task, survival, sandbox; Russian and English"
+  ]
+ },
+ "controls": {
+  "ru": [
+   [
+    "Блок слева",
+    "поставить на поле"
+   ],
+   [
+    "Кружок у блока → другой блок",
+    "провести трубу"
+   ],
+   [
+    "Щелчок по блоку или трубе",
+    "настройки"
+   ],
+   [
+    "Пробел",
+    "пауза"
+   ],
+   [
+    "Delete",
+    "убрать выбранное (не на ходу)"
+   ],
+   [
+    "Колесо, щипок",
+    "масштаб"
+   ]
+  ],
+  "en": [
+   [
+    "Block on the left",
+    "place it on the board"
+   ],
+   [
+    "Dot at a block → another block",
+    "draw a pipe"
+   ],
+   [
+    "Click a block or pipe",
+    "settings"
+   ],
+   [
+    "Space",
+    "pause"
+   ],
+   [
+    "Delete",
+    "remove the selection (not while running)"
+   ],
+   [
+    "Wheel, pinch",
+    "zoom"
+   ]
+  ]
+ },
+ "facts": {
+  "ru": [
+   [
+    "Длительность",
+    "2–4 минуты на уровень"
+   ],
+   [
+    "Языки",
+    "русский, английский"
+   ],
+   [
+    "Платформа",
+    "браузер, мышь и касание"
+   ],
+   [
+    "Код",
+    "открытый, MIT; без сервера и сборки"
+   ]
+  ],
+  "en": [
+   [
+    "Length",
+    "2–4 minutes per level"
+   ],
+   [
+    "Languages",
+    "Russian, English"
+   ],
+   [
+    "Platform",
+    "browser, mouse and touch"
+   ],
+   [
+    "Code",
+    "open, MIT; no server, no build"
+   ]
+  ]
+ },
+ "faq": {
+  "ru": [
+   [
+    "Нужно ли уметь программировать?",
+    "Нет: игра объясняет каждый блок через бытовую аналогию и показывает, что происходит."
+   ],
+   [
+    "Насколько это похоже на правду?",
+    "Числа упрощены, но причины и следствия настоящие: очереди, тайм-ауты, повторы, отказы зон."
+   ],
+   [
+    "Нужна ли установка?",
+    "Нет, игра открывается в браузере и работает без сети."
+   ]
+  ],
+  "en": [
+   [
+    "Do I need to know how to code?",
+    "No: every block is explained through an everyday analogy, and you see what happens."
+   ],
+   [
+    "How close is it to reality?",
+    "The numbers are simplified, but causes and effects are real: queues, timeouts, retries, zone failures."
+   ],
+   [
+    "Do I need to install anything?",
+    "No, the game opens in the browser and works offline."
+   ]
+  ]
+ },
+ "shots": [
+  {
+   "file": "docs/screenshots/flow.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: поток по сервисам, команды и события",
+    "en": "Uptime: flow through services, commands and events"
+   }
+  },
+  {
+   "file": "docs/screenshots/home.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: главный экран",
+    "en": "Uptime: home screen"
+   }
+  },
+  {
+   "file": "docs/screenshots/tutorial.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: обучение",
+    "en": "Uptime: tutorial"
+   }
+  },
+  {
+   "file": "docs/screenshots/predict.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: прогноз перед стартом",
+    "en": "Uptime: prediction before the start"
+   }
+  },
+  {
+   "file": "docs/screenshots/result.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: итог и разбор решения",
+    "en": "Uptime: result and decision debrief"
+   }
+  },
+  {
+   "file": "docs/screenshots/logs.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: поиск сломанного сервиса по логам",
+    "en": "Uptime: finding the broken service through logs"
+   }
+  },
+  {
+   "file": "docs/screenshots/loadtest.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: нагрузочный тест",
+    "en": "Uptime: load test"
+   }
+  },
+  {
+   "file": "docs/screenshots/levels-en.png",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Аптайм: уровни по группам, английский",
+    "en": "Uptime: levels by tier, English"
+   }
+  }
+ ],
+ "related": [
+  "skhodka",
+  "zhitie"
+ ],
+ "keywords": {
+  "ru": [
+   "игра про системный дизайн",
+   "симулятор инженера",
+   "игра про архитектуру серверов"
+  ],
+  "en": [
+   "system design game",
+   "infrastructure simulator browser",
+   "software architecture game"
+  ]
+ }
+}
