@@ -582,8 +582,7 @@
    * fix. ANIMLIB.md's 37 pilot/hermit clips (assets/pack/anim_pilot_contact.js) carry, per clip, which hand/foot holds
    * where on the real surface and the ideal stand-off; ANIMLIB.chooseContact(intent, sense, meta) turns a probed
    * "sense" + a high-level intent into {clip, enter, standOff}. The intent itself (which of the 7 actions, if any) is
-   * asked of Jev (CONTACT_INTENT, ai-content.js) only when the probed surface state actually changes near the player;
-   * offline / low-confidence falls back to AI_CONTENT.contactRules (deterministic, same file). */
+   * chosen by contactRules() below (deterministic: the surface kind, distance, speed and state). */
   const CT = { ready: false, meta: null, layer: null, state: 'idle', phase: null, pick: null, t: 0, sense: null,
     wantIntent: 'none', wantSrc: 'rules', askKey: '', askAt: -9, senseT: 0, plan: null, keyT: 0 };
   // INTERACT (modules/interact.js): kinds with authored contact points go through the mediator — stand spot, facing
@@ -666,7 +665,7 @@
   }
   function contactDecide() {
     const sense = CT.sense; if (!sense) { CT.wantIntent = 'none'; return; }
-    const P = C.player, G = C.G, AC = window.AI_CONTENT;
+    const P = C.player, G = C.G;
     const kind = senseKind(sense);
     const state = G.riding ? 'riding' : (C.enemies && C.enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return')) || (C.boss && C.boss.active && !C.boss.dead) ? 'combat'
       : (C.CLIMB && C.CLIMB.t >= 0) ? 'climbing' : P.sliding ? 'sliding' : sense.speed > 6 ? 'running' : sense.speed > 0.15 ? 'walking' : 'idle';
@@ -675,14 +674,22 @@
     const npcNear = !!(C.orm && C.orm.pos && Math.hypot(C.orm.pos.x - P.x, C.orm.pos.z - P.z) < 10);
     const raw = { surface: kind.surface, height: kind.height || 0, distance: clamp(kind.dist, 0, 3), angleDeg: 0, speed: sense.speed, state,
       stamina: clamp(P.hp / Math.max(1, P.hpMax), 0, 1), cold: clamp((C.WX && C.WX.storm) || 0, 0, 1), animalsNear: Math.min(9, animalsNear), npcNear, onIce: sense.onIce };
-    CT.wantIntent = AC && AC.contactRules ? AC.contactRules(raw) : 'none'; CT.wantState = state;
+    CT.wantIntent = contactRules(raw); CT.wantState = state;
     // a rock ahead (or under the knee probe) is rock-brain's: no generic intent on it
     if (rockOwner() && rkFront(sense)) { CT.wantIntent = 'none'; return; }
-    const key = raw.surface + '|' + Math.round(raw.distance * 4) + '|' + raw.state + '|' + Math.round(raw.height * 4) + '|' + (raw.onIce ? 1 : 0);
-    if (window.AI && window.AI.available && window.AI.ask && (key !== CT.askKey) && (C.T - CT.askAt > K.contactAsk)) {
-      CT.askKey = key; CT.askAt = C.T; STATS.contactAsks = (STATS.contactAsks || 0) + 1;
-      window.AI.ask('CONTACT_INTENT', raw).then((r) => { if (r && r.intent) { CT.wantIntent = r.intent; CT.wantSrc = r.src; } });
+  }
+  // which of the 7 contact intents (or none) the probed surface asks for: deterministic, from the surface kind, distance, speed and state
+  function contactRules(s) {
+    if (s.surface === 'branch') return s.speed > 0.3 ? 'clear_branch' : 'none';
+    if (s.surface === 'obstacle_top') return s.state !== 'combat' && s.state !== 'riding' ? 'cross_obstacle' : 'none';
+    if (s.surface === 'slope') return s.speed < 3 && s.state !== 'riding' ? 'climb_slope' : 'none';
+    if (s.surface === 'ground') return (s.state === 'idle' || s.speed < 0.8) && s.distance < 1.0 ? 'inspect_ground' : 'none';
+    if (s.surface === 'wall' || s.surface === 'ledge' || s.surface === 'object_face') {
+      if (s.distance > 1.15 || s.state === 'combat' || s.state === 'riding' || s.state === 'climbing') return 'none';
+      if (s.state === 'idle' || s.speed < 0.6) return 'rest_on_rock';
+      if (s.speed < 1.4) return 'touch_surface';
     }
+    return 'none';
   }
   function playPick(A, name) {
     const m = CT.meta.clips[name]; if (!A.acts[name]) return false;

@@ -563,8 +563,6 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="style.js"></script>
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
-<script src="ai-content.js"></script>
-<script src="ai.js"></script>
 <script src="assets/pack/animlib-runtime.js"></script>
 <script src="modules/contact-core.js"></script>   <!-- CORE: one vocabulary of object families / affordances / body↔surface pairs (ARCH-CORE.md) -->
 <script src="modules/terrain.js"></script>
@@ -2732,7 +2730,6 @@ function talkOrm() {
   else if (G.stage === 4) Dialog.play(D.ormSpires);
   else if (G.stage === 5) Dialog.play(D.orm2, () => setStage(6));
   else Dialog.play(D.ormLate);
-  if (window.AI && G.stage >= 2 && Dialog.active && !Dialog.done) { Dialog.q = Dialog.q.concat([{ who: 'orm', prompt: '', choices: [{ label: 'Спросить…', icon: 'i-person', hint: 'Y', fn: () => AI.orm.open() }, { label: 'Уйти', icon: 'i-home', fn: () => { if (!coarse) requestLock(); } }] }]); }
 }
 function takeCell() {
   G.hasCell = true; WORLD.cell.visible = false; Sound.pickup(); toast('i-bolt', 'Энергоячейка', 'c-ice');
@@ -3031,7 +3028,7 @@ $('bResume').onclick = () => setPause(false);
 function renderQPick() { for (const b of $('qPick').children) { const on = b.dataset.q === Q.name; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); } }
 for (const b of $('qPick').children) b.onclick = () => {
   const q = b.dataset.q; if (window.LowEnd) LowEnd.setManual(q);
-  if (window.AI && AI.quality) AI.quality.set(q, 1e9); else setQuality(q);
+  setQuality(q);
   renderQPick(); toast('i-chip', 'Графика · ' + b.textContent.trim(), 'c-ice');
 };
 $('bToMenu').onclick = toMenu;
@@ -3278,12 +3275,7 @@ function updateEnemies(dt) {
         mx = e.wx - e.x; mz = e.wz - e.z; mv = Math.hypot(mx, mz) > 1 ? 2 : 0;
         if (d < 26 && alive) e.st = 'chase';
         break;
-      case 'chase': {
-        const ai = window.AI ? AI.intent(e) : null;
-        if (ai === 'retreat' && d > 6) { e.st = 'return'; break; }
-        if (ai === 'circle' && d > 7) { const a = Math.atan2(e.z - player.z, e.x - player.x) + 0.9; mx = player.x + Math.cos(a) * 11 - e.x; mz = player.z + Math.sin(a) * 11 - e.z; mv = 6; combat = 1; break; }
-        if (ai === 'alert' && d > 15) { combat = 1; break; }
-      }
+      case 'chase':
         mx = dx; mz = dz; mv = G.riding ? 10 : 7; combat = 1;
         if (d > 44 || hd > 65 || !alive) e.st = 'return';
         else if (d < 4.5) { e.st = 'windup'; e.t = 0.55; }
@@ -3295,7 +3287,7 @@ function updateEnemies(dt) {
         if (e.t <= 0) { e.st = 'recover'; e.t = 0.9; }
         break;
       case 'recover': if (e.t <= 0) e.st = 'chase'; break;
-      case 'return': mx = e.hx - e.x; mz = e.hz - e.z; mv = 8; if (hd < 3) e.st = 'idle'; if (d < 18 && alive && !(window.AI && AI.intent(e) === 'retreat')) e.st = 'chase'; break;
+      case 'return': mx = e.hx - e.x; mz = e.hz - e.z; mv = 8; if (hd < 3) e.st = 'idle'; if (d < 18 && alive) e.st = 'chase'; break;
     }
     if (mv) { const l = Math.hypot(mx, mz) || 1; e.x += mx / l * mv * dt; e.z += mz / l * mv * dt; }
     collide(e, 0.8);
@@ -3867,10 +3859,6 @@ function updateFox(dt) {
       if (d > 90) { fox.x = bx; fox.z = bz; }
       tx = bx; tz = bz; const bd = Math.hypot(bx - fox.x, bz - fox.z);
       want = bd > 1.2 ? (G.riding ? 18 : bd > 9 ? 13 : 6.5) : 0;
-      const ai = window.AI && !G.riding ? AI.intent(fox) : null;
-      if (ai === 'lead_player_to_shard' && fox.seekT > 1) fox.seekT = 0;
-      else if (ai === 'circle' && d < 8) { const st = AI.steer(fox, 'circle', 'fox'); tx = st.tx; tz = st.tz; want = st.speed; }
-      else if ((ai === 'graze' || ai === 'alert') && d < 6) want = 0;
       if (fox.seekT <= 0) {
         fox.seekT = 14;
         const busy = enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return') || (boss.active && !boss.dead);
@@ -4298,10 +4286,8 @@ function updateStags(dt) {
     const camD = Math.hypot(s.x - camera.position.x, s.z - camera.position.z);
     s.t -= dt;
     if (s.st === 'graze') {
-      const ai = window.AI ? AI.intent(s) : null;
-      if (ai === 'alert' || ai === 'approach') { if (d >= 10) { if (s.lk !== 1) { s.lk = 1; s.A.loop('look', 0.3); } s.yaw += wrapA(Math.atan2(-dx, -dz) - s.yaw) * Math.min(1, dt * 3); } }
-      else s.lk = 0;
-      if ((ai ? ai === 'flee' || d < 10 : d < 26) && G.mode === 'play') { s.st = 'flee'; s.t = rand(4, 6); s.fx = dx / (d || 1); s.fz = dz / (d || 1); s.A.loop('run', 0.15); }
+      s.lk = 0;
+      if (d < 26 && G.mode === 'play') { s.st = 'flee'; s.t = rand(4, 6); s.fx = dx / (d || 1); s.fz = dz / (d || 1); s.A.loop('run', 0.15); }
       else if (s.t <= 0) { s.t = rand(4, 9); s.A.loop(['idle', 'eat', 'look', 'eat'][(Math.random() * 4) | 0], 0.4); }
     } else {
       const hd = Math.hypot(s.x - s.hx, s.z - s.hz);
@@ -4403,7 +4389,6 @@ function frame(now) {
   const cpu0 = performance.now();
   let dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
   if (G.mode === 'menu' && LOAD.done) LOOP.menuT += dt; else LOOP.menuT = 0;
-  if (window.AI) AI.tick(dt);
   if (G.mode === 'play') {
     if (G.pause || G.ui) {
       if (G.ui === 'map') drawBigMap();
@@ -4491,57 +4476,6 @@ function frame(now) {
       },
     },
   };
-  /* ---- AI layer (ai.js). Absent/offline → nothing changes. ---- */
-  if (window.AI) {
-    const nearP = (p, r) => Math.hypot(p.x - player.x, p.z - player.z) < r;
-    AI.init({
-      THREE, scene, camera, renderer, cam, coarse, G, player, orm, fox, sk, enemies, boss, STAGS, WX, POI, getH, groundH, normalY,
-      dialogActive: () => Dialog.active,
-      say: (lines, done) => Dialog.play(lines, done),
-      toast, lock: requestLock,
-      objective: () => (STAGES[G.stage] && STAGES[G.stage].tgt()) || null,
-      firePos: () => FIRE.pos,
-      shipPos: () => WORLD.kestrel.g.position,
-      echoes: () => WORLD.echoes,
-      shards: () => WORLD.shards,
-      inCombat: () => enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return') || (boss.active && !boss.dead),
-      sites: () => (window.WorldFill && WorldFill.stats ? { camp: WorldFill.stats.camp, wreck: WorldFill.stats.ship, pier: WorldFill.stats.pier } : {}),
-      getQuality: () => (typeof Q !== 'undefined' && Q.name) || undefined, setQuality: typeof setQuality === 'function' ? setQuality : undefined,
-      preloadZone: (z) => AI.prefetch(z, ASSET),
-      onOrmReply: (r) => { if (AV.orm) AV.orm.once(r.mood <= 2 ? 'no' : r.mood >= 4 ? 'yes' : 'talk', 2.4); },
-      onHint: (h) => { G.aiHint = h.text; },
-      named: { fox: fox.g, skimmer: sk.g, ship_kestrel: WORLD.kestrel.g, heart_of_rift: WORLD.heart.g, cargo_crate: WORLD.crate, power_cell: WORLD.cell },
-      actions: {
-        callSkimmer, mount: () => { if (!sk.unlocked || G.riding) return; if (!nearP(sk, 6)) callSkimmer(); mount(); },
-        dismount: () => { if (G.riding) dismount(); }, openMap: () => openUI('map'), openJournal: () => openUI('journal'), closeUI,
-        scan: startScan, rest, wave: waveHello, petFox, pause: () => setPause(true), save,
-        mute: () => { Sound.init(); if (!Sound.muted) Sound.toggle(); renderSoundBtn(); },
-        unmute: () => { Sound.init(); if (Sound.muted) Sound.toggle(); renderSoundBtn(); },
-      },
-      events: {
-        blizzard: () => { WX.target = 1; WX.t = rand(35, 50); },
-        ambush_small: () => {
-          const bx = Math.sin(cam.yaw), bz = Math.cos(cam.yaw), n = 2 + (Math.random() < 0.5 ? 1 : 0);   // behind the camera, ~20 m
-          for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.5, x = player.x + (bx * Math.cos(a) - bz * Math.sin(a)) * 20, z = player.z + (bz * Math.cos(a) + bx * Math.sin(a)) * 20; spawnShardling(x, z, null).st = 'chase'; }
-          Sound.whoosh();
-        },
-        stag_herd: () => {
-          const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = -fz, rz = fx;                         // run across the view, 45 m ahead
-          STAGS.slice().sort((a, b) => Math.hypot(a.x - player.x, a.z - player.z) - Math.hypot(b.x - player.x, b.z - player.z)).slice(0, 3).forEach((s, i) => {
-            s.x = player.x + fx * (45 + i * 4) - rx * (40 + i * 3); s.z = player.z + fz * (45 + i * 4) - rz * (40 + i * 3);
-            s.st = 'flee'; s.t = rand(6, 8); s.fx = rx; s.fz = rz; s.A.loop('run', 0.15);
-          });
-        },
-        aurora_flare: () => { if (G.ending) return; const a0 = G.aurora; G.aurora = 2.2; setTimeout(() => { if (G.aurora === 2.2 && !G.ending) G.aurora = a0; }, 14000); },
-        echo_whisper: () => Sound.echo(),
-        fox_find: ({ target }) => { if (!target) return; fox.target = target; fox.st = 'seek'; fox.seekT = 14; Sound.yip(); },
-        supply_drop: () => { const x = player.x - Math.sin(cam.yaw) * 5, z = player.z - Math.cos(cam.yaw) * 5; spawnHeal(x, groundH(x, z) + 0.9, z); },
-      },
-    });
-  }
-
-  // ?q=… / the pause-menu choice is the player's: the quality director does not move it
-  if (QPICK.forced && window.AI && AI.quality) AI.quality.set(Q.name, 1e9);
 
   requestAnimationFrame(frame);
 })();

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/* autoplay.mjs — full story runs through the game's real code paths + save compatibility, with a Jev oracle.
+/* autoplay.mjs — full story runs through the game's real code paths + save compatibility.
  *
- *   node tools/autoplay.mjs [--out stand/autoplay] [--runs take,free] [--no-saves] [--no-oracle] [--headful]
+ *   node tools/autoplay.mjs [--out stand/autoplay] [--runs take,free] [--no-saves] [--headful]
  *
  * Each run: new game (intro advanced with E) → tool → Orm → lake cell → Orm → (free: 4 echoes) → 3 spires → Orm →
  * rift boss (hp boost cheat) → heart choice (dialog button click) → Kestrel → ending card. Movement is by teleport;
@@ -9,9 +9,6 @@
  * Deterministic checks per step: prompt shown, stage advanced, HUD counters = game state, objective sane, pilot in
  * bounds, dialog not stuck, no JS errors. Saves: pre-wave-2 format (v1) at every stage + partial / legacy saves
  * → reload → Continue → state restored, pilot on the ground, no errors.
- * Oracle: server/typesafe.mjs (key read from .env by Node only, never printed), ≤ 4 calls per invocation, classifies
- * each step snippet as ok / stuck / unreachable_objective / out_of_bounds / quest_counter_wrong / soft_lock.
- * → <out>/autoplay.json, <out>/trace-<run>.json, step screenshots <out>/<run>-NN.png
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,7 +25,7 @@ const H = await openGame({ label: 'autoplay', quality: 'med', headful: !!opt('he
 const page = H.page;
 const ev = (fn, ...a) => page.evaluate(fn, ...a);
 const snap = () => ev(() => QAS.snap());
-const report = { date: new Date().toISOString(), runs: [], saves: [], oracle: null };
+const report = { date: new Date().toISOString(), runs: [], saves: [] };
 
 async function fresh() {
   await ev(() => { try { localStorage.removeItem('eor-save'); } catch (e) { /* */ } });
@@ -167,42 +164,10 @@ async function saveTests() {
   return res;
 }
 
-/* ------------------------------------------------------------------ Jev oracle */
-async function oracle(runs, saves) {
-  const { systemOne, loadKey } = await import(path.join(ROOT, 'server', 'typesafe.mjs'));
-  const key = loadKey(); if (!key) return { calls: 0, summary: 'no TYPESAFE_API_KEY (skipped)' };
-  const KINDS = { ok: 'the step worked: the story advanced as intended and nothing looks wrong', stuck: 'the player is stuck: the expected progress did not happen', unreachable_objective: 'the objective marker points somewhere the player cannot reach (outside the island, buried, under a solid, in the air)',
-    out_of_bounds: 'the player ended outside the playable area, under the ground or at an invalid position', quest_counter_wrong: 'a quest counter or objective text on the HUD disagrees with the game state', soft_lock: 'the game waits for something that never comes (prompt missing, dialog never closes, no enabled choice)' };
-  const result = { calls: 0, tokens: 0, verdicts: [], flags: 0 };
-  const describe = (s) => `step "${s.name}": stage ${s.before.stage} ("${s.before.text}") → ${s.after.stage} ("${s.after.text}"); took ${s.ms} ms; objective target ${JSON.stringify(s.before.target)} at ${s.before.targetDist} m before;
- pilot at ${s.after.pos} (ground ${s.after.ground}); prompt ${s.r.prompt ? (s.r.prompt.ok ? 'shown' : 'NOT shown, saw ' + s.r.prompt.seen) : 'n/a'}; dialog ${s.r.dialog ? s.r.dialog.state + ' after ' + s.r.dialog.presses + ' presses' : 'n/a'};
- HUD objective "${s.after.hud.objective}", parts icons ${s.after.hud.partsOn} (game ${s.after.parts}), echoes ${s.after.hud.cEchoes} (game ${s.after.echoes}); counter checks: ${s.counters.join('; ') || 'none'}; objective checks: ${s.objective.join('; ') || 'none'}; JS errors ${s.errors.length}`;
-  const call = async (label, items) => {
-    if (result.calls >= 4 || !items.length) return;
-    const state = { game: 'story-driven 3D exploration game; a QA bot plays it by teleporting between objectives and pressing the interaction key', steps: Object.fromEntries(items.map((s, k) => ['s' + k, describe(s)])) };
-    const questions = Object.fromEntries(items.map((s, k) => ['s' + k, { type: 'choice', instructions: `Classify QA step \`steps.s${k}\`. Pick the single anomaly that best describes it, or ok.`, criteria: KINDS }]));
-    try { const r = await systemOne({ key, state, questions, deadlineMs: 12000, maxRetries: 2 }); result.calls++; result.tokens += (r.usage && r.usage.input_tokens) || 0;
-      items.forEach((s, k) => { const a = r.answers['s' + k]; if (a) result.verdicts.push({ run: label, step: s.name, kind: a.choice, confidence: a.confidence }); });
-    } catch (e) { result.calls++; result.error = String(e.message).replace(key, '***').slice(0, 200); }
-  };
-  for (const run of runs) {
-    // every flagged step + two unflagged controls, ≤ 10 per call
-    const flagged = run.steps.filter((s) => run.anomalies.some((a) => a.step === s.name)), normal = run.steps.filter((s) => !flagged.includes(s)).slice(0, 2);
-    await call(run.name, [...flagged, ...normal].slice(0, 10));
-  }
-  const badSaves = saves.filter((c) => !c.ok);
-  if (badSaves.length) await call('saves', badSaves.slice(0, 6).map((c) => ({ name: c.name, ms: 0, before: c.snap, after: c.snap, r: {}, counters: [c.detail], objective: [], errors: [] })));
-  result.flags = result.verdicts.filter((v) => v.kind !== 'ok' && v.confidence >= 0.5).length;
-  result.usd = +(result.tokens * 42 / 1e9).toFixed(5);
-  result.summary = `${result.calls} calls · ${result.flags} steps classified as anomalies` + (result.error ? ' · error ' + result.error : '');
-  return result;
-}
-
 try {
   const runs = String(opt('runs', 'take,free')).split(',');
   for (const k of runs) report.runs.push(await runStory(k));
   if (!opt('no-saves')) { log('save compatibility'); report.saves = await saveTests(); }
-  if (!opt('no-oracle')) { log('oracle'); report.oracle = await oracle(report.runs, report.saves); log('  ' + report.oracle.summary); for (const v of report.oracle.verdicts) if (v.kind !== 'ok') log(`  oracle: ${v.run} · ${v.step} → ${v.kind} (${v.confidence})`); }
 } catch (e) { report.crash = String(e.stack || e.message); log('FAILED', e.stack || e.message); }
 finally {
   report.jsErrors = H.errors.filter((e) => !/api\/stats/.test(e)).slice(0, 40);
