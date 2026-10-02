@@ -111,6 +111,10 @@ const Game = (() => {
     if (G.hut.fuel > 0 && Math.random() < dt * 3) P.push({ type: 'smoke', x: HUT.x - 70 + rnd(-2, 2), y: HUT.y - 150, vx: rnd(-5, 5), vy: rnd(-30, -20), life: 3, max: 3 });
     FX.update(P, dt); World.tickTrees(dt);
   }
+  // hit-stop: удар топора «застревает» на 50–70 мс — мир стоит, кадр рисуется (только главный цикл; update() в проверках не трогает)
+  let stopT = 0;
+  function hitStop(s) { if (typeof UI !== 'undefined' && UI.reduced) return; stopT = Math.max(stopT, Math.min(0.1, s)); }
+  function stopped(dt) { if (stopT <= 0) return false; stopT -= dt; return true; }
   function end(kind, cause) { state = 'over'; input.act = false; if (kind !== 'death' && typeof Finale !== 'undefined') Finale.play(kind, G.stats, () => UI.end(kind, cause)); else { if (kind === 'death') Sound.sting && Sound.sting('death'); UI.end(kind, cause); } }
-  return { newDay, dawn, die, end, visual };
+  return { newDay, dawn, die, end, visual, hitStop, stopped };
 })();

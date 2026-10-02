@@ -35,8 +35,10 @@ function page() {
     fresh(); G.gear.sled = 1;
     const t = G.trees.filter(t => t.wood > 0 && !t.wall && t.kind === 0 && t.stage !== 1 && !onIce(t.x + 40, t.y) && Math.abs(t.x - HUT.x) > 400).sort((a, b) => dist2(a, POI.cockpit) - dist2(b, POI.cockpit))[0];
     at(t.x + 60, t.y + 40, -1); const L = Actions.fell(t); run(4);
-    for (let i = 0; i < 3 && Actions.logCut(L) < 1; i++) Tree.split(L, 'limb');
-    while (L.n > 0) Tree.split(L, 'buck');
+    // обрубка по мутовке с обеих сторон (подмятые — после переката), вершина отдельно, потом чурки (js/tree3d.js limbPlan)
+    for (let i = 0, sd = 1; i < 120 && Tree.cutFrac(L) < 1; i++) { const pl = Tree.limbPlan(L, sd); if (pl.side) { sd = pl.side; continue; } if (pl.roll) { L.roll = (L.roll || 0) + 1.6; L.rn = (L.rn || 0) + 1; continue; } Tree.split(L, 'limb', sd); }
+    Tree.split(L, 'top');
+    for (let i = 0; i < 200 && L.n > 0; i++) Tree.split(L, 'buck');
     const ps = G.chunks.filter(q => q.src === L.id), M = ps.reduce((s, q) => s + q.mass, 0), W = ps.filter(q => Tree.isWood(q) && !Carry.long(q)), Mw = W.reduce((s, q) => s + q.mass, 0);
     ok(Math.abs(M - L.m0) < L.m0 * 1e-3, `🌲 части = целое: ${f2(M)} кг из ${f2(L.m0)} (дров ${f2(Mw)} кг · ${W.length} шт, лапник ${f2(M - Mw)} кг)`);
     // каждую — процессом: подойти, взять в охапку; охапка полна — на нарты (нарты за спиной); 2 мелких — в рюкзак; остаток — в поленницу

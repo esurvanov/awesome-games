@@ -28,7 +28,7 @@ const FOREST = () => {
   const near = G.trees.filter(q => ok(q) && Math.hypot(q.x - best.x, q.y - best.y) < 260).sort((a, b) => Math.hypot(a.x - best.x, a.y - best.y) - Math.hypot(b.x - best.x, b.y - best.y));
   window.__shake = near.slice(0, 3); window.__perfN = G.trees.filter(q => q.wood > 0 && Math.abs(q.x - G.p.x) < 300 && Math.abs(q.y - G.p.y) < 220).length;
   setInterval(() => { for (const t of window.__shake) World.shakeTree(t, 0.35); }, 300);
-  for (const t of near.slice(3, 5)) { t.wood = 0; World.felled(t); const L = Actions.fell(t); delete L.f; if (L.sk && t === near[4]) { for (let i = 0; i < 3; i++) Tree.split(L, 'limb'); while (L.n > 0) Tree.split(L, 'buck'); G.logs.splice(G.logs.indexOf(L), 1); } }
+  for (const t of near.slice(3, 5)) { t.wood = 0; World.felled(t); const L = Actions.fell(t); delete L.f; if (L.sk && t === near[4]) { for (let i = 0, sd = 1; i < 120 && Tree.cutFrac(L) < 1; i++) { const pl = Tree.limbPlan(L, sd); if (pl.side) { sd = pl.side; continue; } if (pl.roll) { L.roll = (L.roll || 0) + 1.6; L.rn = (L.rn || 0) + 1; continue; } Tree.split(L, 'limb', sd); } Tree.split(L, 'top'); for (let i = 0; i < 200 && L.n > 0; i++) Tree.split(L, 'buck'); G.logs.splice(G.logs.indexOf(L), 1); } }
   for (let i = 0; i < 5; i++) update(0.05);
 };
 
