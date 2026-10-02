@@ -19,7 +19,7 @@ const Snow = (() => {
   const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const cl = (v, a, b) => (v < a ? a : v > b ? b : v);
   const R = ArtWorld.rng(0x5A0F), rr = (a, b) => a + R() * (b - a);
-  const UT = 7.7, UD = 4, UP = 5, DAY = 480, STRIP = 10, STEP = 0.5, SPMAX = 30, BUILD_GAP = 0.25;
+  const UT = 7.7, UD = 4, UP = 5, DAY = typeof CYCLE === 'number' ? CYCLE : 480, STRIP = 10, STEP = 0.5, SPMAX = 30, BUILD_GAP = 0.25;
   const HI = '#f6f9fc', MID = '#dde6ee';
   const emit = (k, e) => { if (typeof Interact !== 'undefined') Interact.emit(k, e); };
   const F = { fall: null };
@@ -366,7 +366,7 @@ const Snow = (() => {
   function after(g, k, o) {
     if (!HOLD) return;
     switch (k) {
-      case 0: if (o && o.wood <= 0) drawInst(g, 'stump', o, 0); break;
+      case 0: if (o && o.wood <= 0 && !(typeof Tree !== 'undefined' && !o.wall && Tree.MODEL[o.kind])) drawInst(g, 'stump', o, 0); break;   // пень модели — свой снег на торце
       case 4: if (o && o.wood > 0 && !(o.lit > 0)) drawInst(g, 'stack', o, Math.min(4, o.wood | 0)); break;
       case 33: if (o) drawInst(g, 'rock', o, (o.v || 0) % 3); break;
       case 10: drawCap(g, BY.tail); break;
@@ -374,7 +374,45 @@ const Snow = (() => {
       case 14: drawCap(g, BY.labaz); break;
       case 21: if (G && G.p && !G.p.inside) drawCap(g, BY.hut); break;
       case 26: if (o && o.id === 'barrel') drawCap(g, BY.barrelT); break;
+      case 42: drawPileSnow(g); break;
+      case 20: if (G && G.p && !G.p.inside) drawDoorDrift(g); break;
     }
+  }
+  // нанос у двери (js/trail.js отвал у стены): поверх южной стены — сугроб закрывает низ двери; прокопан проход — в сугробе вырез со стенками
+  function drawDoorDrift(g) {
+    if (typeof Trail === 'undefined' || !Trail.DOOR) return;
+    const D = Trail.DOOR, wy = D.y0 + 2, x0 = D.x0 - 14, x1 = D.x1 + 14, P = [];
+    let mx = 0;
+    for (let x = x0; x <= x1; x += 2) P.push([x, Trail.berm(x, D.y0 + 4) * 0.23]);
+    for (let k = 1; k < P.length - 1; k++) P[k][2] = (P[k - 1][1] + 2 * P[k][1] + P[k + 1][1]) / 4;   // сгладить ступени сетки
+    for (let k = 1; k < P.length - 1; k++) { P[k][1] = P[k][2]; if (P[k][1] > mx) mx = P[k][1]; }
+    if (mx < 3) return;
+    g.save();
+    g.fillStyle = 'rgba(100,126,160,0.25)'; g.beginPath(); g.ellipse((x0 + x1) / 2, wy + 5, (x1 - x0) / 2, 4, 0, 0, TAU); g.fill();   // тень у подножия
+    const top = k => wy - P[k][1];
+    g.beginPath(); g.moveTo(x0, wy + 3); for (let k = 0; k < P.length; k++) g.lineTo(P[k][0], top(k)); g.lineTo(x1, wy + 3); g.closePath();
+    const gr = g.createLinearGradient(0, wy - mx, 0, wy + 3); gr.addColorStop(0, HI); gr.addColorStop(0.55, MID); gr.addColorStop(1, '#c4d2df'); g.fillStyle = gr; g.fill();
+    // гребень и стенки выреза (резкий перепад соседей — синеватая тень)
+    g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 1; g.beginPath(); for (let k = 0; k < P.length; k++) (k ? g.lineTo : g.moveTo).call(g, P[k][0], top(k) + 0.5); g.stroke();
+    g.fillStyle = 'rgba(110,138,172,0.55)';
+    for (let k = 1; k < P.length; k++) { const d = P[k][1] - P[k - 1][1]; if (Math.abs(d) > 1.2) { const x = d > 0 ? P[k - 1][0] : P[k][0]; g.fillRect(x - 1, wy - Math.max(P[k][1], P[k - 1][1]), 2.5, Math.abs(d)); } }
+    g.restore();
+  }
+  // поленница у избы (js/carry.js PILE): навес — две стойки и тёсовая крыша со снегом; без навеса пурга заносит (G.pileSnow 0..1) — сугроб поверх
+  function drawPileSnow(g) {
+    if (!G || !G.hut) return;
+    const x = HUT.x + 150, y = HUT.y + 86, k = G.pileSnow || 0;
+    if (G.hut.roof) {
+      g.fillStyle = '#4b3220'; g.fillRect(x - 24, y - 38, 2.4, 40); g.fillRect(x + 22, y - 38, 2.4, 40);
+      g.fillStyle = '#6b4a2e'; g.beginPath(); g.moveTo(x - 30, y - 36); g.lineTo(x + 30, y - 42); g.lineTo(x + 31, y - 37); g.lineTo(x - 29, y - 31); g.closePath(); g.fill();
+      dome(g, x, y - 40, 30, 3);
+      return;
+    }
+    if (k <= 0.02) return;
+    const h = 6 + 20 * k, rx = 22 + 10 * k;
+    g.fillStyle = 'rgba(120,146,176,0.35)'; g.beginPath(); g.ellipse(x + 2, y + 6, rx + 4, 4 + 2 * k, 0, 0, TAU); g.fill();
+    g.fillStyle = MID; g.beginPath(); g.moveTo(x - rx, y + 5); g.quadraticCurveTo(x - rx * 0.9, y - h * 1.2, x + 2, y - h - 6 * k); g.quadraticCurveTo(x + rx * 0.95, y - h, x + rx, y + 5); g.closePath(); g.fill();
+    g.fillStyle = HI; g.beginPath(); g.moveTo(x - rx + 2, y + 3); g.quadraticCurveTo(x - rx * 0.8, y - h * 1.15, x, y - h - 6 * k); g.quadraticCurveTo(x + rx * 0.7, y - h * 0.9, x + rx - 3, y + 2); g.closePath(); g.fill();
   }
   function drawMi8(g) { holders(); return drawCap(g, BY.mi8) + drawCap(g, BY.barrel) + drawCap(g, BY.crates); } // из Live.drawWreck (после переднего сегмента)
 

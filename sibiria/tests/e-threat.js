@@ -16,8 +16,8 @@
     G.gear.kukhl = 1; // чтобы не мёрзнуть
     G.inv.wood = 40; G.D.budget = 0; G.D.phase = 'build'; G.fired.E5 = 1;
     if (fire) { Actions.fireKey(); }
-    const r = runFor(135, { each: () => { if (fire) { const f = Actions.nearest(G.fires, 100); if (f && f.fuel < 20) Actions.fireKey(); } if (G.s.warm < 60 && !fire) G.s.warm = 60; /* изолируем волков от холода */ } });
-    out.push(`волки гл.${ch + 1} ${fire ? 'у костра' : 'без огня'} 19:30→07:00 (135 с): появилось ${r.spawns}, укусов ${r.bites}, hp ${r.hp}, ${r.dead || 'жив'}`);
+    const r = runFor(135 * HOUR / 20, { /* 135 прежних с = 6.75 игр. ч */ each: () => { if (fire) { const f = Actions.nearest(G.fires, 100); if (f && f.fuel < 20) Actions.fireKey(); } if (G.s.warm < 60 && !fire) G.s.warm = 60; /* изолируем волков от холода */ } });
+    out.push(`волки гл.${ch + 1} ${fire ? 'у костра' : 'без огня'} 19:30→02:15 (${r.t} с): появилось ${r.spawns}, укусов ${r.bites}, hp ${r.hp}, ${r.dead || 'жив'}`);
   }
   // 3. стая без боя, сразу в лоб (стоим, не бьём)
   fresh(); G.chapter = 2; G.day = 3; G.time = tAt(3, 22); G.p.x = 1100; G.p.y = 2900; G.gear.kukhl = 1; G.D.phase = 'relax'; G.D.calmT = 1e9; G.fired.E5 = 1;

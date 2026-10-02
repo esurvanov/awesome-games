@@ -162,7 +162,7 @@ const Zones = (() => {
     const got = {}; let rub = 0;
     for (const id in G.plots) {
       const P = plotOf(id); if (!P || G.plots[id].day >= G.day) continue;
-      for (const [k, v] of Object.entries(P.yield)) { G.chest[k] = (G.chest[k] || 0) + v; got[k] = (got[k] || 0) + v; }
+      for (const [k, v] of Object.entries(P.yield)) { Inv.put(G.chest, k, v); got[k] = (got[k] || 0) + v; }
       if (P.rub && G.col) { G.col.rub += P.rub; rub += P.rub; }
       if (P.forecast && G.storm && G.storm.b > G.time) G.flags.forecast = G.day; // метеопост сам шлёт прогноз
     }

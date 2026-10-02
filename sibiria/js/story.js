@@ -58,7 +58,7 @@ const Story = (() => {
     const waitT = f.contactT != null ? G.time - f.contactT >= CYCLE * H.waitH / 24 : G.day > f.contactDay;
     if (!G.heli && waitT && h >= H.from && h < H.to && G.heliDay !== G.day) {
       G.heli = { t: H.t, snd: 0 }; G.heliDay = G.day; G.known.mar = 1;
-      Fx.toast(padDone() ? ':heli: Гул винтов! Зажги три кучи на мари!' : ':heli: Гул винтов! Площадки нет — сесть не на что…'); if (DIALOG.heli_hum) UI.dialog(DIALOG.heli_hum);
+      Fx.toast(padDone() ? ':heli: Гул винтов! Зажги три кучи на мари!' : (padSite() ? ':heli: Гул винтов! Площадку замело — утопчи :boots:' : ':heli: Гул винтов! Площадки нет — сесть не на что…')); if (DIALOG.heli_hum) UI.dialog(DIALOG.heli_hum);
     }
     if (G.heli) {
       G.heli.t -= dt; G.heli.snd -= dt;
@@ -68,7 +68,7 @@ const Story = (() => {
       } else if (G.heli.t <= 0) {
         G.heli = null; f.heliMiss = 1;
         if (G.day >= STORY.heliLastDay) { if (noHeli()) return 'stop'; return; }
-        Fx.toast(padDone() ? ':heli: Не заметили… Завтра в 09:00' : ':heli: Покружил и ушёл — сесть негде. Завтра в 09:00 · :pad:');
+        Fx.toast(padDone() ? ':heli: Не заметили… Завтра в 09:00' : ':heli: Покружил и ушёл — сесть негде. Завтра в 09:00 · :pad: утоптать');
       }
     }
   }

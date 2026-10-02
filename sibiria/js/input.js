@@ -464,6 +464,7 @@ const Input = (() => {
 
   cvs.addEventListener('contextmenu', e => e.preventDefault());
   cvs.addEventListener('pointerdown', onDown);
+  addEventListener('pointerdown', () => { input.downAt = performance.now(); }, true);   // любое нажатие (и по панелям): Shift+клик — сочетание, не отскок (ui.js keyup)
   addEventListener('pointermove', onMove);
   addEventListener('pointerup', onUp);
   addEventListener('pointercancel', e => { if (e.pointerType === 'mouse' || touches.has(e.pointerId)) { reset(); } });

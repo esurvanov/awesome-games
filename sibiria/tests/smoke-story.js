@@ -61,6 +61,7 @@ function lib() {
     S.modal();
     if (state !== 'play') return;
     update(DT); S.ticks++;
+    if (S.ticks % 100 === 0) Inv.audit('smoke-story');   // счётчик вещи < 0 — console.error → провал (js/inventory.js)
     if (S.care) care();
   };
   S.run = function (sec, cond) {
@@ -70,9 +71,22 @@ function lib() {
   };
   S.until = (day, h) => { const t = tAt(day, h); return S.run(Math.max(0, t - G.time) + 1, () => G.time >= t); };
   S.untilH = h => { let t = tAt(dayOf(), h); if (t <= G.time) t += CYCLE; return S.run(t - G.time + 1, () => G.time >= t); }; // ближайшее h:00 впереди
-  S.tp = (x, y) => { const p = G.p; p.x = x; p.y = y; p.vx = p.vy = 0; p.action = null; p.lx = x; p.ly = y; p.sx = x - 30; p.sy = y; input.mx = input.my = 0; };
-  S.act = () => { Actions.interact(true); S.run(8, () => !G.p.action && G.p.cd <= 0); };
-  S.talk = (prefer) => { S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
+  // перед телепортом — доиграть цепочку ноши (вещь в руке → в рюкзак), иначе она осталась бы в руках
+  S.tp = (x, y) => { if (G.p.action && G.p.action.j === 'carry') S.run(10, () => !(G.p.action && G.p.action.j === 'carry')); const p = G.p; p.x = x; p.y = y; p.vx = p.vy = 0; p.action = null; p.lx = x; p.ly = y; p.sx = x - 30; p.sy = y; input.mx = input.my = 0; };
+  S.act = () => { Actions.interact(true); S.run(14, () => !G.p.action && G.p.cd <= 0 && !input.auto); };   // цепочка: работа → вещь на снег → в руку → в рюкзак   // E у дерева/ствола — сам подходит (автопуть)
+  // заговорить — когда руки свободны (забота подкидывает в печь — это теперь шаги ≈2 с, js/actions.js stoveFeed)
+  // еда из лабаза — сперва дойти до него (автопуть): дождаться и вернуться к собеседнику
+  S.talk = (prefer) => { if (G.p.action || input.auto) { const c0 = S.care, x = G.p.x, y = G.p.y; S.care = false; S.run(8, () => !G.p.action && !input.auto); S.care = c0; S.tp(x, y); } if (G.p.cd > 0) { const c0 = S.care; S.care = false; S.run(1, () => G.p.cd <= 0); S.care = c0; }   // пауза после прошлого действия: E ещё не сработает
+    S.prefer = prefer || []; Actions.interact(false); S.modal(); S.prefer = []; };
+  // площадка на мари: пройти дорожками поперёк (шаг 14 px), туда-обратно, пока не утоптано ≥ 80 % (js/content/chapters.js padK)
+  S.tramp = function () {
+    const b = padSite(); if (!b) return false; const B = BUILDS.pad, n = Math.ceil((B.h - 8) / 14), c0 = S.care; S.care = false;
+    for (let pass = 0; pass < 6 && !padDone(); pass++) for (let i = 0; i <= n && !padDone(); i++) {
+      const y = b.y - B.h / 2 + 4 + i * (B.h - 8) / n, dir = (i + pass) % 2 ? -1 : 1, x0 = b.x - dir * (B.w / 2 + 16), x1 = b.x + dir * (B.w / 2 + 16);
+      S.tp(x0, y); S.tick(); input.mx = dir; S.run(12, () => { G.p.y = y; input.mx = dir; return dir > 0 ? G.p.x >= x1 : G.p.x <= x1; }); input.mx = 0;
+    }
+    S.care = c0; return padDone();
+  };
   const IN = () => S.tp(HUT.x + 20, HUT.y - 30); // середина избы (не у печи/верстака/кровати)
   S.IN = IN;
 
@@ -82,9 +96,9 @@ function lib() {
     // рефлекс: волк/медведь вплотную — бить (как игрок)
     if (G.bear && G.bear.st !== 'gone' && dist2(G.bear, p) < 80 * 80) { if (!p.action && p.cd <= 0) Actions.interact(true); return; }
     const w = Actions.nearest(G.wolves, 58); if (w && !(p.inside && G.hut.door) && !p.action && p.cd <= 0) { Actions.interact(true); return; }
-    // шатун близко — факел (крафт у горящей печи/костра), им шатуна оглушают
-    if (G.bear && !/flee/i.test(G.bear.st) && dist2(G.bear, p) < 320 * 320 && p.torch <= 0) { const r = RECIPES.find(r => r.id === 'torch'); if (Actions.recipeState(r) === 'ok') { Actions.craft(r); S.torches = (S.torches || 0) + 1; } }
-    if (p.action) return;
+    // шатун близко — факел (крафт у горящей печи/костра), им шатуна оглушают; в избе за дверью не нужен (и не мешает лечь)
+    if (G.bear && !(p.inside && G.hut.door) && !/flee/i.test(G.bear.st) && dist2(G.bear, p) < 320 * 320 && p.torch <= 0) { const r = RECIPES.find(r => r.id === 'torch'); if (Actions.recipeState(r) === 'ok') { Actions.craft(r); S.torches = (S.torches || 0) + 1; } }
+    if (p.action || input.auto) return;   // идёт к месту работы (изба, лабаз) — не перебивать едой
     if (G.s.food < 45 && !S.noEat) { const f0 = G.s.food; Actions.eat(); if (G.s.food > f0) S.ate = (S.ate || 0) + 1; }
     if (p.inside && G.flags.stoveLit && G.hut.fuel < Stove.secPerLog() * 3 && Inv.cnt('wood', true) > 0) Actions.fireKey();
     if (G.s.warm < 35 && !p.inside && G.flags.stoveLit) warmUp();
@@ -96,7 +110,8 @@ function lib() {
     S.tp(x, y); S.care = true;
   }
   // печь до «полна» (клавиша F внутри избы)
-  function stoke() { for (let i = 0; i < 12; i++) { const f = G.hut.fuel; Actions.fireKey(); if (G.hut.fuel <= f) break; } }
+  // F у печи — процесс (дверца → полено → прикрыть, ≈2 с): ждём конца каждого
+  function stoke() { for (let i = 0; i < 12; i++) { const f = G.hut.fuel; Actions.fireKey(); S.run(4, () => !G.p.action); if (G.hut.fuel <= f) break; } }
   S.stoke = stoke;
 
   // ---------- панели: открыть вкладку и нажать кнопку, как мышью ----------
@@ -108,6 +123,7 @@ function lib() {
       if (!b || b.disabled) break;
       b.click(); n++;
       if (G.p.action && G.p.action.k === 'craft') S.run(15, () => !G.p.action || G.p.action.k !== 'craft'); // крафт идёт в мире (этап 4)
+      else if (G.p.action || input.auto) S.run(40, () => !G.p.action && !input.auto); // изба — работа в мире: идёт к месту, шаги (js/actions.js hutStep)
     }
     if (vis('panel')) $$('#panel-close').click();
     return n;
@@ -116,21 +132,37 @@ function lib() {
   S.takeN = (k, n) => S.panel('chest', `[data-take="${k}"]`, n);
 
   // ---------- действия мира ----------
+  // охапку — в поленницу у избы (по одной) и обратно на место
+  S.deliver = function () {
+    if (!Carry.busy()) return; const x = G.p.x, y = G.p.y, q = Carry.PILE();
+    S.tp(q.x - 26, q.y + 16); S.tick(); if (!Carry.put('pile', [])) Carry.stow([]); S.run(20, () => !G.p.action && !input.auto); S.tp(x, y); S.tick();
+  };
+  // из поленницы в охапку (до n и пока берётся)
+  S.fromPile = function (n) {
+    const q = Carry.PILE(); S.tp(q.x - 26, q.y + 16); S.tick();
+    for (let i = 0; i < n && (G.chest.wood || 0) > 0 && !Carry.cantTake({ kind: 'chunk', mass: Inv.wkg(G.chest) / G.chest.wood, len: 0.45, vol: 0.006 }); i++) { Carry.pick('pile', null, []); S.run(3, () => !G.p.action); }
+  };
   S.wreck = function (w, until) {
     const P = POI[w], at = w === 'cockpit' ? [P.x, P.y + 90] : [P.x + 20, P.y + 100];
     let n = 0;
     while (G.wreck[w].length && n++ < 20) { S.tp(at[0], at[1]); S.tick(); S.act(); if (until && until()) break; }
   };
-  S.note = function (id) { const n = NOTES[id]; S.tp(n.x + 4, n.y + 4); S.tick(); Actions.interact(false); const r = !!G.notes[id]; S.modal(); return r; };
+  S.note = function (id) { const n = NOTES[id]; S.tp(n.x + 4, n.y + 4); S.tick(); S.run(1, () => G.p.cd <= 0 && !G.p.action); Actions.interact(false); const r = !!G.notes[id]; S.modal(); return r; };
   S.chop = function (want) {
     const w0 = G.stats.wood;
     for (let k = 0; k < 60 && G.stats.wood - w0 < want; k++) {
       const t = Space.nearest(Space.trees, HUT.x, HUT.y + 260, 900, t => t.wood > 0 && !t.wall);
       if (!t) break;
-      S.tp(t.x + 26, t.y + 4); S.tick();
-      const before = G.stats.wood; S.act();
-      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки)
-      for (let j = 0; j < 12; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) break; S.act(); }
+      // встать лицом к дереву; под ногами сугроб/банка/палка перехватывают E — зайти с другой стороны, как игрок
+      for (const [dx, dy] of [[26, 4], [-26, 4], [24, 16], [-24, 16], [30, -6], [-30, -6]]) {
+        S.tp(t.x + dx, t.y + dy); G.p.face = dx > 0 ? -1 : 1; S.tick();
+        const c = Actions.context(); if (c && c.k === 'tree') break;
+      }
+      const before = G.stats.wood; S.act(); S.act();
+      S.run(4, () => !(G.logs || []).some(L => L.f));   // валка: надлом и падение, ствол ложится
+      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки); охапка полна — отнести в поленницу и вернуться
+      for (let j = 0; j < 60; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) { if (Carry.busy() && (G.chunks || []).some(q => Tree.isWood(q) && dist2(q, G.p) < 90 * 90)) { S.deliver(); continue; } break; } S.act(); }
+      S.deliver();
       if (G.stats.wood === before && t.wood > 0 && Inv.weight() > Inv.capKg() + 6) break;
     }
     return G.stats.wood - w0;
@@ -140,19 +172,30 @@ function lib() {
     for (let k = 0; k < 60 && G.stats.hares === n0; k++) {
       const h = Space.nearest(G.hares, G.p.x, G.p.y); if (!h) { S.run(1); continue; }
       S.tp(h.x + 6, h.y); Actions.interact(true); S.run(0.5);
+      S.run(20, () => !G.p.action && !Carry.busy() && !input.auto);   // тушка в руке → на снег → разделка → шкурка и мясо в рюкзак
+    }
+    // тушка осталась на снегу (заяц сбит на бегу, цепочку прервал зверь) — разделать, как игрок: E у тушки
+    for (let k = 0; k < 8; k++) {
+      const c = (G.carcs || []).find(c => c.done == null && dist2(c, G.p) < 300 * 300); if (!c) break;
+      S.tp(c.x + 24, c.y + 2); S.run(0.7); S.act(); S.run(20, () => !G.p.action && !Carry.busy() && !input.auto);
     }
     return G.stats.hares > n0;
   };
   // лечь у горячей печи; проснулся ночью (печь погасла / волк) — подбросить и снова лечь, как игрок
   const morning = () => { const h = hourOf(); return h >= 7 && h < 12; };
   S.sleepNight = function () {
-    let wakes = 0;
+    let wakes = 0, awake = 0;
     for (let n = 0; n < 80 && !morning() && state === 'play'; n++) {
       if (!insideHut(G.p.x, G.p.y)) IN();
-      stoke(); S.tp(SPOT.bed.x, SPOT.bed.y); S.tick();
+      stoke(); if (n === 0) L(`печь ${G.hut.fuel | 0} с (${(G.hut.fuel / Stove.secPerLog()).toFixed(1)} пол.) · поленница ${G.chest.wood} · руки ${Carry.count()}`); S.tp(SPOT.bed.x, SPOT.bed.y); S.tick();
       Actions.interact(false); S.run(4, () => G.p.sleeping || !Actions.busy());
-      if (!G.p.sleeping) { S.run(5); continue; } // не дают уснуть (шатун/волки рядом) — бодрствуем в избе
-      S.run(400, () => !G.p.sleeping);
+      if (!G.p.sleeping) {   // не дают уснуть (шатун/волки рядом)
+        if (!awake++) L('не уснуть: ' + S.toasts.slice(-2).join(' / '));
+        // шатун ворошит избу всю ночь — выйти к нему с факелом, как игрок (дед при уважении ≥ 2 стреляет, когда шатун идёт на героя)
+        if (G.bear && G.bear.st !== 'flee' && dist2(G.bear, HUT) < TUNE.act.bearSleepR ** 2 && G.s.hp > 50) { const b = G.bear; S.tp(b.x + (b.x < HUT.x ? 150 : -150), b.y); S.run(30, () => !G.bear || G.bear.st === 'flee' || G.s.hp < 40); IN(); L(`вышел к шатуну: ${G.bear ? G.bear.st : 'нет'} · hp ${G.s.hp | 0} · ` + S.toasts.slice(-2).join(' / ')); continue; }
+        S.run(15); continue;   // бодрствуем в избе, ждём
+      }
+      S.run(CYCLE * 0.8, () => !G.p.sleeping);
       if (!morning() && wakes++ < 3) L('проснулся ночью: ' + S.toasts.slice(-2).join(' / ') + ` · дверь ${G.hut.door}`);
     }
     return morning();
@@ -160,10 +203,12 @@ function lib() {
   S.stacks = function (light) {
     for (const s of G.stacks) {
       if (s.lit > 0) continue;
+      if (s.wood < 4 && Carry.woodN() + (G.inv.wood || 0) < 4 - s.wood) S.fromPile(4 - s.wood - Carry.woodN());   // дрова на кучу — охапкой из поленницы
       S.tp(s.x, s.y + 34); S.tick();
-      for (let i = 0; i < 8 && s.wood < 4; i++) { Actions.interact(true); S.run(0.3); }
+      for (let i = 0; i < 8 && s.wood < 4; i++) { Actions.interact(true); S.run(1.6, () => !G.p.action); S.run(0.1); }   // полено за поленом из рук (≈1 с каждое)
       // рядом может оказаться заяц/сугроб (первое E — «поймать»/«пнуть») — жмём ещё, как игрок
       if (light) for (let i = 0; i < 4 && !(s.lit > 0); i++) { S.tp(s.x, s.y + 34); S.tick(); S.act(); S.run(0.3); }
+      if (s.wood < 4) { S.tp(s.x, s.y + 34); S.tick(); const c = Actions.context(); L(`куча ${s.wood}/4 · руки ${Carry.woodN()} · поленница ${G.chest.wood} · E: ${c && c.k}/${c && c.label} · ${S.toasts.slice(-2).join(' / ')}`); }
     }
   };
   // чекпоинт/сейв → слот → загрузка настоящим путём (UI.loadSlot = кнопка «Загрузить»)
@@ -210,8 +255,8 @@ function phases() {
     ok(S.note('log') && G.notes.log, '📓 бортжурнал прочитан');
     // мягкий проигрыш в главе I: замёрз у обломков → «Уркачан дотащил»
     S.tp(POI.cockpit.x + 200, POI.cockpit.y + 200); G.s.warm = 0; G.s.hp = 6; const t0 = G.time, wood = G.inv.wood || 0;
-    S.care = false; S.run(10, () => G.s.hp >= 40); S.run(14, () => !G.p.ko && !G.p.action); S.care = true; // этап 4: упал → затемнение → очнулся в избе → встал
-    ok(state === 'play' && G.chapter === 0 && insideHut(G.p.x, G.p.y) && Math.abs(G.s.hp - 50) < 3 && G.time - t0 >= CYCLE / 8,
+    S.care = false; S.run(10, () => G.s.hp >= 40); S.run(40, () => !G.p.ko && !G.p.action); S.care = true; // этап 4: упал → затемнение → очнулся в избе → встал
+    ok(state === 'play' && G.chapter === 0 && insideHut(G.p.x, G.p.y) && !G.p.ko && G.s.hp >= 48 && G.s.hp < 60 && G.time - t0 >= CYCLE / 8, // 50 + отлежался в темноте (KO_DARK, ×sleepX)
       `💀→🛖 смерть в гл. I мягкая: жив в избе, hp ${G.s.hp | 0}, время +${(G.time - t0).toFixed(0)} с`);
     ok(/Уркачан дотащил/.test($('ch-title').textContent) && !$('chapter').hidden && $('over').hidden, '🪪 карточка «Уркачан дотащил», экрана гибели нет');
     ok(!deathLog[0], '📉 счётчик смертей главы I не тронут');
@@ -313,9 +358,9 @@ function phases() {
     const site = G.col.builds.find(b => b.type === 'pad');
     ok(site && !site.done, '🛬 стройка площадки заложена (дрова из лабаза)');
     S.run(400, () => { if (site.done) return true; if (dist2(G.p, site) > 70 * 70) S.tp(site.x, site.y + 40); if (!G.p.action && G.p.cd <= 0) Actions.interact(true); return false; });
-    ok(site.done && padDone(), `🛬 площадка построена к ${hourOf().toFixed(1)} ч`);
-    S.IN(); S.tp(SPOT.chest.x - 10, SPOT.chest.y); S.tick(); S.takeN('wood', 12);
-    S.stacks(false);
+    ok(site.done, `🛬 вешки площадки стоят к ${hourOf().toFixed(1)} ч`);
+    ok(S.tramp(), `🥾 площадка утоптана: ${Math.round(padK() * 100)} % к ${hourOf().toFixed(1)} ч`);
+    S.stacks(false);   // по охапке из поленницы на каждую кучу
     ok(G.stacks.every(s => s.wood >= 4), '🪵 3 кучи на мари по 4');
     S.IN(); S.until(4, 20.5); ok(S.sleepNight(), `😴 ночь 4 → ${hourOf().toFixed(1)} ч дня ${G.day}`);
     ok(G.day === 5 && G.flags.slept && JSON.parse(checkpoint).day === 5, '💾 утро 5-го дня — автосейв');
@@ -325,11 +370,11 @@ function phases() {
   // вертолёт в 09:00: подбросить в кучи, если шатун разворошил, и зажечь все три
   function heli() {
     // дров на кучи (шатун ночью разворашивает): из лабаза, не хватит — нарубить
+    S.IN(); if (hourOf() < 8) S.untilH(8); if (!padDone()) ok(S.tramp(), `🥾 ночью замело — площадку подновили: ${Math.round(padK() * 100)} %`);   // пурга перед окном
     S.IN(); S.run(300, () => G.heli);
     ok(!!G.heli, `🚁 гул винтов в ${hourOf().toFixed(2)} ч дня ${G.day}`);
     const need = G.stacks.reduce((a, s) => a + (s.lit > 0 ? 0 : 4 - s.wood), 0);
-    S.tp(SPOT.chest.x - 10, SPOT.chest.y); S.tick(); S.takeN('wood', need);
-    if (Inv.cnt('wood', false) < need) S.chop(need - Inv.cnt('wood', false));
+    if ((G.chest.wood || 0) + Inv.cnt('wood', false) < need) S.chop(need - Inv.cnt('wood', false) - (G.chest.wood || 0));
     S.stacks(true);
     if (!(G.flags.rescued || G.stacks.every(s => s.lit > 0))) L('кучи: ' + JSON.stringify(G.stacks) + ' inv ' + JSON.stringify(G.inv) + ' modal ' + UI.kind + ' heli ' + JSON.stringify(G.heli) + ' · ' + S.toasts.slice(-4).join(' / '));
     ok(G.flags.rescued || G.stacks.every(s => s.lit > 0), '🔥 три кучи горят при гуле');
@@ -353,6 +398,9 @@ function phases() {
     // + склад посёлка (ускорение); + без пурги 5-го дня: сценарий — «посёлок за день», в пургу люди прячутся
     // (пурга на 5-й день выпадает или нет в зависимости от всей предыдущей партии — стройка не должна от неё зависеть)
     G.storm = null;
+    // + сигнальные кучи на мари сложены: иначе свободные бичи уходят их докладывать (сутки ×3 — кучи успевают прогореть за ночь)
+    // (горящие тоже: дров с дерева теперь по массе — больше, кучи могли быть сложены и зажжены раньше; прогорят — бичи пойдут докладывать)
+    for (const st of G.stacks) { st.lit = 0; st.wood = 4; }
     Object.assign(G.chest, { wood: (G.chest.wood || 0) + 200, meat: (G.chest.meat || 0) + 60, scrap: (G.chest.scrap || 0) + 10, hare: (G.chest.hare || 0) + 6 });
     S.prefer = ['Остаться', 'Остаёмся', 'Бегу'];
     const at = HUT.x + 40, ay = HUT_IN.y1 + 90; S.tp(at, ay); S.tick();
@@ -374,6 +422,7 @@ function phases() {
       return r;
     };
     const b1 = [build('woodshed'), build('smoke'), build('balok')];
+    L('стройки заложены: ' + b1.map(b => b && `${b.type}#${b.id}@${b.x | 0},${b.y | 0}`).join(' ') + ' · ' + G.col.units.filter(u => !u.pet).map(u => `${u.task.k}${u.task.b || ''}@${u.x | 0},${u.y | 0}`).join(' ') + ' · лабаз дров ' + G.chest.wood);
     ok(finish(b1, 240), `🏗 дровяник, коптильня, балок построены бичами (${hourOf().toFixed(1)} ч)`);
     S.tp(at, ay); S.tick(); S.panel('epoch', '[data-epoch]');
     ok(G.col.epT > 0, '⏫ эпоха II «Заимка» — переход начат');
@@ -392,7 +441,9 @@ function phases() {
   };
   // ---------- люди зон: общие приёмы ----------
   // подойти к человеку (где он сейчас — у него распорядок) и поговорить, выбирая варианты prefer
-  S.meet = (id, prefer) => { const st = Npc.state(id); S.tp(st.x - 30, st.y + 4); S.tick(); S.talk(prefer); };
+  S.meet = (id, prefer) => { const st = Npc.state(id); S.tp(st.x - 30, st.y + 4); S.tick(); const d0 = S.dlg.length; S.talk(prefer); if (S.dlg.length === d0) { const c = Actions.context(); L(`${id}: диалог не открылся · E: ${c && c.k} · ${S.toasts.slice(-2).join(' / ')}`); } };
+  // сдать вещи заказчику: «+» вещи только что выданы — забота не должна их съесть/сжечь по дороге к разговору
+  S.handover = (id, prefer) => { const c0 = S.care; S.care = false; S.meet(id, prefer); S.care = c0; };
   S.zoneTp = (id, dx = 0, dy = 200) => { const z = ZONES[id]; S.tp(z.x + dx, z.y + dy); S.run(0.3); };
   const vera2me = () => { if (G.vera.state === 'follow') { G.vera.x = G.p.x - 30; G.vera.y = G.p.y + 10; } };
   // Тамара: керосин ×2 (задание 1) и кабель ×2 на мачту (задание 2)
@@ -413,7 +464,7 @@ function phases() {
     // Веру накормить досыта: до 7-го дня пропускаем один рассвет — должна дожить до похода
     S.IN(); S.tp(SPOT.chest.x - 10, SPOT.chest.y); S.tick(); S.takeN('can', 3);
     if (Inv.cnt('can', false) < 2) G.inv.can = (G.inv.can || 0) + 2; // + консервы
-    for (let i = 0; i < 2; i++) { const v = G.vera; S.tp(v.x + 30, v.y + 20); S.tick(); S.talk(['Накормить']); }
+    S.care = false; for (let i = 0; i < 2; i++) { const v = G.vera; S.tp(v.x + 30, v.y + 20); S.tick(); S.talk(['Накормить']); } S.care = true;   // консервы — Вере: забота героя их не съест
     ok(G.vera.food === 2, `🍲 Веру накормили досыта (${G.vera.food})`);
     S.IN(); S.run(300, () => G.heli); S.run(90, () => G.flags.heliMiss);
     ok(G.flags.heliMiss && state === 'play' && G.chapter === 3, '🚁 день 5: не заметили — игра идёт');
@@ -508,6 +559,8 @@ function phases() {
     ok(G.col.ep === 3 && CHAPTERS[G.chapter].num === 'VI' && G.storm && G.storm.big, `⏫ эпоха IV «Посёлок» → глава VI «Зимовка»: большая пурга назначена на ${G.storm ? ((G.storm.a / CYCLE * 24 + TUNE.time.startH) % 24).toFixed(1) : '?'} ч`);
     // + запас в лабаз: переход в эпоху IV съел еду, а зимовка требует её отдельно
     if (FOOD_KEYS.reduce((s, k) => s + (G.chest[k] || 0), 0) < STORY.winter.food) G.chest.can = (G.chest.can || 0) + STORY.winter.food;
+    // + дрова: выработка посёлка — в игровом времени (TUNE.time.k), а фазы теста идут реальными секундами — сутки не набегают
+    if ((G.chest.wood || 0) < STORY.winter.wood) G.chest.wood = STORY.winter.wood;
     S.run(1);
     ok(G.flags.winterWood && G.flags.winterFood, `🪵 запасы на пургу: дров ${G.chest.wood}, еды ${FOOD_KEYS.reduce((s, k) => s + (G.chest[k] || 0), 0)}`);
     G.time = G.storm.a + 1; S.IN(); S.run(1);
@@ -523,18 +576,18 @@ function phases() {
     S.meet('efimych', ['Я от Уркачана', 'Закрою долг', 'Понял']);
     ok(G.flags.efimAsked, '🏪 Ефимыч: «Цены у нас твёрдые…» → долг деда: соболь ×5');
     G.inv.sable = (G.inv.sable || 0) + 5; // + соболя
-    S.meet('efimych', ['Отдать', 'Спасибо']);
+    S.handover('efimych', ['Отдать', 'Спасибо']);
     ok(G.flags.efimDebtDone && G.flags.veraHealed && G.urk.respect === Math.min(3, r0 + 1), `🏪 долг закрыт: дед ${G.urk.respect}/3, Вере — мазь и костыль`);
     ok(NPCS.efimych.trade.price(NPCS.efimych.trade.goods[0], G) <= NPCS.efimych.trade.goods[0].p, '🏪 скидка после долга');
     // ✝️ Агафон: ограда
     S.meet('agafon', ['Помочь чем', 'Принесу дров', 'Понял']);
     G.inv.wood = (G.inv.wood || 0) + 8; // + жерди
-    S.meet('agafon', ['Отдать', 'Спасибо']);
+    S.handover('agafon', ['Отдать', 'Спасибо']);
     ok(G.flags.agafFence && G.inv.honey >= 2, '✝️ Агафон: жерди ×8 → мёд ×2, торг открыт');
     // 🧥 Толян: склад и выбор
     S.meet('tolyan', ['Какой склад', 'Подумаю']);
     G.inv.can = (G.inv.can || 0) + 2; // + тушёнка
-    S.meet('tolyan', ['Отдать', 'Понял']);
+    S.handover('tolyan', ['Отдать', 'Понял']);
     const st = Zones.obj('stash');
     S.tp(st.x, st.y + 30); S.tick();
     const c = Zones.context(G.p);
@@ -556,7 +609,7 @@ function phases() {
     S.meet('vasya', ['Живые', 'Понял']);
     ok(G.flags.vasyaMet, '✉️ Вася: «Писем вам нет. Есть газета за ноябрь…»');
     // записка Семёныча «Галя…» — рядом записка пилота: встать ближе к нужной
-    S.tp(NOTES.wife.x + 14, NOTES.wife.y - 8); S.tick(); Actions.interact(false); S.modal();
+    for (const [dx, dy] of [[14, -8], [18, 0], [10, -14], [4, 4]]) { S.tp(NOTES.wife.x + dx, NOTES.wife.y + dy); S.tick(); S.run(1, () => G.p.cd <= 0 && !G.p.action); Actions.interact(false); S.modal(); if (G.notes.wife) break; }
     ok(G.notes.wife, '📓 письмо Семёныча Гале прочитано');
     const k0 = Inv.cnt('kero', false);
     S.meet('vasya', ['Спасибо, Вася']);

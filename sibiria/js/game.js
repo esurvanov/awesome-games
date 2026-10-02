@@ -9,8 +9,8 @@ function newGame() {
     time: 0, day: 1, chapter: 0, seed, lastDawn: 1,
     p: { x: POI.cockpit.x + 60, y: POI.cockpit.y + 120, face: 1, step: 0, moving: false, action: null, cd: 0, swing: 0,
       torch: 0, teaT: 0, wetT: 0, iceT: 0, lx: 0, ly: 0, inside: false, sleeping: false, sx: 0, sy: 0, br: 0, creaked: 0 },
-    s: { warm: B.warm0, food: B.food0, hp: 100, frost: 0 }, frostAcc: 0, coldAcc: 0,
-    inv: { can: 1 }, chest: {}, gear: {}, skills: { chop: 0, fish: 0, hunt: 0, cold: 0 },
+    s: { warm: B.warm0, food: B.food0, hp: 100, frost: 0, tire: 0, awake: 0 }, frostAcc: 0, coldAcc: 0,
+    inv: { can: 1 }, chest: {}, gear: {}, hand: { p: [], t: null }, sled: {}, loose: [], carcs: [], itemsV: 2, skills: { chop: 0, fish: 0, hunt: 0, cold: 0 },
     hut: { walls: 0, door: 0, bench: 0, damper: 0, fuel: 0, doorHp: 100 }, charge: 0,
     flags: {}, notes: {}, fired: {}, known: { cockpit: 1 }, stats: { wood: 0, fish: 0, hares: 0, wolves: 0, scrap: 0 },
     trees: [], drifts: [], cracks: [], tussocks: [], hares: [], wolves: [], bear: null, fires: [], holes: [], traps: [],
@@ -57,7 +57,7 @@ function update(dt) {
   Story.tick(dt, h, night);
   World.thinIce(dt);
   Zones.tick(dt);
-  Transport.tick();
+  Transport.tick(dt);
   if (state === 'play') Weather.tick();
   Director.tick(dt, night, storm);
   Wolves.tick(dt, night);

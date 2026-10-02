@@ -279,6 +279,9 @@ const UI = (() => {
   function openStash(s) { curStash = s; kind = 'stash'; renderPanel(); $('panel').hidden = false; }
   let tradeWho = 'urk';
   function openTrade(who) { tradeWho = who && NPCS[who] && NPCS[who].trade ? who : 'urk'; kind = 'trade'; renderPanel(); $('panel').hidden = false; }
+  // «До утра» (Z): прогноз ночи (Survival.forecast) — мотать или нет
+  let skipFc = null, skipMd = 'sleep';
+  function openSkip(mode, fc) { if (kind) closePanel(); skipMd = mode; skipFc = fc; kind = 'skip'; renderPanel(); $('panel').hidden = false; }
   // большая карта (A9, js/map.js): пауза, как панель
   function openMap() { if (state !== 'play' || G.p.sleeping) return; if (kind) closePanel(); kind = 'map'; WorldMap.open(); }
   function closePanel(silent) {
@@ -320,7 +323,7 @@ const UI = (() => {
         }
       } else if (panelTab === 'people') {
         const q = G.col.queue;
-        html += `<p class="hint">${ic('people', 's')}${Colony.pop()}/${Colony.popCap()} · ${ic('food', 's')}1 в минуту на каждого · найм у избы</p>`;
+        html += `<p class="hint">${ic('people', 's')}${Colony.pop()}/${Colony.popCap()} · ${ic('food', 's')}1 за ${gameDur(TUNE.colony.eatEvery)} на каждого · найм у избы</p>`;
         if (q.length) html += `<div class="chain">${q.map((x, i) => `<span class="on" title="${UNITS[x.type].n}">${ic(UNITS[x.type].i)}${i === 0 ? `<span class="badge">${Math.ceil(x.t)} с</span>` : ''}</span>`).join('')}</div>`;
         for (const [id, U] of Object.entries(UNITS)) {
           const st = Colony.unitState(id), n = G.col.units.filter(u => u.type === id && !u.pet).length;
@@ -356,7 +359,7 @@ const UI = (() => {
         html += `<div class="chain">${HUT_UPG.map(u => `<span class="${G.hut[u.id] ? 'on' : ''}" title="${u.n}">${ic(u.i)}</span>`).join('<i></i>')}</div>`;
         for (const u of HUT_UPG) {
           const st = Actions.hutUpgState(u);
-          html += row(st === 'owned' ? 'done' : st === 'ok' ? '' : 'is-off', st === 'owned' ? 'ok' : u.i, u.n, u.d, st === 'owned' ? '' : st === 'need' ? bdg('miss', ic('wall', 's') + 'сначала щели') : costHtml(u.in, true), st === 'owned' ? doneB() : mkBtn(`data-u="${u.id}"`, st === 'ok', 'Построить'));
+          html += row(st === 'owned' ? 'done' : st === 'ok' ? '' : 'is-off', st === 'owned' ? 'ok' : u.i, u.n, u.d, st === 'owned' ? '' : st === 'need' ? bdg('miss', ic('wall', 's') + 'сначала щели') : costHtml(Actions.hutLeft(u), true) + (G.hut.prog && G.hut.prog[u.id] ? bdg('', Math.round(G.hut.prog[u.id] * 100) + '%') : ''), st === 'owned' ? doneB() : mkBtn(`data-u="${u.id}"`, st === 'ok', G.hut.prog && G.hut.prog[u.id] ? 'Доделать' : 'Построить'));
         }
         if (!World.nearHut()) html += `<p class="hint">${ic('hut', 's')}Только у избы</p>`;
       }
@@ -376,6 +379,24 @@ const UI = (() => {
         <b>${G.inv[k] || 0}</b>
         <span class="arr"><button class="btn sec" data-sput="${k}" ${G.inv[k] ? '' : 'disabled'}>Положить</button><button class="btn sec" data-stake="${k}" ${s.inv[k] ? '' : 'disabled'}>Взять</button></span>
         <b>${s.inv[k] || 0}</b></div>`).join('') : '<p class="hint">Пусто</p>');
+    } else if (kind === 'skip') {
+      // прогноз «До утра»: сейчас → к утру по каждой шкале; красное — не хватит (час, когда кончится)
+      const f = skipFc, sl = skipMd === 'sleep', hm = t => { const h = hourOf(t); return String(Math.floor(h)).padStart(2, '0') + ':' + String(Math.floor(h % 1 * 60)).padStart(2, '0'); };
+      const stop = f.deadAt != null ? f.deadAt : f.wakeAt;
+      head.innerHTML = `<span class="ph">${ic(sl ? 'sleep' : 'night', 's')}${sl ? 'Сон до утра' : 'Переждать ночь'}</span><span class="badge info" style="margin-left:auto">${ic('timer', 's')}${hm(G.time)} → ${hm(stop != null ? stop : f.to)}</span>`;
+      const ar = (a, b, bad, at) => bdg(bad ? 'miss' : 'ok', `${Math.round(a)} → ${Math.round(b)}${at != null ? ` · ${hm(at)}` : ''}`);
+      const fuelN = G.p.inside ? ['stove', 'Печь'] : ['fire', 'Огонь'], hadFuel = G.p.inside ? G.hut.fuel > 0 : !!Fire.heatAt(G.p, 0);
+      const fuelB = !hadFuel ? bdg('miss', ic('close', 's') + 'нет') : f.fuelAt != null ? bdg('miss', `до ${hm(f.fuelAt)}`) : bdg('ok', ic('ok', 's') + 'до утра');
+      const verdict = f.deadAt != null ? `<div class="row is-off"><span class="ri">${ic('close')}</span><span class="rn">${f.cause === 'food' ? 'Голод' : 'Холод'}<small>смерть</small></span>${bdg('miss', ic('timer', 's') + hm(f.deadAt))}<span></span></div>`
+        : f.wakeAt != null ? `<div class="row"><span class="ri">${ic('frost')}</span><span class="rn">Печь погаснет<small>разбудит</small></span>${bdg('miss', ic('timer', 's') + hm(f.wakeAt))}<span></span></div>`
+        : `<div class="row done"><span class="ri">${ic('ok')}</span><span class="rn">Доживёшь<small>${sl ? 'сон · голод слабее' : 'без сна'}</small></span>${bdg('ok', ic('day', 's') + hm(f.to))}<span></span></div>`;
+      setHtml(body, row('', 'food', 'Еда', '', ar(G.s.food, f.food, f.hungryAt != null, f.hungryAt), '')
+        + row('', 'warm', 'Тепло', '', ar(G.s.warm, f.warm, f.coldAt != null, f.coldAt), '')
+        + row('', fuelN[0], fuelN[1], '', fuelB, '')
+        + row('', 'hp', 'Здоровье', '', ar(G.s.hp, f.hp, f.hp < G.s.hp - 0.5 || f.deadAt != null), '')
+        + row('', 'tire', 'Силы', '', ar(100 - (G.s.tire || 0), 100 - f.tire, 100 - f.tire < TUNE.tire.low), '')
+        + verdict
+        + `<div class="hint"><button class="btn pri" data-skip="go">${ic('timer', 's')}До утра${isTouch ? '' : '<kbd>Z</kbd>'}</button><button class="btn sec" data-close="1">${ic('close', 's')}Отмена</button></div>`);
     } else if (kind === 'trade') {
       // торг с персонажем tradeWho: валюта — его trade.pay (цены единицы — trade.val), остаток — в его состоянии
       const who = tradeWho, R = NPCS[who], T = R.trade, st = Npc.state(who), cur = T.cur || 'pelt', have = Npc.furTotal(who);
@@ -393,7 +414,7 @@ const UI = (() => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.tab) { panelTab = b.dataset.tab; }
     else if (b.dataset.r) { if (Actions.craft(RECIPES.find(r => r.id === b.dataset.r))) { closePanel(); hud(true); return; } } // работа — в мире: окно закрывается, прогресс над героем
-    else if (b.dataset.u) Actions.buildHut(HUT_UPG.find(u => u.id === b.dataset.u));
+    else if (b.dataset.u) { if (Actions.buildHut(HUT_UPG.find(u => u.id === b.dataset.u))) { closePanel(); hud(true); return; } } // изба — тоже работа в мире: идёт к месту, часть растёт по ходу
     else if (b.dataset.t) Npc.buy(NPCS[tradeWho].trade.goods.find(t => t.id === b.dataset.t), tradeWho);
     else if (b.dataset.radio) { closePanel(); return Actions.radioSession(); }
     else if (b.dataset.place) { closePanel(); Colony.startPlace(b.dataset.place); return; }
@@ -402,22 +423,27 @@ const UI = (() => {
     else if (b.dataset.tech) Colony.research(b.dataset.tech);
     else if (b.dataset.sell) Colony.sell(b.dataset.sell);
     else if (b.dataset.buy) Colony.buy(b.dataset.buy);
-    else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { G.inv[k]--; G.chest[k] = (G.chest[k] || 0) + 1; stowGesture(true, k); } }
-    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { G.chest[k]--; Inv.add(k); stowGesture(false, k); } }
-    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { G.inv[k]--; curStash.inv[k] = (curStash.inv[k] || 0) + 1; stowGesture(true, k); } }
-    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { curStash.inv[k]--; Inv.add(k); stowGesture(false, k); } }
+    // перекладывание — по штуке, с массой (дрова: средняя масса места); в рюкзак — только если влезет
+    else if (b.dataset.put) { const k = b.dataset.put; if (G.inv[k] > 0) { Inv.move(G.inv, G.chest, k, 1); stowGesture(true, k); } }
+    else if (b.dataset.take) { const k = b.dataset.take; if (G.chest[k] > 0) { const m = Inv.isW(k) ? Inv.wkg(G.chest) / G.chest.wood : undefined, f = Inv.fits(k, 1, m); if (!f.ok) toast(packWhy(f)); else { Inv.move(G.chest, G.inv, k, 1); if (f.at === 'out') G.inv.wo = Math.min(G.inv.wood, Inv.outN(G.inv) + 1); stowGesture(false, k); } } }
+    else if (b.dataset.sput && curStash) { const k = b.dataset.sput; if (G.inv[k] > 0) { Inv.move(G.inv, curStash.inv, k, 1); stowGesture(true, k); } }
+    else if (b.dataset.stake && curStash) { const k = b.dataset.stake; if (curStash.inv[k] > 0) { const m = Inv.isW(k) ? Inv.wkg(curStash.inv) / curStash.inv.wood : undefined, f = Inv.fits(k, 1, m); if (!f.ok) toast(packWhy(f)); else { Inv.move(curStash.inv, G.inv, k, 1); if (f.at === 'out') G.inv.wo = Math.min(G.inv.wood, Inv.outN(G.inv) + 1); stowGesture(false, k); } } }
     else if (b.dataset.all === 'stashput' && curStash) { for (const k in G.inv) if (G.inv[k] > 0) { curStash.inv[k] = (curStash.inv[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.all) { for (const k in G.inv) if (G.inv[k] > 0) { G.chest[k] = (G.chest[k] || 0) + G.inv[k]; G.inv[k] = 0; } }
     else if (b.dataset.close) return closePanel();
+    else if (b.dataset.skip) { closePanel(); return Actions.skipStart(); }
     renderPanel(); hud(true);
   });
   $('panel-close').addEventListener('click', () => closePanel());
   // положить/взять: герой наклоняется к ящику/тайнику (крышка открыта, пока окно открыто), вещь — в руке
+  // не лезет в рюкзак: иконка + причина
+  const packWhy = f => ({ l: ':pack: полон · :wood: снаружи ' + Inv.packOut() + '/' + TUNE.load.packWood, kg: ':weight: тяжело', piece: ':wood: тяжёлое полено', len: ':wood: длинное' })[f.why] || ':pack: полон';
   function stowGesture(put, k) {
     const at = kind === 'chest' ? SPOT.chest : curStash; if (!at || typeof Hero === 'undefined') return;
     if (put) { Hero.play('place', { react: 1, tg: at, th: kind === 'chest' ? -14 : -6 }); } else Hero.play('pickUp', { react: 1, tg: at, th: kind === 'chest' ? -14 : -6 });
     if (typeof Interact !== 'undefined') Interact.emit('open', { who: 'p', obj: kind === 'chest' ? 'crate' : 'stash', target: at, x: at.x, y: at.y });
-    Fx.floatText(at.x, at.y - 30, (put ? '→ ' : '+') + (ITEMS[k] ? ITEMS[k].i : ''));
+    // отметка — у блока рюкзака, когда рука донесла (≈0,5 с жеста), не над героем
+    if (ITEMS[k] && Carry.got) Carry.got('ui' + (put ? 'p' : 't') + k, ITEMS[k].i, put ? '→ :labaz:' : '→ :pack:', put ? null : Math.min(1, Inv.packL() / TUNE.load.packL), 1, 0.5);
   }
 
   // ---------- подсказки первых минут: каждая один раз, по одной, можно выключить ----------
@@ -428,6 +454,7 @@ const UI = (() => {
       ['act', 'axe', T ? ':axe: — действие: рубить, брать, говорить' : 'E — действие рядом: рубить, брать, говорить', () => !!ctxCache && ctxCache.k !== 'inspect'],
       ['fire', 'fire', T ? ':fire: — костёр из :wood:3, греет' : 'F — костёр из :wood:3, греет', () => !G.p.inside && G.s.warm < 70 && Inv.cnt('wood', false) >= 3],
       ['cold', 'frost', 'Мёрзнешь — в избу или к огню', () => G.s.warm < 45 && !G.p.inside && !Fire.near(200)],
+      ['tired', 'tire', ':sleep: Устал — к огню или спать', () => (G.s.tire || 0) > TUNE.tire.tired && !G.p.sleeping],
       ['eat', 'food', T ? ':food: — поесть · у огня сытнее' : 'Q — поесть · у огня сытнее', () => G.s.food < 55 && FOOD_ORDER.some(k => Inv.cnt(k, G.p.inside) > 0)],
       ['stove', 'stove', 'Печь: E у печи · :wood: из рук или лабаза', () => G.p.inside && G.hut.fuel <= 0],
       ['night', 'night', 'После 19:00 — спать у печи (E у кровати)', () => { const h = hourOf(); return h >= 17.5 && h < 19.5; }],
@@ -467,26 +494,48 @@ const UI = (() => {
   })();
 
   // ---------- HUD ----------
-  const els = { warm: $('b-warm'), food: $('b-food'), hp: $('b-hp') };
+  const els = { warm: $('b-warm'), food: $('b-food'), hp: $('b-hp'), tire: $('b-tire') };
   function bar(el, v, max = 100) {
     el.querySelector('i').style.width = v + '%';
     const cap = el.querySelector('u'); if (cap) cap.style.width = (100 - max) + '%';
     setText(el.querySelector('b'), Math.ceil(v)); el.classList.toggle('low', v < 25);
   }
+  // плавное значение для HUD: догоняет за ~0,4 с (95 %)
+  const EZ = {};
+  function ez(k, v) { const now = performance.now(), e = EZ[k] || (EZ[k] = { v, t: now }); const dt = Math.min(0.25, (now - e.t) / 1000); e.t = now; e.v += (v - e.v) * (1 - Math.exp(-dt / 0.13)); if (Math.abs(v - e.v) < 0.02) e.v = v; return e.v; }
   const chipI = (id, v, title, cls) => `<span${cls ? ` class="${cls}"` : ''} title="${title}">${ic(id, 's')}${v}</span>`;
   function hud(force) {
     const s = G.s;
     bar(els.warm, s.warm, Hero.maxWarm()); bar(els.food, s.food); bar(els.hp, Math.max(0, s.hp));
+    // силы = 100 − усталость: пульс ниже TUNE.tire.low, синие края ниже edge; края темнеют, когда клонит в сон на морозе
+    const TI = TUNE.tire, pw = 100 - (s.tire || 0), dz = Survival.dozeFx(), vg = $('vig');
+    bar(els.tire, pw); els.tire.classList.toggle('pulse', pw < TI.low);
+    const edge = pw < TI.edge && !G.p.inside && !G.p.sleeping ? (TI.edge - pw) / TI.edge : 0;
+    vg.style.setProperty('--d', (dz * 0.92).toFixed(2)); vg.style.setProperty('--b', (edge * 0.55).toFixed(2)); vg.classList.toggle('on', dz > 0 || edge > 0);
     setHtmlOnce($('frost'), s.frost ? ic('frost', 's').repeat(s.frost) : '');
     // инвентарь
-    const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, G.inv[k], ITEMS[k].n)).join('');
-    const kg = Inv.weight(), cap = Inv.capKg();
-    const invHtml = (inv || '<span class="dim">пусто</span>') + chipI('weight', `${kg}/${cap}`, 'Вес, кг', 'kg' + (kg > cap ? ' over' : ''));
+    // ноша: рюкзак — объём и вес (шкалы), руки, нарты; ниже — что в рюкзаке
+    // шкалы доезжают плавно (~0,4 с), а не перескакивают в кадр касания
+    const LD = TUNE.load, pL = Math.round(ez('pL', Inv.packL())), kg = +ez('kg', Inv.weight()).toFixed(1), cap = Inv.capKg();
+    const lb = (id, v, max, txt, title, warn) => `<span class="lb${v > max ? ' over' : warn ? ' warn' : ''}" title="${title}">${ic(id, 's')}<s style="--p:${Math.min(1, v / max).toFixed(2)}"></s>${txt}</span>`;
+    // рюкзак: объём внутри, ремни снаружи (притороченные чурки: занято / свободно), вес на себе; снят — тусклый
+    const wo = Inv.packOut(), slots = `<span class="lb slots${wo >= LD.packWood ? ' warn' : ''}" title="Дрова снаружи, под ремнями: ${wo}/${LD.packWood}">${ic('wood', 's')}${'<i class="on"></i>'.repeat(wo)}${'<i></i>'.repeat(Math.max(0, LD.packWood - wo))}<small>снаружи ${wo}/${LD.packWood}</small></span>`;
+    let load = lb('pack', pL, LD.packL, `${pL}/${LD.packL} л`, Carry.off() ? 'Рюкзак снят' : 'Рюкзак: объём внутри', pL > LD.packL * 0.85).replace('class="lb', Carry.off() ? 'class="lb off' : 'class="lb') + slots + lb('weight', kg, cap, `${kg}/${cap} кг`, 'На себе: рюкзак + руки', kg > cap * 0.85);
+    // в руках — то, что уже дошло (пока рука несёт вещь — прежнее): охапка, на плече, волоком, в кулаке
+    { const hv = Carry.handView(), t = hv.t, s = hv.st;
+      if (s && s !== 'free') load += `<span class="hand" title="В руках">${ic(s === 'shoulder' || s === 'lift' || s === 'drag' ? 'tree' : 'hand', 's')}${s === 'drag' ? ic('hand', 's') : ''}${hv.wn ? ic('wood', 's') + hv.wn : ''}${t ? (t.id === 'carc' ? ic('hare', 's') : ITEMS[t.id] ? ic(ITEMS[t.id].i, 's') + (t.n > 1 ? t.n : '') : ic(t.id === 'amulet' ? 'sevek' : 'can', 's')) : ''}<small>${hv.kg.toFixed(1).replace('.', ',')}</small></span>`; }
+    // отметка «прибыло» (js/carry.js chip): иконка + число/предел, шкала доезжает, повторы ×n, гаснет за 1,5 с
+    { const cp = Carry.chip && Carry.chip(); if (cp) {
+      const k = Math.min(1, cp.age / 0.4), e = k * k * (3 - 2 * k), p = cp.p == null ? null : cp.p0 == null ? cp.p : cp.p0 + (cp.p - cp.p0) * e, fade = cp.age > 1.1 ? Math.max(0, 1 - (cp.age - 1.1) / 0.4) : 1;
+      load += `<span class="lb got" style="opacity:${fade.toFixed(2)}">${icx(cp.ic + ' ' + cp.txt, 's')}${p != null ? `<s style="--p:${p.toFixed(2)}"></s>` : ''}${cp.rep && cp.n > 1 ? `<small>×${cp.n}</small>` : ''}</span>`; } }
+    if (G.gear.sled) { const sk = Math.round(Carry.sledKg()), sw = (G.sled && G.sled.wood) || 0; load += lb('sled', sk, LD.sledKg, `${sw ? ic('wood', 's') + sw + ' · ' : ''}${sk}/${LD.sledKg} кг`, 'Нарты: груз', sk > LD.sledKg * 0.85); }
+    const inv = ITEM_ORDER.filter(k => G.inv[k] > 0).map(k => chipI(ITEMS[k].i, k === 'wood' ? G.inv[k] + `<small>${Inv.wkg(G.inv).toFixed(1).replace('.', ',')}</small>` : G.inv[k], ITEMS[k].n)).join('');
+    const invHtml = `<div class="ld">${load}</div>` + (inv || '<span class="dim">пусто</span>');
     if (invHtml !== invCache || force) { invCache = invHtml; $('inv').innerHTML = invHtml; }
     // посёлок
     const C = G.col, st = k => G.chest[k] || 0;
     const colHtml = `<span title="Эпоха">${ic('epoch', 's')}${ROMAN[C.ep]}${C.epT > 0 ? `<small>${Math.ceil(C.epT)} с</small>` : ''}</span>` + chipI('people', `${Colony.pop()}/${Colony.popCap()}`, 'Люди')
-      + chipI('wood', st('wood'), 'Лабаз: дрова') + chipI('food', Inv.cnt('food', true) - Inv.cnt('food', false), 'Лабаз: еда') + chipI('scrap', st('scrap'), 'Лабаз: железо')
+      + chipI('wood', st('wood'), 'Поленница у избы: дрова') + chipI('food', Inv.cnt('food', true) - Inv.cnt('food', false), 'Лабаз: еда') + chipI('scrap', st('scrap'), 'Лабаз: железо')
       + chipI('coins', C.rub, 'Рубли') + chipI('sevek', `${G.amulets}/12`, 'Сэвэки') + (C.alarm ? `<span class="alarm">${ic('alarm', 's')}</span>` : '');
     if (colHtml !== $('colony').dataset.c) { $('colony').dataset.c = colHtml; $('colony').innerHTML = colHtml; }
     const sel = Colony.selected();
@@ -543,6 +592,10 @@ const UI = (() => {
       if (!onIce(G.p.x, G.p.y) && Inv.weight() > Inv.capKg() && (!c || c.k !== 'stash')) items.push(['T', `${ic('pack', 's')}Тайник<kbd>T</kbd>`]);
     }
     if (G.s.food < 60 && FOOD_ORDER.some(k => Inv.cnt(k, G.p.inside) > 0)) items.push(['Q', `${ic('food', 's')}Есть<kbd>Q</kbd>`]);
+    // «До утра»: ночью; во время промотки — часы и стоп
+    const zk = isTouch ? '' : '<kbd>Z</kbd>';
+    if (Actions.skipFast()) items.push(['Z', `${ic('timer', 's')}${hh}:${mm} → ${String(TUNE.time.wakeAt).padStart(2, '0')}:00 · Стоп${zk}`]);
+    else if (Actions.nightNow() && !G.p.ko && !G.p.ride && !Actions.busy() && !Actions.skipping()) items.push(['Z', `${ic(Actions.skipMode() === 'sleep' ? 'sleep' : 'night', 's')}До утра${zk}`]);
     const ph = items.map(([k, t]) => `<button class="btn sec pbtn" data-k="${k}">${t}</button>`).join('');
     if (ph !== promptCache) { promptCache = ph; $('prompt').innerHTML = ph; }
   }
@@ -822,12 +875,14 @@ const UI = (() => {
     start(checkpoint);
     G.s.hp = Math.max(G.s.hp, 60); G.s.warm = Math.max(G.s.warm, 50); G.s.food = Math.max(G.s.food, 40); G.wolves = []; G.pack = null; if (G.bear) G.bear = null;
     if ((deathLog[ch] || 0) >= 2) {
-      G.mercy = 1; G.chest.wood = (G.chest.wood || 0) + 4; G.chest.meat = (G.chest.meat || 0) + 2;
+      G.mercy = 1; Inv.put(G.chest, 'wood', 4); G.chest.meat = (G.chest.meat || 0) + 2;
       toast(':evenk: Уркачан оставил в лабазе :wood:4 :meat:2');
     }
   }
   // журнал: прочитанные записки (текст сохраняется, перечитать — в паузе, раздел «Записки»)
   function journal() {
+    const pt = $('p-tire'), s = G.s; if (pt) { const pw = Math.round(100 - (s.tire || 0)), aw = Math.floor((s.awake || 0) / HOUR);
+      pt.innerHTML = `<span class="ri">${ic('tire')}</span><span>Силы</span><span class="badges">${bdg(pw < TUNE.tire.low ? 'miss' : 'ok', ic('tire', 's') + pw)}${bdg(aw >= TUNE.tire.awakeFrom ? 'miss' : '', ic('sleep', 's') + aw + ' ч')}</span>`; }
     const ids = Object.keys(NOTES).filter(id => G.notes[id]), el = $('p-notes'); if (!el) return;
     $('p-notes-n').textContent = `${ids.length}/${Object.keys(NOTES).length}`;
     el.innerHTML = ids.length ? ids.map(id => `<div class="jn">${ic(NOTES[id].i || 'log', 's')}<span>${esc(NOTES[id].t)}</span></div>`).join('') : '<p class="hint">Пока пусто</p>';
@@ -841,6 +896,7 @@ const UI = (() => {
 
   // ---------- ввод ----------
   const keys = new Set(), joy = { x: 0, y: 0, id: null, ox: 0, oy: 0 };
+  const SHIFT_TAP = 350; let shiftTap = 0; // мс: чистое нажатие Shift без цели — отскок назад на отпускании (см. keydown)
   function keyAction(k) {
     if (state !== 'play') return;
     tips.did({ E: 'act', F: 'fire', Q: 'eat', B: 'build', C: 'craft' }[k]);
@@ -855,6 +911,7 @@ const UI = (() => {
     else if (k === 'R') Actions.placeKey();
     else if (k === 'T') Actions.stashKey();
     else if (k === 'C') { if (kind === 'craft') closePanel(); else if (!kind) openCraft(G.p.inside && G.hut.bench ? 'craft' : panelTab); }
+    else if (k === 'Z') { if (!kind) Actions.skipKey(); }
   }
   function syncMove() {
     let mx_ = 0, my_ = 0;
@@ -879,6 +936,7 @@ const UI = (() => {
       else if (/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(e.code) && !e.repeat && dlgT + typeN / 45 > 0.4) { closePanel(); keys.add(e.code); }   // ушёл — разговор прерван
       return;
     }
+    if (kind === 'skip' && (e.code === 'KeyZ' || e.code === 'Enter') && !e.repeat) { closePanel(); Actions.skipStart(); return; }
     if (kind) {
       if (e.code === 'Escape' || (e.code === 'KeyM' && kind === 'map') || (e.code === 'KeyE' && kind === 'note' && noteT > 0.3) || (e.code === 'KeyC' && kind === 'craft') || (e.code === 'KeyE' && kind !== 'note' && !e.repeat)) closePanel();
       return;
@@ -889,13 +947,20 @@ const UI = (() => {
     if (e.code === 'Escape' || e.code === 'KeyP') { pause(true); return; }
     keys.add(e.code);
     if (e.repeat) return;
+    const shift = e.code === 'ShiftLeft' || e.code === 'ShiftRight';
+    if (!shift) shiftTap = 0;   // Shift с другой клавишей — сочетание (Cmd+Shift+4 — снимок экрана, Shift+буква), не отскок
     if (e.code === 'KeyE' || e.code === 'Space') { input.act = true; keyAction('E'); }
+    // отскок (рывок по направлению / от угрозы); с выделенными людьми Shift — добавить к выделению.
+    // Есть куда (ввод, падающий ствол, волк) — сразу; иначе («назад») — только на чистое короткое нажатие Shift (на отпускании):
+    // стоящий герой не отпрыгивает от Shift в составе сочетаний и с модификаторами
+    if (shift && !G.col.sel.length && !e.metaKey && !e.ctrlKey && !e.altKey) { if (Hero.dodgeAim()) Hero.dodge(); else shiftTap = performance.now(); }
     if (e.code === 'KeyF') keyAction('F');
     if (e.code === 'KeyX') keyAction('X');
     if (e.code === 'KeyQ') keyAction('Q');
     if (e.code === 'KeyR') keyAction('R');
     if (e.code === 'KeyT') keyAction('T');
     if (e.code === 'KeyC') keyAction('C');
+    if (e.code === 'KeyZ') keyAction('Z');
     if (e.code === 'KeyH') keyAction('H');
     if (e.code === 'KeyM') openMap();
     if (e.code === 'KeyV') keyAction('V');
@@ -908,8 +973,14 @@ const UI = (() => {
     const g = /^(Digit|Numpad)([1-3])$/.exec(e.code);
     if (g) { if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); groupSet(+g[2]); } else groupGet(+g[2]); }
   });
-  addEventListener('keyup', e => { keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Space') input.act = false; });
-  addEventListener('blur', () => { keys.clear(); input.act = false; });
+  addEventListener('keyup', e => {
+    keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Space') input.act = false;
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && shiftTap) {
+      const tap = performance.now() - shiftTap < SHIFT_TAP && !(input.downAt >= shiftTap) && !e.metaKey && !e.ctrlKey && !e.altKey; shiftTap = 0;
+      if (tap && state === 'play' && !kind && !G.col.sel.length) Hero.dodge();
+    }
+  });
+  addEventListener('blur', () => { keys.clear(); input.act = false; shiftTap = 0; });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(true); });
 
   const zoneEl = $('stickzone'), stick = $('stick'), knob = $('knob');
@@ -940,6 +1011,7 @@ const UI = (() => {
   act.addEventListener('pointerdown', e => { e.preventDefault(); if (kind === 'dialog') { if (typeN < dlg.t.length || (dlg.opts || [0]).length === 1) choose(0); return; } if (kind) return closePanel(); input.act = true; keyAction('E'); });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) act.addEventListener(ev, () => { input.act = false; });
   $('t-fire').addEventListener('pointerdown', e => { e.preventDefault(); keyAction('F'); });
+  $('t-dodge').addEventListener('pointerdown', e => { e.preventDefault(); if (!kind) Hero.dodge(joy.x, joy.y); });   // отскок: по джойстику, без него — от угрозы
   $('t-eat').addEventListener('pointerdown', e => { e.preventDefault(); keyAction('Q'); });
   $('t-craft').addEventListener('pointerdown', e => { e.preventDefault(); keyAction('C'); });
   $('craft-btn').addEventListener('click', () => keyAction('C'));
@@ -1049,9 +1121,15 @@ const UI = (() => {
     const dt = Math.min(0.05, iv); last = t; now = t / 1000;
     syncMove();
     if (state === 'play' && kind) Game.visual(dt); // панель/диалог: игра стоит, мир «дышит»
-    if (state === 'play' && !kind) {
-      const steps = G.p.sleeping ? TUNE.time.sleepX : 1;
-      for (let i = 0; i < steps && state === 'play'; i++) update(dt);
+    const fast = state === 'play' && !kind && Actions.skipFast();
+    if (fast) {
+      // «До утра»: тот же update() пачкой шагов skipDt, пока хватает кадра (skipMs) — исход по обычным правилам
+      const T = TUNE.time;
+      for (let i = 0; i < 4000 && state === 'play' && !kind && Actions.skipFast() && performance.now() - w0 < T.skipMs; i++) update(T.skipDt);
+    } else if (state === 'play' && !kind) {
+      // сон ×sleepX: пачка шагов dt, пока хватает кадра (skipMs) — слабая машина спит чуть медленнее, но не тормозит
+      const T = TUNE.time, steps = G.p.sleeping ? T.sleepX : 1;
+      for (let i = 0; i < steps && state === 'play' && (i === 0 || (G.p.sleeping && performance.now() - w0 < T.skipMs)); i++) update(dt);
     }
     if (state === 'menu') {
       for (const f of G.fires) if (Math.random() < dt * 7) G.parts.push({ type: 'spark', x: f.x + rnd(-6, 6), y: f.y - 14, vx: rnd(-15, 15), vy: rnd(-80, -40), life: rnd(0.5, 1), max: 1, g: -10 });
@@ -1065,13 +1143,13 @@ const UI = (() => {
       Sound.frame(dt, { storm: stormOn(), ms: Wind.ms(G.p.x, G.p.y), inside: G.p.inside, night: 1 - daylight(), tension: G.D.tension, warm: G.s.warm,
         fire: f ? clamp(1 - dist(f, G.p) / 260, 0, 1) : (G.p.inside && G.hut.fuel > 0 ? 0.6 : 0), fireAt: f || (G.p.inside && G.hut.fuel > 0 ? SPOT.stove : null) });
     }
-    Quality.sample(iv, performance.now() - w0, state === 'play' && !kind);
+    Quality.sample(iv, performance.now() - w0, state === 'play' && !kind && !fast); // промотка грузит кадр нарочно — не мерило качества
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
   applyScale();
-  return { advance, openMap, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; },
+  return { advance, openMap, openSkip, toast, zone, chapter, card, epoch, hint, isTouch, dialog, note, openCraft, openChest, openStash, openTrade, end, goalTarget: () => Story.goalTarget(), reduced, modal: () => !!kind, get kind() { return kind; },
     // кто в разговоре и чей черёд: пока печатается реплика — говорит собеседник; варианты на экране — герой отвечает с паузами (hero)
     get talk() { return kind === 'dialog' && dlg ? { who: dlg.who, typing: typeN < dlg.t.length, hero: typeN >= dlg.t.length && dlgT % 5 > 0.8 && dlgT % 5 < 3.4, n: typeN, len: dlg.t.length } : null; },
     get panel() { return { tab: panelTab, stash: curStash, trade: tradeWho }; }, closePanel, tips, layout, get scale() { return UI_SCALE.v; }, toMenu,

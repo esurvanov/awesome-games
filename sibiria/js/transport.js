@@ -23,7 +23,7 @@ const Transport = (() => {
     if (!G.veh) return null;
     if (p.ride) return { k: 'veh', label: p.ride === 'deer' ? 'Слезть с нарт' : 'Заглушить «Буран»' };
     const R = T.rideR * T.rideR, d = G.veh.deer, b = G.veh.buran;
-    if (d && dist2(d, p) < R) return { k: 'veh', label: label.deer, o: 'deer' };
+    if (d && !d.to && dist2(d, p) < R) return { k: 'veh', label: label.deer, o: 'deer' };
     if (b && dist2(b, p) < R) {
       if (!b.fixed) return { k: 'vfix', label: 'Починить «Буран» · :scrap:3 :cable:1' };
       if (Inv.has('kero', false) && b.fuel < T.buranPx * 0.4) return { k: 'vfuel', label: 'Заправить :kero:' };
@@ -56,11 +56,24 @@ const Transport = (() => {
     }
     if (c.k === 'rent') rent(c.o);
   }
+  // аренда: отдать плату (жест «положить» к хозяину, плата уходит в касание) → упряжка подъезжает из-за края кадра
   function rent(o) {
-    const cost = o.urk ? T.urkRent : T.deerRent;
+    const cost = o.urk ? T.urkRent : T.deerRent, p = G.p;
     if (!Inv.canPay(cost, false)) return Fx.toast(':close: Не хватает: ' + Object.entries(cost).map(([k, v]) => ITEMS[k].i + v).join(' '));
+    if (p.action || p.ride) return;
+    p.action = { k: 'pay', t: 0, dur: 1.2, pose: 'place', fb: 'build', tg: { x: o.x, y: o.y }, th: -10, o: { x: o.x, y: o.y, urk: o.urk ? 1 : 0 } };
+  }
+  function rentPaid(o) {
+    const cost = o.urk ? T.urkRent : T.deerRent;
+    if (!Inv.canPay(cost, false)) return;
     Inv.pay(cost, false);
-    G.veh.deer = { x: o.x + 70, y: o.y + 60, face: 1, until: G.day + T.deerDays };
+    // откуда едет: по прямой от героя через место стоянки и дальше, за край видимого (≥ 820 px)
+    const to = { x: o.x + 70, y: o.y + 60 }, p = G.p; let dx = to.x - p.x, dy = to.y - p.y; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    let from = null;
+    for (const da of [0, 0.6, -0.6, 1.2, -1.2, Math.PI]) { const c = Math.cos(da), sn = Math.sin(da), q = { x: clamp(to.x + (dx * c - dy * sn) * 820, 80, W - 80), y: clamp(to.y + (dx * sn + dy * c) * 820, 80, H - 80) };
+      if (!Actions.inView(q) && !World.blocked(q.x, q.y, 14)) { from = q; break; } }
+    from = from || { x: clamp(to.x + dx * 820, 80, W - 80), y: clamp(to.y + dy * 820, 80, H - 80) };
+    G.veh.deer = { x: from.x, y: from.y, face: Math.sign(to.x - from.x) || 1, until: G.day + T.deerDays, to };
     Fx.toast(`:deer: Упряжка твоя до утра ${G.day + T.deerDays}-го дня`); Sound.ok2();
   }
   function fixDone() {
@@ -68,30 +81,62 @@ const Transport = (() => {
     Inv.pay(T.fix, false); G.veh.buran.fixed = 1;
     Fx.toast(':sled: «Буран» ожил! Нужен :kero:'); Sound.ok2();
   }
+  // сесть: подойти сбоку своими ногами, затем опуститься на сиденье (тело сдвигается плавно, 0,7 с; транспорт на это время
+  // не преграда — p.board); верхом — в конце движения
+  const BOARD = 16, BOARD_T = 0.7, OFF_T = 0.6, OFF_DY = 24;
   function mount(kind) {
-    const p = G.p, v = G.veh[kind]; if (!v) return;
-    p.ride = kind; p.x = v.x; p.y = v.y; p.action = null; Hero.snap();
-    Fx.toast(kind === 'deer' ? ':deer: В нартах · E — слезть' : ':sled: «Буран» заведён · E — заглушить'); Sound.pick();
+    const p = G.p, v = G.veh[kind]; if (!v || p.ride || v.to) return;
+    if (p.action && p.action.cx) p.action = null;
+    if (p.action) return;
+    const sd = Math.sign(p.x - v.x) || -1, q = { x: v.x + sd * BOARD, y: v.y + 3 };
+    const sit = () => { const P = G.p; P.board = kind; P.face = -sd; P.action = { k: 'mount', t: 0, dur: BOARD_T, o: kind, pose: 'sit', fb: 'sit', x0: P.x, y0: P.y }; };
+    // рядом (≤ 46 px до сиденья) — садится сразу: тело само переходит на сиденье за 0,7 с (boardStep, ≤ 1,1 px за кадр); дальше — подходит своими ногами
+    // (до 12 px от бока: вплотную не подойти — сам транспорт преграда)
+    if (Math.hypot(v.x - p.x, v.y - p.y) > 46) Actions.walkTo(q.x, q.y, 12, sit); else sit();
   }
-  // слезть: транспорт остаётся на месте; msg — почему (дальше не пройти, бензин кончился)
+  function boarded(a) {
+    const p = G.p, v = G.veh[a.o]; p.board = null; if (!v) return;
+    p.ride = a.o; p.x = v.x; p.y = v.y;
+    Fx.toast(a.o === 'deer' ? ':deer: В нартах · E — слезть' : ':sled: «Буран» заведён · E — заглушить'); Sound.pick();
+  }
+  // слезть: транспорт остаётся на месте, герой встаёт и сходит на снег (24 px за 0,6 с); msg — почему (не пройти, бензин)
   function dismount(msg) {
-    const p = G.p, v = G.veh[p.ride];
+    const p = G.p, k = p.ride, v = G.veh[k];
     if (v) { v.x = p.x; v.y = p.y; v.face = p.face; }
-    p.ride = null; p.y += 24; Hero.snap(); // сошёл на снег у транспорта (сам транспорт — преграда, js/content/footprints.js)
+    p.ride = null; p.board = k; p.action = { k: 'unmount', t: 0, dur: OFF_T, o: k, pose: 'stamp', fb: 'idle', x0: p.x, y0: p.y };   // сам транспорт — преграда (js/content/footprints.js), пока сходит — нет
     if (msg) Fx.toast(msg);
+  }
+  // ход посадки/схода (из Actions.during): тело к сиденью / с него, сглаженно
+  function boardStep(a) {
+    const p = G.p, v = G.veh[a.o], e = clamp(a.t / a.dur, 0, 1), k = e * e * (3 - 2 * e);
+    if (a.k === 'mount') { if (!v) return; p.x = a.x0 + (v.x - a.x0) * k; p.y = a.y0 + (v.y - a.y0) * k; }
+    else p.y = a.y0 + OFF_DY * k;
   }
   // шаг движения верхом: транспорт идёт с героем, «Буран» тратит бензин, в запретную местность не въехать
   function moved(ox, oy) {
     const p = G.p; if (!p.ride) return;
     const v = G.veh[p.ride];
     if (!speedOn(p.ride, Zones.terrainAt(p.x, p.y))) { p.x = ox; p.y = oy; dismount(ZONE_TXT.vehStop[v === G.veh.deer ? 'deer' : 'buran']); return; }
+    // олени чуют тонкий лёд и воду переката — встают у кромки (въехать нельзя; «Буран» не чует — js/world.js thinIce)
+    if (p.ride === 'deer' && (World.onThinIce(p) || Ice.inWater(p.x, p.y)) && !World.onThinIce({ x: ox, y: oy })) {
+      p.x = ox; p.y = oy; p.vx = p.vy = 0;
+      if (Math.abs(G.time - (p.deerBalk || -99)) > 4) { p.deerBalk = G.time; Fx.toast(':deer: Олени упёрлись — тонкий лёд'); }
+      return;
+    }
     const d = Math.hypot(p.x - ox, p.y - oy);
     v.x = p.x; v.y = p.y; v.face = p.face;
     if (p.ride === 'buran') { v.fuel = Math.max(0, v.fuel - d); if (v.fuel <= 0) dismount(ZONE_TXT.noFuel); }
   }
   // полночь/шаг: аренда упряжки кончилась — олени уходят
-  function tick() {
+  function tick(dt = 0) {
     const d = G.veh && G.veh.deer;
+    // упряжка едет к месту аренды (обходит преграды тем же Nav, что люди); доехала — можно садиться
+    if (d && d.to) {
+      const D = Math.hypot(d.to.x - d.x, d.to.y - d.y);
+      if (D < 4) { delete d.to; Fx.toast(':deer: Упряжка подъехала'); }
+      else { const wp = D > 40 && typeof Nav !== 'undefined' ? Nav.way(d, d.to.x, d.to.y) : d.to, dx = wp.x - d.x, dy = wp.y - d.y, l = Math.hypot(dx, dy) || 1, st = Math.min(D, T.deer * 0.7 * dt);
+        d.x += dx / l * st; d.y += dy / l * st; if (Math.abs(dx) > 1) d.face = Math.sign(dx); }
+    }
     if (d && G.day >= d.until && hourOf() >= TUNE.time.wakeAt) {
       if (G.p.ride === 'deer') dismount();
       G.veh.deer = null; Fx.toast(ZONE_TXT.deerGone);
@@ -137,5 +182,5 @@ const Transport = (() => {
     Fx.toast(`:timer: В пути ${Math.floor(c.h)} ч ${Math.round(c.h % 1 * 60)} мин · :food: −${c.food} · :warm: −${c.warm}`);
     return true;
   }
-  return { initState, mode, speedOn, context, urkContext, rentContext, act, fixDone, mount, dismount, moved, tick, open, why, cost, travel };
+  return { initState, mode, speedOn, context, urkContext, rentContext, act, fixDone, mount, dismount, boarded, boardStep, rentPaid, moved, tick, open, why, cost, travel };
 })();

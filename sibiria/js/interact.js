@@ -22,7 +22,7 @@ const Interact = (() => {
     barrel: ['hard', 'metal', 'fuel', 'snowy'], crate: ['hard', 'wood', 'snowy'],
     tree: ['wood', 'springy', 'snowy'], dead: ['wood'], tussock: ['grassy', 'springy', 'snowy'],
     rock: ['hard', 'snowy'], log: ['wood', 'snowy'], wall: ['hard', 'wood', 'snowy'], build: ['hard', 'wood', 'snowy'], wreck: ['hard', 'metal', 'snowy'],
-    edge: ['soft'], snow: ['soft', 'snowy'], dig: ['ice', 'snowy'], fish: ['ice'], fire: ['hot'], stash: ['wood', 'snowy'],
+    edge: ['soft'], snow: ['soft', 'snowy'], ice: ['ice', 'hard'], water: ['wet'], dig: ['ice', 'snowy'], fish: ['ice'], fire: ['hot'], stash: ['wood', 'snowy'],
   };
   const NONE = [];
   function propsOf(e) {
@@ -74,6 +74,14 @@ const Interact = (() => {
     ['shake', null, e => { Sound.thud(0.25, 0); scareRavens(e.x, e.y, I.ravenHit * 1.6); }],
     ['kick', 'soft', e => { ArtWorld.fx.snowPuff(P(), e.x, e.y, 0.9); ArtWorld.fx.snowPuff(P(), e.x + 6, e.y - 6, 0.6); Fx.burst(e.x, e.y - 4, 8, '#f6f9fc', 90); Sound.thud(0.35, 0); }],
     ['throw', 'soft', e => ArtWorld.fx.snowPuff(P(), e.x, e.y, 0.35)],
+    // палка о голый лёд — стук и крошка льда, без облака снега; о дерево — глухой удар, ветки вздрогнули; в воду — всплеск
+    ['throw', 'ice', e => { Sound.tone('triangle', 1700, 1100, 0.07, 0.05, 0, { lp: 4000 }); Fx.burst(e.x, e.y - 1, 4, '#dde6ee', 50); }],
+    ['throw', 'wood', e => { Sound.thud(0.3, 1); World.shakeTree(e.target, 0.3); branchSnow(e.target, 0.25); }, e => e.target && e.target.s],
+    ['throw', 'wet', e => { if (typeof Ice !== 'undefined') Ice.splash(e.x, e.y); Sound.splash && Sound.splash(); }],
+    // тепло костра снизу: снег с лап ели сорвался (js/fire.js treeSnow)
+    ['thaw', 'snowy', e => branchSnow(e.target, 0.7)],
+    // шагнул в огонь (упор героя в костёр): искры из-под ног
+    ['bump', 'hot', e => { for (let i = 0; i < 4; i++) P().push({ type: 'spark', x: e.x + i * 3 - 4, y: e.y - 6, vx: i * 14 - 20, vy: -90 - i * 15, life: 0.8, max: 1, g: -10 }); }],
     ['throw', null, e => scareRavens(e.x, e.y, 90)],
     ['bury', 'hot', e => { ArtWorld.fx.snowPuff(P(), e.x, e.y - 4, 0.7); for (let i = 0; i < 4; i++) P().push({ type: 'smoke', x: e.x + i * 3 - 5, y: e.y - 14, vx: 6 - i * 3, vy: -30 - i * 6, life: 1.6, max: 1.6 }); if (Sound.hiss) Sound.hiss(); }],
     ['warm', 'hot', e => { for (let i = 0; i < 3; i++) P().push({ type: 'spark', x: e.x + i * 4 - 4, y: e.y - 14, vx: i * 10 - 10, vy: -70 - i * 20, life: 0.9, max: 1, g: -10 }); }],

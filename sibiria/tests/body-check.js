@@ -20,7 +20,7 @@ var BodyCheck = (() => {
     G.wolves = []; G.bear = null; G.s.hp = G.s.food = G.s.warm = 100; G.hut.fuel = 900; input.act = false;
     Hero.bodyReset();
   }
-  const ice = () => { const y = POI.polynya.y + 600; return { x: riverX(y), y }; };
+  const ice = () => { for (let k = 0; k < 400; k++) { const y = POI.polynya.y + 600 + k * 7, x = riverX(y) + ((k % 5) - 2) * 12; if (Depth.bareIce(x, y)) return { x, y }; } const y = POI.polynya.y + 600; return { x: riverX(y), y }; }; // голый лёд (скользят только по нему)
   function nearTree() {
     const p = P(), t = G.trees.filter(t => t.wood > 0 && !t.wall && !onIce(t.x + 30, t.y)).sort((a, b) => dist2(a, p) - dist2(b, p))[0];
     t.wood = 9; p.x = t.x + 30; p.y = t.y; p.face = -1; Hero.snap(); return t;
@@ -54,12 +54,13 @@ var BodyCheck = (() => {
     hurt: () => { G.hurt = 1; },
     panelOpen: openDlg,
     panelClose: () => UI.closePanel(),
-    glideStart: () => { const p = P(), q = ice(); if (!onIce(p.x, p.y)) { p.x = q.x; p.y = q.y; } p.vx = 170; },
+    glideStart: () => { const p = P(), q = ice(); if (!Depth.bareIce(p.x, p.y)) { p.x = q.x; p.y = q.y; } p.vx = 170; },
     glideStop: () => { P().vx = P().vy = 0; },
     mount: () => { if (!P().ride) { mountable(); Transport.mount('buran'); } },
     dismount: () => { if (P().ride) Transport.dismount(); },
     sleep: () => { const p = P(); p.sleeping = true; p.action = null; Hero.snap(); },
     wake: () => { if (P().sleeping) Actions.wake(false, 'проверка'); },
+    dodge: () => { P().dashCd = 0; Hero.dodge(); },   // отскок (Shift): рывок и поза dodge
   };
   // кадр как в игре: ввод (в панели — нулевой, как syncMove), шаг мира или «дыхание» панели, время, рисование
   function frame(render) {

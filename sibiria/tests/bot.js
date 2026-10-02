@@ -135,7 +135,7 @@
     if (G.s.food >= 96) return;
     const k = FOOD_ORDER.find(f => Inv.cnt(f, wc) > 0); if (!k) return;
     if (ITEMS[k].raw && !cookedHere() && G.s.food > 20 && !force) return;
-    input.mx = input.my = 0; Actions.eat(); B.ate[k] = (B.ate[k] || 0) + 1;
+    input.mx = input.my = 0; const f0 = G.s.food; Actions.eat(); { let n = 0; while ((G.p.action || input.auto) && n++ < 400) tick(); } if (G.s.food > f0) B.ate[k] = (B.ate[k] || 0) + 1;   // еда — процесс: достать → съесть
   }
   B.tryEat = tryEat;
   let inS = false;
@@ -148,9 +148,19 @@
   }
   B.survive = survive;
   // этап 4: ель валится без дров → лежачий ствол разделать (чурки на снег) → чурки подобрать = дрова
+  // охапка (js/carry.js): полна — у избы в поленницу, с нартами — на нарты, иначе мелкое в рюкзак (остальное — в руках, на костёр)
+  function deliver() {
+    if (!Carry.busy()) return false;
+    if (Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 1500) { const q = Carry.PILE(), x = G.p.x, y = G.p.y; goTo(q.x - 26, q.y + 16, 10); Carry.put('pile', []); doAction(); goTo(x, y, 14, 30); }
+    else if (Carry.hasSled()) { Carry.put('sled', []); doAction(); }
+    else { Carry.stow([]); doAction(); }
+    return !Carry.busy();
+  }
+  B.deliver = deliver;
   function pickChunks(r = 160) {
     for (let k = 0; k < 12; k++) {
-      const q = (G.chunks || []).find(c => dist2(c, G.p) < r * r); if (!q) return;
+      const q = (G.chunks || []).find(c => dist2(c, G.p) < r * r && Tree.isWood(c)); if (!q) return;
+      if (Carry.cantTake(q)) { if (!deliver()) return; continue; }
       let c = Actions.context();
       // чурка лежит у ствола (в его подножии не встать) — к ближайшему свободному месту рядом, «Взять» — с 46 px
       if (!c || c.k !== 'chunks') { const f = World.freeNear(q.x, q.y + 8, 10); rawGo(f.x, f.y, 18, 3); c = Actions.context(); }
@@ -271,7 +281,7 @@
   }
   B.wreck = wreck;
   function chestAll(keep = {}) {
-    if (!G.p.inside) enterHut();
+    if (!G.p.inside) { if (Carry.busy()) deliver(); enterHut(); }
     goTo(SPOT.chest.x - 10, SPOT.chest.y, 10);
     for (const k in G.inv) { const n = (G.inv[k] || 0) - (keep[k] || 0); if (n > 0) { G.chest[k] = (G.chest[k] || 0) + n; G.inv[k] -= n; } }
     B.R += 2;
@@ -374,7 +384,7 @@
       if (!h) { wait(1); continue; }
       const t1 = B.T;
       while (G.hares.includes(h) && B.T - t1 < 25) {
-        if (dist2(h, G.p) < 48 * 48) { const c = Actions.context(); if (c && c.k === 'hare') { input.mx = input.my = 0; Actions.interact(true); tick(); break; } }
+        if (dist2(h, G.p) < 48 * 48) { const c = Actions.context(); if (c && c.k === 'hare') { input.mx = input.my = 0; Actions.interact(true); doAction(); break; } }
         const dx = h.x - G.p.x, dy = h.y - G.p.y, d = Math.hypot(dx, dy) || 1;
         input.mx = dx / d; input.my = dy / d; tick(); survive();
         if (Math.hypot(G.p.x - POI.polynya.x, G.p.y - POI.polynya.y) < 150) break;

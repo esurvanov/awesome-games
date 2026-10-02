@@ -166,6 +166,25 @@ var FX = (() => {
       // штрихи и пурговые хлопья — вдоль скорости (ветер + падение): угол один на кадр
       const fall = (30 + 60 * 0.5) * (o.storm ? 1.5 : 1), ang = Math.atan2(wy + (o.storm ? fall * 0.35 : 0), Math.abs(wx) + 1e-3) * Math.sign(wx || 1), rot = Math.abs(ang) > 0.06 && !L;
       const ca = Math.cos(ang), sa = Math.sin(ang), DP = o.dpr || 1;
+      if (o.C) { // словарь C: снег — роль «бумага» после перекраски, без мягких дисков и вуали (дымку пурги даёт перекраска ролей)
+        g.fillStyle = o.C; g.strokeStyle = o.C; g.lineCap = 'round'; g.beginPath();
+        for (let i = 0; i < n; i++) {
+          const f = flakes[i];
+          f.x += ((wx * (0.5 + f.z) + Math.sin(t + f.ph) * 12) * dt - o.camDX * (0.3 + f.z * 0.7)) / vw;
+          f.y += (((30 + 60 * f.z) * (o.storm ? 1.5 : 1) + wy * (0.5 + f.z)) * dt - o.camDY * (0.3 + f.z * 0.7)) / vh;
+          f.x -= Math.floor(f.x); f.y -= Math.floor(f.y);
+          const r = (0.7 + f.z * 1.3) * Z, X = f.x * vw, Y = f.y * vh;
+          if (o.storm) { g.moveTo(X, Y); g.lineTo(X + ca * r * 6, Y + sa * r * 6); } else { g.moveTo(X + r, Y); g.arc(X, Y, r, 0, TAU); }
+        }
+        if (o.storm) { g.lineWidth = 1.3 * Z; g.stroke(); } else g.fill();
+        const ns = (o.storm ? 200 : 40) >> (L ? 1 : 0); g.lineWidth = Z; g.beginPath();
+        for (let i = 0; i < ns; i++) {
+          const q = streaks[i];
+          q.x += (sx * (0.6 + q.z) * dt - o.camDX) / vw; q.y += (sy * (0.6 + q.z) * dt - o.camDY) / vh; q.x -= Math.floor(q.x); q.y -= Math.floor(q.y);
+          const X = q.x * vw, Y = q.y * vh, l = q.l * (o.storm ? 2 : 1) * Z; g.moveTo(X, Y); g.lineTo(X + l * ca, Y + l * sa);
+        }
+        g.stroke(); return;
+      }
       // снег светлее земли вокруг, но умножен на ambient: ночью — тёмно-синий, не «светящийся»
       const gain = 1.1 + 0.8 * (1 - (o.dark == null ? 1 : o.dark)); // ночью чуть светлее земли, но не «светится»
       const snowCol = PAL.lit('snow', o.amb, gain);
@@ -239,7 +258,7 @@ var FX = (() => {
         for (const q of parts) {
           const a = Math.max(0, Math.min(1, q.life / q.max));
           g.globalAlpha = a * (q.a || 1); g.fillStyle = color(q);
-          g.beginPath(); g.arc(q.x, q.y, q.r, 0, TAU); g.fill();
+          g.beginPath(); g.arc(q.x, q.y, Math.max(0, q.r), 0, TAU); g.fill(); // grow < 0 (тающий дым) не уводит радиус в минус
         }
         g.globalAlpha = 1;
       },
