@@ -81,7 +81,7 @@ function scene() {
   // буровая: обыск, «Буран»: починка → заправка → езда → бензин; в курумник не въехать
   const bal = Zones.obj('drillBalok'); go(bal.x, bal.y + 60);
   const k0 = Inv.cnt('kero', false); let guard = 0;
-  while ((G.loot.drillBalok || []).length && guard++ < 20) { const c = Actions.context(); if (!c || c.k !== 'loot') break; Actions.interact(false); run(TUNE.zone.lootT + 0.1, () => { input.mx = input.my = 0; }); }
+  while ((G.loot.drillBalok || []).length && guard++ < 20) { const c = Actions.context(); if (!c || c.k !== 'loot') break; Actions.interact(false); run(TUNE.zone.lootT + 0.1, () => { input.mx = input.my = 0; }); run(8, () => { input.mx = input.my = 0; return !p.action && !Actions.busy() && !Carry.busy(); }); }   // находка — на снег → в руку → в рюкзак (js/carry.js), процесс
   ok(!G.loot.drillBalok.length && Inv.cnt('kero', false) > k0, 'буровая: балок обыскан, есть :kero:');
   const B = G.veh.buran; go(B.x + 30, B.y); G.hares = []; // заяц рядом (замер от героя) перехватил бы E «Поймать»
   const cf = Actions.context(); ok(cf && cf.k === 'vfix', '«Буран»: «Починить» ' + (cf && cf.k));

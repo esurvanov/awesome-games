@@ -293,8 +293,8 @@ const Carry = (() => {
   // почему не кладётся (первое в руках): иконка + причина + куда ещё
   function why() {
     const t = thing(), q = parts().find(isWoodP) || parts()[0];
-    const f = t ? Inv.fits(t.id, t.n || 1) : q && isWoodP(q) ? Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len) : { why: 'len' };
-    const W = { l: ':pack: полон' + (q ? ` · :wood: снаружи ${Inv.packOut()}/${LD().packWood}` : ''), kg: ':weight: тяжело · рюкзак ' + Math.round(packKg()) + '/' + LD().packMax + ' кг', piece: ':wood: тяжёлое полено', len: ':wood: длинное' };
+    const f = t ? Inv.fits(t.id, t.n || 1) : q && isWoodP(q) ? Inv.fits('wood', 1, q.mass, (q.vol || 0) * 1000, q.len) : { why: q && (q.kind === 'pile' || q.kind === 'bough') ? 'lap' : 'len' };
+    const W = { l: ':pack: полон' + (q ? ` · :wood: снаружи ${Inv.packOut()}/${LD().packWood}` : ''), kg: ':weight: тяжело · рюкзак ' + Math.round(packKg()) + '/' + LD().packMax + ' кг', piece: ':wood: тяжёлое полено', len: ':wood: длинное', lap: ':tree: лапник — не в рюкзак' };
     // куда ещё: что сейчас в руках — так и остаётся (охапка / на плече / в кулаке), нарты — если есть
     const s = st(), alt = s === 'arms' ? ' · :hand: в охапке' : s === 'shoulder' || s === 'lift' ? ' · :tree: на плече' : s === 'hold' ? ' · :hand: в руках' : ' · X — на снег';
     return { why: f.why || 'l', txt: W[f.why] || W.l, alt: alt + (hasSled() ? ' · :sled: на нарты' : '') };

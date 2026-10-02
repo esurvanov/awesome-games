@@ -279,11 +279,13 @@ const Hero = (() => {
   // цикл замахов долгого действия: n ударов, удар (a = ia) в каждом цикле; последний — на конце действия (A6)
   // момент удара в цикле позы (js/art-poses.js): тяжело — позже, на морозе — раньше (топор застревает), пригнувшись — 0.44
   const IMPACT = { chop: 0.52, chopHeavy: 0.62, chopCold: 0.37, chopLow: 0.44 };
-  function chopCycle(a) { const d = ArtPeople.DUR[a.pose] || ArtPeople.DUR.chop, n = Math.max(1, Math.round(a.dur / d)), ia = IMPACT[a.pose] || IMPACT.chop; return { n, ia, cl: a.dur / (n - 1 + ia) }; }
+  // рубка стоящего (a.full): одно действие = один полный цикл позы (замах → удар в ia → топор выдернут → покой), удар — в касание
+  function chopCycle(a) { const d = ArtPeople.DUR[a.pose] || ArtPeople.DUR.chop, ia = IMPACT[a.pose] || IMPACT.chop; if (a.full) return { n: 1, ia, cl: a.dur }; const n = Math.max(1, Math.round(a.dur / d)); return { n, ia, cl: a.dur / (n - 1 + ia) }; }
   const pickPose = id => (ITEMS[id] && ITEMS[id].kg >= 3 ? 'pickUpHeavy' : 'pickUp');
   // походка по обстановке
   function walkPose(run) {
     const p = G.p; if (run || p.ride) return run ? 'run' : 'walk';
+    if (p.backoff > now && input.auto && has('backoff')) return 'backoff';   // отходит от падающей ели — оглядываясь на неё
     const dk = typeof Depth !== 'undefined' ? Depth.heroSink : driftAt(p.x, p.y) ? 40 : 0; // провал, см: по пояс и глубже — «плывёт» руками
     const k = !p.inside && dk > 85 && has('wade') ? 'wade' : !p.inside && dk > 25 ? 'trudge' : outStorm() ? 'shield' : freezing() ? 'cold' : tired() ? 'tired' : 'walk';
     return has(k) ? k : 'walk';

@@ -1126,6 +1126,7 @@ const UI = (() => {
       // «До утра»: тот же update() пачкой шагов skipDt, пока хватает кадра (skipMs) — исход по обычным правилам
       const T = TUNE.time;
       for (let i = 0; i < 4000 && state === 'play' && !kind && Actions.skipFast() && performance.now() - w0 < T.skipMs; i++) update(T.skipDt);
+    } else if (state === 'play' && !kind && Game.stopped(iv)) {   // hit-stop удара: мир стоит, кадр рисуется
     } else if (state === 'play' && !kind) {
       // сон ×sleepX: пачка шагов dt, пока хватает кадра (skipMs) — слабая машина спит чуть медленнее, но не тормозит
       const T = TUNE.time, steps = G.p.sleeping ? T.sleepX : 1;

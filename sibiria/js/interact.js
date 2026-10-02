@@ -59,9 +59,9 @@ const Interact = (() => {
     ['brush', 'wood', e => World.shakeTree(e.target, 0.12)],
     ['brush', 'grassy', e => { World.shakeTree(e.target, 0.5); ArtWorld.fx.snowPuff(P(), e.x, e.y - 4, 0.15); }],
     ['step', 'soft', e => ArtWorld.fx.snowPuff(P(), e.x, e.y, e.drift ? 0.5 : 0.3), e => Math.random() < (e.drift ? 0.6 : 0.25)],
-    ['hit', 'wood', e => { ArtWorld.fx.chips(P(), e.x, e.y); if (e.who === 'p' || Math.random() < 0.3) Sound.chop(); }],
-    ['hit', 'springy', e => World.shakeTree(e.target, 0.35)],
-    ['hit', 'snowy', e => { branchSnow(e.target, 0.6 * (e.power || 1)); ArtWorld.fx.snowPuff(P(), e.x, e.y - 4); }],
+    ['hit', 'wood', e => { ArtWorld.fx.chips(P(), e.x, e.y, e.dir, e.z); if (e.who === 'p' || Math.random() < 0.3) Sound.chop(); }],   // dir/z — из реза конусом (рубка героя)
+    ['hit', 'springy', e => World.shakeTree(e.target, e.sh != null ? e.sh : 0.35)],
+    ['hit', 'snowy', e => { branchSnow(e.target, 0.6 * (e.power || 1)); ArtWorld.fx.snowPuff(P(), e.x, e.y - 4); }, e => e.snow !== 0],   // снег с кроны при рубке героя — по остатку (js/actions.js)
     ['hit', null, e => scareRavens(e.x, e.y, I.ravenHit)],
     ['fell', 'wood', e => Sound.treeCrack()], // удар ствола о землю (снег, тряска) — анимация падения в gfx.js
     ['fell', null, e => scareRavens(e.x, e.y, I.ravenFell)],

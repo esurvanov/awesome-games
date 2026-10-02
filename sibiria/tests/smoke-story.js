@@ -140,6 +140,7 @@ function lib() {
   // из поленницы в охапку (до n и пока берётся)
   S.fromPile = function (n) {
     const q = Carry.PILE(); S.tp(q.x - 26, q.y + 16); S.tick();
+    S.run(6, () => !G.p.action && !Carry.thing());   // забота (поесть) могла оставить банку в руке — доел, убрал, тогда охапка
     for (let i = 0; i < n && (G.chest.wood || 0) > 0 && !Carry.cantTake({ kind: 'chunk', mass: Inv.wkg(G.chest) / G.chest.wood, len: 0.45, vol: 0.006 }); i++) { Carry.pick('pile', null, []); S.run(3, () => !G.p.action); }
   };
   S.wreck = function (w, until) {
@@ -158,10 +159,22 @@ function lib() {
         S.tp(t.x + dx, t.y + dy); G.p.face = dx > 0 ? -1 : 1; S.tick();
         const c = Actions.context(); if (c && c.k === 'tree') break;
       }
-      const before = G.stats.wood; S.act(); S.act();
-      S.run(4, () => !(G.logs || []).some(L => L.f));   // валка: надлом и падение, ствол ложится
-      // этап 4: ель лежит — разделать и подобрать чурки (дрова — от разделки); охапка полна — отнести в поленницу и вернуться
-      for (let j = 0; j < 60; j++) { const c = Actions.context(); if (!c || (c.k !== 'log' && c.k !== 'chunks')) { if (Carry.busy() && (G.chunks || []).some(q => Tree.isWood(q) && dist2(q, G.p) < 90 * 90)) { S.deliver(); continue; } break; } S.act(); }
+      // рубка по-настоящему (js/actions.js): площадка в сугробе, подруб, обход, задний рез (~12 ударов, герой сам встаёт и обходит)
+      const before = G.stats.wood; for (let h = 0; h < 40 && t.wood > 0; h++) { const c = Actions.context(); if (!c || c.k !== 'tree') break; S.act(); }
+      S.run(8, () => !(G.logs || []).some(L => L.f));   // валка: треск, падение, ствол ложится; герой отошёл назад-вбок
+      // этап 4: ель лежит — обрубить (по мутовке, с двух сторон, перекат), разделать и подобрать чурки; охапка полна — в поленницу и вернуться
+      const Lg = (G.logs || []).find(q => q.n > 0 && q.cx === t.x && q.cy === t.y);
+      for (let j = 0; j < 200; j++) {
+        // длинное (вершина, комель > 0,8 м) — на плечо, в поленницу не идёт (js/carry.js): берём только чурки
+        const c = Actions.context(); if (c && c.k === 'log') { S.act(); continue; }
+        const qc = c && c.k === 'chunks' && c.o.filter(q => !Carry.long(q) && !Carry.cantTake(q)).sort((a, b) => dist2(a, G.p) - dist2(b, G.p))[0];
+        if (qc) { Carry.pick('part', qc, []); S.run(6, () => !G.p.action && !input.auto); continue; }
+        if (Carry.busy() && (G.chunks || []).some(q => Tree.isWood(q) && !Carry.long(q) && dist2(q, G.p) < 200 * 200)) { S.deliver(); continue; }
+        if (Lg && G.logs.includes(Lg) && Lg.n > 0) { const e = Actions.logEnd(Lg, Actions.logK(Lg) * 0.4); S.tp(e.x - Math.sin(Lg.a) * 26, e.y + Math.cos(Lg.a) * 16); S.tick(); const c2 = Actions.context(); if (!c2 || c2.k !== 'log') break; continue; }   // к стволу (отошёл от падающей ели)
+        const q = (G.chunks || []).filter(q => Tree.isWood(q) && !Carry.long(q) && dist2(q, G.p) < 200 * 200).sort((a, b) => dist2(a, G.p) - dist2(b, G.p))[0];
+        if (q && !Carry.cantTake(q)) { S.tp(q.x + 16, q.y + 3); S.tick(); const c3 = Actions.context(); if (!c3 || c3.k !== 'chunks') break; continue; }
+        break;
+      }
       S.deliver();
       if (G.stats.wood === before && t.wood > 0 && Inv.weight() > Inv.capKg() + 6) break;
     }
