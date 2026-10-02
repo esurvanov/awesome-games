@@ -57,3 +57,16 @@ so a module never reaches into another's state.
 One family list instead of five copied regexes (rock-brain, interaction, physics slim test). New kind of object = `CORE.register({...})`.
 Scaling rule: a family goes from `generic` to `owned` when it gets a model with the same contract as the stone one (read the surface →
 choose an affordance → a ContactPair from `CORE.PAIRS` → pose request), and the judge (BODYCONTACT) measures it with the same table.
+
+## Passport as the shared domain (migration phase 2, 2026-10-03)
+
+| Piece | Where | What |
+|---|---|---|
+| `Passport` | `modules/passport.js` (was inside `open-world.html`) | registry of every solid thing; every entry now carries `kind` (name without `#N`) and `family` (from CORE) |
+| `CORE.families` | `modules/contact-core.js` | 13 families; **every Passport kind has one** (new: ice, landmark, being, pilot, animal, enemy; crystals, trees, props, structures widened) |
+| `CORE.roleOf(x)` / `CORE.ROLE_OF` | `modules/contact-core.js` | the physics role a kind is registered with: family default plus the exceptions (firepit, poles, lamp posts, krummholz…) in one table |
+| `Passport.beings()` | `modules/passport.js`; sources registered in `open-world.html` | pilot, fox, stags, shardlings, golem and the NPC in one list with kind + family (they have no collider entries) |
+| Check | `tools/refactor/behaviours.mjs` | probes: every kind has a family, registered role = `roleOf`, every being has a family |
+
+Not changed on purpose: `modules/groundblend.js` classifies *mesh names* into visual classes (ice / rock / prop / struct) for material patching,
+which is a different question from "what is this object to the pilot"; `interaction.js` already asks `CORE.surfaceRe` (its copied regex is only a fallback).

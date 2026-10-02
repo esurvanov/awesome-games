@@ -7,6 +7,7 @@
  *  window.CORE
  *    families            [{ id, label, re, owner, role, affords:[…], status }]  (first match wins; order = specificity)
  *    familyOf(x)         x = Passport entry | physics tag | name → family id | null
+ *    roleOf(x)           the physics role a kind is registered with (family default, ROLE_OF for the exceptions)
  *    is(x, id…)          x belongs to one of the families
  *    surfaceRe           RegExp of every family whose faces the pilot leans / presses on (owner rock-brain) — for modules that still test names
  *    register(family)    add or replace a family (a new object kind = one call, no edits elsewhere)
@@ -29,12 +30,27 @@
       affords: ['lean_back', 'lean_shoulder', 'hands_wall', 'hands_ledge', 'brace_slope', 'sit', 'squeeze', 'step_up', 'climb'], status: 'owned' },
     { id: 'ruin',    label: 'ruins · cairns · inuksuk (dressed stone)', re: /^st_(ruin|cairn|inuksuk)/i, owner: 'rock-brain', role: 'solid',
       affords: ['lean_back', 'lean_shoulder', 'hands_wall', 'hands_ledge', 'sit', 'step_up', 'climb'], status: 'owned' },
-    { id: 'tree',    label: 'trees', re: /^tree_/i, owner: 'interaction', role: 'trunk', affords: ['grab_trunk', 'lean_shoulder'], status: 'generic' },
-    { id: 'prop',    label: 'crates · barrels · tools (pushable)', re: /^(prop_|crate|barrel|tool_crate|firepit)/i, owner: 'interaction', role: 'pushable', affords: ['push', 'pick_up', 'warm_hands'], status: 'generic' },
+    { id: 'tree',    label: 'trees', re: /^(tree_|krummholz$)/i, owner: 'interaction', role: 'trunk', affords: ['grab_trunk', 'lean_shoulder'], status: 'generic' },
+    { id: 'prop',    label: 'crates · barrels · tools (pushable)', re: /^(prop_|crate|barrel|tool_crate|firepit|wf_fire_ring|drum_blue)/i, owner: 'interaction', role: 'pushable', affords: ['push', 'pick_up', 'warm_hands'], status: 'generic' },
     { id: 'vehicle', label: 'vehicles · wreck', re: /^(vehicle_|kestrel|st_snowcat)/i, owner: 'open-world', role: 'solid', affords: ['ride', 'climb'], status: 'owned' },
-    { id: 'structure', label: 'stations · tents · poles · sledges', re: /^(station_|struct_|st_(tent|drum|pole|sledge)|lamp_post)/i, owner: 'interact', role: 'solid', affords: ['hands_wall', 'lean_shoulder', 'climb'], status: 'generic' },
-    { id: 'crystal', label: 'crystal spires', re: /^spire/i, owner: null, role: 'solid', affords: [], status: 'none' },
+    { id: 'structure', label: 'stations · tents · poles · sledges', re: /^(station_|struct_|st_(tent|drum|pole|sledge)|lamp_post|wf_flag_pole)/i, owner: 'interact', role: 'solid', affords: ['hands_wall', 'lean_shoulder', 'climb'], status: 'generic' },
+    { id: 'crystal', label: 'crystal spires', re: /^(spire|st_crystal|st_rift)/i, owner: null, role: 'solid', affords: [], status: 'none' },
+    { id: 'ice',     label: 'icebergs · ice chunks · pressure ridges', re: /^(wf_)?(ice(_|$)|iceberg|pressure_ridge)/i, owner: null, role: 'solid', affords: [], status: 'none' },
+    { id: 'landmark', label: 'echo stones · shipwreck · pier · rowboat', re: /^(echo\d|wf_shipwreck|st_pier|st_rowboat)/i, owner: 'open-world', role: 'solid', affords: [], status: 'none' },
+    { id: 'being',   label: 'the NPC (registered as a trunk)', re: /^orm$/i, owner: 'open-world', role: 'trunk', affords: [], status: 'none' },
+    // living things have no collider entries of their own (they collide through the 2D circle grid / the pilot capsule); they are listed
+    // through Passport.beings(), which the page fills from the live arrays — so every creature has a kind and a family like every object
+    { id: 'pilot',   label: 'the pilot', re: /^pilot$/i, owner: 'open-world', role: 'creature', affords: [], status: 'owned' },
+    { id: 'animal',  label: 'fox · stags', re: /^(fox|stag)$/i, owner: 'interaction', role: 'creature', affords: [], status: 'generic' },
+    { id: 'enemy',   label: 'shardlings · golem', re: /^(shardling|golem)$/i, owner: 'structures', role: 'creature', affords: [], status: 'generic' },
   ];
+
+  // Role = how the physics treats a kind (Passport roles). A family has a default; these kinds differ from it and are registered that way:
+  //   firepit, wf_fire_ring, crate_stack, tool_crate stay solid (a ring of stones, a stack, a case on a plinth); poles and lamp posts are
+  //   trunks (walked around, not solid hulls); st_pole_fallen is solid. One table instead of a role written next to every register call.
+  const ROLE_OF = { firepit: 'solid', wf_fire_ring: 'solid', crate_stack: 'solid', tool_crate: 'solid', drum_blue: 'pushable', krummholz: 'solid',   // krummholz: the solid hull standing in for tree_spruce_krummholz
+    lamp_post: 'trunk', st_pole: 'trunk', st_pole_tr: 'trunk', wf_flag_pole: 'trunk', st_pole_fallen: 'solid' };
+  const roleOf = (x) => { const n = base(nameOf(x)); if (ROLE_OF[n]) return ROLE_OF[n]; const f = familyOf(n); return f ? FAMILIES.find((q) => q.id === f).role : null; };
 
   // body part ↔ surface contracts (BODYCONTACT kind names, cm). touch: the part's gap to the surface must reach [0, tol]; clear: how deep the
   // part may sit inside the drawn surface before it counts as a violation (a sleeve lying on a wall is 3-5 cm "inside": that is contact,
@@ -81,7 +97,7 @@
     return out;
   }
 
-  window.CORE = { families: FAMILIES, AFFORDS, PAIRS, PAIR_OF, pairOf, familyOf, is, register, coverage, nameOf,
+  window.CORE = { families: FAMILIES, AFFORDS, PAIRS, PAIR_OF, pairOf, familyOf, roleOf, ROLE_OF, is, register, coverage, nameOf,
     // the test the old per-module regexes did: faces the pilot leans on / presses (owner: rock-brain)
     surfaceRe, isSurface: (x) => surfaceRe.test(nameOf(x)) };
 })();

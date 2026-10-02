@@ -59,6 +59,20 @@ try {
     return { ok: riding && off, why: `riding=${riding} dismounted=${off}`, info: { riding, off } };
   });
 
+  await probe('passport: every kind has a family and an agreed role', async () => {
+    const D = window.DBG, C = window.CORE; if (!C || !C.roleOf) return { ok: false, why: 'CORE.roleOf missing' };
+    const noFam = new Set(), bad = new Set();
+    for (const e of D.Passport.list) { if (!e.alive || e.name === 'debris') continue; if (!e.family) noFam.add(e.kind || e.name); const w = C.roleOf(e.name); if (w && w !== e.role) bad.add(e.kind + ':' + e.role + '≠' + w); }
+    return { ok: !noFam.size && !bad.size, why: `no family: ${[...noFam].join(',')} · role mismatch: ${[...bad].join(',')}`, info: { families: C.families.length } };
+  });
+
+  await probe('beings: pilot, fox, stags, boss, orm all have a kind and family', async () => {
+    const D = window.DBG, b = D.Passport.beings(), cnt = {}; b.forEach((x) => { const k = x.family + '/' + x.kind; cnt[k] = (cnt[k] || 0) + 1; });
+    const want = { 'pilot/pilot': 1, 'animal/fox': 1, 'animal/stag': D.STAGS.length, 'enemy/golem': 1, 'being/orm': 1 };
+    const bad = Object.keys(want).filter((k) => cnt[k] !== want[k]).map((k) => `${k}: ${cnt[k]} (want ${want[k]})`);
+    return { ok: !bad.length && b.every((x) => x.family), why: bad.join('; ') || 'a being has no family', info: cnt };
+  });
+
   await probe('save: contents have the expected fields', async () => {
     const D = window.DBG; D.G.mode = 'play'; D.save(); const s = D.store.get('eor-save', null);
     const need = ['stage', 'hasTool', 'hasCell', 'parts', 'shards', 'echoes', 'cleared', 'deaths', 'fox', 'time', 'pos', 'sk', 'bossDead', 'ending', 'cp'];

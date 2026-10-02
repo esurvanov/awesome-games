@@ -268,6 +268,8 @@
   function make(g, role, opts, obj) {
     const e = { id: ++seq, role, name: opts.name || (obj && obj.name) || role, shape: opts.shape || (role === 'trunk' ? 'cylinder' : role === 'solid' ? 'mesh' : 'none'),
       opts, obj: obj || null, colliders: [], circles: [], geo: null, trunk: null, box: null, alive: true };
+    // identity: kind = the name without its #N, family = the object family from modules/contact-core.js (CORE), looked up once here
+    e.kind = String(e.name).replace(/#\d+$/, ''); e.family = window.CORE ? window.CORE.familyOf(e.kind) : null;
     if (role === 'solid' || role === 'pushable') {
       if (opts.cell) g = simplify(g, opts.cell);
       e.geo = { v: new Float32Array(g.v), i: new Uint32Array(g.i), vn: g.vn }; e.box = bounds(g); stats.tris += g.i.length / 3;
@@ -397,6 +399,10 @@
     return dbg;
   }
   function debugUpdate() { if (dbg) dbg.group.children.forEach((o) => { if (o.userData.follow) o.update(); }); }
-  return { register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, tuneExact, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
+  // ---- beings: creatures have no collider entries here; the page registers live sources and gets one list with kind + family ----
+  const beingSources = [];
+  function beingSource(kind, get) { beingSources.push({ kind, family: window.CORE ? window.CORE.familyOf(kind) : null, get }); }
+  function beings() { const out = []; for (const s of beingSources) for (const ref of s.get() || []) out.push({ kind: s.kind, family: s.family, ref }); return out; }
+  return { beingSource, beings, register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, tuneExact, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
   };
 })();

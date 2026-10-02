@@ -18,13 +18,18 @@ async function page() {
   // 'debris' pieces appear and vanish with timing, so they stay out of the snapshot
   const passport = D.Passport.list.filter((e) => e.alive !== false && e.name !== 'debris').map((e) => {
     const b = e.box || null;
-    return { name: String(e.name).replace(/#\d+$/, ''), role: e.role, shape: e.shape || null, vol: { colliders: (e.colliders || []).length, circles: (e.circles || []).length, geo: e.geo ? e.geo.v.length : 0, exact: !!e.exact }, trunk: e.trunk ? v3(e.trunk) : null, pass: e.pass ? { x: r(e.pass.x), z: r(e.pass.z), r: r(e.pass.r) } : null,
+    return { name: String(e.name).replace(/#\d+$/, ''), role: e.role, shape: e.shape || null, family: e.family || null, vol: { colliders: (e.colliders || []).length, circles: (e.circles || []).length, geo: e.geo ? e.geo.v.length : 0, exact: !!e.exact }, trunk: e.trunk ? v3(e.trunk) : null, pass: e.pass ? { x: r(e.pass.x), z: r(e.pass.z), r: r(e.pass.r) } : null,
       box: b && b.min ? { min: [].concat(b.min.x !== undefined ? [b.min.x, b.min.y, b.min.z] : Array.from(b.min)).map(r), max: [].concat(b.max.x !== undefined ? [b.max.x, b.max.y, b.max.z] : Array.from(b.max)).map(r) } : null,
       c0: e.circles && e.circles[0] ? { x: r(e.circles[0].x), z: r(e.circles[0].z), r: r(e.circles[0].r) } : null };
   }).map((p) => { const c = p.c0 || p.trunk || p.pass || { x: 0, z: 0 }; p.at = `${p.name}@${Math.round(c.x)},${Math.round(c.z)}`;   // whole metres: float noise must not reorder the list
      return p; })
     .sort((p, q) => (p.at < q.at ? -1 : p.at > q.at ? 1 : JSON.stringify(p) < JSON.stringify(q) ? -1 : 1));   // ids and #N depend on async load order: key by kind and place
   const volTotals = passport.reduce((t, p) => { for (const k in p.vol) t[k] = (t[k] || 0) + (+p.vol[k] || 0); return t; }, {});
+  // coverage: every kind has a family, and the registered role agrees with CORE.roleOf (phase 2.2)
+  const cov = { noFamily: [], roleMismatch: [], byFamily: {} };
+  passport.forEach((p) => { if (!p.family) { if (!cov.noFamily.includes(p.name)) cov.noFamily.push(p.name); } else cov.byFamily[p.family] = (cov.byFamily[p.family] || 0) + 1;
+    const want = window.CORE && window.CORE.roleOf ? window.CORE.roleOf(p.name) : null; const k = p.name + ':' + p.role + '≠' + want; if (want && want !== p.role && !cov.roleMismatch.includes(k)) cov.roleMismatch.push(k); });
+  const beings = {}; D.Passport.beings().forEach((b) => { const k = b.family + '/' + b.kind; beings[k] = (beings[k] || 0) + 1; });
   const kinds = {}; passport.forEach((p) => { const k = p.name; kinds[k] = (kinds[k] || 0) + 1; });
   const r0 = (n) => Math.round(n / 2) * 2;   // creatures drift a little between runs: compare on a 2 m grid
   const stags = D.STAGS.map((s) => ({ x: r0(s.x), z: r0(s.z), st: s.st }));
@@ -35,7 +40,7 @@ async function page() {
   const stages = D.STAGES.map((s, i) => { let t = null; try { t = s.tgt ? v3(s.tgt()) : null; } catch (e) { t = 'err'; } return { i, ch: s.ch, text: s.text, tgt: t }; });
   const G = {}; for (const k of ['mode', 'stage', 'hasTool', 'hasCell', 'shards', 'echoes', 'deaths', 'ending', 'riding', 'aurora']) G[k] = D.G[k];
   let save = null; try { D.save(); save = D.store.get('eor-save', null); } catch (e) { save = 'err:' + e.message; }
-  return { passport: { count: passport.length, kinds, items: passport }, creatures: { stags, fox, enemies, boss, sk, orm: D.MODCTX.orm ? v3(D.MODCTX.orm.pos) : null },
+  return { passport: { count: passport.length, kinds, items: passport, coverage: cov }, beings, creatures: { stags, fox, enemies, boss, sk, orm: D.MODCTX.orm ? v3(D.MODCTX.orm.pos) : null },
     story: { G, stages, zones: D.ZONES.length }, save, weather: { storm: r(D.WX.storm) },
     modules: D.MODS.map((m) => ({ name: m.name, order: m.order })), player: v3(D.player) };
 }
@@ -63,6 +68,6 @@ if (cmd === 'snap') {
   const A = load(a), B = load(b);
   const keys = new Set([...Object.keys(A), ...Object.keys(B)]); let n = 0;
   const same = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 0.06 : JSON.stringify(x) === JSON.stringify(y));   // 6 cm: vertex float noise
-  for (const k of keys) if (!/\.vol\.|\.at$|^save\.time$/.test(k) && !same(A[k], B[k])) { n++; if (n <= 60) console.log(k, ':', JSON.stringify(A[k]), '→', JSON.stringify(B[k])); }
+  for (const k of keys) if (!/\.vol\.|\.at$|\.family$|^passport\.coverage|^beings|^save\.time$/.test(k) && !same(A[k], B[k])) { n++; if (n <= 60) console.log(k, ':', JSON.stringify(A[k]), '→', JSON.stringify(B[k])); }
   console.log(n ? `${n} differences` : 'no differences'); process.exit(n ? 1 : 0);
 } else { console.log('usage: snap <label> | diff <a> <b>'); process.exit(2); }

@@ -3938,6 +3938,13 @@ function updateModules(dt) {
 // Wave-2 feature modules (modules/*.js) push { name, order, init(ctx), update(dt, ctx) } into window.GameModules.
 // ctx exposes the game's internals by reference; mutable scalars are getters. A failing module is disabled, never the game.
 const MODS = [];
+// living things in one list with kind + family (modules/passport.js beings; families in modules/contact-core.js)
+Passport.beingSource('pilot', () => [player]);
+Passport.beingSource('fox', () => [fox]);
+Passport.beingSource('stag', () => STAGS);
+Passport.beingSource('shardling', () => enemies);
+Passport.beingSource('golem', () => [boss]);
+Passport.beingSource('orm', () => [orm]);
 const MODCTX = { SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
