@@ -4,13 +4,14 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
 
-### Seven complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar and a Sims-style life sim. All seven run right in your browser — or clone and play locally.
+### Eight complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar, a Sims-style life sim and a game about an engineer’s job. All eight run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
 [![Play Skhodka in your browser](https://img.shields.io/badge/🍣_Play_Skhodka-in_your_browser-E0457B?style=for-the-badge)](https://www.urvanov.com/skhodka/)
 [![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 [![Play Zhitiyo in your browser](https://img.shields.io/badge/🏡_Play_Zhitiyo-in_your_browser-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
+[![Play Uptime in your browser](https://img.shields.io/badge/📈_Play_Uptime-in_your_browser-2E90FA?style=for-the-badge)](https://esurvanov.github.io/awesome-games/work-programmer/)
 
 ![Games](https://img.shields.io/badge/games-8-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
@@ -159,6 +160,25 @@ Move into Berёzovaya Roshcha, a neighbourhood of ten households, a park, a caf�
 **[▶ Play now](https://esurvanov.github.io/awesome-games/zhitie/)**
 
 </td>
+<td width="50%" valign="top">
+
+<a href="https://esurvanov.github.io/awesome-games/work-programmer/"><img src="work-programmer/docs/screenshots/flow.png" alt="Uptime: a stream of users flows through pipes between services, commands and events"></a>
+
+### 📈 [Uptime](work-programmer/)
+**You build a service. It breaks. You fix it. A game about an engineer’s job for people who have never coded.**
+
+A stream of users runs through pipes: thickness is volume, colour shows whether a block copes. Place servers, caches, queues and databases, bet on what breaks first, survive the incidents and read the debrief of your decision.
+
+- 🧭 43 levels · 5 tiers: from a single server to splitting a monolith
+- 🧱 25 blocks: cache, broker, Kubernetes, sockets, VPN, sagas, monitoring, tracing
+- 💥 27 incidents · 🔮 a prediction before the start · 📋 a debrief as an ADR
+- 🎲 daily task, survival, sandbox · 🌐 Russian and English
+
+`vanilla JS` · `SVG` · any browser, double-click `index.html`
+
+**[▶ Play now](https://esurvanov.github.io/awesome-games/work-programmer/)**
+
+</td>
 </tr>
 </table>
 
@@ -190,6 +210,7 @@ Move into Berёzovaya Roshcha, a neighbourhood of ten households, a park, a caf�
 | 🌌 Echo of the Rift | Open **[esurvanov.github.io/awesome-games/ekho-razloma](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** — or `cd ekho-razloma && python3 -m http.server` and open `/open-world.html` |
 | ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
 | 🏡 Zhitiyo | Open **[esurvanov.github.io/awesome-games/zhitie](https://esurvanov.github.io/awesome-games/zhitie/)** — or `cd zhitie && ./serve.sh` |
+| 📈 Uptime | Open **[esurvanov.github.io/awesome-games/work-programmer](https://esurvanov.github.io/awesome-games/work-programmer/)** — or double-click `work-programmer/index.html` |
 
 ## 📜 Licence
 

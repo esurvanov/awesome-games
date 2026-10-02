@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "scripts": { "levels": "node levels.test.js", "smoke": "node ui.smoke.js", "hostile": "node hostile.test.js" },
+  "dependencies": { "playwright": "^1.57.0" }
+}
