@@ -34,10 +34,12 @@
 | Деревенская улица | Двор бабушки |
 |---|---|
 | ![Улица днём](docs/screenshots/street.jpg) | ![Двор бабушки](docs/screenshots/yard.jpg) |
-| **Храм на холме** | **В лес** |
+| **Деревенский храм** | **Ели на опушке у деревни** |
 | ![Храм](docs/screenshots/church.jpg) | ![Лес](docs/screenshots/forest.jpg) |
 | **Остановка на перекрёстке** | **Посёлок** |
 | ![Остановка](docs/screenshots/busstop.jpg) | ![Посёлок](docs/screenshots/town.jpg) |
+| **Дедовы «Жигули» на деревенской дороге** | **Стадо оленей** |
+| ![Жигули](docs/screenshots/zhiguli.jpg) | ![Олени](docs/screenshots/deer.jpg) |
 
 ## 🎮 Управление
 

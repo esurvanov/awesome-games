@@ -2,7 +2,7 @@
 
 [🇬🇧 English](README.md) · 🇷🇺 **Русский**
 
-<img src="docs/banner.jpg" alt="awesome-games: Хроники Королевств и Берёзовка" width="100%">
+<img src="docs/banner.jpg" alt="awesome-games: семь игр рядом — Хроники Королевств, Берёзовка, Житьё, Эхо Разлома, Сибирь, Северный Разлом, Сходка" width="100%">
 
 ### Семь законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, сюжетный открытый мир на полярном острове, бесконечный полёт по ледяному каньону, субботняя IT-сходка в баре Батуми и симулятор жизни в духе The Sims. Все семь запускаются прямо в браузере — или скачайте и играйте локально.
 
@@ -167,7 +167,7 @@
 | Хроники Королевств | Берёзовка |
 |---|---|
 | ![Византийский город](age-of-empires/docs/screenshots/town.jpg) | ![Северное сияние над деревней](berezovka/docs/screenshots/night.jpg) |
-| ![Флот и верфь](age-of-empires/docs/screenshots/naval.jpg) | ![Храм на холме](berezovka/docs/screenshots/church.jpg) |
+| ![Флот и верфь](age-of-empires/docs/screenshots/naval.jpg) | ![Деревенский храм](berezovka/docs/screenshots/church.jpg) |
 | ![Дерево технологий](age-of-empires/docs/screenshots/techtree.jpg) | ![Двор бабушки](berezovka/docs/screenshots/yard.jpg) |
 
 ## 💡 Что у них общего

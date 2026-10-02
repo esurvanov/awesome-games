@@ -34,10 +34,12 @@ You step off the old bus into Berezovka after five years away. Grandma needs fir
 | Village street | Grandma's yard |
 |---|---|
 | ![Village street by day](docs/screenshots/street.jpg) | ![Grandma's yard](docs/screenshots/yard.jpg) |
-| **The church on the hill** | **Into the forest** |
+| **The village church** | **Spruces at the edge of the village** |
 | ![Church](docs/screenshots/church.jpg) | ![Forest](docs/screenshots/forest.jpg) |
 | **Bus stop at the crossroads** | **The Soviet settlement** |
 | ![Bus stop](docs/screenshots/busstop.jpg) | ![Settlement](docs/screenshots/town.jpg) |
+| **Grandpa's Zhiguli on the village road** | **A herd of deer** |
+| ![Zhiguli](docs/screenshots/zhiguli.jpg) | ![Deer](docs/screenshots/deer.jpg) |
 
 ## 🎮 Controls
 

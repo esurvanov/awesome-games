@@ -213,6 +213,42 @@
     "ru": "Сибирь: поселенцы за работой",
     "en": "Sibiria: settlers at work"
    }
+  },
+  {
+   "file": "docs/screenshots/carry-shoulder.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: герой несёт ствол на плече по глубокому снегу",
+    "en": "Sibiria: the hero carries a trunk on his shoulder through deep snow"
+   }
+  },
+  {
+   "file": "docs/screenshots/sled-rope.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: нарты с дровами на верёвке и охапка в руках",
+    "en": "Sibiria: a wood-laden sled on a rope and an armful of logs"
+   }
+  },
+  {
+   "file": "docs/screenshots/shovel-trail.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: лопатой расчищена тропа, снег уходит в отвал",
+    "en": "Sibiria: a trail dug out with the shovel, snow thrown onto a bank"
+   }
+  },
+  {
+   "file": "docs/screenshots/chop.jpg",
+   "w": 1280,
+   "h": 800,
+   "alt": {
+    "ru": "Сибирь: подрубленная ель падает, герой отошёл в сторону, на снегу щепа",
+    "en": "Sibiria: a notched spruce falls while the hero steps aside, wood chips on the snow"
+   }
   }
  ],
  "related": [

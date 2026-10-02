@@ -13,7 +13,7 @@
 [![Платформы](https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#-быстрый-старт)
 [![Языки](https://img.shields.io/badge/%D0%B8%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81-7%20%D1%8F%D0%B7%D1%8B%D0%BA%D0%BE%D0%B2-blue)](#-возможности)
 
-<img src="docs/screenshots/hero.jpg" alt="Франкский город за стеной под осадой: требушеты и тараны у ворот, горит дом, за спиной — гавань" width="100%">
+<img src="docs/screenshots/hero.jpg" alt="Франкский город у озера под атакой: леса недостроенного частокола, таран среди домов, осадные машины на склоне, пожары, за спиной — гавань" width="100%">
 
 </div>
 
@@ -37,7 +37,7 @@
 | ![Главное меню](docs/screenshots/menu.jpg) | ![Лобби](docs/screenshots/lobby.jpg) |
 | **Византийский город** | **Бой в поле с осадными орудиями** |
 | ![Город](docs/screenshots/town.jpg) | ![Бой](docs/screenshots/battle.jpg) |
-| **Архипелаг: флот и док** | **Холмы и обрывы** |
+| **Архипелаг: флот и док** | **Холмы, скальная гряда и рощи** |
 | ![Флот](docs/screenshots/naval.jpg) | ![Холмы](docs/screenshots/hills.jpg) |
 | **Древо технологий** | **Статистика после партии** |
 | ![Древо технологий](docs/screenshots/techtree.jpg) | ![Статистика](docs/screenshots/stats.jpg) |

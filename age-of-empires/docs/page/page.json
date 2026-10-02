@@ -35,7 +35,7 @@
       "Более 75 типов юнитов: пехота, лучники, кавалерия, осадные машины, монахи, корабли",
       "Экономика: рынок, торговые повозки, реликвии, фермы; стены, ворота, башни, гарнизоны",
       "Морские бои: доки, рыбалка, транспорты, галеры, брандеры",
-      "6 случайных карт (Аравия, Арена, Чёрный лес, Кочевник, Острова, Средиземноморье), 6 уровней ИИ, до 8 игроков, дипломатия",
+      "6 случайных карт (Пустошь, Крепостной двор, Чаща, Кочевье, Архипелаг, Внутреннее море), 6 уровней ИИ, до 8 игроков, дипломатия",
       "Сохранение и загрузка, статистика после матча, 7 языков интерфейса"
     ],
     "en": [
@@ -44,7 +44,7 @@
       "75+ unit types: infantry, archers, cavalry, siege, monks, ships",
       "Economy: market trade, trade carts, relics, farms; walls, gates, towers, garrisons",
       "Naval warfare: docks, fishing, transports, galleys, fire ships",
-      "6 random maps (Arabia, Arena, Black Forest, Nomad, Islands, Mediterranean), 6 AI levels, up to 8 players, diplomacy",
+      "6 random maps (Wasteland, Walled Court, Thicket, Nomad, Archipelago, Inland Sea), 6 AI levels, up to 8 players, diplomacy",
       "Save / load, post-game statistics, 7 interface languages"
     ]
   },
@@ -266,8 +266,8 @@
       "w": 1280,
       "h": 800,
       "alt": {
-        "ru": "Хроники Королевств: флот и док на карте «Острова»",
-        "en": "Chronicles of Kingdoms: a fleet and dock on the Islands map"
+        "ru": "Хроники Королевств: флот и док на карте «Архипелаг»",
+        "en": "Chronicles of Kingdoms: a fleet and dock on the Archipelago map"
       }
     },
     {
@@ -275,8 +275,8 @@
       "w": 1280,
       "h": 800,
       "alt": {
-        "ru": "Хроники Королевств: холмы и обрывы",
-        "en": "Chronicles of Kingdoms: hills and cliffs"
+        "ru": "Хроники Королевств: холмы, скальная гряда и рощи",
+        "en": "Chronicles of Kingdoms: hills, a rocky ridge and groves"
       }
     },
     {
