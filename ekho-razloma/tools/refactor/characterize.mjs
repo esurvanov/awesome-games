@@ -56,12 +56,13 @@ if (cmd === 'snap') {
     console.log(`snapshot ${a}: passport ${snap.passport.count} · stags ${snap.creatures.stags.length} · enemies ${snap.creatures.enemies.length} · modules ${snap.modules.length} · errors ${snap.errors.length}`);
   } finally { await H.close(); }
 } else if (cmd === 'diff') {
-  // kinds whose spot wobbles by under a metre between identical runs (placement relaxes against terrain): compare name and count only
-  const WOBBLE = /^st_cairn$/;
+  // kinds placed by modules/structures.js: their spot differs between identical runs (placement depends on async load order,
+  // from centimetres up to tens of metres) — compare name and count only. Everything else must match.
+  const WOBBLE = /^(st_|echo\d+$|kestrel)/;
   const load = (l) => { const j = JSON.parse(fs.readFileSync(path.join(DIR, l + '.json'), 'utf8')); j.passport.items.forEach((it) => { if (WOBBLE.test(it.name)) { it.box = it.c0 = it.at = null; } }); return flat(j); };
   const A = load(a), B = load(b);
   const keys = new Set([...Object.keys(A), ...Object.keys(B)]); let n = 0;
   const same = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 0.06 : JSON.stringify(x) === JSON.stringify(y));   // 6 cm: vertex float noise
-  for (const k of keys) if (!/\.vol\.|^save\.time$/.test(k) && !same(A[k], B[k])) { n++; if (n <= 60) console.log(k, ':', JSON.stringify(A[k]), '→', JSON.stringify(B[k])); }
+  for (const k of keys) if (!/\.vol\.|\.at$|^save\.time$/.test(k) && !same(A[k], B[k])) { n++; if (n <= 60) console.log(k, ':', JSON.stringify(A[k]), '→', JSON.stringify(B[k])); }
   console.log(n ? `${n} differences` : 'no differences'); process.exit(n ? 1 : 0);
 } else { console.log('usage: snap <label> | diff <a> <b>'); process.exit(2); }
