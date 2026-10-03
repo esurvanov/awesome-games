@@ -54,9 +54,12 @@ try {
     D.sk.unlocked = true; D.teleport(D.sk.x + 3, D.sk.z, 0); await wait(300);
     D.mount(); await wait(500);
     const riding = D.G.riding && D.sk.mounted;
+    const x0 = D.sk.x, z0 = D.sk.z; D.keys.KeyW = true; await wait(2500); D.keys.KeyW = false;   // drive: hold forward
+    const drove = Math.hypot(D.sk.x - x0, D.sk.z - z0), rider = Math.hypot(D.player.x - D.sk.x, D.player.z - D.sk.z);
+    if (drove < 5 || rider > 1.5) { D.keys.KeyW = false; window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' })); await wait(400); return { ok: false, why: `drove ${drove.toFixed(1)} m, rider ${rider.toFixed(1)} m from the sled`, info: { drove, rider } }; }
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' })); await wait(600);
     const off = !D.G.riding && !D.sk.mounted;
-    return { ok: riding && off, why: `riding=${riding} dismounted=${off}`, info: { riding, off } };
+    return { ok: riding && off, why: `riding=${riding} dismounted=${off}`, info: { riding, off, drove: +drove.toFixed(1) } };
   });
 
   await probe('passport: every kind has a family and an agreed role', async () => {
