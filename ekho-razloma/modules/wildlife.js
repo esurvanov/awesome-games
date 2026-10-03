@@ -42,9 +42,9 @@
         if (d > 90) { fox.x = bx; fox.z = bz; }
         tx = bx; tz = bz; const bd = Math.hypot(bx - fox.x, bz - fox.z);
         want = bd > 1.2 ? (G.riding ? 18 : bd > 9 ? 13 : 6.5) : 0;
-        const ai = window.AI && !G.riding ? AI.intent(fox) : null;   // the AI layer (ai.js): lead to a shard / circle / stay put
+        const ai = !G.riding ? Controllers.intent(fox) : null;   // the AI layer's advice (ai.js): lead to a shard / circle / stay put
         if (ai === 'lead_player_to_shard' && fox.seekT > 1) fox.seekT = 0;
-        else if (ai === 'circle' && d < 8) { const st = AI.steer(fox, 'circle', 'fox'); tx = st.tx; tz = st.tz; want = st.speed; }
+        else if (ai === 'circle' && d < 8) { const st = Controllers.steer(fox, 'circle', 'fox'); tx = st.tx; tz = st.tz; want = st.speed; }
         else if ((ai === 'graze' || ai === 'alert') && d < 6) want = 0;
         if (fox.seekT <= 0) {
           fox.seekT = 14;
@@ -141,7 +141,7 @@
       const camD = Math.hypot(s.x - camera.position.x, s.z - camera.position.z);
       s.t -= dt;
       if (s.st === 'graze') {
-        const ai = window.AI ? AI.intent(s) : null;   // the AI layer (ai.js): alert / approach / flee; no layer → flee inside 26 m
+        const ai = Controllers.intent(s);   // the AI layer's advice (ai.js): alert / approach / flee; none → flee inside 26 m
         if (ai === 'alert' || ai === 'approach') { if (d >= 10) { if (s.lk !== 1) { s.lk = 1; s.A.loop('look', 0.3); } s.yaw += wrapA(Math.atan2(-dx, -dz) - s.yaw) * Math.min(1, dt * 3); } }
         else s.lk = 0;
         if ((ai ? ai === 'flee' || d < 10 : d < 26) && G.mode === 'play') { s.st = 'flee'; s.t = rand(4, 6); s.fx = dx / (d || 1); s.fz = dz / (d || 1); s.A.loop('run', 0.15); }

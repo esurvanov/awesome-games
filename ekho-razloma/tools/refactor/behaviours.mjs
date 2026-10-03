@@ -149,6 +149,7 @@ try {
     // the records
     const all = C.all(), want = { pilot: 1, orm: 1, fox: 1, stag: STAGS.length, shardling: enemies.length, golem: 1, raven: 10 }, got = {}; all.forEach((r) => { got[r.kind] = (got[r.kind] || 0) + 1; });
     for (const k in want) if (got[k] !== want[k]) bad.push(`count ${k}: ${got[k]} (want ${want[k]})`);
+    for (const r of all) { const n = r.native; if (!['x', 'y', 'z', 'st', 'hp', 'group'].every((k) => k in n) || !['x', 'y', 'z'].every((k) => Number.isFinite(n[k]))) { bad.push('native of ' + r.id + ' lacks a common field'); break; } }
     for (const r of all) { if (!r.family || !r.controller || !r.native || !Number.isFinite(r.x) || !Number.isFinite(r.z) || !Number.isFinite(r.y) || !Number.isFinite(r.yaw)) { bad.push('record ' + r.id + ' ' + r.kind + ' incomplete'); break; } }
     // legacy rules, written out as the consumers had them
     const lSnow = [[player.c.g, 1.3], [orm.g, 1.3], [fox.g, 1.2], ...STAGS.map((s) => [s.g, 2.2]), ...enemies.filter((e) => !e.dead).map((e) => [e.g, 1.8]), ...(boss.g ? [[boss.g, 5]] : [])].filter((a) => a[0] && a[0].isObject3D).map((a) => [a[0], a[1]]);
@@ -208,6 +209,25 @@ try {
     const ui = !!document.getElementById('aiBadge') && !!document.getElementById('aiTalk');
     const orm = document.querySelector('#dialog') != null && typeof AI.orm.open === 'function';
     return { ok: sets.includes('DIRECTOR') && sets.includes('HINTS') && ui && orm && AI.available === false, why: `sets=${sets.join(',')} ui=${ui} available=${AI.available}`, info: { sets, ui } };
+  });
+
+  await probe('controllers: the AI layer advises through Controllers; no advice → the plain rules', async () => {
+    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), real = AI.intent, bad = [];
+    if (!window.Controllers) return { ok: false, why: 'Controllers missing' };
+    if (D.Creatures.all().some((r) => !r.controller)) bad.push('a creature without a controller');
+    D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; const cleared0 = D.G.cleared.slice(); D.ZONES.forEach((z) => { if (!D.G.cleared.includes(z.id)) D.G.cleared.push(z.id); });   // no zone wakes up shardlings during the probe
+    // stag: advice «alert» at 15 m keeps it grazing and looking; advice «flee» makes it run
+    const s = D.STAGS[0]; s.st = 'graze'; s.t = 99; s.lk = 0; D.teleport(s.x + 15, s.z, 0);
+    AI.intent = (o) => (o === s ? 'alert' : null); await wait(900); if (!(s.st === 'graze' && s.lk === 1)) bad.push(`stag alert: st=${s.st} lk=${s.lk}`);
+    AI.intent = (o) => (o === s ? 'flee' : null); await wait(900); if (s.st !== 'flee') bad.push(`stag flee: st=${s.st}`);
+    // shardling: advice «retreat» sends a chasing one home
+    AI.intent = () => null; D.teleport(0, 0, 0); await wait(300); const e = D.spawnShardling(D.player.x + 20, D.player.z, D.ZONES[0]); e.st = 'chase'; e.t = 5; e.hx = e.x + 35; e.hz = e.z;   // its home is far away: «return» has somewhere to go
+    AI.intent = (o) => (o === e ? 'retreat' : null); await wait(600); if (e.st !== 'return') bad.push(`shardling retreat: st=${e.st}`);
+    e.dead = true; D.enemies.length = 0;
+    // fox: advice «lead_player_to_shard» zeroes the seek timer
+    D.fox.joined = true; D.fox.st = 'follow'; D.fox.seekT = 5; AI.intent = (o) => (o === D.fox ? 'lead_player_to_shard' : null); await wait(500); if (!(D.fox.seekT > 13 || D.fox.st === 'seek')) bad.push(`fox lead: seekT=${D.fox.seekT} st=${D.fox.st}`);   // advice zeroes the timer, the fox then looks for a shard and the timer restarts at 14
+    AI.intent = real; D.fox.joined = false; D.fox.st = 'wild'; D.player.hp = D.player.hpMax; D.G.deadT = 0; D.G.cleared.length = 0; D.G.cleared.push(...cleared0);
+    return { ok: !bad.length, why: bad.join('; '), info: { controllers: [...new Set(D.Creatures.all().map((r) => r.controller))] } };
   });
 
 } finally {

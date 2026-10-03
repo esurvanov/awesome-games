@@ -14,24 +14,32 @@
   window.createCreatures = function (D) {
     const { player, orm, fox, STAGS, enemies, boss, getH } = D;
     const CTL = { pilot: 'player', orm: 'story', fox: 'rules+ai', stag: 'rules+ai', raven: 'flock', shardling: 'rules+ai', golem: 'story' };
-    // how each kind's native object spells the common fields
-    const ACC = {
-      pilot: { x: (o) => o.x, y: (o) => o.y, z: (o) => o.z, yaw: (o) => o.face, st: () => null, hp: (o) => o.hp, group: (o) => (o.c && o.c.g) || null },
+    // the common fields every creature's native object answers to. Each kind already had most of them under its own names; the missing ones are added
+    // as read-only accessors (not enumerable), so natives, records and tools can all say x, y, z, yaw, st, hp, group without knowing the kind.
+    const FILL = {
+      pilot: { yaw: (o) => o.face, st: () => null, group: (o) => (o.c && o.c.g) || null },
       orm: { x: (o) => o.pos.x, y: (o) => o.pos.y, z: (o) => o.pos.z, yaw: (o) => o.g.rotation.y, st: () => null, hp: () => null, group: (o) => o.g || null },
-      fox: { x: (o) => o.x, y: (o) => o.y, z: (o) => o.z, yaw: (o) => o.yaw, st: (o) => o.st, hp: () => null, group: (o) => o.g || o.root || null },
-      stag: { x: (o) => o.x, y: (o) => getH(o.x, o.z), z: (o) => o.z, yaw: (o) => o.yaw, st: (o) => o.st, hp: () => null, group: (o) => o.g || o.root || null },
-      shardling: { x: (o) => o.x, y: (o) => o.y, z: (o) => o.z, yaw: (o) => (o.g ? o.g.rotation.y : 0), st: (o) => o.st, hp: (o) => o.hp, group: (o) => o.g || o.mesh || null },
-      golem: { x: (o) => o.x, y: (o) => o.y, z: (o) => o.z, yaw: (o) => (o.g ? o.g.rotation.y : 0), st: (o) => o.st, hp: (o) => o.hp, group: (o) => o.g || o.root || null },
-      raven: { x: (o) => o.pos.x, y: (o) => o.pos.y, z: (o) => o.pos.z, yaw: (o) => o.yaw, st: (o) => o.st, hp: () => null, group: () => null },
+      fox: { hp: () => null, group: (o) => o.g || o.root || null },
+      stag: { y: (o) => getH(o.x, o.z), hp: () => null, group: (o) => o.g || o.root || null },
+      shardling: { group: (o) => o.g || o.mesh || null },   // yaw: the combat module sets its own the first time it turns (undefined until then) — the record reads the model's turn meanwhile
+      golem: { group: (o) => o.g || o.root || null },
+      raven: { x: (o) => o.pos.x, y: (o) => o.pos.y, z: (o) => o.pos.z, hp: () => null, group: () => null },
     };
+    function unify(kind, o) {
+      for (const k of ['x', 'y', 'z', 'yaw', 'st', 'hp', 'group']) {
+        if (o[k] !== undefined) continue;
+        const f = FILL[kind][k];   // an accessor until somebody assigns the field: then it becomes the ordinary data property it would have been
+        if (f) Object.defineProperty(o, k, { get: () => f(o), set: (v) => Object.defineProperty(o, k, { value: v, writable: true, enumerable: true, configurable: true }), enumerable: false, configurable: true });
+      }
+    }
     const cache = new WeakMap(); let seq = 0;
     const familyOf = (kind) => (window.CORE ? window.CORE.familyOf(kind) : null);
     function rec(kind, native) {
       let r = cache.get(native); if (r) return r;
-      const a = ACC[kind];
+      unify(kind, native);
       r = { id: kind + '#' + (seq++), kind, family: familyOf(kind), controller: CTL[kind], native,
-        get x() { return a.x(native); }, get y() { return a.y(native); }, get z() { return a.z(native); }, get yaw() { return a.yaw(native); },
-        get st() { return a.st(native); }, get hp() { return a.hp(native); }, get group() { return a.group(native); } };
+        get x() { return native.x; }, get y() { return native.y; }, get z() { return native.z; }, get yaw() { return native.yaw !== undefined ? native.yaw : (native.g ? native.g.rotation.y : 0); },
+        get st() { return native.st; }, get hp() { return native.hp; }, get group() { return native.group; } };
       cache.set(native, r); return r;
     }
     const ravens = () => (window.WorldFill && window.WorldFill.ravens) || [];
@@ -78,10 +86,10 @@
     }
     // groundblend.js: model roots that are not terrain ({ kind, group }); the pilot's skeleton root is the caller's
     function blendRoots() {
-      const out = [{ kind: 'pilot', group: ACC.pilot.group(player) }, { kind: 'fox', group: ACC.fox.group(fox) }];
-      for (const s of STAGS) out.push({ kind: 'stag', group: ACC.stag.group(s) });
-      for (const e of enemies) out.push({ kind: 'shardling', group: ACC.shardling.group(e) });
-      out.push({ kind: 'golem', group: ACC.golem.group(boss) });
+      const out = [{ kind: 'pilot', group: rec('pilot', player).group }, { kind: 'fox', group: rec('fox', fox).group }];
+      for (const s of STAGS) out.push({ kind: 'stag', group: rec('stag', s).group });
+      for (const e of enemies) out.push({ kind: 'shardling', group: rec('shardling', e).group });
+      out.push({ kind: 'golem', group: rec('golem', boss).group });
       return out;
     }
     // the page's shadow casters that move: model roots of every creature that has one
