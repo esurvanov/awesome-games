@@ -112,6 +112,19 @@ try {
     const miss = s ? need.filter((k) => !(k in s)) : need;
     return { ok: !!s && !miss.length, why: 'missing: ' + miss.join(','), info: { keys: s ? Object.keys(s) : null } };
   });
+  await probe('player: control state lives on Player, the pilot keeps aliases, the roll works', async () => {
+    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), P = D.Player;
+    if (!P) return { ok: false, why: 'DBG.Player missing' };
+    const same = P.creature === D.player && P.input.keys === D.keys && P.input.pressed === D.pressed && P.camera === D.cam && P.climb === D.CLIMB;
+    P.roll.t = 0.3; P.aim.t = 0.4; P.fire.cd = 0.1; P.roll.cd = 0.2;
+    const al = D.player.rollT === 0.3 && D.player.aimT === 0.4 && D.player.fireCd === 0.1 && D.player.rollCd === 0.2;
+    D.player.rollT = 0; D.player.aimT = 0; D.player.fireCd = 0; D.player.rollCd = 0;
+    const back = P.roll.t === 0 && P.aim.t === 0 && P.fire.cd === 0 && P.roll.cd === 0;
+    D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; D.G.riding = false; D.teleport(D.player.x, D.player.z, 0); await wait(400);
+    D.pressed.add('KeyC'); await wait(250); const rolling = P.roll.t > 0 && D.player.rollT > 0; D.pressed.delete('KeyC'); await wait(1300); const ended = P.roll.t === 0;
+    return { ok: same && al && back && rolling && ended, why: `same=${same} aliases=${al} writeback=${back} rolling=${rolling} ended=${ended}`, info: { same, al, back, rolling, ended } };
+  });
+
   await probe('state: every key of G is classified (progress or session)', async () => {
     const D = window.DBG, bad = Progress.unclassified(D.G);
     const saved = D.store.get('eor-save', null) || {}; const leak = Progress.SESSION_KEYS.filter((k) => k in saved);

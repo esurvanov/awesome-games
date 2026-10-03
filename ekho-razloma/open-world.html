@@ -564,6 +564,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/store.js"></script>
 <script src="modules/story-data.js"></script>   <!-- the story's words and fixed spots (pure data) -->
 <script src="modules/progress.js"></script>   <!-- Progress: the save format and health rule (pure functions) -->
+<script src="modules/player-control.js"></script>   <!-- Player: the human's side, separate from the pilot -->
 <script src="modules/passport.js"></script>   <!-- Passport: registry of every solid thing (shared object-passport domain) -->   <!-- Store: the one place that touches localStorage -->
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
@@ -1975,7 +1976,7 @@ try {
 } catch (e) { console.warn('WorldFill', e); }
 
 /* ---------- player, NPC, skimmer ---------- */
-const player = { x: 0, y: 0, z: 0, vx: 0, vz: 0, vy: 0, onGround: true, face: 0, hp: 5, hpMax: 5, inv: 0, lastHurt: -99, fireCd: 0, aimT: 0, regenT: 0, rollT: 0, rollCd: 0, rollDir: [0, -1] };
+const player = { x: 0, y: 0, z: 0, vx: 0, vz: 0, vy: 0, onGround: true, face: 0, hp: 5, hpMax: 5, inv: 0, lastHurt: -99, regenT: 0 };   // fireCd, aimT, rollT, rollCd, rollDir: aliases of the Player (modules/player-control.js)
 player.c = makeChar({ suit: 0xd7e0ec, acc: 0x7fe3ff, helmet: true });
 const tool = new THREE.Group();
 tool.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.55, 8), std(0x2a3350, 0.7, 0.3)));
@@ -2584,6 +2585,8 @@ function updatePlayer(dt) {
 }
 /* ---------- ledge climb ---------- */
 const CLIMB = { t: -1, dur: 1, from: new V3(), to: new V3(), h: 1, curve: null, footLock: null, face: 0 };
+// the human's side (input, camera, climb, aim, fire, roll, the cutter in hand) is its own entity, modules/player-control.js; the pilot keeps the old field names as aliases
+const Player = window.createPlayer({ creature: player, keys, pressed, cam, CLIMB, tool, get handTip() { return handTip; } });
 // ledge ahead: a near-vertical face on STATIC geometry (terrain, rocks, 'solid' Passport meshes incl. the wreck) with a
 // walkable top 0.8–1.8 m above the feet, open above the edge and head room on top. feet = the ground the climb starts from.
 function ledgeAhead(dx, dz, feetY) {
@@ -3251,7 +3254,7 @@ Passport.beingSource('raven', () => (window.WorldFill && WorldFill.ravens) || []
 Passport.beingSource('shardling', () => enemies);
 Passport.beingSource('golem', () => [boss]);
 Passport.beingSource('orm', () => [orm]);
-const MODCTX = { SHADOW, RS, LOOP, setRenderScale,
+const MODCTX = { Player, SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
   H, VN, CELL, W, RES, getH, groundH, normalY, riftD, nearPOI, inRift, POI, RIFT_FLOOR, WORLD, WORLD_TERRAIN, DECOR, FOREST, STAGS, fox, orm, AV, sk, player, enemies, boss,
@@ -3372,7 +3375,7 @@ function frame(now) {
   console.log('[quality]', Q.name, '·', QPICK.why);
   startLoader(() => (s ? $('bContinue') : $('bNew')).focus({ preventScroll: true }));
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.
-  if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
+  if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, Player, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
     terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW, RS, LOOP, setRenderScale, frameTimer: FT,
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
