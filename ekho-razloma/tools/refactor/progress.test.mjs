@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const plain = (x) => JSON.parse(JSON.stringify(x));   // objects made inside the vm context differ by prototype only
-const win = {}; vm.runInNewContext(fs.readFileSync(new URL('../../modules/progress.js', import.meta.url), 'utf8'), { window: win });
+const win = {}; vm.runInNewContext(fs.readFileSync(new URL('../../modules/progress.js', import.meta.url), 'utf8'), { window: win, console: { warn() {} } });
 const P = win.Progress;
 const G = { mode: 'play', stage: 4, hasTool: true, hasCell: true, shards: [1, 5, 9], echoes: [0, 2], cleared: ['lake'], deaths: 2, time: 123.5, checkpoint: 'station', ending: null };
 const scene = { parts: [true, false, true], fox: true, pos: [10.5, -20.25], sk: true, bossDead: false };
@@ -32,4 +32,19 @@ assert.deepEqual(plain(P.unclassified(S)), []); S.surprise = 1; assert.deepEqual
 const rec2 = P.record(S, { parts: [], fox: false, pos: [0, 0], sk: false, bossDead: false });
 for (const k of P.SESSION_KEYS) assert.ok(!(k in rec2), 'session key in the save: ' + k);   // the save never carries session state
 assert.equal(new Set([...P.PROGRESS_KEYS, ...P.SESSION_KEYS]).size, P.PROGRESS_KEYS.length + P.SESSION_KEYS.length);   // a key is in one list only
-console.log('progress: 12 checks + 8 state checks pass');
+// persist registry: owners register what they save and load; record merges, restore runs in order, a failing loader does not stop the others
+const trace = []; const Q = win.Progress;
+Q.persist('pos', { order: 50, save: () => [1.5, 2.5], load: (v) => trace.push('pos:' + JSON.stringify(v)) });
+Q.persist('fox', { order: 10, save: () => true, load: (v) => trace.push('fox:' + v) });
+Q.persist('parts', { order: 20, save: () => [true, false, true], load: (v) => trace.push('parts:' + JSON.stringify(v)) });
+Q.persist('boom', { order: 15, load: () => { throw new Error('x'); } });
+Q.persist('sk', { order: 10, save: () => false, load: (v) => trace.push('sk:' + v) });
+Q.persist('bossDead', { order: 10, save: () => true, load: (v) => trace.push('boss:' + v) });
+Q.persist('hpMax', { order: 40, load: () => trace.push('hp') });
+const coll = Q.collect(); assert.deepEqual(Object.keys(plain(coll)).sort(), ['bossDead', 'fox', 'parts', 'pos', 'sk']);
+const rec3 = Q.record(Q.createState());   // default scene = collect()
+assert.deepEqual(plain(Object.keys(rec3)), ['v', 'stage', 'hasTool', 'hasCell', 'parts', 'shards', 'echoes', 'cleared', 'deaths', 'fox', 'time', 'pos', 'sk', 'bossDead', 'ending', 'cp']);
+assert.deepEqual(plain(rec3.parts), [true, false, true]); assert.equal(rec3.fox, true); assert.deepEqual(plain(rec3.pos), [1.5, 2.5]); assert.equal(rec3.sk, false); assert.equal(rec3.bossDead, true);
+const H3 = Q.createState(); Q.restore(H3, plain(rec3));
+assert.deepEqual(trace, ['fox:true', 'sk:false', 'boss:true', 'parts:[true,false,true]', 'hp', 'pos:[1.5,2.5]']);   // by order, then registration; the failing one in between was skipped quietly
+console.log('progress: 12 checks + 8 state checks + 8 owner checks pass');

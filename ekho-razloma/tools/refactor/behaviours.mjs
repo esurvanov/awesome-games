@@ -230,6 +230,34 @@ try {
     return { ok: !bad.length, why: bad.join('; '), info: { controllers: [...new Set(D.Creatures.all().map((r) => r.controller))] } };
   });
 
+  await probe('save and load: every owner puts its part of the world back and writes its part of the save', async () => {
+    const D = window.DBG, W = D.WORLD, bad = [], P = window.Progress;
+    const near = { x: D.POI.station.x + 6, z: D.POI.station.z + 18 };
+    const rec = { v: 1, stage: 5, hasTool: true, hasCell: true, parts: [true, true, false], shards: [0, 1, 2, 6, 7, 8], echoes: [0, 3], cleared: ['lake'], deaths: 2, fox: true, time: 321, pos: [near.x, near.z], sk: true, bossDead: false, ending: null, cp: 'station' };
+    D.fox.joined = false; D.fox.st = 'wild'; D.sk.unlocked = false;
+    D.applySave(JSON.parse(JSON.stringify(rec)));
+    if (!(W.spires[0].taken && W.spires[1].taken && !W.spires[2].taken)) bad.push('spires taken');
+    if (W.spires[0].part.visible || W.spires[1].beam.visible || !W.spires[2].part.visible) bad.push('spire parts visibility');
+    if (D.G.parts !== 2) bad.push('G.parts ' + D.G.parts);
+    if (![0, 1, 2, 6, 7, 8].every((i) => W.shards[i].taken && !W.shards[i].g.visible) || W.shards[3].taken) bad.push('shards');
+    if (W.crateGlow.parent) bad.push('crate glow still on'); if (W.cell.visible) bad.push('cell still visible');
+    if (!(D.fox.joined && D.fox.st === 'follow')) bad.push('fox'); if (!D.sk.unlocked) bad.push('snowmobile'); if (D.boss.dead) bad.push('boss dead');
+    if (D.player.hpMax !== 6) bad.push('hpMax ' + D.player.hpMax);
+    if (Math.hypot(D.player.x - near.x, D.player.z - near.z) > 12) bad.push('position moved too far');
+    if (D.G.stage !== 5 || D.G.deaths !== 2 || D.G.checkpoint !== 'station' || D.G.time !== 321) bad.push('story fields');
+    // the save the game writes back: same fields, same values
+    D.G.mode = 'play'; D.G.stage = 5; D.save(); const back = D.store.get('eor-save', null);
+    if (!back) bad.push('no save written'); else {
+      for (const k of ['v', 'stage', 'hasTool', 'hasCell', 'shards', 'echoes', 'cleared', 'deaths', 'fox', 'sk', 'bossDead', 'ending', 'cp']) if (JSON.stringify(back[k]) !== JSON.stringify(rec[k])) bad.push('save.' + k + ' ' + JSON.stringify(back[k]));
+      if (JSON.stringify(back.parts) !== JSON.stringify([true, true, false])) bad.push('save.parts');
+      if (JSON.stringify(Object.keys(back)) !== JSON.stringify(Object.keys(rec))) bad.push('save key order ' + Object.keys(back).join(','));
+    }
+    // endings and the guardian's flag
+    D.applySave({ ...rec, bossDead: true, ending: 'take' }); if (!(D.boss.dead && !W.heart.g.visible && Math.abs(D.G.aurora - 0.12) < 1e-9)) bad.push('ending take');
+    W.heart.g.visible = true; D.applySave({ ...rec, bossDead: true, ending: 'free' }); if (!(D.G.heartRise === true && D.G.aurora === 2.2 && Math.abs(W.heart.g.position.y - (D.MODCTX.RIFT_FLOOR + 5)) < 1e-6)) bad.push('ending free');
+    return { ok: !bad.length, why: bad.join('; '), info: { owners: (P._persist || []).map((p) => p.key + ':' + p.order).join(' ') } };
+  });
+
 } finally {
   const errors = H.errors.slice(0, 20);
   fs.mkdirSync(path.join(OUT, 'refactor'), { recursive: true });

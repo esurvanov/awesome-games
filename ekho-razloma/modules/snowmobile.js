@@ -96,6 +96,9 @@
       player.c.g.visible = player.inv > 0 ? Math.floor(D.T * 16) % 2 === 0 : true;
     }
 
+    // the save: whether Orm has given the snowmobile to the pilot
+    window.Progress.persist('sk', { order: 10, save: () => sk.unlocked, load: (v) => { sk.unlocked = !!v; } });
+
     return { sk, mount, dismount, callSkimmer, updateSkimmer };
   };
 })();

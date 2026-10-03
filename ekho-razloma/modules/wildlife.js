@@ -165,8 +165,8 @@
       if (camD < 220 && !s.gaitDriving) s.A.update(dt);
     }
   }
-    // loading a save: a fox that had joined the pilot is with them again
-    if (window.Progress) window.Progress.onRestore((x) => { if (x.fox) { fox.joined = true; fox.st = 'follow'; } });
+    // the save: whether the fox has joined the pilot; loading it puts the fox with them again
+    window.Progress.persist('fox', { order: 10, save: () => fox.joined, load: (v) => { if (v) { fox.joined = true; fox.st = 'follow'; } } });
 
     return { fox, STAGS, petFox, updateFox, updateStags };
   };

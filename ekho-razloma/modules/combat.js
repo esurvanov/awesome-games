@@ -263,6 +263,9 @@
     }
 
 
+    // the save: whether the guardian is dead
+    window.Progress.persist('bossDead', { order: 10, save: () => boss.dead, load: (v) => { boss.dead = !!v; } });
+
     return { enemies, eMatBase, spawnShardling, killEnemy, shatter, heals, spawnHeal, ZONES, boss, waves, RING_M, spawnWave, bolts, SPIKE_M, spawnBolt, fireBolt, updateEnemies, updateBoss, volley, bossHit, updateBolts };
   };
 })();

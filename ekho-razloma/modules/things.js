@@ -5,11 +5,12 @@
  *   position   the thing's spot as a THREE.Vector3-like object ({ x, y, z })      state   a short word: closed/open · placed/taken · … · dark/lit
  * Plain, collider-bearing objects (rocks, trees, buildings…) are the Passport's; this list is for the ones the story, the save or the player changes.
  * The natives stay where they are built (the page, structures.js, snowmobile.js, campfire.js); this is the one place that names them.
- * deps (open-world.html builds them): WORLD, sk, FIRE; D.G is read at run time. */
+ * It also owns how a loaded save puts these objects back (Progress.persist, orders 20 and 30) and what they contribute to the save (the taken spires).
+ * deps (open-world.html builds them): WORLD, sk, FIRE, boss, tool (the cutter in hand), glowMat, candela, RIFT_FLOOR; D.G is read at run time. */
 (function () {
   'use strict';
   window.createThings = function (D) {
-    const { WORLD, sk, FIRE } = D;
+    const { WORLD, sk, FIRE, boss, tool, glowMat, candela, RIFT_FLOOR } = D;
     const list = [], byId = new Map();
     function add(id, kind, family, native, position, state, taken) {
       const t = { id, kind, family, native, get position() { return position(); }, get state() { return state(); }, get taken() { return taken ? taken() : false; } };
@@ -33,6 +34,21 @@
       for (const t of list) { if (t.kind !== kind || (ok && !ok(t))) continue; const p = t.position, d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = t; } }
       return best;
     }
+    // ---- the save ----
+    const P = window.Progress;
+    P.persist('crate', { order: 20, load: () => { tool.visible = G().hasTool; if (G().hasTool) { WORLD.crate.remove(WORLD.crateGlow); if (window.STRUCT && window.STRUCT.caseOpened) window.STRUCT.caseOpened(); } } });
+    P.persist('cell', { order: 20, load: () => { WORLD.cell.visible = !G().hasCell; } });
+    P.persist('parts', { order: 20, save: () => WORLD.spires.map((s) => s.taken),
+      load: (parts) => { (parts || []).forEach((t, i) => { if (t) { const sp = WORLD.spires[i]; sp.taken = true; sp.part.visible = sp.pg.visible = sp.beam.visible = false; sp.mat.emissiveIntensity = 0.15; sp.light.intensity = candela(26); } });
+        G().parts = WORLD.spires.filter((s) => s.taken).length; } });
+    P.persist('shards-taken', { order: 20, load: () => { for (const i of G().shards) { const sh = WORLD.shards[i]; if (sh) { sh.taken = true; sh.g.visible = false; } } } });
+    P.persist('echoes-read', { order: 20, load: () => { for (const i of G().echoes) WORLD.echoes[i].eg.material = glowMat(0x5cf5c0, 0.15); } });
+    // the heart and the sky after an ending (after the guardian's flag is back: order 10)
+    P.persist('heart', { order: 30, load: () => {
+      if (boss.dead) WORLD.heart.g.position.y = RIFT_FLOOR + 5;
+      if (G().ending === 'take') { WORLD.heart.g.visible = false; G().aurora = 0.12; }
+      if (G().ending === 'free') { G().heartRise = true; G().aurora = 2.2; } } });
+
     return { all: () => list, get: (id) => byId.get(id), ofKind: (kind) => list.filter((t) => t.kind === kind), nearest, KINDS: [...new Set(list.map((t) => t.kind))] };
   };
 })();

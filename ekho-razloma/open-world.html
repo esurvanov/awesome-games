@@ -2274,28 +2274,19 @@ let curInter = null;
 /* ============================ SAVE ============================ */
 function save() {
   if (!Progress.canSave(G)) return;
-  store.set(Progress.KEY, Progress.record(G, { parts: WORLD.spires.map((s) => s.taken), fox: fox.joined, pos: [player.x, player.z], sk: sk.unlocked, bossDead: boss.dead }));   // modules/progress.js owns the format
+  store.set(Progress.KEY, Progress.record(G));   // the format is modules/progress.js; each owner registered its part (Progress.persist)
 }
-function applySave(s) {
-  Progress.restore(G, s);   // the story state back into G (modules/progress.js) + what the modules restore themselves (the fox); the scene below is made to match
-  tool.visible = G.hasTool; if (G.hasTool) { WORLD.crate.remove(WORLD.crateGlow); if (window.STRUCT && STRUCT.caseOpened) STRUCT.caseOpened(); }
-  WORLD.cell.visible = !G.hasCell;
-  (s.parts || []).forEach((t, i) => { if (t) { const sp = WORLD.spires[i]; sp.taken = true; sp.part.visible = sp.pg.visible = sp.beam.visible = false; sp.mat.emissiveIntensity = 0.15; sp.light.intensity = candela(26); } });
-  G.parts = WORLD.spires.filter((s) => s.taken).length;
-  for (const i of G.shards) { const sh = WORLD.shards[i]; if (sh) { sh.taken = true; sh.g.visible = false; } }
-  for (const i of G.echoes) WORLD.echoes[i].eg.material = glowMat(0x5cf5c0, 0.15);
-  sk.unlocked = !!s.sk; boss.dead = !!s.bossDead;
-  if (boss.dead) { WORLD.heart.g.position.y = RIFT_FLOOR + 5; }
-  if (G.ending === 'take') { WORLD.heart.g.visible = false; G.aurora = 0.12; }
-  if (G.ending === 'free') { G.heartRise = true; G.aurora = 2.2; }
-  player.hpMax = Progress.hpMax(G.shards);
-  if (s.pos) {
-    player.x = s.pos[0]; player.z = s.pos[1];
+function applySave(s) { Progress.restore(G, s); }   // the story state back into G, then every owner puts its part of the world back (Progress.persist)
+// the pilot's part of the save: where they stand, and their health from the shards
+Progress.persist('hpMax', { order: 40, load: () => { player.hpMax = Progress.hpMax(G.shards); } });
+Progress.persist('pos', { order: 50, save: () => [player.x, player.z], load: (pos) => {
+  if (pos) {
+    player.x = pos[0]; player.z = pos[1];
     // saves from older layouts can sit inside today's buildings (station dome) or against a plinth: nearest open ground
-    const f = safeGround(player.x, player.z); G.migrated = f.moved > 0.05 ? { from: [s.pos[0], s.pos[1]], to: [+f.x.toFixed(2), +f.z.toFixed(2)], moved: +f.moved.toFixed(2), why: f.why } : null;
+    const f = safeGround(player.x, player.z); G.migrated = f.moved > 0.05 ? { from: [pos[0], pos[1]], to: [+f.x.toFixed(2), +f.z.toFixed(2)], moved: +f.moved.toFixed(2), why: f.why } : null;
     player.x = f.x; player.z = f.z;
   }
-}
+} });
 // a spot the pilot can stand on: nothing solid above the ground (no roof, no overhang), no wall inside the capsule,
 // walkable slope. Spiral outward from (x, z); the spot itself when it is fine
 function safeGround(x, z) {
@@ -3252,7 +3243,7 @@ const MODS = [];
 const Creatures = window.createCreatures({ player, orm, fox, STAGS, enemies, boss, getH });
 Passport.setBeings(() => Creatures.beings());
 // the objects the story, the save or the player changes (cutter case, cell, spires, shards, echoes, heart, Kestrel, snowmobile, camp fire): modules/things.js
-const Things = window.createThings({ WORLD, sk, FIRE, get G() { return G; } });
+const Things = window.createThings({ WORLD, sk, FIRE, boss, tool, glowMat, candela, RIFT_FLOOR, get G() { return G; } });
 const MODCTX = { Things, Creatures, Player, SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,

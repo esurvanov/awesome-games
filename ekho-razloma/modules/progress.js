@@ -1,11 +1,12 @@
 /* modules/progress.js — Progress: what the game remembers about the player's run, as plain functions (no scene, no DOM).
  * Classic script, loaded before the page: window.Progress = { KEY, ENDINGS_KEY, VERSION, createState(), PROGRESS_KEYS, SESSION_KEYS, unclassified(G), canSave(G), record(G, scene), apply(G, record), hpMax(shards) }
  *   record(G, scene)  the object stored under KEY: the story state from G plus what only the scene knows (taken spire parts, the fox, the
- *                     pilot's spot, the snowmobile, the boss) passed in as `scene`
+ *                     pilot's spot, the snowmobile, the boss): `scene` is collect() — what the owners registered — unless a test passes its own
  *   apply(G, rec)     writes the story state back into G, with the defaults old saves need; returns the scene part for the page to apply
  *   hpMax(shards)     max health grows by one per six shards
- *   onRestore(fn)     a module registers what it restores from a record: fn(sceneRecord, record, G); restore(G, rec) = apply + every listener
- * The page keeps the scene side (making spires, shards and the fox match the record) in applySave; this file owns the save format.
+ *   persist(key, { save, load, order })  a module registers what it writes into the record and what it does when a record is loaded;
+ *                     collect() gathers every save, record(G) uses it by default, restore(G, rec) = apply + every load in order
+ * The owners (modules/things.js, wildlife.js, snowmobile.js, combat.js, the page for the pilot) make the scene match a loaded record; this file owns the format.
  * Tested without a browser: tools/refactor/progress.test.mjs */
 (function () {
   'use strict';
@@ -31,7 +32,7 @@
     unclassified: (G) => Object.keys(G).filter((k) => !PROGRESS_KEYS.includes(k) && !SESSION_KEYS.includes(k)),
     VERSION: 1, KEY: 'eor-save', ENDINGS_KEY: 'eor-endings',
     canSave: (G) => G.mode === 'play' && G.stage < 9,
-    record(G, scene) {
+    record(G, scene = Progress.collect()) {
       return { v: Progress.VERSION, stage: G.stage, hasTool: G.hasTool, hasCell: G.hasCell, parts: scene.parts, shards: G.shards, echoes: G.echoes,
         cleared: G.cleared, deaths: G.deaths, fox: scene.fox, time: G.time, pos: scene.pos, sk: scene.sk, bossDead: scene.bossDead, ending: G.ending, cp: G.checkpoint };
     },
@@ -41,10 +42,18 @@
       return { parts: s.parts || [], fox: !!s.fox, sk: !!s.sk, bossDead: !!s.bossDead, pos: s.pos || null };
     },
     hpMax: (shards) => 5 + Math.floor(shards.length / 6),
-    // the scene side of loading a save is done by whoever owns the thing: each module registers what it restores, restore() runs them all
-    _listeners: [],
-    onRestore(fn) { Progress._listeners.push(fn); },
-    restore(G, s) { const x = Progress.apply(G, s); for (const fn of Progress._listeners) { try { fn(x, s, G); } catch (e) { console.warn('[progress] restore listener', e); } } return x; },
+    // The scene side of the save belongs to whoever owns the thing: each module registers what it writes into the record (`save`) and what it does with
+    // it when a save is loaded (`load`). record(G) merges every `save`; restore(G, rec) runs every `load`, lowest `order` first (default 50):
+    //   10 simple flags (fox, snowmobile, guardian) · 20 the world's things (case, cell, spires, shards, echoes) · 30 the heart and the ending's effects ·
+    //   40 the pilot's health · 50 the pilot's spot. A `load` without a `save` (the thing is rebuilt from G alone) uses a key of its own, e.g. 'shards-taken'.
+    _persist: [],
+    persist(key, spec) { Progress._persist.push({ key, order: spec.order === undefined ? 50 : spec.order, save: spec.save, load: spec.load }); Progress._persist.sort((a, b) => a.order - b.order); },
+    collect() { const out = {}; for (const p of Progress._persist) if (p.save) out[p.key] = p.save(); return out; },
+    restore(G, s) {
+      const x = Progress.apply(G, s);
+      for (const p of Progress._persist) if (p.load) { try { p.load(x[p.key], s, G); } catch (e) { console.warn('[progress] load ' + p.key, e); } }
+      return x;
+    },
   };
   window.Progress = Progress;
 })();
