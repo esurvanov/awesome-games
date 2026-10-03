@@ -6,7 +6,11 @@
     "ru": "Хроники Королевств",
     "en": "Chronicles of Kingdoms"
   },
-  "tagline": {
+  "title": {
+  "ru": "Хроники Королевств — браузерная стратегия как Age of Empires",
+  "en": "Chronicles of Kingdoms — browser RTS like Age of Empires II"
+ },
+ "tagline": {
     "ru": "Стратегия в реальном времени в духе Age of Empires II — прямо в браузере",
     "en": "A real-time strategy in the spirit of Age of Empires II — right in your browser"
   },
@@ -15,7 +19,7 @@
     "en": "Real-time strategy (RTS)"
   },
   "description": {
-    "ru": "Хроники Королевств — бесплатная RTS в браузере в духе Age of Empires II: 14 цивилизаций, 4 эпохи, 130+ технологий, до 7 ИИ-соперников. Без установки.",
+    "ru": "Хроники Королевств — бесплатная браузерная стратегия в духе Age of Empires II: 14 цивилизаций, 4 эпохи, 130+ технологий, до 7 ИИ-соперников. Без скачивания.",
     "en": "Chronicles of Kingdoms: a free browser RTS in the spirit of Age of Empires II — 14 civilizations, 4 ages, 130+ technologies, up to 7 AI opponents. No install."
   },
   "intro": {
@@ -304,7 +308,7 @@
   ],
   "keywords": {
     "ru": [
-      "стратегия в браузере",
+      "браузерные стратегии", "стратегия в браузере",
       "игра как Age of Empires",
       "RTS онлайн без установки",
       "открытая стратегия"

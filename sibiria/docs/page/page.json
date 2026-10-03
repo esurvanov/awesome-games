@@ -6,6 +6,10 @@
   "ru": "Сибирь",
   "en": "Sibiria"
  },
+ "title": {
+  "ru": "Сибирь — игра на выживание в тайге, играть онлайн в браузере",
+  "en": "Sibiria — taiga survival game, play free in your browser"
+ },
  "tagline": {
   "ru": "Четыре ночи в эвенкийской тайге, 1993 год — выживание и постройка поселения",
   "en": "Survive four nights in the Evenki taiga, 1993 — then build a settlement around your hut"
@@ -15,7 +19,7 @@
   "en": "Top-down survival and settlement"
  },
  "description": {
-  "ru": "Сибирь — 2D-игра на выживание в тайге, 1993 год: холод, волки, медведь, избушка и поселение. Семь глав, пять финалов, играть в браузере без установки.",
+  "ru": "Сибирь — игра на выживание в тайге, 1993 год: холод, волки, медведь, избушка и поселение. Семь глав, пять финалов. В браузере, без скачивания.",
   "en": "Sibiria: a top-down survival game in the Evenki taiga, 1993 — cold, wolves, a rogue bear, your hut and a settlement. Seven chapters, five endings. Play in the browser."
  },
  "intro": {
@@ -221,7 +225,7 @@
  ],
  "keywords": {
   "ru": [
-   "игра на выживание в тайге",
+   "игра про выживание в тайге", "игра на выживание в тайге",
    "выживание 1993 Эвенкия",
    "игра про поселение",
    "выживалка в браузере"
