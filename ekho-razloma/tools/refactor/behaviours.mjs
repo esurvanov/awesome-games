@@ -84,6 +84,15 @@ try {
     return { ok, why: JSON.stringify(info), info };
   });
 
+  await probe('campfire: rest by the fire restores health and sets the checkpoint', async () => {
+    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    D.G.mode = 'play'; D.G.stage = Math.max(D.G.stage, 2); D.G.riding = false; D.G.checkpoint = null;
+    const it = D.INTER.find((i) => i.label === 'Отдохнуть у огня'); if (!it) return { ok: false, why: 'no rest interaction' };
+    const p = it.pos(); D.teleport(p.x + 2, p.z, 0); D.player.hpMax = D.player.hpMax || 5; D.player.hp = 1; await wait(300);
+    it.act(); await wait(4000);
+    return { ok: D.player.hp === D.player.hpMax && D.G.checkpoint === 'station', why: `hp ${D.player.hp}/${D.player.hpMax} checkpoint=${D.G.checkpoint}`, info: { hp: D.player.hp, cp: D.G.checkpoint } };
+  });
+
   await probe('save: contents have the expected fields', async () => {
     const D = window.DBG; D.G.mode = 'play'; D.save(); const s = D.store.get('eor-save', null);
     const need = ['stage', 'hasTool', 'hasCell', 'parts', 'shards', 'echoes', 'cleared', 'deaths', 'fox', 'time', 'pos', 'sk', 'bossDead', 'ending', 'cp'];
