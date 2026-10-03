@@ -619,8 +619,8 @@ float atmN(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f); ret
     }
     // stags within 70 m of the camera
     const cam = ctx.camera.position;
-    if (on && ctx.STAGS) for (let s = 0; s < ctx.STAGS.length; s++) {
-      const st = ctx.STAGS[s]; if (!st.g || !st.g.visible) continue;
+    if (on && ctx.Creatures) for (let s = 0, stags = ctx.Creatures.natives('stag'); s < stags.length; s++) {
+      const st = stags[s]; if (!st.g || !st.g.visible) continue;
       if ((st.x - cam.x) ** 2 + (st.z - cam.z) ** 2 > 4900) continue;
       let b = B.st[s]; if (!b) { b = B.st[s] = { t: Math.random() * 3, puff: 0, h: 0, l: 0 };
         const box = new THREE.Box3().setFromObject(st.g); const sz = box.getSize(new THREE.Vector3()); b.h = Math.min(Math.max(sz.y * 0.78, 1.1), 2.4); b.l = Math.min(Math.max(Math.max(sz.x, sz.z) * 0.46, 0.7), 1.6); }

@@ -112,6 +112,42 @@ try {
     const miss = s ? need.filter((k) => !(k in s)) : need;
     return { ok: !!s && !miss.length, why: 'missing: ' + miss.join(','), info: { keys: s ? Object.keys(s) : null } };
   });
+  await probe('creatures: one list with the same fields; every consumer rule equals the old per-kind code', async () => {
+    const D = window.DBG, C = D.Creatures; if (!C) return { ok: false, why: 'DBG.Creatures missing' };
+    const orm = D.MODCTX.orm, fox = D.fox, boss = D.boss, player = D.player, STAGS = D.STAGS, getH = D.getH;
+    const e1 = D.spawnShardling(player.x + 40, player.z, D.ZONES[0]), e2 = D.spawnShardling(player.x - 40, player.z, D.ZONES[0]); e2.dead = true; const enemies = D.enemies;
+    const bad = [], same = (name, a, b) => { if (a.length !== b.length || a.some((x, i) => (Array.isArray(x) ? x.length !== b[i].length || x.some((v, k) => v !== b[i][k]) : x !== b[i]))) bad.push(name + ` (${a.length} vs ${b.length})`); };
+    // the records
+    const all = C.all(), want = { pilot: 1, orm: 1, fox: 1, stag: STAGS.length, shardling: enemies.length, golem: 1, raven: 10 }, got = {}; all.forEach((r) => { got[r.kind] = (got[r.kind] || 0) + 1; });
+    for (const k in want) if (got[k] !== want[k]) bad.push(`count ${k}: ${got[k]} (want ${want[k]})`);
+    for (const r of all) { if (!r.family || !r.controller || !r.native || !Number.isFinite(r.x) || !Number.isFinite(r.z) || !Number.isFinite(r.y) || !Number.isFinite(r.yaw)) { bad.push('record ' + r.id + ' ' + r.kind + ' incomplete'); break; } }
+    // legacy rules, written out as the consumers had them
+    const lSnow = [[player.c.g, 1.3], [orm.g, 1.3], [fox.g, 1.2], ...STAGS.map((s) => [s.g, 2.2]), ...enemies.filter((e) => !e.dead).map((e) => [e.g, 1.8]), ...(boss.g ? [[boss.g, 5]] : [])].filter((a) => a[0] && a[0].isObject3D).map((a) => [a[0], a[1]]);
+    same('snowRoots', lSnow, C.snowRoots().map((r) => [r.root, r.r]));
+    const lPress = [...(fox.g ? [[fox.x, fox.g.position.y, fox.z, 0.3, 0.3]] : []), ...STAGS.filter((s) => s.g && s.g.visible !== false).map((s) => [s.x, s.g.position.y, s.z, 0.4, 0.45])];
+    same('pressMarks', lPress, C.pressMarks().map((m) => [m.x, m.y, m.z, m.tol, m.f]));
+    const lGrass = [[player.x, player.y, player.z, 1.1], ...(fox.g && fox.g.visible !== false ? [[fox.x, fox.y || getH(fox.x, fox.z), fox.z, 0.7]] : []), ...STAGS.map((s) => [s.x, getH(s.x, s.z), s.z, 1.3]), ...enemies.filter((e) => e.hp > 0).map((e) => [e.x, (e.y || 0) - 1.3, e.z, 1.2])];
+    same('grassActors', lGrass, C.grassActors());
+    const lBlend = [player.c && player.c.g, fox.g || fox.root, ...STAGS.map((s) => s.g || s.root), ...enemies.map((e) => e.g || e.mesh), boss.g || boss.root].map((g) => g || null);
+    same('blendRoots', lBlend, C.blendRoots().map((r) => r.group));
+    const lShadow = [player.c.g, fox.g, orm.g, ...(boss.g ? [boss.g] : []), ...STAGS.filter((s) => s.g).map((s) => s.g), ...enemies.filter((e) => e.g).map((e) => e.g)];
+    same('shadowRoots', lShadow, C.shadowRoots());
+    // animals near and the fight flag, in several situations
+    const near = (x, z) => { let n = 0; for (const s of STAGS) if (Math.hypot(s.x - x, s.z - z) < 30) n++; if (fox.joined && Math.hypot(fox.x - x, fox.z - z) < 15) n++; return n; };
+    const spots = [[player.x, player.z], [STAGS[0].x + 5, STAGS[0].z], [fox.x + 3, fox.z], [STAGS[3].x, STAGS[3].z + 20], [9999, 9999]]; const j0 = fox.joined;
+    for (const j of [false, true]) { fox.joined = j; for (const [x, z] of spots) if (near(x, z) !== C.animalsNear(x, z)) bad.push(`animalsNear joined=${j} at ${x | 0},${z | 0}`); }
+    fox.joined = j0;
+    const combatL = () => enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return') || (boss.active && !boss.dead);
+    const s0 = e1.st, ba = boss.active, bd = boss.dead;
+    for (const [st, act, dead] of [['idle', false, false], ['chase', false, false], ['return', false, false], ['idle', true, false], ['idle', true, true], ['windup', false, false]]) { e1.st = st; boss.active = act; boss.dead = dead; if (combatL() !== C.inCombat()) bad.push(`inCombat ${st}/${act}/${dead}`); }
+    e1.st = s0; boss.active = ba; boss.dead = bd;
+    // Passport.beings is this list
+    const bf = {}; D.Passport.beings().forEach((b) => { const k = b.family + '/' + b.kind; bf[k] = (bf[k] || 0) + 1; });
+    for (const r of all) { const k = r.family + '/' + r.kind; if (!bf[k]) bad.push('Passport.beings lacks ' + k); }
+    e1.dead = true; enemies.length = 0;   // tidy up
+    return { ok: !bad.length, why: bad.join('; '), info: { records: all.length, kinds: got } };
+  });
+
   await probe('player: control state lives on Player, the pilot keeps aliases, the roll works', async () => {
     const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), P = D.Player;
     if (!P) return { ok: false, why: 'DBG.Player missing' };

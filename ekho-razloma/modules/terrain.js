@@ -971,12 +971,7 @@ void main() {
   function refreshRoots() {
     const c = ctx, list = [];
     const add = (root, r, kind) => { if (root && root.isObject3D) list.push({ root, r, kind }); };
-    if (c.player && c.player.c) add(c.player.c.g, 1.3, 'pilot');
-    if (c.orm && c.orm.g) add(c.orm.g, 1.3, 'hermit');
-    if (c.fox && c.fox.g) add(c.fox.g, 1.2, 'fox');
-    for (const s of c.STAGS || []) add(s.g, 2.2, 'stag');
-    for (const e of c.enemies || []) if (!e.dead) add(e.g, 1.8, 'shardling');
-    if (c.boss && c.boss.g) add(c.boss.g, 5, 'golem');
+    for (const r of c.Creatures.snowRoots()) add(r.root, r.r, r.kind);   // pilot, hermit, fox, stags, shardlings, golem (modules/creatures.js)
     if (c.sk && c.sk.g) add(c.sk.g, 3.2, 'skimmer');
     for (const e of (c.Passport && c.Passport.byRole.pushable) || []) if (e.alive && e.obj) add(e.obj, 1.2, 'prop');
     for (const a of list) a.meshes = contactMeshes(a.root);
@@ -1173,8 +1168,7 @@ void main() {
     const p = c.player, G = c.G;
     if (p && G && !G.riding && p.onGround && low(p.x, p.y, p.z, 0.3)) mark(p.x, p.z, p.rollT > 0 || p.sliding ? 0.8 : footPress(p.x, p.z) * 0.6);
     const sk = c.sk; if (sk && sk.g && low(sk.x, sk.y || 0, sk.z, 1.9)) { const fx = Math.sin(sk.yaw || 0), fz = Math.cos(sk.yaw || 0); mark(sk.x + fz * 0.52, sk.z - fx * 0.52, 0.8); mark(sk.x - fz * 0.52, sk.z + fx * 0.52, 0.8); }
-    const f = c.fox; if (f && f.g && low(f.x, f.g.position.y, f.z, 0.3)) mark(f.x, f.z, 0.3);
-    for (const s of c.STAGS || []) if (s.g && s.g.visible !== false && low(s.x, s.g.position.y, s.z, 0.4)) mark(s.x, s.z, 0.45);
+    for (const m of c.Creatures.pressMarks()) if (low(m.x, m.y, m.z, m.tol)) mark(m.x, m.z, m.f);   // fox, stags (modules/creatures.js)
   }
   // test hook (tools/snow-contact.mjs): the whole fine press map → { res, ext, cx, cz, d, dd } (m)
   CM.readNear = async () => {

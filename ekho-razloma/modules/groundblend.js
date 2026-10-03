@@ -164,9 +164,8 @@
   function nameChain(o, m) { let s = (m && m.name || '') + '|' + (o.userData && o.userData.source || ''); for (let q = o, k = 0; q && k < 4; q = q.parent, k++) s += '|' + (q.name || '') + '|' + (q.userData && q.userData.source || ''); return s; }
   function dynamicRoots() {
     const out = []; const add = (g) => { if (g && g.isObject3D) out.push(g); };
-    const p = C.player; add(p && p.c && p.c.g); add(C.AV && C.AV.player && C.AV.player.root);
-    add(C.fox && (C.fox.g || C.fox.root)); for (const s of C.STAGS || []) add(s.g || s.root);
-    for (const e of C.enemies || []) add(e.g || e.mesh); add(C.boss && (C.boss.g || C.boss.root)); add(C.sk && (C.sk.g || C.sk.root));
+    for (const r of C.Creatures.blendRoots()) { add(r.group); if (r.kind === 'pilot') add(C.AV && C.AV.player && C.AV.player.root); }   // modules/creatures.js
+    add(C.sk && (C.sk.g || C.sk.root));
     return out;
   }
   const flatRoots = () => [C.sea, C.lakeIce, C.fpMesh, C.WORLD_TERRAIN && C.WORLD_TERRAIN.mesh].filter((g) => g && g.isObject3D);   // sea / lake ice / footprints / terrain

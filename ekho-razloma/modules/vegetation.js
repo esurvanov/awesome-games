@@ -1201,10 +1201,7 @@ vec3 impNW;`)
     // actors that bend grass: player, fox, stags, shardlings (nearest 8)
     const act = U.uVActors.value, P = C.player; let n = 0;
     const put = (x, y, z, r) => { if (n < 8 && (x - cam.x) ** 2 + (z - cam.z) ** 2 < 90 * 90) act[n++].set(x, y, z, r); };
-    if (P) put(P.x, P.y, P.z, 1.1);
-    if (C.fox && C.fox.g && C.fox.g.visible !== false) put(C.fox.x, C.fox.y || C.getH(C.fox.x, C.fox.z), C.fox.z, 0.7);
-    for (const s of C.STAGS || []) put(s.x, C.getH(s.x, s.z), s.z, 1.3);
-    for (const e of C.enemies || []) if (e.hp > 0) put(e.x, (e.y || 0) - 1.3, e.z, 1.2);
+    for (const a of C.Creatures.grassActors()) put(a[0], a[1], a[2], a[3]);   // pilot, fox, stags, living shardlings (modules/creatures.js)
     for (; n < 8; n++) act[n].set(0, -1e4, 0, 0);
     VEG.stats.chunks = [...GR.chunks.values()].filter((c) => c.on).length;
   }

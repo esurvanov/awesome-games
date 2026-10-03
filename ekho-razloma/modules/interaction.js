@@ -668,10 +668,9 @@
     const sense = CT.sense; if (!sense) { CT.wantIntent = 'none'; return; }
     const P = C.player, G = C.G, AC = window.AI_CONTENT;
     const kind = senseKind(sense);
-    const state = G.riding ? 'riding' : (C.enemies && C.enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return')) || (C.boss && C.boss.active && !C.boss.dead) ? 'combat'
+    const state = G.riding ? 'riding' : C.Creatures.inCombat() ? 'combat'
       : (C.CLIMB && C.CLIMB.t >= 0) ? 'climbing' : P.sliding ? 'sliding' : sense.speed > 6 ? 'running' : sense.speed > 0.15 ? 'walking' : 'idle';
-    let animalsNear = 0; for (const s of C.STAGS || []) if (Math.hypot(s.x - P.x, s.z - P.z) < 30) animalsNear++;
-    if (C.fox && C.fox.joined && Math.hypot(C.fox.x - P.x, C.fox.z - P.z) < 15) animalsNear++;
+    const animalsNear = C.Creatures.animalsNear(P.x, P.z);   // stags within 30 m, a fox that has joined within 15 m (modules/creatures.js)
     const npcNear = !!(C.orm && C.orm.pos && Math.hypot(C.orm.pos.x - P.x, C.orm.pos.z - P.z) < 10);
     const raw = { surface: kind.surface, height: kind.height || 0, distance: clamp(kind.dist, 0, 3), angleDeg: 0, speed: sense.speed, state,
       stamina: clamp(P.hp / Math.max(1, P.hpMax), 0, 1), cold: clamp((C.WX && C.WX.storm) || 0, 0, 1), animalsNear: Math.min(9, animalsNear), npcNear, onIce: sense.onIce };
