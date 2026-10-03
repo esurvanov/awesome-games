@@ -562,6 +562,8 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script type="module" src="qa-hooks.js"></script>
 <script src="style.js"></script>
 <script src="modules/store.js"></script>
+<script src="modules/story-data.js"></script>   <!-- the story's words and fixed spots (pure data) -->
+<script src="modules/progress.js"></script>   <!-- Progress: the save format and health rule (pure functions) -->
 <script src="modules/passport.js"></script>   <!-- Passport: registry of every solid thing (shared object-passport domain) -->   <!-- Store: the one place that touches localStorage -->
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
@@ -1650,17 +1652,7 @@ const Passport = window.createPassport({ THREE, V3, scene, PH, COLS, addCircle, 
 Passport.tuneExact({ budget: Q.exactBudget ?? 1.5, near: Q.exactNear ?? 45, far: Q.exactFar ?? 70, hard: Q.exactHard ?? 3 });   // air/low: smaller radius, lower per-frame ms
 
 /* ---------- echo & shard spots ---------- */
-const ECHO_POS = [[-120, 170], [95, 225], [250, 25], [-200, -190], [140, -215], [-75, -150], [-280, 150], [60, 85]];
-const ECHO_TEXT = [
-  'Мы пришли со звёзд, когда здесь был только лёд. Мы уснули, чтобы остров жил.',
-  'Шпили построили не мы. Их построили те, кто боялся нашего сна.',
-  'Страж создан охранять. Он давно забыл — от кого.',
-  'Запись экспедиции. День 40. Сияние поёт по ночам. Лидия говорит, что понимает слова. — Орм',
-  'Всё, что несёт ток, падает к Шпилям. Мы не можем это остановить. Простите.',
-  'Запись экспедиции. Лидия ушла к Разлому. Я не пошёл. Я до сих пор не пошёл. — Орм',
-  'Сердце — не камень. Это мы все, сжатые в одну каплю света.',
-  'Если кто-то услышит — не бойся. Мы помним, как благодарить.',
-];
+const { ECHO_POS, ECHO_TEXT } = window.STORY_DATA;   // where the echo stones stand and what they say
 const NEAR = [[POI.crash, 32], [POI.station, 42], [POI.spireN, 30], [POI.spireW, 30], [POI.spireE, 30], [POI.lake, 60]];
 ECHO_POS.forEach(([x, z]) => NEAR.push([{ x, z }, 12]));
 const nearPOI = (x, z, extra = 0) => NEAR.some(([p, r]) => Math.hypot(x - p.x, z - p.z) < r + extra);
@@ -2096,7 +2088,7 @@ function spawnBolt(x, y, z, dx, dy, dz, spd, enemy) {
 /* ============================ GAME STATE ============================ */
 let T = 0;
 const G = { mode: 'menu', stage: 0, hasTool: false, hasCell: false, parts: 0, shards: [], echoes: [], cleared: [], deaths: 0, time: 0, pause: false, ui: null, deadT: 0, ending: null, riding: false, echoRead: -1, aurora: 1 };
-const CHAPTERS = ['Падение', 'Станция', 'Шпили', 'Разлом', 'Выбор'];
+const { CHAPTERS, SPK, D, ENDINGS } = window.STORY_DATA;   // modules/story-data.js: chapter names, speakers, dialogues, endings
 const STAGES = [
   { ch: 0, text: 'Забрать резак из обломков', tgt: () => WORLD.crate.position },
   { ch: 0, text: 'Найти источник сигнала', tgt: () => orm.pos },
@@ -2111,44 +2103,6 @@ const STAGES = [
 ];
 const stageText = () => { const t = STAGES[G.stage].text; return typeof t === 'function' ? t() : t; };
 
-const SPK = { iris: { n: 'ИРИС', c: '#7fe3ff', i: 'i-chip' }, orm: { n: 'Орм', c: '#ffb347', i: 'i-person' }, you: { n: 'Вы', c: '#e8f4ff', i: 'i-visor' },
-  keep: { n: 'Хранители', c: '#c9a4ff', i: 'i-aurora' }, echo: { n: 'Эхо', c: '#5cf5c0', i: 'i-echo' } };
-const D = {
-  intro: [['iris', 'Пилот? Пилот, ответьте… Пульс есть. Хорошо.'], ['iris', 'Мы упали. «Кестрел» цел на сорок процентов. Взлететь не сможет.'], ['you', 'Где мы?'],
-    ['iris', 'Карт этого острова нет. Сияние глушит навигацию.'], ['iris', 'Заберите резак из грузового контейнера. Он светится рядом с обломками.']],
-  tool: [['iris', 'Импульсный резак. Режет лёд. И не только лёд.'], ['iris', 'Ловлю слабый сигнал на востоке. Похоже на станцию. Там могут быть люди.']],
-  ormMeet: [['orm', 'Стой. Живой?.. Одиннадцать лет сюда никто не падал живым.'], ['orm', 'Я Орм. Экспедиция «Полярная». Остался один.'],
-    ['you', 'Мой корабль сбило. Приборы погасли разом.'], ['orm', 'Не сбило. Позвало. Видишь сияние? Это Шпили. Они тянут к себе всё, в чём есть ток.'],
-    ['orm', 'Выбраться хочешь — нужен транспорт. Мой скиммер стоит без заряда.'], ['orm', 'Новая ячейка лежит на Западном озере. Её сторожат осколыши. Резак при тебе — справишься.']],
-  ormWait: [['orm', 'Западное озеро. Ячейка светится на льду. Осколыши не любят чужих — будь готов.']],
-  lake: [['iris', 'Движение! Кристаллические формы… Они живые.']],
-  cell: [['iris', 'Ячейка у нас. Заряд полный. Несите Орму.']],
-  ormCell: [['orm', 'Справился с осколышами? Хорошо.'], ['orm', 'Скиммер твой. Садись — и остров станет маленьким.'],
-    ['iris', 'Пилот, я нашла наши детали. Все три — внутри Шпилей.'], ['orm', 'Шпили глотают металл. Север — в горах. Запад — в ледяном лесу. Восток — у обрыва.'],
-    ['orm', 'И слушай эхо — синие камни у руин. Голоса тех, кто спит подо льдом.']],
-  ormSpires: [['orm', 'Три Шпиля. Их лучи видно отовсюду. Иди на свет.']],
-  spire: [
-    [['keep', '…ТЫ СЛЫШИШЬ. НАКОНЕЦ КТО-ТО СЛЫШИТ…'], ['iris', 'Пилот, это не помехи. Это голос.']],
-    [['keep', 'МЫ СПИМ ПОДО ЛЬДОМ. ШПИЛИ — НАШИ ЦЕПИ. СИЯНИЕ — НАШЕ ДЫХАНИЕ.']],
-    [['keep', 'ЦЕПИ ОСЛАБЛИ. СТРАЖ ПРОСНУЛСЯ.'], ['keep', 'СПУСТИСЬ В РАЗЛОМ. РЕШИ.'], ['iris', 'Все детали на борту. Но для взлёта не хватает энергии. Орм должен знать больше.']],
-  ],
-  orm2: [['orm', 'Я слышал. Весь остров слышал.'], ['orm', 'Страж держит их внизу. Держал. Теперь он проснулся — и зол.'],
-    ['orm', 'Кораблю нужно Сердце Разлома. Другого источника здесь нет.'], ['orm', 'Заберёшь Сердце — сияние погаснет. Оставишь им — не знаю, что будет. Никто не знает.'],
-    ['iris', 'Разлом в центре острова. Пилот, решать вам.']],
-  ormLate: [['orm', 'Решай сам, пилот. Я своё решение принял одиннадцать лет назад. И жалею.']],
-  bossIntro: [['keep', 'СТРАЖ НЕ ЗНАЕТ ПОЩАДЫ. ОН — ЛЁД, КОТОРЫЙ ПОМНИТ ПРИКАЗ.'], ['iris', 'Цель крупная. Бейте в светящееся ядро!']],
-  bossDead: [['iris', 'Страж… рассыпался. Сердце опускается.']],
-  heart: [['keep', 'ВОЗЬМИ НАС — И УЛЕТИШЬ.'], ['keep', 'ОТПУСТИ НАС — И МЫ ПОДНИМЕМ ТЕБЯ САМИ. ЕСЛИ ПОВЕРИШЬ.']],
-  take: [['iris', 'Сердце у нас. Сияние… тускнеет.'], ['iris', 'Возвращаемся к «Кестрелу».']],
-  free: [['keep', 'СВОБОДНЫ.'], ['iris', 'Пилот… они зовут нас к кораблю.']],
-  shipEarly: [['iris', 'Корпус держится. Нужны детали и энергия.']],
-  endTake: [['iris', 'Сердце в реакторе. Мощность — сто сорок процентов.'], ['you', 'Домой.']],
-  endFree: [['keep', 'МЫ ПОМНИМ, КАК БЛАГОДАРИТЬ.'], ['iris', 'Корабль поднимается сам. Я этим не управляю.']],
-};
-const ENDINGS = {
-  take: { title: 'Тихое небо', color: '#9fb4d8', lines: ['Сияние над островом погасло.', 'Хранители уснули навсегда.', 'Орм остался в темноте.'] },
-  free: { title: 'Песня сияния', color: '#c9a4ff', lines: ['Хранители проснулись.', 'Их свет поднял «Кестрел».', 'Орм пошёл к Разлому. Впервые за одиннадцать лет.'] },
-};
 
 /* ============================ UI ============================ */
 const hudEl = $('hud'), promptEl = $('prompt'), toastsEl = $('toasts'), crossEl = $('cross'), touchEl = $('touch');
@@ -2422,13 +2376,11 @@ function callSkimmer() {
 
 /* ============================ SAVE ============================ */
 function save() {
-  if (G.mode !== 'play' || G.stage >= 9) return;
-  store.set('eor-save', { v: 1, stage: G.stage, hasTool: G.hasTool, hasCell: G.hasCell, parts: WORLD.spires.map((s) => s.taken), shards: G.shards, echoes: G.echoes,
-    cleared: G.cleared, deaths: G.deaths, fox: fox.joined, time: G.time, pos: [player.x, player.z], sk: sk.unlocked, bossDead: boss.dead, ending: G.ending, cp: G.checkpoint });
+  if (!Progress.canSave(G)) return;
+  store.set(Progress.KEY, Progress.record(G, { parts: WORLD.spires.map((s) => s.taken), fox: fox.joined, pos: [player.x, player.z], sk: sk.unlocked, bossDead: boss.dead }));   // modules/progress.js owns the format
 }
 function applySave(s) {
-  G.stage = s.stage; G.hasTool = s.hasTool; G.hasCell = s.hasCell; G.shards = s.shards || []; G.echoes = s.echoes || []; G.cleared = s.cleared || [];
-  G.deaths = s.deaths || 0; G.time = s.time || 0; G.checkpoint = s.cp || 'crash'; G.ending = s.ending || null;
+  Progress.apply(G, s);   // the story state back into G (modules/progress.js); the scene below is made to match
   tool.visible = G.hasTool; if (G.hasTool) { WORLD.crate.remove(WORLD.crateGlow); if (window.STRUCT && STRUCT.caseOpened) STRUCT.caseOpened(); }
   WORLD.cell.visible = !G.hasCell;
   (s.parts || []).forEach((t, i) => { if (t) { const sp = WORLD.spires[i]; sp.taken = true; sp.part.visible = sp.pg.visible = sp.beam.visible = false; sp.mat.emissiveIntensity = 0.15; sp.light.intensity = candela(26); } });
@@ -2439,7 +2391,7 @@ function applySave(s) {
   if (boss.dead) { WORLD.heart.g.position.y = RIFT_FLOOR + 5; }
   if (G.ending === 'take') { WORLD.heart.g.visible = false; G.aurora = 0.12; }
   if (G.ending === 'free') { G.heartRise = true; G.aurora = 2.2; }
-  player.hpMax = 5 + Math.floor(G.shards.length / 6);
+  player.hpMax = Progress.hpMax(G.shards);
   if (s.fox) { fox.joined = true; fox.st = 'follow'; }
   if (s.pos) {
     player.x = s.pos[0]; player.z = s.pos[1];
@@ -2481,7 +2433,7 @@ function resetWorldState() {
 function startGame(fromSave) {
   Sound.init();
   if (!PH.ok) Passport.flush();   // no Rapier: the pilot walks on the 2D circle grid, it must be complete now
-  if (!fromSave) store.del('eor-save');
+  if (!fromSave) store.del(Progress.KEY);
   G.mode = 'play'; G.pause = false; G.ui = null;
   $('menu').hidden = true; hudEl.hidden = false; touchEl.hidden = !coarse;
   if (!fromSave) {
@@ -2497,7 +2449,7 @@ function startGame(fromSave) {
   if (!coarse) requestLock();
 }
 function continueGame() {
-  const s = store.get('eor-save', null); if (!s) return startGame(false);
+  const s = store.get(Progress.KEY, null); if (!s) return startGame(false);
   applySave(s); startGame(true); G.safeUntil = T + 3; toast('i-target', stageText(), 'c-amber');
 }
 function toMenu() {
@@ -3015,7 +2967,7 @@ function updatePickups(dt) {
     s.m.rotation.y += dt * 2; s.g.position.y = s.y + Math.sin(T * 2 + s.i) * 0.3;
     if ((s.x - px) ** 2 + (s.y - py) ** 2 + (s.z - pz) ** 2 < (G.riding ? 12 : 4)) {
       s.taken = true; s.g.visible = false; G.shards.push(s.i); Sound.pickup(); burst(s.x, s.y, s.z, 0xffb347, 30, 8, 0.7, 0.5);
-      const hpMax = 5 + Math.floor(G.shards.length / 6);
+      const hpMax = Progress.hpMax(G.shards);
       if (hpMax > player.hpMax) { player.hpMax = hpMax; player.hp = hpMax; toast('i-shield', 'Щит +1', 'c-ice'); } else toast('i-shard', 'Осколок · ' + G.shards.length + '/24', 'c-amber');
       renderHearts(); renderCounters(); save();
     }
@@ -3215,8 +3167,8 @@ function startEnding() {
   hudEl.hidden = true; promptEl.hidden = true; touchEl.hidden = true; crossEl.hidden = true;
   player.c.g.visible = false; if (sk.mounted) dismount(); sk.g.visible = true;
   if (document.pointerLockElement) { G.softUnlock = true; document.exitPointerLock(); }
-  const done = store.get('eor-endings', []); if (!done.includes(G.ending)) done.push(G.ending); store.set('eor-endings', done);
-  store.del('eor-save');
+  const done = store.get(Progress.ENDINGS_KEY, []); if (!done.includes(G.ending)) done.push(G.ending); store.set(Progress.ENDINGS_KEY, done);
+  store.del(Progress.KEY);
   WORLD.kestrel.engines.forEach((e) => { e.visible = true; e.material = glowMat(G.ending === 'free' ? 0xc49bff : 0xff9a3c, 1); });
   if (WORLD.kestrelCol) { Passport.remove(WORLD.kestrelCol); WORLD.kestrelCol = null; }
   Sound.whoosh(); Sound.choir(G.ending === 'free');
@@ -3743,10 +3695,10 @@ function frame(now) {
 (function boot() {
   resize();
   WORLD.stationYaw = orm.g.rotation.y = Math.atan2(POI.crash.x - POI.station.x, POI.crash.z - POI.station.z) + Math.PI;
-  const s = store.get('eor-save', null);
+  const s = store.get(Progress.KEY, null);
   $('bContinue').hidden = !s;
   if (s) { $('bNew').classList.add('ghost'); }
-  const ends = store.get('eor-endings', []), er = $('endingsRow');
+  const ends = store.get(Progress.ENDINGS_KEY, []), er = $('endingsRow');
   if (ends.length) er.innerHTML = ends.map((k) => `<span class="chip" style="color:${ENDINGS[k].color}">${ICON('i-aurora')}${ENDINGS[k].title}</span>`).join('');
   else er.innerHTML = `<span class="chip c-dim">${ICON('i-aurora')}финалы · 0/2</span>`;
   renderSoundBtn();
