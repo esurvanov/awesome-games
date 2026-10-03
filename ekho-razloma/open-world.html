@@ -1999,7 +1999,7 @@ const { enemies, eMatBase, spawnShardling, killEnemy, shatter, heals, spawnHeal,
 
 /* ============================ GAME STATE ============================ */
 let T = 0;
-const G = { mode: 'menu', stage: 0, hasTool: false, hasCell: false, parts: 0, shards: [], echoes: [], cleared: [], deaths: 0, time: 0, pause: false, ui: null, deadT: 0, ending: null, riding: false, echoRead: -1, aurora: 1 };
+const G = Progress.createState();   // progress (saved) and session (not saved) behind one object: modules/progress.js
 const { CHAPTERS, SPK, D, ENDINGS } = window.STORY_DATA;   // modules/story-data.js: chapter names, speakers, dialogues, endings
 const STAGES = [
   { ch: 0, text: 'Забрать резак из обломков', tgt: () => WORLD.crate.position },

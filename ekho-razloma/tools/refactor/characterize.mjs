@@ -13,8 +13,9 @@ async function page() {
   const r = (n) => (typeof n === 'number' ? Math.round(n * 100) / 100 : n);
   const v3 = (o) => (o ? { x: r(o.x), y: r(o.y), z: r(o.z) } : null);
   const D = window.DBG;
-  // wait until the footprint queue is empty and the passport has stopped changing (streamed hulls settle with time)
-  { let last = -1, still = 0; for (let i = 0; i < 120 && still < 6; i++) { await new Promise((q) => setTimeout(q, 500)); const n = D.Passport.pendingFootprints + '/' + D.Passport.list.length + '/' + D.Passport.list.filter((e) => e.exact).length; still = n === last ? still + 1 : 0; last = n; } }
+  // wait until the footprint queue is empty, every collider near the pilot has become exact (Passport.stream builds them a few per frame, so a slow machine needs longer) and nothing changes any more
+  { let last = -1, still = 0; const E = D.Passport.EXACT, pend = () => { const P = D.player; let n = 0; for (const e of E.list) { if (!e.alive || e.exact) continue; const bx = e.box, dx = Math.max(bx.min[0] - P.x, 0, P.x - bx.max[0]), dz = Math.max(bx.min[2] - P.z, 0, P.z - bx.max[2]); if (Math.hypot(dx, dz) < E.near) n++; } return n; };
+    for (let i = 0; i < 240 && (still < 6 || pend() > 0); i++) { await new Promise((q) => setTimeout(q, 500)); const n = D.Passport.pendingFootprints + '/' + D.Passport.list.length + '/' + D.Passport.list.filter((e) => e.exact).length + '/' + pend(); still = n === last ? still + 1 : 0; last = n; } }
   // 'debris' pieces appear and vanish with timing, so they stay out of the snapshot
   const passport = D.Passport.list.filter((e) => e.alive !== false && e.name !== 'debris').map((e) => {
     const b = e.box || null;
@@ -64,7 +65,7 @@ if (cmd === 'snap') {
 } else if (cmd === 'diff') {
   // kinds placed by modules/structures.js: their spot differs between identical runs (placement depends on async load order,
   // from centimetres up to tens of metres) — compare name and count only. Everything else must match.
-  const WOBBLE = /^(st_|echo\d+$|kestrel)/;
+  const WOBBLE = /^(st_|echo\d+$|kestrel|rock$)/;   // 'rock': the scanned rocks come in two variants between identical runs (geometry 7545 vs 8535 vertices, spots ~1 m apart)
   const read = (l) => JSON.parse(fs.readFileSync(path.join(DIR, l + '.json'), 'utf8'));
   const ja = read(a), jb = read(b); let n = 0; const say = (...m) => { n++; if (n <= 60) console.log(...m); };
   // passport items are matched by kind and place (nearest unused entry within 0.6 m), not by list index: one rock rounding the other way

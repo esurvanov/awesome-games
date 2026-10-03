@@ -112,6 +112,12 @@ try {
     const miss = s ? need.filter((k) => !(k in s)) : need;
     return { ok: !!s && !miss.length, why: 'missing: ' + miss.join(','), info: { keys: s ? Object.keys(s) : null } };
   });
+  await probe('state: every key of G is classified (progress or session)', async () => {
+    const D = window.DBG, bad = Progress.unclassified(D.G);
+    const saved = D.store.get('eor-save', null) || {}; const leak = Progress.SESSION_KEYS.filter((k) => k in saved);
+    return { ok: !bad.length && !leak.length, why: `unclassified: ${bad.join(',')} · session keys in the save: ${leak.join(',')}`, info: { progress: Progress.PROGRESS_KEYS.length, session: Progress.SESSION_KEYS.length } };
+  });
+
   await probe('ai layer (offline rules): director, hints, quality, preload, Orm talk, intents', async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms)); if (!window.AI) return { ok: false, why: 'window.AI missing (ai.js not loaded)' };
     const D = window.DBG, have = (k) => typeof AI[k] !== 'undefined';

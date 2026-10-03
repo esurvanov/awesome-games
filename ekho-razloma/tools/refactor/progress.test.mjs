@@ -23,4 +23,13 @@ assert.deepEqual(plain(lb), { parts: [], fox: false, sk: false, bossDead: false,
 assert.equal(P.hpMax([]), 5); assert.equal(P.hpMax(new Array(5)), 5); assert.equal(P.hpMax(new Array(6)), 6); assert.equal(P.hpMax(new Array(24)), 9);
 assert.equal(P.canSave({ mode: 'play', stage: 8 }), true); assert.equal(P.canSave({ mode: 'play', stage: 9 }), false); assert.equal(P.canSave({ mode: 'menu', stage: 2 }), false);
 assert.equal(P.KEY, 'eor-save'); assert.equal(P.ENDINGS_KEY, 'eor-endings');
-console.log('progress: 12 checks pass');
+// state: progress and session behind one object
+const S = P.createState();
+assert.equal(S.mode, 'menu'); assert.equal(S.stage, 0); assert.equal(S.aurora, 1); assert.equal(S.echoRead, -1); assert.equal(S.checkpoint, undefined);
+S.stage = 4; S.riding = true; S.heartRise = true; S.shards.push(3);
+assert.equal(S.progress.stage, 4); assert.equal(S.session.riding, true); assert.equal(S.session.heartRise, true); assert.equal(S.progress.riding, undefined); assert.deepEqual(plain(S.progress.shards), [3]);
+assert.deepEqual(plain(P.unclassified(S)), []); S.surprise = 1; assert.deepEqual(plain(P.unclassified(S)), ['surprise']);
+const rec2 = P.record(S, { parts: [], fox: false, pos: [0, 0], sk: false, bossDead: false });
+for (const k of P.SESSION_KEYS) assert.ok(!(k in rec2), 'session key in the save: ' + k);   // the save never carries session state
+assert.equal(new Set([...P.PROGRESS_KEYS, ...P.SESSION_KEYS]).size, P.PROGRESS_KEYS.length + P.SESSION_KEYS.length);   // a key is in one list only
+console.log('progress: 12 checks + 8 state checks pass');
