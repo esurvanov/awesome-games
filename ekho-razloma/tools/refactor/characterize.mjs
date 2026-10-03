@@ -54,6 +54,7 @@ if (cmd === 'snap') {
   const H = await openGame({ label: 'characterize', quality: 'high', cold: true });
   try {
     await H.newGame();
+    await H.page.evaluate(() => { if (window.AI) AI.tick = () => {}; });   // the AI layer's random events (stag herd…) would move creatures during the settle wait
     const snap = await H.page.evaluate(page);
     snap.errors = H.errors.slice(0, 20); snap.loader = H.loader;
     fs.mkdirSync(DIR, { recursive: true });

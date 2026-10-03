@@ -133,7 +133,12 @@
             mx = e.wx - e.x; mz = e.wz - e.z; mv = Math.hypot(mx, mz) > 1 ? 2 : 0;
             if (d < 26 && alive) e.st = 'chase';
             break;
-          case 'chase':
+          case 'chase': {
+            const ai = window.AI ? AI.intent(e) : null;   // the AI layer (ai.js): retreat / circle / alert; no layer or no intent → the plain chase below
+            if (ai === 'retreat' && d > 6) { e.st = 'return'; break; }
+            if (ai === 'circle' && d > 7) { const a = Math.atan2(e.z - player.z, e.x - player.x) + 0.9; mx = player.x + Math.cos(a) * 11 - e.x; mz = player.z + Math.sin(a) * 11 - e.z; mv = 6; combat = 1; break; }
+            if (ai === 'alert' && d > 15) { combat = 1; break; }
+          }
             mx = dx; mz = dz; mv = X.G.riding ? 10 : 7; combat = 1;
             if (d > 44 || hd > 65 || !alive) e.st = 'return';
             else if (d < 4.5) { e.st = 'windup'; e.t = 0.55; }
@@ -145,7 +150,7 @@
             if (e.t <= 0) { e.st = 'recover'; e.t = 0.9; }
             break;
           case 'recover': if (e.t <= 0) e.st = 'chase'; break;
-          case 'return': mx = e.hx - e.x; mz = e.hz - e.z; mv = 8; if (hd < 3) e.st = 'idle'; if (d < 18 && alive) e.st = 'chase'; break;
+          case 'return': mx = e.hx - e.x; mz = e.hz - e.z; mv = 8; if (hd < 3) e.st = 'idle'; if (d < 18 && alive && !(window.AI && AI.intent(e) === 'retreat')) e.st = 'chase'; break;
         }
         if (mv) { const l = Math.hypot(mx, mz) || 1; e.x += mx / l * mv * dt; e.z += mz / l * mv * dt; }
         collide(e, 0.8);

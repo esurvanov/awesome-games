@@ -227,7 +227,8 @@
     const t = now / 1000;
     const rec = { t: +t.toFixed(1), q: Q.name, fps: +fps.toFixed(1), miss: +(miss * 100).toFixed(1), gpu90: gp != null ? +gp.toFixed(1) : null, cpu75: +cp.toFixed(1), rs: H.getScale() };
     // 1) any preset: this machine is far too slow → the weak-laptop profile, once, remembered for the next visit
-    if (Q.name !== 'air' && !LE.forced && !C.decided) {
+    //    Only when ai.js is absent: otherwise its quality director owns every automatic switch (low → air rung there).
+    if (Q.name !== 'air' && !LE.forced && !C.decided && !(window.AI && AI.quality)) {
       const bad = fps < (Q.name === 'low' ? 27 : 22);
       C.slowT = bad ? C.slowT + 2 : 0;
       if (C.slowT >= 12) {

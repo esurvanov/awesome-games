@@ -1,7 +1,8 @@
 /* tools/rockgallery/report.mjs — writes <dir>/index.html from a gallery result (run.mjs calls it after every card).
  *   node tools/rockgallery/report.mjs <label>     rebuild the page from out/<label>/result.json
- * Marks (natural / not + a note) stay in the browser's localStorage; "⬇ отметки" downloads them as a file (put it in
- * tools/rockgallery/marks/<label>.json to keep it in the repo). The human mark is the verdict.
+ * Marks (natural / not + a note): opened from the game server (http://localhost:8795/tools/rockgallery/out/<label>/index.html)
+ * they are saved to the repo — POST /api/marks → tools/rockgallery/marks/<label>.json (server/server.mjs) — and loaded back
+ * on open; from file:// they stay in the browser's localStorage ("⬇ отметки" downloads them). The human mark is the verdict.
  * Badges come from the JUDGE (tools/rockgallery/page.js: drawn body vs drawn rock), never from the module's own state.
  */
 import fs from 'node:fs';

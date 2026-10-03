@@ -14,6 +14,8 @@ const probe = async (name, fn) => {
 };
 try {
   await H.newGame();
+  // the AI layer fires random events (ambush, stag herd, blizzard…) on its own timers: silence its tick for the probes, the last probe tests it
+  await H.page.evaluate(() => { if (window.AI) { window.__AI_TICK = AI.tick; AI.tick = () => {}; } });
 
   await probe('fox: pet → joins → follows', async () => {
     const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -110,6 +112,20 @@ try {
     const miss = s ? need.filter((k) => !(k in s)) : need;
     return { ok: !!s && !miss.length, why: 'missing: ' + miss.join(','), info: { keys: s ? Object.keys(s) : null } };
   });
+  await probe('ai layer (offline rules): director, hints, quality, preload, Orm talk, intents', async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms)); if (!window.AI) return { ok: false, why: 'window.AI missing (ai.js not loaded)' };
+    const D = window.DBG, have = (k) => typeof AI[k] !== 'undefined';
+    const miss = ['decide', 'ask', 'tick', 'intent', 'steer', 'director', 'hints', 'quality', 'orm', 'commands', 'prefetch'].filter((k) => !have(k));
+    if (miss.length) return { ok: false, why: 'missing: ' + miss.join(',') };
+    D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; AI.log.length = 0;
+    AI.tick = window.__AI_TICK; await wait(100); AI.tick = () => {};
+    await AI.director.force(); await AI.hints.force(); await wait(800);
+    const sets = [...new Set(AI.log.map((e) => e.set))];
+    const ui = !!document.getElementById('aiBadge') && !!document.getElementById('aiTalk');
+    const orm = document.querySelector('#dialog') != null && typeof AI.orm.open === 'function';
+    return { ok: sets.includes('DIRECTOR') && sets.includes('HINTS') && ui && orm && AI.available === false, why: `sets=${sets.join(',')} ui=${ui} available=${AI.available}`, info: { sets, ui } };
+  });
+
 } finally {
   const errors = H.errors.slice(0, 20);
   fs.mkdirSync(path.join(OUT, 'refactor'), { recursive: true });
