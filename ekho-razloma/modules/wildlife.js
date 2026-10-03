@@ -51,7 +51,7 @@
           const busy = enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return') || (boss.active && !boss.dead);
           if (!busy && !G.riding) {
             let best = null, bdist = 75;
-            for (const s of WORLD.shards) if (!s.taken) { const sd = Math.hypot(s.x - player.x, s.z - player.z); if (sd < bdist) { bdist = sd; best = s; } }
+            { const t = D.Things.nearest('shard', player.x, player.z, bdist, (q) => !q.taken); if (t) best = t.native; }
             if (best) { fox.target = best; fox.st = 'seek'; Sound.yip(); toast('i-paw', 'Искра что-то учуяла', 'c-amber'); }
           }
         }

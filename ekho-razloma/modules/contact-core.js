@@ -37,6 +37,7 @@
     { id: 'crystal', label: 'crystal spires', re: /^(spire|st_crystal|st_rift)/i, owner: null, role: 'solid', affords: [], status: 'none' },
     { id: 'ice',     label: 'icebergs · ice chunks · pressure ridges', re: /^(wf_)?(ice(_|$)|iceberg|pressure_ridge)/i, owner: null, role: 'solid', affords: [], status: 'none' },
     { id: 'landmark', label: 'echo stones · shipwreck · pier · rowboat', re: /^(echo\d|wf_shipwreck|st_pier|st_rowboat)/i, owner: 'open-world', role: 'solid', affords: [], status: 'none' },
+    { id: 'pickup',  label: 'shards · the power cell (picked up for the story)', re: /^(shard|power_cell)/i, owner: 'open-world', role: 'trigger', affords: ['pick_up'], status: 'none' },
     { id: 'being',   label: 'the NPC (registered as a trunk)', re: /^orm$/i, owner: 'open-world', role: 'trunk', affords: [], status: 'none' },
     // living things have no collider entries of their own (they collide through the 2D circle grid / the pilot capsule); they are listed
     // through Passport.beings(), which the page fills from the live arrays — so every creature has a kind and a family like every object

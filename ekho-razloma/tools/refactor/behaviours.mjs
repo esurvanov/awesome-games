@@ -112,6 +112,35 @@ try {
     const miss = s ? need.filter((k) => !(k in s)) : need;
     return { ok: !!s && !miss.length, why: 'missing: ' + miss.join(','), info: { keys: s ? Object.keys(s) : null } };
   });
+  await probe('things: every story object is listed with a state; stage targets and the shard search equal the old code', async () => {
+    const D = window.DBG, T = D.Things; if (!T) return { ok: false, why: 'DBG.Things missing' };
+    const W = D.WORLD, orm = D.MODCTX.orm, player = D.player, bad = [];
+    const want = { container: 1, cell: 1, spire: 3, shard: 24, echo: 8, heart: 1, ship: 1, snowmobile: 1, campfire: 1 }, got = {};
+    T.all().forEach((t) => { got[t.kind] = (got[t.kind] || 0) + 1; });
+    for (const k in want) if (got[k] !== want[k]) bad.push(`count ${k}: ${got[k]} (want ${want[k]})`);
+    const fam = new Set(window.CORE.families.map((f) => f.id));
+    for (const t of T.all()) { const p = t.position; if (!t.id || !t.kind || !fam.has(t.family) || !t.native || !p || !Number.isFinite(p.x) || !Number.isFinite(p.z) || typeof t.state !== 'string') { bad.push('thing ' + t.id + ' incomplete'); break; } }
+    // state follows the game
+    const h0 = D.G.hasTool, c0 = D.G.hasCell; D.G.hasTool = false; D.G.hasCell = false;
+    if (T.get('crate').state !== 'closed' || T.get('cell').state !== 'placed') bad.push('state closed/placed');
+    D.G.hasTool = true; D.G.hasCell = true; if (T.get('crate').state !== 'open' || T.get('cell').state !== 'taken') bad.push('state open/taken');
+    D.G.hasTool = h0; D.G.hasCell = c0;
+    // the stage targets, as the page had them
+    const legacy = [() => W.crate.position, () => orm.pos, () => W.cell.position, () => orm.pos,
+      () => { let b = null, bd = 1e9; for (const s of W.spires) if (!s.taken) { const d = Math.hypot(s.altar.x - player.x, s.altar.z - player.z); if (d < bd) { bd = d; b = s.altar; } } return b; },
+      () => orm.pos, null, () => W.heart.g.position, () => W.kestrel.g.position, () => null];
+    const tk = W.spires.map((s) => s.taken); const place = (x, z) => { player.x = x; player.z = z; };
+    for (const [x, z] of [[0, 0], [-250, 250], [34, -280], [300, 0]]) { place(x, z); for (const tk2 of [[false, false, false], [true, false, false], [true, true, false], [true, true, true]]) { W.spires.forEach((s, i) => { s.taken = tk2[i]; });
+      legacy.forEach((f, i) => { if (!f) return; const a = f(), b2 = D.STAGES[i].tgt(); if (a !== b2) bad.push(`stage ${i} target differs at ${x},${z} taken=${tk2}`); }); } }
+    W.spires.forEach((s, i) => { s.taken = tk[i]; });
+    // the shard search (the fox)
+    const shardOld = (x, z) => { let best = null, bdist = 75; for (const s of W.shards) if (!s.taken) { const sd = Math.hypot(s.x - x, s.z - z); if (sd < bdist) { bdist = sd; best = s; } } return best; };
+    const t0 = W.shards.map((s) => s.taken); W.shards[0].taken = true; W.shards[5].taken = true;
+    for (const s of W.shards.slice(0, 6)) for (const [dx, dz] of [[0, 0], [30, 10], [-60, 20]]) { const n = T.nearest('shard', s.x + dx, s.z + dz, 75, (q) => !q.taken); if ((n && n.native) !== shardOld(s.x + dx, s.z + dz)) bad.push('nearest shard at ' + s.i); }
+    W.shards.forEach((s, i) => { s.taken = t0[i]; });
+    return { ok: !bad.length, why: bad.join('; '), info: { things: T.all().length, kinds: got } };
+  });
+
   await probe('creatures: one list with the same fields; every consumer rule equals the old per-kind code', async () => {
     const D = window.DBG, C = D.Creatures; if (!C) return { ok: false, why: 'DBG.Creatures missing' };
     const orm = D.MODCTX.orm, fox = D.fox, boss = D.boss, player = D.player, STAGS = D.STAGS, getH = D.getH;

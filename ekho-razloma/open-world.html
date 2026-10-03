@@ -565,7 +565,8 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/story-data.js"></script>   <!-- the story's words and fixed spots (pure data) -->
 <script src="modules/progress.js"></script>   <!-- Progress: the save format and health rule (pure functions) -->
 <script src="modules/player-control.js"></script>   <!-- Player: the human's side, separate from the pilot -->
-<script src="modules/creatures.js"></script>   <!-- Creatures: the one list of every living thing -->
+<script src="modules/creatures.js"></script>
+<script src="modules/things.js"></script>   <!-- Things: the objects with a state and a part in the story -->   <!-- Creatures: the one list of every living thing -->
 <script src="modules/passport.js"></script>   <!-- Passport: registry of every solid thing (shared object-passport domain) -->   <!-- Store: the one place that touches localStorage -->
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
@@ -2003,15 +2004,15 @@ let T = 0;
 const G = Progress.createState();   // progress (saved) and session (not saved) behind one object: modules/progress.js
 const { CHAPTERS, SPK, D, ENDINGS } = window.STORY_DATA;   // modules/story-data.js: chapter names, speakers, dialogues, endings
 const STAGES = [
-  { ch: 0, text: 'Забрать резак из обломков', tgt: () => WORLD.crate.position },
+  { ch: 0, text: 'Забрать резак из обломков', tgt: () => Things.get('crate').position },
   { ch: 0, text: 'Найти источник сигнала', tgt: () => orm.pos },
-  { ch: 1, text: 'Достать энергоячейку на Западном озере', tgt: () => WORLD.cell.position },
+  { ch: 1, text: 'Достать энергоячейку на Западном озере', tgt: () => Things.get('cell').position },
   { ch: 1, text: 'Отнести ячейку Орму', tgt: () => orm.pos },
-  { ch: 2, text: () => `Вернуть детали из Шпилей · ${G.parts}/3`, tgt: () => { let b = null, bd = 1e9; for (const s of WORLD.spires) if (!s.taken) { const d = Math.hypot(s.altar.x - player.x, s.altar.z - player.z); if (d < bd) { bd = d; b = s.altar; } } return b; } },
+  { ch: 2, text: () => `Вернуть детали из Шпилей · ${G.parts}/3`, tgt: () => { const s = Things.nearest('spire', player.x, player.z, 1e9, (t) => !t.taken); return s ? s.position : null; } },
   { ch: 2, text: 'Вернуться к Орму', tgt: () => orm.pos },
   { ch: 3, text: 'Спуститься в Разлом', tgt: () => new V3(POI.rift.x, RIFT_FLOOR, POI.rift.z) },
-  { ch: 3, text: 'Коснуться Сердца Разлома', tgt: () => WORLD.heart.g.position },
-  { ch: 4, text: 'Вернуться к «Кестрелу»', tgt: () => WORLD.kestrel.g.position },
+  { ch: 3, text: 'Коснуться Сердца Разлома', tgt: () => Things.get('heart').position },
+  { ch: 4, text: 'Вернуться к «Кестрелу»', tgt: () => Things.get('ship').position },
   { ch: 4, text: 'Финал', tgt: () => null },
 ];
 const stageText = () => { const t = STAGES[G.stage].text; return typeof t === 'function' ? t() : t; };
@@ -2854,7 +2855,7 @@ function updateBeacon() {
 
 /* ---------- ending ---------- */
 // the finale (Kestrel lifts off, the camera circles, the end card) lives in modules/ending.js
-const { startEnding, updateEnding } = window.createEnding({ G, $, WORLD, rand, store, sk, Sound, lerp, emit, camera, hudEl, promptEl, touchEl, crossEl, player, dismount, glowMat, Passport, ENDINGS, ICON, V3 });
+const { startEnding, updateEnding } = window.createEnding({ get Things() { return Things; }, G, $, WORLD, rand, store, sk, Sound, lerp, emit, camera, hudEl, promptEl, touchEl, crossEl, player, dismount, glowMat, Passport, ENDINGS, ICON, V3 });
 
 /* ============================ MODULES ============================ */
 /* ---------- loader ---------- */
@@ -3035,7 +3036,7 @@ function attachContactLib(root, A) {
 
 /* ---------- fox companion ---------- */
 // the fox and the stags live in modules/wildlife.js; the old names stay (modules, tools and the save code use them)
-const Wildlife = window.createWildlife({ player, rand, Sound, G, wrapA, POI, groundH, emit, toast, boss, clamp, scene, loadPacked, ASSET, prepModel, attach, Dialog, save, INTER,
+const Wildlife = window.createWildlife({ get Things() { return Things; }, player, rand, Sound, G, wrapA, POI, groundH, emit, toast, boss, clamp, scene, loadPacked, ASSET, prepModel, attach, Dialog, save, INTER,
   ICON, cmp, cmpMarks, enemies, WORLD, damp, collide, boundary, camera, getH, inRift, makeAnimator });
 const { fox, STAGS, petFox, updateFox, updateStags } = Wildlife;
 
@@ -3249,7 +3250,9 @@ const MODS = [];
 // every living thing in one list with the same fields (modules/creatures.js); Passport.beings() is that list with kind + family
 const Creatures = window.createCreatures({ player, orm, fox, STAGS, enemies, boss, getH });
 Passport.setBeings(() => Creatures.beings());
-const MODCTX = { Creatures, Player, SHADOW, RS, LOOP, setRenderScale,
+// the objects the story, the save or the player changes (cutter case, cell, spires, shards, echoes, heart, Kestrel, snowmobile, camp fire): modules/things.js
+const Things = window.createThings({ WORLD, sk, FIRE, get G() { return G; } });
+const MODCTX = { Things, Creatures, Player, SHADOW, RS, LOOP, setRenderScale,
   THREE, scene, camera, renderer, get composer() { return composer; }, post, moon, hemi, aurLight, skyU, FOG, MOON_DIR,
   QUALITY, Q, setQuality, lin, linArr, TX, TU, patchSurface, tex, MANAGER, ASSET, loadPacked, prepModel, bakeParts, makeAnimator, attach, glow, emit, burst,
   H, VN, CELL, W, RES, getH, groundH, normalY, riftD, nearPOI, inRift, POI, RIFT_FLOOR, WORLD, WORLD_TERRAIN, DECOR, FOREST, STAGS, fox, orm, AV, sk, player, enemies, boss,
@@ -3370,7 +3373,7 @@ function frame(now) {
   console.log('[quality]', Q.name, '·', QPICK.why);
   startLoader(() => (s ? $('bContinue') : $('bNew')).focus({ preventScroll: true }));
   // test/debug hooks (tools/stand.mjs). Only with #dbg in the URL.
-  if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, Player, Creatures, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
+  if (location.hash === '#dbg') window.DBG = { MODS, MODCTX, player, Player, Creatures, Things, G, sk, PH, AV, fox, STAGS, FOREST, WX, cam, camera, startScan, mount, setStage, scene, WORLD,
     renderer, THREE, keys, pressed, Dialog, DECOR, POI, getH, groundH, startGame, camOv: null, Passport, QUALITY, Q, setQuality, post, moon, hemi, aurLight, skyU, toggleColliderView,
     terrainMesh: WORLD_TERRAIN.mesh, CLIMB, ledgeAhead, CAMX, gpuProf: GPUT, SHADOW, RS, LOOP, setRenderScale, frameTimer: FT,
     // QA hooks (tools/qa, tools/autoplay.mjs): story state and the real code paths, nothing new
