@@ -41,7 +41,7 @@
     // living things have no collider entries of their own (they collide through the 2D circle grid / the pilot capsule); they are listed
     // through Passport.beings(), which the page fills from the live arrays — so every creature has a kind and a family like every object
     { id: 'pilot',   label: 'the pilot', re: /^pilot$/i, owner: 'open-world', role: 'creature', affords: [], status: 'owned' },
-    { id: 'animal',  label: 'fox · stags', re: /^(fox|stag)$/i, owner: 'interaction', role: 'creature', affords: [], status: 'generic' },
+    { id: 'animal',  label: 'fox · stags · ravens', re: /^(fox|stag|raven)$/i, owner: 'interaction', role: 'creature', affords: [], status: 'generic' },
     { id: 'enemy',   label: 'shardlings · golem', re: /^(shardling|golem)$/i, owner: 'structures', role: 'creature', affords: [], status: 'generic' },
   ];
 

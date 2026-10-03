@@ -566,6 +566,7 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="physics.js"></script>
 <script src="worldfill.js"></script>
 <script src="assets/pack/animlib-runtime.js"></script>
+<script src="modules/environment.js"></script>   <!-- Environment: weather + sky + snow around the camera -->
 <script src="modules/contact-core.js"></script>   <!-- CORE: one vocabulary of object families / affordances / body↔surface pairs (ARCH-CORE.md) -->
 <script src="modules/terrain.js"></script>
 <script src="modules/vegetation.js"></script>
@@ -3173,10 +3174,7 @@ function updateCamera(dt) {
 }
 function updateWorld(dt) {
   T += dt;
-  skyU.uTime.value = T;
-  skyU.uInt.value = damp(skyU.uInt.value, G.aurora * (1 - 0.75 * WX.storm), 0.5, dt); skyU.uStorm.value = WX.storm; TU.uTime.value = T;
-  if (G.aurora > 1.5) { aurA.setHSL((T * 0.03) % 1, 0.9, 0.6); }
-  sky.position.copy(camera.position);
+  Environment.update(dt, T);   // sky, aurora, snow around the camera, wind sound (modules/environment.js)
   for (const s of WORLD.spires) { s.ring.rotation.z += dt * 0.4; if (!s.taken) { s.part.rotation.y += dt * 1.5; s.part.position.y = s.partY + Math.sin(T * 2) * 0.2; s.beam.material.opacity = 0.13 + Math.sin(T * 1.3) * 0.04; } }
   const h = WORLD.heart;
   if (h.g.visible) {
@@ -3199,20 +3197,6 @@ function updateWorld(dt) {
     if (AV.orm) { if (!orm.waved && d < 20 && G.mode === 'play') { orm.waved = true; AV.orm.once('wave', 2.2); } AV.orm.loop('idle'); AV.orm.update(dt); }
   }
   if (!sk.mounted) { sk.g.position.set(sk.x, groundH(sk.x, sk.z) + 0.7 + Math.sin(T * 2) * 0.08, sk.z); sk.g.rotation.set(0, sk.yaw, 0); }
-  // snow around camera
-  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z;
-  for (let i = 0; i < SN; i++) {
-    const o = i * 3; SNOW.p[o] += Math.sin(T * 0.5 + i) * dt * 0.6 + dt * (0.8 + WX.storm * 22); SNOW.p[o + 1] -= dt * (1.4 + WX.storm * 4);
-    if (SNOW.p[o] - cx > 60) SNOW.p[o] -= 120; if (SNOW.p[o] - cx < -60) SNOW.p[o] += 120;
-    if (SNOW.p[o + 2] - cz > 60) SNOW.p[o + 2] -= 120; if (SNOW.p[o + 2] - cz < -60) SNOW.p[o + 2] += 120;
-    if (SNOW.p[o + 1] < cy - 20) SNOW.p[o + 1] += 40; if (SNOW.p[o + 1] > cy + 20) SNOW.p[o + 1] -= 40;
-  }
-  SNOW.geo.attributes.position.needsUpdate = true;
-  // light follows player
-  // the moon is a SunLight: direction only; its two cascades follow the view camera by themselves
-  aurLight.intensity = 0.7 * Math.min(skyU.uInt.value, 2);
-  updateEnv(T);
-  Sound.setWind(Math.max(clamp((camera.position.y - 20) / 80, 0, 1), WX.storm));
 }
 function updateBeacon() {
   const t = STAGES[G.stage] && STAGES[G.stage].tgt(), b = WORLD.beacon;
@@ -3723,18 +3707,9 @@ function finishRest() {
 INTER.push({ pos: () => FIRE.pos, r: 3.2, get pri() { return player.hp < player.hpMax ? 2 : 0; }, label: 'Отдохнуть у огня', icon: 'i-fire', noAnim: true, when: () => G.stage >= 2 && !G.riding, act: rest });
 
 /* ---------- weather: blizzards ---------- */
-const WX = { storm: 0, target: 0, t: 120 };
-function updateWeather(dt) {
-  if (G.mode === 'play' && dt > 0) {
-    WX.t -= dt;
-    if (WX.t <= 0) {
-      if (WX.target === 0) { WX.target = 1; WX.t = rand(40, 60); toast('i-wind', 'Метель', 'c-ice'); }
-      else { WX.target = 0; WX.t = rand(150, 230); }
-    }
-  }
-  WX.storm = damp(WX.storm, G.mode === 'play' ? WX.target : 0, 0.35, dt);
-  scene.fog.near = lerp(90, 6, WX.storm); scene.fog.far = lerp(640, 160, WX.storm);
-}
+const Environment = window.createEnvironment({ scene, camera, skyU, TU, aurA, sky, aurLight, SNOW, SN, get G() { return G; }, Sound, toast, updateEnv, lerp, damp, clamp, rand });   // modules/environment.js
+const WX = Environment.WX;
+const updateWeather = (dt) => Environment.weather(dt);
 
 /* ---------- realistic models: forest, rocks, ship, station, props, wildlife ---------- */
 function bakeParts(root) {
@@ -3942,6 +3917,7 @@ const MODS = [];
 Passport.beingSource('pilot', () => [player]);
 Passport.beingSource('fox', () => [fox]);
 Passport.beingSource('stag', () => STAGS);
+Passport.beingSource('raven', () => (window.WorldFill && WorldFill.ravens) || []);
 Passport.beingSource('shardling', () => enemies);
 Passport.beingSource('golem', () => [boss]);
 Passport.beingSource('orm', () => [orm]);

@@ -63,14 +63,25 @@ try {
     const D = window.DBG, C = window.CORE; if (!C || !C.roleOf) return { ok: false, why: 'CORE.roleOf missing' };
     const noFam = new Set(), bad = new Set();
     for (const e of D.Passport.list) { if (!e.alive || e.name === 'debris') continue; if (!e.family) noFam.add(e.kind || e.name); const w = C.roleOf(e.name); if (w && w !== e.role) bad.add(e.kind + ':' + e.role + '≠' + w); }
-    return { ok: !noFam.size && !bad.size, why: `no family: ${[...noFam].join(',')} · role mismatch: ${[...bad].join(',')}`, info: { families: C.families.length } };
+    const drift = D.Passport.drift();
+    return { ok: !noFam.size && !bad.size && !drift.length, why: (drift.length ? 'registry drift: ' + drift.join(',') + ' · ' : '') + `no family: ${[...noFam].join(',')} · role mismatch: ${[...bad].join(',')}`, info: { families: C.families.length } };
   });
 
   await probe('beings: pilot, fox, stags, boss, orm all have a kind and family', async () => {
     const D = window.DBG, b = D.Passport.beings(), cnt = {}; b.forEach((x) => { const k = x.family + '/' + x.kind; cnt[k] = (cnt[k] || 0) + 1; });
-    const want = { 'pilot/pilot': 1, 'animal/fox': 1, 'animal/stag': D.STAGS.length, 'enemy/golem': 1, 'being/orm': 1 };
+    const want = { 'pilot/pilot': 1, 'animal/fox': 1, 'animal/stag': D.STAGS.length, 'animal/raven': 10, 'enemy/golem': 1, 'being/orm': 1 };
     const bad = Object.keys(want).filter((k) => cnt[k] !== want[k]).map((k) => `${k}: ${cnt[k]} (want ${want[k]})`);
     return { ok: !bad.length && b.every((x) => x.family), why: bad.join('; ') || 'a being has no family', info: cnt };
+  });
+
+  await probe('environment: blizzard starts, storm rises, fog closes in, sky clock runs', async () => {
+    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    D.G.mode = 'play'; D.WX.target = 0; D.WX.storm = 0; const t0 = D.skyU.uTime.value, fog0 = D.scene.fog.near;
+    D.WX.t = 0.01; await wait(2500);
+    const ok = D.WX.target === 1 && D.WX.storm > 0.1 && D.scene.fog.near < fog0 - 5 && D.skyU.uTime.value > t0 && D.skyU.uStorm.value > 0.1;
+    const info = { target: D.WX.target, storm: +D.WX.storm.toFixed(2), fogNear: +D.scene.fog.near.toFixed(1), clock: +(D.skyU.uTime.value - t0).toFixed(1) };
+    D.WX.target = 0; D.WX.t = 200;
+    return { ok, why: JSON.stringify(info), info };
   });
 
   await probe('save: contents have the expected fields', async () => {

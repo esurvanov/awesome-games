@@ -1426,5 +1426,5 @@ totalEmissiveRadiance += wfIce * (1. - wfSnow) * (.09 + .28 * wfFr + .5 * wfBk);
     S.stats.tris.clutter_stone = triCount(g, K.pool.stone); S.stats.stoneScan = { tris: out.length / 3, verts: cnt.length };
     return true;
   }
-  window.WorldFill = { build, update, passablesNear, setStoneGeometry, knobs: K, get stats() { return S.stats; }, get slots() { return S.slots; }, get campFire() { return S.campFire || null; } };
+  window.WorldFill = { build, update, passablesNear, setStoneGeometry, knobs: K, get stats() { return S.stats; }, get slots() { return S.slots; }, get campFire() { return S.campFire || null; }, get ravens() { return S.ravens ? S.ravens.list : []; } };
 })();

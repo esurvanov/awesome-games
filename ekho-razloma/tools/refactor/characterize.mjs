@@ -64,10 +64,28 @@ if (cmd === 'snap') {
   // kinds placed by modules/structures.js: their spot differs between identical runs (placement depends on async load order,
   // from centimetres up to tens of metres) — compare name and count only. Everything else must match.
   const WOBBLE = /^(st_|echo\d+$|kestrel)/;
-  const load = (l) => { const j = JSON.parse(fs.readFileSync(path.join(DIR, l + '.json'), 'utf8')); j.passport.items.forEach((it) => { if (WOBBLE.test(it.name)) { it.box = it.c0 = it.at = null; } }); return flat(j); };
-  const A = load(a), B = load(b);
-  const keys = new Set([...Object.keys(A), ...Object.keys(B)]); let n = 0;
-  const same = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 0.06 : JSON.stringify(x) === JSON.stringify(y));   // 6 cm: vertex float noise
-  for (const k of keys) if (!/\.vol\.|\.at$|\.family$|^passport\.coverage|^beings|^save\.time$/.test(k) && !same(A[k], B[k])) { n++; if (n <= 60) console.log(k, ':', JSON.stringify(A[k]), '→', JSON.stringify(B[k])); }
+  const read = (l) => JSON.parse(fs.readFileSync(path.join(DIR, l + '.json'), 'utf8'));
+  const ja = read(a), jb = read(b); let n = 0; const say = (...m) => { n++; if (n <= 60) console.log(...m); };
+  // passport items are matched by kind and place (nearest unused entry within 0.6 m), not by list index: one rock rounding the other way
+  // would otherwise shift every index after it and report hundreds of false differences
+  const ctr = (it) => it.c0 || it.trunk || it.pass || { x: 0, z: 0 };
+  const stable = (j) => j.passport.items.filter((it) => !WOBBLE.test(it.name));
+  const A = stable(ja), B = stable(jb), used = new Set();
+  const near = (p, q) => Math.hypot(ctr(p).x - ctr(q).x, ctr(p).z - ctr(q).z);
+  const close = (x, y, t) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= t : JSON.stringify(x) === JSON.stringify(y));
+  for (const p of A) {
+    let best = -1, bd = 0.6;
+    B.forEach((q, i) => { if (!used.has(i) && q.name === p.name && q.role === p.role && q.shape === p.shape) { const d = near(p, q); if (d <= bd) { bd = d; best = i; } } });
+    if (best < 0) { say('missing in B:', p.name, p.role, JSON.stringify(ctr(p))); continue; }
+    used.add(best); const q = B[best];
+    if (p.box && q.box) { for (const w of ['min', 'max']) p.box[w].forEach((v, i) => { if (!close(v, q.box[w][i], 0.15)) say(`${p.name}@${Math.round(ctr(p).x)},${Math.round(ctr(p).z)} box.${w}.${i}:`, v, '→', q.box[w][i]); }); }
+    else if (JSON.stringify(p.box) !== JSON.stringify(q.box)) say(p.name, 'box presence differs');
+  }
+  B.forEach((q, i) => { if (!used.has(i)) say('extra in B:', q.name, q.role, JSON.stringify(ctr(q))); });
+  // everything else: flat compare (passport items and the wobbling kinds are handled above / by count)
+  const rest = (j) => { const c = JSON.parse(JSON.stringify(j)); delete c.passport.items; return flat(c); };
+  const RA = rest(ja), RB = rest(jb);
+  const same = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 0.06 : JSON.stringify(x) === JSON.stringify(y));
+  for (const k of new Set([...Object.keys(RA), ...Object.keys(RB)])) if (!/\.vol\.|\.at$|\.family$|^passport\.coverage|^beings|^save\.time$/.test(k) && !same(RA[k], RB[k])) say(k, ':', JSON.stringify(RA[k]), '→', JSON.stringify(RB[k]));
   console.log(n ? `${n} differences` : 'no differences'); process.exit(n ? 1 : 0);
 } else { console.log('usage: snap <label> | diff <a> <b>'); process.exit(2); }

@@ -403,6 +403,13 @@
   const beingSources = [];
   function beingSource(kind, get) { beingSources.push({ kind, family: window.CORE ? window.CORE.familyOf(kind) : null, get }); }
   function beings() { const out = []; for (const s of beingSources) for (const ref of s.get() || []) out.push({ kind: s.kind, family: s.family, ref }); return out; }
-  return { beingSource, beings, register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, tuneExact, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
+  // kinds (of live entries) whose registered role or family disagrees with the CORE tables; [] = the registry and CORE agree
+  function drift() {
+    const C = window.CORE, out = []; if (!C || !C.roleOf) return ['CORE missing'];
+    for (const e of list) { if (!e.alive || e.name === 'debris') continue; const want = C.roleOf(e.name), tag = String(e.name).replace(/#\d+$/, '') + ':' + e.role + (want ? (want !== e.role ? '≠' + want : '') : ' (no family)');
+      if (tag.includes('≠') || tag.includes('(no family)')) if (!out.includes(tag)) out.push(tag); }
+    return out;
+  }
+  return { drift, beingSource, beings, register, registerInstances, remove, attach, passablesNear, triggersAt, counts, debug, debugUpdate, idle, flush, tuneExact, list, byRole, stats, providers, ROLE_COL, EXACT, stream, get physics() { return phys; }, get pendingFootprints() { return fpQueue.length; } };
   };
 })();
