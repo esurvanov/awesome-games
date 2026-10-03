@@ -4,6 +4,7 @@
  *                     pilot's spot, the snowmobile, the boss) passed in as `scene`
  *   apply(G, rec)     writes the story state back into G, with the defaults old saves need; returns the scene part for the page to apply
  *   hpMax(shards)     max health grows by one per six shards
+ *   onRestore(fn)     a module registers what it restores from a record: fn(sceneRecord, record, G); restore(G, rec) = apply + every listener
  * The page keeps the scene side (making spires, shards and the fox match the record) in applySave; this file owns the save format.
  * Tested without a browser: tools/refactor/progress.test.mjs */
 (function () {
@@ -21,6 +22,10 @@
       return { parts: s.parts || [], fox: !!s.fox, sk: !!s.sk, bossDead: !!s.bossDead, pos: s.pos || null };
     },
     hpMax: (shards) => 5 + Math.floor(shards.length / 6),
+    // the scene side of loading a save is done by whoever owns the thing: each module registers what it restores, restore() runs them all
+    _listeners: [],
+    onRestore(fn) { Progress._listeners.push(fn); },
+    restore(G, s) { const x = Progress.apply(G, s); for (const fn of Progress._listeners) { try { fn(x, s, G); } catch (e) { console.warn('[progress] restore listener', e); } } return x; },
   };
   window.Progress = Progress;
 })();

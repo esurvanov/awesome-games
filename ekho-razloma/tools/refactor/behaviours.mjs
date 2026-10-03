@@ -93,6 +93,14 @@ try {
     return { ok: D.player.hp === D.player.hpMax && D.G.checkpoint === 'station', why: `hp ${D.player.hp}/${D.player.hpMax} checkpoint=${D.G.checkpoint}`, info: { hp: D.player.hp, cp: D.G.checkpoint } };
   });
 
+  await probe('load save: the fox that had joined is with the pilot again', async () => {
+    const D = window.DBG; D.fox.joined = false; D.fox.st = 'wild';
+    const s = D.store.get('eor-save', null) || { v: 1, stage: 2, hasTool: true, hasCell: false, parts: [], shards: [], echoes: [], cleared: [], deaths: 0, time: 1, sk: false, bossDead: false, ending: null, cp: 'crash' };
+    D.applySave(Object.assign({}, s, { fox: true }));
+    const on = D.fox.joined && D.fox.st === 'follow'; D.applySave(Object.assign({}, s, { fox: false }));
+    return { ok: on, why: `joined=${D.fox.joined} st=${D.fox.st}`, info: { on } };
+  });
+
   await probe('save: contents have the expected fields', async () => {
     const D = window.DBG; D.G.mode = 'play'; D.save(); const s = D.store.get('eor-save', null);
     const need = ['stage', 'hasTool', 'hasCell', 'parts', 'shards', 'echoes', 'cleared', 'deaths', 'fox', 'time', 'pos', 'sk', 'bossDead', 'ending', 'cp'];

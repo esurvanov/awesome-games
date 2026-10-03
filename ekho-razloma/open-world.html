@@ -2380,7 +2380,7 @@ function save() {
   store.set(Progress.KEY, Progress.record(G, { parts: WORLD.spires.map((s) => s.taken), fox: fox.joined, pos: [player.x, player.z], sk: sk.unlocked, bossDead: boss.dead }));   // modules/progress.js owns the format
 }
 function applySave(s) {
-  Progress.apply(G, s);   // the story state back into G (modules/progress.js); the scene below is made to match
+  Progress.restore(G, s);   // the story state back into G (modules/progress.js) + what the modules restore themselves (the fox); the scene below is made to match
   tool.visible = G.hasTool; if (G.hasTool) { WORLD.crate.remove(WORLD.crateGlow); if (window.STRUCT && STRUCT.caseOpened) STRUCT.caseOpened(); }
   WORLD.cell.visible = !G.hasCell;
   (s.parts || []).forEach((t, i) => { if (t) { const sp = WORLD.spires[i]; sp.taken = true; sp.part.visible = sp.pg.visible = sp.beam.visible = false; sp.mat.emissiveIntensity = 0.15; sp.light.intensity = candela(26); } });
@@ -2392,7 +2392,6 @@ function applySave(s) {
   if (G.ending === 'take') { WORLD.heart.g.visible = false; G.aurora = 0.12; }
   if (G.ending === 'free') { G.heartRise = true; G.aurora = 2.2; }
   player.hpMax = Progress.hpMax(G.shards);
-  if (s.fox) { fox.joined = true; fox.st = 'follow'; }
   if (s.pos) {
     player.x = s.pos[0]; player.z = s.pos[1];
     // saves from older layouts can sit inside today's buildings (station dome) or against a plinth: nearest open ground
