@@ -9,6 +9,10 @@ const label = process.argv[2] || 'run';
 const H = await openGame({ label: 'behaviours', quality: 'high' });
 const results = [];
 const probe = async (name, fn) => {
+  // every probe starts from a normal play state: an earlier probe's shardling may have hurt the pilot, a dialog or a pause may be open
+  await H.page.evaluate(() => { const D = window.DBG; D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; D.G.deadT = 0; D.G.restT = 0; D.G.riding = false; D.player.hp = D.player.hpMax; D.player.inv = 0;
+    for (const e of D.enemies) e.dead = true; D.enemies.length = 0; if (D.Dialog && D.Dialog.close) D.Dialog.close();
+    D.ZONES.forEach((z) => { if (!D.G.cleared.includes(z.id)) D.G.cleared.push(z.id); }); });   // a probe that teleports the pilot must not wake a zone (shardlings and a dialog)
   let r; try { r = await H.page.evaluate(fn); } catch (e) { r = { ok: false, why: 'exception: ' + e.message.slice(0, 200) }; }
   results.push({ name, ...r }); console.log(r.ok ? '✅' : '❌', name, r.ok ? '' : r.why || '', r.info ? JSON.stringify(r.info) : '');
 };
@@ -189,6 +193,22 @@ try {
     D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; D.G.riding = false; D.teleport(D.player.x, D.player.z, 0); await wait(400);
     D.pressed.add('KeyC'); await wait(250); const rolling = P.roll.t > 0 && D.player.rollT > 0; D.pressed.delete('KeyC'); await wait(1300); const ended = P.roll.t === 0;
     return { ok: same && al && back && rolling && ended, why: `same=${same} aliases=${al} writeback=${back} rolling=${rolling} ended=${ended}`, info: { same, al, back, rolling, ended } };
+  });
+
+  await probe('animal gait: the stags and the fox get their gait set up and driven (interaction module)', async () => {
+    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), I = window.INTERACTION, bad = [];
+    if (!I || !I.ST || !I.FX) return { ok: false, why: 'INTERACTION.ST / FX missing' };
+    D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; const cleared0 = D.G.cleared.slice(); D.ZONES.forEach((z) => { if (!D.G.cleared.includes(z.id)) D.G.cleared.push(z.id); });   // the stags stand near the lake zone: no zone may wake up and open a dialog
+    const s = D.STAGS[0]; s.st = 'graze'; s.t = 99; D.teleport(s.x + 14, s.z, 0); D.fox.joined = true; D.fox.st = 'follow'; D.fox.seekT = 99; D.fox.target = null; await wait(3500);   // seekT high: it follows instead of going off to a shard
+    if (!I.ST.ready) bad.push('stag setup not done');
+    if (I.ST.per.size !== D.STAGS.length) bad.push();
+    if (!I.FX.ready) bad.push('fox setup not done');
+    if (!(D.fox.vMax > 0)) bad.push('fox.vMax ' + D.fox.vMax);
+    const S = I.ST.per.get(s); if (!S) bad.push('no record for stag 0'); else if (s.st === 'flee' && !(S.v > 0 || S.gait)) bad.push('fleeing stag has no driven gait');
+    const f0 = [D.fox.x, D.fox.z]; D.teleport(D.fox.x + 18, D.fox.z, 0); await wait(2500);
+    const moved = Math.hypot(D.fox.x - f0[0], D.fox.z - f0[1]); if (moved < 5) bad.push('fox did not run after the pilot: ' + moved.toFixed(1) + ' st=' + D.fox.st + ' speed=' + D.fox.speed + ' joined=' + D.fox.joined + ' riding=' + D.G.riding + ' mode=' + D.G.mode + ' paused=' + D.G.pause + ' dlg=' + D.Dialog.active + ' pilot=' + [D.player.x | 0, D.player.z | 0] + ' fox=' + [D.fox.x | 0, D.fox.z | 0]);
+    D.fox.joined = false; D.fox.st = 'wild'; D.G.cleared.length = 0; D.G.cleared.push(...cleared0);
+    return { ok: !bad.length, why: bad.join('; '), info: { stagRecords: I.ST.per.size, foxReady: I.FX.ready, vMax: D.fox.vMax, stState: s.st, foxMoved: +moved.toFixed(1) } };
   });
 
   await probe('state: every key of G is classified (progress or session)', async () => {

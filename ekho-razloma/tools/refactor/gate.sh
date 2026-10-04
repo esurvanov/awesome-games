@@ -13,7 +13,7 @@ if ! node tools/refactor/characterize.mjs diff base "$L" > /tmp/gate-snap.txt; t
   node tools/refactor/characterize.mjs diff base "$L" | tee /tmp/gate-snap.txt | tail -8 || true
   grep -q "no differences" /tmp/gate-snap.txt || fail=1
 else tail -1 /tmp/gate-snap.txt; fi
-echo "── behaviours"; node tools/refactor/behaviours.mjs "$L" | grep -v '^\[qa\]' || fail=1
+echo "── behaviours"; node tools/refactor/behaviours.mjs "$L" > /tmp/gate-beh.txt 2>&1; beh=$?; grep -v '^\[qa\]' /tmp/gate-beh.txt; [ $beh = 0 ] || fail=1   # the probes' own exit code (a pipe into grep would hide it)
 if [ "$2" != "--quick" ]; then
   echo "── story"; node tools/autoplay.mjs --out "stand/autoplay-$L" | tail -1 | tee /tmp/gate-story.txt
   # a page that stalls on the very first step under machine load is a flake, not a regression: one retry
