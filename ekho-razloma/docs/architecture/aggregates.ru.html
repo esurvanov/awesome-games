@@ -1,0 +1,88 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Агрегаты Эхо Разлома</title>
+<style>
+:root{--bg:#14161c;--card:#1b1e26;--line:#2c303b;--tx:#e6e8ee;--mut:#8b91a1;--data:#4caf50;--save:#9ccc65;--build:#4fc3f7;--run:#9aa0ad}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px system-ui;padding:24px;min-width:1000px}
+h1{font-size:28px;margin:0 0 6px}.sub{color:var(--mut);margin-bottom:16px}
+.lg{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:22px;font-size:14px;align-items:center}
+.b{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--c);color:var(--c);border-radius:14px;padding:1px 9px;font:600 12px ui-monospace,monospace;white-space:nowrap}
+.b.sm{padding:3px 8px;font-size:14px}
+#wrap{position:relative}svg#lk{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:150px;position:relative;z-index:1}
+.col h3{margin:0 0 20px;padding-bottom:8px;border-bottom:3px solid var(--cc);color:var(--cc);font-size:16px;letter-spacing:.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:18px;transition:.15s}
+.note{display:flex;gap:18px;flex-wrap:wrap;align-items:center;border:1px dashed var(--line);border-radius:10px;padding:10px 14px;margin-bottom:20px;color:var(--mut);font-size:14px}.note b{color:var(--tx)}.card.later{border-style:dashed;background:transparent}.card.dim{opacity:.35}.card.hot{border-color:var(--cc)}
+.card>h4{margin:0;padding:12px 14px 4px;font-size:18px}
+.card>p{margin:0;padding:0 14px 10px;color:var(--mut);font:13px ui-monospace,monospace}
+.r{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid var(--line)}
+.r i{font-style:normal;color:var(--mut);font-size:13px;margin-left:auto;text-align:right}
+.wide{position:relative;z-index:1;border-top:3px solid #3ec9a0;margin-top:10px}
+.wide .g{display:grid;grid-template-columns:repeat(3,1fr)}
+.wide .r{border-left:1px solid var(--line)}
+.pr{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px;position:relative;z-index:1}
+.pr div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.pr b{color:var(--mut);font-size:14px;display:block;margin-bottom:6px}
+path.l{fill:none;stroke:#555b6b;stroke-width:1.5;transition:.15s}path.l.hot{stroke:#e6e8ee;stroke-width:2.5}path.l.dim{opacity:.12}
+text.t{fill:#9aa0ad;font:600 12px ui-monospace,monospace;text-anchor:middle}text.t.hot{fill:#fff}text.t.dim{opacity:.15}
+</style>
+<h1>🧩 Агрегаты «Эхо Разлома» · как должно быть</h1>
+<div class="sub">Предлагаемая структура · наведи на карточку, чтобы подсветить связи</div>
+<div class="lg">
+<span><span class="b" style="--c:var(--data)">📚 данные</span> зашито в код</span>
+<span><span class="b" style="--c:var(--save)">💾 сейв</span> в браузере</span>
+<span><span class="b" style="--c:var(--build)">🔁 при старте</span> строится заново</span>
+<span><span class="b" style="--c:var(--run)">⏱ на ходу</span> не сохраняется</span></div>
+<div class="note"><b>⚙️ Не агрегаты, а параметры рядом с игрой</b>
+<span>🎚️ настройки графики: пресет · подстройка · кэш теней · лимит текстур</span><span>📦 загрузка: список модулей · модели · свет заранее</span></div>
+<div id="wrap"><svg id="lk"></svg><div class="cols" id="cols"></div><div id="bot"></div></div>
+<div class="pr">
+<div><b>🪪 Паспорт у каждого</b>у вещи и существа свой: вид, форма, как касаться</div>
+<div><b>🦴 Одни кости</b>пишет только сборщик позы, остальные просят</div>
+<div><b>🧍 Один хозяин позиции</b>двигает только физика, остальные дают цель</div>
+<div><b>📏 Один замер</b>«внутри камня» меряют игра и судья одинаково</div></div>
+<script>
+const B={d:['📚','data','данные'],s:['💾','save','сейв'],b:['🔁','build','при старте'],r:['⏱','run','на ходу']};
+const badge=k=>`<span class="b sm" style="--c:var(--${B[k][1]})" title="${B[k][2]}">${B[k][0]}</span>`;
+const COLS=[
+['📖 ИСТОРИЯ','#b388ff',[
+ ['story','📖','Сюжет','пять глав · два финала',[
+  ['📕','главы · финалы','5 · 2','d'],['💎','осколки','24','s'],['🔊','записи-эхо','8','s'],['🎯','текущая цель','','r'],['💾','прогресс','','s']]]]],
+['🐾 СУЩЕСТВА','#ffb74d',[
+ ['body','🫀','Существо','общее тело для всех · позицию двигает только физика',[
+  ['🪪','паспорт','вид · форма · как касаться','b'],['📍','позиция · скорость','','r'],['📐','части · радиусы','','b'],['🦴','кости','пишет один сборщик','r'],['🥚','форма для столкновений','у скал — эллипс','r']]],
+ ['pilot','🧍','Пилот','управляется игроком',[
+  ['🎞️','клипы поз','','d'],['👆','цель','','r'],['🧠','выбор действия','6 у скалы','d']]],
+ ['animals','🦌','Животные','позже · опираются на общее существо',[
+  ['❔','пока нет в игре','','r']]]]],
+['🧱 ВЕЩИ','#7c9cff',[
+ ['rock','🗿','Камни и руины','5 видов камней · 6 руин',[
+  ['🪪','паспорт','','b'],['🪨','форма: точная рядом','оболочка вдали','b'],['🧠','как касаться','6 действий','d']]],
+ ['tree','🌲','Деревья','9 видов · 6 хвойных с Poly Haven',[
+  ['🪪','паспорт','','b'],['🌳','ствол · крона','пакеты','b'],['❄️','снег на хвое','','b']]],
+ ['build','🏕️','Постройки','13: станции · палатки · мачты · лампа',[
+  ['🪪','паспорт','','b'],['🏠','вход · укрытие','','b']]],
+ ['tech','🚀','Техника','5: «Кестрел» · снегоход · вездеход',[
+  ['🪪','паспорт','','b'],['🕹️','своя модель','','b']]],
+ ['small','🛢️','Мелкие вещи','бочки · ящики · костёр · 6 видов',[
+  ['🪪','паспорт','','b'],['🤏','толкаются','','b']]]]]];
+const BOT=[
+['scene','🌍','Сцена','что под ногами и над головой · на этом стоит всё выше','#3ec9a0',[
+ ['⛰️','рельеф','','b'],['❄️','снег · сугробы','','b'],['🌙','луна · небо','','b'],['🔆','свет · тени','','b'],['🌲','дальний лес','картинки 8 сторон','d'],['💡','запечённый свет','','d']]]];
+document.getElementById('cols').innerHTML=COLS.map(([t,c,cards],ci)=>`<div class="col" id="col${ci}" style="--cc:${c}"><h3>${t}</h3>${cards.map(([id,ic,n,s,rows])=>
+`<div class="card${id==='animals'?' later':''}" id="${id}" data-col="col${ci}" style="--cc:${c}"><h4>${ic} ${n}</h4><p>${s}</p>${rows.map(([e,l,x,k])=>`<div class="r"><span>${e} ${l}</span>${x?`<i>${x}</i>`:''}${badge(k)}</div>`).join('')}</div>`).join('')}</div>`).join('');
+document.getElementById('bot').innerHTML=BOT.map(([id,ic,n,s,c,rows])=>`<div class="card wide" id="${id}" style="--cc:${c};border-top-color:${c}"><h4>${ic} ${n} <span style="color:var(--mut);font:13px ui-monospace,monospace">${s}</span></h4><div class="g">${rows.map(([e,l,x,k])=>`<div class="r"><span>${e} ${l}</span>${x?`<i>${x}</i>`:''}${badge(k)}</div>`).join('')}</div></div>`).join('');
+// [от, к, подпись, геометрия: 'col' — от низа колонки]
+const L=[['story','body','ведёт по главам'],
+['pilot','rock','касание: ладонь ✓'],['pilot','tree','касание'],['pilot','build','касание'],['pilot','tech','касание'],['pilot','small','толкает'],
+['body','scene','стоят на','col'],['rock','scene','','col'],['tree','scene','','col'],['build','scene','','col'],['tech','scene','','col'],['small','scene','','col']];
+function draw(){const w=document.getElementById('wrap').getBoundingClientRect(),svg=document.getElementById('lk');svg.innerHTML='';
+ const R=id=>{const r=document.getElementById(id).getBoundingClientRect();return{l:r.left-w.left,r:r.right-w.left,t:r.top-w.top,b:r.bottom-w.top,cy:(r.top+r.bottom)/2-w.top,cx:(r.left+r.right)/2-w.left}};
+ const mk=(n,at)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in at)e.setAttribute(k,at[k]);svg.appendChild(e);return e};
+ L.forEach(([a,b,t,g],i)=>{const A=R(a),Z=R(b);let d,mx,my,ca=g==='col'?R(document.getElementById(a).dataset.col):A;
+  if(g==='col'){const x=ca.cx,y1=ca.b,y2=Z.t;d=`M${x},${y1}L${x},${y2}`;mx=x;my=(y1+y2)/2+8;}
+  else{const dir=Z.cx>A.cx?1:-1,x1=dir>0?A.r:A.l,x2=dir>0?Z.l:Z.r,y1=A.cy,y2=Z.cy,m=(x1+x2)/2;d=`M${x1},${y1}C${m},${y1} ${m},${y2} ${x2},${y2}`;mx=m;my=(y1+y2)/2;}
+  const p=mk('path',{d,class:'l'});p.dataset.a=a;p.dataset.b=b;
+  if(t){const tx=mk('text',{x:mx,y:my-5,class:'t'});tx.textContent=t;tx.dataset.a=a;tx.dataset.b=b;}});}
+function hover(id){document.querySelectorAll('.card').forEach(c=>{const on=!id||c.id===id||L.some(([a,b])=>(a===id&&b===c.id)||(b===id&&a===c.id));c.classList.toggle('dim',!on);c.classList.toggle('hot',!!id&&on)});
+ document.querySelectorAll('#lk path,#lk text').forEach(e=>{const on=!id||e.dataset.a===id||e.dataset.b===id;e.classList.toggle('dim',!on);e.classList.toggle('hot',!!id&&on)})}
+draw();addEventListener('resize',draw);document.fonts&&document.fonts.ready.then(draw);
+document.querySelectorAll('.card').forEach(c=>{c.onmouseenter=()=>hover(c.id);c.onmouseleave=()=>hover(null)});
+</script>
