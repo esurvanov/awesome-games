@@ -8,14 +8,17 @@ src, a, b, out, fac, obj, exports, late, header = sys.argv[1], int(sys.argv[2]),
 exports = [x for x in exports.split(',') if x]; late = [x for x in late.split(',') if x]
 here = os.path.dirname(os.path.abspath(__file__)); free = os.environ.get('FREE_CJS')
 L = open(src, encoding='utf8').read().split('\n'); sec = L[a-1:b]; txt = '\n'.join(sec)
-tmp = '/tmp/_extract_sec.js'; open(tmp, 'w', encoding='utf8').write(txt)
+tmp = '/tmp/_extract_sec.js'
+# the free-name analysis uses an old parser: `?.` and `??` are rewritten for the analysis only (the moved text itself is untouched)
+ana = re.sub(r'\?\.(?=[\w\[(])', '.', txt).replace(' ?? ', ' || ')
+open(tmp, 'w', encoding='utf8').write(ana)
 r = subprocess.run(['node', free, tmp, '1', str(b-a+1)], capture_output=True, text=True).stdout.split('\n')
 if r[0].startswith('PARSE'): sys.exit('parse error: ' + r[0])
 fv = [t.split(':')[0] for t in r[0].split()]
 glob = set('window document Math Object Array Map Set WeakMap WeakSet JSON Number String Boolean Date Float32Array Float64Array Uint8Array Uint16Array Uint32Array Int32Array Infinity NaN undefined isFinite isNaN parseFloat parseInt console performance Error Promise Symbol requestAnimationFrame setTimeout clearTimeout location navigator'.split())
 fv = [n for n in fv if n not in glob]
 rest = '\n'.join(L[:a-1] + L[b:])
-declared_here = set(re.findall(r'^  (?:const|let|function)\s+([A-Za-z_\$][\w\$]*)', txt, re.M))
+declared_here = set(re.findall(r'^  (?:const|let|(?:async\s+)?function)\s+([A-Za-z_\$][\w\$]*)', txt, re.M))
 for m in re.finditer(r'^  (?:const|let)\s+\{([^}]*)\}', txt, re.M):
     for n in m.group(1).split(','): declared_here.add(n.strip().split(':')[-1].strip())
 deps, lates, problems = [], [], []
