@@ -1034,7 +1034,7 @@
     if (!NEAR.length && !owns() && S.state !== 'walktouch') { S.state = 'free'; S.stillT = 0; return; }
     const i = inp(), hs = Math.hypot(P.vx, P.vz);
     S.stillT = hs < 0.25 && !i.on && P.onGround ? S.stillT + dt : 0;
-    const combat = (C.enemies && C.enemies.some((e) => !e.dead && e.st !== 'idle' && e.st !== 'return')) || (C.boss && C.boss.active && !C.boss.dead);
+    const combat = C.Creatures.inCombat();   // a shardling that is not idle or going home, or the guardian awake (modules/creatures.js)
     if (combat) { if (owns()) end(false); if (S.state !== 'free') S.state = 'free'; return; }
     if (S.state === 'release') { S.t += dt; if (S.t > 0.35) S.state = 'free'; else return; }
     if (S.state === 'steer') steer(dt, P, i);
