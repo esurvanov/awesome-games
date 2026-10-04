@@ -18,11 +18,13 @@ const probe = async (name, fn) => {
 };
 try {
   await H.newGame();
+  // probes wait in GAME seconds (the sky clock), not wall-clock ones: a loaded machine runs frames slowly and a timed wait would see too little happen
+  await H.page.evaluate(() => { window.__waitGame = (sec) => new Promise((res) => { const D = window.DBG, t0 = D.skyU.uTime.value, s0 = performance.now(); const tick = () => { if (D.skyU.uTime.value - t0 >= sec || performance.now() - s0 > sec * 8000 + 4000) res(); else setTimeout(tick, 30); }; tick(); }); });
   // the AI layer fires random events (ambush, stag herd, blizzard…) on its own timers: silence its tick for the probes, the last probe tests it
   await H.page.evaluate(() => { if (window.AI) { window.__AI_TICK = AI.tick; AI.tick = () => {}; } });
 
   await probe('fox: pet → joins → follows', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000);
     D.teleport(D.fox.x + 3, D.fox.z, 0); await wait(300);
     const it = D.INTER.find((i) => /лис/i.test(String(i.label)));
     if (!it) return { ok: false, why: 'no fox interaction' };
@@ -35,7 +37,7 @@ try {
   });
 
   await probe('stags: close pilot → flee and move away', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000);
     const s = D.STAGS[0]; s.st = 'graze'; s.t = 99; const x0 = s.x, z0 = s.z;
     D.teleport(s.x + 16, s.z, 0); await wait(2500);
     const moved = Math.hypot(s.x - x0, s.z - z0);
@@ -43,7 +45,7 @@ try {
   });
 
   await probe('shardling: chase → leash back → idle', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000);
     D.teleport(0, 0, 0); await wait(300);
     const seen = new Set(); const z = D.ZONES[0];
     const e = D.spawnShardling(D.player.x + 14, D.player.z, z); D.G.cleared.length = 0;
@@ -56,7 +58,7 @@ try {
   });
 
   await probe('snowmobile: mount → riding → dismount', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000);
     D.sk.unlocked = true; D.teleport(D.sk.x + 3, D.sk.z, 0); await wait(300);
     D.mount(); await wait(500);
     const riding = D.G.riding && D.sk.mounted;
@@ -84,7 +86,7 @@ try {
   });
 
   await probe('environment: blizzard starts, storm rises, fog closes in, sky clock runs', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000);
     D.G.mode = 'play'; D.WX.target = 0; D.WX.storm = 0; const t0 = D.skyU.uTime.value, fog0 = D.scene.fog.near;
     D.WX.t = 0.01; await wait(2500);
     const ok = D.WX.target === 1 && D.WX.storm > 0.1 && D.scene.fog.near < fog0 - 5 && D.skyU.uTime.value > t0 && D.skyU.uStorm.value > 0.1;
@@ -94,7 +96,7 @@ try {
   });
 
   await probe('campfire: rest by the fire restores health and sets the checkpoint', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000);
     D.G.mode = 'play'; D.G.stage = Math.max(D.G.stage, 2); D.G.riding = false; D.G.checkpoint = null;
     const it = D.INTER.find((i) => i.label === 'Отдохнуть у огня'); if (!it) return { ok: false, why: 'no rest interaction' };
     const p = it.pos(); D.teleport(p.x + 2, p.z, 0); D.player.hpMax = D.player.hpMax || 5; D.player.hp = 1; await wait(300);
@@ -183,7 +185,7 @@ try {
   });
 
   await probe('player: control state lives on Player, the pilot keeps aliases, the roll works', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), P = D.Player;
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000), P = D.Player;
     if (!P) return { ok: false, why: 'DBG.Player missing' };
     const same = P.creature === D.player && P.input.keys === D.keys && P.input.pressed === D.pressed && P.camera === D.cam && P.climb === D.CLIMB;
     P.roll.t = 0.3; P.aim.t = 0.4; P.fire.cd = 0.1; P.roll.cd = 0.2;
@@ -196,7 +198,7 @@ try {
   });
 
   await probe('animal gait: the stags and the fox get their gait set up and driven (interaction module)', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), I = window.INTERACTION, bad = [];
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000), I = window.INTERACTION, bad = [];
     if (!I || !I.ST || !I.FX) return { ok: false, why: 'INTERACTION.ST / FX missing' };
     D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; const cleared0 = D.G.cleared.slice(); D.ZONES.forEach((z) => { if (!D.G.cleared.includes(z.id)) D.G.cleared.push(z.id); });   // the stags stand near the lake zone: no zone may wake up and open a dialog
     const s = D.STAGS[0]; s.st = 'graze'; s.t = 99; D.teleport(s.x + 14, s.z, 0); D.fox.joined = true; D.fox.st = 'follow'; D.fox.seekT = 99; D.fox.target = null; await wait(3500);   // seekT high: it follows instead of going off to a shard
@@ -218,7 +220,7 @@ try {
   });
 
   await probe('ai layer (offline rules): director, hints, quality, preload, Orm talk, intents', async () => {
-    const wait = (ms) => new Promise((r) => setTimeout(r, ms)); if (!window.AI) return { ok: false, why: 'window.AI missing (ai.js not loaded)' };
+    const wait = (ms) => window.__waitGame(ms / 1000); if (!window.AI) return { ok: false, why: 'window.AI missing (ai.js not loaded)' };
     const D = window.DBG, have = (k) => typeof AI[k] !== 'undefined';
     const miss = ['decide', 'ask', 'tick', 'intent', 'steer', 'director', 'hints', 'quality', 'orm', 'commands', 'prefetch'].filter((k) => !have(k));
     if (miss.length) return { ok: false, why: 'missing: ' + miss.join(',') };
@@ -232,7 +234,7 @@ try {
   });
 
   await probe('controllers: the AI layer advises through Controllers; no advice → the plain rules', async () => {
-    const D = window.DBG, wait = (ms) => new Promise((r) => setTimeout(r, ms)), real = AI.intent, bad = [];
+    const D = window.DBG, wait = (ms) => window.__waitGame(ms / 1000), real = AI.intent, bad = [];
     if (!window.Controllers) return { ok: false, why: 'Controllers missing' };
     if (D.Creatures.all().some((r) => !r.controller)) bad.push('a creature without a controller');
     D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; const cleared0 = D.G.cleared.slice(); D.ZONES.forEach((z) => { if (!D.G.cleared.includes(z.id)) D.G.cleared.push(z.id); });   // no zone wakes up shardlings during the probe
