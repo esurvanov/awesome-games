@@ -4,7 +4,7 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: семь игр рядом — Хроники Королевств, Берёзовка, Житьё, Эхо Разлома, Сибирь, Северный Разлом, Сходка" width="100%">
 
-### Восемь законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, сюжетный открытый мир на полярном острове, бесконечный полёт по ледяному каньону, субботняя IT-сходка в баре Батуми, симулятор жизни в духе The Sims и игра про работу инженера. Все восемь запускаются прямо в браузере — или скачайте и играйте локально.
+### Девять законченных открытых игр: средневековая стратегия в реальном времени, зимний открытый мир, игра-выживание с посёлком в тайге, сюжетный открытый мир на полярном острове, бесконечный полёт по ледяному каньону, субботняя IT-сходка в баре Батуми, симулятор жизни в духе The Sims игра про работу инженера и бомбермен с редактором уровней. Все девять запускаются прямо в браузере — или скачайте и играйте локально.
 
 [![Играть в Берёзовку в браузере](https://img.shields.io/badge/▶_Играть_в_Берёзовку-прямо_в_браузере-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Играть в Хроники Королевств в браузере](https://img.shields.io/badge/⚔_Играть_в_Хроники_Королевств-прямо_в_браузере-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
@@ -12,8 +12,9 @@
 [![Играть в Эхо Разлома в браузере](https://img.shields.io/badge/🌌_Играть_в_Эхо_Разлома-прямо_в_браузере-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 [![Играть в Житьё в браузере](https://img.shields.io/badge/🏡_Играть_в_Житьё-прямо_в_браузере-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
 [![Играть в Аптайм в браузере](https://img.shields.io/badge/📈_Играть_в_Аптайм-прямо_в_браузере-2E90FA?style=for-the-badge)](https://esurvanov.github.io/awesome-games/work-programmer/)
+[![Играть в Маленьких бомберов в браузере](https://img.shields.io/badge/💣_Играть_в_Маленьких_бомберов-прямо_в_браузере-F2A900?style=for-the-badge)](https://www.urvanov.com/malenkie-bombery/)
 
-![Игр](https://img.shields.io/badge/игр-8-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
+![Игр](https://img.shields.io/badge/игр-9-2ea44f) ![Код](https://img.shields.io/badge/код-MIT-yellow) ![Ресурсы](https://img.shields.io/badge/ресурсы-открытые_лицензии-EF9421) ![Без магазина и рекламы](https://img.shields.io/badge/без_магазина-без_рекламы-lightgrey)
 
 </div>
 
@@ -179,6 +180,28 @@
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+<a href="https://www.urvanov.com/malenkie-bombery/"><img src="malenkie-bombery/docs/screenshots/flight.jpg" alt="Маленькие бомберы: взрыв на уровне в дюнах"></a>
+
+### 💣 [Маленькие бомберы](malenkie-bombery/README.ru.md)
+**Бомбермен в одном файле: ставь бомбы, взрывай ящики и врагов, ищи выход.**
+
+15 уровней в трёх мирах: луг, дюны и лёд. Три вида врагов, бонусы под ящиками, до трёх звёзд за скорость и редактор своих уровней, которыми можно делиться кодом.
+
+- 🗺 15 уровней · 3 мира · ⭐ до 3 звёзд за уровень
+- 👾 слизень, летун, призрак · 🎁 бомба, огонь, скорость
+- 🧱 редактор уровней · 💾 прогресс и свои уровни в браузере
+- 📱 джойстик на телефоне · 🌐 русский и английский
+
+`vanilla JS` · `Canvas 2D` · любой браузер, двойной щелчок по `index.html`
+
+**[▶ Играть](https://www.urvanov.com/malenkie-bombery/)**
+
+</td>
+<td width="50%"></td>
+</tr>
 </table>
 
 ## 📸 Ближе
@@ -210,6 +233,7 @@
 | ⚔️ Хроники Королевств | Откройте **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — или `python3 -m http.server` в корне репозитория и откройте `/age-of-empires/web/`; версия на Python: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (на macOS — двойной клик по `Play.command`) |
 | 🏡 Житьё | Откройте **[esurvanov.github.io/awesome-games/zhitie](https://esurvanov.github.io/awesome-games/zhitie/)** — или `cd zhitie && ./serve.sh` |
 | 📈 Аптайм | Откройте **[esurvanov.github.io/awesome-games/work-programmer](https://esurvanov.github.io/awesome-games/work-programmer/)** — или двойной щелчок по `work-programmer/index.html` |
+| 💣 Маленькие бомберы | Откройте **[urvanov.com/malenkie-bombery](https://www.urvanov.com/malenkie-bombery/)** — или двойной щелчок по `malenkie-bombery/index.html` |
 
 ## 📜 Лицензии
 

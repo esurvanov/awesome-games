@@ -4,7 +4,7 @@
 
 <img src="docs/banner.jpg" alt="awesome-games: seven games side by side — Chronicles of Kingdoms, Berezovka, Zhitiyo, Echo of the Rift, Sibiria, Northern Rift, Skhodka" width="100%">
 
-### Eight complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar, a Sims-style life sim and a game about an engineer’s job. All eight run right in your browser — or clone and play locally.
+### Nine complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar, a Sims-style life sim, a game about an engineer’s job and a Bomberman-style game with a level editor. All nine run right in your browser — or clone and play locally.
 
 [![Play Berezovka in your browser](https://img.shields.io/badge/▶_Play_Berezovka_now-in_your_browser-D7263D?style=for-the-badge)](https://esurvanov.github.io/awesome-games/berezovka/)
 [![Play Chronicles of Kingdoms in your browser](https://img.shields.io/badge/⚔_Play_Chronicles_of_Kingdoms-in_your_browser-3776AB?style=for-the-badge)](https://esurvanov.github.io/awesome-games/age-of-empires/web/)
@@ -12,8 +12,9 @@
 [![Play Echo of the Rift in your browser](https://img.shields.io/badge/🌌_Play_Echo_of_the_Rift-in_your_browser-5B3FD6?style=for-the-badge)](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)
 [![Play Zhitiyo in your browser](https://img.shields.io/badge/🏡_Play_Zhitiyo-in_your_browser-2E8B57?style=for-the-badge)](https://esurvanov.github.io/awesome-games/zhitie/)
 [![Play Uptime in your browser](https://img.shields.io/badge/📈_Play_Uptime-in_your_browser-2E90FA?style=for-the-badge)](https://esurvanov.github.io/awesome-games/work-programmer/)
+[![Play Little Bombers in your browser](https://img.shields.io/badge/💣_Play_Little_Bombers-in_your_browser-F2A900?style=for-the-badge)](https://www.urvanov.com/malenkie-bombery/)
 
-![Games](https://img.shields.io/badge/games-8-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
+![Games](https://img.shields.io/badge/games-9-2ea44f) ![Code](https://img.shields.io/badge/code-MIT-yellow) ![Assets](https://img.shields.io/badge/assets-open_licences-EF9421) ![No store, no ads](https://img.shields.io/badge/no_store-no_ads-lightgrey)
 
 </div>
 
@@ -179,6 +180,28 @@ A stream of users runs through pipes: thickness is volume, colour shows whether 
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+<a href="https://www.urvanov.com/malenkie-bombery/"><img src="malenkie-bombery/docs/screenshots/flight.jpg" alt="Little Bombers: an explosion on a dunes level"></a>
+
+### 💣 [Little Bombers](malenkie-bombery/)
+**A Bomberman-style game in one file: drop bombs, blow up crates and enemies, find the exit.**
+
+15 levels in three worlds: meadow, dunes and ice. Three enemy types, power-ups under crates, up to three stars for speed and a level editor whose levels you can share by code.
+
+- 🗺 15 levels · 3 worlds · ⭐ up to 3 stars per level
+- 👾 slime, bat, ghost · 🎁 bomb, fire, speed
+- 🧱 level editor · 💾 progress and your levels saved in the browser
+- 📱 a joystick on phones · 🌐 Russian and English
+
+`vanilla JS` · `Canvas 2D` · any browser, double-click `index.html`
+
+**[▶ Play now](https://www.urvanov.com/malenkie-bombery/)**
+
+</td>
+<td width="50%"></td>
+</tr>
 </table>
 
 ## 📸 A closer look
@@ -210,6 +233,7 @@ A stream of users runs through pipes: thickness is volume, colour shows whether 
 | ⚔️ Chronicles of Kingdoms | Open **[esurvanov.github.io/awesome-games/age-of-empires](https://esurvanov.github.io/awesome-games/age-of-empires/web/)** — or `python3 -m http.server` in the repo root and open `/age-of-empires/web/`; Python version: `cd age-of-empires && python3 -m venv .venv && .venv/bin/pip install pygame-ce numpy && .venv/bin/python main.py` (macOS: double-click `Play.command`) |
 | 🏡 Zhitiyo | Open **[esurvanov.github.io/awesome-games/zhitie](https://esurvanov.github.io/awesome-games/zhitie/)** — or `cd zhitie && ./serve.sh` |
 | 📈 Uptime | Open **[esurvanov.github.io/awesome-games/work-programmer](https://esurvanov.github.io/awesome-games/work-programmer/)** — or double-click `work-programmer/index.html` |
+| 💣 Little Bombers | Open **[urvanov.com/malenkie-bombery](https://www.urvanov.com/malenkie-bombery/)** — or double-click `malenkie-bombery/index.html` |
 
 ## 📜 Licence
 
