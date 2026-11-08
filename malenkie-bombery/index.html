@@ -27,13 +27,13 @@
   @media (orientation: landscape) { :root { --pad: clamp(92px, 34dvh, 140px); } }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font-family: Onest, system-ui, -apple-system, sans-serif; font-size: 14px;
+    font-family: Onest, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, -apple-system, sans-serif; font-size: 14px;
     overflow: hidden; user-select: none; -webkit-user-select: none;
     display: flex; flex-direction: column;
     height: 100dvh; overscroll-behavior: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
   .i { width: 18px; height: 18px; flex: none; }
-  .t { font-family: Tektur, "Arial Narrow", system-ui, sans-serif; }
+  .t { font-family: Tektur, "Arial Narrow", 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; }
   button { font: inherit; color: inherit; }
 
   /* верхняя и нижняя панели */
@@ -41,7 +41,7 @@
     padding: calc(8px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); min-height: 56px; }
   .bar .sp { flex: 1; }
   .chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 11px; border-radius: 999px;
-    background: var(--panel); border: 1px solid var(--line); font: 700 14px Tektur, system-ui, sans-serif;
+    background: var(--panel); border: 1px solid var(--line); font: 700 14px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif;
     font-variant-numeric: tabular-nums; white-space: nowrap; }
   .chip.acc { color: var(--acc); }
   .chip.red { color: var(--danger); border-color: rgba(255, 93, 108, .5); }
@@ -58,7 +58,7 @@
 
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     height: 46px; padding: 0 18px; border-radius: 12px; border: 0; cursor: pointer;
-    background: var(--acc); color: #1d1404; font: 700 16px Tektur, system-ui, sans-serif; letter-spacing: .03em;
+    background: var(--acc); color: #1d1404; font: 700 16px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; letter-spacing: .03em;
     transition: transform .1s; }
   .btn:hover { transform: translateY(-1px); }
   .btn:active { transform: translateY(1px); }
@@ -66,7 +66,7 @@
   .btn.sm { height: 36px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
   .btn:disabled { opacity: .4; cursor: default; transform: none; }
   .btn.danger { background: var(--danger); color: #fff; }
-  kbd { font: 700 11px Tektur, system-ui, sans-serif; padding: 2px 6px; border-radius: 5px;
+  kbd { font: 700 11px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; padding: 2px 6px; border-radius: 5px;
     background: rgba(0, 0, 0, .15); border: 1px solid rgba(0, 0, 0, .25); }
 
   /* экраны поверх поля */
@@ -77,14 +77,14 @@
     width: min(460px, 100%); display: flex; flex-direction: column; gap: 14px; margin: auto; }
   .panel.wide { width: min(640px, 100%); }
   .head { display: flex; align-items: center; gap: 10px; }
-  .head h2 { margin: 0; font: 900 22px Tektur, system-ui, sans-serif; flex: 1; }
-  .logo { font: 900 clamp(34px, 8vw, 52px)/1 Tektur, system-ui, sans-serif; text-align: center; margin: 4px 0 0;
+  .head h2 { margin: 0; font: 900 22px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; flex: 1; }
+  .logo { font: 900 clamp(34px, 8vw, 52px)/1 Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; text-align: center; margin: 4px 0 0;
     color: var(--acc); text-shadow: 0 4px 0 #9a5b00, 0 0 30px rgba(255, 200, 69, .35); }
   .sub { text-align: center; color: var(--dim); margin: -4px 0 0; }
   .col { display: flex; flex-direction: column; gap: 8px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .row.c { justify-content: center; }
-  .meter { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font: 700 13px Tektur, system-ui, sans-serif; }
+  .meter { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font: 700 13px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; }
   .track { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
   .track > i { display: block; height: 100%; background: var(--acc); border-radius: inherit; transition: width .4s; }
   .track.ok > i { background: var(--ok); }
@@ -94,7 +94,7 @@
   .world .wi { display: grid; place-items: center; }
   .lv { aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .05);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; padding: 0;
-    font: 900 20px Tektur, system-ui, sans-serif; }
+    font: 900 20px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; }
   .lv:hover:not(:disabled) { border-color: var(--acc); }
   .lv:disabled { cursor: default; opacity: .45; }
   .lv.cur { border-color: var(--acc); box-shadow: 0 0 0 2px rgba(255, 200, 69, .35); }
@@ -114,7 +114,7 @@
     border: 1px solid var(--line); }
   .mi canvas { width: 60px; height: 52px; border-radius: 6px; flex: none; }
   .mi .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .mi .nm b { font: 700 15px Tektur, system-ui, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mi .nm b { font: 700 15px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mi .nm small { color: var(--dim); display: flex; gap: 10px; }
   .mi .nm small span { display: inline-flex; gap: 3px; align-items: center; }
   .mi .nm small .i { width: 13px; height: 13px; }
@@ -130,7 +130,7 @@
   .tool.on { border-color: var(--acc); background: rgba(255, 200, 69, .14); color: var(--acc); }
   .tool kbd { font-size: 9px; padding: 0 4px; background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .15); }
   #edName { height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-    padding: 0 12px; font: 700 15px Tektur, system-ui, sans-serif; width: 180px; min-width: 0; }
+    padding: 0 12px; font: 700 15px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; width: 180px; min-width: 0; }
   #edName:focus { outline: 2px solid var(--acc); outline-offset: 0; }
   textarea { width: 100%; height: 110px; resize: none; border-radius: 10px; border: 1px solid var(--line);
     background: rgba(0, 0, 0, .3); color: var(--ink); padding: 10px; font: 12px ui-monospace, Menlo, monospace; user-select: text; }
@@ -139,7 +139,7 @@
   .res { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .res .card { background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
     display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .res .card b { font: 900 22px Tektur, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  .res .card b { font: 900 22px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
   .res .card small { color: var(--dim); display: flex; gap: 4px; align-items: center; }
   .res .card small .i { width: 13px; height: 13px; }
   .bigico { display: grid; place-items: center; }
@@ -165,8 +165,9 @@
   #bombBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #9a5b00; }
   #bombBtn .i { width: 46%; height: 46%; }
 
+  .lg { justify-content: flex-start; } .lg.on { border-color: var(--acc); color: var(--acc); }
   #toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 9; pointer-events: none;
-    background: var(--ok); color: #062512; font: 700 14px Tektur, system-ui, sans-serif; padding: 8px 14px; border-radius: 999px;
+    background: var(--ok); color: #062512; font: 700 14px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; padding: 8px 14px; border-radius: 999px;
     display: flex; gap: 6px; align-items: center; opacity: 0; transition: opacity .25s; }
   #toast.on { opacity: 1; }
   #toast.bad { background: var(--danger); color: #fff; }
@@ -182,7 +183,7 @@
     background: rgba(255, 255, 255, .06); color: var(--dim); }
   .ai.got .ic { background: rgba(255, 200, 69, .16); color: var(--acc); }
   .ai .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .ai b { font: 700 14px Tektur, system-ui, sans-serif; }
+  .ai b { font: 700 14px Tektur, 'Noto Sans Thai', 'Noto Sans Georgian', system-ui, sans-serif; }
   .ai small { color: var(--dim); font-size: 12px; line-height: 1.25; }
   .ai .track { height: 6px; }
   @media (pointer: fine) { #touch { display: none !important; } }
@@ -320,7 +321,7 @@
       <span class="row hint" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-bomb"/></svg><kbd>Space</kbd></span>
       <span class="row hint" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-pause"/></svg><kbd>Esc</kbd></span>
       <button class="icon-btn" id="bSound" title="Звук" style="width:32px;height:32px"><svg class="i"><use href="#i-sound"/></svg></button>
-      <button class="icon-btn t" id="bLang" title="Язык" style="width:38px;height:32px;font-weight:700;font-size:12px">EN</button>
+      <button class="icon-btn t" id="bLang" title="Язык" style="width:auto;min-width:38px;padding:0 8px;height:32px;font-weight:700;font-size:12px">RU</button>
     </div>
   </div>
 </section>
@@ -405,6 +406,14 @@
   </div>
 </section>
 
+<!-- язык -->
+<section class="scr" id="oLang" hidden>
+  <div class="panel">
+    <div class="head"><button class="icon-btn" data-back id="lgClose"><svg class="i"><use href="#i-back"/></svg></button><h2>Язык</h2></div>
+    <div class="col" id="lgList"></div>
+  </div>
+</section>
+
 <div id="toast"><svg class="i"><use href="#i-check"/></svg><span></span></div>
 
 <script>
@@ -438,30 +447,128 @@ addEventListener('pagehide', () => { try { localStorage.setItem(SKEY, JSON.strin
 function persist() { try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch (e) { toast(tr('Хранилище недоступно'), true); } }
 
 /* ============================ ЯЗЫК ============================ */
-// русский — исходный текст разметки; английский подставляется по словарю (ключ — русская строка)
-const EN = {
-  'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'Blast them all, find the exit',
-  'Играть': 'Play', 'Продолжить': 'Continue', 'Уровни': 'Levels', 'Мои': 'Mine', 'Редактор': 'Editor', 'Мои уровни': 'My levels',
-  'Новый': 'New', 'Дальше': 'Next', 'Заново': 'Restart', 'Меню': 'Menu', 'Ещё раз': 'Retry', 'время': 'time', 'рекорд': 'best', 'на 3★': 'for 3★',
-  'Подорвался': 'Blown up', 'Поймали': 'Caught', 'Время вышло': 'Time is up', 'Код уровня': 'Level code', 'Копировать': 'Copy', 'Загрузить': 'Load',
-  'Проверить': 'Test', 'Сохранить': 'Save', 'Название': 'Name', 'Название уровня': 'Level name', 'Пауза (Esc)': 'Pause (Esc)', 'Враги': 'Enemies',
-  'Время': 'Time', 'Бомбы': 'Bombs', 'Огонь': 'Fire', 'Скорость': 'Speed', 'Назад': 'Back', 'Мир: луг, дюны, лёд': 'World: meadow, dunes, ice',
-  'Старт': 'Start', 'Выход': 'Exit', 'Звук': 'Sound', 'Язык': 'Language', 'Вставить код': 'Paste code', 'Изменить': 'Edit', 'Код': 'Code', 'Удалить': 'Delete',
-  'Ещё раз — удалить': 'Click again to delete', 'Пусто': 'Empty', 'Уровень': 'Level', 'Из кода': 'From code', 'Проверка': 'Test',
-  'Удалено': 'Deleted', 'Сохранено': 'Saved', 'Скопировано': 'Copied', 'Добавлено': 'Added', 'Код не подошёл': 'Invalid code', 'Хранилище недоступно': 'Storage unavailable',
-  'Пол': 'Floor', 'Стена': 'Wall', 'Ящик': 'Crate', 'Слизень': 'Slime', 'Летун': 'Bat', 'Призрак': 'Ghost', 'Бомба': 'Bomb',
-  'Луг': 'Meadow', 'Дюны': 'Dunes', 'Лёд': 'Ice', 'Джунгли': 'Jungle', 'Руины': 'Ruins', 'Неон': 'Neon', 'Закат': 'Sunset', 'Лава': 'Lava', 'Болото': 'Swamp', 'Космос': 'Space',
-  'Награды': 'Awards', 'Прогресс': 'Progress', 'Код прогресса': 'Progress code', 'Прогресс объединён': 'Progress merged', 'Награда': 'Award', 'Рекорд': 'Best', 'Бомба ': 'Bomb ',
+// русский — исходный текст разметки; остальные языки подставляются по словарю (ключ — русская строка).
+// Язык при запуске: ?lang= из адреса (его ставит сайт по выбранному на нём языку) → выбор игрока → язык браузера → английский.
+const LANGS = ['ru', 'en', 'th', 'ka', 'vi', 'es', 'fr'];
+const LNAME = { ru: 'Русский', en: 'English', th: 'ไทย', ka: 'ქართული', vi: 'Tiếng Việt', es: 'Español', fr: 'Français' };
+const DICT = {
+  en: {
+    'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'Blast them all, find the exit',
+    'Играть': 'Play', 'Продолжить': 'Continue', 'Уровни': 'Levels', 'Мои': 'Mine', 'Редактор': 'Editor', 'Мои уровни': 'My levels',
+    'Новый': 'New', 'Дальше': 'Next', 'Заново': 'Restart', 'Меню': 'Menu', 'Ещё раз': 'Retry', 'время': 'time', 'рекорд': 'best', 'на 3★': 'for 3★',
+    'Подорвался': 'Blown up', 'Поймали': 'Caught', 'Время вышло': 'Time is up', 'Код уровня': 'Level code', 'Копировать': 'Copy', 'Загрузить': 'Load',
+    'Проверить': 'Test', 'Сохранить': 'Save', 'Название': 'Name', 'Название уровня': 'Level name', 'Пауза (Esc)': 'Pause (Esc)', 'Враги': 'Enemies',
+    'Время': 'Time', 'Бомбы': 'Bombs', 'Огонь': 'Fire', 'Скорость': 'Speed', 'Назад': 'Back', 'Мир: луг, дюны, лёд': 'World: meadow, dunes, ice',
+    'Старт': 'Start', 'Выход': 'Exit', 'Звук': 'Sound', 'Язык': 'Language', 'Вставить код': 'Paste code', 'Изменить': 'Edit', 'Код': 'Code', 'Удалить': 'Delete',
+    'Ещё раз — удалить': 'Click again to delete', 'Пусто': 'Empty', 'Уровень': 'Level', 'Из кода': 'From code', 'Проверка': 'Test',
+    'Удалено': 'Deleted', 'Сохранено': 'Saved', 'Скопировано': 'Copied', 'Добавлено': 'Added', 'Код не подошёл': 'Invalid code', 'Хранилище недоступно': 'Storage unavailable',
+    'Пол': 'Floor', 'Стена': 'Wall', 'Ящик': 'Crate', 'Слизень': 'Slime', 'Летун': 'Bat', 'Призрак': 'Ghost', 'Бомба': 'Bomb',
+    'Луг': 'Meadow', 'Дюны': 'Dunes', 'Лёд': 'Ice', 'Джунгли': 'Jungle', 'Руины': 'Ruins', 'Неон': 'Neon', 'Закат': 'Sunset', 'Лава': 'Lava', 'Болото': 'Swamp', 'Космос': 'Space',
+    'Награды': 'Awards', 'Прогресс': 'Progress', 'Код прогресса': 'Progress code', 'Прогресс объединён': 'Progress merged', 'Награда': 'Award', 'Рекорд': 'Best',
+  },
+  th: {
+    'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'ระเบิดให้หมด แล้วหาทางออก',
+    'Играть': 'เล่น', 'Продолжить': 'เล่นต่อ', 'Уровни': 'ด่าน', 'Мои': 'ของฉัน', 'Редактор': 'ตัวแก้ไข', 'Мои уровни': 'ด่านของฉัน',
+    'Новый': 'ใหม่', 'Дальше': 'ต่อไป', 'Заново': 'เริ่มใหม่', 'Меню': 'เมนู', 'Ещё раз': 'ลองอีกครั้ง', 'время': 'เวลา', 'рекорд': 'สถิติ', 'на 3★': 'สำหรับ 3★',
+    'Подорвался': 'ระเบิดใส่ตัวเอง', 'Поймали': 'ถูกจับได้', 'Время вышло': 'หมดเวลา', 'Код уровня': 'รหัสด่าน', 'Копировать': 'คัดลอก', 'Загрузить': 'โหลด',
+    'Проверить': 'ทดสอบ', 'Сохранить': 'บันทึก', 'Название': 'ชื่อ', 'Название уровня': 'ชื่อด่าน', 'Пауза (Esc)': 'หยุดชั่วคราว (Esc)', 'Враги': 'ศัตรู',
+    'Время': 'เวลา', 'Бомбы': 'ระเบิด', 'Огонь': 'ไฟ', 'Скорость': 'ความเร็ว', 'Назад': 'กลับ', 'Мир: луг, дюны, лёд': 'โลก: ทุ่งหญ้า เนินทราย น้ำแข็ง',
+    'Старт': 'จุดเริ่ม', 'Выход': 'ทางออก', 'Звук': 'เสียง', 'Язык': 'ภาษา', 'Вставить код': 'วางรหัส', 'Изменить': 'แก้ไข', 'Код': 'รหัส', 'Удалить': 'ลบ',
+    'Ещё раз — удалить': 'กดอีกครั้งเพื่อลบ', 'Пусто': 'ว่างเปล่า', 'Уровень': 'ด่าน', 'Из кода': 'จากรหัส', 'Проверка': 'ทดสอบ',
+    'Удалено': 'ลบแล้ว', 'Сохранено': 'บันทึกแล้ว', 'Скопировано': 'คัดลอกแล้ว', 'Добавлено': 'เพิ่มแล้ว', 'Код не подошёл': 'รหัสไม่ถูกต้อง', 'Хранилище недоступно': 'ใช้ที่เก็บข้อมูลไม่ได้',
+    'Пол': 'พื้น', 'Стена': 'กำแพง', 'Ящик': 'ลัง', 'Слизень': 'เมือก', 'Летун': 'ค้างคาว', 'Призрак': 'ผี', 'Бомба': 'ระเบิด',
+    'Луг': 'ทุ่งหญ้า', 'Дюны': 'เนินทราย', 'Лёд': 'น้ำแข็ง', 'Джунгли': 'ป่าดิบ', 'Руины': 'ซากปรักหักพัง', 'Неон': 'นีออน', 'Закат': 'อาทิตย์อัสดง', 'Лава': 'ลาวา', 'Болото': 'หนองน้ำ', 'Космос': 'อวกาศ',
+    'Награды': 'รางวัล', 'Прогресс': 'ความคืบหน้า', 'Код прогресса': 'รหัสความคืบหน้า', 'Прогресс объединён': 'รวมความคืบหน้าแล้ว', 'Награда': 'รางวัล', 'Рекорд': 'สถิติ',
+  },
+  ka: {
+    'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'ააფეთქე ყველა — იპოვე გასასვლელი',
+    'Играть': 'თამაში', 'Продолжить': 'გაგრძელება', 'Уровни': 'დონეები', 'Мои': 'ჩემი', 'Редактор': 'რედაქტორი', 'Мои уровни': 'ჩემი დონეები',
+    'Новый': 'ახალი', 'Дальше': 'შემდეგი', 'Заново': 'თავიდან', 'Меню': 'მენიუ', 'Ещё раз': 'კიდევ ერთხელ', 'время': 'დრო', 'рекорд': 'რეკორდი', 'на 3★': '3★-ისთვის',
+    'Подорвался': 'აფეთქდი', 'Поймали': 'დაგიჭირეს', 'Время вышло': 'დრო ამოიწურა', 'Код уровня': 'დონის კოდი', 'Копировать': 'კოპირება', 'Загрузить': 'ჩატვირთვა',
+    'Проверить': 'შემოწმება', 'Сохранить': 'შენახვა', 'Название': 'სახელი', 'Название уровня': 'დონის სახელი', 'Пауза (Esc)': 'პაუზა (Esc)', 'Враги': 'მტრები',
+    'Время': 'დრო', 'Бомбы': 'ბომბები', 'Огонь': 'ცეცხლი', 'Скорость': 'სიჩქარე', 'Назад': 'უკან', 'Мир: луг, дюны, лёд': 'სამყარო: მდელო, დიუნები, ყინული',
+    'Старт': 'სტარტი', 'Выход': 'გასასვლელი', 'Звук': 'ხმა', 'Язык': 'ენა', 'Вставить код': 'კოდის ჩასმა', 'Изменить': 'შეცვლა', 'Код': 'კოდი', 'Удалить': 'წაშლა',
+    'Ещё раз — удалить': 'დააჭირე ისევ წასაშლელად', 'Пусто': 'ცარიელია', 'Уровень': 'დონე', 'Из кода': 'კოდიდან', 'Проверка': 'ტესტი',
+    'Удалено': 'წაიშალა', 'Сохранено': 'შენახულია', 'Скопировано': 'დაკოპირდა', 'Добавлено': 'დაემატა', 'Код не подошёл': 'კოდი არ ვარგა', 'Хранилище недоступно': 'საცავი მიუწვდომელია',
+    'Пол': 'იატაკი', 'Стена': 'კედელი', 'Ящик': 'ყუთი', 'Слизень': 'ლორწო', 'Летун': 'ღამურა', 'Призрак': 'მოჩვენება', 'Бомба': 'ბომბი',
+    'Луг': 'მდელო', 'Дюны': 'დიუნები', 'Лёд': 'ყინული', 'Джунгли': 'ჯუნგლები', 'Руины': 'ნანგრევები', 'Неон': 'ნეონი', 'Закат': 'მზის ჩასვლა', 'Лава': 'ლავა', 'Болото': 'ჭაობი', 'Космос': 'კოსმოსი',
+    'Награды': 'ჯილდოები', 'Прогресс': 'პროგრესი', 'Код прогресса': 'პროგრესის კოდი', 'Прогресс объединён': 'პროგრესი გაერთიანდა', 'Награда': 'ჯილდო', 'Рекорд': 'რეკორდი',
+  },
+  vi: {
+    'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'Cho nổ tất cả, tìm lối ra',
+    'Играть': 'Chơi', 'Продолжить': 'Chơi tiếp', 'Уровни': 'Màn chơi', 'Мои': 'Của tôi', 'Редактор': 'Biên tập', 'Мои уровни': 'Màn của tôi',
+    'Новый': 'Mới', 'Дальше': 'Tiếp', 'Заново': 'Chơi lại', 'Меню': 'Menu', 'Ещё раз': 'Thử lại', 'время': 'thời gian', 'рекорд': 'kỷ lục', 'на 3★': 'để đạt 3★',
+    'Подорвался': 'Bị nổ tung', 'Поймали': 'Bị bắt', 'Время вышло': 'Hết giờ', 'Код уровня': 'Mã màn chơi', 'Копировать': 'Sao chép', 'Загрузить': 'Tải',
+    'Проверить': 'Chạy thử', 'Сохранить': 'Lưu', 'Название': 'Tên', 'Название уровня': 'Tên màn chơi', 'Пауза (Esc)': 'Tạm dừng (Esc)', 'Враги': 'Kẻ địch',
+    'Время': 'Thời gian', 'Бомбы': 'Bom', 'Огонь': 'Lửa', 'Скорость': 'Tốc độ', 'Назад': 'Quay lại', 'Мир: луг, дюны, лёд': 'Thế giới: đồng cỏ, đụn cát, băng',
+    'Старт': 'Xuất phát', 'Выход': 'Lối ra', 'Звук': 'Âm thanh', 'Язык': 'Ngôn ngữ', 'Вставить код': 'Dán mã', 'Изменить': 'Sửa', 'Код': 'Mã', 'Удалить': 'Xóa',
+    'Ещё раз — удалить': 'Bấm lần nữa để xóa', 'Пусто': 'Trống', 'Уровень': 'Màn', 'Из кода': 'Từ mã', 'Проверка': 'Chạy thử',
+    'Удалено': 'Đã xóa', 'Сохранено': 'Đã lưu', 'Скопировано': 'Đã sao chép', 'Добавлено': 'Đã thêm', 'Код не подошёл': 'Mã không hợp lệ', 'Хранилище недоступно': 'Không dùng được bộ nhớ',
+    'Пол': 'Nền', 'Стена': 'Tường', 'Ящик': 'Thùng', 'Слизень': 'Slime', 'Летун': 'Dơi', 'Призрак': 'Ma', 'Бомба': 'Bom',
+    'Луг': 'Đồng cỏ', 'Дюны': 'Đụn cát', 'Лёд': 'Băng', 'Джунгли': 'Rừng rậm', 'Руины': 'Tàn tích', 'Неон': 'Neon', 'Закат': 'Hoàng hôn', 'Лава': 'Dung nham', 'Болото': 'Đầm lầy', 'Космос': 'Vũ trụ',
+    'Награды': 'Thành tích', 'Прогресс': 'Tiến trình', 'Код прогресса': 'Mã tiến trình', 'Прогресс объединён': 'Đã gộp tiến trình', 'Награда': 'Thành tích', 'Рекорд': 'Kỷ lục',
+  },
+  es: {
+    'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'Vuélalos todos y encuentra la salida',
+    'Играть': 'Jugar', 'Продолжить': 'Continuar', 'Уровни': 'Niveles', 'Мои': 'Míos', 'Редактор': 'Editor', 'Мои уровни': 'Mis niveles',
+    'Новый': 'Nuevo', 'Дальше': 'Siguiente', 'Заново': 'Reiniciar', 'Меню': 'Menú', 'Ещё раз': 'Reintentar', 'время': 'tiempo', 'рекорд': 'récord', 'на 3★': 'para 3★',
+    'Подорвался': 'Volaste por los aires', 'Поймали': 'Te atraparon', 'Время вышло': 'Se acabó el tiempo', 'Код уровня': 'Código del nivel', 'Копировать': 'Copiar', 'Загрузить': 'Cargar',
+    'Проверить': 'Probar', 'Сохранить': 'Guardar', 'Название': 'Nombre', 'Название уровня': 'Nombre del nivel', 'Пауза (Esc)': 'Pausa (Esc)', 'Враги': 'Enemigos',
+    'Время': 'Tiempo', 'Бомбы': 'Bombas', 'Огонь': 'Fuego', 'Скорость': 'Velocidad', 'Назад': 'Atrás', 'Мир: луг, дюны, лёд': 'Mundo: prado, dunas, hielo',
+    'Старт': 'Inicio', 'Выход': 'Salida', 'Звук': 'Sonido', 'Язык': 'Idioma', 'Вставить код': 'Pegar código', 'Изменить': 'Editar', 'Код': 'Código', 'Удалить': 'Borrar',
+    'Ещё раз — удалить': 'Pulsa otra vez para borrar', 'Пусто': 'Vacío', 'Уровень': 'Nivel', 'Из кода': 'Desde código', 'Проверка': 'Prueba',
+    'Удалено': 'Borrado', 'Сохранено': 'Guardado', 'Скопировано': 'Copiado', 'Добавлено': 'Añadido', 'Код не подошёл': 'Código no válido', 'Хранилище недоступно': 'Almacenamiento no disponible',
+    'Пол': 'Suelo', 'Стена': 'Muro', 'Ящик': 'Caja', 'Слизень': 'Baba', 'Летун': 'Murciélago', 'Призрак': 'Fantasma', 'Бомба': 'Bomba',
+    'Луг': 'Prado', 'Дюны': 'Dunas', 'Лёд': 'Hielo', 'Джунгли': 'Selva', 'Руины': 'Ruinas', 'Неон': 'Neón', 'Закат': 'Atardecer', 'Лава': 'Lava', 'Болото': 'Pantano', 'Космос': 'Espacio',
+    'Награды': 'Logros', 'Прогресс': 'Progreso', 'Код прогресса': 'Código de progreso', 'Прогресс объединён': 'Progreso combinado', 'Награда': 'Logro', 'Рекорд': 'Récord',
+  },
+  fr: {
+    'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'Fais tout sauter, trouve la sortie',
+    'Играть': 'Jouer', 'Продолжить': 'Continuer', 'Уровни': 'Niveaux', 'Мои': 'Les miens', 'Редактор': 'Éditeur', 'Мои уровни': 'Mes niveaux',
+    'Новый': 'Nouveau', 'Дальше': 'Suivant', 'Заново': 'Recommencer', 'Меню': 'Menu', 'Ещё раз': 'Réessayer', 'время': 'temps', 'рекорд': 'record', 'на 3★': 'pour 3★',
+    'Подорвался': 'Tu as sauté', 'Поймали': 'Attrapé', 'Время вышло': 'Temps écoulé', 'Код уровня': 'Code du niveau', 'Копировать': 'Copier', 'Загрузить': 'Charger',
+    'Проверить': 'Tester', 'Сохранить': 'Enregistrer', 'Название': 'Nom', 'Название уровня': 'Nom du niveau', 'Пауза (Esc)': 'Pause (Échap)', 'Враги': 'Ennemis',
+    'Время': 'Temps', 'Бомбы': 'Bombes', 'Огонь': 'Feu', 'Скорость': 'Vitesse', 'Назад': 'Retour', 'Мир: луг, дюны, лёд': 'Monde : prairie, dunes, glace',
+    'Старт': 'Départ', 'Выход': 'Sortie', 'Звук': 'Son', 'Язык': 'Langue', 'Вставить код': 'Coller le code', 'Изменить': 'Modifier', 'Код': 'Code', 'Удалить': 'Supprimer',
+    'Ещё раз — удалить': 'Appuie encore pour supprimer', 'Пусто': 'Vide', 'Уровень': 'Niveau', 'Из кода': 'Depuis un code', 'Проверка': 'Test',
+    'Удалено': 'Supprimé', 'Сохранено': 'Enregistré', 'Скопировано': 'Copié', 'Добавлено': 'Ajouté', 'Код не подошёл': 'Code invalide', 'Хранилище недоступно': 'Stockage indisponible',
+    'Пол': 'Sol', 'Стена': 'Mur', 'Ящик': 'Caisse', 'Слизень': 'Gluant', 'Летун': 'Chauve-souris', 'Призрак': 'Fantôme', 'Бомба': 'Bombe',
+    'Луг': 'Prairie', 'Дюны': 'Dunes', 'Лёд': 'Glace', 'Джунгли': 'Jungle', 'Руины': 'Ruines', 'Неон': 'Néon', 'Закат': 'Crépuscule', 'Лава': 'Lave', 'Болото': 'Marais', 'Космос': 'Espace',
+    'Награды': 'Succès', 'Прогресс': 'Progression', 'Код прогресса': 'Code de progression', 'Прогресс объединён': 'Progression fusionnée', 'Награда': 'Succès', 'Рекорд': 'Record',
+  },
 };
-let LANG = save.lang || ((navigator.language || '').toLowerCase().startsWith('ru') ? 'ru' : 'en');
-const tr = (s) => (LANG === 'en' ? (EN[s] ?? s) : s);
+// названия и условия наград: [название, условие]; русский и английский лежат в самом списке ACH
+const ACHL = {
+  th: { first: ['ทางออกแรก', 'ผ่านด่านใดก็ได้'], half: ['ครึ่งทาง', 'ผ่าน 25 ด่าน'], all: ['แชมเปี้ยน', 'ผ่านครบทั้ง 50 ด่าน'], worlds: ['นักเดินทาง', 'ผ่านครบห้าโลก'], star3: ['นักเร่งความเร็ว', 'ได้สามดาวในหนึ่งด่าน'], stars30: ['นักสะสมดาว', 'เก็บ 50 ดาว'], stars90: ['ครบทุกดาว', 'เก็บครบ 150 ดาว'], bombs: ['นักวางระเบิด', 'วางระเบิด 200 ลูก'], crates: ['นักทำลาย', 'ระเบิดลัง 500 ใบ'], kills: ['นักล่า', 'ปราบศัตรู 100 ตัว'], ghosts: ['นักล่าผี', 'ปราบผี 25 ตัว'], combo: ['ปฏิกิริยาลูกโซ่', 'ปราบศัตรูสามตัวด้วยการระเบิดครั้งเดียว'], lite: ['ไปตัวเปล่า', 'ผ่านด่านโดยไม่เก็บไอเทมเลย'], arsenal: ['คลังแสง', 'มีระเบิด 5 ลูกและไฟระดับ 6 ในหนึ่งด่าน'], lightning: ['สายฟ้าแลบ', 'ผ่านด่านภายในครึ่งหนึ่งของเวลาเป้าหมาย'], streak: ['ไม่แพ้เลย', 'ผ่าน 5 ด่านติดโดยไม่แพ้สักครั้ง'], builder: ['นักสร้าง', 'บันทึกด่านที่สร้างเอง'], master: ['ปรมาจารย์', 'ผ่านด่านที่ตัวเองสร้าง'] },
+  ka: { first: ['პირველი გასასვლელი', 'გაიარე ნებისმიერი დონე'], half: ['შუა გზაზე', 'გაიარე 25 დონე'], all: ['ჩემპიონი', 'გაიარე ყველა 50 დონე'], worlds: ['მოგზაური', 'გაიარე ხუთი სამყარო სრულად'], star3: ['სწრაფი', 'მიიღე სამი ვარსკვლავი ერთ დონეზე'], stars30: ['ვარსკვლავთმრიცხველი', 'შეაგროვე 50 ვარსკვლავი'], stars90: ['ყველა ვარსკვლავი', 'შეაგროვე ყველა 150 ვარსკვლავი'], bombs: ['ბომბის დამდები', 'დადე 200 ბომბი'], crates: ['გამანადგურებელი', 'აფეთქე 500 ყუთი'], kills: ['მონადირე', 'დაამარცხე 100 მტერი'], ghosts: ['მოჩვენებების მონადირე', 'დაამარცხე 25 მოჩვენება'], combo: ['ჯაჭვური რეაქცია', 'დაამარცხე სამი მტერი ერთი აფეთქებით'], lite: ['მსუბუქად', 'გაიარე დონე ერთი ბონუსის აღების გარეშე'], arsenal: ['არსენალი', 'მიაღწიე 5 ბომბს და ცეცხლს 6 ერთ დონეზე'], lightning: ['ელვა', 'გაიარე დონე სამიზნე დროზე ორჯერ სწრაფად'], streak: ['უმარცხოდ', 'გაიარე 5 დონე ზედიზედ წაგების გარეშე'], builder: ['მშენებელი', 'შეინახე საკუთარი დონე'], master: ['ოსტატი', 'გაიარე შენივე შექმნილი დონე'] },
+  vi: { first: ['Lối ra đầu tiên', 'Vượt qua một màn bất kỳ'], half: ['Nửa chặng đường', 'Vượt qua 25 màn'], all: ['Nhà vô địch', 'Vượt qua cả 50 màn'], worlds: ['Lữ khách', 'Hoàn thành năm thế giới'], star3: ['Tốc độ', 'Đạt ba sao ở một màn'], stars30: ['Nhà thiên văn', 'Thu thập 50 sao'], stars90: ['Đủ cả sao', 'Thu thập đủ 150 sao'], bombs: ['Thợ đặt bom', 'Đặt 200 quả bom'], crates: ['Kẻ phá hoại', 'Cho nổ 500 thùng'], kills: ['Thợ săn', 'Hạ 100 kẻ địch'], ghosts: ['Bắt ma', 'Hạ 25 con ma'], combo: ['Phản ứng dây chuyền', 'Hạ ba kẻ địch bằng một vụ nổ'], lite: ['Đi tay không', 'Vượt màn mà không nhặt vật phẩm nào'], arsenal: ['Kho vũ khí', 'Có 5 bom và lửa cấp 6 trong một màn'], lightning: ['Tia chớp', 'Vượt màn trong một nửa thời gian chuẩn'], streak: ['Không thua trận', 'Vượt 5 màn liên tiếp mà không thua'], builder: ['Người xây dựng', 'Lưu một màn do bạn tự tạo'], master: ['Bậc thầy', 'Vượt một màn do chính bạn làm'] },
+  es: { first: ['Primera salida', 'Supera cualquier nivel'], half: ['A medio camino', 'Supera 25 niveles'], all: ['Campeón', 'Supera los 50 niveles'], worlds: ['Viajero', 'Completa cinco mundos'], star3: ['Velocista', 'Consigue tres estrellas en un nivel'], stars30: ['Cazaestrellas', 'Reúne 50 estrellas'], stars90: ['Todas las estrellas', 'Reúne las 150 estrellas'], bombs: ['Zapador', 'Coloca 200 bombas'], crates: ['Demoledor', 'Vuela 500 cajas'], kills: ['Cazador', 'Derrota a 100 enemigos'], ghosts: ['Cazafantasmas', 'Derrota a 25 fantasmas'], combo: ['Reacción en cadena', 'Derrota a tres enemigos con una sola explosión'], lite: ['Ligero de equipaje', 'Supera un nivel sin recoger ningún potenciador'], arsenal: ['Arsenal', 'Llega a 5 bombas y fuego 6 en un nivel'], lightning: ['Relámpago', 'Supera un nivel en la mitad del tiempo objetivo'], streak: ['Sin fallos', 'Supera 5 niveles seguidos sin perder'], builder: ['Constructor', 'Guarda un nivel propio'], master: ['Maestro', 'Supera un nivel que hayas creado tú'] },
+  fr: { first: ['Première sortie', 'Terminer un niveau, n’importe lequel'], half: ['À mi-chemin', 'Terminer 25 niveaux'], all: ['Champion', 'Terminer les 50 niveaux'], worlds: ['Voyageur', 'Terminer cinq mondes'], star3: ['Fonceur', 'Obtenir trois étoiles sur un niveau'], stars30: ['Chasseur d’étoiles', 'Récolter 50 étoiles'], stars90: ['Toutes les étoiles', 'Récolter les 150 étoiles'], bombs: ['Artificier', 'Poser 200 bombes'], crates: ['Démolisseur', 'Faire sauter 500 caisses'], kills: ['Chasseur', 'Vaincre 100 ennemis'], ghosts: ['Chasseur de fantômes', 'Vaincre 25 fantômes'], combo: ['Réaction en chaîne', 'Vaincre trois ennemis avec une seule explosion'], lite: ['Voyager léger', 'Terminer un niveau sans ramasser de bonus'], arsenal: ['Arsenal', 'Atteindre 5 bombes et le feu 6 dans un niveau'], lightning: ['Éclair', 'Terminer un niveau en deux fois moins que le temps cible'], streak: ['Sans faute', 'Terminer 5 niveaux d’affilée sans perdre'], builder: ['Bâtisseur', 'Enregistrer un niveau à vous'], master: ['Maître', 'Terminer un niveau que vous avez créé'] },
+};
+function pickLang() {
+  try { const q = (new URLSearchParams(location.search).get('lang') || '').toLowerCase(); if (LANGS.includes(q)) return q; } catch (e) {}
+  if (LANGS.includes(save.lang)) return save.lang;
+  for (const l of (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language])) {
+    const c = String(l || '').toLowerCase().slice(0, 2); if (LANGS.includes(c)) return c;
+  }
+  return 'en';
+}
+let LANG = pickLang(); save.lang = LANG;
+const tr = (s) => (LANG === 'ru' ? s : (DICT[LANG][s] ?? s));
+// шрифты с буквами тайского и грузинского подгружаются только для этих языков
+const LANG_FONTS = {
+  th: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap',
+  ka: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700;800&display=swap',
+};
 function applyLang() {
   document.documentElement.lang = LANG; document.title = tr('Маленькие бомберы');
+  const f = LANG_FONTS[LANG];
+  if (f && !document.head.querySelector('link[href="' + f + '"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = f; document.head.appendChild(l); }
   const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = walk.nextNode(); n; n = walk.nextNode()) {
     if (n.parentElement.closest('script,style,textarea,svg')) continue;
     if (n.__ru === undefined) n.__ru = n.nodeValue;
-    const k = n.__ru.trim(); if (k && EN[k]) n.nodeValue = LANG === 'en' ? n.__ru.replace(k, EN[k]) : n.__ru;
+    const k = n.__ru.trim(); if (k && (LANG === 'ru' || DICT[LANG][k])) n.nodeValue = LANG === 'ru' ? n.__ru : n.__ru.replace(k, DICT[LANG][k]);
   }
   for (const el of document.querySelectorAll('[title],[placeholder],[aria-label]')) {
     el.__ru = el.__ru || {};
@@ -470,7 +577,8 @@ function applyLang() {
       el.setAttribute(a, tr(el.__ru[a]));
     }
   }
-  const b = document.getElementById('bLang'); if (b) b.textContent = LANG === 'en' ? 'RU' : 'EN';
+  const b = document.getElementById('bLang'); if (b) b.textContent = LANG.toUpperCase();
+  document.querySelectorAll('#lgList .lg').forEach((x) => x.classList.toggle('on', x.dataset.l === LANG));
 }
 
 /* ============================ ЗВУК ============================ */
@@ -605,7 +713,7 @@ const ACH = [
   { id: 'builder', ic: 'i-edit', n: ['Строитель', 'Builder'], d: ['Сохранить свой уровень', 'Save a level of your own'], v: flag('builder'), max: 1 },
   { id: 'master', ic: 'i-code', n: ['Мастер', 'Master'], d: ['Пройти уровень, который сделал сам', 'Finish a level you made yourself'], v: flag('master'), max: 1 },
 ];
-const achText = (a, k) => a[k][LANG === 'en' ? 1 : 0];
+const achText = (a, k) => (LANG === 'ru' ? a[k][0] : (ACHL[LANG] && ACHL[LANG][a.id] ? ACHL[LANG][a.id][k === 'n' ? 0 : 1] : a[k][1]));
 const noticeQ = []; let noticeBusy = false;
 function notice(msg) { noticeQ.push(msg); if (!noticeBusy) nextNotice(); }
 function nextNotice() {
@@ -1022,7 +1130,7 @@ function updHud() {
 
 /* ============================ ЭКРАНЫ ============================ */
 let screen = 'menu';
-const SCREENS = ['sMenu', 'sMap', 'sMine', 'sAch'], OVERLAYS = ['oPause', 'oWin', 'oLose', 'oCode'];
+const SCREENS = ['sMenu', 'sMap', 'sMine', 'sAch'], OVERLAYS = ['oPause', 'oWin', 'oLose', 'oCode', 'oLang'];
 function show(name) {
   screen = name;
   for (const s of SCREENS) $(s).hidden = s !== { menu: 'sMenu', map: 'sMap', mine: 'sMine', ach: 'sAch' }[name];
@@ -1121,9 +1229,13 @@ $('bMine').onclick = () => show('mine');
 $('bAch').onclick = () => show('ach');
 $('bSave').onclick = () => openCode(encodeSave(), 'Код прогресса');
 $('bEd').onclick = () => openEditor(save.draft || null);
-$('bLang').onclick = () => { LANG = LANG === 'en' ? 'ru' : 'en'; save.lang = LANG; persist(); applyLang(); fillMenu(); };
+// экран выбора языка: кнопка в меню открывает список, выбор сразу применяется и запоминается
+$('lgList').innerHTML = LANGS.map((l) => `<button class="btn ghost lg" data-l="${l}" lang="${l}">${LNAME[l]}</button>`).join('');
+$('bLang').onclick = () => { applyLang(); $('oLang').hidden = false; };
+$('lgList').onclick = (e) => { const b = e.target.closest('.lg'); if (!b) return; LANG = b.dataset.l; save.lang = LANG; persist(); applyLang(); fillMenu(); $('oLang').hidden = true; };
 $('bSound').onclick = () => { save.sound = !save.sound; persist(); fillMenu(); if (save.sound) SFX.pick(); };
 document.querySelectorAll('[data-back]').forEach((b) => b.onclick = () => show('menu'));
+$('lgClose').onclick = () => { $('oLang').hidden = true; };
 $('hPause').onclick = () => togglePause();
 $('pRes').onclick = () => togglePause(); $('pRe').onclick = restart; $('pOut').onclick = leave;
 $('wRe').onclick = restart; $('wOut').onclick = leave; $('wNext').onclick = () => play(campSrc(G.src.i + 1));

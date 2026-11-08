@@ -3,25 +3,28 @@
  "play": "/malenkie-bombery/",
  "repoDir": "malenkie-bombery",
  "name": {"ru": "Маленькие бомберы", "en": "Little Bombers"},
- "title": {"ru": "Маленькие бомберы — играть онлайн в бомбермен в браузере", "en": "Little Bombers — play a Bomberman-style game online in your browser"},
+ "title": {"ru": "Маленькие бомберы — играть онлайн в браузере без скачивания", "en": "Little Bombers — play online in your browser, no download"},
  "tagline": {"ru": "Ставь бомбы, взрывай ящики и врагов, ищи выход — 50 уровней, 18 наград и свой редактор в одном файле", "en": "Drop bombs, blow up crates and enemies, find the exit — 50 levels, 18 achievements and a level editor in one file"},
  "genre": {"ru": "Аркада", "en": "Arcade"},
  "description": {
-  "ru": "Маленькие бомберы: бесплатный бомбермен в браузере. 50 уровней в десяти мирах, три вида врагов, бонусы, 18 наград и редактор своих уровней. Прогресс сохраняется. Без установки.",
-  "en": "Little Bombers: a free Bomberman-style game in your browser. 50 levels in ten worlds, three enemy types, power-ups, 18 achievements and a level editor. Progress is saved. No installation."
+  "ru": "Маленькие бомберы онлайн: бесплатный бомбермен в браузере без скачивания. 50 уровней, редактор своих уровней, 18 наград, 7 языков. На телефоне и компьютере.",
+  "en": "Little Bombers online: a free Bomberman-style game in your browser, no download. 50 levels, a level editor, 18 achievements, 7 languages. Phone and desktop."
  },
  "intro": {
   "ru": [
-   "Маленькие бомберы — аркада в духе классического бомбермена: ставишь бомбы, взрываешь ящики, уничтожаешь всех врагов и уходишь в выход, спрятанный под одним из ящиков. Играть можно прямо в браузере, на компьютере и на телефоне.",
+   "Маленькие бомберы — бесплатная игра в духе бомбермена: в неё можно играть онлайн в браузере, без скачивания и регистрации, на компьютере и на телефоне. Ставишь бомбы, взрываешь ящики, уничтожаешь всех врагов и уходишь в выход, спрятанный под одним из ящиков.",
+   "Это новая игра, а не переиздание «Маленьких бомберов возвращаются» от Alawar 2004 года: другой автор и другие уровни, но та же идея — лабиринт, бомбы и поиск выхода.",
    "В кампании 50 уровней в десяти мирах: луг, дюны, лёд, лава, болото, космос, джунгли, руины, неон и закат. Чем быстрее пройден уровень, тем больше звёзд. Свои уровни рисуются в редакторе и сохраняются в браузере, ими можно делиться коротким кодом. Вся игра — один файл без библиотек."
   ],
   "en": [
-   "Little Bombers is an arcade game in the spirit of the classic Bomberman: drop bombs, blow up crates, defeat every enemy and walk into the exit hidden under one of the crates. It runs right in the browser, on desktop and on phones.",
+   "Little Bombers is a free Bomberman-style game you can play online in your browser, with no download and no sign-up, on desktop and on phones. You drop bombs, blow up crates, defeat every enemy and walk into the exit hidden under one of the crates.",
+   "It is a new game, not a re-release of Alawar’s Little Bombers Returns from 2004: a different author and different levels, but the same idea of a maze, bombs and a hunt for the exit.",
    "The campaign has 50 levels in ten worlds: meadow, dunes, ice, lava, swamp, space, jungle, ruins, neon and sunset. The faster you finish a level, the more stars you earn. You can draw your own levels in the editor, they are saved in your browser and can be shared with a short code. The whole game is one file with no libraries."
   ]
  },
  "features": {
   "ru": [
+   "Без скачивания и регистрации: открывается в браузере на компьютере, планшете и телефоне",
    "50 уровней в десяти мирах: луг, дюны, лёд, лава, болото, космос, джунгли, руины, неон, закат",
    "До трёх звёзд за уровень — за скорость прохождения",
    "Три врага: слизень бродит, летун бросается по прямой, призрак проходит сквозь ящики",
@@ -30,9 +33,10 @@
    "18 наград: за звёзды, врагов, ящики, скорость и свои уровни",
    "Прогресс, награды, рекорды и свои уровни сохраняются в браузере; переносятся кодом на другое устройство",
    "Сенсорное управление: джойстик и кнопка бомбы на телефоне",
-   "Русский и английский интерфейс"
+   "Семь языков интерфейса: игра стартует на языке сайта, переключатель — в меню"
   ],
   "en": [
+   "No download, no sign-up: opens in the browser on desktop, tablet and phone",
    "50 levels in ten worlds: meadow, dunes, ice, lava, swamp, space, jungle, ruins, neon, sunset",
    "Up to three stars per level, earned for speed",
    "Three enemies: the slime wanders, the bat charges in a straight line, the ghost passes through crates",
@@ -41,7 +45,7 @@
    "18 achievements: for stars, enemies, crates, speed and your own levels",
    "Progress, achievements, best times and your own levels are saved in the browser and move to another device with a code",
    "Touch controls: a joystick and a bomb button on phones",
-   "Russian and English interface"
+   "Seven interface languages: the game starts in the site’s language, with a switcher in the menu"
   ]
  },
  "controls": {
@@ -49,11 +53,15 @@
   "en": [["← ↑ → ↓ / W A S D", "move"], ["Space / X", "drop a bomb"], ["Esc / P", "pause"], ["R", "restart the level"], ["1 … =", "editor tool"]]
  },
  "facts": {
-  "ru": [["Платформа", "браузер на компьютере и телефоне"], ["Уровней", "50 в кампании и сколько угодно своих"], ["Размер", "один файл, шрифты подгружаются из сети"], ["Сохранение", "в браузере (localStorage)"], ["Код", "открытый, MIT"]],
-  "en": [["Platform", "browser on desktop and phone"], ["Levels", "50 in the campaign plus any number of your own"], ["Size", "one file, fonts are loaded from the network"], ["Saving", "in the browser (localStorage)"], ["Code", "open source, MIT"]]
+  "ru": [["Платформа", "браузер на компьютере и телефоне"], ["Уровней", "50 в кампании и сколько угодно своих"], ["Размер", "один файл, шрифты подгружаются из сети"], ["Сохранение", "в браузере (localStorage)"], ["Код", "открытый, MIT"], ["Языки", "русский, английский, тайский, грузинский, вьетнамский, испанский, французский"]],
+  "en": [["Platform", "browser on desktop and phone"], ["Levels", "50 in the campaign plus any number of your own"], ["Size", "one file, fonts are loaded from the network"], ["Saving", "in the browser (localStorage)"], ["Code", "open source, MIT"], ["Languages", "Russian, English, Thai, Georgian, Vietnamese, Spanish, French"]]
  },
  "faq": {
   "ru": [
+   ["Можно ли играть в «Маленькие бомберы» онлайн без скачивания?", "Да. Игра открывается кнопкой «Играть в браузере» на этой странице и работает прямо во вкладке, на компьютере и на телефоне. Ничего устанавливать не нужно, регистрироваться тоже."],
+   ["Это та самая игра «Маленькие бомберы возвращаются» от Alawar?", "Нет. Игра Alawar вышла в 2004 году как программа для Windows. Эта игра сделана заново для браузера: свои уровни, редактор и 18 наград. Общее у них — идея бомбермена: лабиринт, бомбы и выход под ящиком."],
+   ["На каких языках игра?", "На русском, английском, тайском, грузинском, вьетнамском, испанском и французском. Игра стартует на языке страницы сайта, с которой вы нажали «Играть», а сменить язык можно кнопкой в меню."],
+   ["Есть ли режим на двоих?", "Пока нет: в игре одиночная кампания на 50 уровней и свои уровни из редактора."],
    ["Где сохраняется прогресс?", "В самом браузере на вашем устройстве: пройденные уровни, звёзды, рекорды и свои уровни. Если очистить данные сайта, они пропадут: заранее скопируйте код прогресса кнопкой «Прогресс» в меню."],
    ["Как перенести прогресс на другое устройство?", "В меню нажмите «Прогресс», скопируйте код и вставьте его там же на другом устройстве: прогресс объединится с тем, что уже есть."],
    ["Как получить три звезды?", "Пройти уровень быстрее контрольного времени, оно показано на экране победы."],
@@ -61,6 +69,10 @@
    ["Можно ли играть на телефоне?", "Да, на сенсорном экране появляются джойстик и кнопка бомбы."]
   ],
   "en": [
+   ["Can I play Little Bombers online without downloading?", "Yes. The game opens with the Play in your browser button on this page and runs right in the tab, on desktop and on phones. There is nothing to install and no account to create."],
+   ["Is this the Little Bombers Returns game from Alawar?", "No. The Alawar game came out in 2004 as a Windows program. This one is built from scratch for the browser, with its own levels, an editor and 18 achievements. What they share is the Bomberman idea: a maze, bombs and an exit under a crate."],
+   ["Which languages does the game support?", "Russian, English, Thai, Georgian, Vietnamese, Spanish and French. The game starts in the language of the site page where you pressed Play, and you can change it with the language button in the menu."],
+   ["Is there a two-player mode?", "Not yet: the game has a single-player campaign of 50 levels plus your own levels from the editor."],
    ["Where is my progress saved?", "In your browser on your device: finished levels, stars, best times and your own levels. Clearing the site data removes them, so copy the progress code with the Progress button in the menu first."],
    ["How do I move progress to another device?", "Press Progress in the menu, copy the code and paste it in the same place on the other device: it merges with whatever is already there."],
    ["How do I get three stars?", "Finish the level faster than the target time shown on the victory screen."],
@@ -73,5 +85,5 @@
   {"file": "docs/screenshots/menu.jpg", "w": 1600, "h": 900, "alt": {"ru": "Маленькие бомберы: главное меню", "en": "Little Bombers: the main menu"}}
  ],
  "related": ["northern-rift", "uptime"],
- "keywords": {"ru": ["бомбермен онлайн", "игра с бомбами в браузере", "редактор уровней бомбермен"], "en": ["bomberman online", "bomberman style browser game", "bomberman level editor"]}
+ "keywords": {"ru": ["маленькие бомберы играть онлайн", "маленькие бомберы онлайн", "бомбермен онлайн", "бомбермен без скачивания", "игра с бомбами в браузере", "редактор уровней бомбермен"], "en": ["little bombers online", "little bombers game", "bomberman online", "play bomberman without download", "bomberman style browser game", "bomberman level editor"]}
 }
