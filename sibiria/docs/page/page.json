@@ -7,8 +7,8 @@
   "en": "Sibiria"
  },
  "title": {
-  "ru": "Сибирь — игра на выживание в тайге, играть онлайн в браузере",
-  "en": "Sibiria — taiga survival game, play free in your browser"
+  "ru": "Сибирь — выживалка в тайге: играть онлайн бесплатно на русском",
+  "en": "Sibiria — taiga survival game: play free in your browser, no download"
  },
  "tagline": {
   "ru": "Четыре ночи в эвенкийской тайге, 1993 год — выживание и постройка поселения",
@@ -19,17 +19,17 @@
   "en": "Top-down survival and settlement"
  },
  "description": {
-  "ru": "Сибирь — игра на выживание в тайге, 1993 год: холод, волки, медведь, избушка и поселение. Семь глав, пять финалов. В браузере, без скачивания.",
-  "en": "Sibiria: a top-down survival game in the Evenki taiga, 1993 — cold, wolves, a rogue bear, your hut and a settlement. Seven chapters, five endings. Play in the browser."
+  "ru": "Не квест Syberia: «Сибирь» — выживалка в тайге 1993 года. Изба, мороз, волки, медведь-шатун, своё поселение. Играть онлайн бесплатно, без скачивания.",
+  "en": "Sibiria is a browser survival game in the Evenki taiga, 1993: frost, wolves, a rogue bear, your hut and a settlement. Free to play online, no download."
  },
  "intro": {
   "ru": [
    "Январь 1993-го. Вертолёт Ми-8 борт 24713 упал на излучине реки в Эвенкии. Вы — Лёша, бортрадист. Рация разбита, экипажа нет, до людей несколько дней пути. Найдите старую охотничью избушку, затопите печь, познакомьтесь со старым эвенком Уркачаном и переживите четыре ночи.",
-   "Дальше игра превращается в историю о поселении: нанимайте людей, стройте здания и поднимайтесь через эпохи, торгуйте за рубли — и всё это среди тайги, которая не прощает ошибок. Игра запускается в браузере без установки и сборки, есть версия для телефона."
+   "Дальше игра превращается в историю о поселении: нанимайте людей, стройте здания и поднимайтесь через эпохи, торгуйте за рубли — и всё это среди тайги, которая не прощает ошибок. По жанру это выживалка и симулятор выживания зимой в лесу: тепло, еда и дрова решают всё. Игра запускается в браузере без установки и сборки, есть версия для телефона."
   ],
   "en": [
    "January 1993. Mi-8 board 24713 went down on a river bend in Evenkia. You are Lyosha, the radio operator. The radio is smashed, the crew is gone, and the nearest people are days away. Find the old hunters’ hut, light its stove, meet the old Evenk Urkachan and get through four nights.",
-   "Then the game turns into a settlement story: hire hands, build and climb through the ages, trade for roubles — all in a taiga that does not forgive mistakes. It runs in the browser with no install or build, and it works on phones."
+   "Then the game turns into a settlement story: hire hands, build and climb through the ages, trade for roubles — all in a taiga that does not forgive mistakes. It is a winter survival game in the woods where warmth, food and firewood decide everything. It runs in the browser with no install or build, and it works on phones."
   ]
  },
  "features": {
@@ -155,6 +155,14 @@
  "faq": {
   "ru": [
    [
+    "Это квест «Сибирь» (Syberia)?",
+    "Нет. Квест Syberia, который по-русски вышел как «Сибирь», — другая игра 2002 года про Кейт Уокер. Здесь — выживалка в тайге 1993 года, в неё можно играть онлайн бесплатно прямо в браузере."
+   ],
+   [
+    "Нужно ли скачивать игру или регистрироваться?",
+    "Нет: игра открывается кнопкой «Играть» и идёт в браузере на компьютере и телефоне, без скачивания и регистрации. Прогресс хранится в браузере."
+   ],
+   [
     "Это реальная история?",
     "Нет, это вымышленный сюжет в реалиях Эвенкии 1993 года: персонажи и события придуманы."
    ],
@@ -172,6 +180,14 @@
    ]
   ],
   "en": [
+   [
+    "Is this the Syberia adventure game?",
+    "No. Syberia is a 2002 adventure game about Kate Walker. Sibiria is a different game: a taiga survival game set in 1993 that you can play free in the browser."
+   ],
+   [
+    "Do I need to download it or sign up?",
+    "No: press Play and it runs in the browser on a computer or a phone, with no download and no account. Progress is saved in the browser."
+   ],
    [
     "Is it a true story?",
     "No, it is fiction set in the realities of Evenkia in 1993: the characters and events are invented."
@@ -261,16 +277,23 @@
  ],
  "keywords": {
   "ru": [
-   "игра про выживание в тайге", "игра на выживание в тайге",
+   "игра про выживание в тайге",
+   "игра на выживание в тайге",
    "выживание 1993 Эвенкия",
    "игра про поселение",
-   "выживалка в браузере"
+   "выживалка в браузере",
+   "выживалка онлайн",
+   "симулятор выживания зимой",
+   "игра выживание в лесу",
+   "сибирь играть онлайн бесплатно"
   ],
   "en": [
    "survival game browser",
    "taiga survival game",
    "settlement builder",
-   "Siberia game 1993"
+   "Siberia game 1993",
+   "free survival game online",
+   "browser survival game no download"
   ]
  }
 }
