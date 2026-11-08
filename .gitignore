@@ -1,3 +1,8 @@
 .claude/
 .DS_Store
 panzer-general/.dev/
+
+# тестовые снимки и результаты прогонов Сибири (сотни МБ, воспроизводятся тестами)
+sibiria/tests/shots/
+sibiria/tests/visual-diff/
+sibiria/tests/out-*.json
