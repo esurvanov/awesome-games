@@ -6,3 +6,4 @@ panzer-general/.dev/
 sibiria/tests/shots/
 sibiria/tests/visual-diff/
 sibiria/tests/out-*.json
+sibiria/tests/node_modules/

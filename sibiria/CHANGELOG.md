@@ -1,5 +1,17 @@
 # Changelog · История версий
 
+## v1.3.2 — 09.11.2026
+
+Balance: chopping no longer freezes you. Play in the browser: https://www.urvanov.com/sibiria/
+
+Баланс: рубка больше не морозит. Играть в браузере: https://www.urvanov.com/sibiria/
+
+### Balance · Баланс
+- Heavy work warms like the shovel already did: felling, limbing, bucking, rolling a log, tearing the wreck apart, cutting an ice hole, stamping snow · Тяжёлая работа греет, как уже грела лопата: валка, обрубка, раскряжёвка, перекат ствола, разбор обломков, пешня, утаптывание
+- Before: warmth lasted ~100–140 s outdoors by day, one spruce took ~2 min, so the main job of the day froze you faster than walking · Было: днём на улице тепла ~100–140 с, одна ель — ~2 мин, и главное дело дня морозило быстрее ходьбы
+- Now by day an axe holds warmth for 8–60 min (days 1–6), walking between trees still cools; at night without a fire work does not save you · Теперь днём с топором тепла хватает на 8–60 мин (дни 1–6), ходьба между деревьями по-прежнему остужает; ночью без огня работа не спасает
+- New check: tests/work-heat.js (in run-all) · Новая проверка: tests/work-heat.js (в общем прогоне)
+
 ## v1.2.0 — 30.09.2026
 
 A photographic look, a body with weight, and a world that answers back. Play in the browser: https://www.urvanov.com/sibiria/

@@ -22,7 +22,10 @@ const Survival = (() => {
   }
   // множитель потери тепла от ветра — одна формула для жизни и прогноза
   const windMul = ms => 1 + B.wind * Math.max(0, ms - B.windFrom);
-  const working = p => !!(p.action && (p.action.k === 'clear' || p.action.k === 'digout'));
+  // тяжёлая работа (5–8 MET) греет: лопата, топор (валка, обрубка, раскряжёвка), обломки руками, пешня, утаптывание.
+  // Без этого рубка — главное дело дня — морозила быстрее ходьбы: дерево ~1,5–2 мин, а тепла на улице ~100 с днём
+  const WORK = new Set(TUNE.body.workK);
+  const working = p => !!(p.action && WORK.has(p.action.k));
   // потеря тепла и голод в секунду; tire — усталость (вымотанный мёрзнет быстрее); t — время (ветер; прогноз — свой час)
   function rates(p, T, night, sleeping, tire = G.s.tire || 0, t = G.time) {
     const eff = typeof Depth !== 'undefined' && p === G.p ? Depth.effort() : 0;
