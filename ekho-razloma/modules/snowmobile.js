@@ -1,7 +1,8 @@
 /* modules/snowmobile.js — Snowmobile (the skimmer): the vehicle the pilot rides after Orm gives it to them.
  * Classic script, loaded before the page: window.createSnowmobile(deps) → { sk, mount(), dismount(), callSkimmer(), updateSkimmer(dt, ix, iy) }
  *   sk   { x, y, z, yaw, speed, mounted, unlocked, g, seat, fallback, … }   saved as `sk` = sk.unlocked
- * Riding is still the page-wide flag G.riding (30+ readers: camera, fox, enemies, pickups); mount/dismount are its only writers and live here.
+ * Riding is the fact Player.riding (modules/player-control.js; G.riding is its old name, read by 80 places: camera, fox, enemies, pickups); mount/dismount are its only
+ * writers, through Player.board() / Player.leave().
  * Physics (PH.vh) drives the sled when available, a simple arcade model otherwise. modules/structures.js swaps in the real model.
  * deps (open-world.html builds them): helpers and scene objects below; D.cam, D.pressed, D.AV, D.T, D.K are read at run time (the page defines
  * them after this module is created) and D.shake is a setter for the camera shake the page owns. */
@@ -32,11 +33,11 @@
     })();
 
     function mount() {
-      D.G.riding = true; sk.mounted = true; player.vx = player.vz = player.vy = 0; Sound.whoosh(); D.cam.yaw = sk.yaw;
+      D.Player.board(); sk.mounted = true; player.vx = player.vz = player.vy = 0; Sound.whoosh(); D.cam.yaw = sk.yaw;
       if (PH.ok) { PH.ch.setEnabled(false); PH.vh.setEnabled(true); PH.vh.teleport(sk.x, groundH(sk.x, sk.z) + 1.2, sk.z, sk.yaw); }
     }
     function dismount() {
-      D.G.riding = false; sk.mounted = false; sk.speed = 0;
+      D.Player.leave(); sk.mounted = false; sk.speed = 0;
       player.face = sk.yaw; player.c.g.rotation.set(0, sk.yaw, 0); player.vx = player.vz = player.vy = 0;   // drop the sled's quaternion (pitch/roll, Euler flip)
       const rx = Math.cos(sk.yaw), rz = -Math.sin(sk.yaw);
       player.x = sk.x + rx * 2.2; player.z = sk.z + rz * 2.2; player.y = groundH(player.x, player.z) + 0.5; player.c.body.position.y = 0;

@@ -26,14 +26,14 @@ Your plane, the «Kestrel», goes down on a nameless polar island under the nort
 |---|---|---|
 | 🗺 **Open island, 900 × 900 m** — crash site, polar station, frozen lake, ruins, forest, sea ice, the Rift | 📖 **5 chapters, 2 endings** — dialogue with choices, 8 echo recordings, 24 crystal shards | 🛷 **Skimmer** — call it with T, ride it across the ice |
 | 👣 **Snow that remembers** — every boot, hoof and paw presses its own shape into the snow; a roll leaves a trough | ✋ **Contact** — the pilot leans on rocks and walls, braces on slopes, vaults low obstacles | 🦌 **Wildlife** — stags that walk, trot and gallop; a fox that follows you |
-| 🌌 **Night that looks like night** — aurora, moon shadows, baked lighting, fog, falling snow | ⚔️ **A little combat** — crystal shardlings and a golem in the Rift | 🤖 **Optional AI** — run the local server and the hermit answers what you type (rules take over offline) |
+| 🌌 **Night that looks like night** — aurora, moon shadows, baked lighting, fog, falling snow | ⚔️ **A little combat** — crystal shardlings and a golem in the Rift | |
 
 ## 🎮 Controls
 
 | | |
 |---|---|
 | `W A S D` move · `Shift` run · `Space` jump · `C` roll | `E` interact · `LMB` cutter · `Q` scan · `G` wave |
-| `T` call the skimmer · `M` map · `J` journal · `Esc` pause | `Y` talk to Orm · `V` command IRIS (with the local AI server) |
+| `T` call the skimmer · `M` map · `J` journal · `Esc` pause | |
 
 ## 🚀 Run it yourself
 
@@ -41,7 +41,6 @@ Your plane, the «Kestrel», goes down on a nameless polar island under the nort
 |---|---|
 | In the browser | open **[esurvanov.github.io/awesome-games/ekho-razloma/open-world.html](https://esurvanov.github.io/awesome-games/ekho-razloma/open-world.html)** |
 | Locally | `cd ekho-razloma && python3 -m http.server` → open `http://localhost:8000/open-world.html` |
-| With the AI hermit | `node server/server.mjs --page open-world.html --open` with `TYPESAFE_API_KEY=…` in `.env` (never commit it) |
 | Bonus | [Northern Rift](../severny-razlom/) — the canyon flyer made first in the same world (also `index.html` here) |
 
 Any desktop browser with WebGL 2. Quality adapts to the machine; on Retina screens the picture is rendered at 1× and scaled.

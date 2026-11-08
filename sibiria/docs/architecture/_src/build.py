@@ -17,23 +17,8 @@ def build(L):
     r = (L == 'ru'); t = lambda ru, en: ru if r else en
     P = []
     P.append(t(
-      '«Сибирь» — игра на выживание в тайге, вид сверху, прямо в браузере: без движка, без сборки, около пятидесяти скриптов на холсте 2D. Здесь описано, как она устроена: контексты, схемы C4 до уровня компонентов и четыре пути, на которых всё держится.',
-      '“Sibiria” is a top-down taiga survival game in the browser: no engine, no build step, about fifty scripts drawing on a 2D canvas. This is how it is put together: the contexts, C4 diagrams down to the component level and the four paths everything rests on.'))
-    # ---- contexts
-    P.append(H2('contexts', t('Контексты игры', 'The contexts of the game')))
-    rows = [
-      (t('Мир', 'World'), 'world, zones, depth, ice, wind, snow, live', t('лес, зоны, глубина снега, лёд, ветер, живые вещи', 'forest, zones, snow depth, ice, wind, living things')),
-      (t('Герой и выживание', 'Hero and survival'), 'hero, survival, fire, actions, time', t('тепло, голод, огонь, действия, сутки, погода', 'warmth, hunger, fire, actions, day cycle, weather')),
-      (t('Угрозы', 'Threats'), 'director, wolves, bear, fauna', t('директор угроз, волки, шатун, зайцы и олени', 'threat director, wolves, bear, hares and deer')),
-      (t('Посёлок и люди', 'Settlement and people'), 'colony, npc, talk, barks', t('люди, стройка, эпохи, персонажи, разговоры', 'workers, building, ages, characters, conversations')),
-      (t('Сюжет', 'Story'), 'story, quests, content/*, finale', t('события, главы, задания, вертолёт, финалы', 'events, chapters, quests, the helicopter, endings')),
-      (t('Картинка и звук', 'Picture and sound'), 'gfx, art-*, particles, audio', t('рендер, спрайты, частицы, синтез звука', 'renderer, sprites, particles, synthesised sound')),
-      (t('Ввод и интерфейс', 'Input and interface'), 'input, ui, map, icons', t('мышь и тач, HUD, панели, карта, цикл кадра', 'mouse and touch, HUD, panels, map, the frame loop')),
-      (t('Сохранение', 'Saving'), 'savegame, Saves, Settings', t('снимок игры, ячейки, настройки', 'game snapshot, slots, settings')),
-    ]
-    P.append('| ' + t('Контекст', 'Context') + ' | ' + t('Файлы js/', 'Files in js/') + ' | ' + t('За что отвечает', 'What it owns') + ' |\n|---|---|---|\n' + '\n'.join(f'| {a} | `{b}` | {c} |' for a, b, c in rows))
-    P.append(t('Контексты общаются через одно общее состояние `G` и несколько глобальных объектов-модулей. Сводку «что вокруг героя» даёт `Ctx`.',
-               'Contexts talk through one shared state `G` and a few global module objects. `Ctx` gives the “what is around the hero” summary.'))
+      '«Сибирь» — игра на выживание в тайге, вид сверху, прямо в браузере: без движка, без сборки, около пятидесяти скриптов на холсте 2D. Здесь описано, как она устроена: схемы C4 до уровня компонентов и четыре пути, на которых всё держится.',
+      '“Sibiria” is a top-down taiga survival game in the browser: no engine, no build step, about fifty scripts drawing on a 2D canvas. This is how it is put together: C4 diagrams down to the component level and the four paths everything rests on.'))
     # ---- C4
     P.append(H2('c4', t('C4: контекст и контейнеры', 'C4: context and containers')))
     P.append(H3(t('Уровень 1. Система и её окружение', 'Level 1. The system and its surroundings')))
@@ -48,11 +33,11 @@ def build(L):
     P.append(H3(t('Уровень 2. Контейнеры', 'Level 2. Containers')))
     P.append(fig(flow({
         'pg': (0, 1, ['index.html', t('холст, HUD, стили', 'canvas, HUD, styles')], 'c'),
-        'dt': (1, 0, [t('Ядро и данные', 'Core and data'), 'core, data, content/*'], 'c'),
-        'sy': (1, 1, [t('Системы', 'Systems'), t('модули js/*.js', 'js/*.js modules')], 'c'),
+        'dt': (2, 0, [t('Ядро и данные', 'Core and data'), 'core, data, content/*'], 'c'),
+        'sy': (2, 1, [t('Системы', 'Systems'), t('модули js/*.js', 'js/*.js modules')], 'c'),
         'rn': (1, 2, [t('Картинка', 'Picture'), 'gfx, art-*, particles'], 'c'),
         'au': (2, 2, [t('Звук', 'Sound'), 'audio.js, Web Audio'], 'c'),
-        'ui': (2, 1, [t('Интерфейс и цикл', 'Interface and loop'), 'ui, input, map'], 'c'),
+        'ui': (1, 1, [t('Интерфейс и цикл', 'Interface and loop'), 'ui, input, map'], 'c'),
         'st': (3, 1, [t('Хранилище', 'Storage'), 'localStorage'], 'x'),
       }, [('pg', 'ui', t('грузит скрипты', 'loads scripts'), False), ('dt', 'sy', t('числа, сюжет', 'numbers, story'), False), ('ui', 'sy', 'update(dt)', False), ('ui', 'rn', 'render', False), ('ui', 'au', 'Sound.frame', False), ('sy', 'st', t('сейв', 'save'), True)], 4, 3,
       t('Контейнеры игры: страница, ядро, системы, картинка, звук, интерфейс', 'Game containers: page, core, systems, picture, sound, interface'))
@@ -68,8 +53,8 @@ def build(L):
         'zn': (1, 0, [t('Зоны', 'Zones'), t('8 зон, свои правила', '8 zones, own rules')], 'c'),
         'dp': (1, 1, [t('Глубина снега', 'Snow depth'), 'depth.js'], 'c'),
         'ic': (1, 2, [t('Лёд', 'Ice'), t('провал у переката', 'falling through')], 'c'),
-        'wn': (2, 0, [t('Ветер', 'Wind'), 'wind.js'], 'c'),
-        'sn': (2, 1, [t('Снег на вещах', 'Snow on things'), 'snow.js'], 'c'),
+        'wn': (2, 1, [t('Ветер', 'Wind'), 'wind.js'], 'c'),
+        'sn': (2, 0, [t('Снег на вещах', 'Snow on things'), 'snow.js'], 'c'),
         'lv': (2, 2, [t('Живые вещи', 'Living things'), t('лопасть, дверь, провода', 'blade, door, wires')], 'c'),
         'ix': (3, 1, [t('Отклики', 'Responses'), 'interact.js'], 'c'),
       }, [('wd', 'zn', t('карта зон', 'zone map'), False), ('wd', 'dp', t('поверхность', 'surface'), False), ('wd', 'ic', t('река', 'river'), False), ('wn', 'sn', t('сдув, наддув', 'blow, drift'), False), ('wn', 'lv', t('качает', 'sways'), False), ('sn', 'ix', t('шапки', 'caps'), False), ('lv', 'ix', t('события', 'events'), False)], 4, 3,
@@ -87,7 +72,7 @@ def build(L):
         'wo': (3, 0, [t('Волки', 'Wolves'), t('разведчик, стая', 'scout, pack')], 'c'),
         'be': (3, 1, [t('Шатун', 'Rogue bear'), 'bear.js'], 'c'),
         'fa': (3, 2, [t('Живность', 'Fauna'), t('зайцы, олени', 'hares, deer')], 'c'),
-      }, [('tw', 'su', t('мороз', 'frost'), False), ('hr', 'su', t('одежда', 'clothing'), False), ('ac', 'hr', t('жесты', 'gestures'), False), ('ac', 'fi', t('дрова', 'wood'), False), ('fi', 'su', t('тепло', 'heat'), False), ('su', 'di', t('состояние героя', 'hero state'), False), ('di', 'wo', t('вызывает', 'spawns'), False), ('di', 'be', t('ночь', 'night'), False)], 4, 3,
+      }, [('tw', 'su', t('мороз', 'frost'), False), ('hr', 'su', t('одежда', 'clothing'), False), ('ac', 'hr', t('жесты', 'gestures'), False), ('ac', 'fi', t('дрова', 'wood'), False), ('fi', 'su', t('тепло', 'heat'), False), ('su', 'di', t('состояние', 'hero state'), False), ('di', 'wo', t('вызывает', 'spawns'), False), ('di', 'be', t('ночь', 'night'), False)], 4, 3,
         t('Компоненты контекстов «Выживание» и «Угрозы»', 'Components of the Survival and Threats contexts')),
         t('Тепло падает от мороза и ветра, растёт у огня и печи; директор следит за состоянием героя и решает, когда прийти волкам.', 'Warmth drops with frost and wind and rises at a fire or stove; the director watches the hero and decides when the wolves come.'),
         [t('Директор угроз устроен как в Left 4 Dead: напряжение → бюджет → предвестник (вой, следы) → разведчик или стая.', 'The threat director works like Left 4 Dead: tension → budget → omen (howl, tracks) → scout or pack.'),
@@ -111,11 +96,11 @@ def build(L):
         'ch': (1, 0, [t('Главы', 'Chapters'), 'chapterTick'], 'c'),
         'op': (1, 1, [t('Операции', 'Operations'), 'OPS, Story.run'], 'c'),
         'he': (1, 2, [t('Вертолёт', 'Helicopter'), 'heliTick'], 'c'),
-        'ui': (2, 0, [t('Диалоги, карточки', 'Dialogues, cards'), 'UI.dialog'], 'c'),
-        'sv': (2, 1, [t('Чекпоинт', 'Checkpoint'), 'SaveGame'], 'c'),
+        'ui': (2, 1, [t('Диалоги, карточки', 'Dialogues, cards'), 'UI.dialog'], 'c'),
+        'sv': (2, 0, [t('Чекпоинт', 'Checkpoint'), 'SaveGame'], 'c'),
         'fi': (2, 2, [t('Финал', 'Ending'), 'finale.js'], 'c'),
-        'cp': (3, 1, [t('Компас', 'Compass'), 'goalTarget'], 'c'),
-      }, [('ev', 'ch', t('каждый шаг', 'every step'), False), ('ev', 'op', 'when → do', False), ('ev', 'he', t('каждый шаг', 'every step'), False), ('op', 'ui', t('показать', 'show'), False), ('ch', 'sv', t('новая глава', 'new chapter'), False), ('he', 'fi', t('спасены', 'rescued'), False), ('ch', 'cp', t('цель', 'goal'), False)], 4, 3,
+        'cp': (0, 0, [t('Компас', 'Compass'), 'goalTarget'], 'c'),
+      }, [('ev', 'ch', t('каждый шаг', 'every step'), False), ('ev', 'op', 'when → do', False), ('ev', 'he', t('каждый шаг', 'every step'), False), ('op', 'ui', t('показать', 'show'), False), ('ch', 'sv', t('новая глава', 'new chapter'), False), ('he', 'fi', t('спасены', 'rescued'), False), ('ch', 'cp', t('цель', 'goal'), False)], 3, 3,
         t('Компоненты контекста «Сюжет»', 'Components of the Story context')),
         t('Сюжет лежит данными, а Story только исполняет: «когда выполнится условие — сделать операции».', 'The story is data and Story only executes it: “when the condition holds, run the operations”.'),
         [t('Семь глав, пять концовок: ветка выбирается тем, придёт ли вертолёт и готов ли посёлок.', 'Seven chapters, five endings: the branch depends on whether the helicopter comes and whether the settlement is ready.'),
@@ -172,13 +157,13 @@ def build(L):
     return P
 
 meta = {
- 'ru': ('Архитектура игры «Сибирь»: C4 и критические пути', 'Контексты, схемы C4 до уровня компонентов и четыре критических пути через sequence: кадр, ночная угроза, шаг сюжета и сохранение.', 'Архитектура, Игры, C4, JavaScript'),
- 'en': ('Architecture of “Sibiria”: C4 and critical paths', 'The contexts, C4 diagrams down to components and four critical paths as sequences: a frame, a night threat, a story step and saving.', 'Architecture, Games, C4, JavaScript'),
+ 'ru': ('Архитектура игры «Сибирь»: C4 и критические пути', 'Схемы C4 до уровня компонентов и четыре критических пути через sequence: кадр, ночная угроза, шаг сюжета и сохранение.', 'Архитектура, Игры, C4, JavaScript'),
+ 'en': ('Architecture of “Sibiria”: C4 and critical paths', 'C4 diagrams down to components and four critical paths as sequences: a frame, a night threat, a story step and saving.', 'Architecture, Games, C4, JavaScript'),
 }
-TOC = {'ru': [('contexts', 'Контексты'), ('c4', 'C4: контекст и контейнеры'), ('c3', 'Компоненты'), ('paths', 'Критические пути'), ('rules', 'Правила'), ('weak', 'Слабые места')],
-       'en': [('contexts', 'Contexts'), ('c4', 'C4: context and containers'), ('c3', 'Components'), ('paths', 'Critical paths'), ('rules', 'Rules'), ('weak', 'Weak spots')]}
-HEAD = {'ru': {'contexts': 'Контексты игры', 'c4': 'C4: контекст и контейнеры', 'c3': 'C4 уровня 3: компоненты контекстов', 'paths': 'Четыре критических пути', 'rules': 'Правила, на которых всё держится', 'weak': 'Слабые места'},
-        'en': {'contexts': 'The contexts of the game', 'c4': 'C4: context and containers', 'c3': 'C4 level 3: components of each context', 'paths': 'Four critical paths', 'rules': 'The rules everything rests on', 'weak': 'Weak spots'}}
+TOC = {'ru': [('c4', 'C4: контекст и контейнеры'), ('c3', 'Компоненты'), ('paths', 'Критические пути'), ('rules', 'Правила'), ('weak', 'Слабые места')],
+       'en': [('c4', 'C4: context and containers'), ('c3', 'Components'), ('paths', 'Critical paths'), ('rules', 'Rules'), ('weak', 'Weak spots')]}
+HEAD = {'ru': {'c4': 'C4: контекст и контейнеры', 'c3': 'C4 уровня 3: компоненты контекстов', 'paths': 'Четыре критических пути', 'rules': 'Правила, на которых всё держится', 'weak': 'Слабые места'},
+        'en': {'c4': 'C4: context and containers', 'c3': 'C4 level 3: components of each context', 'paths': 'Four critical paths', 'rules': 'The rules everything rests on', 'weak': 'Weak spots'}}
 os.makedirs(OUT, exist_ok=True)
 for L, name in (('ru', 'architecture.ru.md'), ('en', 'architecture.md')):
     _n[0] = 0; _lang[0] = L

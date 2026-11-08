@@ -197,13 +197,16 @@
   // пурга: ближнее предплечье перед лицом, сгорблен, навстречу ветру
   R('shield', { loop: true, loco: true, fn(o, t, a, ph, sp) {
     H.gait(ph, St(sp), 1.9 + sp);
-    const sn = sin(ph), gust = 0.05 * sin(t * 1.7) * sin(t * 0.63 + seedOf(o));
-    body(0.27 + gust + 0.02 * cos(2 * ph), P.hy + 0.5);
-    P.tilt = 0.3 + 0.03 * sin(2 * ph);
-    const F = headPt(6.2, 0.4);
-    P.h0x = F[0] + 0.4 * sin(t * 13); P.h0y = F[1] + 0.3 * sin(t * 11) + 0.4 * cos(2 * ph); P.hl0 = 1;
-    handR(1, 1.5 + 2 * sn, 11.2); P.hl1 = 5.5;
-    stow(o, 1); P.eyes = 1; P.hb = 0.5 * cos(2 * ph + 0.9);
+    const sd = seedOf(o), sn = sin(ph);
+    // порывы: резкий толчок и медленный спад; между порывами — затишье, когда рука на миг опускается
+    const gu = Math.pow(Math.max(0, sin(t * 0.95 + sd)), 5) * (0.6 + 0.4 * sin(t * 0.37 + sd * 2)), lull = bump((t * 0.16 + sd) % 1, 0.55, 0.72);
+    const gust = 0.05 * sin(t * 1.7) * sin(t * 0.63 + sd) + 0.09 * gu;
+    body(0.27 + gust - 0.05 * lull + 0.02 * cos(2 * ph), P.hy + 0.5 + 0.5 * gu, -1.1 * gu);   // порыв гнёт и отталкивает назад
+    P.tilt = 0.3 + 0.03 * sin(2 * ph) + 0.12 * gu - 0.2 * lull + 0.1 * sin(t * 0.8 + sd * 3);
+    const F = headPt(6.2, 0.4), w = 1 - 0.75 * lull;
+    P.h0x = lerp(P.sx + 2.4, F[0] + 0.4 * sin(t * 13), w); P.h0y = lerp(P.sy - 9.6, F[1] + 0.3 * sin(t * 11) + 0.4 * cos(2 * ph), w); P.hl0 = lerp(5, 1, w);
+    handR(1, 1.5 + (2 + 1.6 * gu) * sn, 11.2 - 0.8 * gu); P.hl1 = 5.5;
+    stow(o, 1); P.eyes = 1 - 0.7 * lull > 0.5 ? 1 : 0; P.hb = 0.5 * cos(2 * ph + 0.9) + 0.6 * gu;
   } });
 
   // вымотан/голоден: голова свешена, ноги волочатся, руки висят

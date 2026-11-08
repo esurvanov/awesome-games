@@ -12,48 +12,67 @@
 
 ![Game containers: page, modules, physics, WorldFill, packs](diagrams/en/c4-containers.svg "The page owns the loop and the story; everything else plugs into it. A module that fails is switched off on its own.")
 
-## C4 level 3: components of each context
+## Game domains
 
-Contexts talk through a shared `ctx` object and a few globals. Every fact has one owner: physics moves the pilot, the pose pipeline writes the bones, the registry knows the world’s objects.
+![Four game domains and the shared object passport](diagrams/en/domains.svg "A domain is where entities have a life of their own. Graphics settings and loading have none and are not domains.")
 
-### World
+| Domain | What is inside | Life |
+|---|---|---|
+| **Progress** | chapters, goal, endings, shards, echo recordings | started → chapters → ending; saved |
+| **Beings** | pilot, ravens, animals later | appears → moves → reacts to a thing |
+| **Things** | rocks and ruins, trees, structures, vehicles, barrels and crates, the fire | placed at start → stands; some change |
+| **Environment** | day, weather, snow, sky and moon, fog, horizon, ice | flows on its own, independent of the player |
 
-![Components of the World context](diagrams/en/c3-world.svg "Everything solid registers in Passport and becomes a collision.")
+## C4 level 3: components of each domain
 
-- Trees are drawn in batches per material: one draw call per material.
-- Far trees are replaced by images from eight sides.
+Domains talk through a shared `ctx` object and a few globals. Every fact has one owner: physics moves the pilot, the pose pipeline writes the bones, the passport knows the world’s objects.
 
-### Body and contact
+### Progress
 
-![Components of the Body and contact context](diagrams/en/c3-body.svg "Four modules ask, one writes: the pose pipeline is the only one that moves the bones.")
+![Components of the Progress domain](diagrams/en/c3-story.svg "This domain still lives inside the page and has not been split into modules.")
 
-- The rock brain reads a rock’s shape and picks one action: palm, back, shoulder, ledge, sit, climb.
-- The body measure reads the real drawn shape; the judge in the tests uses the same one.
-
-### Physics
-
-![Components of the Physics context](diagrams/en/c3-physics.svg "Physics is the only mover of the pilot; everyone else gives it a goal through setGoal.")
-
-- Near the pilot a rock gets its exact shape; far away it stays a simplified hull.
-- At rocks the pilot’s capsule becomes an ellipse sized from the body.
-
-### Story and interface
-
-![Components of the Story and interface context](diagrams/en/c3-story.svg "This context still lives inside the page and has not been split into modules.")
-
-- Five chapters, two endings, 24 shards and 8 echo recordings.
+- Five chapters, two endings, 24 shards and 8 echo recordings; every six shards give a shield.
+- A shard lying in the world belongs to progress: only its place stays in the world.
 - Progress is stored in the browser, no server.
 
-### Quality
+### Beings
 
-![Components of the Quality context](diagrams/en/c3-quality.svg "A preset sets everything at once: picked by the GPU first, then tuned by frame time.")
+![Components of the Beings domain](diagrams/en/c3-beings.svg "Only physics moves the pilot and only the pose pipeline writes the bones; the rest give goals and ask.")
+
+- The rock brain sits on the border: it reads a thing’s shape and picks an action (palm, back, shoulder, ledge, sit, climb). Contact is not a domain but a link between a being and a thing.
+- Only the “palm” action is done; the other five are waiting.
+- At rocks the pilot’s capsule becomes an ellipse sized from the body.
+- There are no animals in the game yet; the shared body is ready to take them.
+
+### Things
+
+![Components of the Things domain](diagrams/en/c3-things.svg "One passport for all things and beings: kind, shape, how to touch, material, owner.")
+
+- Near the pilot a rock gets its exact shape; far away it stays a simplified hull.
+- Trees are drawn in batches per material: one draw call per material; far ones are replaced by images from eight sides.
+- The “Kestrel” is a special thing: it has a path “wrecked → goal → takes off”, yet it is still described as a plain structure.
+
+### Environment
+
+![Components of the Environment domain](diagrams/en/c3-environment.svg "The environment flows on its own: day and weather pass, snow and light change.")
+
+- The moon never moves, so sky and shadows are stable.
+- Mountains on the horizon, sea ice and mist are generated procedurally by WorldFill, no new assets.
+
+## Beside the game: settings and loading
+
+These parts have no life of their own, so they are not domains: they tune the game and deliver it to the browser.
+
+### Graphics settings
+
+![Components of the graphics settings](diagrams/en/c3-quality.svg "A preset sets everything at once: picked by the GPU first, then tuned by frame time.")
 
 - The moon never moves, so shadows of static objects are rendered once and cached.
 - In the menu, on pause and in a hidden tab the loop stops completely.
 
-### Assets
+### Loading
 
-![Components of the Assets context](diagrams/en/c3-assets.svg "Models sit in .js files as text, so the game loads from any static host.")
+![Components of loading](diagrams/en/c3-assets.svg "Models sit in .js files as text, so the game loads from any static host.")
 
 - The loader shows a list of modules and resources until everything is ready.
 - The heavy parts are prepared outside the game: far-tree images and baked light.
@@ -80,7 +99,7 @@ Contexts talk through a shared `ctx` object and a few globals. Every fact has on
 
 - **Physics is the only mover of the pilot.** Everyone else gives a goal.
 - **The pose pipeline is the only writer of the bones.** Others send requests.
-- **The Passport registry is the only one that knows the world’s objects.** Collisions are built from it.
+- **One passport per thing and being.** Collisions and touches are built from it.
 - **A module fails alone.** An error switches off only that module.
 - **One “inside the rock” measure.** The game and the tests measure the same way.
 
@@ -92,4 +111,6 @@ Contexts talk through a shared `ctx` object and a few globals. Every fact has on
 | **Module order** | The order is set by numbers in code; a wrong number changes behaviour silently. |
 | **Globals** | Modules exchange data through window.*: links are invisible in the code. |
 | **Pilot pose** | Several modules decide the final pose; there is no single owner yet. |
+| **Domain borders** | Domains exist on the diagram but not in the code: everything is mixed across the page and the modules. |
+| **Border objects** | The “Kestrel” and the shards live in both progress and the world, and have no assigned owner. |
 | **Load weight** | Base64 packs and libraries from an external CDN. |

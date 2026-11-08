@@ -1,4 +1,4 @@
-<svg class="ad" viewBox="0 0 1072 324" role="img" aria-label="Components of the Quality context" xmlns="http://www.w3.org/2000/svg"><style>
+<svg class="ad" viewBox="0 0 1072 324" role="img" aria-label="Components of the graphics settings" xmlns="http://www.w3.org/2000/svg"><style>
 svg.ad{--a-bg:#ffffff;--a-surface:#ffffff;--a-ink:#17181b;--a-ink2:#4a4d57;--a-ink3:#6b6e78;--a-line:#b9bcc6;--a-accent:#3b50d8}
 @media (prefers-color-scheme:dark){svg.ad{--a-bg:#0d1117;--a-surface:#161b22;--a-ink:#ecedf0;--a-ink2:#a6a9b2;--a-ink3:#8b8e98;--a-line:#454a54;--a-accent:#8b9bff}}
 svg.ad .ad-bx{fill:var(--a-surface);stroke:var(--a-line);stroke-width:1.5}

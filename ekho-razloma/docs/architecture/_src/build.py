@@ -1,7 +1,7 @@
 import sys, os, re, json; sys.path.insert(0, '.')
 from svgs import flow, seq, standalone
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'out'
-NAMES = ['c4-context', 'c4-containers', 'c3-world', 'c3-body', 'c3-physics', 'c3-story', 'c3-quality', 'c3-assets', 'seq-start', 'seq-frame', 'seq-rock', 'seq-quality']
+NAMES = ['c4-context', 'c4-containers', 'domains', 'c3-story', 'c3-beings', 'c3-things', 'c3-environment', 'c3-quality', 'c3-assets', 'seq-start', 'seq-frame', 'seq-rock', 'seq-quality']
 _n = [0]; _lang = ['ru']
 def fig(svg, caption):
     name = NAMES[_n[0]]; _n[0] += 1
@@ -42,62 +42,85 @@ def build(L):
       }, [('pg', 'md', t('init и update по порядку', 'init and update in order'), False), ('pg', 'ph', t('шаг', 'step'), False), ('pg', 'wf', 'build', False), ('pg', 'pk', t('загрузка', 'loading'), False), ('md', 'ph', t('цели, лучи', 'goals, rays'), False), ('ph', 'cd', 'WASM', True)], 3, 3,
       t('Контейнеры игры: страница, модули, физика, WorldFill, пакеты', 'Game containers: page, modules, physics, WorldFill, packs'))
       , t('Страница владеет циклом и сюжетом, остальное подключается к ней. Модуль, который падает, отключается один.', 'The page owns the loop and the story; everything else plugs into it. A module that fails is switched off on its own.')))
+    # ---- domains
+    P.append(H2('domains', t('Домены игры', 'Game domains')))
+    P.append(fig(flow({
+        'pr': (0, 1, [t('Прохождение', 'Progress'), t('главы, осколки, финалы', 'chapters, shards, endings')], 'c'),
+        'be': (1, 0, [t('Существа', 'Beings'), t('пилот, вороны', 'pilot, ravens')], 'c'),
+        'pa': (1, 1, [t('Паспорт объекта', 'Object passport'), t('общий у вещей и существ', 'shared by things and beings')], 'x'),
+        'th': (1, 2, [t('Вещи', 'Things'), t('камни, деревья, постройки', 'rocks, trees, structures')], 'c'),
+        'en': (2, 1, [t('Среда', 'Environment'), t('сутки, погода, снег', 'day, weather, snow')], 'c'),
+      }, [('pr', 'be', t('ведёт по главам', 'leads through chapters'), False), ('pr', 'th', t('ставит цели', 'sets goals'), False), ('be', 'pa', t('касается по нему', 'touches by it'), False), ('th', 'pa', t('описана в нём', 'described in it'), False), ('en', 'th', t('снег, свет', 'snow, light'), False), ('en', 'be', t('погода', 'weather'), False)], 3, 3,
+      t('Четыре домена игры и общий паспорт объекта', 'Four game domains and the shared object passport'))
+      , t('Домен выделен там, где у сущностей своя жизнь. Настройки графики и загрузка жизни не имеют и в домены не входят.', 'A domain is where entities have a life of their own. Graphics settings and loading have none and are not domains.')))
+    dl = [(t('Прохождение', 'Progress'), t('главы, цель, финалы, осколки, записи-эхо', 'chapters, goal, endings, shards, echo recordings'), t('начато → главы → финал; сохраняется', 'started → chapters → ending; saved')),
+          (t('Существа', 'Beings'), t('пилот, вороны, позже животные', 'pilot, ravens, animals later'), t('появился → двигается → реагирует на вещь', 'appears → moves → reacts to a thing')),
+          (t('Вещи', 'Things'), t('камни и руины, деревья, постройки, техника, бочки и ящики, костёр', 'rocks and ruins, trees, structures, vehicles, barrels and crates, the fire'), t('расставлена при старте → стоит; у некоторых есть перемены', 'placed at start → stands; some change')),
+          (t('Среда', 'Environment'), t('сутки, погода, снег, небо и луна, туман, горизонт, лёд', 'day, weather, snow, sky and moon, fog, horizon, ice'), t('течёт сама, независимо от игрока', 'flows on its own, independent of the player'))]
+    P.append('| ' + t('Домен', 'Domain') + ' | ' + t('Что внутри', 'What is inside') + ' | ' + t('Жизнь', 'Life') + ' |\n|---|---|---|\n' + '\n'.join(f'| **{a}** | {b} | {c} |' for a, b, c in dl))
     # ---- C3
-    P.append(H2('c3', t('C4 уровня 3: компоненты контекстов', 'C4 level 3: components of each context')))
-    P.append(t('Контексты общаются через общий объект `ctx` и несколько глобальных объектов. У каждого факта один хозяин: пилота двигает физика, кости пишет сборщик позы, о предметах мира знает реестр.',
-               'Contexts talk through a shared `ctx` object and a few globals. Every fact has one owner: physics moves the pilot, the pose pipeline writes the bones, the registry knows the world’s objects.'))
+    P.append(H2('c3', t('C4 уровня 3: компоненты доменов', 'C4 level 3: components of each domain')))
+    P.append(t('Домены общаются через общий объект `ctx` и несколько глобальных объектов. У каждого факта один хозяин: пилота двигает физика, кости пишет сборщик позы, об объектах мира знает паспорт.',
+               'Domains talk through a shared `ctx` object and a few globals. Every fact has one owner: physics moves the pilot, the pose pipeline writes the bones, the passport knows the world’s objects.'))
     def c3(title, svg, cap, bullets):
         P.append(H3(title)); P.append(fig(svg, cap))
         P.append('\n'.join('- ' + b for b in bullets))
-    c3(t('Мир', 'World'), flow({
-        'te': (0, 1, [t('Рельеф и снег', 'Terrain and snow'), 'terrain.js'], 'c'),
-        'gb': (1, 0, [t('Контакт со снегом', 'Snow contact'), 'groundblend.js'], 'c'),
-        'at': (1, 2, [t('Атмосфера', 'Atmosphere'), t('небо, сияние, туман', 'sky, aurora, fog')], 'c'),
-        've': (2, 0, [t('Растительность', 'Vegetation'), t('деревья, трава', 'trees, grass')], 'c'),
-        'st': (2, 1, [t('Постройки', 'Structures'), 'structures.js'], 'c'),
-        'wf': (2, 2, ['WorldFill', t('горы, лёд, мелочь', 'mountains, ice, clutter')], 'c'),
-        'pa': (3, 1, [t('Реестр Passport', 'Passport registry'), t('(контекст «Физика»)', '(Physics context)')], 'x'),
-      }, [('te', 'gb', t('высота, снег', 'height, snow'), False), ('te', 've', t('посадка на снег', 'seating on snow'), False), ('ve', 'pa', t('стволы', 'trunks'), False), ('st', 'pa', t('стены', 'walls'), False), ('wf', 'pa', t('формы', 'shapes'), False)], 4, 3,
-        t('Компоненты контекста «Мир»', 'Components of the World context')),
-        t('Всё, что твёрдое, регистрируется в Passport и становится столкновением.', 'Everything solid registers in Passport and becomes a collision.'),
-        [t('Деревья рисуются пакетами по материалам: один вызов отрисовки на материал.', 'Trees are drawn in batches per material: one draw call per material.'),
-         t('Дальние деревья заменены картинками с восьми сторон.', 'Far trees are replaced by images from eight sides.')])
-    c3(t('Тело и контакт', 'Body and contact'), flow({
-        'co': (0, 1, [t('Реестр CORE', 'CORE registry'), t('что это за объект', 'what the object is')], 'c'),
-        'rb': (1, 0, [t('Мозг скал', 'Rock brain'), t('решает действие', 'decides the action')], 'c'),
-        'ix': (1, 2, [t('Общее движение', 'General motion'), t('ноги, наклон, взгляд', 'legs, lean, look')], 'c'),
-        'rf': (2, 0, [t('Ощущения', 'Feel'), t('звук, следы', 'sound, marks')], 'c'),
-        'pp': (2, 1, [t('Сборщик позы', 'Pose pipeline'), t('пишет кости', 'writes the bones')], 'c'),
-        'pb': (2, 2, [t('Пружины', 'Springs'), t('толчки, падение', 'knocks, falls')], 'c'),
-        'bs': (3, 1, [t('Замер тела', 'Body measure'), 'BODYCONTACT'], 'c'),
-      }, [('co', 'rb', t('вид объекта', 'object kind'), False), ('rb', 'pp', t('руки, наклон', 'hands, lean'), False), ('ix', 'pp', t('ноги, взгляд', 'legs, look'), False), ('pb', 'pp', t('пружины', 'springs'), False), ('pp', 'bs', t('замер, поправки', 'measure, fixes'), False), ('rb', 'rf', t('касание', 'touch'), False)], 4, 3,
-        t('Компоненты контекста «Тело и контакт»', 'Components of the Body and contact context')),
-        t('Четыре модуля просят, один пишет: сборщик позы — единственный, кто двигает кости.', 'Four modules ask, one writes: the pose pipeline is the only one that moves the bones.'),
-        [t('Мозг скал читает форму камня и выбирает одно из действий: ладонь, спина, плечо, уступ, сесть, залезть.', 'The rock brain reads a rock’s shape and picks one action: palm, back, shoulder, ledge, sit, climb.'),
-         t('Замер тела измеряет настоящую нарисованную форму, его же использует судья в тестах.', 'The body measure reads the real drawn shape; the judge in the tests uses the same one.')])
-    c3(t('Физика', 'Physics'), flow({
-        'pa': (0, 1, [t('Реестр Passport', 'Passport registry'), t('объекты и роли', 'objects and roles')], 'c'),
-        'cl': (1, 0, [t('Коллайдеры', 'Colliders'), t('оболочка и точная форма', 'hull and exact shape')], 'c'),
-        'ch': (1, 2, [t('Контроллер пилота', 'Pilot controller'), t('капсула, эллипс у скал', 'capsule, ellipse at rocks')], 'c'),
-        'rp': (2, 1, [t('Мир Rapier', 'Rapier world'), 'WASM'], 'c'),
-        'qy': (3, 1, [t('Запросы', 'Queries'), t('лучи, касты, цель', 'rays, casts, goal')], 'c'),
-      }, [('pa', 'cl', t('роль, форма', 'role, shape'), False), ('cl', 'rp', t('по расстоянию', 'by distance'), False), ('ch', 'rp', t('шаг', 'step'), False), ('rp', 'qy', t('ответы', 'answers'), False)], 4, 3,
-        t('Компоненты контекста «Физика»', 'Components of the Physics context')),
-        t('Физика — единственная, кто двигает пилота; остальные дают ей цель через setGoal.', 'Physics is the only mover of the pilot; everyone else gives it a goal through setGoal.'),
-        [t('Рядом с пилотом камень получает точную форму, вдали остаётся упрощённая оболочка.', 'Near the pilot a rock gets its exact shape; far away it stays a simplified hull.'),
-         t('У скал капсула пилота превращается в эллипс по размерам тела.', 'At rocks the pilot’s capsule becomes an ellipse sized from the body.')])
-    c3(t('Сюжет и интерфейс', 'Story and interface'), flow({
+    c3(t('Прохождение', 'Progress'), flow({
         'sg': (0, 1, [t('Главы и зоны', 'Chapters and zones'), 'STAGES, ZONES'], 'c'),
         'dl': (1, 0, [t('Диалоги', 'Dialogue'), t('выбор ответов', 'choices')], 'c'),
+        'sh': (1, 1, [t('Осколки и записи', 'Shards and recordings'), '24 + 8'], 'c'),
         'bt': (1, 2, [t('Бой', 'Combat'), t('кристаллы, голем', 'crystals, golem')], 'c'),
-        'ui': (2, 1, [t('Интерфейс', 'Interface'), t('HUD, карта, журнал', 'HUD, map, journal')], 'c'),
-        'sv': (3, 1, [t('Сохранения', 'Saves'), 'localStorage'], 'c'),
-      }, [('sg', 'dl', t('сцены', 'scenes'), False), ('sg', 'bt', t('зоны', 'zones'), False), ('dl', 'ui', '', False), ('bt', 'ui', '', False), ('sg', 'sv', t('прогресс', 'progress'), False)], 4, 3,
-        t('Компоненты контекста «Сюжет и интерфейс»', 'Components of the Story and interface context')),
-        t('Этот контекст пока живёт внутри страницы и не вынесен в модули.', 'This context still lives inside the page and has not been split into modules.'),
-        [t('Пять глав и два финала, 24 осколка и 8 записей-эхо.', 'Five chapters, two endings, 24 shards and 8 echo recordings.'),
+        'ui': (2, 0, [t('Интерфейс', 'Interface'), t('HUD, карта, журнал', 'HUD, map, journal')], 'c'),
+        'sv': (2, 2, [t('Сохранения', 'Saves'), 'localStorage'], 'c'),
+      }, [('sg', 'dl', t('сцены', 'scenes'), False), ('sg', 'sh', t('цели', 'goals'), False), ('sg', 'bt', t('зоны', 'zones'), False), ('dl', 'ui', '', False), ('sh', 'ui', t('счётчики', 'counters'), False), ('sh', 'sv', t('прогресс', 'progress'), False)], 3, 3,
+        t('Компоненты домена «Прохождение»', 'Components of the Progress domain')),
+        t('Этот домен пока живёт внутри страницы и не вынесен в модули.', 'This domain still lives inside the page and has not been split into modules.'),
+        [t('Пять глав и два финала, 24 осколка и 8 записей-эхо; каждые шесть осколков дают щит.', 'Five chapters, two endings, 24 shards and 8 echo recordings; every six shards give a shield.'),
+         t('Лежащий в мире осколок принадлежит прохождению: в мире остаётся только его место.', 'A shard lying in the world belongs to progress: only its place stays in the world.'),
          t('Прогресс хранится в браузере, без сервера.', 'Progress is stored in the browser, no server.')])
-    c3(t('Качество', 'Quality'), flow({
+    c3(t('Существа', 'Beings'), flow({
+        'ch': (0, 1, [t('Контроллер пилота', 'Pilot controller'), t('физика: капсула, эллипс', 'physics: capsule, ellipse')], 'c'),
+        'ix': (1, 0, [t('Общее движение', 'General motion'), t('ноги, наклон, взгляд', 'legs, lean, look')], 'c'),
+        'rb': (1, 1, [t('Мозг скал', 'Rock brain'), t('касание с вещью', 'touch with a thing')], 'x'),
+        'pb': (1, 2, [t('Пружины', 'Springs'), t('толчки, падение', 'knocks, falls')], 'c'),
+        'pp': (2, 1, [t('Сборщик позы', 'Pose pipeline'), t('пишет кости', 'writes the bones')], 'c'),
+        'bs': (3, 1, [t('Замер тела', 'Body measure'), 'BODYCONTACT'], 'c'),
+        'rv': (0, 2, [t('Вороны', 'Ravens'), t('стаи, взлёт при подходе', 'flocks, take off when approached')], 'x'),
+      }, [('ch', 'ix', t('положение', 'position'), False), ('rb', 'ch', t('цель: встать здесь', 'goal: stand here'), False), ('ix', 'pp', t('ноги, взгляд', 'legs, look'), False), ('rb', 'pp', t('руки, наклон', 'hands, lean'), False), ('pb', 'pp', t('пружины', 'springs'), False), ('pp', 'bs', t('замер, поправки', 'measure, fixes'), False)], 4, 3,
+        t('Компоненты домена «Существа»', 'Components of the Beings domain')),
+        t('Пилота двигает только физика, кости пишет только сборщик позы; остальные дают цели и просят.', 'Only physics moves the pilot and only the pose pipeline writes the bones; the rest give goals and ask.'),
+        [t('Мозг скал стоит на стыке: он читает форму вещи и выбирает действие (ладонь, спина, плечо, уступ, сесть, залезть). Контакт не домен, а связь существа с вещью.', 'The rock brain sits on the border: it reads a thing’s shape and picks an action (palm, back, shoulder, ledge, sit, climb). Contact is not a domain but a link between a being and a thing.'),
+         t('Готово только действие «ладонь»; остальные пять ждут своей очереди.', 'Only the “palm” action is done; the other five are waiting.'),
+         t('У скал капсула пилота превращается в эллипс по размерам тела.', 'At rocks the pilot’s capsule becomes an ellipse sized from the body.'),
+         t('Животных в игре пока нет; общее тело готово принять их.', 'There are no animals in the game yet; the shared body is ready to take them.')])
+    c3(t('Вещи', 'Things'), flow({
+        'pa': (0, 1, [t('Паспорт объекта', 'Object passport'), 'Passport + CORE'], 'c'),
+        'cl': (1, 1, [t('Коллайдеры', 'Colliders'), t('оболочка и точная форма', 'hull and exact shape')], 'c'),
+        'rk': (2, 0, [t('Камни и руины', 'Rocks and ruins'), 'rock-brain, WorldFill'], 'c'),
+        'tr': (2, 1, [t('Деревья', 'Trees'), 'vegetation.js'], 'c'),
+        'st': (2, 2, [t('Постройки и техника', 'Structures and vehicles'), t('«Кестрел», лагерь', '“Kestrel”, camp')], 'c'),
+        'sm': (2, 3, [t('Мелкие вещи', 'Small things'), t('бочки, ящики, костёр', 'barrels, crates, fire')], 'c'),
+      }, [('pa', 'cl', t('вид, форма', 'kind, shape'), False), ('cl', 'rk', '', False), ('cl', 'tr', '', False), ('cl', 'st', '', False), ('cl', 'sm', '', False)], 3, 4,
+        t('Компоненты домена «Вещи»', 'Components of the Things domain')),
+        t('Паспорт один на все вещи и существа: вид, форма, как касаться, материал, кто хозяин.', 'One passport for all things and beings: kind, shape, how to touch, material, owner.'),
+        [t('Рядом с пилотом камень получает точную форму, вдали остаётся упрощённая оболочка.', 'Near the pilot a rock gets its exact shape; far away it stays a simplified hull.'),
+         t('Деревья рисуются пакетами по материалам: один вызов отрисовки на материал; дальние заменены картинками с восьми сторон.', 'Trees are drawn in batches per material: one draw call per material; far ones are replaced by images from eight sides.'),
+         t('«Кестрел» особая вещь: у него есть путь «разбит → цель → взлёт», и пока он описан как обычная постройка.', 'The “Kestrel” is a special thing: it has a path “wrecked → goal → takes off”, yet it is still described as a plain structure.')])
+    c3(t('Среда', 'Environment'), flow({
+        'te': (0, 1, [t('Рельеф и снег', 'Terrain and snow'), 'terrain.js'], 'c'),
+        'dw': (0, 2, [t('Сутки и погода', 'Day and weather'), t('время, пурга', 'time, blizzard')], 'c'),
+        'gb': (1, 0, [t('Контакт со снегом', 'Snow contact'), 'groundblend.js'], 'c'),
+        'at': (1, 2, [t('Атмосфера', 'Atmosphere'), t('небо, сияние, луна', 'sky, aurora, moon')], 'c'),
+        'th': (2, 0, [t('Вещи', 'Things'), t('садятся на снег', 'sit on snow')], 'x'),
+        'wf': (2, 2, ['WorldFill', t('горизонт, лёд, туман', 'horizon, ice, mist')], 'c'),
+      }, [('te', 'gb', t('высота, снег', 'height, snow'), False), ('gb', 'th', t('посадка', 'seating'), False), ('dw', 'at', t('время', 'time'), False), ('at', 'wf', t('туман, свет', 'mist, light'), False), ('te', 'wf', t('берег, лёд', 'shore, ice'), False)], 3, 3,
+        t('Компоненты домена «Среда»', 'Components of the Environment domain')),
+        t('Среда течёт сама: сутки и погода идут, снег и свет меняются.', 'The environment flows on its own: day and weather pass, snow and light change.'),
+        [t('Луна не движется, поэтому небо и тени стабильны.', 'The moon never moves, so sky and shadows are stable.'),
+         t('Горы на горизонте, морской лёд и туман создаёт WorldFill процедурно, без новых ассетов.', 'Mountains on the horizon, sea ice and mist are generated procedurally by WorldFill, no new assets.')])
+    P.append(H2('beside', t('Рядом с игрой: параметры и загрузка', 'Beside the game: settings and loading')))
+    P.append(t('У этих частей нет собственной жизни, поэтому они не домены: они настраивают игру и доставляют её в браузер.', 'These parts have no life of their own, so they are not domains: they tune the game and deliver it to the browser.'))
+    c3(t('Настройки графики', 'Graphics settings'), flow({
         'lo': (0, 1, [t('Выбор пресета', 'Preset picker'), 'LowEnd.pick'], 'c'),
         'qp': (1, 0, [t('Пресеты', 'Presets'), 'air … ultra'], 'c'),
         'gv': (1, 2, [t('Регулятор', 'Governor'), t('масштаб рендера по кадру', 'render scale by frame time')], 'c'),
@@ -105,11 +128,11 @@ def build(L):
         'ld': (2, 2, [t('Детализация', 'Detail levels'), t('деревья, камни', 'trees, rocks')], 'c'),
         'tb': (3, 1, [t('Бюджет текстур', 'Texture budget'), 'texbudget'], 'c'),
       }, [('lo', 'qp', t('при старте', 'at start'), False), ('gv', 'qp', t('на ходу', 'on the fly'), False), ('qp', 'sh', t('радиус', 'radius'), False), ('qp', 'ld', t('дальность', 'range'), False), ('qp', 'tb', t('лимиты', 'limits'), False)], 4, 3,
-        t('Компоненты контекста «Качество»', 'Components of the Quality context')),
+        t('Компоненты настроек графики', 'Components of the graphics settings')),
         t('Пресет задаёт всё сразу: сначала подбирается по видеокарте, потом подстраивается по времени кадра.', 'A preset sets everything at once: picked by the GPU first, then tuned by frame time.'),
         [t('Луна не движется, поэтому тени от неподвижных предметов считаются один раз и лежат в кэше.', 'The moon never moves, so shadows of static objects are rendered once and cached.'),
          t('В меню, на паузе и в скрытой вкладке цикл полностью останавливается.', 'In the menu, on pause and in a hidden tab the loop stops completely.')])
-    c3(t('Ассеты', 'Assets'), flow({
+    c3(t('Загрузка', 'Loading'), flow({
         'ld': (0, 1, [t('Загрузчик', 'Loader'), 'loadPacked'], 'c'),
         'pk': (1, 0, [t('Пакеты', 'Packs'), t('GLB в base64', 'GLB in base64')], 'c'),
         'tx': (1, 2, [t('Текстуры', 'Textures'), 'assets/veg'], 'c'),
@@ -117,7 +140,7 @@ def build(L):
         'bk': (2, 2, [t('Запечённый свет', 'Baked light'), 'baked.js'], 'c'),
         'wm': (3, 1, [t('Модули мира', 'World modules'), t('берут готовое', 'take what is ready')], 'c'),
       }, [('ld', 'pk', t('разбор', 'parse'), False), ('ld', 'tx', '', False), ('pk', 'wm', '', False), ('im', 'wm', '', False), ('bk', 'wm', '', False)], 4, 3,
-        t('Компоненты контекста «Ассеты»', 'Components of the Assets context')),
+        t('Компоненты загрузки', 'Components of loading')),
         t('Модели лежат в .js-файлах как текст: так игра грузится с любого статического хостинга.', 'Models sit in .js files as text, so the game loads from any static host.'),
         [t('Загрузчик показывает список модулей и ресурсов, пока всё не готово.', 'The loader shows a list of modules and resources until everything is ready.'),
          t('Тяжёлое готовится заранее вне игры: картинки дальних деревьев и запечённый свет.', 'The heavy parts are prepared outside the game: far-tree images and baked light.')])
@@ -147,7 +170,7 @@ def build(L):
     P.append('\n'.join('- ' + x for x in [
         t('**Физика единственная двигает пилота.** Остальные дают цель.', '**Physics is the only mover of the pilot.** Everyone else gives a goal.'),
         t('**Сборщик позы единственный пишет кости.** Остальные присылают запросы.', '**The pose pipeline is the only writer of the bones.** Others send requests.'),
-        t('**Реестр Passport единственный знает о предметах мира.** Столкновения строятся из него.', '**The Passport registry is the only one that knows the world’s objects.** Collisions are built from it.'),
+        t('**Паспорт один на каждую вещь и существо.** Столкновения и касания строятся из него.', '**One passport per thing and being.** Collisions and touches are built from it.'),
         t('**Модуль падает один.** Ошибка отключает только его.', '**A module fails alone.** An error switches off only that module.'),
         t('**Один замер «внутри камня».** Игра и проверки меряют одинаково.', '**One “inside the rock” measure.** The game and the tests measure the same way.')]))
     P.append(H2('weak', t('Слабые места', 'Weak spots')))
@@ -155,6 +178,8 @@ def build(L):
           (t('Порядок модулей', 'Module order'), t('Порядок задан числами в коде; ошибка в числе меняет поведение молча.', 'The order is set by numbers in code; a wrong number changes behaviour silently.')),
           (t('Глобальные объекты', 'Globals'), t('Модули обмениваются через window.*: связи не видны в коде.', 'Modules exchange data through window.*: links are invisible in the code.')),
           (t('Поза пилота', 'Pilot pose'), t('Итоговую позу решают несколько модулей; единого владельца ещё нет.', 'Several modules decide the final pose; there is no single owner yet.')),
+          (t('Границы доменов', 'Domain borders'), t('Домены существуют на схеме, а в коде их границ нет: всё лежит вперемешку в странице и модулях.', 'Domains exist on the diagram but not in the code: everything is mixed across the page and the modules.')),
+          (t('Пограничные объекты', 'Border objects'), t('«Кестрел» и осколки живут сразу в прохождении и в мире, и хозяин у них не назначен.', 'The “Kestrel” and the shards live in both progress and the world, and have no assigned owner.')),
           (t('Вес загрузки', 'Load weight'), t('Пакеты в base64 и библиотеки с внешнего CDN.', 'Base64 packs and libraries from an external CDN.'))]
     P.append('| ' + t('Где', 'Where') + ' | ' + t('Что не так', 'What is wrong') + ' |\n|---|---|\n' + '\n'.join(f'| **{a}** | {b} |' for a, b in wk))
     return P
@@ -163,10 +188,10 @@ meta = {
  'ru': ('Архитектура игры «Эхо Разлома»: C4 и критические пути', 'Схемы C4 до уровня компонентов и четыре критических пути через sequence: запуск, кадр, касание скалы и подстройка качества.', 'Архитектура, Игры, C4, three.js'),
  'en': ('Architecture of “Echo of the Rift”: C4 and critical paths', 'C4 diagrams down to components and four critical paths as sequences: startup, a frame, touching a rock and quality tuning.', 'Architecture, Games, C4, three.js'),
 }
-TOC = {'ru': [('c4', 'C4: контекст и контейнеры'), ('c3', 'Компоненты'), ('paths', 'Критические пути'), ('rules', 'Правила'), ('weak', 'Слабые места')],
-       'en': [('c4', 'C4: context and containers'), ('c3', 'Components'), ('paths', 'Critical paths'), ('rules', 'Rules'), ('weak', 'Weak spots')]}
-HEAD = {'ru': {'c4': 'C4: контекст и контейнеры', 'c3': 'C4 уровня 3: компоненты контекстов', 'paths': 'Четыре критических пути', 'rules': 'Правила, на которых всё держится', 'weak': 'Слабые места'},
-        'en': {'c4': 'C4: context and containers', 'c3': 'C4 level 3: components of each context', 'paths': 'Four critical paths', 'rules': 'The rules everything rests on', 'weak': 'Weak spots'}}
+TOC = {'ru': [('c4', 'C4: контекст и контейнеры'), ('domains', 'Домены'), ('c3', 'Компоненты'), ('beside', 'Рядом с игрой'), ('paths', 'Критические пути'), ('rules', 'Правила'), ('weak', 'Слабые места')],
+       'en': [('c4', 'C4: context and containers'), ('domains', 'Domains'), ('c3', 'Components'), ('beside', 'Beside the game'), ('paths', 'Critical paths'), ('rules', 'Rules'), ('weak', 'Weak spots')]}
+HEAD = {'ru': {'c4': 'C4: контекст и контейнеры', 'domains': 'Домены игры', 'beside': 'Рядом с игрой: параметры и загрузка', 'c3': 'C4 уровня 3: компоненты доменов', 'paths': 'Четыре критических пути', 'rules': 'Правила, на которых всё держится', 'weak': 'Слабые места'},
+        'en': {'c4': 'C4: context and containers', 'domains': 'Game domains', 'beside': 'Beside the game: settings and loading', 'c3': 'C4 level 3: components of each domain', 'paths': 'Four critical paths', 'rules': 'The rules everything rests on', 'weak': 'Weak spots'}}
 os.makedirs(OUT, exist_ok=True)
 for L, name in (('ru', 'architecture.ru.md'), ('en', 'architecture.md')):
     _n[0] = 0; _lang[0] = L

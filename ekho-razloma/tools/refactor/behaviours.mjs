@@ -194,7 +194,12 @@ try {
     const back = P.roll.t === 0 && P.aim.t === 0 && P.fire.cd === 0 && P.roll.cd === 0;
     D.G.mode = 'play'; D.G.pause = false; D.G.ui = null; D.G.riding = false; D.teleport(D.player.x, D.player.z, 0); await wait(400);
     D.pressed.add('KeyC'); await wait(250); const rolling = P.roll.t > 0 && D.player.rollT > 0; D.pressed.delete('KeyC'); await wait(1300); const ended = P.roll.t === 0;
-    return { ok: same && al && back && rolling && ended, why: `same=${same} aliases=${al} writeback=${back} rolling=${rolling} ended=${ended}`, info: { same, al, back, rolling, ended } };
+    // the pilot's mode: walk → roll (above) → ride → walk, dead on top of everything; G.riding is the old name of Player.riding
+    const m0 = P.mode; D.sk.unlocked = true; D.teleport(D.sk.x + 3, D.sk.z, 0); await wait(300); D.mount(); await wait(400);
+    const mRide = P.mode, rideAlias = D.G.riding === true && P.riding === true; D.G.deadT = 1; const mDead = P.mode; D.G.deadT = 0;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' })); await wait(600); const mWalk = P.mode, offAlias = D.G.riding === false && P.riding === false;
+    const modes = m0 === 'walk' && mRide === 'ride' && rideAlias && mDead === 'dead' && mWalk === 'walk' && offAlias;
+    return { ok: same && al && back && rolling && ended && modes, why: `same=${same} aliases=${al} writeback=${back} rolling=${rolling} ended=${ended} modes=${[m0, mRide, mDead, mWalk]}`, info: { same, al, back, rolling, ended, modes: [m0, mRide, mDead, mWalk] } };
   });
 
   await probe('animal gait: the stags and the fox get their gait set up and driven (interaction module)', async () => {

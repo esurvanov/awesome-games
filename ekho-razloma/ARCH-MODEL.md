@@ -31,6 +31,24 @@ How we got here: `docs/architecture/refactor-plan-model.ru.html`, `docs/architec
 * something to **save** — `Progress.persist('key', { save, load, order })` in the module that owns it; nothing in the page.
 * an **AI intent** for a creature — nothing to wire: the kind's update already asks `Controllers.intent(self)`.
 
+## The big modules, split without changing a line
+
+Four modules grew past a thousand lines and mixed several jobs. Each was cut along its own section banners; every block was moved **verbatim**
+(`tools/refactor/extract.py` moves a block and leaves a factory call in its place; the script checks that the text is unchanged), names the blocks share are
+passed in as dependencies or handed over later by `bind()` (a name declared further down, or assigned in `init`: `C`, `V3`, `THREE`…).
+
+| Was | Now (the first file is the glue: `init`, `update`, the exports) |
+|---|---|
+| `interaction.js` (1751) | `interaction.js` 243 · `interaction-body.js` (gait, lean, look, arms) · `interaction-contact.js` (lean on a rock, a hand on a surface) · `interaction-ground.js` (steps, landing, branches, props, ice) · `interaction-camera.js` · `interaction-tests.js` · `animal-gait.js` (stags and fox) |
+| `structures.js` (1409) | `structures.js` 272 · `structures-camp.js` · `structures-landmarks.js` · `structures-creatures.js` · `structures-snowmobile.js` · `structures-wreck.js` |
+| `physbody.js` (699) | `physbody.js` 287 · `physbody-ragdoll.js` · `physbody-tests.js` |
+| `rock-brain.js` (1080) | `rock-brain.js` 772 · `rock-brain-needs.js` · `rock-brain-squeeze.js` · `rock-brain-checks.js` (the fitting block stays: it shares the mutable `RELAX` flag with the automaton) |
+
+Rule for the next cut: a block that assigns a `let` of the source module either keeps it (the block stays) or gets a private copy (a scratch value only);
+`extract.py` prints `private copies` and `PROBLEMS` — read them.
+
+The pilot's mode is one word, `Player.mode` (`dead · ride · climb · roll · walk`); `Player.board()` / `Player.leave()` are the only writers of «riding».
+
 ## Safety net
 
 `tools/refactor/gate.sh <label> [--quick|--collide]`: unit tests of the save and state (`progress.test.mjs`), the AI layer's own offline tests, a snapshot of the Passport against `baseline/base.json`, 17 behaviour probes (`behaviours.mjs`), the whole story to both endings with 13 save-compatibility cases (`tools/autoplay.mjs`), optionally the collision net against `baseline/collide-base.json`. A flaky machine can fail the snapshot or the first story step: the gate retries once.

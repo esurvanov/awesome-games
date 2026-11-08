@@ -592,8 +592,13 @@ window.THREE = Object.assign({}, THREE_NS, { GLTFLoader, EffectComposer, RenderP
 <script src="modules/interaction-tests.js"></script>   <!-- the measurement helpers of interaction.js (tools/stand.mjs) -->
 <script src="modules/animal-gait.js"></script>   <!-- how the stags and the fox move (used by interaction.js) -->
 <script src="modules/interaction.js"></script>
+<script src="modules/rock-brain-needs.js"></script>   <!-- what each rock action needs (used by rock-brain.js) -->
+<script src="modules/rock-brain-squeeze.js"></script>   <!-- squeezing through a gap, touching while passing -->
+<script src="modules/rock-brain-checks.js"></script>   <!-- checks for the tools and the gallery -->
 <script src="modules/rock-brain.js"></script>
 <script src="modules/rock-feel.js"></script>
+<script src="modules/physbody-ragdoll.js"></script>   <!-- layer 3: the event ragdoll (used by physbody.js) -->
+<script src="modules/physbody-tests.js"></script>   <!-- the measurement helpers of physbody.js (tools/physbody.mjs) -->
 <script src="modules/physbody.js"></script>
 <script src="modules/pose-pipeline.js"></script>   <!-- PosePipeline: the one writer of the pilot skeleton (ARCH-INTERACT.md steps 3–4) -->
 <script src="modules/interact.js"></script>
@@ -803,7 +808,7 @@ const QUALITY = {
   med:   { pixelRatio: 1,    msaa: 4, shadowDist: 180, shadowMap: 2048, cascades: 2, split: 0.8,  ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 0.75, treeNear: 150, treeShadow: 70,
            shC0: 88,  shMapFar: 1024, shTiles: 1, shTileGrid: 4, shMove: 16,
            perfDraw: 0.8, perfLod: 0.8, perfCast: 0.85 },
-  high:  { pixelRatio: 1,    msaa: 4, shadowDist: 250, shadowMap: 3072, cascades: 2, split: 0.85, ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 1,    treeNear: 175, treeShadow: 90,
+  high:  { pixelRatio: 1,    msaa: 0, fxaa: true, shadowDist: 250, shadowMap: 3072, cascades: 2, split: 0.85, ao: true,  aoScale: 0.5, bloomScale: 0.5,  grass: 1,    treeNear: 175, treeShadow: 90,
            shC0: 100, shMapFar: 1536, shTiles: 1, shTileGrid: 4, shMove: 16,
            perfDraw: 1, perfLod: 1, perfCast: 1 },
   ultra: { pixelRatio: 2,    msaa: 4, shadowDist: 320, shadowMap: 4096, cascades: 2, split: 0.85, ao: true,  aoScale: 1,   bloomScale: 1,    grass: 1.3,  treeNear: 230, treeShadow: 140,
@@ -891,13 +896,31 @@ let composer = null, gradePass = null, bloomPass = null;
   composer.addPass(bloomPass);
   post.output = new THREE.OutputPass(); composer.addPass(post.output);
   gradePass = new THREE.ShaderPass({   // display-referred (after tone mapping + sRGB encode)
-    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uScan: { value: 0 }, uGrain: { value: 1 } },
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uScan: { value: 0 }, uGrain: { value: 1 }, uFxaa: { value: Q.fxaa ? 1 : 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uHurt, uScan, uGrain; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uHurt, uScan, uGrain, uFxaa; varying vec2 vUv;
       float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      float lum(vec3 c){ return dot(c, vec3(.299, .587, .114)); }
+      // FXAA (Lottes' compact form) on the display-referred image: the cheap stand-in for MSAA on the high preset
+      vec3 fxaa(vec2 uv){
+        vec2 r = 1. / vec2(textureSize(tDiffuse, 0));
+        vec3 m = texture2D(tDiffuse, uv).rgb, nw = texture2D(tDiffuse, uv + vec2(-1., -1.) * r).rgb, ne = texture2D(tDiffuse, uv + vec2(1., -1.) * r).rgb,
+             sw = texture2D(tDiffuse, uv + vec2(-1., 1.) * r).rgb, se = texture2D(tDiffuse, uv + vec2(1., 1.) * r).rgb;
+        float lM = lum(m), lNW = lum(nw), lNE = lum(ne), lSW = lum(sw), lSE = lum(se);
+        float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE))), lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+        if (lMax - lMin < max(.0312, lMax * .125)) return m;
+        vec2 d = vec2(-((lNW + lNE) - (lSW + lSE)), (lNW + lSW) - (lNE + lSE));
+        float red = max((lNW + lNE + lSW + lSE) * .03125, .0078125);
+        d = clamp(d / (min(abs(d.x), abs(d.y)) + red), -8., 8.) * r;
+        vec3 a = .5 * (texture2D(tDiffuse, uv + d * (1. / 3. - .5)).rgb + texture2D(tDiffuse, uv + d * (2. / 3. - .5)).rgb);
+        vec3 b = a * .5 + .25 * (texture2D(tDiffuse, uv + d * -.5).rgb + texture2D(tDiffuse, uv + d * .5).rgb);
+        float lB = lum(b);
+        return (lB < lMin || lB > lMax) ? a : b;
+      }
       void main(){
         vec2 c = vUv - .5; float ca = .0012 + uHurt * .012;
         vec3 col = vec3(texture2D(tDiffuse, vUv + c * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - c * ca).b);
+        if (uFxaa > .5 && uHurt < .01) col = fxaa(vUv);
         col *= vec3(.98, 1., 1.03);
         float v = smoothstep(.95, .3, length(c * vec2(1.15, 1.)));
         col *= mix(.72, 1., v);
@@ -1326,10 +1349,11 @@ const FT = (() => {
 function setQuality(name) {
   const q = QUALITY[name]; if (!q) return Q.name;
   const prev = Q.msaa, prevName = Q.name; Object.assign(Q, q, { name });
-  for (const k of ['fsr', 'rsMin', 'rsMax', 'rsStart', 'rsStep', 'rsEvery', 'fpsCap', 'envEvery', 'fpBudget', 'exactBudget', 'exactNear', 'exactFar', 'exactHard', 'unstickEvery']) if (!(k in q)) delete Q[k];   // air-only knobs
+  for (const k of ['fxaa', 'fsr', 'rsMin', 'rsMax', 'rsStart', 'rsStep', 'rsEvery', 'fpsCap', 'envEvery', 'fpBudget', 'exactBudget', 'exactNear', 'exactFar', 'exactHard', 'unstickEvery']) if (!(k in q)) delete Q[k];   // air-only knobs
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.pixelRatio));
   if (prevName !== name) RS.s = q.fsr ? q.rsStart : 1;
   if (RS.fsr) { RS.fsr.setEnabled(!!q.fsr); gradePass.uniforms.uGrain.value = q.fsr ? 0 : 1; }   // FSR: grain after the upscale (RCAS pass), not sharpened blocks
+  gradePass.uniforms.uFxaa.value = q.fxaa ? 1 : 0;
   FT.gpuOn = FT.want && !!q.fsr;
   if (window.LowEnd) LowEnd.warm(3);
   moon.shadow.camera.far = q.shadowDist; moon.shadow.splitLambda = q.split;
@@ -1999,7 +2023,7 @@ const orm = makeChar({ suit: 0xd46a2a, dark: 0x3a2d28, acc: 0xffb347, skin: 0xd9
 { const v = WORLD.stationW(2.6, 10.2); orm.g.position.set(v.x, groundH(v.x, v.z), v.z); orm.pos = orm.g.position; }   // collider: from the hermit model once loaded
 
 // the snowmobile (model, mount/dismount, driving) lives in modules/snowmobile.js; riding stays the page-wide flag G.riding
-const Snowmobile = window.createSnowmobile({ std, glow, scene, WORLD, groundH, PH, Sound, player, boundary, collide, clamp, damp, rand, emit, burst, phSync, animChar, V3,
+const Snowmobile = window.createSnowmobile({ get Player() { return Player; }, std, glow, scene, WORLD, groundH, PH, Sound, player, boundary, collide, clamp, damp, rand, emit, burst, phSync, animChar, V3,
   get G() { return G; }, get cam() { return cam; }, get pressed() { return pressed; }, get AV() { return AV; }, get T() { return T; }, get K() { return K; },
   get driveAvatar() { return driveAvatar; }, set shake(v) { shake = v; } });
 const { sk, mount, dismount, callSkimmer, updateSkimmer } = Snowmobile;
@@ -2590,7 +2614,7 @@ function updatePlayer(dt) {
 /* ---------- ledge climb ---------- */
 const CLIMB = { t: -1, dur: 1, from: new V3(), to: new V3(), h: 1, curve: null, footLock: null, face: 0 };
 // the human's side (input, camera, climb, aim, fire, roll, the cutter in hand) is its own entity, modules/player-control.js; the pilot keeps the old field names as aliases
-const Player = window.createPlayer({ creature: player, keys, pressed, cam, CLIMB, tool, get handTip() { return handTip; } });
+const Player = window.createPlayer({ creature: player, keys, pressed, cam, CLIMB, tool, get handTip() { return handTip; }, get G() { return G; } });
 // ledge ahead: a near-vertical face on STATIC geometry (terrain, rocks, 'solid' Passport meshes incl. the wreck) with a
 // walkable top 0.8–1.8 m above the feet, open above the edge and head room on top. feet = the ground the climb starts from.
 function ledgeAhead(dx, dz, feetY) {

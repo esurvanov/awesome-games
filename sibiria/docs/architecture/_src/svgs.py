@@ -15,6 +15,7 @@ def flow(nodes, edges, cols, rows, label, cw=268, ch=108, bw=168, bh=68):
         t = min((bw / 2 + 3) / abs(dx) if dx else 1e9, (bh / 2 + 3) / abs(dy) if dy else 1e9)
         return x1 + dx * t, y1 + dy * t
     labels = []
+    boxes = {k: (x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2) for k, (x, y) in pos.items()}
     for a, b, text, dashed in edges:
         (x1, y1), (x2, y2) = pos[a], pos[b]
         sx, sy = edge_pt(a, b); ex, ey = edge_pt(b, a)
@@ -29,11 +30,34 @@ def flow(nodes, edges, cols, rows, label, cw=268, ch=108, bw=168, bh=68):
         n = len(lines); y0 = y - (n - 1) * 8 + 4
         for i, ln in enumerate(lines):
             o.append(f'<text x="{x:.1f}" y="{y0 + i * 16:.1f}" text-anchor="middle" class="{"ad-t1" if i == 0 else "ad-t2"}">{esc(ln)}</text>')
+    check(edges, labels, boxes, pos, edge_pt, label)
     for x, y, t in labels:
         w = len(t) * 6.4 + 10
         o.append(f'<rect x="{x - w / 2:.1f}" y="{y - 9:.1f}" width="{w:.1f}" height="16" rx="3" class="ad-lbbg"/><text x="{x:.1f}" y="{y + 3:.1f}" text-anchor="middle" class="ad-lb">{esc(t)}</text>')
     o.append('</svg>')
     return ''.join(o)
+
+def _hits(r, s):
+    """does segment s=(x1,y1,x2,y2) cross rect r=(l,t,r,b)"""
+    x1, y1, x2, y2 = s; l, t, rr, b = r
+    for i in range(41):
+        k = i / 40; x, y = x1 + (x2 - x1) * k, y1 + (y2 - y1) * k
+        if l < x < rr and t < y < b: return True
+    return False
+
+def _over(a, b): return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+def check(edges, labels, boxes, pos, edge_pt, name):
+    """invariant: an arrow never passes through a box that is not its end, a label never covers a box or another label"""
+    bad = []
+    for a, b, text, _ in edges:
+        seg = (*edge_pt(a, b), *edge_pt(b, a))
+        bad += [f'arrow {a}->{b} crosses box {k}' for k, r in boxes.items() if k not in (a, b) and _hits(r, seg)]
+    lr = [((x - (len(t) * 6.4 + 10) / 2, y - 9, x + (len(t) * 6.4 + 10) / 2, y + 7), t) for x, y, t in labels]
+    for i, (r, t) in enumerate(lr):
+        bad += [f'label "{t}" covers box {k}' for k, bx in boxes.items() if _over(r, bx)]
+        bad += [f'label "{t}" covers label "{u}"' for q, u in lr[i + 1:] if _over(r, q)]
+    if bad: raise SystemExit(f'diagram "{name}": ' + '; '.join(bad))
 
 def seq(parts, msgs, label, pw=132, rh=34, top=54):
     """parts: [(id, name)]; msgs: (from, to, text, kind)  kind: '' call, 'r' reply(dashed), 'n' note (from=to span), 's' self"""

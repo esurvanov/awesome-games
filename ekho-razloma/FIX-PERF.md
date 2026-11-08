@@ -36,7 +36,7 @@ needed a fix.
 
 ### Quality director
 
-`ai.js`'s `quality()` (fps from real frame intervals, 8 s warm-up, downgrade only on 2 sustained readings < 48 fps,
+The quality director (`quality()` in the former `ai.js`, removed 2026-10; `lowend.js` switches presets now) (fps from real frame intervals, 8 s warm-up, downgrade only on 2 sustained readings < 48 fps,
 climb only with headroom, no asks in the menu) already exists from the previous agent's wave and needs no changes.
 **Did not add a continuous render-scale/frame-time controller inside a preset.** No partial implementation of one
 existed to finish (searched the whole repo — no `renderScale`/`dynRes`/controller code anywhere outside the existing

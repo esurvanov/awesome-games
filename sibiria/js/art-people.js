@@ -247,7 +247,11 @@ var ArtPeople = (function () {
     const D = GT ? GT.duty : 0.5, u = ((ph - PI / 2) / (2 * PI)) % 1, v = (u < 0 ? u + 1 : u) % 0.5, fp = clamp((v - D) / Math.max(0.01, 0.5 - D), 0, 1);
     return unHip(edge - 0.6 * Math.sin(PI * fp));
   }
+  // у каждого шага свой «характер»: высота переноса и покачивание чуть разные (длина шага не меняется — иначе стопа скользит)
+  const hs = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x) - 0.5; };
   function gait(ph, St, lift) {
+    const sn = Math.floor((ph - PI / 2) / PI), j = hs(sn), jb = hs(sn + 17);
+    lift *= 1 + 0.35 * j;
     const a = foot(ph, St, lift, 0), b = foot(ph, St, lift, 0.5);
     P.f0x = a[0] + 0.4; P.f0y = -2 - a[1]; P.f0a = a[2]; P.st0 = a[3]; P.q0 = a[4]; P.u0 = a[5];
     P.f1x = b[0] - 0.4; P.f1y = -2 - b[1]; P.f1a = b[2]; P.st1 = b[3]; P.q1 = b[4]; P.u1 = b[5];
@@ -255,8 +259,8 @@ var ArtPeople = (function () {
     // длинный шаг — таз ниже, чтобы вытянутая нога доставала до опоры
     const fl = GT ? clamp((0.5 - GT.duty) / 0.25, 0, 1) : 0, hw = -16.9 + bob(ph) + clamp((St - 6.5) * 0.55, 0, 1.1) + 0.7 * TIRE;
     P.hy = fl > 0 ? lerp(hw, hipArc(ph, St, a, b), fl) : hw;
-    P.hlat = -0.7 * (1 - 0.4 * fl) * Math.cos(ph - 0.25);   // вес над опорной ногой (ближняя — lat +)
-    P.hb = 0.8 * Math.cos(2 * ph + 0.9);
+    P.hlat = -0.7 * (1 + 0.25 * jb) * (1 - 0.4 * fl) * Math.cos(ph - 0.25);   // вес над опорной ногой (ближняя — lat +)
+    P.hb = 0.8 * Math.cos(2 * ph + 0.9) * (1 + 0.4 * jb);
   }
   function idle(o, t) {
     const br = BRV != null ? BRV : Math.sin(t * 1.9 + (o.seed || 0));
@@ -1576,7 +1580,7 @@ var ArtPeople = (function () {
     P.pkx = scl(SPR(5, xs - scl(mm.ax * 6e-4, 1.2), 3.2, 0.45) - xs, 1.4);
     P.pky = scl(SPR(6, ys - scl(mm.ay * 3e-4, 0.8), 5.5, 0.4) - ys, 1);
     if (!LQ) {
-      P.clx = 0.6 * scl(SPR(7, xs, 5, 0.35) - xs, 1.2); P.cly = 0.6 * scl(SPR(8, ys, 6, 0.35) - ys, 1.2);
+      P.clx = 1.1 * scl(SPR(7, xs, 5, 0.35) - xs, 2.2); P.cly = 1.1 * scl(SPR(8, ys, 6, 0.35) - ys, 2.2);
       const hc = headC()[1]; P.pom = scl(SPR(10, hc, 3.5, 0.25) - hc, 1.3);
     }
     mm.fresh = false;

@@ -15,9 +15,19 @@
     "label": "C4: контекст и контейнеры"
    },
    {
+    "id": "domains",
+    "heading": "Домены игры",
+    "label": "Домены"
+   },
+   {
     "id": "c3",
-    "heading": "C4 уровня 3: компоненты контекстов",
+    "heading": "C4 уровня 3: компоненты доменов",
     "label": "Компоненты"
+   },
+   {
+    "id": "beside",
+    "heading": "Рядом с игрой: параметры и загрузка",
+    "label": "Рядом с игрой"
    },
    {
     "id": "paths",
@@ -48,9 +58,19 @@
     "label": "C4: context and containers"
    },
    {
+    "id": "domains",
+    "heading": "Game domains",
+    "label": "Domains"
+   },
+   {
     "id": "c3",
-    "heading": "C4 level 3: components of each context",
+    "heading": "C4 level 3: components of each domain",
     "label": "Components"
+   },
+   {
+    "id": "beside",
+    "heading": "Beside the game: settings and loading",
+    "label": "Beside the game"
    },
    {
     "id": "paths",

@@ -12,7 +12,7 @@ Fox / stags / other objects stay on the old paths until the pilot passes step 5.
 | Body | BodySpec (one source of body measures), PosePipeline (the only writer of the pilot skeleton) | `modules/body-spec.js`, `modules/pose-pipeline.js` (new) |
 | Motion | clips + MotionRequirements in the World vocabulary, MotionFitter | `assets/pack/anim_pilot_contact.js` + meta, `modules/motion-fit.js` (new) |
 | Behaviour | Interaction (one per pilot) + ActionMatcher | `modules/rock-brain.js` → refactored into `modules/ix-behaviour.js` |
-| Judgement | Scenario / Baseline (frozen), independent Judge, Verdict (human marks, saved in the repo) | `tools/rockgallery/*`, `modules/rock-lab.js`, `server/server.mjs` (marks endpoint) |
+| Judgement | Scenario / Baseline (frozen), independent Judge, Verdict (human marks, saved in the repo) | `tools/rockgallery/*`, `modules/rock-lab.js` |
 
 Physics (`physics.js`, Rapier) is an external system: **only physics moves the pilot's position**; others hand it a desired point.
 The animation mixer is an external system: it yields a base pose only.

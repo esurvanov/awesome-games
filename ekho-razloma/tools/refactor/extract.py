@@ -21,7 +21,7 @@ rest = '\n'.join(L[:a-1] + L[b:])
 declared_here = set(re.findall(r'^  (?:const|let|(?:async\s+)?function)\s+([A-Za-z_\$][\w\$]*)', txt, re.M))
 for m in re.finditer(r'^  (?:const|let)\s+\{([^}]*)\}', txt, re.M):
     for n in m.group(1).split(','): declared_here.add(n.strip().split(':')[-1].strip())
-deps, lates, problems, auto_late = [], [], [], []
+deps, lates, problems, auto_late, privates = [], [], [], [], []
 def decl_line(n):
     for i, l in enumerate(L):
         if re.match(r'^  (?:const|let|function)\s+' + re.escape(n) + r'\b', l) or re.match(r'^  (?:const|let)\s+[^=\n]*\b' + re.escape(n) + r'\b[^=\n]*=', l) or re.match(r'^  let\s+[^;\n]*\b' + re.escape(n) + r'\b', l): return i + 1
@@ -31,6 +31,9 @@ for n in fv:
     if n in late: lates.append(n); continue
     dl = decl_line(n)
     if dl is None: problems.append(n + ' (global?)'); continue
+    mlet = re.match(r'^  let\s+' + re.escape(n) + r'\s*=\s*([^;,]+);', L[dl-1])
+    if mlet and re.search(r'(?<![\w.$])' + re.escape(n) + r'\s*=[^=]', txt):
+        privates.append((n, mlet.group(1).strip())); continue   # assigned inside the block: the block gets its own copy (fine for scratch/cache values — checked by hand)
     if dl > b: lates.append(n); auto_late.append(n); continue   # declared after the block (a later block's export, or a const further down): assigned through bind() once it exists
     deps.append(n)
 used_out = [n for n in sorted(declared_here) if re.search(r'(?<![\w.$])' + re.escape(n) + r'(?![\w$])', rest)]
@@ -44,6 +47,7 @@ items = list(exports)
 if lates: items.append('bind(o) { ' + ' '.join('if ("%s" in o) %s = o.%s;' % (n, n, n) for n in lates) + ' }')
 mod = "/* %s */\n(function () {\n  'use strict';\n  window.%s = function (X) {\n" % (header, fac)
 if deps: mod += "    const { %s } = X;\n" % ', '.join(deps)
+if privates: mod += ''.join('    let %s = %s;   // private copy (was shared in the source module)\n' % (n, v) for n, v in privates)
 if lates: mod += "    let %s;   // assigned later in the source module: set through bind()\n" % ', '.join(lates)
 mod += body + "\n\n    return { %s };\n  };\n})();\n" % ', '.join(items)
 open(out, 'w', encoding='utf8').write(mod)
@@ -51,5 +55,5 @@ call = [f"  const {obj} = window.{fac}({{ {', '.join(deps)} }});   // {os.path.b
 if exports: call.append(f"  const {{ {', '.join(exports)} }} = {obj};")
 L[a-1:b] = call
 open(src, 'w', encoding='utf8').write('\n'.join(L))
-print('block', a, b, '→', out); print('deps:', deps); print('late:', lates, '(declared later, bind them:', auto_late, ')'); print('exports:', exports)
+print('block', a, b, '→', out); print('deps:', deps); print('late:', lates, '(declared later, bind them:', auto_late, ')'); print('exports:', exports); print('private copies:', privates)
 if problems: print('PROBLEMS:', problems)

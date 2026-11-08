@@ -184,6 +184,21 @@ async function main() {
       }
       res.rows = rows; res.errors = S.errors;
     }
+    if (mode === 'toggles') {
+      // --file toggles.json [{name, js}]: each toggle applied on top of a fresh 'high', measured in rounds (drift hits all alike)
+      const S = await open('?q=high'); await newGame(S.page);
+      const v = opt('view', 'forest'); await S.page.evaluate(`(${place[v].toString()})()`); await sleep(3000);
+      const T = [{ name: 'base', js: '0' }, ...JSON.parse(fs.readFileSync(path.resolve(String(opt('file'))), 'utf8'))], acc = {};
+      for (let round = 0; round < +opt('rounds', 2); round++) for (const t of T) {
+        await S.page.evaluate(() => DBG.setQuality('high')); await S.page.evaluate(t.js); await sleep(+opt('settle', 2500));
+        const r = await measure(S.page, +opt('secs', 4)); (acc[t.name] = acc[t.name] || []).push(r);
+        log(`round ${round} ${t.name.padEnd(18)} ${r.fps} fps · busy ${r.busyMs} ms (GPU≈${r.gpuMs} CPU ${r.cpuMs})`);
+      }
+      await S.page.evaluate(() => DBG.setQuality('high'));
+      res.rows = Object.entries(acc).map(([name, a]) => ({ name, busyMs: +(a.reduce((x, r) => x + r.busyMs, 0) / a.length).toFixed(1), gpuMs: +(a.reduce((x, r) => x + r.gpuMs, 0) / a.length).toFixed(1), fps: a.map((r) => r.fps) }));
+      for (const r of res.rows) log(`AVG ${r.name.padEnd(18)} busy ${r.busyMs} ms · GPU ${r.gpuMs} ms · fps ${r.fps}`);
+      res.errors = S.errors;
+    }
     if (mode === 'variants') {
       // interleaved A/B/C… in one view (rounds), so drift of the machine / other agents' files hits every variant alike
       const S = await open('?q=air'); await newGame(S.page);

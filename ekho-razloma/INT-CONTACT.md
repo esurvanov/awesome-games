@@ -12,7 +12,6 @@ mixers, drives hand IK onto the *real* raycast hit, and adds one new Jev questio
 | 📦 Pack | `assets/pack/anim_pilot_contact.js` (2.5 MB), `anim_stag_gaits.js` (0.7 MB), `animlib-runtime.js` (12 KB) | copied verbatim from `assets/incoming4/anim/` — base64 GLB (embedded metadata) + the merge/IK/gait-blend runtime |
 | 🔌 Wiring | `open-world.html` | `attachContactLib()` merges the 37 clips into `AV.player.acts` / `AV.orm.acts` (pilot + hermit share the UAL skeleton) and builds a `ContactLayer`; `animal_stag`'s loader merges the 20 gait clips into every stag's `s.A.acts` once the pack lands |
 | 🧠 Contact layer | `modules/interaction.js` (`CT`) | probe → decide (Jev + rules) → steer to stand-off → play clip → hand/foot IK onto the probed point |
-| 🎬 Jev set | `ai-content.js` (`CONTACT_INTENT`) | compact scene description → one of 7 contact intents + `none`; confidence ≥ 0.4, else `contactRules()` |
 | 🦌 Stag gait | `modules/interaction.js` (`stagUpdate`) | `ANIMLIB.GaitBlender` per stag: phase-synced walk/trot/canter/gallop, speed-matched to the existing flee-speed ramp |
 | 🎨 Stag colour | `open-world.html` (`animal_stag` tint) | pack's texture multiplied towards pale grey (i01–i05), roughness ↑, metalness/env ↓ (satin → matte) |
 
@@ -57,9 +56,7 @@ wave's scope: push already existed (arms IK onto a pushed prop, wave 2); idle mo
 | Trigger | only when the probed surface state *changes* (surface kind / distance bucket / player state / height bucket / on-ice) **and** ≥ `K.contactAsk` (1.2 s) since the last ask — not every frame near a rock |
 | Asks | one `choice` among `rest_on_rock · touch_surface · climb_slope · cross_obstacle · inspect_ground · pick_up · clear_branch · none` |
 | State sent | surface kind (English bucket), height/distance (m, 1 decimal), player state (idle/walking/running/riding/combat/climbing/sliding), speed (m/s), `fatigue` (hp⁄hpMax — no stamina meter in this game, documented proxy), `cold_exposure` (`WX.storm`, documented proxy), animals/NPC nearby |
-| Gate | confidence ≥ 0.4, else `AI_CONTENT.contactRules(s)` (deterministic, same thresholds as `chooseContact`'s own gates: idle/slow + close) |
-| Cache | `ttl: 20 s` server-side (identical (state → same answer) hits the existing sha256 cache); client-side the `askKey` gate above stops most repeat asks before they even reach the network |
-| Server | no `server/server.mjs` change needed — its whitelist is `Object.keys(content.SETS)`, generic; adding the set to `ai-content.js` is the whole integration |
+| Gate | confidence ≥ 0.4, else `contactRules(s)` (deterministic, same thresholds as `chooseContact`'s own gates: idle/slow + close) |
 
 `tests/ai.test.mjs --offline`: added a `CONTACT_INTENT` fixture to the generic "builds questions & rules fallback"
 loop (34/35 pass; the one pre-existing failure — quality-hysteresis fps-20 step — reproduces identically on `HEAD`
@@ -137,3 +134,5 @@ Full `qa.mjs --autoplay` deferred to the combined post-merge run; targeted check
   raycasts, but not free — kept off (`K.contact=false`) is the A/B lever, same convention as every other knob here.
 - `left`/`right`/`back` contacts are placement-only (`ANIMLIB.ContactLayer` itself skips non-hand/foot bones) — the
   shoulder/back leans rely entirely on the `steer` stand-off being accurate, not on a per-frame IK correction.
+
+> 2026-10: the AI layer (`ai.js`, `ai-content.js`, `server/`) was removed; the intent is chosen by the deterministic `contactRules()` that now lives in `modules/interaction.js`.
