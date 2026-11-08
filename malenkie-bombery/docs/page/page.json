@@ -1,0 +1,73 @@
+{
+ "slug": "little-bombers",
+ "play": "/malenkie-bombery/",
+ "repoDir": "malenkie-bombery",
+ "name": {"ru": "Маленькие бомберы", "en": "Little Bombers"},
+ "title": {"ru": "Маленькие бомберы — играть онлайн в бомбермен в браузере", "en": "Little Bombers — play a Bomberman-style game online in your browser"},
+ "tagline": {"ru": "Ставь бомбы, взрывай ящики и врагов, ищи выход — 15 уровней и свой редактор в одном файле", "en": "Drop bombs, blow up crates and enemies, find the exit — 15 levels and a level editor in one file"},
+ "genre": {"ru": "Аркада", "en": "Arcade"},
+ "description": {
+  "ru": "Маленькие бомберы: бесплатный бомбермен в браузере. 15 уровней в трёх мирах, три вида врагов, бонусы и редактор своих уровней. Прогресс сохраняется. Без установки.",
+  "en": "Little Bombers: a free Bomberman-style game in your browser. 15 levels in three worlds, three enemy types, power-ups and a level editor. Progress is saved. No installation."
+ },
+ "intro": {
+  "ru": [
+   "Маленькие бомберы — аркада в духе классического бомбермена: ставишь бомбы, взрываешь ящики, уничтожаешь всех врагов и уходишь в выход, спрятанный под одним из ящиков. Играть можно прямо в браузере, на компьютере и на телефоне.",
+   "В кампании 15 уровней в трёх мирах: луг, дюны и лёд. Чем быстрее пройден уровень, тем больше звёзд. Свои уровни рисуются в редакторе и сохраняются в браузере, ими можно делиться коротким кодом. Вся игра — один файл без библиотек."
+  ],
+  "en": [
+   "Little Bombers is an arcade game in the spirit of the classic Bomberman: drop bombs, blow up crates, defeat every enemy and walk into the exit hidden under one of the crates. It runs right in the browser, on desktop and on phones.",
+   "The campaign has 15 levels in three worlds: meadow, dunes and ice. The faster you finish a level, the more stars you earn. You can draw your own levels in the editor, they are saved in your browser and can be shared with a short code. The whole game is one file with no libraries."
+  ]
+ },
+ "features": {
+  "ru": [
+   "15 уровней в трёх мирах: луг, дюны, лёд",
+   "До трёх звёзд за уровень — за скорость прохождения",
+   "Три врага: слизень бродит, летун бросается по прямой, призрак проходит сквозь ящики",
+   "Бонусы под ящиками: лишняя бомба, длиннее огонь, быстрее шаг",
+   "Редактор уровней: рисуй, проверяй, сохраняй, делись кодом",
+   "Прогресс, рекорды и свои уровни сохраняются в браузере",
+   "Сенсорное управление: джойстик и кнопка бомбы на телефоне",
+   "Русский и английский интерфейс"
+  ],
+  "en": [
+   "15 levels in three worlds: meadow, dunes and ice",
+   "Up to three stars per level, earned for speed",
+   "Three enemies: the slime wanders, the bat charges in a straight line, the ghost passes through crates",
+   "Power-ups under crates: an extra bomb, longer flames, faster steps",
+   "Level editor: draw, test, save and share by code",
+   "Progress, best times and your own levels are saved in the browser",
+   "Touch controls: a joystick and a bomb button on phones",
+   "Russian and English interface"
+  ]
+ },
+ "controls": {
+  "ru": [["← ↑ → ↓ / W A S D", "ход"], ["Пробел / X", "поставить бомбу"], ["Esc / P", "пауза"], ["R", "начать уровень заново"], ["1 … =", "инструмент в редакторе"]],
+  "en": [["← ↑ → ↓ / W A S D", "move"], ["Space / X", "drop a bomb"], ["Esc / P", "pause"], ["R", "restart the level"], ["1 … =", "editor tool"]]
+ },
+ "facts": {
+  "ru": [["Платформа", "браузер на компьютере и телефоне"], ["Уровней", "15 в кампании и сколько угодно своих"], ["Размер", "один файл, шрифты подгружаются из сети"], ["Сохранение", "в браузере (localStorage)"], ["Код", "открытый, MIT"]],
+  "en": [["Platform", "browser on desktop and phone"], ["Levels", "15 in the campaign plus any number of your own"], ["Size", "one file, fonts are loaded from the network"], ["Saving", "in the browser (localStorage)"], ["Code", "open source, MIT"]]
+ },
+ "faq": {
+  "ru": [
+   ["Где сохраняется прогресс?", "В самом браузере на вашем устройстве: пройденные уровни, звёзды, рекорды и свои уровни. Если очистить данные сайта, они пропадут."],
+   ["Как получить три звезды?", "Пройти уровень быстрее контрольного времени, оно показано на экране победы."],
+   ["Как поделиться своим уровнем?", "В редакторе нажмите кнопку кода и отправьте другу получившийся текст. Он вставит его в разделе «Мои уровни»."],
+   ["Можно ли играть на телефоне?", "Да, на сенсорном экране появляются джойстик и кнопка бомбы."]
+  ],
+  "en": [
+   ["Where is my progress saved?", "In your browser on your device: finished levels, stars, best times and your own levels. Clearing the site data removes them."],
+   ["How do I get three stars?", "Finish the level faster than the target time shown on the victory screen."],
+   ["How do I share my level?", "In the editor press the code button and send the resulting text to a friend. They paste it in the My levels section."],
+   ["Can I play on a phone?", "Yes, a joystick and a bomb button appear on touch screens."]
+  ]
+ },
+ "shots": [
+  {"file": "docs/screenshots/flight.jpg", "w": 1600, "h": 900, "alt": {"ru": "Маленькие бомберы: взрыв на уровне в дюнах", "en": "Little Bombers: an explosion on a dunes level"}},
+  {"file": "docs/screenshots/menu.jpg", "w": 1600, "h": 900, "alt": {"ru": "Маленькие бомберы: главное меню", "en": "Little Bombers: the main menu"}}
+ ],
+ "related": ["northern-rift", "uptime"],
+ "keywords": {"ru": ["бомбермен онлайн", "игра с бомбами в браузере", "редактор уровней бомбермен"], "en": ["bomberman online", "bomberman style browser game", "bomberman level editor"]}
+}

@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Маленькие бомберы</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tektur:wght@500;700;900&family=Onest:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b1020;
+    --ink: #eef3ff;
+    --dim: #8c99b8;
+    --acc: #ffc845;
+    --ok: #5ee08a;
+    --blue: #6fb6ff;
+    --danger: #ff5d6c;
+    --panel: rgba(14, 20, 40, 0.82);
+    --line: rgba(255, 255, 255, 0.14);
+  }
+  [hidden] { display: none !important; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Onest, system-ui, -apple-system, sans-serif; font-size: 14px;
+    overflow: hidden; user-select: none; -webkit-user-select: none;
+    display: flex; flex-direction: column;
+  }
+  .i { width: 18px; height: 18px; flex: none; }
+  .t { font-family: Tektur, "Arial Narrow", system-ui, sans-serif; }
+  button { font: inherit; color: inherit; }
+
+  /* верхняя и нижняя панели */
+  .bar { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px; min-height: 56px; }
+  .bar .sp { flex: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 11px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line); font: 700 14px Tektur, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip.acc { color: var(--acc); }
+  .chip.red { color: var(--danger); border-color: rgba(255, 93, 108, .5); }
+  .chip.ok { color: var(--ok); border-color: rgba(94, 224, 138, .45); }
+  .chip.bump { animation: bump .3s ease-out; }
+  @keyframes bump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  .icon-btn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel); display: grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
+  .icon-btn:hover { border-color: rgba(255, 255, 255, .35); }
+  .icon-btn:focus-visible, .btn:focus-visible, .tool:focus-visible, .lv:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  #stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 0 8px; position: relative; }
+  #cv { display: block; border-radius: 10px; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); touch-action: none; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 46px; padding: 0 18px; border-radius: 12px; border: 0; cursor: pointer;
+    background: var(--acc); color: #1d1404; font: 700 16px Tektur, system-ui, sans-serif; letter-spacing: .03em;
+    transition: transform .1s; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+  .btn.sm { height: 36px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
+  .btn:disabled { opacity: .4; cursor: default; transform: none; }
+  .btn.danger { background: var(--danger); color: #fff; }
+  kbd { font: 700 11px Tektur, system-ui, sans-serif; padding: 2px 6px; border-radius: 5px;
+    background: rgba(0, 0, 0, .15); border: 1px solid rgba(0, 0, 0, .25); }
+
+  /* экраны поверх поля */
+  .scr { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px;
+    background: rgba(8, 12, 26, .72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); overflow: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    width: min(460px, 100%); display: flex; flex-direction: column; gap: 14px; }
+  .panel.wide { width: min(640px, 100%); }
+  .head { display: flex; align-items: center; gap: 10px; }
+  .head h2 { margin: 0; font: 900 22px Tektur, system-ui, sans-serif; flex: 1; }
+  .logo { font: 900 clamp(34px, 8vw, 52px)/1 Tektur, system-ui, sans-serif; text-align: center; margin: 4px 0 0;
+    color: var(--acc); text-shadow: 0 4px 0 #9a5b00, 0 0 30px rgba(255, 200, 69, .35); }
+  .sub { text-align: center; color: var(--dim); margin: -4px 0 0; }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row.c { justify-content: center; }
+  .meter { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font: 700 13px Tektur, system-ui, sans-serif; }
+  .track { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+  .track > i { display: block; height: 100%; background: var(--acc); border-radius: inherit; transition: width .4s; }
+  .track.ok > i { background: var(--ok); }
+
+  /* карта уровней */
+  .world { display: grid; grid-template-columns: 28px repeat(5, 1fr); gap: 8px; align-items: center; }
+  .world .wi { display: grid; place-items: center; }
+  .lv { aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .05);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; padding: 0;
+    font: 900 20px Tektur, system-ui, sans-serif; }
+  .lv:hover:not(:disabled) { border-color: var(--acc); }
+  .lv:disabled { cursor: default; opacity: .45; }
+  .lv.cur { border-color: var(--acc); box-shadow: 0 0 0 2px rgba(255, 200, 69, .35); }
+  .stars { display: flex; gap: 1px; color: rgba(255, 255, 255, .2); }
+  .stars .on { color: var(--acc); }
+  .stars .i { width: 13px; height: 13px; }
+  .bigstars .i { width: 44px; height: 44px; }
+  .bigstars { justify-content: center; gap: 6px; }
+  .bigstars .on { animation: pop .4s ease-out backwards; }
+  .bigstars .on:nth-child(2) { animation-delay: .15s; }
+  .bigstars .on:nth-child(3) { animation-delay: .3s; }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+  /* мои уровни */
+  .mine { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow: auto; }
+  .mi { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, .05);
+    border: 1px solid var(--line); }
+  .mi canvas { width: 60px; height: 52px; border-radius: 6px; flex: none; }
+  .mi .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mi .nm b { font: 700 15px Tektur, system-ui, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mi .nm small { color: var(--dim); display: flex; gap: 10px; }
+  .mi .nm small span { display: inline-flex; gap: 3px; align-items: center; }
+  .mi .nm small .i { width: 13px; height: 13px; }
+  .empty { text-align: center; color: var(--dim); padding: 18px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .empty .i { width: 34px; height: 34px; opacity: .5; }
+
+  /* редактор */
+  #edPal { flex: none; display: flex; gap: 6px; padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    overflow-x: auto; justify-content: center; flex-wrap: wrap; }
+  .tool { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 6px 4px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line); cursor: pointer; font: 600 11px Onest, system-ui, sans-serif; min-width: 58px; }
+  .tool canvas { width: 32px; height: 32px; border-radius: 4px; }
+  .tool.on { border-color: var(--acc); background: rgba(255, 200, 69, .14); color: var(--acc); }
+  .tool kbd { font-size: 9px; padding: 0 4px; background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .15); }
+  #edName { height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    padding: 0 12px; font: 700 15px Tektur, system-ui, sans-serif; width: 180px; min-width: 0; }
+  #edName:focus { outline: 2px solid var(--acc); outline-offset: 0; }
+  textarea { width: 100%; height: 110px; resize: none; border-radius: 10px; border: 1px solid var(--line);
+    background: rgba(0, 0, 0, .3); color: var(--ink); padding: 10px; font: 12px ui-monospace, Menlo, monospace; user-select: text; }
+
+  /* итоги */
+  .res { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .res .card { background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .res .card b { font: 900 22px Tektur, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  .res .card small { color: var(--dim); display: flex; gap: 4px; align-items: center; }
+  .res .card small .i { width: 13px; height: 13px; }
+  .bigico { display: grid; place-items: center; }
+  .bigico .i { width: 56px; height: 56px; }
+
+  /* касания */
+  #touch { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; pointer-events: none;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 0 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
+  #pad { pointer-events: auto; width: 150px; height: 150px; border-radius: 50%; position: relative; touch-action: none;
+    background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .2); }
+  #pad::before, #pad::after { content: ""; position: absolute; background: rgba(255, 255, 255, .12); border-radius: 8px; }
+  #pad::before { left: 50%; top: 18px; bottom: 18px; width: 40px; transform: translateX(-50%); }
+  #pad::after { top: 50%; left: 18px; right: 18px; height: 40px; transform: translateY(-50%); }
+  #knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+    background: rgba(255, 255, 255, .35); z-index: 1; pointer-events: none; }
+  #bombBtn { pointer-events: auto; width: 96px; height: 96px; border-radius: 50%; border: 0; touch-action: none;
+    background: var(--acc); color: #1d1404; display: grid; place-items: center; box-shadow: 0 6px 0 #9a5b00; }
+  #bombBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #9a5b00; }
+  #bombBtn .i { width: 44px; height: 44px; }
+
+  #toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 9; pointer-events: none;
+    background: var(--ok); color: #062512; font: 700 14px Tektur, system-ui, sans-serif; padding: 8px 14px; border-radius: 999px;
+    display: flex; gap: 6px; align-items: center; opacity: 0; transition: opacity .25s; }
+  #toast.on { opacity: 1; }
+  #toast.bad { background: var(--danger); color: #fff; }
+
+  @media (pointer: fine) { #touch { display: none !important; } }
+  @media (max-width: 560px) {
+    .bar { gap: 6px; padding-left: 8px; padding-right: 8px; }
+    .chip { height: 30px; padding: 0 8px; font-size: 13px; gap: 4px; }
+    .chip .i { width: 15px; height: 15px; }
+    .hide-s { display: none !important; }
+    #edName { width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-brick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9.5h18M3 14.5h18M9 4v5.5M15 9.5v5M9 14.5V20"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" fill="currentColor"/></symbol>
+    <symbol id="i-bomb" viewBox="0 0 24 24"><circle cx="11" cy="14" r="7" fill="currentColor"/><path d="M15 8.5l2-2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M18.5 3.5v2M21 6h-2M20.3 4.2l-1.2 1.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8.5" cy="11.5" r="1.8" fill="rgba(255,255,255,.45)"/></symbol>
+    <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 2.5c1 3.5 5.5 5.5 5.5 11a5.5 5.5 0 0 1-11 0c0-2.8 1.6-4.3 2.6-5.5.3 1.6 1 2.6 2 3 0-3.3.2-5.8.9-8.5z" fill="currentColor"/></symbol>
+    <symbol id="i-speed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6l6 6-6 6M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-enemy" viewBox="0 0 24 24"><path d="M4 20v-8a8 8 0 0 1 16 0v8l-2.7-2-2.6 2-2.7-2-2.6 2-2.7-2z" fill="currentColor"/><circle cx="9" cy="11" r="1.8" fill="#0b1020"/><circle cx="15" cy="11" r="1.8" fill="#0b1020"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8 20h8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z"/><path d="M17 9.5l5 5M22 9.5l-5 5"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.6-1 1-2-.7-1.2 0-2.5 1.5-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-skull" viewBox="0 0 24 24"><path d="M12 3a8 8 0 0 0-8 8c0 2.6 1.2 4.4 3 5.5V20h10v-3.5c1.8-1.1 3-2.9 3-5.5a8 8 0 0 0-8-8z" fill="currentColor"/><circle cx="9" cy="11.5" r="2" fill="#0b1020"/><circle cx="15" cy="11.5" r="2" fill="#0b1020"/></symbol>
+  </defs>
+</svg>
+
+<!-- игровая панель -->
+<header class="bar" id="hud" hidden>
+  <button class="icon-btn" id="hPause" title="Пауза (Esc)"><svg class="i"><use href="#i-pause"/></svg></button>
+  <span class="chip acc t" id="hLv">1-1</span>
+  <span class="sp"></span>
+  <span class="chip" id="hEn" title="Враги"><svg class="i"><use href="#i-enemy"/></svg><b>0</b></span>
+  <span class="chip" id="hTime" title="Время"><svg class="i"><use href="#i-clock"/></svg><b>0</b></span>
+  <span class="chip" id="hB" title="Бомбы"><svg class="i"><use href="#i-bomb"/></svg><b>1</b></span>
+  <span class="chip" id="hF" title="Огонь"><svg class="i"><use href="#i-fire"/></svg><b>2</b></span>
+  <span class="chip hide-s" id="hS" title="Скорость"><svg class="i"><use href="#i-speed"/></svg><b>0</b></span>
+</header>
+
+<!-- панель редактора -->
+<header class="bar" id="edBar" hidden>
+  <button class="icon-btn" id="eBack" title="Назад"><svg class="i"><use href="#i-back"/></svg></button>
+  <input id="edName" maxlength="28" placeholder="Название" aria-label="Название уровня">
+  <button class="icon-btn" id="eTheme" title="Мир: луг, дюны, лёд"><svg class="i"><use href="#i-palette"/></svg></button>
+  <span class="chip" id="eS" title="Старт"><svg class="i"><use href="#i-play"/></svg><b>✓</b></span>
+  <span class="chip" id="eE" title="Выход"><svg class="i"><use href="#i-next"/></svg><b>✓</b></span>
+  <span class="chip" id="eN" title="Враги"><svg class="i"><use href="#i-enemy"/></svg><b>0</b></span>
+  <span class="sp"></span>
+  <button class="icon-btn" id="eCode" title="Код уровня"><svg class="i"><use href="#i-code"/></svg></button>
+  <button class="btn sm ghost" id="eTest"><svg class="i"><use href="#i-play"/></svg><span class="hide-s">Проверить</span></button>
+  <button class="btn sm" id="eSave"><svg class="i"><use href="#i-save"/></svg><span class="hide-s">Сохранить</span></button>
+</header>
+
+<main id="stage"><canvas id="cv"></canvas></main>
+<nav id="edPal" hidden></nav>
+
+<div id="touch" hidden>
+  <div id="pad"><div id="knob"></div></div>
+  <button id="bombBtn" aria-label="Бомба"><svg class="i"><use href="#i-bomb"/></svg></button>
+</div>
+
+<!-- меню -->
+<section class="scr" id="sMenu">
+  <div class="panel">
+    <h1 class="logo">Маленькие<br>бомберы</h1>
+    <p class="sub">Взорви всех — найди выход</p>
+    <div class="col">
+      <div class="meter"><svg class="i"><use href="#i-trophy"/></svg><div class="track ok"><i id="mLv"></i></div><span id="mLvT">0/15</span></div>
+      <div class="meter"><svg class="i" style="color:var(--acc)"><use href="#i-star"/></svg><div class="track"><i id="mSt"></i></div><span id="mStT">0/45</span></div>
+    </div>
+    <button class="btn" id="bPlay"><svg class="i"><use href="#i-play"/></svg><span id="bPlayT">Играть</span></button>
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr 1fr">
+      <button class="btn ghost sm" id="bMap"><svg class="i"><use href="#i-map"/></svg>Уровни</button>
+      <button class="btn ghost sm" id="bMine"><svg class="i"><use href="#i-folder"/></svg>Мои</button>
+      <button class="btn ghost sm" id="bEd"><svg class="i"><use href="#i-brick"/></svg>Редактор</button>
+    </div>
+    <div class="row c" style="color:var(--dim);font-size:12px;gap:14px">
+      <span class="row" style="gap:4px"><kbd>←↑→↓</kbd>/<kbd>WASD</kbd></span>
+      <span class="row" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-bomb"/></svg><kbd>Space</kbd></span>
+      <span class="row" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-pause"/></svg><kbd>Esc</kbd></span>
+      <button class="icon-btn" id="bSound" title="Звук" style="width:32px;height:32px"><svg class="i"><use href="#i-sound"/></svg></button>
+      <button class="icon-btn t" id="bLang" title="Язык" style="width:38px;height:32px;font-weight:700;font-size:12px">EN</button>
+    </div>
+  </div>
+</section>
+
+<!-- карта уровней -->
+<section class="scr" id="sMap" hidden>
+  <div class="panel wide">
+    <div class="head"><button class="icon-btn" data-back><svg class="i"><use href="#i-back"/></svg></button><h2>Уровни</h2>
+      <span class="chip acc"><svg class="i"><use href="#i-star"/></svg><b id="mapSt">0</b></span></div>
+    <div class="col" id="mapGrid"></div>
+  </div>
+</section>
+
+<!-- мои уровни -->
+<section class="scr" id="sMine" hidden>
+  <div class="panel wide">
+    <div class="head"><button class="icon-btn" data-back><svg class="i"><use href="#i-back"/></svg></button><h2>Мои уровни</h2>
+      <button class="icon-btn" id="mImp" title="Вставить код"><svg class="i"><use href="#i-code"/></svg></button>
+      <button class="btn sm" id="mNew"><svg class="i"><use href="#i-plus"/></svg>Новый</button></div>
+    <div class="mine" id="mineList"></div>
+  </div>
+</section>
+
+<!-- пауза -->
+<section class="scr" id="oPause" hidden>
+  <div class="panel">
+    <div class="bigico"><svg class="i"><use href="#i-pause"/></svg></div>
+    <button class="btn" id="pRes"><svg class="i"><use href="#i-play"/></svg>Дальше</button>
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr">
+      <button class="btn ghost sm" id="pRe"><svg class="i"><use href="#i-redo"/></svg>Заново</button>
+      <button class="btn ghost sm" id="pOut"><svg class="i"><use href="#i-home"/></svg><span class="outT">Меню</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- победа -->
+<section class="scr" id="oWin" hidden>
+  <div class="panel">
+    <div class="row bigstars" id="wStars"></div>
+    <div class="res">
+      <div class="card"><b id="wTime">0</b><small><svg class="i"><use href="#i-clock"/></svg>время</small></div>
+      <div class="card"><b id="wBest">0</b><small><svg class="i"><use href="#i-trophy"/></svg>рекорд</small></div>
+      <div class="card"><b id="wPar">0</b><small><svg class="i"><use href="#i-star"/></svg>на 3★</small></div>
+    </div>
+    <button class="btn" id="wNext"><svg class="i"><use href="#i-next"/></svg>Дальше</button>
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr">
+      <button class="btn ghost sm" id="wRe"><svg class="i"><use href="#i-redo"/></svg>Заново</button>
+      <button class="btn ghost sm" id="wOut"><svg class="i"><use href="#i-home"/></svg><span class="outT">Меню</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- поражение -->
+<section class="scr" id="oLose" hidden>
+  <div class="panel">
+    <div class="bigico" style="color:var(--danger)"><svg class="i" id="lIco"><use href="#i-skull"/></svg></div>
+    <h2 class="t" style="margin:0;text-align:center" id="lTxt">Взорвался</h2>
+    <button class="btn" id="lRe"><svg class="i"><use href="#i-redo"/></svg>Ещё раз <kbd>R</kbd></button>
+    <button class="btn ghost sm" id="lOut"><svg class="i"><use href="#i-home"/></svg><span class="outT">Меню</span></button>
+  </div>
+</section>
+
+<!-- код уровня -->
+<section class="scr" id="oCode" hidden>
+  <div class="panel">
+    <div class="head"><svg class="i"><use href="#i-code"/></svg><h2>Код уровня</h2>
+      <button class="icon-btn" id="cClose"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <textarea id="cTxt" spellcheck="false" placeholder="MB1:…"></textarea>
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr">
+      <button class="btn ghost sm" id="cCopy"><svg class="i"><use href="#i-save"/></svg>Копировать</button>
+      <button class="btn sm" id="cLoad"><svg class="i"><use href="#i-check"/></svg>Загрузить</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast"><svg class="i"><use href="#i-check"/></svg><span></span></div>
+
+<script>
+(() => {
+'use strict';
+/* ============================ ОСНОВА ============================ */
+const $ = (id) => document.getElementById(id);
+const W = 15, H = 13, T = 48;
+const cv = $('cv'); let ctx = cv.getContext('2d');
+cv.width = W * T; cv.height = H * T;
+const idx = (x, y) => y * W + x;
+const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+const DIRS = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
+const fmt = (s) => { s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+/* ============================ СОХРАНЕНИЕ ============================ */
+// всё в одном ключе: прогресс кампании, свои уровни, черновик редактора, звук
+const SKEY = 'malenkie-bombery.v1';
+const blank = () => ({ unlocked: 0, done: {}, custom: [], draft: null, sound: true });
+let save = (() => {
+  try { const v = JSON.parse(localStorage.getItem(SKEY)); if (v && typeof v === 'object') return Object.assign(blank(), v); } catch (e) {}
+  return blank();
+})();
+function persist() { try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch (e) { toast(tr('Хранилище недоступно'), true); } }
+
+/* ============================ ЯЗЫК ============================ */
+// русский — исходный текст разметки; английский подставляется по словарю (ключ — русская строка)
+const EN = {
+  'Маленькие бомберы': 'Little Bombers', 'Маленькие': 'Little', 'бомберы': 'Bombers', 'Взорви всех — найди выход': 'Blast them all, find the exit',
+  'Играть': 'Play', 'Продолжить': 'Continue', 'Уровни': 'Levels', 'Мои': 'Mine', 'Редактор': 'Editor', 'Мои уровни': 'My levels',
+  'Новый': 'New', 'Дальше': 'Next', 'Заново': 'Restart', 'Меню': 'Menu', 'Ещё раз': 'Retry', 'время': 'time', 'рекорд': 'best', 'на 3★': 'for 3★',
+  'Подорвался': 'Blown up', 'Поймали': 'Caught', 'Время вышло': 'Time is up', 'Код уровня': 'Level code', 'Копировать': 'Copy', 'Загрузить': 'Load',
+  'Проверить': 'Test', 'Сохранить': 'Save', 'Название': 'Name', 'Название уровня': 'Level name', 'Пауза (Esc)': 'Pause (Esc)', 'Враги': 'Enemies',
+  'Время': 'Time', 'Бомбы': 'Bombs', 'Огонь': 'Fire', 'Скорость': 'Speed', 'Назад': 'Back', 'Мир: луг, дюны, лёд': 'World: meadow, dunes, ice',
+  'Старт': 'Start', 'Выход': 'Exit', 'Звук': 'Sound', 'Язык': 'Language', 'Вставить код': 'Paste code', 'Изменить': 'Edit', 'Код': 'Code', 'Удалить': 'Delete',
+  'Ещё раз — удалить': 'Click again to delete', 'Пусто': 'Empty', 'Уровень': 'Level', 'Из кода': 'From code', 'Проверка': 'Test',
+  'Удалено': 'Deleted', 'Сохранено': 'Saved', 'Скопировано': 'Copied', 'Добавлено': 'Added', 'Код не подошёл': 'Invalid code', 'Хранилище недоступно': 'Storage unavailable',
+  'Пол': 'Floor', 'Стена': 'Wall', 'Ящик': 'Crate', 'Слизень': 'Slime', 'Летун': 'Bat', 'Призрак': 'Ghost', 'Бомба': 'Bomb',
+  'Луг': 'Meadow', 'Дюны': 'Dunes', 'Лёд': 'Ice', 'Рекорд': 'Best', 'Бомба ': 'Bomb ',
+};
+let LANG = save.lang || ((navigator.language || '').toLowerCase().startsWith('ru') ? 'ru' : 'en');
+const tr = (s) => (LANG === 'en' ? (EN[s] ?? s) : s);
+function applyLang() {
+  document.documentElement.lang = LANG; document.title = tr('Маленькие бомберы');
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    if (n.parentElement.closest('script,style,textarea,svg')) continue;
+    if (n.__ru === undefined) n.__ru = n.nodeValue;
+    const k = n.__ru.trim(); if (k && EN[k]) n.nodeValue = LANG === 'en' ? n.__ru.replace(k, EN[k]) : n.__ru;
+  }
+  for (const el of document.querySelectorAll('[title],[placeholder],[aria-label]')) {
+    el.__ru = el.__ru || {};
+    for (const a of ['title', 'placeholder', 'aria-label']) {
+      if (!el.hasAttribute(a)) continue; if (el.__ru[a] === undefined) el.__ru[a] = el.getAttribute(a);
+      el.setAttribute(a, tr(el.__ru[a]));
+    }
+  }
+  const b = document.getElementById('bLang'); if (b) b.textContent = LANG === 'en' ? 'RU' : 'EN';
+}
+
+/* ============================ ЗВУК ============================ */
+let AC = null, noiseBuf = null;
+function audio() {
+  if (!save.sound) return null;
+  if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; AC = new C();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.6, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f, dur, type = 'square', vol = 0.08, f2 = null, delay = 0) {
+  const a = audio(); if (!a) return; const t = a.currentTime + delay;
+  const o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function boom() {
+  const a = audio(); if (!a) return; const t = a.currentTime;
+  const s = a.createBufferSource(); s.buffer = noiseBuf; const f = a.createBiquadFilter(); f.type = 'lowpass';
+  f.frequency.setValueAtTime(1800, t); f.frequency.exponentialRampToValueAtTime(120, t + 0.5);
+  const g = a.createGain(); g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+  s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + 0.6);
+  tone(90, 0.3, 'sine', 0.25, 40);
+}
+const SFX = {
+  place: () => tone(220, 0.08, 'square', 0.06, 160),
+  pick: () => { tone(660, 0.08, 'square', 0.06); tone(990, 0.12, 'square', 0.06, null, 0.07); },
+  kill: () => tone(500, 0.18, 'sawtooth', 0.05, 120),
+  die: () => { tone(400, 0.5, 'sawtooth', 0.08, 60); },
+  open: () => { tone(523, 0.1, 'triangle', 0.1); tone(784, 0.18, 'triangle', 0.1, null, 0.09); },
+  win: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.16, 'square', 0.06, null, i * 0.11)),
+};
+
+/* ============================ МИРЫ И КАМПАНИЯ ============================ */
+const THEMES = [
+  { name: 'Луг', fa: '#5a9b44', fb: '#53923f', wall: '#7a8494', wtop: '#a2acbb', wdark: '#4f5663', crate: '#c08a4e', cdark: '#7f5428', cline: '#e0ab6c', bg: '#173016' },
+  { name: 'Дюны', fa: '#e2bd76', fb: '#d9b46c', wall: '#b06a42', wtop: '#d38a5c', wdark: '#73432a', crate: '#9a7550', cdark: '#5f442a', cline: '#c39a6e', bg: '#33240f' },
+  { name: 'Лёд', fa: '#c7e6f3', fb: '#bcdfee', wall: '#5d7fb3', wtop: '#86a7dc', wdark: '#3d5682', crate: '#8fb0cf', cdark: '#4f6f92', cline: '#bcd6ee', bg: '#102038' },
+];
+// враги (m — слизень, v — летун, g — призрак), плотность ящиков, бонусы под ящиками (B бомба, F огонь, P скорость), время на 3★
+const CAMP = [
+  ['mmm', .45, 'BF', 45], ['mmmm', .5, 'BFP', 55], ['mmmmv', .55, 'BBF', 65], ['mmmvv', .55, 'BFFP', 75], ['mmmmvv', .6, 'BBFF', 85],
+  ['vvvmm', .55, 'BBFP', 80], ['vvvvm', .58, 'BBFFP', 90], ['vvvvmm', .6, 'BBFFP', 100], ['vvvvvm', .62, 'BBBFFP', 110], ['vvvvvvm', .62, 'BBBFFP', 120],
+  ['ggmmm', .6, 'BBFFP', 95], ['gggvv', .62, 'BBFFP', 110], ['gggvvm', .64, 'BBBFFP', 120], ['ggggvvm', .66, 'BBBFFFP', 140], ['gggggvvvm', .68, 'BBBFFFPP', 160],
+];
+const campName = (i) => (Math.floor(i / 5) + 1) + '-' + (i % 5 + 1);
+
+function emptyRows() {
+  const g = [];
+  for (let y = 0; y < H; y++) { const r = []; for (let x = 0; x < W; x++) r.push(x === 0 || y === 0 || x === W - 1 || y === H - 1 || (x % 2 === 0 && y % 2 === 0) ? '#' : '.'); g.push(r); }
+  return g;
+}
+function genCampaign(i) {
+  const [en, dens, items] = CAMP[i]; const r = mulberry32(9001 + i * 7919);
+  const g = emptyRows(); const far = (x, y, d) => (x - 1) + (y - 1) >= d;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (g[y][x] === '.' && far(x, y, 3) && r() < dens) g[y][x] = '+';
+  g[1][1] = 'S';
+  let open = []; for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (g[y][x] === '.' && far(x, y, 6)) open.push([x, y]);
+  shuffle(open, r);
+  const crates = () => { const c = []; for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (g[y][x] === '+' && far(x, y, 6)) c.push([x, y]); return shuffle(c, r); };
+  for (const ch of en) {
+    let p = open.pop(); if (!p) { const c = crates(); p = c[0]; }
+    if (p) g[p[1]][p[0]] = ch;
+  }
+  const c = crates(); c.sort((a, b) => (b[0] + b[1]) - (a[0] + a[1]));
+  const ex = c.splice(Math.floor(r() * Math.min(6, c.length)), 1)[0]; g[ex[1]][ex[0]] = 'E';
+  shuffle(c, r); for (const ch of items) { const p = c.pop(); if (p) g[p[1]][p[0]] = ch; }
+  return g.map((row) => row.join(''));
+}
+const campSrc = (i) => ({ kind: 'camp', i, name: campName(i), theme: Math.floor(i / 5), rows: genCampaign(i), par: CAMP[i][3] });
+
+/* ============================ РАЗБОР УРОВНЯ ============================ */
+// '#' стена, '+' ящик, '.' пол, 'S' старт, 'E' выход под ящиком, 'B' 'F' 'P' бонус под ящиком, 'm' 'v' 'g' враги
+const VALID = /^[#+.SEBFPmvg]+$/;
+function parseLevel(rows) {
+  const grid = new Uint8Array(W * H), hidden = new Map(), enemies = []; let start = { x: 1, y: 1 };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const ch = rows[y][x], i = idx(x, y);
+    if (ch === '#') grid[i] = 1;
+    else if (ch === '+') grid[i] = 2;
+    else if ('EBFP'.includes(ch)) { grid[i] = 2; hidden.set(i, ch); }
+    else if (ch === 'S') start = { x, y };
+    else if ('mvg'.includes(ch)) enemies.push({ type: ch, x, y });
+  }
+  return { grid, hidden, enemies, start };
+}
+
+/* ============================ ИГРА ============================ */
+let G = null;
+const SPD = { m: 1.6, v: 2.6, g: 1.25 };
+function mkEnemy(e) { return { type: e.type, x: e.x, y: e.y, tx: e.x, ty: e.y, ox: e.x, oy: e.y, dx: 0, dy: 0, alive: true, die: 0, ph: Math.random() * 6 }; }
+function newGame(src, attract = false) {
+  const L = parseLevel(src.rows);
+  return {
+    src, attract, grid: L.grid, hidden: L.hidden, items: new Map(), exitAt: -1, bombs: [],
+    flame: new Float32Array(W * H), fdir: new Uint8Array(W * H), burn: new Float32Array(W * H),
+    parts: [], theme: THEMES[src.theme || 0], time: 0, limit: 200, state: 'play', endT: 0, shake: 0, clock: 0,
+    p: attract ? null : { x: L.start.x, y: L.start.y, fx: 0, fy: 1, maxB: 1, fire: 2, spd: 0, out: 0, alive: true, walk: 0, moving: false },
+    enemies: L.enemies.map(mkEnemy), exitOpenSaid: false,
+  };
+}
+const bombAt = (x, y) => G.bombs.find((b) => b.x === x && b.y === y);
+function pFree(x, y) {
+  if (!inb(x, y)) return false; const i = idx(x, y);
+  if (G.grid[i] !== 0) return false;
+  const p = G.p; if (bombAt(x, y) && !(Math.round(p.x) === x && Math.round(p.y) === y)) return false;
+  return true;
+}
+function eFree(e, x, y) {
+  if (!inb(x, y)) return false; const c = G.grid[idx(x, y)];
+  if (c === 1) return false; if (c === 2 && e.type !== 'g') return false;
+  if (bombAt(x, y)) return false;
+  return true;
+}
+// шаг по оси со скольжением в коридор у угла
+function move(p, dx, dy, d) {
+  const ax = dx !== 0, s = ax ? dx : dy;
+  const along = ax ? 'x' : 'y', side = ax ? 'y' : 'x';
+  const lane = Math.round(p[side]), off = lane - p[side];
+  const cur = Math.round(p[along]);
+  const free = (a) => ax ? pFree(a, lane) : pFree(lane, a);
+  if (Math.abs(off) > 0.001) {
+    if (free(cur + s) || Math.abs(p[along] - cur) > 0.001) { p[side] += Math.sign(off) * Math.min(d, Math.abs(off)); p.moving = true; }
+    return;
+  }
+  p[side] = lane;
+  let n = p[along] + s * d;
+  if (!free(cur + s)) n = s > 0 ? Math.min(n, Math.max(p[along], cur)) : Math.max(n, Math.min(p[along], cur));
+  if (n !== p[along]) p.moving = true;
+  p[along] = n;
+}
+function placeBomb() {
+  const p = G.p; if (!p || !p.alive || G.state !== 'play') return;
+  const x = Math.round(p.x), y = Math.round(p.y);
+  if (p.out >= p.maxB || bombAt(x, y) || G.grid[idx(x, y)] !== 0) return;
+  G.bombs.push({ x, y, t: 2.4, r: p.fire, own: true }); p.out++; SFX.place();
+}
+function fire(x, y, bit) { const i = idx(x, y); G.flame[i] = 0.55; G.fdir[i] |= bit; }
+function explode(b) {
+  G.bombs.splice(G.bombs.indexOf(b), 1);
+  if (b.own && G.p) G.p.out = Math.max(0, G.p.out - 1);
+  fire(b.x, b.y, 4);
+  for (const { dx, dy } of DIRS) {
+    for (let k = 1; k <= b.r; k++) {
+      const x = b.x + dx * k, y = b.y + dy * k; if (!inb(x, y)) break; const i = idx(x, y);
+      if (G.grid[i] === 1) break;
+      if (G.grid[i] === 2) { if (G.burn[i] <= 0) G.burn[i] = 0.5; break; }
+      fire(x, y, dx ? 1 : 2);
+      const ob = bombAt(x, y); if (ob) ob.t = Math.min(ob.t, 0.07);
+      if (G.items.has(i)) { G.items.delete(i); puff(x, y, '#fff', 8); }
+    }
+  }
+  G.shake = Math.min(10, G.shake + 6); if (!G.attract) boom();
+}
+function puff(x, y, color, n = 12, sp = 3) {
+  for (let k = 0; k < n; k++) { const a = Math.random() * 6.28, v = Math.random() * sp + 0.5;
+    G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.4, max: 0.9, c: color, s: 3 + Math.random() * 4 }); }
+}
+function choose(e) {
+  const opts = DIRS.filter((d) => eFree(e, e.x + d.dx, e.y + d.dy));
+  if (!opts.length) { e.dx = e.dy = 0; return; }
+  const P = G.p && G.p.alive ? G.p : null; let pick = null;
+  if (P && e.type === 'v') {
+    const px = Math.round(P.x), py = Math.round(P.y);
+    const clear = (dx, dy, n) => { for (let k = 1; k < n; k++) { const x = e.x + dx * k, y = e.y + dy * k; if (G.grid[idx(x, y)] !== 0 || bombAt(x, y)) return false; } return true; };
+    if (px === e.x && Math.abs(py - e.y) <= 7) { const dy = Math.sign(py - e.y); if (dy && clear(0, dy, Math.abs(py - e.y))) pick = opts.find((o) => o.dy === dy); }
+    if (!pick && py === e.y && Math.abs(px - e.x) <= 7) { const dx = Math.sign(px - e.x); if (dx && clear(dx, 0, Math.abs(px - e.x))) pick = opts.find((o) => o.dx === dx); }
+  }
+  if (P && e.type === 'g' && Math.random() < 0.55) {
+    const dist = (o) => Math.abs(e.x + o.dx - P.x) + Math.abs(e.y + o.dy - P.y);
+    pick = opts.slice().sort((a, b) => dist(a) - dist(b))[0];
+  }
+  if (!pick) {
+    const straight = opts.find((o) => o.dx === e.dx && o.dy === e.dy && (o.dx || o.dy));
+    const fwd = opts.filter((o) => !(o.dx === -e.dx && o.dy === -e.dy));
+    pick = straight && Math.random() < 0.7 ? straight : (fwd.length ? fwd : opts)[Math.floor(Math.random() * (fwd.length || opts.length))];
+  }
+  e.dx = pick.dx; e.dy = pick.dy; e.ox = e.x; e.oy = e.y; e.tx = e.x + pick.dx; e.ty = e.y + pick.dy;
+}
+function updEnemy(e, dt) {
+  if (e.x === e.tx && e.y === e.ty) choose(e);
+  else if (!eFree(e, e.tx, e.ty) && !(Math.round(e.x) === e.tx && Math.round(e.y) === e.ty)) {
+    [e.tx, e.ox] = [e.ox, e.tx]; [e.ty, e.oy] = [e.oy, e.ty]; e.dx = -e.dx; e.dy = -e.dy;
+  }
+  if (e.x === e.tx && e.y === e.ty) return;
+  let st = SPD[e.type] * dt;
+  const mv = (a, t) => { const d = t - e[a]; if (Math.abs(d) <= st) { e[a] = t; } else e[a] += Math.sign(d) * st; };
+  mv('x', e.tx); mv('y', e.ty);
+}
+const PICK = { B: (p) => { p.maxB = Math.min(8, p.maxB + 1); bump('hB'); }, F: (p) => { p.fire = Math.min(9, p.fire + 1); bump('hF'); }, P: (p) => { p.spd = Math.min(3, p.spd + 1); bump('hS'); } };
+const ITEM_COLOR = { B: '#ffc845', F: '#ff7a3d', P: '#6fb6ff' };
+
+function update(dt) {
+  if (!G) return;
+  G.clock += dt;
+  G.shake = Math.max(0, G.shake - dt * 30);
+  // частицы
+  for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.9; q.vy *= 0.9; q.life -= dt; }
+  G.parts = G.parts.filter((q) => q.life > 0);
+  if (G.state === 'paused' || G.state === 'over') return;
+  stepWorld(dt);
+  if (G.state === 'dying' || G.state === 'won') {
+    G.endT -= dt; for (const e of G.enemies) { if (e.alive) updEnemy(e, dt * (G.state === 'won' ? 0 : 1)); else e.die += dt; }
+    if (G.endT <= 0) { const s = G.state; G.state = 'over'; s === 'won' ? showWin() : showLose(G.loseWhy); }
+    return;
+  }
+  if (G.state !== 'play') return;
+  if (!G.attract) G.time += dt;
+  playStep(dt);
+}
+function stepWorld(dt) {
+  for (const b of G.bombs.slice()) { if (!G.bombs.includes(b)) continue; b.t -= dt; if (b.t <= 0) explode(b); }
+  for (let i = 0; i < W * H; i++) {
+    if (G.flame[i] > 0) { G.flame[i] -= dt; if (G.flame[i] <= 0) { G.flame[i] = 0; G.fdir[i] = 0; } }
+    if (G.burn[i] > 0) { G.burn[i] -= dt; if (G.burn[i] <= 0) {
+      G.burn[i] = 0; G.grid[i] = 0; const x = i % W, y = (i / W) | 0; puff(x, y, G.theme.cline, 10);
+      const h = G.hidden.get(i); if (h === 'E') G.exitAt = i; else if (h) G.items.set(i, h);
+    } }
+  }
+}
+function playStep(dt) {
+  // враги
+  for (const e of G.enemies) {
+    if (!e.alive) { e.die += dt; continue; }
+    updEnemy(e, dt);
+    if (G.flame[idx(Math.round(e.x), Math.round(e.y))] > 0) { e.alive = false; puff(e.x, e.y, '#fff', 14); if (!G.attract) SFX.kill(); }
+  }
+  G.enemies = G.enemies.filter((e) => e.alive || e.die < 0.6);
+  const alive = G.enemies.filter((e) => e.alive).length;
+  if (G.attract) { if (!G.bombs.length && Math.random() < dt * 0.6) attractBomb(); if (alive === 0) G = newGame(campSrc(Math.floor(Math.random() * 15)), true); return; }
+  // игрок
+  const p = G.p;
+  const d = dirInput(); p.moving = false;
+  if (d) { p.fx = d.dx; p.fy = d.dy; move(p, d.dx, d.dy, (3.4 + p.spd * 0.7) * dt); }
+  if (p.moving) p.walk += dt;
+  const px = Math.round(p.x), py = Math.round(p.y), pi = idx(px, py);
+  const it = G.items.get(pi); if (it) { G.items.delete(pi); PICK[it](p); puff(px, py, ITEM_COLOR[it], 12); SFX.pick(); }
+  if (alive === 0 && G.exitAt >= 0 && !G.exitOpenSaid) { G.exitOpenSaid = true; SFX.open(); }
+  if (G.flame[pi] > 0) return die('fire');
+  for (const e of G.enemies) if (e.alive && Math.hypot(e.x - p.x, e.y - p.y) < 0.62) return die('enemy');
+  if (G.time >= G.limit) return die('time');
+  if (alive === 0 && pi === G.exitAt && Math.abs(p.x - px) < 0.3 && Math.abs(p.y - py) < 0.3) win();
+}
+function attractBomb() {
+  const cand = []; for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (G.grid[idx(x, y)] === 0) {
+    const near = DIRS.some((d) => G.grid[idx(x + d.dx, y + d.dy)] === 2); if (near) cand.push([x, y]); }
+  const c = cand[Math.floor(Math.random() * cand.length)]; if (c) G.bombs.push({ x: c[0], y: c[1], t: 1.6, r: 2 });
+}
+function die(why) { G.p.alive = false; G.state = 'dying'; G.endT = 1.3; G.loseWhy = why; puff(G.p.x, G.p.y, '#ff5d6c', 22, 4); SFX.die(); }
+function win() {
+  G.state = 'won'; G.endT = 0.9; SFX.win(); puff(G.p.x, G.p.y, '#ffc845', 26, 4);
+  const s = G.src, t = Math.round(G.time * 10) / 10;
+  if (s.kind === 'camp') {
+    const st = t <= s.par ? 3 : t <= s.par * 1.6 ? 2 : 1, old = save.done[s.i] || { stars: 0, best: Infinity };
+    G.result = { stars: st, time: t, best: Math.min(old.best ?? Infinity, t), newBest: t < (old.best ?? Infinity) };
+    save.done[s.i] = { stars: Math.max(old.stars, st), best: G.result.best };
+    save.unlocked = Math.max(save.unlocked, Math.min(CAMP.length - 1, s.i + 1)); if (s.i === CAMP.length - 1) save.finished = true;
+    persist();
+  } else if (s.kind === 'custom') {
+    const c = save.custom.find((c) => c.id === s.id); const old = c && c.best != null ? c.best : Infinity;
+    if (c) { c.best = Math.min(old, t); persist(); }
+    G.result = { stars: 0, time: t, best: Math.min(old, t), newBest: t < old };
+  } else G.result = { stars: 0, time: t, best: t };
+}
+
+/* ============================ ВВОД ============================ */
+const held = []; // порядок нажатых направлений, последнее — главное
+const KEYMAP = { ArrowLeft: 'L', KeyA: 'L', ArrowRight: 'R', KeyD: 'R', ArrowUp: 'U', KeyW: 'U', ArrowDown: 'D', KeyS: 'D' };
+const DV = { L: { dx: -1, dy: 0 }, R: { dx: 1, dy: 0 }, U: { dx: 0, dy: -1 }, D: { dx: 0, dy: 1 } };
+let padDir = null;
+function dirInput() { if (padDir) return DV[padDir]; return held.length ? DV[held[held.length - 1]] : null; }
+addEventListener('keydown', (ev) => {
+  if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA') return;
+  audio();
+  const k = KEYMAP[ev.code];
+  if (screen === 'game') {
+    if (k) { ev.preventDefault(); if (!held.includes(k)) held.push(k); return; }
+    if (ev.code === 'Space' || ev.code === 'KeyX' || ev.code === 'KeyJ') { ev.preventDefault(); if (!ev.repeat) placeBomb(); return; }
+    if (ev.code === 'Escape' || ev.code === 'KeyP') { ev.preventDefault(); togglePause(); return; }
+    if (ev.code === 'KeyR' && !ev.repeat && G && G.state !== 'won') { restart(); return; }
+    if (ev.code === 'Enter' && !$('oWin').hidden) { $('wNext').click(); }
+  } else if (screen === 'editor') {
+    const n = '1234567890-='.indexOf(ev.key); if (n >= 0 && TOOLS[n]) setTool(TOOLS[n][0]);
+  } else if (ev.code === 'Escape') { const b = document.querySelector('.scr:not([hidden]) [data-back]'); if (b) b.click(); }
+});
+addEventListener('keyup', (ev) => { const k = KEYMAP[ev.code]; if (k) { const i = held.indexOf(k); if (i >= 0) held.splice(i, 1); } });
+addEventListener('blur', () => { held.length = 0; if (screen === 'game' && G && G.state === 'play') togglePause(true); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && screen === 'game' && G && G.state === 'play') togglePause(true); });
+
+// джойстик на экране
+const pad = $('pad'), knob = $('knob');
+function padMove(ev) {
+  const r = pad.getBoundingClientRect(); const x = ev.clientX - r.left - r.width / 2, y = ev.clientY - r.top - r.height / 2;
+  const m = Math.hypot(x, y), lim = r.width / 2 - 23, k = m > lim ? lim / m : 1;
+  knob.style.transform = `translate(${x * k}px,${y * k}px)`;
+  padDir = m < 14 ? null : Math.abs(x) > Math.abs(y) ? (x > 0 ? 'R' : 'L') : (y > 0 ? 'D' : 'U');
+}
+pad.addEventListener('pointerdown', (ev) => { audio(); pad.setPointerCapture(ev.pointerId); padMove(ev); });
+pad.addEventListener('pointermove', (ev) => { if (pad.hasPointerCapture(ev.pointerId)) padMove(ev); });
+const padEnd = () => { padDir = null; knob.style.transform = ''; };
+pad.addEventListener('pointerup', padEnd); pad.addEventListener('pointercancel', padEnd);
+$('bombBtn').addEventListener('pointerdown', (ev) => { ev.preventDefault(); audio(); placeBomb(); });
+
+/* ============================ РИСОВАНИЕ ============================ */
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawFloor(x, y, th) { ctx.fillStyle = (x + y) % 2 ? th.fa : th.fb; ctx.fillRect(x * T, y * T, T, T); }
+function drawWall(x, y, th) {
+  const px = x * T, py = y * T;
+  ctx.fillStyle = th.wdark; ctx.fillRect(px, py, T, T);
+  ctx.fillStyle = th.wall; ctx.fillRect(px + 2, py + 2, T - 4, T - 9);
+  ctx.fillStyle = th.wtop; ctx.fillRect(px + 2, py + 2, T - 4, 7);
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(px + 2, py + T / 2, T - 4, 2); ctx.fillRect(px + T / 2, py + 9, 2, T / 2 - 9);
+}
+function drawCrate(x, y, th, burn = 0) {
+  const px = x * T, py = y * T;
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(px + 4, py + 8, T - 6, T - 8);
+  ctx.fillStyle = th.cdark; rr(px + 3, py + 3, T - 6, T - 6, 5); ctx.fill();
+  ctx.fillStyle = th.crate; ctx.fillRect(px + 7, py + 7, T - 14, T - 14);
+  ctx.strokeStyle = th.cline; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(px + 7, py + T / 2); ctx.lineTo(px + T - 7, py + T / 2); ctx.stroke();
+  ctx.strokeStyle = th.cdark; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(px + 8, py + 8); ctx.lineTo(px + T - 8, py + T - 8); ctx.stroke();
+  if (burn > 0) { const k = 1 - burn / 0.5; ctx.fillStyle = `rgba(255,${120 - k * 80},40,${0.4 + k * 0.5})`; rr(px + 3, py + 3, T - 6, T - 6, 5); ctx.fill(); }
+}
+function drawBomb(cx, cy, t, fuse, s = 1) {
+  const k = s * (1 + 0.08 * Math.sin(t * (10 + (2.4 - fuse) * 8)));
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 15, 14, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1e2133'; ctx.beginPath(); ctx.arc(0, 2, 15, 0, 7); ctx.fill();
+  ctx.fillStyle = fuse < 0.6 && Math.sin(t * 40) > 0 ? '#ff5d6c' : '#2c3150'; ctx.beginPath(); ctx.arc(0, 2, 11, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(-5, -3, 4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5a5f78'; ctx.fillRect(-4, -15, 8, 5);
+  ctx.strokeStyle = '#c9a36b'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -15); ctx.quadraticCurveTo(3, -21, 8, -20); ctx.stroke();
+  ctx.fillStyle = Math.sin(t * 50) > 0 ? '#fff4a8' : '#ff9a2e'; ctx.beginPath(); ctx.arc(8, -20, 3 + Math.random() * 2, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawFlameCell(x, y, bits, life) {
+  const px = x * T, py = y * T, a = Math.min(1, life / 0.2);
+  const layers = [['#ff5a24', 0.92], ['#ffb43c', 0.62], ['#fff6c4', 0.3]];
+  ctx.globalAlpha = a;
+  for (const [c, w] of layers) {
+    ctx.fillStyle = c; const ww = T * w * (0.85 + 0.15 * Math.sin(life * 40 + x));
+    if (bits & 1 || bits & 4) ctx.fillRect(px, py + (T - ww) / 2, T, ww);
+    if (bits & 2 || bits & 4) ctx.fillRect(px + (T - ww) / 2, py, ww, T);
+    if (bits & 4) { ctx.beginPath(); ctx.arc(px + T / 2, py + T / 2, ww * 0.62, 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+function drawItem(type, cx, cy, t, s = 1) {
+  const b = Math.sin(t * 4) * 2 * s;
+  ctx.save(); ctx.translate(cx, cy + b); ctx.scale(s, s);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 18 - b, 13, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1d2440'; rr(-16, -16, 32, 32, 8); ctx.fill();
+  ctx.strokeStyle = ITEM_COLOR[type]; ctx.lineWidth = 2.5; rr(-16, -16, 32, 32, 8); ctx.stroke();
+  ctx.fillStyle = ITEM_COLOR[type]; ctx.strokeStyle = ITEM_COLOR[type];
+  if (type === 'B') { ctx.beginPath(); ctx.arc(-1, 3, 8, 0, 7); ctx.fill(); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(4, -3); ctx.lineTo(8, -8); ctx.stroke(); }
+  if (type === 'F') { ctx.beginPath(); ctx.moveTo(0, -11); ctx.bezierCurveTo(8, -3, 10, 2, 9, 5); ctx.arc(0, 4, 9, 0.1, Math.PI - 0.1); ctx.bezierCurveTo(-9, -1, -4, -4, 0, -11); ctx.fill(); }
+  if (type === 'P') { ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(-9, -7); ctx.lineTo(-2, 0); ctx.lineTo(-9, 7); ctx.moveTo(1, -7); ctx.lineTo(8, 0); ctx.lineTo(1, 7); ctx.stroke(); }
+  ctx.restore();
+}
+function drawExit(cx, cy, open, t, s = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  ctx.fillStyle = open ? '#0d2a3a' : '#1c2030'; ctx.beginPath(); ctx.ellipse(0, 2, 18, 18, 0, 0, 7); ctx.fill();
+  ctx.lineWidth = 3;
+  for (let k = 0; k < 3; k++) {
+    ctx.strokeStyle = open ? `hsla(${180 + k * 25},100%,${65 - k * 8}%,${1 - k * 0.2})` : '#4a5068';
+    const r = 15 - k * 4.5, a0 = (open ? t * (3 + k) : 0) + k * 2;
+    ctx.beginPath(); ctx.arc(0, 2, r, a0, a0 + 4.2); ctx.stroke();
+  }
+  if (open) { ctx.fillStyle = `rgba(120,240,255,${0.35 + 0.25 * Math.sin(t * 6)})`; ctx.beginPath(); ctx.arc(0, 2, 6, 0, 7); ctx.fill(); }
+  ctx.restore();
+}
+function drawPlayer(p, t, s = 1, alpha = 1) {
+  const cx = p.x * T + T / 2, cy = p.y * T + T / 2;
+  const bob = p.moving ? Math.abs(Math.sin(p.walk * 14)) * 3 : 0, step = p.moving ? Math.sin(p.walk * 14) * 4 : 0;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(cx, cy); ctx.scale(s, s);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, 19, 14, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a3f5c'; ctx.beginPath(); ctx.ellipse(-7 + step * 0.3, 16 - Math.max(0, step) * 0.4, 6, 4.5, 0, 0, 7); ctx.ellipse(7 - step * 0.3, 16 - Math.max(0, -step) * 0.4, 6, 4.5, 0, 0, 7); ctx.fill();
+  ctx.translate(0, -bob);
+  ctx.strokeStyle = '#3a3f5c'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(3, -22); ctx.stroke();
+  ctx.fillStyle = '#ff5d6c'; ctx.beginPath(); ctx.arc(3, -23, 4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f4f1e8'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.arc(2, 3, 12, 0, 7); ctx.fill();
+  if (p.fy !== -1) {
+    const ox = p.fx * 4, oy = p.fy * 2;
+    ctx.fillStyle = '#2f6df0'; rr(-10 + ox, -5 + oy, 20, 10, 5); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4 + ox * 1.2, oy, 2, 0, 7); ctx.arc(4 + ox * 1.2, oy, 2, 0, 7); ctx.fill();
+  } else { ctx.fillStyle = '#ffc845'; rr(-7, -4, 14, 9, 3); ctx.fill(); }
+  ctx.restore();
+}
+function drawEnemy(e, t) {
+  const cx = e.x * T + T / 2, cy = e.y * T + T / 2, ph = t * 6 + e.ph;
+  const k = e.alive ? 1 : Math.max(0, 1 - e.die / 0.6);
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k); if (!e.alive) ctx.rotate(e.die * 10);
+  const eyes = (y, col = '#fff', pup = '#111', r = 4) => {
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(-6, y, r, 0, 7); ctx.arc(6, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = pup; ctx.beginPath(); ctx.arc(-6 + e.dx * 1.6, y + e.dy * 1.6, r * 0.5, 0, 7); ctx.arc(6 + e.dx * 1.6, y + e.dy * 1.6, r * 0.5, 0, 7); ctx.fill();
+  };
+  if (e.type === 'm') {
+    const sq = Math.sin(ph) * 2;
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 17, 16, 5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#62c94a'; ctx.beginPath(); ctx.moveTo(-17 - sq, 16); ctx.quadraticCurveTo(-17, -16 + sq, 0, -15 + sq); ctx.quadraticCurveTo(17, -16 + sq, 17 + sq, 16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.ellipse(-7, -6, 4, 6, -0.4, 0, 7); ctx.fill();
+    eyes(0);
+  } else if (e.type === 'v') {
+    const f = Math.sin(ph * 2.4) * 8; ctx.translate(0, Math.sin(ph) * 2 - 3);
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(0, 20, 11, 4, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6c47c9'; ctx.beginPath(); ctx.moveTo(-8, -2); ctx.lineTo(-23, -10 + f); ctx.lineTo(-17, 4 + f * 0.4); ctx.closePath(); ctx.moveTo(8, -2); ctx.lineTo(23, -10 + f); ctx.lineTo(17, 4 + f * 0.4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#9b74ff'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9b74ff'; ctx.beginPath(); ctx.moveTo(-9, -8); ctx.lineTo(-6, -17); ctx.lineTo(-3, -10); ctx.moveTo(9, -8); ctx.lineTo(6, -17); ctx.lineTo(3, -10); ctx.fill();
+    eyes(-1, '#ffe14d', '#3a0d0d', 3.5);
+  } else {
+    ctx.globalAlpha = 0.82; ctx.translate(0, Math.sin(ph * 0.8) * 3);
+    ctx.fillStyle = '#eef1ff'; ctx.beginPath(); ctx.arc(0, -3, 14, Math.PI, 0);
+    for (let k = 0; k <= 4; k++) { const x = 14 - k * 7; ctx.lineTo(x, 13 + (k % 2 ? -4 : 0) + Math.sin(ph * 2 + k) * 2); }
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = '#3b3f66'; ctx.lineWidth = 2.5; ctx.stroke();
+    eyes(-3, '#2b2f4a', '#8fd4ff', 3.5);
+  }
+  ctx.restore();
+}
+
+function drawLevelBase(grid, th, burn) {
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, cv.width, cv.height);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = grid[idx(x, y)];
+    if (c === 1) drawWall(x, y, th); else { drawFloor(x, y, th); if (y > 0 && grid[idx(x, y - 1)] === 1) { ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.fillRect(x * T, y * T, T, 7); } }
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (grid[idx(x, y)] === 2) drawCrate(x, y, th, burn ? burn[idx(x, y)] : 0);
+}
+function render() {
+  if (screen === 'editor') return renderEditor();
+  if (!G) return;
+  const t = G.clock;
+  ctx.save();
+  if (G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+  drawLevelBase(G.grid, G.theme, G.burn);
+  const alive = G.enemies.some((e) => e.alive);
+  if (G.exitAt >= 0) drawExit((G.exitAt % W) * T + T / 2, ((G.exitAt / W) | 0) * T + T / 2, !alive, t);
+  for (const [i, ty] of G.items) drawItem(ty, (i % W) * T + T / 2, ((i / W) | 0) * T + T / 2, t + i);
+  for (const b of G.bombs) drawBomb(b.x * T + T / 2, b.y * T + T / 2, t, b.t);
+  for (let i = 0; i < W * H; i++) if (G.flame[i] > 0) drawFlameCell(i % W, (i / W) | 0, G.fdir[i], G.flame[i]);
+  // по глубине: сверху вниз
+  const actors = G.enemies.slice(); if (G.p && (G.p.alive || G.state === 'dying')) actors.push(G.p);
+  actors.sort((a, b) => a.y - b.y);
+  for (const a of actors) {
+    if (a === G.p) {
+      if (a.alive) drawPlayer(a, t); else { const k = Math.max(0, G.endT / 1.3); drawPlayer(a, t, 0.6 + k * 0.4, k); }
+    } else drawEnemy(a, t);
+  }
+  for (const q of G.parts) { ctx.globalAlpha = Math.max(0, q.life / q.max); ctx.fillStyle = q.c; ctx.fillRect(q.x * T + T / 2 - q.s / 2, q.y * T + T / 2 - q.s / 2, q.s, q.s); }
+  ctx.globalAlpha = 1;
+  if (G.state === 'play' && !G.attract && G.limit - G.time < 20) { ctx.fillStyle = `rgba(255,60,80,${0.08 + 0.06 * Math.sin(t * 8)})`; ctx.fillRect(0, 0, cv.width, cv.height); }
+  ctx.restore();
+}
+
+/* ============================ ПАНЕЛЬ ИГРЫ ============================ */
+const hudLast = {};
+function setChip(id, v, cls) {
+  const key = v + '|' + (cls || ''); if (hudLast[id] === key) return; hudLast[id] = key;
+  const el = $(id); el.querySelector('b').textContent = v; el.classList.toggle('red', cls === 'red'); el.classList.toggle('ok', cls === 'ok');
+}
+function bump(id) { const el = $(id); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+function updHud() {
+  if (!G || G.attract || screen !== 'game') return;
+  const n = G.enemies.filter((e) => e.alive).length, left = Math.max(0, G.limit - G.time);
+  setChip('hEn', n, n === 0 ? 'ok' : ''); setChip('hTime', fmt(left), left < 20 ? 'red' : '');
+  setChip('hB', G.p.maxB); setChip('hF', G.p.fire); setChip('hS', G.p.spd);
+}
+
+/* ============================ ЭКРАНЫ ============================ */
+let screen = 'menu';
+const SCREENS = ['sMenu', 'sMap', 'sMine'], OVERLAYS = ['oPause', 'oWin', 'oLose', 'oCode'];
+function show(name) {
+  screen = name;
+  for (const s of SCREENS) $(s).hidden = s !== { menu: 'sMenu', map: 'sMap', mine: 'sMine' }[name];
+  for (const o of OVERLAYS) $(o).hidden = true;
+  $('hud').hidden = name !== 'game'; $('edBar').hidden = $('edPal').hidden = name !== 'editor';
+  $('touch').hidden = name !== 'game';
+  held.length = 0; padEnd();
+  if (name !== 'game' && name !== 'editor' && (!G || !G.attract)) G = newGame(campSrc(Math.min(save.unlocked, 14)), true);
+  if (name === 'menu') fillMenu(); if (name === 'map') fillMap(); if (name === 'mine') fillMine();
+  fit();
+}
+function totals() { let st = 0, lv = 0; for (const k in save.done) { st += save.done[k].stars; lv++; } return { st, lv }; }
+function fillMenu() {
+  const { st, lv } = totals();
+  $('mLv').style.width = (lv / CAMP.length * 100) + '%'; $('mLvT').textContent = lv + '/' + CAMP.length;
+  $('mSt').style.width = (st / (CAMP.length * 3) * 100) + '%'; $('mStT').textContent = st + '/' + CAMP.length * 3;
+  $('bPlayT').textContent = lv ? tr('Продолжить') + ' ' + campName(nextLevel()) : tr('Играть');
+  $('bSound').querySelector('use').setAttribute('href', save.sound ? '#i-sound' : '#i-mute');
+}
+function nextLevel() { for (let i = 0; i <= save.unlocked; i++) if (!save.done[i]) return i; return save.unlocked; }
+const starsHtml = (n, cls = 'stars') => `<span class="row ${cls}">${[0, 1, 2].map((k) => `<svg class="i ${k < n ? 'on' : ''}"><use href="#i-star"/></svg>`).join('')}</span>`;
+function fillMap() {
+  const g = $('mapGrid'); g.innerHTML = ''; const cur = nextLevel();
+  $('mapSt').textContent = totals().st + '/' + CAMP.length * 3;
+  for (let w = 0; w < 3; w++) {
+    const row = document.createElement('div'); row.className = 'world';
+    row.innerHTML = `<span class="wi" title="${tr(THEMES[w].name)}"><span style="display:block;width:22px;height:22px;border-radius:6px;background:${THEMES[w].fa};border:3px solid ${THEMES[w].wall}"></span></span>`;
+    for (let k = 0; k < 5; k++) {
+      const i = w * 5 + k, d = save.done[i], locked = i > save.unlocked;
+      const b = document.createElement('button'); b.className = 'lv' + (i === cur ? ' cur' : ''); b.disabled = locked;
+      b.innerHTML = locked ? `<svg class="i"><use href="#i-lock"/></svg>` : `${k + 1}${starsHtml(d ? d.stars : 0)}`;
+      if (d) b.title = tr('Рекорд') + ' ' + fmt(d.best);
+      b.onclick = () => play(campSrc(i)); row.appendChild(b);
+    }
+    g.appendChild(row);
+  }
+}
+function miniMap(rows, theme) {
+  const c = document.createElement('canvas'); c.width = W * 4; c.height = H * 4; const x = c.getContext('2d'), th = THEMES[theme || 0];
+  for (let y = 0; y < H; y++) for (let i = 0; i < W; i++) { const ch = rows[y][i];
+    x.fillStyle = ch === '#' ? th.wall : '+EBFP'.includes(ch) ? th.crate : ch === 'S' ? '#fff' : 'mvg'.includes(ch) ? '#ff5d6c' : th.fa;
+    x.fillRect(i * 4, y * 4, 4, 4); }
+  return c;
+}
+function fillMine() {
+  const L = $('mineList'); L.innerHTML = '';
+  if (!save.custom.length) { L.innerHTML = `<div class="empty"><svg class="i"><use href="#i-brick"/></svg>${tr('Пусто')}</div>`; return; }
+  for (const c of save.custom.slice().reverse()) {
+    const it = document.createElement('div'); it.className = 'mi';
+    const en = c.rows.join('').replace(/[^mvg]/g, '').length;
+    it.appendChild(miniMap(c.rows, c.theme));
+    it.insertAdjacentHTML('beforeend', `<div class="nm"><b></b><small><span><svg class="i"><use href="#i-enemy"/></svg>${en}</span><span><svg class="i"><use href="#i-trophy"/></svg>${c.best != null ? fmt(c.best) : '—'}</span></small></div>
+      <button class="btn sm" data-a="play" title="${tr('Играть')}"><svg class="i"><use href="#i-play"/></svg></button>
+      <button class="icon-btn" data-a="edit" title="${tr('Изменить')}"><svg class="i"><use href="#i-edit"/></svg></button>
+      <button class="icon-btn" data-a="code" title="${tr('Код')}"><svg class="i"><use href="#i-code"/></svg></button>
+      <button class="icon-btn" data-a="del" title="${tr('Удалить')}"><svg class="i"><use href="#i-trash"/></svg></button>`);
+    it.querySelector('b').textContent = c.name;
+    it.querySelector('[data-a=play]').onclick = () => play({ kind: 'custom', id: c.id, name: c.name, theme: c.theme, rows: c.rows });
+    it.querySelector('[data-a=edit]').onclick = () => openEditor({ id: c.id, name: c.name, theme: c.theme, rows: c.rows.map((r) => r.split('')) });
+    it.querySelector('[data-a=code]').onclick = () => openCode(encode(c.name, c.theme, c.rows));
+    const del = it.querySelector('[data-a=del]');
+    del.onclick = () => {
+      if (!del.classList.contains('armed')) { del.classList.add('armed'); del.style.background = 'var(--danger)'; del.title = tr('Ещё раз — удалить'); setTimeout(() => { del.classList.remove('armed'); del.style.background = ''; }, 2500); return; }
+      save.custom = save.custom.filter((x) => x.id !== c.id); persist(); fillMine(); toast(tr('Удалено'));
+    };
+    L.appendChild(it);
+  }
+}
+
+function play(src) { G = newGame(src); show('game'); $('hLv').textContent = src.name; for (const k in hudLast) delete hudLast[k];
+  document.querySelectorAll('.outT').forEach((e) => e.textContent = tr(src.kind === 'test' ? 'Редактор' : 'Меню')); }
+function restart() { play(G.src); }
+function leave() { const s = G && G.src; if (s && s.kind === 'test') openEditor(ED); else if (s && s.kind === 'custom') show('mine'); else show(s && s.kind === 'camp' ? 'map' : 'menu'); }
+function togglePause(force) {
+  if (!G || G.attract) return;
+  if (G.state === 'play' || force === true) { if (G.state !== 'play') return; G.state = 'paused'; $('oPause').hidden = false; held.length = 0; }
+  else if (G.state === 'paused') { G.state = 'play'; $('oPause').hidden = true; }
+}
+function showWin() {
+  const r = G.result, s = G.src;
+  $('wStars').innerHTML = s.kind === 'camp' ? [0, 1, 2].map((k) => `<svg class="i ${k < r.stars ? 'on' : ''}" style="color:${k < r.stars ? 'var(--acc)' : 'rgba(255,255,255,.15)'}"><use href="#i-star"/></svg>`).join('')
+    : `<span class="bigico" style="color:var(--ok)"><svg class="i"><use href="#i-trophy"/></svg></span>`;
+  $('wTime').textContent = fmt(r.time); $('wBest').textContent = fmt(r.best);
+  $('wBest').style.color = r.newBest ? 'var(--ok)' : '';
+  $('wPar').parentElement.hidden = s.kind !== 'camp'; $('wPar').textContent = s.kind === 'camp' ? fmt(s.par) : '';
+  const hasNext = s.kind === 'camp' && s.i < CAMP.length - 1;
+  $('wNext').hidden = !hasNext; $('oWin').hidden = false;
+}
+const LOSE = { fire: ['#i-fire', 'Подорвался'], enemy: ['#i-enemy', 'Поймали'], time: ['#i-clock', 'Время вышло'] };
+function showLose(why) { const [ico, txt] = LOSE[why] || LOSE.fire; $('lIco').querySelector('use').setAttribute('href', ico); $('lTxt').textContent = tr(txt); $('oLose').hidden = false; }
+
+$('bPlay').onclick = () => play(campSrc(nextLevel()));
+$('bMap').onclick = () => show('map');
+$('bMine').onclick = () => show('mine');
+$('bEd').onclick = () => openEditor(save.draft || null);
+$('bLang').onclick = () => { LANG = LANG === 'en' ? 'ru' : 'en'; save.lang = LANG; persist(); applyLang(); fillMenu(); };
+$('bSound').onclick = () => { save.sound = !save.sound; persist(); fillMenu(); if (save.sound) SFX.pick(); };
+document.querySelectorAll('[data-back]').forEach((b) => b.onclick = () => show('menu'));
+$('hPause').onclick = () => togglePause();
+$('pRes').onclick = () => togglePause(); $('pRe').onclick = restart; $('pOut').onclick = leave;
+$('wRe').onclick = restart; $('wOut').onclick = leave; $('wNext').onclick = () => play(campSrc(G.src.i + 1));
+$('lRe').onclick = restart; $('lOut').onclick = leave;
+$('mNew').onclick = () => openEditor(null);
+$('mImp').onclick = () => openCode('');
+
+/* ============================ РЕДАКТОР ============================ */
+const TOOLS = [['.', 'Пол'], ['#', 'Стена'], ['+', 'Ящик'], ['S', 'Старт'], ['E', 'Выход'], ['m', 'Слизень'], ['v', 'Летун'], ['g', 'Призрак'], ['B', 'Бомба'], ['F', 'Огонь'], ['P', 'Скорость']];
+let ED = null, edHover = null, painting = false;
+const edCount = () => { const s = ED.rows.flat().join(''); return { S: (s.match(/S/g) || []).length, E: (s.match(/E/g) || []).length, n: (s.match(/[mvg]/g) || []).length }; };
+function openEditor(st) {
+  if (st && st.rows) ED = { id: st.id || null, name: st.name || '', theme: st.theme || 0, rows: st.rows.map((r) => (Array.isArray(r) ? r : r.split('')).slice()), tool: st.tool || '+' };
+  else { const r = emptyRows(); r[1][1] = 'S'; ED = { id: null, name: '', theme: 0, rows: r, tool: '+' }; }
+  show('editor'); $('edName').value = ED.name; buildPalette(); edChanged(false); fit();
+}
+function buildPalette() {
+  const pal = $('edPal'); pal.innerHTML = '';
+  TOOLS.forEach(([ch, label], n) => {
+    const b = document.createElement('button'); b.className = 'tool' + (ED.tool === ch ? ' on' : ''); b.dataset.t = ch; b.title = tr(label);
+    const c = document.createElement('canvas'); c.width = c.height = T; b.appendChild(c);
+    b.insertAdjacentHTML('beforeend', `<span>${tr(label)}</span><kbd>${'1234567890-='[n]}</kbd>`);
+    b.onclick = () => setTool(ch); pal.appendChild(b);
+    drawTo(c.getContext('2d'), () => drawEdCell(0, 0, ch, THEMES[ED.theme], 0.4));
+  });
+}
+function drawTo(c2, fn) { const keep = ctx; ctx = c2; try { fn(); } finally { ctx = keep; } }
+function setTool(ch) { ED.tool = ch; document.querySelectorAll('.tool').forEach((b) => b.classList.toggle('on', b.dataset.t === ch)); }
+function edChanged(store = true) {
+  const c = edCount();
+  const st = (id, ok, v) => { const el = $(id); el.classList.toggle('ok', ok); el.classList.toggle('red', !ok); el.querySelector('b').textContent = v; };
+  st('eS', c.S === 1, c.S === 1 ? '✓' : '✗'); st('eE', c.E === 1, c.E === 1 ? '✓' : '✗'); st('eN', c.n > 0, c.n);
+  const ok = c.S === 1 && c.E === 1 && c.n > 0; $('eTest').disabled = $('eSave').disabled = !ok;
+  if (store) { ED.name = $('edName').value.trim(); save.draft = { id: ED.id, name: ED.name, theme: ED.theme, rows: ED.rows.map((r) => r.join('')), tool: ED.tool }; persistSoon(); }
+}
+let pt = 0; function persistSoon() { clearTimeout(pt); pt = setTimeout(persist, 300); }
+function cellFromEvent(ev) { const r = cv.getBoundingClientRect(); const x = Math.floor((ev.clientX - r.left) / r.width * W), y = Math.floor((ev.clientY - r.top) / r.height * H); return inb(x, y) ? { x, y } : null; }
+function paint(c) {
+  if (!c || c.x === 0 || c.y === 0 || c.x === W - 1 || c.y === H - 1) return;
+  const ch = ED.tool; if (ED.rows[c.y][c.x] === ch) return;
+  if (ch === 'S' || ch === 'E') for (const r of ED.rows) for (let i = 0; i < W; i++) if (r[i] === ch) r[i] = ch === 'S' ? '.' : '+';
+  ED.rows[c.y][c.x] = ch; edChanged();
+}
+cv.addEventListener('pointerdown', (ev) => { if (screen !== 'editor') return; painting = true; cv.setPointerCapture(ev.pointerId); paint(cellFromEvent(ev)); });
+cv.addEventListener('pointermove', (ev) => { if (screen !== 'editor') return; edHover = cellFromEvent(ev); if (painting) paint(edHover); });
+cv.addEventListener('pointerup', () => { painting = false; });
+cv.addEventListener('pointerleave', () => { edHover = null; });
+function drawEdCell(x, y, ch, th, t) {
+  if (ch === '#') return drawWall(x, y, th);
+  drawFloor(x, y, th);
+  const cx = x * T + T / 2, cy = y * T + T / 2;
+  if ('+EBFP'.includes(ch)) {
+    drawCrate(x, y, th);
+    if (ch === 'E') drawExit(cx, cy, true, t, 0.62);
+    else if (ch !== '+') drawItem(ch, cx, cy, 0, 0.7);
+  } else if (ch === 'S') drawPlayer({ x, y, fx: 0, fy: 1, moving: false, walk: 0 }, t, 0.9);
+  else if ('mvg'.includes(ch)) drawEnemy({ type: ch, x, y, dx: 0, dy: 1, alive: true, die: 0, ph: 0 }, t);
+}
+let edClock = 0;
+function renderEditor() {
+  const th = THEMES[ED.theme];
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, cv.width, cv.height);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) drawEdCell(x, y, ED.rows[y][x], th, edClock);
+  if (edHover && !(edHover.x === 0 || edHover.y === 0 || edHover.x === W - 1 || edHover.y === H - 1)) {
+    ctx.globalAlpha = 0.5; drawEdCell(edHover.x, edHover.y, ED.tool, th, edClock); ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#ffc845'; ctx.lineWidth = 3; ctx.strokeRect(edHover.x * T + 1.5, edHover.y * T + 1.5, T - 3, T - 3);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+  for (let x = 1; x < W; x++) { ctx.beginPath(); ctx.moveTo(x * T, 0); ctx.lineTo(x * T, H * T); ctx.stroke(); }
+  for (let y = 1; y < H; y++) { ctx.beginPath(); ctx.moveTo(0, y * T); ctx.lineTo(W * T, y * T); ctx.stroke(); }
+}
+$('edName').addEventListener('input', () => edChanged());
+$('eTheme').onclick = () => { ED.theme = (ED.theme + 1) % THEMES.length; buildPalette(); edChanged(); toast(tr(THEMES[ED.theme].name)); };
+$('eBack').onclick = () => show(ED.id ? 'mine' : 'menu');
+$('eTest').onclick = () => { edChanged(); play({ kind: 'test', name: ED.name || tr('Проверка'), theme: ED.theme, rows: ED.rows.map((r) => r.join('')) }); };
+$('eSave').onclick = () => {
+  edChanged();
+  const rows = ED.rows.map((r) => r.join('')), name = ED.name || (tr('Уровень') + ' ' + (save.custom.length + 1));
+  const ex = ED.id && save.custom.find((c) => c.id === ED.id);
+  if (ex) { if (ex.rows.join('') !== rows.join('')) ex.best = null; Object.assign(ex, { name, theme: ED.theme, rows }); }
+  else { ED.id = Date.now().toString(36); save.custom.push({ id: ED.id, name, theme: ED.theme, rows, best: null }); }
+  ED.name = name; $('edName').value = name; save.draft = null; persist(); toast(tr('Сохранено'));
+};
+$('eCode').onclick = () => { edChanged(); openCode(encode(ED.name, ED.theme, ED.rows.map((r) => r.join('')))); };
+
+/* код уровня: обмен без сервера */
+function encode(name, theme, rows) { return 'MB1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ n: name, t: theme, r: rows.join('') })))); }
+function decode(s) {
+  s = s.trim(); if (!s.startsWith('MB1:')) throw 0;
+  const o = JSON.parse(decodeURIComponent(escape(atob(s.slice(4)))));
+  if (typeof o.r !== 'string' || o.r.length !== W * H || !VALID.test(o.r)) throw 0;
+  const rows = []; for (let y = 0; y < H; y++) rows.push(o.r.slice(y * W, y * W + W));
+  return { name: String(o.n || '').slice(0, 28), theme: Math.max(0, Math.min(THEMES.length - 1, o.t | 0)), rows };
+}
+function openCode(code) { $('cTxt').value = code; $('oCode').hidden = false; $('cCopy').hidden = !code; if (!code) $('cTxt').focus(); else $('cTxt').select(); }
+$('cClose').onclick = () => { $('oCode').hidden = true; };
+$('cCopy').onclick = async () => { try { await navigator.clipboard.writeText($('cTxt').value); toast(tr('Скопировано')); } catch (e) { $('cTxt').select(); document.execCommand('copy'); toast(tr('Скопировано')); } };
+$('cLoad').onclick = () => {
+  try { const L = decode($('cTxt').value); const id = Date.now().toString(36);
+    save.custom.push({ id, name: L.name || tr('Из кода'), theme: L.theme, rows: L.rows, best: null }); persist();
+    $('oCode').hidden = true; toast(tr('Добавлено')); if (screen === 'mine') fillMine(); else show('mine');
+  } catch (e) { toast(tr('Код не подошёл'), true); }
+};
+
+let toastT = 0;
+function toast(msg, bad = false) { const el = $('toast'); el.querySelector('span').textContent = msg; el.classList.toggle('bad', bad);
+  el.querySelector('use').setAttribute('href', bad ? '#i-x' : '#i-check'); el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 1500); }
+
+/* ============================ РАЗМЕР И ЦИКЛ ============================ */
+function fit() {
+  const st = $('stage'); const touch = screen === 'game' && matchMedia('(pointer: coarse)').matches;
+  const aw = st.clientWidth - 16, ah = st.clientHeight - 16 - (touch && innerHeight > innerWidth ? 190 : 0);
+  const k = Math.max(0.1, Math.min(aw / cv.width, ah / cv.height));
+  cv.style.width = Math.floor(cv.width * k) + 'px'; cv.style.height = Math.floor(cv.height * k) + 'px';
+}
+addEventListener('resize', fit);
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  edClock += dt;
+  if (screen !== 'editor') update(dt);
+  render(); updHud();
+  requestAnimationFrame(frame);
+}
+applyLang();
+show('menu');
+requestAnimationFrame(frame);
+// для проверок из консоли
+window.__mb = { get G() { return G; }, get screen() { return screen; }, get save() { return save; }, step: (dt) => update(dt) };
+})();
+</script>
+</body>
+</html>
