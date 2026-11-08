@@ -23,11 +23,14 @@
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
+  :root { --pad: clamp(104px, min(36vw, 19dvh), 156px); }
+  @media (orientation: landscape) { :root { --pad: clamp(92px, 34dvh, 140px); } }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
     font-family: Onest, system-ui, -apple-system, sans-serif; font-size: 14px;
     overflow: hidden; user-select: none; -webkit-user-select: none;
     display: flex; flex-direction: column;
+    height: 100dvh; overscroll-behavior: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
   .i { width: 18px; height: 18px; flex: none; }
   .t { font-family: Tektur, "Arial Narrow", system-ui, sans-serif; }
@@ -35,7 +38,7 @@
 
   /* верхняя и нижняя панели */
   .bar { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px; min-height: 56px; }
+    padding: calc(8px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); min-height: 56px; }
   .bar .sp { flex: 1; }
   .chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 11px; border-radius: 999px;
     background: var(--panel); border: 1px solid var(--line); font: 700 14px Tektur, system-ui, sans-serif;
@@ -67,10 +70,11 @@
     background: rgba(0, 0, 0, .15); border: 1px solid rgba(0, 0, 0, .25); }
 
   /* экраны поверх поля */
-  .scr { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px;
+  .scr { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
     background: rgba(8, 12, 26, .72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); overflow: auto; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
-    width: min(460px, 100%); display: flex; flex-direction: column; gap: 14px; }
+    width: min(460px, 100%); display: flex; flex-direction: column; gap: 14px; margin: auto; }
   .panel.wide { width: min(640px, 100%); }
   .head { display: flex; align-items: center; gap: 10px; }
   .head h2 { margin: 0; font: 900 22px Tektur, system-ui, sans-serif; flex: 1; }
@@ -105,7 +109,7 @@
   @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
 
   /* мои уровни */
-  .mine { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow: auto; }
+  .mine { display: flex; flex-direction: column; gap: 8px; max-height: calc(100dvh - 150px); overflow: auto; }
   .mi { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, .05);
     border: 1px solid var(--line); }
   .mi canvas { width: 60px; height: 52px; border-radius: 6px; flex: none; }
@@ -142,20 +146,24 @@
   .bigico .i { width: 56px; height: 56px; }
 
   /* касания */
-  #touch { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; pointer-events: none;
-    display: flex; justify-content: space-between; align-items: flex-end;
-    padding: 0 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
-  #pad { pointer-events: auto; width: 150px; height: 150px; border-radius: 50%; position: relative; touch-action: none;
+  /* управление пальцами: в портрете — полоса под полем, в ландшафте — по бокам поверх краёв экрана */
+  #touch { flex: none; position: relative; z-index: 4; pointer-events: none;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px max(18px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
+  @media (orientation: landscape) { #touch { position: fixed; left: 0; right: 0; bottom: 0; align-items: flex-end;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); } }
+  #pad { pointer-events: auto; width: var(--pad); height: var(--pad); border-radius: 50%; position: relative; touch-action: none;
     background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .2); }
   #pad::before, #pad::after { content: ""; position: absolute; background: rgba(255, 255, 255, .12); border-radius: 8px; }
-  #pad::before { left: 50%; top: 18px; bottom: 18px; width: 40px; transform: translateX(-50%); }
-  #pad::after { top: 50%; left: 18px; right: 18px; height: 40px; transform: translateY(-50%); }
-  #knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+  #pad::before { left: 50%; top: 12%; bottom: 12%; width: 27%; transform: translateX(-50%); }
+  #pad::after { top: 50%; left: 12%; right: 12%; height: 27%; transform: translateY(-50%); }
+  #knob { position: absolute; left: 50%; top: 50%; width: calc(var(--pad) * .3); height: calc(var(--pad) * .3);
+    margin: calc(var(--pad) * -.15) 0 0 calc(var(--pad) * -.15); border-radius: 50%;
     background: rgba(255, 255, 255, .35); z-index: 1; pointer-events: none; }
-  #bombBtn { pointer-events: auto; width: 96px; height: 96px; border-radius: 50%; border: 0; touch-action: none;
+  #bombBtn { pointer-events: auto; width: calc(var(--pad) * .68); height: calc(var(--pad) * .68); border-radius: 50%; border: 0; touch-action: none;
     background: var(--acc); color: #1d1404; display: grid; place-items: center; box-shadow: 0 6px 0 #9a5b00; }
   #bombBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #9a5b00; }
-  #bombBtn .i { width: 44px; height: 44px; }
+  #bombBtn .i { width: 46%; height: 46%; }
 
   #toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 9; pointer-events: none;
     background: var(--ok); color: #062512; font: 700 14px Tektur, system-ui, sans-serif; padding: 8px 14px; border-radius: 999px;
@@ -163,14 +171,60 @@
   #toast.on { opacity: 1; }
   #toast.bad { background: var(--danger); color: #fff; }
 
+  #mapGrid { max-height: calc(100dvh - 140px); overflow: auto; }
+  #mapGrid .world { grid-template-columns: 28px repeat(5, minmax(0, 64px)); justify-content: center; gap: 6px; }
+  /* награды */
+  .ach { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: calc(100dvh - 150px); overflow: auto; }
+  .ai { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, .05);
+    border: 1px solid var(--line); opacity: .7; }
+  .ai.got { opacity: 1; border-color: rgba(255, 200, 69, .5); }
+  .ai .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; flex: none;
+    background: rgba(255, 255, 255, .06); color: var(--dim); }
+  .ai.got .ic { background: rgba(255, 200, 69, .16); color: var(--acc); }
+  .ai .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .ai b { font: 700 14px Tektur, system-ui, sans-serif; }
+  .ai small { color: var(--dim); font-size: 12px; line-height: 1.25; }
+  .ai .track { height: 6px; }
   @media (pointer: fine) { #touch { display: none !important; } }
+  @media (pointer: coarse) { .hint { display: none !important; } }
   @media (max-width: 560px) {
     .bar { gap: 6px; padding-left: 8px; padding-right: 8px; }
     .chip { height: 30px; padding: 0 8px; font-size: 13px; gap: 4px; }
     .chip .i { width: 15px; height: 15px; }
     .hide-s { display: none !important; }
     #edName { width: 120px; }
+    .ach { grid-template-columns: 1fr; }
+    .bar { padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
   }
+  @media (max-width: 400px) {
+    .bar { gap: 4px; min-height: 48px; }
+    .bar .icon-btn { width: 34px; height: 34px; }
+    .chip { height: 28px; padding: 0 6px; font-size: 12px; gap: 3px; }
+    .chip .i { width: 14px; height: 14px; }
+    .lv { font-size: 16px; border-radius: 9px; }
+    .stars .i { width: 10px; height: 10px; }
+    .panel { padding: 14px; }
+    .logo { font-size: 30px; }
+    .btn.sm { padding: 0 4px; font-size: 12px; gap: 4px; min-width: 0; }
+    .btn.sm .i { width: 15px; height: 15px; }
+    .panel .row > .btn { min-width: 0; }
+  }
+  /* низкие экраны (телефон на боку): меню и итоги компактнее */
+  @media (max-height: 460px) {
+    .panel { padding: 12px 16px; gap: 8px; }
+    .logo { font-size: 28px; margin: 0; } .logo br { display: none; } .sub { display: none; }
+    .btn { height: 40px; font-size: 15px; } .btn.sm { height: 34px; }
+    .hint { display: none !important; }
+    .bigstars .i { width: 30px; height: 30px; } .bigico .i { width: 36px; height: 36px; }
+    .res .card { padding: 6px; } .res .card b { font-size: 18px; }
+    .head h2 { font-size: 18px; }
+    #mapGrid, .ach, .mine { max-height: calc(100dvh - 90px); }
+    .lv { aspect-ratio: auto; height: 46px; }
+    #edBar .hide-s { display: none !important; }
+    #edPal { flex-wrap: nowrap; justify-content: flex-start; padding: 4px max(12px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)); }
+    .tool { min-width: 42px; padding: 3px; } .tool span { display: none; } .tool canvas { width: 28px; height: 28px; }
+  }
+  @media (pointer: coarse) { .tool kbd { display: none; } }
 </style>
 </head>
 <body>
@@ -245,11 +299,11 @@
 <!-- меню -->
 <section class="scr" id="sMenu">
   <div class="panel">
-    <h1 class="logo">Маленькие<br>бомберы</h1>
+    <h1 class="logo">Маленькие <br>бомберы</h1>
     <p class="sub">Взорви всех — найди выход</p>
     <div class="col">
-      <div class="meter"><svg class="i"><use href="#i-trophy"/></svg><div class="track ok"><i id="mLv"></i></div><span id="mLvT">0/15</span></div>
-      <div class="meter"><svg class="i" style="color:var(--acc)"><use href="#i-star"/></svg><div class="track"><i id="mSt"></i></div><span id="mStT">0/45</span></div>
+      <div class="meter"><svg class="i"><use href="#i-trophy"/></svg><div class="track ok"><i id="mLv"></i></div><span id="mLvT">0/50</span></div>
+      <div class="meter"><svg class="i" style="color:var(--acc)"><use href="#i-star"/></svg><div class="track"><i id="mSt"></i></div><span id="mStT">0/150</span></div>
     </div>
     <button class="btn" id="bPlay"><svg class="i"><use href="#i-play"/></svg><span id="bPlayT">Играть</span></button>
     <div class="row" style="display:grid;grid-template-columns:1fr 1fr 1fr">
@@ -257,10 +311,14 @@
       <button class="btn ghost sm" id="bMine"><svg class="i"><use href="#i-folder"/></svg>Мои</button>
       <button class="btn ghost sm" id="bEd"><svg class="i"><use href="#i-brick"/></svg>Редактор</button>
     </div>
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr">
+      <button class="btn ghost sm" id="bAch"><svg class="i"><use href="#i-trophy"/></svg>Награды <b id="mAch" class="t" style="color:var(--acc)"></b></button>
+      <button class="btn ghost sm" id="bSave"><svg class="i"><use href="#i-save"/></svg>Прогресс</button>
+    </div>
     <div class="row c" style="color:var(--dim);font-size:12px;gap:14px">
-      <span class="row" style="gap:4px"><kbd>←↑→↓</kbd>/<kbd>WASD</kbd></span>
-      <span class="row" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-bomb"/></svg><kbd>Space</kbd></span>
-      <span class="row" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-pause"/></svg><kbd>Esc</kbd></span>
+      <span class="row hint" style="gap:4px"><kbd>←↑→↓</kbd>/<kbd>WASD</kbd></span>
+      <span class="row hint" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-bomb"/></svg><kbd>Space</kbd></span>
+      <span class="row hint" style="gap:4px"><svg class="i" style="width:14px"><use href="#i-pause"/></svg><kbd>Esc</kbd></span>
       <button class="icon-btn" id="bSound" title="Звук" style="width:32px;height:32px"><svg class="i"><use href="#i-sound"/></svg></button>
       <button class="icon-btn t" id="bLang" title="Язык" style="width:38px;height:32px;font-weight:700;font-size:12px">EN</button>
     </div>
@@ -273,6 +331,15 @@
     <div class="head"><button class="icon-btn" data-back><svg class="i"><use href="#i-back"/></svg></button><h2>Уровни</h2>
       <span class="chip acc"><svg class="i"><use href="#i-star"/></svg><b id="mapSt">0</b></span></div>
     <div class="col" id="mapGrid"></div>
+  </div>
+</section>
+
+<!-- награды -->
+<section class="scr" id="sAch" hidden>
+  <div class="panel wide">
+    <div class="head"><button class="icon-btn" data-back><svg class="i"><use href="#i-back"/></svg></button><h2>Награды</h2>
+      <span class="chip acc"><svg class="i"><use href="#i-trophy"/></svg><b id="achN">0</b></span></div>
+    <div class="ach" id="achList"></div>
   </div>
 </section>
 
@@ -328,7 +395,7 @@
 <!-- код уровня -->
 <section class="scr" id="oCode" hidden>
   <div class="panel">
-    <div class="head"><svg class="i"><use href="#i-code"/></svg><h2>Код уровня</h2>
+    <div class="head"><svg class="i"><use href="#i-code"/></svg><h2 id="cTitle">Код уровня</h2>
       <button class="icon-btn" id="cClose"><svg class="i"><use href="#i-x"/></svg></button></div>
     <textarea id="cTxt" spellcheck="false" placeholder="MB1:…"></textarea>
     <div class="row" style="display:grid;grid-template-columns:1fr 1fr">
@@ -359,11 +426,15 @@ function shuffle(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math
 /* ============================ СОХРАНЕНИЕ ============================ */
 // всё в одном ключе: прогресс кампании, свои уровни, черновик редактора, звук
 const SKEY = 'malenkie-bombery.v1';
-const blank = () => ({ unlocked: 0, done: {}, custom: [], draft: null, sound: true });
+const blank = () => ({ unlocked: 0, done: {}, custom: [], draft: null, sound: true, ach: {}, stats: {} });
 let save = (() => {
   try { const v = JSON.parse(localStorage.getItem(SKEY)); if (v && typeof v === 'object') return Object.assign(blank(), v); } catch (e) {}
   return blank();
 })();
+save.ach = save.ach || {}; save.stats = save.stats || {};
+// старые сохранения: за каждым пройденным уровнем открыт следующий (так новые уровни доступны сразу)
+for (const k in save.done) save.unlocked = Math.max(save.unlocked, +k + 1);
+addEventListener('pagehide', () => { try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch (e) {} });
 function persist() { try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch (e) { toast(tr('Хранилище недоступно'), true); } }
 
 /* ============================ ЯЗЫК ============================ */
@@ -379,7 +450,8 @@ const EN = {
   'Ещё раз — удалить': 'Click again to delete', 'Пусто': 'Empty', 'Уровень': 'Level', 'Из кода': 'From code', 'Проверка': 'Test',
   'Удалено': 'Deleted', 'Сохранено': 'Saved', 'Скопировано': 'Copied', 'Добавлено': 'Added', 'Код не подошёл': 'Invalid code', 'Хранилище недоступно': 'Storage unavailable',
   'Пол': 'Floor', 'Стена': 'Wall', 'Ящик': 'Crate', 'Слизень': 'Slime', 'Летун': 'Bat', 'Призрак': 'Ghost', 'Бомба': 'Bomb',
-  'Луг': 'Meadow', 'Дюны': 'Dunes', 'Лёд': 'Ice', 'Рекорд': 'Best', 'Бомба ': 'Bomb ',
+  'Луг': 'Meadow', 'Дюны': 'Dunes', 'Лёд': 'Ice', 'Джунгли': 'Jungle', 'Руины': 'Ruins', 'Неон': 'Neon', 'Закат': 'Sunset', 'Лава': 'Lava', 'Болото': 'Swamp', 'Космос': 'Space',
+  'Награды': 'Awards', 'Прогресс': 'Progress', 'Код прогресса': 'Progress code', 'Прогресс объединён': 'Progress merged', 'Награда': 'Award', 'Рекорд': 'Best', 'Бомба ': 'Bomb ',
 };
 let LANG = save.lang || ((navigator.language || '').toLowerCase().startsWith('ru') ? 'ru' : 'en');
 const tr = (s) => (LANG === 'en' ? (EN[s] ?? s) : s);
@@ -439,13 +511,31 @@ const THEMES = [
   { name: 'Луг', fa: '#5a9b44', fb: '#53923f', wall: '#7a8494', wtop: '#a2acbb', wdark: '#4f5663', crate: '#c08a4e', cdark: '#7f5428', cline: '#e0ab6c', bg: '#173016' },
   { name: 'Дюны', fa: '#e2bd76', fb: '#d9b46c', wall: '#b06a42', wtop: '#d38a5c', wdark: '#73432a', crate: '#9a7550', cdark: '#5f442a', cline: '#c39a6e', bg: '#33240f' },
   { name: 'Лёд', fa: '#c7e6f3', fb: '#bcdfee', wall: '#5d7fb3', wtop: '#86a7dc', wdark: '#3d5682', crate: '#8fb0cf', cdark: '#4f6f92', cline: '#bcd6ee', bg: '#102038' },
+  { name: 'Лава', fa: '#4a2a2a', fb: '#432525', wall: '#2c2430', wtop: '#52425a', wdark: '#1a141d', crate: '#8a4b2a', cdark: '#4a2512', cline: '#d9743a', bg: '#1f0d0d' },
+  { name: 'Болото', fa: '#3f6b5b', fb: '#3a6354', wall: '#3d4a52', wtop: '#5f7480', wdark: '#262f35', crate: '#9b8a5a', cdark: '#5a4d2c', cline: '#c9b980', bg: '#0d1c18' },
+  { name: 'Космос', fa: '#2b2f5c', fb: '#262a54', wall: '#5a4a8c', wtop: '#8470c4', wdark: '#352b57', crate: '#7a8aa8', cdark: '#3c485f', cline: '#aab8d8', bg: '#0a0b20' },
+  { name: 'Джунгли', fa: '#2f6b2a', fb: '#2a6325', wall: '#5b4a2e', wtop: '#8a7344', wdark: '#382c18', crate: '#b07a3a', cdark: '#6a4515', cline: '#e0a85a', bg: '#0c2208' },
+  { name: 'Руины', fa: '#8a8478', fb: '#827c70', wall: '#4e4a44', wtop: '#716c64', wdark: '#2c2926', crate: '#a08a6a', cdark: '#5e4e36', cline: '#cdb892', bg: '#1d1b18' },
+  { name: 'Неон', fa: '#14182e', fb: '#10142a', wall: '#1fb5c9', wtop: '#6af0ff', wdark: '#0b5d68', crate: '#c93a9a', cdark: '#6d1655', cline: '#ff7ad0', bg: '#07081a' },
+  { name: 'Закат', fa: '#6b3a55', fb: '#633450', wall: '#e08a4a', wtop: '#ffb878', wdark: '#8a4a20', crate: '#4d3a6b', cdark: '#2a1f45', cline: '#9a82c4', bg: '#26101e' },
 ];
 // враги (m — слизень, v — летун, g — призрак), плотность ящиков, бонусы под ящиками (B бомба, F огонь, P скорость), время на 3★
 const CAMP = [
   ['mmm', .45, 'BF', 45], ['mmmm', .5, 'BFP', 55], ['mmmmv', .55, 'BBF', 65], ['mmmvv', .55, 'BFFP', 75], ['mmmmvv', .6, 'BBFF', 85],
   ['vvvmm', .55, 'BBFP', 80], ['vvvvm', .58, 'BBFFP', 90], ['vvvvmm', .6, 'BBFFP', 100], ['vvvvvm', .62, 'BBBFFP', 110], ['vvvvvvm', .62, 'BBBFFP', 120],
   ['ggmmm', .6, 'BBFFP', 95], ['gggvv', .62, 'BBFFP', 110], ['gggvvm', .64, 'BBBFFP', 120], ['ggggvvm', .66, 'BBBFFFP', 140], ['gggggvvvm', .68, 'BBBFFFPP', 160],
+  // мир 4 — лава
+  ['mmvvg', .62, 'BBFFP', 105], ['mvvgg', .64, 'BBFFP', 115], ['vvvggm', .64, 'BBBFFP', 125], ['vvvvggm', .66, 'BBBFFPP', 135], ['mmvvvggg', .68, 'BBBFFFPP', 150],
+  // мир 5 — болото
+  ['gggvvvmm', .66, 'BBBFFFPP', 150], ['ggggvvvm', .68, 'BBBFFFPP', 160], ['ggggvvvvm', .7, 'BBBFFFPP', 170], ['gggggvvvmm', .7, 'BBBBFFFPP', 180], ['ggggggvvvm', .72, 'BBBBFFFPP', 190],
+  // мир 6 — космос
+  ['ggggvvvvvmm', .72, 'BBBBFFFPP', 190], ['gggggvvvvvm', .73, 'BBBBFFFPP', 200], ['ggggggvvvvvm', .74, 'BBBBFFFFPPP', 210], ['gggggggvvvvmm', .75, 'BBBBFFFFPPP', 220], ['ggggggggvvvvvmm', .77, 'BBBBBFFFFPPP', 230],
 ];
+// миры 7–10: враги и плотность растут плавно, времени на 3★ больше
+for (let t = 0; t < 20; t++) {
+  const g = 5 + Math.round(t * 0.25), v = 4 + Math.round(t * 0.15);
+  CAMP.push(['g'.repeat(g) + 'v'.repeat(v) + 'm', Math.round((0.7 + t * 0.006) * 1000) / 1000, 'BBBBFFFFPP' + (t > 9 ? 'BF' : ''), 180 + t * 4]);
+}
 const campName = (i) => (Math.floor(i / 5) + 1) + '-' + (i % 5 + 1);
 
 function emptyRows() {
@@ -488,6 +578,63 @@ function parseLevel(rows) {
   return { grid, hidden, enemies, start };
 }
 
+/* ============================ НАГРАДЫ ============================ */
+const cnt = (k, n = 1) => { save.stats[k] = (save.stats[k] || 0) + n; };
+const doneN = () => Object.keys(save.done).length;
+const starsN = () => Object.values(save.done).reduce((a, d) => a + d.stars, 0);
+const worldsN = () => { let n = 0; for (let w = 0; w < CAMP.length / 5; w++) { let ok = true; for (let k = 0; k < 5; k++) if (!save.done[w * 5 + k]) ok = false; if (ok) n++; } return n; };
+const flag = (id) => () => (save.ach[id] ? 1 : 0);
+// v — текущее значение, max — нужное; награды без счётчика выдаёт grant(id) в нужном месте
+const ACH = [
+  { id: 'first', ic: 'i-check', n: ['Первый выход', 'First exit'], d: ['Пройти любой уровень', 'Finish any level'], v: doneN, max: 1 },
+  { id: 'half', ic: 'i-map', n: ['Полпути', 'Halfway'], d: ['Пройти 25 уровней', 'Finish 25 levels'], v: doneN, max: 25 },
+  { id: 'all', ic: 'i-trophy', n: ['Чемпион', 'Champion'], d: ['Пройти все 50 уровней', 'Finish all 50 levels'], v: doneN, max: 50 },
+  { id: 'worlds', ic: 'i-palette', n: ['Путешественник', 'Traveller'], d: ['Пройти пять миров целиком', 'Finish five worlds'], v: worldsN, max: 5 },
+  { id: 'star3', ic: 'i-star', n: ['Скорострел', 'Speedster'], d: ['Получить три звезды на уровне', 'Earn three stars on a level'], v: () => Object.values(save.done).some((d) => d.stars === 3) ? 1 : 0, max: 1 },
+  { id: 'stars30', ic: 'i-star', n: ['Звёздочёт', 'Stargazer'], d: ['Собрать 50 звёзд', 'Collect 50 stars'], v: starsN, max: 50 },
+  { id: 'stars90', ic: 'i-star', n: ['Все звёзды', 'All stars'], d: ['Собрать все 150 звёзд', 'Collect all 150 stars'], v: starsN, max: 150 },
+  { id: 'bombs', ic: 'i-bomb', n: ['Сапёр', 'Sapper'], d: ['Поставить 200 бомб', 'Drop 200 bombs'], v: () => save.stats.bombs || 0, max: 200 },
+  { id: 'crates', ic: 'i-brick', n: ['Разрушитель', 'Wrecker'], d: ['Взорвать 500 ящиков', 'Blow up 500 crates'], v: () => save.stats.crates || 0, max: 500 },
+  { id: 'kills', ic: 'i-enemy', n: ['Охотник', 'Hunter'], d: ['Победить 100 врагов', 'Defeat 100 enemies'], v: () => save.stats.kills || 0, max: 100 },
+  { id: 'ghosts', ic: 'i-skull', n: ['Охотник за призраками', 'Ghostbuster'], d: ['Победить 25 призраков', 'Defeat 25 ghosts'], v: () => save.stats.ghosts || 0, max: 25 },
+  { id: 'combo', ic: 'i-fire', n: ['Цепная реакция', 'Chain reaction'], d: ['Победить трёх врагов за один взрыв', 'Defeat three enemies with one blast'], v: flag('combo'), max: 1 },
+  { id: 'lite', ic: 'i-speed', n: ['Налегке', 'Travelling light'], d: ['Пройти уровень, не подобрав ни одного бонуса', 'Finish a level without picking up a power-up'], v: flag('lite'), max: 1 },
+  { id: 'arsenal', ic: 'i-bomb', n: ['Арсенал', 'Arsenal'], d: ['Собрать 5 бомб и огонь 6 на одном уровне', 'Reach 5 bombs and fire 6 in one level'], v: flag('arsenal'), max: 1 },
+  { id: 'lightning', ic: 'i-clock', n: ['Молния', 'Lightning'], d: ['Пройти уровень вдвое быстрее контрольного времени', 'Finish a level in half the target time'], v: flag('lightning'), max: 1 },
+  { id: 'streak', ic: 'i-play', n: ['Без потерь', 'Flawless'], d: ['Пройти 5 уровней подряд, ни разу не проиграв', 'Finish 5 levels in a row without losing'], v: () => save.stats.bestStreak || 0, max: 5 },
+  { id: 'builder', ic: 'i-edit', n: ['Строитель', 'Builder'], d: ['Сохранить свой уровень', 'Save a level of your own'], v: flag('builder'), max: 1 },
+  { id: 'master', ic: 'i-code', n: ['Мастер', 'Master'], d: ['Пройти уровень, который сделал сам', 'Finish a level you made yourself'], v: flag('master'), max: 1 },
+];
+const achText = (a, k) => a[k][LANG === 'en' ? 1 : 0];
+const noticeQ = []; let noticeBusy = false;
+function notice(msg) { noticeQ.push(msg); if (!noticeBusy) nextNotice(); }
+function nextNotice() {
+  const m = noticeQ.shift(); if (!m) { noticeBusy = false; return; }
+  noticeBusy = true; toast(m, false, 2400, '#i-trophy'); setTimeout(nextNotice, 2700);
+}
+function unlock(a) { save.ach[a.id] = Date.now(); if (!SFX_MUTE_ACH()) SFX.win(); notice(tr('Награда') + ': ' + achText(a, 'n')); persist(); }
+const SFX_MUTE_ACH = () => !save.sound;
+function grant(id) { if (save.ach[id]) return; const a = ACH.find((x) => x.id === id); if (a) unlock(a); }
+function checkAch() { for (const a of ACH) if (!save.ach[a.id] && a.v() >= a.max) unlock(a); }
+function onKill(e) {
+  cnt('kills'); if (e.type === 'g') cnt('ghosts');
+  const k = G.stat.kills, now = G.clock; k.push(now); while (k.length && now - k[0] > 0.4) k.shift();
+  if (k.length >= 3) grant('combo');
+  checkAch();
+}
+function fillAch() {
+  const L = $('achList'); L.innerHTML = ''; let n = 0;
+  for (const a of ACH) {
+    const got = !!save.ach[a.id]; if (got) n++;
+    const cur = Math.min(a.v(), a.max), it = document.createElement('div'); it.className = 'ai' + (got ? ' got' : '');
+    it.innerHTML = `<div class="ic"><svg class="i" style="width:24px;height:24px"><use href="#${got || a.max <= 1 ? a.ic : a.ic}"/></svg></div>
+      <div class="tx"><b></b><small></small>${a.max > 1 && !got ? `<div class="track"><i style="width:${cur / a.max * 100}%"></i></div><small>${cur}/${a.max}</small>` : ''}</div>`;
+    it.querySelector('b').textContent = achText(a, 'n'); it.querySelector('small').textContent = achText(a, 'd');
+    L.appendChild(it);
+  }
+  $('achN').textContent = n + '/' + ACH.length;
+}
+
 /* ============================ ИГРА ============================ */
 let G = null;
 const SPD = { m: 1.6, v: 2.6, g: 1.25 };
@@ -497,7 +644,7 @@ function newGame(src, attract = false) {
   return {
     src, attract, grid: L.grid, hidden: L.hidden, items: new Map(), exitAt: -1, bombs: [],
     flame: new Float32Array(W * H), fdir: new Uint8Array(W * H), burn: new Float32Array(W * H),
-    parts: [], theme: THEMES[src.theme || 0], time: 0, limit: 200, state: 'play', endT: 0, shake: 0, clock: 0,
+    parts: [], theme: THEMES[src.theme || 0], time: 0, limit: src.par ? Math.max(200, Math.round(src.par * 1.8)) : 200, stat: { picks: 0, kills: [] }, state: 'play', endT: 0, shake: 0, clock: 0,
     p: attract ? null : { x: L.start.x, y: L.start.y, fx: 0, fy: 1, maxB: 1, fire: 2, spd: 0, out: 0, alive: true, walk: 0, moving: false },
     enemies: L.enemies.map(mkEnemy), exitOpenSaid: false,
   };
@@ -536,7 +683,7 @@ function placeBomb() {
   const p = G.p; if (!p || !p.alive || G.state !== 'play') return;
   const x = Math.round(p.x), y = Math.round(p.y);
   if (p.out >= p.maxB || bombAt(x, y) || G.grid[idx(x, y)] !== 0) return;
-  G.bombs.push({ x, y, t: 2.4, r: p.fire, own: true }); p.out++; SFX.place();
+  G.bombs.push({ x, y, t: 2.4, r: p.fire, own: true }); p.out++; SFX.place(); cnt('bombs'); checkAch();
 }
 function fire(x, y, bit) { const i = idx(x, y); G.flame[i] = 0.55; G.fdir[i] |= bit; }
 function explode(b) {
@@ -616,7 +763,7 @@ function stepWorld(dt) {
   for (let i = 0; i < W * H; i++) {
     if (G.flame[i] > 0) { G.flame[i] -= dt; if (G.flame[i] <= 0) { G.flame[i] = 0; G.fdir[i] = 0; } }
     if (G.burn[i] > 0) { G.burn[i] -= dt; if (G.burn[i] <= 0) {
-      G.burn[i] = 0; G.grid[i] = 0; const x = i % W, y = (i / W) | 0; puff(x, y, G.theme.cline, 10);
+      G.burn[i] = 0; G.grid[i] = 0; if (!G.attract) cnt('crates'); const x = i % W, y = (i / W) | 0; puff(x, y, G.theme.cline, 10);
       const h = G.hidden.get(i); if (h === 'E') G.exitAt = i; else if (h) G.items.set(i, h);
     } }
   }
@@ -626,18 +773,18 @@ function playStep(dt) {
   for (const e of G.enemies) {
     if (!e.alive) { e.die += dt; continue; }
     updEnemy(e, dt);
-    if (G.flame[idx(Math.round(e.x), Math.round(e.y))] > 0) { e.alive = false; puff(e.x, e.y, '#fff', 14); if (!G.attract) SFX.kill(); }
+    if (G.flame[idx(Math.round(e.x), Math.round(e.y))] > 0) { e.alive = false; puff(e.x, e.y, '#fff', 14); if (!G.attract) { SFX.kill(); onKill(e); } }
   }
   G.enemies = G.enemies.filter((e) => e.alive || e.die < 0.6);
   const alive = G.enemies.filter((e) => e.alive).length;
-  if (G.attract) { if (!G.bombs.length && Math.random() < dt * 0.6) attractBomb(); if (alive === 0) G = newGame(campSrc(Math.floor(Math.random() * 15)), true); return; }
+  if (G.attract) { if (!G.bombs.length && Math.random() < dt * 0.6) attractBomb(); if (alive === 0) G = newGame(campSrc(Math.floor(Math.random() * CAMP.length)), true); return; }
   // игрок
   const p = G.p;
   const d = dirInput(); p.moving = false;
   if (d) { p.fx = d.dx; p.fy = d.dy; move(p, d.dx, d.dy, (3.4 + p.spd * 0.7) * dt); }
   if (p.moving) p.walk += dt;
   const px = Math.round(p.x), py = Math.round(p.y), pi = idx(px, py);
-  const it = G.items.get(pi); if (it) { G.items.delete(pi); PICK[it](p); puff(px, py, ITEM_COLOR[it], 12); SFX.pick(); }
+  const it = G.items.get(pi); if (it) { G.items.delete(pi); PICK[it](p); G.stat.picks++; puff(px, py, ITEM_COLOR[it], 12); SFX.pick(); if (p.maxB >= 5 && p.fire >= 6) grant('arsenal'); }
   if (alive === 0 && G.exitAt >= 0 && !G.exitOpenSaid) { G.exitOpenSaid = true; SFX.open(); }
   if (G.flame[pi] > 0) return die('fire');
   for (const e of G.enemies) if (e.alive && Math.hypot(e.x - p.x, e.y - p.y) < 0.62) return die('enemy');
@@ -649,7 +796,7 @@ function attractBomb() {
     const near = DIRS.some((d) => G.grid[idx(x + d.dx, y + d.dy)] === 2); if (near) cand.push([x, y]); }
   const c = cand[Math.floor(Math.random() * cand.length)]; if (c) G.bombs.push({ x: c[0], y: c[1], t: 1.6, r: 2 });
 }
-function die(why) { G.p.alive = false; G.state = 'dying'; G.endT = 1.3; G.loseWhy = why; puff(G.p.x, G.p.y, '#ff5d6c', 22, 4); SFX.die(); }
+function die(why) { cnt('deaths'); save.stats.streak = 0; persist(); G.p.alive = false; G.state = 'dying'; G.endT = 1.3; G.loseWhy = why; puff(G.p.x, G.p.y, '#ff5d6c', 22, 4); SFX.die(); }
 function win() {
   G.state = 'won'; G.endT = 0.9; SFX.win(); puff(G.p.x, G.p.y, '#ffc845', 26, 4);
   const s = G.src, t = Math.round(G.time * 10) / 10;
@@ -658,10 +805,13 @@ function win() {
     G.result = { stars: st, time: t, best: Math.min(old.best ?? Infinity, t), newBest: t < (old.best ?? Infinity) };
     save.done[s.i] = { stars: Math.max(old.stars, st), best: G.result.best };
     save.unlocked = Math.max(save.unlocked, Math.min(CAMP.length - 1, s.i + 1)); if (s.i === CAMP.length - 1) save.finished = true;
-    persist();
+    cnt('wins'); save.stats.streak = (save.stats.streak || 0) + 1; save.stats.bestStreak = Math.max(save.stats.bestStreak || 0, save.stats.streak);
+    if (G.stat.picks === 0) grant('lite');
+    if (t <= s.par / 2) grant('lightning');
+    persist(); checkAch();
   } else if (s.kind === 'custom') {
     const c = save.custom.find((c) => c.id === s.id); const old = c && c.best != null ? c.best : Infinity;
-    if (c) { c.best = Math.min(old, t); persist(); }
+    if (c) { c.best = Math.min(old, t); grant('master'); persist(); }
     G.result = { stars: 0, time: t, best: Math.min(old, t), newBest: t < old };
   } else G.result = { stars: 0, time: t, best: t };
 }
@@ -694,14 +844,14 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && scr
 const pad = $('pad'), knob = $('knob');
 function padMove(ev) {
   const r = pad.getBoundingClientRect(); const x = ev.clientX - r.left - r.width / 2, y = ev.clientY - r.top - r.height / 2;
-  const m = Math.hypot(x, y), lim = r.width / 2 - 23, k = m > lim ? lim / m : 1;
+  const m = Math.hypot(x, y), lim = r.width * 0.35, k = m > lim ? lim / m : 1;
   knob.style.transform = `translate(${x * k}px,${y * k}px)`;
   padDir = m < 14 ? null : Math.abs(x) > Math.abs(y) ? (x > 0 ? 'R' : 'L') : (y > 0 ? 'D' : 'U');
 }
 pad.addEventListener('pointerdown', (ev) => { audio(); pad.setPointerCapture(ev.pointerId); padMove(ev); });
 pad.addEventListener('pointermove', (ev) => { if (pad.hasPointerCapture(ev.pointerId)) padMove(ev); });
 const padEnd = () => { padDir = null; knob.style.transform = ''; };
-pad.addEventListener('pointerup', padEnd); pad.addEventListener('pointercancel', padEnd);
+pad.addEventListener('pointerup', padEnd); pad.addEventListener('pointercancel', padEnd); pad.addEventListener('lostpointercapture', padEnd);
 $('bombBtn').addEventListener('pointerdown', (ev) => { ev.preventDefault(); audio(); placeBomb(); });
 
 /* ============================ РИСОВАНИЕ ============================ */
@@ -872,21 +1022,22 @@ function updHud() {
 
 /* ============================ ЭКРАНЫ ============================ */
 let screen = 'menu';
-const SCREENS = ['sMenu', 'sMap', 'sMine'], OVERLAYS = ['oPause', 'oWin', 'oLose', 'oCode'];
+const SCREENS = ['sMenu', 'sMap', 'sMine', 'sAch'], OVERLAYS = ['oPause', 'oWin', 'oLose', 'oCode'];
 function show(name) {
   screen = name;
-  for (const s of SCREENS) $(s).hidden = s !== { menu: 'sMenu', map: 'sMap', mine: 'sMine' }[name];
+  for (const s of SCREENS) $(s).hidden = s !== { menu: 'sMenu', map: 'sMap', mine: 'sMine', ach: 'sAch' }[name];
   for (const o of OVERLAYS) $(o).hidden = true;
   $('hud').hidden = name !== 'game'; $('edBar').hidden = $('edPal').hidden = name !== 'editor';
   $('touch').hidden = name !== 'game';
   held.length = 0; padEnd();
-  if (name !== 'game' && name !== 'editor' && (!G || !G.attract)) G = newGame(campSrc(Math.min(save.unlocked, 14)), true);
-  if (name === 'menu') fillMenu(); if (name === 'map') fillMap(); if (name === 'mine') fillMine();
+  if (name !== 'game' && name !== 'editor' && (!G || !G.attract)) G = newGame(campSrc(Math.min(save.unlocked, CAMP.length - 1)), true);
+  if (name === 'menu') fillMenu(); if (name === 'map') fillMap(); if (name === 'mine') fillMine(); if (name === 'ach') fillAch();
   fit();
 }
 function totals() { let st = 0, lv = 0; for (const k in save.done) { st += save.done[k].stars; lv++; } return { st, lv }; }
 function fillMenu() {
   const { st, lv } = totals();
+  $('mAch').textContent = Object.keys(save.ach).length + '/' + ACH.length;
   $('mLv').style.width = (lv / CAMP.length * 100) + '%'; $('mLvT').textContent = lv + '/' + CAMP.length;
   $('mSt').style.width = (st / (CAMP.length * 3) * 100) + '%'; $('mStT').textContent = st + '/' + CAMP.length * 3;
   $('bPlayT').textContent = lv ? tr('Продолжить') + ' ' + campName(nextLevel()) : tr('Играть');
@@ -897,7 +1048,7 @@ const starsHtml = (n, cls = 'stars') => `<span class="row ${cls}">${[0, 1, 2].ma
 function fillMap() {
   const g = $('mapGrid'); g.innerHTML = ''; const cur = nextLevel();
   $('mapSt').textContent = totals().st + '/' + CAMP.length * 3;
-  for (let w = 0; w < 3; w++) {
+  for (let w = 0; w < CAMP.length / 5; w++) {
     const row = document.createElement('div'); row.className = 'world';
     row.innerHTML = `<span class="wi" title="${tr(THEMES[w].name)}"><span style="display:block;width:22px;height:22px;border-radius:6px;background:${THEMES[w].fa};border:3px solid ${THEMES[w].wall}"></span></span>`;
     for (let k = 0; k < 5; k++) {
@@ -967,6 +1118,8 @@ function showLose(why) { const [ico, txt] = LOSE[why] || LOSE.fire; $('lIco').qu
 $('bPlay').onclick = () => play(campSrc(nextLevel()));
 $('bMap').onclick = () => show('map');
 $('bMine').onclick = () => show('mine');
+$('bAch').onclick = () => show('ach');
+$('bSave').onclick = () => openCode(encodeSave(), 'Код прогресса');
 $('bEd').onclick = () => openEditor(save.draft || null);
 $('bLang').onclick = () => { LANG = LANG === 'en' ? 'ru' : 'en'; save.lang = LANG; persist(); applyLang(); fillMenu(); };
 $('bSound').onclick = () => { save.sound = !save.sound; persist(); fillMenu(); if (save.sound) SFX.pick(); };
@@ -1052,7 +1205,7 @@ $('eSave').onclick = () => {
   const ex = ED.id && save.custom.find((c) => c.id === ED.id);
   if (ex) { if (ex.rows.join('') !== rows.join('')) ex.best = null; Object.assign(ex, { name, theme: ED.theme, rows }); }
   else { ED.id = Date.now().toString(36); save.custom.push({ id: ED.id, name, theme: ED.theme, rows, best: null }); }
-  ED.name = name; $('edName').value = name; save.draft = null; persist(); toast(tr('Сохранено'));
+  ED.name = name; $('edName').value = name; save.draft = null; grant('builder'); persist(); toast(tr('Сохранено'));
 };
 $('eCode').onclick = () => { edChanged(); openCode(encode(ED.name, ED.theme, ED.rows.map((r) => r.join('')))); };
 
@@ -1065,10 +1218,30 @@ function decode(s) {
   const rows = []; for (let y = 0; y < H; y++) rows.push(o.r.slice(y * W, y * W + W));
   return { name: String(o.n || '').slice(0, 28), theme: Math.max(0, Math.min(THEMES.length - 1, o.t | 0)), rows };
 }
-function openCode(code) { $('cTxt').value = code; $('oCode').hidden = false; $('cCopy').hidden = !code; if (!code) $('cTxt').focus(); else $('cTxt').select(); }
+function encodeSave() { const { done, unlocked, custom, ach, stats } = save; return 'MBS1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ done, unlocked, custom, ach, stats })))); }
+// вставленный прогресс не затирает текущий, а объединяется с ним: лучшие звёзды и время, больше счётчики
+function mergeSave(code) {
+  const o = JSON.parse(decodeURIComponent(escape(atob(code.trim().slice(5)))));
+  if (!o || typeof o !== 'object') throw 0;
+  for (const k in (o.done || {})) { const n = o.done[k], d = save.done[k]; if (!(+k >= 0 && +k < CAMP.length) || !n) continue;
+    save.done[k] = d ? { stars: Math.max(d.stars, n.stars | 0), best: Math.min(d.best ?? Infinity, n.best ?? Infinity) } : { stars: n.stars | 0, best: n.best ?? null }; }
+  save.unlocked = Math.max(save.unlocked, Math.min(CAMP.length - 1, o.unlocked | 0));
+  for (const k in (o.done || {})) save.unlocked = Math.max(save.unlocked, Math.min(CAMP.length - 1, +k + 1));
+  for (const c of (o.custom || [])) if (c && c.id && Array.isArray(c.rows) && c.rows.length === H && c.rows.every((r) => typeof r === 'string' && r.length === W && VALID.test(r)) && !save.custom.some((x) => x.id === c.id))
+    save.custom.push({ id: String(c.id), name: String(c.name || '').slice(0, 28), theme: Math.max(0, Math.min(THEMES.length - 1, c.theme | 0)), rows: c.rows, best: c.best ?? null });
+  for (const k in (o.ach || {})) if (ACH.some((a) => a.id === k)) save.ach[k] = Math.min(save.ach[k] || Infinity, +o.ach[k] || Date.now());
+  for (const k in (o.stats || {})) if (typeof o.stats[k] === 'number' && k !== 'streak') save.stats[k] = Math.max(save.stats[k] || 0, o.stats[k]);
+  checkAch(); persist();
+}
+function openCode(code, title) { $('cTitle').textContent = tr(title || 'Код уровня'); $('cTxt').value = code; $('oCode').hidden = false; $('cCopy').hidden = !code; if (!code) $('cTxt').focus(); else $('cTxt').select(); }
 $('cClose').onclick = () => { $('oCode').hidden = true; };
 $('cCopy').onclick = async () => { try { await navigator.clipboard.writeText($('cTxt').value); toast(tr('Скопировано')); } catch (e) { $('cTxt').select(); document.execCommand('copy'); toast(tr('Скопировано')); } };
 $('cLoad').onclick = () => {
+  if ($('cTxt').value.trim().startsWith('MBS1:')) {
+    try { mergeSave($('cTxt').value); $('oCode').hidden = true; toast(tr('Прогресс объединён')); fillMenu(); if (screen !== 'menu') show('menu'); }
+    catch (e) { toast(tr('Код не подошёл'), true); }
+    return;
+  }
   try { const L = decode($('cTxt').value); const id = Date.now().toString(36);
     save.custom.push({ id, name: L.name || tr('Из кода'), theme: L.theme, rows: L.rows, best: null }); persist();
     $('oCode').hidden = true; toast(tr('Добавлено')); if (screen === 'mine') fillMine(); else show('mine');
@@ -1076,17 +1249,20 @@ $('cLoad').onclick = () => {
 };
 
 let toastT = 0;
-function toast(msg, bad = false) { const el = $('toast'); el.querySelector('span').textContent = msg; el.classList.toggle('bad', bad);
-  el.querySelector('use').setAttribute('href', bad ? '#i-x' : '#i-check'); el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 1500); }
+function toast(msg, bad = false, ms = 1500, ico) { const el = $('toast'); el.querySelector('span').textContent = msg; el.classList.toggle('bad', bad);
+  el.querySelector('use').setAttribute('href', bad ? '#i-x' : (ico || '#i-check')); el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), ms); }
 
 /* ============================ РАЗМЕР И ЦИКЛ ============================ */
 function fit() {
   const st = $('stage'); const touch = screen === 'game' && matchMedia('(pointer: coarse)').matches;
-  const aw = st.clientWidth - 16, ah = st.clientHeight - 16 - (touch && innerHeight > innerWidth ? 190 : 0);
+  // в ландшафте джойстик и кнопка бомбы лежат по бокам: поле помещается между ними
+  let side = 0;
+  if (touch && innerWidth > innerHeight) { const a = $('pad').getBoundingClientRect(), b = $('bombBtn').getBoundingClientRect(); side = 2 * Math.max(a.right, innerWidth - b.left) + 8; }
+  const aw = st.clientWidth - 16 - Math.max(0, side - 16), ah = st.clientHeight - 16;
   const k = Math.max(0.1, Math.min(aw / cv.width, ah / cv.height));
   cv.style.width = Math.floor(cv.width * k) + 'px'; cv.style.height = Math.floor(cv.height * k) + 'px';
 }
-addEventListener('resize', fit);
+addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 150));
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;

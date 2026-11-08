@@ -188,9 +188,9 @@ A stream of users runs through pipes: thickness is volume, colour shows whether 
 ### 💣 [Little Bombers](malenkie-bombery/)
 **A Bomberman-style game in one file: drop bombs, blow up crates and enemies, find the exit.**
 
-15 levels in three worlds: meadow, dunes and ice. Three enemy types, power-ups under crates, up to three stars for speed and a level editor whose levels you can share by code.
+50 levels in ten worlds: meadow, dunes, ice, lava, swamp, space, jungle, ruins, neon and sunset, plus 18 achievements. Three enemy types, power-ups under crates, up to three stars for speed and a level editor whose levels you can share by code.
 
-- 🗺 15 levels · 3 worlds · ⭐ up to 3 stars per level
+- 🗺 50 levels · 10 worlds · 🏆 18 achievements · ⭐ up to 3 stars per level
 - 👾 slime, bat, ghost · 🎁 bomb, fire, speed
 - 🧱 level editor · 💾 progress and your levels saved in the browser
 - 📱 a joystick on phones · 🌐 Russian and English

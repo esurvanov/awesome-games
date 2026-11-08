@@ -4,7 +4,7 @@ An arcade game in one file: drop bombs, blow up crates and enemies, find the exi
 
 | | |
 |---|---|
-| 🗺 **15 levels** · 3 worlds (meadow, dunes, ice) | ⭐ **up to 3 stars** for speed |
+| 🗺 **50 levels** · 10 worlds (meadow, dunes, ice, lava, swamp, space, jungle, ruins, neon, sunset) · 🏆 **18 achievements** | ⭐ **up to 3 stars** for speed |
 | 👾 **3 enemies** · slime, bat (charges in a line), ghost (passes crates) | 🎁 **power-ups** · +bomb, +fire, +speed |
 | 🧱 **editor** · your own levels, test, share by code | 💾 **saving** · progress, best times and your levels in the browser |
 
