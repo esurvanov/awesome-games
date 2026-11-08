@@ -72,6 +72,8 @@
     while (G.p.cd > 0 && n++ < 440) tick();
   }
   B.doAction = doAction;
+  // рубка по-настоящему: герой сам обходит ствол, отходит от падающей ели, переходит на ту сторону обрубки (автопуть) — дождаться
+  function waitAuto() { let n = 0; while ((input.auto || G.p.action) && n++ < 300) tick(); }
 
   // ---------- ходьба ----------
   function rawGo(x, y, tol = 14, maxT = 150) {
@@ -135,7 +137,7 @@
     if (G.s.food >= 96) return;
     const k = FOOD_ORDER.find(f => Inv.cnt(f, wc) > 0); if (!k) return;
     if (ITEMS[k].raw && !cookedHere() && G.s.food > 20 && !force) return;
-    input.mx = input.my = 0; Actions.eat(); B.ate[k] = (B.ate[k] || 0) + 1;
+    input.mx = input.my = 0; const f0 = G.s.food; Actions.eat(); { let n = 0; while ((G.p.action || input.auto) && n++ < 400) tick(); } if (G.s.food > f0) B.ate[k] = (B.ate[k] || 0) + 1;   // еда — процесс: достать → съесть
   }
   B.tryEat = tryEat;
   let inS = false;
@@ -148,9 +150,19 @@
   }
   B.survive = survive;
   // этап 4: ель валится без дров → лежачий ствол разделать (чурки на снег) → чурки подобрать = дрова
+  // охапка (js/carry.js): полна — у избы в поленницу, с нартами — на нарты, иначе мелкое в рюкзак (остальное — в руках, на костёр)
+  function deliver() {
+    if (!Carry.busy()) return false;
+    if (Math.hypot(G.p.x - HUT.x, G.p.y - HUT.y) < 1500) { const q = Carry.PILE(), x = G.p.x, y = G.p.y; goTo(q.x - 26, q.y + 16, 10); Carry.put('pile', []); doAction(); goTo(x, y, 14, 30); }
+    else if (Carry.hasSled()) { Carry.put('sled', []); doAction(); }
+    else { Carry.stow([]); doAction(); }
+    return !Carry.busy();
+  }
+  B.deliver = deliver;
   function pickChunks(r = 160) {
     for (let k = 0; k < 12; k++) {
-      const q = (G.chunks || []).find(c => dist2(c, G.p) < r * r); if (!q) return;
+      const q = (G.chunks || []).find(c => dist2(c, G.p) < r * r && Tree.isWood(c)); if (!q) return;
+      if (Carry.cantTake(q)) { if (!deliver()) return; continue; }
       let c = Actions.context();
       // чурка лежит у ствола (в его подножии не встать) — к ближайшему свободному месту рядом, «Взять» — с 46 px
       if (!c || c.k !== 'chunks') { const f = World.freeNear(q.x, q.y + 8, 10); rawGo(f.x, f.y, 18, 3); c = Actions.context(); }
@@ -164,11 +176,11 @@
     const f = World.freeNear(q.x + nx * side * 24, q.y + ny * side * 24, 10); return f;
   }
   function buck(L) {
-    for (let k = 0; k < 14 && G.logs.includes(L) && L.n > 0; k++) {
+    for (let k = 0; k < 90 && G.logs.includes(L) && L.n > 0; k++) {   // обрубка — по мутовке с двух сторон (+ перекат), вершина, чурки
       let c = Actions.context();
       if (!c || (c.k !== 'log' && c.k !== 'chunks')) { const q = logSide(L, k % 3 === 2 ? -1 : null); rawGo(q.x, q.y, 10, 4); c = Actions.context(); }
       if (c && (c.k === 'drift' || c.k === 'digout' || c.k === 'tracks' || c.k === 'litter')) { Actions.interact(false); doAction(); c = Actions.context(); }
-      if (c && (c.k === 'log' || c.k === 'chunks')) { Actions.interact(true); doAction(); } else { const q = logSide(L, -1); rawGo(q.x, q.y, 8, 3); }
+      if (c && (c.k === 'log' || c.k === 'chunks')) { Actions.interact(true); doAction(); waitAuto(); } else { const q = logSide(L, -1); rawGo(q.x, q.y, 8, 3); }
       if (Inv.weight() > Inv.capKg() + 6) break;
     }
     pickChunks();
@@ -186,7 +198,7 @@
     // пешком (тем более в мороз/с перегрузом) не успеть, и «дерево нашлось» превращалось в тот же
     // «не смог», просто на маршруте; время в пути даём по факту расстояния до найденного дерева.
     goTo(best.x + Math.cos(a) * 30, best.y + Math.sin(a) * 30, 12, 40 + Math.sqrt(bd) / 100);
-    for (let k = 0; k < 10 && best.wood > 0; k++) {
+    for (let k = 0; k < 60 && best.wood > 0; k++) {   // ~12 ударов (подруб, задний рез) + площадка в сугробе
       const c = Actions.context();
       if (!c) { rawGo(best.x, best.y, 30, 5); continue; }
       if (c.k === 'amulet' || c.k === 'trap' || c.k === 'chunks') { Actions.interact(true); doAction(); continue; }
@@ -194,11 +206,11 @@
       if (c.k === 'log') { buck(c.o); return Inv.cnt('wood', false) > 0; } // рядом лежит сваленный ствол — он тоже дрова (и перехватывает «Рубить»)
       if (c.k === 'tree' && c.o !== best) best = c.o; // под рукой другое дерево — рубим его
       else if (c.k !== 'tree') { const rr = World.trunkR(best) + 14; rawGo(best.x + Math.cos(a) * rr, best.y + Math.sin(a) * rr, 8, 3); const c2 = Actions.context(); if (!c2 || c2.k !== 'tree') continue; best = c2.o; }
-      Actions.interact(true); doAction();
+      Actions.interact(true); doAction(); waitAuto();
       if (Inv.weight() > Inv.capKg() + 6) return true;
     }
-    const L = (G.logs || []).find(L => L.n > 0 && Math.hypot(L.x - best.x, L.y - best.y) < 2);
-    if (best.wood <= 0 && L) buck(L);
+    const L = (G.logs || []).find(L => L.n > 0 && Math.hypot((L.cx != null ? L.cx : L.x) - best.x, (L.cy != null ? L.cy : L.y) - best.y) < 2);   // ствол лёг у пня (комель съехал с него)
+    if (best.wood <= 0 && L) { let w = 0; while (L.f && w++ < 200) tick(); buck(L); }
     return Inv.cnt('wood', false) > 0;
   }
   // тайник в поле («Оставить здесь»): лишний груз — не бесконечная рубка, свалить и продолжить налегке.
@@ -271,7 +283,7 @@
   }
   B.wreck = wreck;
   function chestAll(keep = {}) {
-    if (!G.p.inside) enterHut();
+    if (!G.p.inside) { if (Carry.busy()) deliver(); enterHut(); }
     goTo(SPOT.chest.x - 10, SPOT.chest.y, 10);
     for (const k in G.inv) { const n = (G.inv[k] || 0) - (keep[k] || 0); if (n > 0) { G.chest[k] = (G.chest[k] || 0) + n; G.inv[k] -= n; } }
     B.R += 2;
@@ -374,7 +386,7 @@
       if (!h) { wait(1); continue; }
       const t1 = B.T;
       while (G.hares.includes(h) && B.T - t1 < 25) {
-        if (dist2(h, G.p) < 48 * 48) { const c = Actions.context(); if (c && c.k === 'hare') { input.mx = input.my = 0; Actions.interact(true); tick(); break; } }
+        if (dist2(h, G.p) < 48 * 48) { const c = Actions.context(); if (c && c.k === 'hare') { input.mx = input.my = 0; Actions.interact(true); doAction(); break; } }
         const dx = h.x - G.p.x, dy = h.y - G.p.y, d = Math.hypot(dx, dy) || 1;
         input.mx = dx / d; input.my = dy / d; tick(); survive();
         if (Math.hypot(G.p.x - POI.polynya.x, G.p.y - POI.polynya.y) < 150) break;

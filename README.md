@@ -2,7 +2,7 @@
 
 🇬🇧 **English** · [🇷🇺 Русский](README.ru.md)
 
-<img src="docs/banner.jpg" alt="awesome-games: Chronicles of Kingdoms and Berezovka" width="100%">
+<img src="docs/banner.jpg" alt="awesome-games: seven games side by side — Chronicles of Kingdoms, Berezovka, Zhitiyo, Echo of the Rift, Sibiria, Northern Rift, Skhodka" width="100%">
 
 ### Eight complete open-source games: a medieval real-time strategy, a winter open world, a taiga survival-and-settlement game, an open-world story on a polar island, an endless ice-canyon flyer, a Saturday IT meetup in a Batumi bar, a Sims-style life sim and a game about an engineer’s job. All eight run right in your browser — or clone and play locally.
 
@@ -186,7 +186,7 @@ A stream of users runs through pipes: thickness is volume, colour shows whether 
 | Chronicles of Kingdoms | Berezovka |
 |---|---|
 | ![Byzantine town](age-of-empires/docs/screenshots/town.jpg) | ![Northern lights over the village](berezovka/docs/screenshots/night.jpg) |
-| ![Fleet and dock](age-of-empires/docs/screenshots/naval.jpg) | ![The church on the hill](berezovka/docs/screenshots/church.jpg) |
+| ![Fleet and dock](age-of-empires/docs/screenshots/naval.jpg) | ![The village church](berezovka/docs/screenshots/church.jpg) |
 | ![Tech tree](age-of-empires/docs/screenshots/techtree.jpg) | ![Grandma's yard](berezovka/docs/screenshots/yard.jpg) |
 
 ## 💡 What these games have in common

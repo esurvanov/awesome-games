@@ -14,7 +14,7 @@
 [![Icons: CC BY 3.0 · ISC · MIT](https://img.shields.io/badge/icons-CC%20BY%203.0%20·%20ISC%20·%20MIT-EF9421)](CREDITS.md)
 [![No build step](https://img.shields.io/badge/build-none-2ea44f)](#-run-it-yourself)
 
-<img src="docs/screenshots/night-wolves.jpg" alt="Night in the taiga: a campfire, a hut with a lit window, wolves circling at the edge of the light, northern lights overhead" width="100%">
+<img src="docs/screenshots/night-wolves.jpg" alt="Night in the taiga: a campfire, a hut with a lit window, wolves circling at the edge of the light" width="100%">
 
 </div>
 
@@ -42,6 +42,12 @@ About 11 × 11 km of taiga around the crash site, in eight zones that each chang
 | ![Inside the hut](docs/screenshots/hut-inside.jpg) | ![Build panel](docs/screenshots/build-panel.jpg) |
 | **Urkachan** | **Rescue** |
 | ![Dialogue](docs/screenshots/dialog.jpg) | ![Finale](docs/screenshots/finale.jpg) |
+
+| A trunk on the shoulder | Sled on a rope |
+|---|---|
+| ![Trunk on the shoulder](docs/screenshots/carry-shoulder.jpg) | ![Wood sled](docs/screenshots/sled-rope.jpg) |
+| **A trail dug with the shovel** | **Felling: the spruce comes down** |
+| ![Shovel trail](docs/screenshots/shovel-trail.jpg) | ![Felling](docs/screenshots/chop.jpg) |
 
 | The big map | Drill site at night |
 |---|---|

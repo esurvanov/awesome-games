@@ -20,7 +20,7 @@ var BodyCheck = (() => {
     G.wolves = []; G.bear = null; G.s.hp = G.s.food = G.s.warm = 100; G.hut.fuel = 900; input.act = false;
     Hero.bodyReset();
   }
-  const ice = () => { const y = POI.polynya.y + 600; return { x: riverX(y), y }; };
+  const ice = () => { for (let k = 0; k < 400; k++) { const y = POI.polynya.y + 600 + k * 7, x = riverX(y) + ((k % 5) - 2) * 12; if (Depth.bareIce(x, y)) return { x, y }; } const y = POI.polynya.y + 600; return { x: riverX(y), y }; }; // голый лёд (скользят только по нему)
   function nearTree() {
     const p = P(), t = G.trees.filter(t => t.wood > 0 && !t.wall && !onIce(t.x + 30, t.y)).sort((a, b) => dist2(a, p) - dist2(b, p))[0];
     t.wood = 9; p.x = t.x + 30; p.y = t.y; p.face = -1; Hero.snap(); return t;
@@ -33,6 +33,10 @@ var BodyCheck = (() => {
     walk: [() => { hold = 1; }, 0.3],
     act: [() => { P().action = { k: 'bctest', t: 0, dur: 1, pose: 'craft', loop: 1, fb: 'build' }; }, 0.3],
     chop: [() => { nearTree(); Actions.interact(); }, 0.4],
+    // рубка по-настоящему (js/actions.js): вытаптывает площадку по кругу, перекатывает ствол, отходит от падающей ели
+    trample: [() => { const t = nearTree(), p = P(); p.action = { k: 'trample', t: 0, dur: 6, o: t, pose: 'trample', loop: 1, per: 1.24, fb: 'trudge', a0: Math.atan2((p.y - t.y - 3) / 0.7, p.x - t.x), R: 30, x0: p.x, y0: p.y, st: 0, dir: 1 }; }, 0.4],
+    roll: [() => { const t = nearTree(), p = P(); t.wood = 0; World.felled(t); const L = Actions.fell(t); delete L.f; L.a = 0; p.x = L.x + 30; p.y = L.y + 16; Hero.snap(); p.action = { k: 'roll', t: 0, dur: 2.4, o: L, pose: 'rollLog', fb: 'pry', tg: { x: L.x + 30, y: L.y + 5 }, th: -4, r0: 0, r1: 1.5, x0: L.x, y0: L.y, sx: 0, sy: -2 }; }, 0.4],
+    backoff: [() => { const p = P(); p.backoff = now + 3; Actions.walkTo(p.x + 70, p.y + 20, 3, () => {}); }, 0.2],
     gesture: [() => Hero.play('lookAround'), 0.1],
     react: [() => Hero.play('pickUp', { react: 1, tg: { x: P().x + 20, y: P().y } }), 0.1],
     hurt: [() => { G.hurt = 1; }, 0.05],
@@ -54,12 +58,13 @@ var BodyCheck = (() => {
     hurt: () => { G.hurt = 1; },
     panelOpen: openDlg,
     panelClose: () => UI.closePanel(),
-    glideStart: () => { const p = P(), q = ice(); if (!onIce(p.x, p.y)) { p.x = q.x; p.y = q.y; } p.vx = 170; },
+    glideStart: () => { const p = P(), q = ice(); if (!Depth.bareIce(p.x, p.y)) { p.x = q.x; p.y = q.y; } p.vx = 170; },
     glideStop: () => { P().vx = P().vy = 0; },
     mount: () => { if (!P().ride) { mountable(); Transport.mount('buran'); } },
     dismount: () => { if (P().ride) Transport.dismount(); },
     sleep: () => { const p = P(); p.sleeping = true; p.action = null; Hero.snap(); },
     wake: () => { if (P().sleeping) Actions.wake(false, 'проверка'); },
+    dodge: () => { P().dashCd = 0; Hero.dodge(); },   // отскок (Shift): рывок и поза dodge
   };
   // кадр как в игре: ввод (в панели — нулевой, как syncMove), шаг мира или «дыхание» панели, время, рисование
   function frame(render) {

@@ -13,7 +13,7 @@
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#-quick-start)
 [![Languages](https://img.shields.io/badge/UI-7%20languages-blue)](#-features)
 
-<img src="docs/screenshots/hero.jpg" alt="A walled Frankish town under siege: trebuchets and rams at the gate, a house burning, the harbour behind" width="100%">
+<img src="docs/screenshots/hero.jpg" alt="A Frankish lakeside town under attack: half-built palisade scaffolding, a ram among the houses, siege engines on the slope, fires, the harbour behind" width="100%">
 
 </div>
 
@@ -25,7 +25,7 @@ Build a village in the Dark Age, wall it, raise a castle, research your way to t
 |---|---|---|
 | 🏰 **14 civilizations** — unique units, unique techs, team bonuses | 🕰 **4 ages** — Dark · Feudal · Castle · Imperial | 🌳 **Full tech tree** — 130+ technologies, F5 in-game |
 | ⚔️ **75+ unit types** — infantry, archers, cavalry, siege, monks, ships | 💰 **Economy** — market trade, trade carts, relics, farms | 🧱 **Walls, gates, towers, garrison** — repair, eject, ring the bell |
-| 🎖 **Formations & stances** — line, box, staggered, flank · aggressive → no attack | 🚢 **Naval warfare** — docks, fishing, transports, galleys, fire ships | 🗺 **6 random maps** — Arabia, Arena, Black Forest, Nomad, Islands, Mediterranean |
+| 🎖 **Formations & stances** — line, box, staggered, flank · aggressive → no attack | 🚢 **Naval warfare** — docks, fishing, transports, galleys, fire ships | 🗺 **6 random maps** — Wasteland, Walled Court, Thicket, Nomad, Archipelago, Inland Sea |
 | ⛰ **Landscapes** — hills, cliffs, shallows, 6 biomes | 🤖 **AI** — 6 difficulty levels, Easiest → Extreme | 👥 **Up to 8 players**, teams, diplomacy, chat, minimap flares |
 | 💾 **Save / load** — slots + quick save (F7/F8) | 📊 **Post-game statistics** — 6 tabs, timeline chart | 🌍 **7 UI languages** — en, ru, de, fr, es, pt-BR, it |
 | 🎨 **Art** — 3D models pre-rendered to isometric sprites + procedural icons | 🎵 **Soundtrack & voices** — from 0 A.D., plus procedural medieval pieces | 🖥 **1280×800 window**, wheel zoom ×0.6–1.6 |
@@ -37,7 +37,7 @@ Build a village in the Dark Age, wall it, raise a castle, research your way to t
 | ![Main menu](docs/screenshots/menu.jpg) | ![Lobby](docs/screenshots/lobby.jpg) |
 | **Byzantine town** | **Open-field battle with siege** |
 | ![Town](docs/screenshots/town.jpg) | ![Battle](docs/screenshots/battle.jpg) |
-| **Islands: fleet and dock** | **Hills and cliffs** |
+| **Archipelago: fleet and dock** | **Hills, a rocky ridge and groves** |
 | ![Naval](docs/screenshots/naval.jpg) | ![Hills](docs/screenshots/hills.jpg) |
 | **Tech tree** | **Post-game statistics** |
 | ![Tech tree](docs/screenshots/techtree.jpg) | ![Statistics](docs/screenshots/stats.jpg) |

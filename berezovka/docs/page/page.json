@@ -205,12 +205,39 @@
    }
   },
   {
+   "file": "docs/screenshots/night.jpg",
+   "w": 1280,
+   "h": 633,
+   "alt": {
+    "ru": "Березовка: северное сияние над деревенской улицей ночью",
+    "en": "Berezovka: northern lights over the village street at night"
+   }
+  },
+  {
+   "file": "docs/screenshots/zhiguli.jpg",
+   "w": 1280,
+   "h": 633,
+   "alt": {
+    "ru": "Березовка: «Жигули» на деревенской дороге",
+    "en": "Berezovka: the Zhiguli on the village road"
+   }
+  },
+  {
+   "file": "docs/screenshots/deer.jpg",
+   "w": 1280,
+   "h": 633,
+   "alt": {
+    "ru": "Березовка: стадо оленей у леса",
+    "en": "Berezovka: a herd of deer by the forest"
+   }
+  },
+  {
    "file": "docs/screenshots/church.jpg",
    "w": 1280,
    "h": 633,
    "alt": {
-    "ru": "Березовка: церковь на холме",
-    "en": "Berezovka: the church on the hill"
+    "ru": "Березовка: деревенская церковь зимним днём",
+    "en": "Berezovka: the village church on a winter day"
    }
   },
   {
@@ -218,8 +245,8 @@
    "w": 1280,
    "h": 633,
    "alt": {
-    "ru": "Березовка: заснеженный лес",
-    "en": "Berezovka: the snowy forest"
+    "ru": "Березовка: ели на опушке у деревни",
+    "en": "Berezovka: spruces at the edge of the village"
    }
   }
  ],

@@ -9,7 +9,7 @@
 //   'zone:id' | 'obj:id', js/story.js markAt), alt, show(g)}; next — номер следующей главы (по умолчанию — по списку;
 //   null — только концовкой); end — концовка, когда цели главы закрыты (ветки V–VII);
 //   threat — угрозы главы для директора и погоды {rate — бюджет/с, peak — потолок напряжения, wolves — размер стаи,
-//   storm — длительность пурги, с (0 — без пурги)}; onEnter — операции при входе (Story.run);
+//   storm — длительность пурги, игровые с (через HOUR; 0 — без пурги)}; onEnter — операции при входе (Story.run);
 //   softDeath — «мягкая» смерть (глава I: дед дотащил); marker(g) — метка компаса поверх целей.
 
 // «сюжетные» числа и правила концовок
@@ -29,7 +29,15 @@ const STORY = {
 
 // вторая ветка (концовка D): посёлок, который переживёт зиму без вертолёта.
 // В HUD появляется при провале вертолёта или с 5-го дня (alt — не блокирует главу).
-const padDone = () => !!(G && G.col && G.col.builds.some(b => b.type === 'pad' && b.done));
+// площадка: вешки стоят (стройка) и утоптано ≥ 80 % клеток до плотности ≥ 0.7 (js/trail.js frac). Пурга заметает — подновить
+const padSite = () => G && G.col && G.col.builds.find(b => b.type === 'pad' && b.done);
+const PADK = { t: -1, g: null, v: 0 };
+function padK() {
+  const b = padSite(); if (!b || typeof Trail === 'undefined') return 0;
+  if (PADK.g === G && Math.abs(G.time - PADK.t) < 0.5) return PADK.v;
+  const B = BUILDS.pad; PADK.g = G; PADK.t = G.time; return (PADK.v = Trail.frac(b.x - B.w / 2, b.y - B.h / 2, b.x + B.w / 2, b.y + B.h / 2, 0.7));
+}
+const padDone = () => !!padSite() && padK() >= 0.8;
 const CHAPTERS = (() => {
   const D_GOALS = [
     { ic: ':epoch:', t: 'Или: эпоха III «Промысел»', ok: g => g.col && g.col.ep >= STORY.dEp, at: 'hut', alt: 1, show: g => g.flags.heliMiss || g.day >= 5 || (g.col && g.col.ep >= 1) },
@@ -46,10 +54,10 @@ const CHAPTERS = (() => {
         { ic: ':sleep:', t: 'Пережить ночь', ok: g => g.flags.slept || g.day >= 2 && hourOf() >= 7.5, at: 'bed' },
       ],
       // смерть в главе I — не конец: дед дотащил до избы, отпоил чаем, забрал половину дров
-      softDeath: { hp: 50, warm: 70, food: 35, skip: 1 / 8, fuel: 90, woodKeep: 0.5,
+      softDeath: { hp: 50, warm: 70, food: 35, skip: 1 / 8, fuel: 4.5 * HOUR, woodKeep: 0.5,
         card: [':evenk:', 'Уркачан дотащил', 'Чаем отпоил. Ворчал. Дров половину забрал — за доставку.'] } },
     { n: 'Уркачан', ic: ':evenk:', num: 'II',
-      threat: { rate: 0.8, peak: 65, wolves: 3, storm: 35 },
+      threat: { rate: 0.8, peak: 65, wolves: 3, storm: 1.75 * HOUR },
       onEnter: [{ known: 'tail' }],
       goals: [
         { ic: ':evenk:', t: 'Встретить деда', ok: g => g.flags.metUrk, at: 'urk' },
@@ -58,7 +66,7 @@ const CHAPTERS = (() => {
         { ic: ':person:', t: 'Вера в зимовье', ok: g => g.vera.state === 'hut' || g.vera.state === 'dead', at: 'vera' },
       ] },
     { n: 'Стая', ic: ':wolf:', num: 'III',
-      threat: { rate: 1.0, peak: 78, wolves: 4, storm: 50 },
+      threat: { rate: 1.0, peak: 78, wolves: 4, storm: 2.5 * HOUR },
       onEnter: [{ known: 'polynya' }],
       goals: [
         { ic: ':battery:', t: 'Зарядить аккумулятор', ok: g => g.charge >= 100 || g.flags.radioBuilt, at: 'battery' },
@@ -69,7 +77,7 @@ const CHAPTERS = (() => {
         ...D_GOALS,
       ] },
     { n: 'Сигнал', ic: ':antenna:', num: 'IV',
-      threat: { rate: 1.1, peak: 88, wolves: 4, storm: 65 },
+      threat: { rate: 1.1, peak: 88, wolves: 4, storm: 3.25 * HOUR },
       // исправление: глава IV начинается ночью (после осады) — шатун выходит не раньше следующей ночи
       onEnter: [{ known: 'mar' }, { fn: () => Bear.respite() }],
       goals: [
@@ -84,7 +92,7 @@ const CHAPTERS = (() => {
       next: null }, // глава IV закрывается вертолётом (A/B) или развилкой без него (V / VII)
     // ---------- ветка «посёлок» (A5, вариант «в»): промысловые участки → зимовка → D ----------
     { n: 'Промысел', ic: ':epoch:', num: 'V',
-      threat: { rate: 0.9, peak: 70, wolves: 3, storm: 45 },
+      threat: { rate: 0.9, peak: 70, wolves: 3, storm: 2.25 * HOUR },
       onEnter: [{ dialog: 'prom_start' }, { fn: g => { for (const id of Zones.plotIds()) if (!g.zoneSeen[id]) g.zoneSeen[id] = 2; } }],
       goals: [
         { ic: ':scrap:', t: 'Участок: буровая', ok: g => !!(g.plots && g.plots.drill), at: 'obj:plotDrill' },
@@ -110,7 +118,7 @@ const CHAPTERS = (() => {
       end: 'D' },
     // ---------- ветка «без вертолёта» (A5, из варианта «а»): поход к передатчику Тамары → E ----------
     { n: 'Экспедиция', ic: ':radio:', num: 'VII',
-      threat: { rate: 1.0, peak: 80, wolves: 3, storm: 40 },
+      threat: { rate: 1.0, peak: 80, wolves: 3, storm: 2 * HOUR },
       onEnter: [{ dialog: 'exp_start' }, { fn: g => { g.flags.expDay = g.day; if (!g.zoneSeen.meteo) g.zoneSeen.meteo = 2; } }],
       goals: [
         { ic: ':food:', t: 'Припасы: еды ×4 с собой', ok: g => !!g.flags.expPacked, at: 'hut' },

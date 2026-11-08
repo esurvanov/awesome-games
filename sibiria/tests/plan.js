@@ -54,7 +54,7 @@
 
   function foodRun() {
     // лабаз — бесплатное мясо
-    if (!G.labaz) { L('иду к лабазу'); B.goTo(POI.labaz.x - 60, POI.labaz.y + 40, 14); for (let k = 0; k < 5 && !G.labaz; k++) { B.goTo(POI.labaz.x - 42, POI.labaz.y + 18 - k * 6, 6, 10); const c = Actions.context(); B.labazCtx = c && c.k; Actions.interact(false); B.tick(); } L('лабаз: ' + G.labaz); return; }
+    if (!G.labaz) { L('иду к лабазу'); B.goTo(POI.labaz.x - 60, POI.labaz.y + 40, 14); for (let k = 0; k < 5 && !G.labaz; k++) { B.goTo(POI.labaz.x - 42, POI.labaz.y + 18 - k * 6, 6, 10); const c = Actions.context(); B.labazCtx = c && c.k; Actions.interact(false); B.doAction(); /* мясо — в руку и в рюкзак (процесс) */ } L('лабаз: ' + G.labaz); return; }
     B.huntHares(3, 60, dayTime);
   }
 
@@ -80,7 +80,7 @@
   function ch1() {
     const f = G.flags, u = G.urk;
     if (!f.metUrk) { if (u.state === 'away') { B.wait(3); return; } talk('urk'); return; }
-    if (G.traps.some(t => t.catch)) { for (const t of G.traps.filter(t => t.catch)) { B.goTo(t.x, t.y + 20, 14); const c = Actions.context(); if (c && c.k === 'trap') Actions.interact(true); B.tick(); } return; }
+    if (G.traps.some(t => t.catch)) { for (const t of G.traps.filter(t => t.catch)) { B.goTo(t.x, t.y + 20, 14); const c = Actions.context(); if (c && c.k === 'trap') { Actions.interact(true); B.doAction(); } B.tick(); } return; }
     if (!f.urkPelts && Inv.cnt('hare', true) < 2) { B.huntHares(2 - Inv.cnt('hare', true), 120, dayTime); return; }
     if (!f.urkPelts) { if (G.p.inside || (G.chest.hare || 0) > 0) { B.enterHut(); B.chestTake('hare', 5); }
       B.chestTake && 0; B.wantGift = true; talk('urk'); B.tick();
@@ -135,7 +135,7 @@
     B.allowIce = true;
     const t0 = B.T;
     B.goTo(TUBE_POS.x - 20, TUBE_POS.y, 10, 5);
-    const c = Actions.context(); if (c && c.k === 'tube') Actions.interact(true); else L('лампа: ctx ' + (c && c.k));
+    const c = Actions.context(); if (c && c.k === 'tube') { Actions.interact(true); B.doAction(); } else L('лампа: ctx ' + (c && c.k));
     B.goTo(TUBE_POS.x - 170, TUBE_POS.y, 16, 5);
     B.allowIce = false;
     L(`лампа ${G.flags.tube ? 'взята' : 'НЕТ'}, на льду ${(B.T - t0).toFixed(1)} с, wet ${G.p.wetT.toFixed(0)}`);

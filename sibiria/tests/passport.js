@@ -205,12 +205,12 @@ function suite() {
     park(); Live.reset(); G.parts.length = 0;
     const ids = ['mi8', 'barrel', 'crates', 'tail', 'barrelT', 'hut', 'labaz', 'chum'];
     const all = (v, d) => { for (const id of ids) Snow.set(id, v, d); };
-    // снегопад в штиль: 0 → 1 за 480 ± 60 с
+    // снегопад в штиль: 0 → 1 за сутки (CYCLE) ± 12,5 %
     all(0, 0); Wind.force({ ms: 0, t: T }); Snow.force({ fall: 1 });
     const reach = {}; let t = 0;
-    while (t < 700 && ids.some(id => reach[id] == null)) { Snow.step(0.5); t += 0.5; for (const id of ids) if (reach[id] == null && Snow.cap(id) >= 0.999) reach[id] = t; }
+    while (t < CYCLE * 1.5 && ids.some(id => reach[id] == null)) { Snow.step(0.5); t += 0.5; for (const id of ids) if (reach[id] == null && Snow.cap(id) >= 0.999) reach[id] = t; }
     out.A8 = { grow: reach };
-    ok(ids.every(id => reach[id] >= 420 && reach[id] <= 540), `A8 снегопад: шапки 0 → 1 за ${[...new Set(Object.values(reach))].join('/')} с (480 ± 60) — ${ids.length} вещей`);
+    ok(ids.every(id => reach[id] >= CYCLE * 0.875 && reach[id] <= CYCLE * 1.125), `A8 снегопад: шапки 0 → 1 за ${[...new Set(Object.values(reach))].join('/')} с (${CYCLE} ± 12,5 %) — ${ids.length} вещей`);
     // ветер ниже порога (6 м/с) держит шапку, выше (10 м/с) — сдувает; порог 7.7
     Snow.force({ fall: 0 }); all(1, 0);
     Wind.force({ ms: 6, t: T }); for (let i = 0; i < 240; i++) Snow.step(0.5); const c6 = Snow.cap('mi8');
@@ -236,7 +236,7 @@ function suite() {
     // наддув растёт от переноса (12 м/с), ступени 0 → 3; при 3 м/с не растёт
     all(null, 0); Wind.force({ ms: 3, t: T }); for (let i = 0; i < 240; i++) Snow.step(0.5); const d3 = Snow.state().hold.hut.d;
     Wind.force({ ms: 12, t: T }); const steps = [], tStep = {}; let tt = 0;
-    while (tt < 900 && Snow.state().hold.hut.step < 3) { Snow.step(0.5); tt += 0.5; const st = Snow.state().hold.hut.step; if (steps[steps.length - 1] !== st) { steps.push(st); tStep[st] = tt; } }
+    while (tt < CYCLE * 1.875 && Snow.state().hold.hut.step < 3) { Snow.step(0.5); tt += 0.5; const st = Snow.state().hold.hut.step; if (steps[steps.length - 1] !== st) { steps.push(st); tStep[st] = tt; } }
     out.A8.drift = { d3ms: r3(d3), steps, tStep };
     ok(d3 === 0 && steps.join() === '0,1,2,3', `A8 наддув: 3 м/с — ${d3}, 12 м/с — ступени ${steps.join('→')} за ${tStep[1]}/${tStep[2]}/${tStep[3]} с`);
     // геометрия: главный нанос — подветренный (по Wind.dir), ≤ 6 h, глубина ≤ 1.2 h; наветренный ≤ 0.5 h; ямка у стенки

@@ -31,7 +31,7 @@
  "features": {
   "ru": [
    "Живой район: 10 семей, между которыми можно переключаться, и общие места",
-   "Потребности и настроение: голод, энергия, гигиена, туалет, веселье, общение, комфорт",
+   "Потребности и настроение: голод, бодрость, гигиена, туалет, веселье, общение, комфорт, комната",
    "Отношения: дружба, романы, тайные связи, семейные ссоры; 86 социальных действий",
    "Режимы «Покупка» и «Стройка»: 38 предметов мебели, стены, полы, окна, несколько этажей и крыши",
    "Смена дня и ночи, классическая изометрическая камера (4 поворота, 3 уровня масштаба)",
@@ -39,7 +39,7 @@
   ],
   "en": [
    "A living neighbourhood: 10 households you can switch between, plus shared lots",
-   "Needs and mood: hunger, energy, hygiene, bladder, fun, social, comfort",
+   "Needs and mood: hunger, energy, hygiene, bladder, fun, social, comfort, room",
    "Relationships: friendships, romances, secret affairs, family feuds; 86 social interactions",
    "Buy and Build modes: 38 furniture pieces, walls, floors, windows, several floors and roofs",
    "Day and night cycle, a classic isometric camera (4 rotations, 3 zoom levels)",
@@ -171,8 +171,8 @@
  "shots": [
   {
    "file": "docs/screenshots/neighborhood.jpg",
-   "w": 1280,
-   "h": 678,
+   "w": 1512,
+   "h": 801,
    "alt": {
     "ru": "Житьё: карта района Берёзовая роща",
     "en": "Zhitiyo: the Birch Grove neighbourhood map"
@@ -180,11 +180,11 @@
   },
   {
    "file": "docs/screenshots/home.jpg",
-   "w": 1280,
-   "h": 678,
+   "w": 1512,
+   "h": 801,
    "alt": {
-    "ru": "Житьё: интерьер дома",
-    "en": "Zhitiyo: a house interior"
+    "ru": "Житьё: два сима в обставленном доме и открытое круговое меню общения",
+    "en": "Zhitiyo: two sims inside their furnished house with the radial social menu open"
    }
   }
  ],

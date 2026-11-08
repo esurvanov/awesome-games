@@ -240,6 +240,8 @@ const Sound = {
   // жесты героя: свист лайке, взмах палкой, шипение углей под снегом
   whistle() { this.tone('sine', 1500, 2100, 0.18, 0.12, 0, { a: 0.01 }); this.tone('sine', 1800, 2500, 0.22, 0.12, 0, { at: 0.24, a: 0.01 }); },
   whoosh() { this.burst(0.2, 'bandpass', this.vary(900, 0.1), 0.18, 2, { f1: 400 }); },
+  // лопата: скрежет совка по насту, глухой ком, шорох выброса
+  shovel() { if (!this.ok()) return; this.burst(0.16, 'bandpass', this.vary(1700, 0.12), 0.16, 1.6, { f1: 900, a: 0.02 }); this.burst(0.12, 'lowpass', this.vary(380, 0.1), 0.3, 1, { at: 0.12 }); this.burst(0.3, 'bandpass', this.vary(1200, 0.1), 0.08, 0.8, { at: 0.3, f1: 600, a: 0.08 }); },
   hiss() { this.burst(0.7, 'highpass', 3000, 0.16, 0.7, { a: 0.02 }); },
   treeCrack() {
     this.burst(0.25, 'bandpass', this.vary(320, 0.15), 0.9, 1); this.burst(0.03, 'bandpass', 1500, 0.1, 1.5, { a: 0.006 });

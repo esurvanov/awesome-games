@@ -124,10 +124,12 @@ const Fauna = (() => {
   // рассвет: улов в ловушках, простоявших ≥ trapT с (капкан в кедраче — соболь)
   function dawnTraps() {
     const T = TUNE.traps;
-    for (const t of G.traps) if (!t.catch && G.time - t.t > T.minT) {
-      const r = Math.random();
-      if (t.kind === 'trap' && World.inCedar(t.x, t.y)) t.catch = r < T.sable ? 'sable' : r < T.wpeltTo ? 'wpelt' : null;
-      else t.catch = r < (t.kind === 'trap' ? T.trapHare : T.snareHare) ? 'hare' : null;
+    // улов не возникает на глазах: ловушка в кадре — добыча «ждёт» (t.pend), попадётся, когда герой отвернётся (Actions.tickWorld)
+    for (const t of G.traps) if (!t.catch && !t.pend && !(t.set < 1) && G.time - t.t > T.minT) {
+      const r = Math.random(); let c;
+      if (t.kind === 'trap' && World.inCedar(t.x, t.y)) c = r < T.sable ? 'sable' : r < T.wpeltTo ? 'wpelt' : null;
+      else c = r < (t.kind === 'trap' ? T.trapHare : T.snareHare) ? 'hare' : null;
+      if (c && Actions.inView(t)) t.pend = c; else t.catch = c;
     }
     if (G.traps.some(t => t.catch)) Fx.toast(':trap: В ловушках добыча');
   }

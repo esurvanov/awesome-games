@@ -14,7 +14,7 @@
 [![Иконки: CC BY 3.0 · ISC · MIT](https://img.shields.io/badge/иконки-CC%20BY%203.0%20·%20ISC%20·%20MIT-EF9421)](CREDITS.md)
 [![Без сборки](https://img.shields.io/badge/сборка-нет-2ea44f)](#-запуск)
 
-<img src="docs/screenshots/night-wolves.jpg" alt="Ночь в тайге: костёр, изба со светящимся окном, волки кружат на краю света, северное сияние" width="100%">
+<img src="docs/screenshots/night-wolves.jpg" alt="Ночь в тайге: костёр, изба со светящимся окном, волки кружат на краю света" width="100%">
 
 </div>
 
@@ -42,6 +42,12 @@
 | ![В избе](docs/screenshots/hut-inside.jpg) | ![Панель стройки](docs/screenshots/build-panel.jpg) |
 | **Уркачан** | **Спасение** |
 | ![Диалог](docs/screenshots/dialog.jpg) | ![Финал](docs/screenshots/finale.jpg) |
+
+| Ствол на плече | Нарты на верёвке |
+|---|---|
+| ![Ствол на плече](docs/screenshots/carry-shoulder.jpg) | ![Нарты с дровами](docs/screenshots/sled-rope.jpg) |
+| **Тропа лопатой** | **Рубка: ель падает** |
+| ![Тропа лопатой](docs/screenshots/shovel-trail.jpg) | ![Рубка](docs/screenshots/chop.jpg) |
 
 | Большая карта | Буровая ночью |
 |---|---|

@@ -22,6 +22,11 @@ const EVENTS = [
     do: [{ toast: ':wolf: Стая идёт к зимовью!' }, { dialog: 'siege_urk' }, { sound: ['howl', 0, 0.25], at: () => Ctx.howlSrc(900) }, { fn: g => { Wolves.spawnPack(4, true); g.pack.siege = 1; } }] },
   { id: 'siegeDone', once: 'flags.siegeDone', when: (g, c) => g.fired.E5 && (!g.pack || !g.pack.siege || (g.day >= 4 && c.h >= 7)),
     do: [{ toast: ':wolf: Стая отступила · осада снята' }] },
+  // пурга и дверь: первая пурга с главы II — совет деда; после пурги нанос у двери 80–120 см — откопать (лопатой ~50 с, руками — дольше)
+  { id: 'stormDoor', when: g => g.chapter >= 1 && g.storm && g.storm.omen && g.time < g.storm.b,
+    do: [{ toast: ':evenk: Уркачан: «Дверь внутрь — чтоб откопаться. Лопату — в избу»' }] },
+  { id: 'doorDrift', repeat: 1, when: g => g.storm && g.time >= g.storm.b && g.storm.drift !== 1 && (g.storm.drift = 1) && Trail.doorDepth() > 60,
+    do: [{ toast: g => g.gear.shovel ? ':shovel: Дверь занесло · E — откапывать' : ':hand: Дверь занесло · E — разгребать руками' }] },
   // шатун: предвестник — следы у мари
   { id: 'E6', when: g => g.chapter >= 3,
     do: [{ toast: ':paw: Следы. Большие.' }, { fn: () => { for (let i = 0; i < 16; i++) Fx.print(POI.mar.x - 250 + i * 30, POI.mar.y + 180 + Math.sin(i) * 20, 0, 'b'); } }] },

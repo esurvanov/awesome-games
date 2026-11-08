@@ -23,8 +23,9 @@ const WORLD = (() => {
     count(kind) { return this.dens[kind] != null ? Math.round(this.dens[kind] * this.area) : Math.round(this.perRiver[kind] * H / BASE); },
   };
 })();
-// W, H — размер мира; CYCLE — секунд игрового времени в сутках; RW — полуширина русла
-const W = WORLD.W, H = WORLD.H, CYCLE = 480, RW = 72;
+// W, H — размер мира; CYCLE — секунд игрового времени в сутках (1440: игровой час = минута); RW — полуширина русла
+// HOUR — игровой час, с. «Календарные» числа (голод, печь, костёр, пурги, посёлок) — через HOUR, «телесные» — в секундах.
+const W = WORLD.W, H = WORLD.H, CYCLE = 1440, HOUR = CYCLE / 24, RW = 72;
 // река течёт с севера на юг через весь мир; форма русла привязана к участку (при ×1 — как было).
 // За пределами участка — большие излучины (ручной скелет A3): на севере к востоку, на юге к западу.
 const riverBend = y => {
@@ -72,27 +73,28 @@ const STACKS = [
 const TUBE_POS = { x: POI.polynya.x + 28, y: POI.polynya.y - 18 };
 
 // ---------- предметы ----------
+// kg — масса, l — объём в укладке (л). Дрова — штука ≈ чурка: масса и объём — свои у каждой (js/inventory.js wkg/wl), здесь — номинал
 const ITEMS = {
-  wood:    { n: 'Дрова', i: ':wood:', kg: 2 },
-  meat:    { n: 'Мясо', i: ':meat:', kg: 1, food: 40, raw: 1 },
-  fish:    { n: 'Рыба', i: ':fish:', kg: 1, food: 32, raw: 1 },
-  stew:    { n: 'Уха', i: ':stew:', kg: 1, food: 100, warm: 15 },
-  can:     { n: 'Тушёнка', i: ':can:', kg: 0.5, food: 50 },
-  dried:   { n: 'Вяленое мясо', i: ':meat:', kg: 0.5, food: 35 },
-  tea:     { n: 'Чай', i: ':tea:', kg: 0 },
-  honey:   { n: 'Мёд', i: ':food:', kg: 0.5, food: 30, warm: 12 },   // с заимки староверов
-  hare:    { n: 'Шкурка зайца', i: ':hare:', kg: 0.5, fur: 1 },
-  wpelt:   { n: 'Шкура волка', i: ':wolf:', kg: 2, fur: 3 },
-  sable:   { n: 'Соболь', i: ':sable:', kg: 0.5, fur: 4 },
-  scrap:   { n: 'Железо', i: ':scrap:', kg: 1 },
-  kero:    { n: 'Керосин', i: ':kero:', kg: 3 },
-  cable:   { n: 'Кабель', i: ':cable:', kg: 0.5 },
-  snare:   { n: 'Силок', i: ':snare:', kg: 0.2 },
-  trap:    { n: 'Капкан', i: ':trap:', kg: 1 },
-  quartz:  { n: 'Кварц', i: ':quartz:', kg: 0, part: 1 },
-  battery: { n: 'Аккумулятор', i: ':battery:', kg: 8, part: 1 },
-  tube:    { n: 'Радиолампа', i: ':tube:', kg: 0, part: 1 },
-  antenna: { n: 'Антенна', i: ':antenna:', kg: 2, part: 1 },
+  wood:    { n: 'Дрова', i: ':wood:', kg: 5, l: 6.3 },
+  meat:    { n: 'Мясо', i: ':meat:', kg: 1, l: 1.2, food: 40, raw: 1 },
+  fish:    { n: 'Рыба', i: ':fish:', kg: 1, l: 1.4, food: 32, raw: 1 },
+  stew:    { n: 'Уха', i: ':stew:', kg: 1, l: 1.2, food: 100, warm: 15 },
+  can:     { n: 'Тушёнка', i: ':can:', kg: 0.5, l: 0.4, food: 50 },
+  dried:   { n: 'Вяленое мясо', i: ':meat:', kg: 0.5, l: 0.7, food: 35 },
+  tea:     { n: 'Чай', i: ':tea:', kg: 0.1, l: 0.3 },
+  honey:   { n: 'Мёд', i: ':food:', kg: 0.5, l: 0.4, food: 30, warm: 12 },   // с заимки староверов
+  hare:    { n: 'Шкурка зайца', i: ':hare:', kg: 0.3, l: 1.5, fur: 1 },
+  wpelt:   { n: 'Шкура волка', i: ':wolf:', kg: 3, l: 12, fur: 3 },
+  sable:   { n: 'Соболь', i: ':sable:', kg: 0.4, l: 1, fur: 4 },
+  scrap:   { n: 'Железо', i: ':scrap:', kg: 1, l: 1.2 },
+  kero:    { n: 'Керосин', i: ':kero:', kg: 3, l: 3.5 },
+  cable:   { n: 'Кабель', i: ':cable:', kg: 0.5, l: 1 },
+  snare:   { n: 'Силок', i: ':snare:', kg: 0.2, l: 0.3 },
+  trap:    { n: 'Капкан', i: ':trap:', kg: 1, l: 1.2 },
+  quartz:  { n: 'Кварц', i: ':quartz:', kg: 0.3, l: 0.2, part: 1 },
+  battery: { n: 'Аккумулятор', i: ':battery:', kg: 8, l: 4, part: 1 },
+  tube:    { n: 'Радиолампа', i: ':tube:', kg: 0.1, l: 0.3, part: 1 },
+  antenna: { n: 'Антенна', i: ':antenna:', kg: 2, l: 4, part: 1 },
 };
 const ITEM_ORDER = Object.keys(ITEMS);
 const FOOD_ORDER = ['stew', 'can', 'dried', 'meat', 'fish', 'honey'];
@@ -105,8 +107,9 @@ const GEAR = {
   dokha: { i: ':coat:', n: 'Доха', d: 'холод −30%' },
   kukhl: { i: ':deer:', n: 'Кухлянка', d: 'холод −40%' },
   skis:  { i: ':skis:', n: 'Лыжи', d: 'скорость +20%' },
-  sled:  { i: ':sled:', n: 'Нарты', d: '+20 кг' },
+  sled:  { i: ':sled:', n: 'Нарты', d: 'возят дрова · 150 кг' },
   shoes: { i: ':skis:', n: 'Снегоступы', d: 'в снегу вязнешь втрое меньше' },
+  shovel: { i: ':shovel:', n: 'Лопата', d: 'удержание E в поле — расчищать снег' },
 };
 
 // at: fire — у огня или горящей печи; stove — у печи; bench — верстак в избе
@@ -119,16 +122,18 @@ const RECIPES = [
   { id: 'trap', i: ':trap:', n: 'Капкан', in: { scrap: 3 }, out: { trap: 1 }, at: 'bench', d: 'соболь в кедраче' },
   { id: 'hat', i: ':hat:', n: 'Ушанка', in: { hare: 3 }, gear: 'hat', at: 'bench', d: 'холод −15%' },
   { id: 'dokha', i: ':coat:', n: 'Доха', in: { wpelt: 2, hare: 2 }, gear: 'dokha', at: 'bench', d: 'холод −30%' },
-  { id: 'sled', i: ':sled:', n: 'Нарты', in: { wood: 6, scrap: 2 }, gear: 'sled', at: 'bench', d: '+20 кг' },
+  { id: 'sled', i: ':sled:', n: 'Нарты', in: { wood: 6, scrap: 2 }, gear: 'sled', at: 'bench', d: 'возят дрова · 150 кг' },
   { id: 'shoes', i: ':skis:', n: 'Снегоступы', in: { wood: 2, hare: 2 }, gear: 'shoes', at: 'bench', d: 'в снегу вязнешь втрое меньше' },
+  { id: 'shovel', i: ':shovel:', n: 'Лопата', in: { wood: 2, scrap: 1 }, gear: 'shovel', at: 'bench', d: 'расчищать снег, прокладывать тропы' },
   { id: 'antenna', i: ':antenna:', n: 'Антенна', in: { scrap: 3, cable: 1 }, out: { antenna: 1 }, at: 'bench', d: 'деталь рации' },
   { id: 'radio', i: ':radio:', n: 'Рация', in: { quartz: 1, battery: 1, tube: 1, antenna: 1 }, at: 'bench', d: 'аккумулятор заряжен', radio: 1 },
 ];
 const HUT_UPG = [
-  { id: 'walls', i: ':wall:', n: 'Щели', in: { wood: 6 }, d: 'печь: :wood:1 = 35 с' },
+  { id: 'walls', i: ':wall:', n: 'Щели', in: { wood: 6 }, d: 'печь: :wood:1 = 1 ч 45 мин' },
   { id: 'door', i: ':door:', n: 'Дверь', in: { wood: 4, scrap: 1 }, d: 'волки не войдут' },
   { id: 'bench', i: ':craft:', n: 'Верстак', in: { wood: 5, scrap: 2 }, d: 'мастерская и рация' },
-  { id: 'damper', i: ':stove:', n: 'Заслонка', in: { scrap: 3 }, d: 'печь: :wood:1 = 45 с' },
+  { id: 'damper', i: ':stove:', n: 'Заслонка', in: { scrap: 3 }, d: 'печь: :wood:1 = 2 ч 15 мин' },
+  { id: 'roof', i: ':woodshed:', n: 'Навес', in: { wood: 4 }, d: 'поленницу не заносит пургой' },
 ];
 const SKILLS = {
   chop: { i: ':axe:', n: 'Рубка' },
@@ -156,11 +161,12 @@ const BUILDS = {
   balok:    { n: 'Балок', i: ':balok:', cost: { wood: 8 }, t: 18, ep: 0, w: 58, h: 38, pop: 4, shelter: 1, d: '+4 места, укрытие' },
   woodshed: { n: 'Дровяник', i: ':woodshed:', cost: { wood: 10 }, t: 18, ep: 0, w: 62, h: 36, drop: ['wood'], d: 'склад дров у леса' },
   smoke:    { n: 'Коптильня', i: ':smoke:', cost: { wood: 12 }, t: 22, ep: 0, w: 48, h: 40, drop: ['meat', 'fish'], d: 'склад еды, коптит сырое' },
-  labaz2:   { n: 'Лабаз', i: ':labaz:', cost: { wood: 10, scrap: 1 }, t: 22, ep: 0, w: 42, h: 36, drop: ['hare', 'sable', 'wpelt', 'meat'], d: 'пушнина сама: :hare:1 · 90 с' },
+  labaz2:   { n: 'Лабаз', i: ':labaz:', cost: { wood: 10, scrap: 1 }, t: 22, ep: 0, w: 42, h: 36, drop: ['hare', 'sable', 'wpelt', 'meat'], d: 'пушнина сама: :hare:1 · 4,5 ч' },
   forge:    { n: 'Кузня', i: ':forge:', cost: { wood: 16, scrap: 2 }, t: 30, ep: 1, w: 54, h: 44, d: 'улучшения' },
   tower:    { n: 'Вышка', i: ':tower:', cost: { wood: 12, scrap: 1 }, t: 30, ep: 1, w: 34, h: 34, d: 'огонь и стрелы по волкам' },
   // площадка для вертолёта: только на мари, только после связи; плоская — не преграда
-  pad:      { n: 'Площадка', i: ':pad:', cost: { wood: 20 }, t: 130, ep: 0, w: 96, h: 70, flat: 1, onMar: 1, needContact: 1, d: 'вертолёт сядет только сюда · марь' },
+  // 10×7 м: вешки и лапник по углам (стройка), потом утоптать ≥ 80 % (js/content/chapters.js padK; жители помогают на снегоступах)
+  pad:      { n: 'Площадка', i: ':pad:', cost: { wood: 8 }, t: 30, ep: 0, w: 230, h: 161, flat: 1, onMar: 1, needContact: 1, d: 'марь 10×7 м · вешки, потом утоптать' },
   market:   { n: 'Фактория', i: ':market:', cost: { wood: 20 }, t: 35, ep: 1, w: 76, h: 50, drop: ['wood', 'meat', 'fish', 'hare', 'sable', 'wpelt', 'scrap'], d: 'торг за ₽ по курсу' },
 };
 const UNITS = {
@@ -220,27 +226,31 @@ const INSPECT = [
 ];
 
 // ================= БАЛАНС (реестр чисел логики, E2) =================
-// Все настраиваемые числа игровой логики — здесь. Время — в игровых секундах (сутки = CYCLE),
+// Все настраиваемые числа игровой логики — здесь. Время — в игровых секундах (сутки = CYCLE, час = HOUR),
 // расстояния — px мира, скорости — px/с, «/с» — в секунду. Тексты с числами (подсказки, сообщения)
 // живут в данных контента — меняя число, проверь и текст.
 const TUNE = {
   // уровни сложности: множители потери тепла, голода и урона от волков/шатуна
   diff: {
-    easy:   { n: 'Лёгкая',  i: ':day:', cold: 0.75, hunger: 0.75, wolf: 0.6 },
-    normal: { n: 'Обычная', i: ':frost:', cold: 1, hunger: 1, wolf: 1 },
-    hard:   { n: 'Тяжёлая', i: ':frost:', cold: 1.25, hunger: 1.2, wolf: 1.4 },
+    easy:   { n: 'Лёгкая',  i: ':day:', cold: 0.75, hunger: 0.75, wolf: 0.6, tire: 0.75 },
+    normal: { n: 'Обычная', i: ':frost:', cold: 1, hunger: 1, wolf: 1, tire: 1 },
+    hard:   { n: 'Тяжёлая', i: ':frost:', cold: 1.25, hunger: 1.2, wolf: 1.4, tire: 1.2 },
   },
   time: {
     startH: 9,        // старт игры — 09:00 первого дня
-    sleepX: 4,        // во сне время идёт ×4
+    sleepX: 12,       // во сне время идёт ×12 (пачками шагов в бюджет skipMs — как «До утра»)
     sleepFrom: 19,    // лечь можно с 19:00…
     sleepTo: 6,       // …и до 06:00
     wakeAt: 7,        // утро (подъём, рассвет, улов) — с 07:00 до полудня
+    // «До утра» (Z): та же симуляция пачками шагов skipDt за кадр (не дольше skipMs мс); вне избы — бодрствуя.
+    // Будит: утро, угрозы (как сон) — вне избы волк/шатун ближе skipThreatR
+    skipDt: 0.1, skipMs: 12, skipThreatR: 600,
+    k: HOUR / 20,     // темп: игровой час длиннее прежнего (20 с) в k раз — директор угроз и выработка посёлка считают в игровом времени
   },
   // температура воздуха: днём day0 + dayStep·(день−1), ночью night0 + nightStep·(день−1), с coldDay-го дня ночью coldMin
   temp: { day0: -22, dayStep: -2, night0: -40, nightStep: -3, coldDay: 5, coldMin: -55, storm: -12 },
   // пурга: шанс в сутки, начало между from и to часами, длительность = CHAPTERS[i].threat.storm × [lenMin..lenMax]
-  storm: { chance: 0.75, from: 10, to: 15, lenMin: 0.9, lenMax: 1.3, omenT: 40 },
+  storm: { chance: 0.75, from: 10, to: 15, lenMin: 0.9, lenMax: 1.3, omenT: 2 * HOUR },
   sky: { auroraChance: 0.65, auroraMin: 0.5 },
   // именованные радиусы, завязанные на расстояния по миру
   r: {
@@ -287,7 +297,7 @@ const TUNE = {
   ice: { creakT: 1.5, breakT: 3, warm: 10, wetT: 30 },
   hero: {
     speed: 165, skis: 1.2, sled: 0.9, over: 0.6, storm: 0.8, cold: 0.75, coldBelow: 15, drift: 0.8,
-    capKg: 20, sledKg: 20, overChop: 6,          // грузоподъёмность; рубить можно с перегрузом до +6 кг
+    overChop: 6,                                 // рубить можно с перегрузом до +6 кг сверх комфорта (TUNE.load.packKg)
     chop: 1.6, chopSaw: 1.0, chopSkill: 0.08,    // с на полено; −8 % за уровень рубки
     grip: 14, iceGrip: 2.2, stormDrift: 25,      // разгон по снегу/льду; снос пургой, px/с
   },
@@ -300,30 +310,77 @@ const TUNE = {
     farR: 900,                             // работа людей посёлка дальше — без откликов (слабые машины)
   },
   cloth: { kukhl: 0.6, dokha: 0.7, hat: 0.85 },  // множитель потери тепла
+  // ноша (js/inventory.js, js/carry.js): вещи с массой и объёмом, места с ёмкостью, процессы «взять → убрать», с
+  load: {
+    woodKg: 5, rho: 790, bulk: 1.5,                  // номинал полена (кг), плотность сырой мёрзлой ели (кг/м³), укладка дров: объём с зазорами / твёрдый
+    packL: 75, packKg: 25, packMax: 40,              // рюкзак: л укладки; кг — комфорт (выше — перегруз: медленнее, усталость ×1.5) и предел (не уложить)
+    packWood: 2, packWoodLen: 0.55, packOutLen: 0.9, packWoodKg: 6, pocketL: 1.5, // дрова: внутрь — короткие (≤ 0,55 м, в горловину) по объёму/весу; снаружи под ремни — ещё 2 (≤ 0,9 м); штука ≤ 6 кг; мелочь (≤ 1,5 л) — в поясной карман
+    armsN: 4, armsKg: 25, armsL: 45,                 // охапка: штук, кг, л — руки заняты (не рубить, не бить, не бросать)
+    arms: 0.85, shoulder: 0.9, hold: 0.97,           // скорость с охапкой / с вершиной на плече / с вещью в руке
+    sledL: 320, sledKg: 150, sledPull: 140, sledSink: 1.5, sledTire: 4, // нарты: л, кг; скорость ÷ (1 + кг/140·(1 + 1.5·провал)); усталость +4/ч на 100 кг
+    dragPull: 70,                                    // ствол волоком (хлыст за комель): скорость ÷ (1 + кг/70·(1 + 1.5·провал))
+    pileL: 3000, shedL: 4000,                        // поленница у избы и каждый дровяник посёлка — л укладки
+    // процессы, с (база для вещи ~3 кг; × wt(кг): лёгкое быстрее, тяжёлое медленнее, усталость — ещё медленнее): рюкзак — снять → развязать →
+    // положить внутрь / приторочить снаружи → затянуть → надеть (снять/надеть — по весу рюкзака)
+    t: { pick: 1.0, put: 0.75, doff: 1.0, open: 0.5, stow: 0.7, lash: 1.1, close: 0.5, don: 1.2, pocket: 0.7, get: 0.9, drop: 0.6 },
+    wt: [0.62, 0.85, 7, 0.45],                       // длительность × (a + b·кг/(кг + c)) × (1 + d·усталость/100): банка 0,4 кг ×0.67, чурка 5 кг ×0.97, комель 12 ×1.16, рюкзак 30 кг ×1.31
+  },
+  // разделка ножом: с на шаг (шкура, куски мяса); туша/кости заметает за fade суток (целую — за 2·fade)
+  butcher: { wolf: { skin: 3, meat: [2.2, 2.2] }, wolfLeader: { skin: 3.6, meat: [2.4, 2.4] }, bear: { skin: 0, meat: [2.6, 2.6, 2.6, 2.6] }, hare: { skin: 1.4, meat: [1.2] }, fade: 1 },
   body: {
     warm0: 90, food0: 70,
     frostWarm: 10,                                // −10 к пределу тепла за каждое обморожение
     lossBase: 0.3, lossFrom: -10, lossPerDeg: 0.035, // потеря тепла/с: база + за каждый градус ниже −10
     coldSkill: 0.05, nightLoss: 0.7, moving: 0.85, ice: 1.3, wet: 2, tea: 0.7,
+    wind: 0.03, windFrom: 2,                       // ветер: потеря тепла × (1 + 0.03·(м/с − 2)) — день ~+7 %, пурга ~+48 % (за стенкой — ветер ×0.3)
+    work: 0.6, workHeat: 0.45,                     // работа лопатой/руками (5–8 MET): потеря ×0.6 и своё тепло +0.45/с — греет; потом пот (wetT)
     frostBelow: 10, frostT: 20, frostMax: 3,      // обморожение: тепло < 10 дольше 20 с
     hardenBelow: 50, hardenT: 10,                 // закалка: опыт каждые 10 с на холоде без огня
-    hunger: 0.35, hungerMove: 0.1, hungerSleep: 0.15, deepFrost: -45, hungerDeep: 1.2,
+    // голод — календарный: за игровой час 7 (стоя), +2 на ходу, во сне 3
+    hunger: 7 / HOUR, hungerMove: 2 / HOUR, hungerSleep: 3 / HOUR, deepFrost: -45, hungerDeep: 1.2,
     coldDmg: 2.5, foodDmg: 1.2, regen: 0.25, regenWarm: 40, regenFood: 30,
   },
+  // усталость G.s.tire 0..100 (HUD «Силы» = 100 − tire). «/ч» — за игровой час (HOUR), «/с» — телесное, в секундах.
+  // Формула — Survival.tireRate (ею же считает прогноз ночи); связь с холодом — в Survival.rates.
+  tire: {
+    awake: 2, awakeFrom: 18, awakeK: 12,         // бодрствование +2/ч; после 18 ч без сна ×(1 + (ч − 18)/12)
+    walk: 1.5, snow: 10, over: 1.5,              // ходьба +1.5/ч; по снегу +10/ч × Depth.effort(); перегруз ×1.5
+    hit: 0.4,                                    // удар топором / рез / лунка / обломки — за каждый
+    shiver: 0.6, shiverFrom: 45, frost: 0.1,     // дрожь +0.6/с × (45 − тепло)/45; +0.1/с за каждое обморожение
+    hungry: 0.5, hungryBelow: 25,                // голоден: рост ×(1 + 0.5·(25 − еда)/25)
+    sleep: 10, sleepCold: 3, sleepWarm: 30,      // сон: печь горит −10/ч, изба холодная −3/ч; тепло < 30 — не отдых
+    awakeSleep: 2,                               // во сне счётчик бодрствования тает ×2
+    rest: 4, restWarm: 40, fireAwake: 0.5,       // отдых сидя на пне / в тёплой избе −4/ч при тепле > 40; стоя у огня — бодрствование ×0.5, без отдыха
+    tea: 8, food: 5,                             // чай −8 сразу и без роста, пока греет; горячая еда −5
+    coldLoss: 0.5, coldFrom: 50,                 // потеря тепла × (1 + 0.5·sm(50, 100, tire))
+    speed: 0.25, speedFrom: 60, chop: 0.4, chopFrom: 50, tired: 70, // скорость −25 % и рубка ×1.4 к 100; поза «устал» > 70
+    doze: 90, dozeWarm: 30, dozeStill: 4, dozeT: 6, dozeLoss: 1.5, dozeWake: 1.2, // засыпание на морозе: условия, с, тепло ×1.5, подъём — держать ход 1.2 с
+    low: 30, edge: 10,                           // HUD: сил < 30 — пульс, < 10 — синие края
+  },
   stove: {
-    secPerLog: { base: 25, walls: 35, damper: 45 }, // с огня от полена: без утепления / щели / заслонка
+    // огня от кг дров (сырая мёрзлая ель ≈ 2,3 кВт·ч/кг): без утепления 4,8 кг/ч · щели 3,4 кг/ч · заслонка 2,7 кг/ч.
+    // Прежнее «полено» = 6 кг (Tree.KG): secPerLog() = secPerKg × 6 — прежние 1,25 / 1,75 / 2,25 ч (вместимость печи — в этих единицах)
+    secPerKg: { base: 1.25 * HOUR / 6, walls: 1.75 * HOUR / 6, damper: 2.25 * HOUR / 6 },
     maxLogs: 8, fullSlack: 0.5,                   // вместимость (см. Stove.maxLogs), «полна» — за пол-полена
     nightBurn: 0.3, stormDraft: 1.3,              // ночью горит быстрее; в пургу без щелей — тяга
     insideLit: { base: 15, walls: 25 }, insideCold: { base: 5, walls: 10 }, // +° в избе
     heat: { base: 8, walls: 12, damper: 14 },     // тепло/с от печи
-    chargeT: 60,                                  // аккумулятор заряжается за 60 с
+    chargeT: 60,                                  // аккумулятор заряжается за 60 с (телесное: столько стоишь у печи)
   },
   fire: {
-    fear: { stack: 260, tower: 220, big: 200, small: 110, bigFuel: 10 }, // радиус страха волков
+    fear: { stack: 260, tower: 220, big: 200, small: 110, bigFuel: 0.5 * HOUR }, // радиус страха волков; «большой» — топлива > 0,5 ч
     hutProtectR: 170, torchR: 120, torchT: 60,
     heatR: 140, stackHeatR: 200, heatBase: 3, heatK: 10, // тепло у огня: 3..13/с
     stormBurn: 1.6, nightBurn: 0.5,
-    fuelAdd: 25, fuelMax: 160, relightCost: 2, relightFuel: 40, buildCost: 3, buildFuel: 45,
+    // топливо костра — игровые секунды от массы: кг горит 12,5 мин (4,8 кг/ч), максимум 8 ч; разжечь — поленьев relightCost/buildCost,
+    // при растопке часть уходит впустую (eff: новый костёр 0,6, разжечь кострище 0,8); fuelAdd — прежнее полено 6 кг (засыпать: остаток → поленья)
+    secPerKg: 1.25 * HOUR / 6, fuelAdd: 1.25 * HOUR, fuelMax: 8 * HOUR, relightCost: 2, relightEff: 0.8, buildCost: 3, buildEff: 0.6,
+    // огонь как вещь мира: ожог при шаге в костёр (раз в burnCd с, не ниже burnFloor hp); держатся от огня (px от центра, сверх своего радиуса)
+    burnDmg: 8, burnCd: 1.2, burnFloor: 5, keep: { p: 9, ride: 30, buran: 12, n: 14, w: 14, b: 22, deer: 40, hare: 28, dog: 20 },
+    // костёр на льду: протаивает (доля за с): тонкий — быстро, голый — часы, под снегом — дольше; лужа гасит быстрее (×(1+wet·thaw))
+    iceThaw: { thin: 1 / 14, bare: 1 / 170, snowy: 1 / 230, refreeze: 1 / 700, wet: 0.8 },
+    // снег с ели над костром: сколько секунд тепла до первого/следующего кома (разброс), комьев на дерево, урон топливу, шанс погасить слабый
+    treeSnow: { r: 20, rk: 16, first: [8, 20], next: [15, 35], max: 3, fuelHit: 25, outP: 0.3, outFuel: 60 },
   },
   act: {
     bearR: 80, wolfR: 58, hareR: 50,              // дотянуться до зверя (E)
@@ -349,7 +406,7 @@ const TUNE = {
   pose: { commit: { hurt: 0.25, slip: 0.25, stagger: 0.2, flinch: 0.15 }, runV: 185, staggerP: 0.6, staggerCd: 2.5, glideV: 8, glideA: 0.3, tail: [0.3, 0.66] },
   radio: { sessions: [[7.5, 9], [19.5, 21]], fromChapter: 3 }, // окна сеансов; борт слышит с главы IV
   fauna: { hareMinR: 700, hareScare: 170, hareRun: 150, hareRunSkill: 4, hareRespawn: 0.3 },
-  traps: { minT: 30, sable: 0.35, wpeltTo: 0.45, trapHare: 0.3, snareHare: 0.4 }, // улов на рассвете
+  traps: { minT: 1.5 * HOUR, sable: 0.35, wpeltTo: 0.45, trapHare: 0.3, snareHare: 0.4 }, // улов на рассвете
   director: {
     w: { warm: 0.35, hp: 0.25, food: 0.15, night: 20, storm: 15, far: 10, wolf: 8, bear: 30 }, // веса напряжения
     wolfR: 400, bearR: 500, budgetMax: 80, mercyHp: 30, mercyCalm: 20,
@@ -372,18 +429,19 @@ const TUNE = {
     // в последнюю ночь порог «подранка» снят (bear.js) — драка идёт до конца, у вышек/стрелков/факела
     // есть настоящий шанс добить; не добили — уходит насовсем.
     appsMax: 3,
+    fireFear: 0.55, fireFearLast: 0.4,            // огонь: доля радиуса страха волков; голодный шатун последнего выхода — ближе
   },
   colony: {
     popBase: 4, popPerBalok: 4, queueMax: 5, rub0: 40,
-    eatT0: 60, eatEvery: 90, hungerHp: 6,         // посёлок ест раз в 90 с; нет еды — −6 здоровья
+    eatT0: 3 * HOUR, eatEvery: 4.5 * HOUR, hungerHp: 6, // посёлок ест раз в 4,5 игр. ч; нет еды — −6 здоровья
     hideFrom: 18.5, hideTo: 7.5, stormSpeed: 0.7, heal: 0.5,
     carry: { hunt: 4, fish: 4, other: 5 },
     chopT: 2.4, woodshedK: 1.2, woodshedR: 260, treeR: 600, hareR: 650,
     fishT: 6, fishP: 0.55, wreckT: 5, huntT: 1.4, huntP: 0.7,
     fearR: 300, fleeR: 150, guardR: 260, petR: 140,
     meleeCd: 1, rangedCd: 1.6, rangedHit: 0.8, bearDmgK: 0.5,
-    buildHp: 60, furT: 90, furSable: 0.4, smokeT: 20, barkT: 20,
-    towerFuel: 60, towerR: 280, towerCd: 2, towerHit: 0.75,
+    buildHp: 60, furT: 4.5 * HOUR, furSable: 0.4, smokeT: HOUR, barkT: 20,   // лабаз: шкурка раз в 4,5 ч; коптильня: кусок за час
+    towerFuel: 3 * HOUR, towerR: 280, towerCd: 2, towerHit: 0.75,
     marketR: 180, fee: 0.3, feeFriend: 0.15, feeRespect: 3, sellDecay: 0.97, buyRise: 1.03, inflation: 1.05,
   },
 };

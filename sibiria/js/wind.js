@@ -44,6 +44,7 @@ const Wind = (() => {
   const angLerp = (a, b, k) => { let d = b - a; d -= Math.round(d / (Math.PI * 2)) * Math.PI * 2; return a + d * k; };
   let dT = NaN, dG = null, dS = null, dV = 0;
   function dirAt(gt) {
+    if (F.dir != null) return F.dir;
     const Hh = HOUR(), n = noise();
     let d = D0 + WANDER * n.n2(gt / (10 * Hh), 3.7) + WANDER2 * n.n2(gt / (5 * Hh), 9.1);
     const S = typeof G !== 'undefined' && G ? G.storm : null;
@@ -64,15 +65,24 @@ const Wind = (() => {
     if (typeof G === 'undefined' || !G) return DAY;
     if (G.time === cT && G === cG && G.storm === cS) return cB;
     cT = G.time; cG = G; cS = G.storm;
-    const h = hourOf(), day = sm(9.5, 11.5, h) * (1 - sm(17, 19, h));
-    let b = CALM + (DAY - CALM) * day;
-    const S = G.storm;
-    if (S && typeof state !== 'undefined' && state === 'play') {
-      const k = sm(S.a - RAMP, S.a + 5, G.time) * (1 - sm(S.b - 5, S.b + RAMP, G.time));
-      b += (STORM - b) * k;
-    }
-    return (cB = b);
+    return (cB = baseAt(G.time, typeof state !== 'undefined' && state === 'play'));
   }
+  // погода в момент t (прогноз ночи — свой час); storm — учитывать пургу
+  function baseAt(t, storm = true) {
+    if (F.base != null) return F.base;
+    const h = hourOf(t), day = sm(9.5, 11.5, h) * (1 - sm(17, 19, h));
+    let b = CALM + (DAY - CALM) * day;
+    const S = typeof G !== 'undefined' && G ? G.storm : null;
+    if (S && storm) { const k = sm(S.a - RAMP, S.a + 5, t) * (1 - sm(S.b - 5, S.b + RAMP, t)); b += (STORM - b) * k; }
+    return b;
+  }
+  // ветер «на коже», м/с, без порыва: погода в момент t × местность × укрытие за отвалом/стенкой (js/trail.js shelter) — тепло тела (js/survival.js)
+  function feel(x, y, t) {
+    const B = F.ms != null ? F.ms : terrain(x, y, baseAt(t == null ? G.time : t));
+    return B * shelter(x, y, t);
+  }
+  // укрытие 0.3..1: стенка/отвал ≥ 60 см и ≥ 2 м с наветренной стороны (Trail.shelter)
+  function shelter(x, y, t) { return typeof Trail !== 'undefined' && Trail.shelter ? Trail.shelter(x, y, t == null || F.dir != null || (G && t === G.time) ? dir() : dirAt(t)) : 1; }
   // полог леса: под кронами ветер слабее, до × 0.5 (паспорт R1). Сетка 128 px, клетка считается один раз (сумма крон в ±112 px:
   // ель и кедр 1, голая берёза 0.4, гарь и деревца 0 — × размер), билинейно между клетками. Сброс — новый мир или раз в 60 с игры (рубка, рост)
   const CC = 128, TMP = []; let CG = null, CGx = 0, CGy = 0, CGsrc = null, CGt = 0;
@@ -125,5 +135,5 @@ const Wind = (() => {
   }
   function force(o) { F.t = F.ms = F.base = F.gust = F.dir = null; if (o) Object.assign(F, o); cT = NaN; dT = NaN; }
   function seed(v) { seedV = v >>> 0; WN = null; }
-  return { at, ms, gust, base, treeK, px, beaufort, tick, force, seed, clock, dir, dirAt, canopy, CALM, DAY, STORM, get forced() { return Object.assign({}, F); } };
+  return { at, ms, gust, base, baseAt, feel, shelter, treeK, px, beaufort, tick, force, seed, clock, dir, dirAt, canopy, CALM, DAY, STORM, get forced() { return Object.assign({}, F); } };
 })();
