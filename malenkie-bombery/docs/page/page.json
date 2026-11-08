@@ -60,8 +60,9 @@
   "ru": [
    ["Можно ли играть в «Маленькие бомберы» онлайн без скачивания?", "Да. Игра открывается кнопкой «Играть в браузере» на этой странице и работает прямо во вкладке, на компьютере и на телефоне. Ничего устанавливать не нужно, регистрироваться тоже."],
    ["Это та самая игра «Маленькие бомберы возвращаются» от Alawar?", "Нет. Игра Alawar вышла в 2004 году как программа для Windows. Эта игра сделана заново для браузера: свои уровни, редактор и 18 наград. Общее у них — идея бомбермена: лабиринт, бомбы и выход под ящиком."],
+   ["Маленькие бомберы возвращаются от Alawar не запускаются на Windows 10 или 11: что делать?", "На форумах игроки пишут, что старая игра Alawar на новых версиях Windows мерцает, показывает белый экран или не стартует. Одним помогает правка файла config.ini в папке игры: строку fullscreen=1 заменить на fullscreen=0, и игра идёт в окне; другим это не помогает. Если нужно просто сыграть в бомбермен, эта игра открывается в браузере без установки."],
    ["На каких языках игра?", "На русском, английском, тайском, грузинском, вьетнамском, испанском и французском. Игра стартует на языке страницы сайта, с которой вы нажали «Играть», а сменить язык можно кнопкой в меню."],
-   ["Есть ли режим на двоих?", "Пока нет: в игре одиночная кампания на 50 уровней и свои уровни из редактора."],
+   ["Есть ли режим на двоих?", "Пока нет: в этой игре один игрок — кампания на 50 уровней и свои уровни из редактора. В игре Alawar можно играть до четырёх игроков."],
    ["Где сохраняется прогресс?", "В самом браузере на вашем устройстве: пройденные уровни, звёзды, рекорды и свои уровни. Если очистить данные сайта, они пропадут: заранее скопируйте код прогресса кнопкой «Прогресс» в меню."],
    ["Как перенести прогресс на другое устройство?", "В меню нажмите «Прогресс», скопируйте код и вставьте его там же на другом устройстве: прогресс объединится с тем, что уже есть."],
    ["Как получить три звезды?", "Пройти уровень быстрее контрольного времени, оно показано на экране победы."],
@@ -71,8 +72,9 @@
   "en": [
    ["Can I play Little Bombers online without downloading?", "Yes. The game opens with the Play in your browser button on this page and runs right in the tab, on desktop and on phones. There is nothing to install and no account to create."],
    ["Is this the Little Bombers Returns game from Alawar?", "No. The Alawar game came out in 2004 as a Windows program. This one is built from scratch for the browser, with its own levels, an editor and 18 achievements. What they share is the Bomberman idea: a maze, bombs and an exit under a crate."],
+   ["Alawar’s Little Bombers Returns won’t start on Windows 10 or 11: what can I do?", "On forums, players report that the old Alawar game flickers, shows a white screen or does not start on newer versions of Windows. For some, editing the config.ini file in the game folder helps: change fullscreen=1 to fullscreen=0 and the game runs in a window; for others it does not help. If you just want to play a Bomberman-style game, this one opens in the browser with nothing to install."],
    ["Which languages does the game support?", "Russian, English, Thai, Georgian, Vietnamese, Spanish and French. The game starts in the language of the site page where you pressed Play, and you can change it with the language button in the menu."],
-   ["Is there a two-player mode?", "Not yet: the game has a single-player campaign of 50 levels plus your own levels from the editor."],
+   ["Is there a two-player mode?", "Not yet: this game is single-player, with a campaign of 50 levels plus your own levels from the editor. The Alawar game supports up to four players."],
    ["Where is my progress saved?", "In your browser on your device: finished levels, stars, best times and your own levels. Clearing the site data removes them, so copy the progress code with the Progress button in the menu first."],
    ["How do I move progress to another device?", "Press Progress in the menu, copy the code and paste it in the same place on the other device: it merges with whatever is already there."],
    ["How do I get three stars?", "Finish the level faster than the target time shown on the victory screen."],
@@ -85,5 +87,5 @@
   {"file": "docs/screenshots/menu.jpg", "w": 1600, "h": 900, "alt": {"ru": "Маленькие бомберы: главное меню", "en": "Little Bombers: the main menu"}}
  ],
  "related": ["northern-rift", "uptime"],
- "keywords": {"ru": ["маленькие бомберы играть онлайн", "маленькие бомберы онлайн", "бомбермен онлайн", "бомбермен без скачивания", "игра с бомбами в браузере", "редактор уровней бомбермен"], "en": ["little bombers online", "little bombers game", "bomberman online", "play bomberman without download", "bomberman style browser game", "bomberman level editor"]}
+ "keywords": {"ru": ["маленькие бомберы играть онлайн", "маленькие бомберы онлайн", "маленькие бомберы возвращаются windows 10", "бомбермен онлайн", "бомбермен без скачивания", "игра с бомбами в браузере", "редактор уровней бомбермен"], "en": ["little bombers online", "little bombers game", "little bombers returns windows 10", "bomberman online", "play bomberman without download", "bomberman style browser game", "bomberman level editor"]}
 }
