@@ -28,7 +28,7 @@
    "50 уровней в десяти мирах: луг, дюны, лёд, лава, болото, космос, джунгли, руины, неон, закат",
    "До трёх звёзд за уровень — за скорость прохождения",
    "Три врага: слизень бродит, летун бросается по прямой, призрак проходит сквозь ящики",
-   "Бонусы под ящиками: лишняя бомба, длиннее огонь, быстрее шаг",
+   "Бонусы под ящиками: лишняя бомба, длиннее огонь, быстрее шаг; собранное переходит на следующий уровень",
    "Редактор уровней: рисуй, проверяй, сохраняй, делись кодом",
    "18 наград: за звёзды, врагов, ящики, скорость и свои уровни",
    "Прогресс, награды, рекорды и свои уровни сохраняются в браузере; переносятся кодом на другое устройство",
@@ -40,7 +40,7 @@
    "50 levels in ten worlds: meadow, dunes, ice, lava, swamp, space, jungle, ruins, neon, sunset",
    "Up to three stars per level, earned for speed",
    "Three enemies: the slime wanders, the bat charges in a straight line, the ghost passes through crates",
-   "Power-ups under crates: an extra bomb, longer flames, faster steps",
+   "Power-ups under crates: an extra bomb, longer flames, faster steps; what you collect carries over to the next level",
    "Level editor: draw, test, save and share by code",
    "18 achievements: for stars, enemies, crates, speed and your own levels",
    "Progress, achievements, best times and your own levels are saved in the browser and move to another device with a code",
@@ -65,6 +65,7 @@
    ["Есть ли режим на двоих?", "Пока нет: в этой игре один игрок — кампания на 50 уровней и свои уровни из редактора. В игре Alawar можно играть до четырёх игроков."],
    ["Где сохраняется прогресс?", "В самом браузере на вашем устройстве: пройденные уровни, звёзды, рекорды и свои уровни. Если очистить данные сайта, они пропадут: заранее скопируйте код прогресса кнопкой «Прогресс» в меню."],
    ["Как перенести прогресс на другое устройство?", "В меню нажмите «Прогресс», скопируйте код и вставьте его там же на другом устройстве: прогресс объединится с тем, что уже есть."],
+   ["Переходят ли бонусы на следующий уровень?", "Да. Лишние бомбы, длинный огонь и скорость, собранные на уровне, остаются и на следующем. Если проиграть, уровень начнётся заново с тем набором, с которым вы в него вошли, так что неудачная попытка ничего не отнимает. Набор входит в код прогресса."],
    ["Как получить три звезды?", "Пройти уровень быстрее контрольного времени, оно показано на экране победы."],
    ["Как поделиться своим уровнем?", "В редакторе нажмите кнопку кода и отправьте другу получившийся текст. Он вставит его в разделе «Мои уровни»."],
    ["Можно ли играть на телефоне?", "Да, на сенсорном экране появляются джойстик и кнопка бомбы."]
@@ -77,6 +78,7 @@
    ["Is there a two-player mode?", "Not yet: this game is single-player, with a campaign of 50 levels plus your own levels from the editor. The Alawar game supports up to four players."],
    ["Where is my progress saved?", "In your browser on your device: finished levels, stars, best times and your own levels. Clearing the site data removes them, so copy the progress code with the Progress button in the menu first."],
    ["How do I move progress to another device?", "Press Progress in the menu, copy the code and paste it in the same place on the other device: it merges with whatever is already there."],
+   ["Do power-ups carry over to the next level?", "Yes. The extra bombs, longer flames and faster steps you collected in a level stay with you in the next one. If you lose, the level restarts with the set you entered it with, so a failed attempt costs you nothing. The set is part of the progress code."],
    ["How do I get three stars?", "Finish the level faster than the target time shown on the victory screen."],
    ["How do I share my level?", "In the editor press the code button and send the resulting text to a friend. They paste it in the My levels section."],
    ["Can I play on a phone?", "Yes, a joystick and a bomb button appear on touch screens."]
