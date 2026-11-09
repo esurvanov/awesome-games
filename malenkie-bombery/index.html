@@ -435,12 +435,12 @@ function shuffle(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math
 /* ============================ СОХРАНЕНИЕ ============================ */
 // всё в одном ключе: прогресс кампании, свои уровни, черновик редактора, звук
 const SKEY = 'malenkie-bombery.v1';
-const blank = () => ({ unlocked: 0, done: {}, custom: [], draft: null, sound: true, ach: {}, stats: {} });
+const blank = () => ({ unlocked: 0, done: {}, custom: [], draft: null, sound: true, ach: {}, stats: {}, kit: {} });
 let save = (() => {
   try { const v = JSON.parse(localStorage.getItem(SKEY)); if (v && typeof v === 'object') return Object.assign(blank(), v); } catch (e) {}
   return blank();
 })();
-save.ach = save.ach || {}; save.stats = save.stats || {};
+save.ach = save.ach || {}; save.stats = save.stats || {}; save.kit = save.kit || {};
 // старые сохранения: за каждым пройденным уровнем открыт следующий (так новые уровни доступны сразу)
 for (const k in save.done) save.unlocked = Math.max(save.unlocked, +k + 1);
 addEventListener('pagehide', () => { try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch (e) {} });
@@ -747,13 +747,16 @@ function fillAch() {
 let G = null;
 const SPD = { m: 1.6, v: 2.6, g: 1.25 };
 function mkEnemy(e) { return { type: e.type, x: e.x, y: e.y, tx: e.x, ty: e.y, ox: e.x, oy: e.y, dx: 0, dy: 0, alive: true, die: 0, ph: Math.random() * 6 }; }
+// набор, с которым игрок входит в уровень кампании: бонусы, взятые на предыдущем уровне, переходят на следующий
+const KIT0 = { maxB: 1, fire: 2, spd: 0 };
+function entryKit(src) { const k = src && src.kind === 'camp' && src.i > 0 && save.kit[src.i - 1]; return k ? { maxB: k[0], fire: k[1], spd: k[2] } : { ...KIT0 }; }
 function newGame(src, attract = false) {
   const L = parseLevel(src.rows);
   return {
     src, attract, grid: L.grid, hidden: L.hidden, items: new Map(), exitAt: -1, bombs: [],
     flame: new Float32Array(W * H), fdir: new Uint8Array(W * H), burn: new Float32Array(W * H),
     parts: [], theme: THEMES[src.theme || 0], time: 0, limit: src.par ? Math.max(200, Math.round(src.par * 1.8)) : 200, stat: { picks: 0, kills: [] }, state: 'play', endT: 0, shake: 0, clock: 0,
-    p: attract ? null : { x: L.start.x, y: L.start.y, fx: 0, fy: 1, maxB: 1, fire: 2, spd: 0, out: 0, alive: true, walk: 0, moving: false },
+    p: attract ? null : { x: L.start.x, y: L.start.y, fx: 0, fy: 1, ...entryKit(src), out: 0, alive: true, walk: 0, moving: false },
     enemies: L.enemies.map(mkEnemy), exitOpenSaid: false,
   };
 }
@@ -912,6 +915,7 @@ function win() {
     const st = t <= s.par ? 3 : t <= s.par * 1.6 ? 2 : 1, old = save.done[s.i] || { stars: 0, best: Infinity };
     G.result = { stars: st, time: t, best: Math.min(old.best ?? Infinity, t), newBest: t < (old.best ?? Infinity) };
     save.done[s.i] = { stars: Math.max(old.stars, st), best: G.result.best };
+    { const o = save.kit[s.i] || [1, 2, 0]; save.kit[s.i] = [Math.max(o[0], G.p.maxB), Math.max(o[1], G.p.fire), Math.max(o[2], G.p.spd)]; }
     save.unlocked = Math.max(save.unlocked, Math.min(CAMP.length - 1, s.i + 1)); if (s.i === CAMP.length - 1) save.finished = true;
     cnt('wins'); save.stats.streak = (save.stats.streak || 0) + 1; save.stats.bestStreak = Math.max(save.stats.bestStreak || 0, save.stats.streak);
     if (G.stat.picks === 0) grant('lite');
@@ -1330,7 +1334,7 @@ function decode(s) {
   const rows = []; for (let y = 0; y < H; y++) rows.push(o.r.slice(y * W, y * W + W));
   return { name: String(o.n || '').slice(0, 28), theme: Math.max(0, Math.min(THEMES.length - 1, o.t | 0)), rows };
 }
-function encodeSave() { const { done, unlocked, custom, ach, stats } = save; return 'MBS1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ done, unlocked, custom, ach, stats })))); }
+function encodeSave() { const { done, unlocked, custom, ach, stats, kit } = save; return 'MBS1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ done, unlocked, custom, ach, stats, kit })))); }
 // вставленный прогресс не затирает текущий, а объединяется с ним: лучшие звёзды и время, больше счётчики
 function mergeSave(code) {
   const o = JSON.parse(decodeURIComponent(escape(atob(code.trim().slice(5)))));
@@ -1343,6 +1347,8 @@ function mergeSave(code) {
     save.custom.push({ id: String(c.id), name: String(c.name || '').slice(0, 28), theme: Math.max(0, Math.min(THEMES.length - 1, c.theme | 0)), rows: c.rows, best: c.best ?? null });
   for (const k in (o.ach || {})) if (ACH.some((a) => a.id === k)) save.ach[k] = Math.min(save.ach[k] || Infinity, +o.ach[k] || Date.now());
   for (const k in (o.stats || {})) if (typeof o.stats[k] === 'number' && k !== 'streak') save.stats[k] = Math.max(save.stats[k] || 0, o.stats[k]);
+  for (const k in (o.kit || {})) { const n = o.kit[k]; if (!(+k >= 0 && +k < CAMP.length) || !Array.isArray(n)) continue; const d = save.kit[k] || [1, 2, 0];
+    save.kit[k] = [Math.max(d[0], Math.min(8, n[0] | 0)), Math.max(d[1], Math.min(9, n[1] | 0)), Math.max(d[2], Math.min(3, n[2] | 0))]; }
   checkAch(); persist();
 }
 function openCode(code, title) { $('cTitle').textContent = tr(title || 'Код уровня'); $('cTxt').value = code; $('oCode').hidden = false; $('cCopy').hidden = !code; if (!code) $('cTxt').focus(); else $('cTxt').select(); }
